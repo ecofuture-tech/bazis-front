@@ -1,6 +1,7 @@
 {
   "name": "@bazis/client",
   "version": "0.0.0",
+  "private": true,
   "description": "The JSON:API protocol of Bazis, typed by the OpenAPI types of a project",
   "license": "Apache-2.0",
   "repository": {
@@ -21,9 +22,6 @@
     "LICENSE",
     "NOTICE"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
