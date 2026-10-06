@@ -113,19 +113,20 @@ The key is a field path with an optional lookup, separated by `__`:
 |---|---|
 | `name`, `author__name` | equal; through relations (an `EXISTS` subquery) |
 | `price__gt`, `__gte`, `__lt`, `__lte` | ranges |
-| `parent__isnull` | `true` / `false` |
-| `name__iexact`, `__istartswith`, `__iregex`, `__search` | text lookups, applied to every word of the value |
+| `price__isnull`, `parent__isnull` | `true` / `false`; on a relation the opposite of `__exists` |
+| `name__iexact`, `__istartswith`, `__iregex` | text lookups, applied to every word of the value (`__search` only on string fields) |
 | `name__$search` | every word of the value is contained in the field |
 | `$search` | every word is contained in one of the text or integer fields of the model |
 | `children__exists` | the relation has (`true`) or has no (`false`) objects |
-| `tags=a,b` | an array field overlaps the values (`tags__contains`, `__contained_by` also work) |
-| `period__overlap=start,end` | range fields: the lookups of Django range fields |
+| `tags=a,b` | an array field overlaps the values (`__overlap`, `__contains`, `__contained_by`) |
+| `period__overlap=start,end` | range fields, a lookup is required: `contains`, `contained_by`, `overlap`, `fully_lt`, `fully_gt`, `not_lt`, `not_gt`, `adjacent_to` |
 | `point__near=lon,lat[,meters]`, `point__in_bbox=…` | geometry |
 | `app.model=id1,id2` | objects related to these objects of the model |
 
-Other suffixes (`__in`, `__contains` and `__icontains` on a text or a number field) are
-not lookups of Bazis: the field is compared for equality with the whole value. A text
-field (`TextField`) is always searched by words, not compared. The words of a value are
+An unknown field or a lookup the field does not support (`__in`, `__icontains` on a
+plain field) is rejected with a 400 `ERR_FILTER` error that lists the supported lookups
+(bazis 2.5.0; older versions silently compared such a field for equality). A text field
+(`TextField`) is always searched by words, not compared. The words of a value are
 separated by spaces or commas and must all match.
 
 Values: `null` is sent as `null` (no value) and booleans as `true`/`false`.

@@ -32,8 +32,8 @@ export const api = createClient<paths>({ baseUrl, token: () => session.token });
   If a path or an attribute does not compile, the contract is stale or the code is wrong;
   never cast it away.
 - Build filters with `Filter.where/and/or/not`; never concatenate the expression or encode
-  values yourself. Only the lookups of Bazis work (see the README of the package): `__in`
-  and `__icontains` on a plain field silently compare for equality.
+  values yourself. Only the lookups of Bazis work (see the README of the package); an
+  unknown field or lookup is a 400 `ERR_FILTER` error (silently ignored before bazis 2.5.0).
 - Show validation errors from `ApiError.fieldErrors()`; show other errors from
   `ApiError.message`.
 - Request the permission meta (`meta: ['for_change', 'for_delete', 'for_create']` on a
