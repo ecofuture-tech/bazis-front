@@ -1,0 +1,5249 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/entity/child_entity/schema_list/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Schema List",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_schema_list_api_v1_entity_child_entity_schema_list__get",
+        "parameters": [
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Childentityrouteset Action Schema List Api V1 Entity Child Entity Schema List  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/schema_create/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Schema Create",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_schema_create_api_v1_entity_child_entity_schema_create__get",
+        "parameters": [
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Childentityrouteset Action Schema Create Api V1 Entity Child Entity Schema Create  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/{item_id}/schema_retrieve/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Schema Retrieve",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_schema_retrieve_api_v1_entity_child_entity__item_id__schema_retrieve__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Childentityrouteset Action Schema Retrieve Api V1 Entity Child Entity  Item Id  Schema Retrieve  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/{item_id}/schema_update/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Schema Update",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_schema_update_api_v1_entity_child_entity__item_id__schema_update__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Childentityrouteset Action Schema Update Api V1 Entity Child Entity  Item Id  Schema Update  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/route_filter_fields/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Get Route Filter Fields",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_get_route_filter_fields_api_v1_entity_child_entity_route_filter_fields__get",
+        "parameters": [
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldListModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/_id/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action List Id",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_list_id_api_v1_entity_child_entity__id__get",
+        "parameters": [
+          {
+            "name": "fields[entity.child_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Child Entity]"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Filter"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Search"
+            }
+          },
+          {
+            "name": "page[offset]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Page[Offset]"
+            }
+          },
+          {
+            "name": "page[limit]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Page[Limit]"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Childentityrouteset Action List Id Api V1 Entity Child Entity  Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action List",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_list_api_v1_entity_child_entity__get",
+        "parameters": [
+          {
+            "name": "fields[entity.child_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Child Entity]"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Filter"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Search"
+            }
+          },
+          {
+            "name": "page[offset]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Page[Offset]"
+            }
+          },
+          {
+            "name": "page[limit]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Page[Limit]"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/entity__child_entity__schema_list__386a7615d4b5616073650f2ac25f8e34"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Create",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_create_api_v1_entity_child_entity__post",
+        "parameters": [
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "$ref": "#/components/schemas/entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/{item_id}/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Retrieve",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_retrieve_api_v1_entity_child_entity__item_id___get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "fields[entity.child_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Child Entity]"
+            }
+          },
+          {
+            "name": "fields[entity.parent_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Parent Entity]"
+            }
+          },
+          {
+            "name": "fields[entity.with_protected_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.With Protected Entity]"
+            }
+          },
+          {
+            "name": "fields[entity.with_protected_entity_system]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.With Protected Entity System]"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Update",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_update_api_v1_entity_child_entity__item_id___patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "$ref": "#/components/schemas/entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Destroy",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_destroy_api_v1_entity_child_entity__item_id___delete",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/{item_id}/relationships/{related_field_name}": {
+      "post": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Post Relationships",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_post_relationships_api_v1_entity_child_entity__item_id__relationships__related_field_name__post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "related_field_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Related Field Name"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelationshipData-Input"
+              },
+              "examples": {
+                "to_one": {
+                  "summary": "To-one relationship",
+                  "description": "Changing a single relationship",
+                  "value": {
+                    "data": {
+                      "type": "string",
+                      "id": "string"
+                    }
+                  }
+                },
+                "to_many": {
+                  "summary": "To-many relationship",
+                  "description": "Changing multiple relationships",
+                  "value": {
+                    "data": [
+                      {
+                        "type": "string",
+                        "id": "string"
+                      },
+                      {
+                        "type": "string",
+                        "id": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Update Relationships",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_update_relationships_api_v1_entity_child_entity__item_id__relationships__related_field_name__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "related_field_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Related Field Name"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelationshipData-Input"
+              },
+              "examples": {
+                "to_one": {
+                  "summary": "To-one relationship",
+                  "description": "Changing a single relationship",
+                  "value": {
+                    "data": {
+                      "type": "string",
+                      "id": "string"
+                    }
+                  }
+                },
+                "to_many": {
+                  "summary": "To-many relationship",
+                  "description": "Changing multiple relationships",
+                  "value": {
+                    "data": [
+                      {
+                        "type": "string",
+                        "id": "string"
+                      },
+                      {
+                        "type": "string",
+                        "id": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Delete Relationships",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_delete_relationships_api_v1_entity_child_entity__item_id__relationships__related_field_name__delete",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "related_field_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Related Field Name"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelationshipData-Input"
+              },
+              "examples": {
+                "to_one": {
+                  "summary": "To-one relationship",
+                  "description": "Changing a single relationship",
+                  "value": {
+                    "data": {
+                      "type": "string",
+                      "id": "string"
+                    }
+                  }
+                },
+                "to_many": {
+                  "summary": "To-many relationship",
+                  "description": "Changing multiple relationships",
+                  "value": {
+                    "data": [
+                      {
+                        "type": "string",
+                        "id": "string"
+                      },
+                      {
+                        "type": "string",
+                        "id": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/child_entity/{item_id}/dict_data/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Childentityrouteset Action Dict Data",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ChildEntityRouteSet_action_dict_data_api_v1_entity_child_entity__item_id__dict_data__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/schema_list/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Schema List",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_schema_list_api_v1_entity_parent_entity_schema_list__get",
+        "parameters": [
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Parententityrouteset Action Schema List Api V1 Entity Parent Entity Schema List  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/schema_create/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Schema Create",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_schema_create_api_v1_entity_parent_entity_schema_create__get",
+        "parameters": [
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Parententityrouteset Action Schema Create Api V1 Entity Parent Entity Schema Create  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/{item_id}/schema_retrieve/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Schema Retrieve",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_schema_retrieve_api_v1_entity_parent_entity__item_id__schema_retrieve__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Parententityrouteset Action Schema Retrieve Api V1 Entity Parent Entity  Item Id  Schema Retrieve  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/{item_id}/schema_update/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Schema Update",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_schema_update_api_v1_entity_parent_entity__item_id__schema_update__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Parententityrouteset Action Schema Update Api V1 Entity Parent Entity  Item Id  Schema Update  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/route_filter_fields/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Get Route Filter Fields",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_get_route_filter_fields_api_v1_entity_parent_entity_route_filter_fields__get",
+        "parameters": [
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldListModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/_id/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action List Id",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_list_id_api_v1_entity_parent_entity__id__get",
+        "parameters": [
+          {
+            "name": "fields[entity.parent_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Parent Entity]"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Filter"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Search"
+            }
+          },
+          {
+            "name": "page[offset]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Page[Offset]"
+            }
+          },
+          {
+            "name": "page[limit]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Page[Limit]"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Parententityrouteset Action List Id Api V1 Entity Parent Entity  Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action List",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_list_api_v1_entity_parent_entity__get",
+        "parameters": [
+          {
+            "name": "fields[entity.parent_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Parent Entity]"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Filter"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Search"
+            }
+          },
+          {
+            "name": "page[offset]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Page[Offset]"
+            }
+          },
+          {
+            "name": "page[limit]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Page[Limit]"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/entity__parent_entity__schema_list__5ca3fd138a0659ea6e93d756730cf5e4"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Create",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_create_api_v1_entity_parent_entity__post",
+        "parameters": [
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "$ref": "#/components/schemas/entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/{item_id}/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Retrieve",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_retrieve_api_v1_entity_parent_entity__item_id___get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "fields[entity.parent_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Parent Entity]"
+            }
+          },
+          {
+            "name": "fields[entity.child_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Child Entity]"
+            }
+          },
+          {
+            "name": "fields[entity.dependent_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Dependent Entity]"
+            }
+          },
+          {
+            "name": "fields[entity.dependent_entity_null]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Dependent Entity Null]"
+            }
+          },
+          {
+            "name": "fields[entity.extended_entity]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Extended Entity]"
+            }
+          },
+          {
+            "name": "fields[entity.extended_entity_null]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fields[Entity.Extended Entity Null]"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Update",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_update_api_v1_entity_parent_entity__item_id___patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Include"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "$ref": "#/components/schemas/entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Destroy",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_destroy_api_v1_entity_parent_entity__item_id___delete",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaErrors"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/{item_id}/relationships/{related_field_name}": {
+      "post": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Post Relationships",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_post_relationships_api_v1_entity_parent_entity__item_id__relationships__related_field_name__post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "related_field_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Related Field Name"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelationshipData-Input"
+              },
+              "examples": {
+                "to_one": {
+                  "summary": "To-one relationship",
+                  "description": "Changing a single relationship",
+                  "value": {
+                    "data": {
+                      "type": "string",
+                      "id": "string"
+                    }
+                  }
+                },
+                "to_many": {
+                  "summary": "To-many relationship",
+                  "description": "Changing multiple relationships",
+                  "value": {
+                    "data": [
+                      {
+                        "type": "string",
+                        "id": "string"
+                      },
+                      {
+                        "type": "string",
+                        "id": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Update Relationships",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_update_relationships_api_v1_entity_parent_entity__item_id__relationships__related_field_name__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "related_field_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Related Field Name"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelationshipData-Input"
+              },
+              "examples": {
+                "to_one": {
+                  "summary": "To-one relationship",
+                  "description": "Changing a single relationship",
+                  "value": {
+                    "data": {
+                      "type": "string",
+                      "id": "string"
+                    }
+                  }
+                },
+                "to_many": {
+                  "summary": "To-many relationship",
+                  "description": "Changing multiple relationships",
+                  "value": {
+                    "data": [
+                      {
+                        "type": "string",
+                        "id": "string"
+                      },
+                      {
+                        "type": "string",
+                        "id": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Delete Relationships",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_delete_relationships_api_v1_entity_parent_entity__item_id__relationships__related_field_name__delete",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "related_field_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Related Field Name"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelationshipData-Input"
+              },
+              "examples": {
+                "to_one": {
+                  "summary": "To-one relationship",
+                  "description": "Changing a single relationship",
+                  "value": {
+                    "data": {
+                      "type": "string",
+                      "id": "string"
+                    }
+                  }
+                },
+                "to_many": {
+                  "summary": "To-many relationship",
+                  "description": "Changing multiple relationships",
+                  "value": {
+                    "data": [
+                      {
+                        "type": "string",
+                        "id": "string"
+                      },
+                      {
+                        "type": "string",
+                        "id": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entity/parent_entity/{item_id}/dict_data/": {
+      "get": {
+        "tags": [
+          "Entity"
+        ],
+        "summary": "Parententityrouteset Action Dict Data",
+        "description": "Private endpoint for the current route context.\n        This function acts as the actual endpoint that will be called for the route.",
+        "operationId": "ParentEntityRouteSet_action_dict_data_api_v1_entity_parent_entity__item_id__dict_data__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Meta"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FieldListModel": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/InputField"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields"
+        ],
+        "title": "FieldListModel",
+        "description": "Response model for a list of filterable fields."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InputField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "py_type": {
+            "type": "string",
+            "title": "Py Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "py_type"
+        ],
+        "title": "InputField",
+        "description": "Represents a filterable field with its name and inferred OpenAPI type."
+      },
+      "PaginationLinks": {
+        "properties": {
+          "first": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          },
+          "prev": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prev"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          }
+        },
+        "type": "object",
+        "title": "PaginationLinks",
+        "description": "Class representing pagination links as described in the JSONAPI specification."
+      },
+      "PaginationMeta": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "limit",
+          "offset"
+        ],
+        "title": "PaginationMeta",
+        "description": "Represents the metadata for pagination, including count, limit, and offset.\n\nTags: RAG, EXPORT"
+      },
+      "RelationshipData-Input": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceIdentifier"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ResourceIdentifier"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "RelationshipData",
+        "description": "Universal model for JSON:API relationships.\ndata can be:\n- null → to-one remove\n- object → to-one\n- list of objects → to-many"
+      },
+      "ResourceIdentifier": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "ResourceIdentifier"
+      },
+      "SchemaError": {
+        "properties": {
+          "status": {
+            "type": "integer",
+            "title": "Status"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SchemaErrorSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta"
+          },
+          "traceback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traceback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "SchemaError",
+        "description": "Data model representing a schema error. Includes status, title, code, detail,\nsource, meta, and optional traceback.\n\nTags: RAG, EXPORT"
+      },
+      "SchemaErrorSource": {
+        "properties": {
+          "pointer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pointer"
+          },
+          "parameter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameter"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "title": "SchemaErrorSource",
+        "description": "Data model representing the source of a schema error. Includes pointer,\nparameter, id, and type fields.\n\nTags: RAG, EXPORT"
+      },
+      "SchemaErrors": {
+        "properties": {
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/SchemaError"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "errors"
+        ],
+        "title": "SchemaErrors",
+        "description": "Data model representing a collection of schema errors. Contains a list of\nSchemaError instances.\n\nTags: RAG, EXPORT"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes": {
+        "properties": {
+          "child_name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "child name",
+            "filterLabel": "child_name",
+            "nullable": false,
+            "orderLabel": "child_name"
+          },
+          "child_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child description",
+            "blank": true,
+            "filterLabel": "child_description",
+            "nullable": true,
+            "orderLabel": "child_description"
+          },
+          "child_is_active": {
+            "type": "boolean",
+            "title": "child is active",
+            "default": true,
+            "filterLabel": "child_is_active",
+            "nullable": false,
+            "orderLabel": "child_is_active"
+          },
+          "child_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child price",
+            "blank": true,
+            "filterLabel": "child_price",
+            "nullable": true,
+            "orderLabel": "child_price"
+          },
+          "child_dt_approved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child dt approved",
+            "blank": true,
+            "filterLabel": "child_dt_approved",
+            "nullable": true,
+            "orderLabel": "child_dt_approved"
+          },
+          "dt_created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creation time",
+            "default": "2026-10-06T15:44:55.149073Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_created",
+            "nullable": false,
+            "orderLabel": "dt_created"
+          },
+          "dt_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Update time",
+            "default": "2026-10-06T15:44:55.149090Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_updated",
+            "nullable": false,
+            "orderLabel": "dt_updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "child_name"
+        ],
+        "title": "___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes"
+      },
+      "___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__child_entity__schema_create__ResourceIdentifierSchema__entity__parent_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
+      },
+      "___entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes": {
+        "properties": {
+          "child_name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "child name",
+            "filterLabel": "child_name",
+            "nullable": false,
+            "orderLabel": "child_name"
+          },
+          "child_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child description",
+            "blank": true,
+            "filterLabel": "child_description",
+            "nullable": true,
+            "orderLabel": "child_description"
+          },
+          "child_is_active": {
+            "type": "boolean",
+            "title": "child is active",
+            "default": true,
+            "filterLabel": "child_is_active",
+            "nullable": false,
+            "orderLabel": "child_is_active"
+          },
+          "child_price": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child price",
+            "blank": true,
+            "filterLabel": "child_price",
+            "nullable": true,
+            "orderLabel": "child_price"
+          },
+          "child_dt_approved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child dt approved",
+            "blank": true,
+            "filterLabel": "child_dt_approved",
+            "nullable": true,
+            "orderLabel": "child_dt_approved"
+          },
+          "dt_created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creation time",
+            "default": "2026-10-06T15:44:55.137419Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_created",
+            "nullable": false,
+            "orderLabel": "dt_created"
+          },
+          "dt_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Update time",
+            "default": "2026-10-06T15:44:55.137665Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_updated",
+            "nullable": false,
+            "orderLabel": "dt_updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "child_name"
+        ],
+        "title": "___entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes"
+      },
+      "___entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__child_entity__schema_list__ResourceIdentifierSchema__entity__parent_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
+      },
+      "___entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes": {
+        "properties": {
+          "child_name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "child name",
+            "filterLabel": "child_name",
+            "nullable": false,
+            "orderLabel": "child_name"
+          },
+          "child_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child description",
+            "blank": true,
+            "filterLabel": "child_description",
+            "nullable": true,
+            "orderLabel": "child_description"
+          },
+          "child_is_active": {
+            "type": "boolean",
+            "title": "child is active",
+            "default": true,
+            "filterLabel": "child_is_active",
+            "nullable": false,
+            "orderLabel": "child_is_active"
+          },
+          "child_price": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child price",
+            "blank": true,
+            "filterLabel": "child_price",
+            "nullable": true,
+            "orderLabel": "child_price"
+          },
+          "child_dt_approved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child dt approved",
+            "blank": true,
+            "filterLabel": "child_dt_approved",
+            "nullable": true,
+            "orderLabel": "child_dt_approved"
+          },
+          "dt_created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creation time",
+            "default": "2026-10-06T15:44:55.143885Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_created",
+            "nullable": false,
+            "orderLabel": "dt_created"
+          },
+          "dt_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Update time",
+            "default": "2026-10-06T15:44:55.143902Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_updated",
+            "nullable": false,
+            "orderLabel": "dt_updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "child_name"
+        ],
+        "title": "___entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes"
+      },
+      "___entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__child_entity__schema_retrieve__ResourceIdentifierSchema__entity__parent_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
+      },
+      "___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes": {
+        "properties": {
+          "child_name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "child name",
+            "filterLabel": "child_name",
+            "nullable": false,
+            "orderLabel": "child_name"
+          },
+          "child_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child description",
+            "blank": true,
+            "filterLabel": "child_description",
+            "nullable": true,
+            "orderLabel": "child_description"
+          },
+          "child_is_active": {
+            "type": "boolean",
+            "title": "child is active",
+            "default": true,
+            "filterLabel": "child_is_active",
+            "nullable": false,
+            "orderLabel": "child_is_active"
+          },
+          "child_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child price",
+            "blank": true,
+            "filterLabel": "child_price",
+            "nullable": true,
+            "orderLabel": "child_price"
+          },
+          "child_dt_approved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "child dt approved",
+            "blank": true,
+            "filterLabel": "child_dt_approved",
+            "nullable": true,
+            "orderLabel": "child_dt_approved"
+          },
+          "dt_created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creation time",
+            "default": "2026-10-06T15:44:55.154139Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_created",
+            "nullable": false,
+            "orderLabel": "dt_created"
+          },
+          "dt_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Update time",
+            "default": "2026-10-06T15:44:55.154155Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_updated",
+            "nullable": false,
+            "orderLabel": "dt_updated"
+          }
+        },
+        "type": "object",
+        "title": "___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes"
+      },
+      "___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__child_entity__schema_update__ResourceIdentifierSchema__entity__parent_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities"
+      },
+      "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "name",
+            "filterLabel": "name",
+            "nullable": false,
+            "orderLabel": "name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "description",
+            "blank": true,
+            "filterLabel": "description",
+            "nullable": true,
+            "orderLabel": "description"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "is active",
+            "default": true,
+            "filterLabel": "is_active",
+            "nullable": false,
+            "orderLabel": "is_active"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "price",
+            "blank": true,
+            "filterLabel": "price",
+            "nullable": true,
+            "orderLabel": "price"
+          },
+          "dt_approved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dt approved",
+            "blank": true,
+            "filterLabel": "dt_approved",
+            "nullable": true,
+            "orderLabel": "dt_approved"
+          },
+          "dt_created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creation time",
+            "default": "2026-10-06T15:44:55.260840Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_created",
+            "nullable": false,
+            "orderLabel": "dt_created"
+          },
+          "dt_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Update time",
+            "default": "2026-10-06T15:44:55.260857Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_updated",
+            "nullable": false,
+            "orderLabel": "dt_updated"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "state_one",
+              "state_two",
+              "state_three",
+              "state_four"
+            ],
+            "title": "State",
+            "default": "state_one",
+            "enumDict": {
+              "state_four": "State four",
+              "state_one": "State one",
+              "state_three": "State three",
+              "state_two": "State two"
+            },
+            "filterLabel": "state",
+            "nullable": false,
+            "orderLabel": "state"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "enum": [
+              "first_field",
+              "second_field",
+              "third_field"
+            ],
+            "title": "Field",
+            "blank": true,
+            "enumDict": {
+              "first_field": "First field",
+              "second_field": "Second field",
+              "third_field": "Third field"
+            },
+            "filterLabel": "field",
+            "nullable": true,
+            "orderLabel": "field"
+          },
+          "active_children": {
+            "items": {},
+            "type": "array",
+            "title": "active_children",
+            "readOnly": true
+          },
+          "count_active_children": {
+            "type": "integer",
+            "title": "count_active_children",
+            "readOnly": true
+          },
+          "has_inactive_children": {
+            "type": "boolean",
+            "title": "has_inactive_children",
+            "readOnly": true,
+            "filterLabel": "has_inactive_children"
+          },
+          "extended_entity_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "extended_entity_price",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes"
+      },
+      "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__child_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "blank": true,
+            "nullable": false
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities"
+      },
+      "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__dependent_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"
+      },
+      "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__extended_entity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
+      },
+      "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "name",
+            "filterLabel": "name",
+            "nullable": false,
+            "orderLabel": "name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "description",
+            "blank": true,
+            "filterLabel": "description",
+            "nullable": true,
+            "orderLabel": "description"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "is active",
+            "default": true,
+            "filterLabel": "is_active",
+            "nullable": false,
+            "orderLabel": "is_active"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "price",
+            "blank": true,
+            "filterLabel": "price",
+            "nullable": true,
+            "orderLabel": "price"
+          },
+          "dt_approved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dt approved",
+            "blank": true,
+            "filterLabel": "dt_approved",
+            "nullable": true,
+            "orderLabel": "dt_approved"
+          },
+          "dt_created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creation time",
+            "default": "2026-10-06T15:44:55.245162Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_created",
+            "nullable": false,
+            "orderLabel": "dt_created"
+          },
+          "dt_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Update time",
+            "default": "2026-10-06T15:44:55.245178Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_updated",
+            "nullable": false,
+            "orderLabel": "dt_updated"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "state_one",
+              "state_two",
+              "state_three",
+              "state_four"
+            ],
+            "title": "State",
+            "default": "state_one",
+            "enumDict": {
+              "state_four": "State four",
+              "state_one": "State one",
+              "state_three": "State three",
+              "state_two": "State two"
+            },
+            "filterLabel": "state",
+            "nullable": false,
+            "orderLabel": "state"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "enum": [
+              "first_field",
+              "second_field",
+              "third_field"
+            ],
+            "title": "Field",
+            "blank": true,
+            "enumDict": {
+              "first_field": "First field",
+              "second_field": "Second field",
+              "third_field": "Third field"
+            },
+            "filterLabel": "field",
+            "nullable": true,
+            "orderLabel": "field"
+          },
+          "active_children": {
+            "items": {},
+            "type": "array",
+            "title": "active_children",
+            "readOnly": true
+          },
+          "count_active_children": {
+            "type": "integer",
+            "title": "count_active_children",
+            "readOnly": true
+          },
+          "has_inactive_children": {
+            "type": "boolean",
+            "title": "has_inactive_children",
+            "readOnly": true,
+            "filterLabel": "has_inactive_children"
+          },
+          "extended_entity_price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "extended_entity_price",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes"
+      },
+      "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__child_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "blank": true,
+            "nullable": false
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities"
+      },
+      "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__dependent_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"
+      },
+      "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__extended_entity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
+      },
+      "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "name",
+            "filterLabel": "name",
+            "nullable": false,
+            "orderLabel": "name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "description",
+            "blank": true,
+            "filterLabel": "description",
+            "nullable": true,
+            "orderLabel": "description"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "is active",
+            "default": true,
+            "filterLabel": "is_active",
+            "nullable": false,
+            "orderLabel": "is_active"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "price",
+            "blank": true,
+            "filterLabel": "price",
+            "nullable": true,
+            "orderLabel": "price"
+          },
+          "dt_approved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dt approved",
+            "blank": true,
+            "filterLabel": "dt_approved",
+            "nullable": true,
+            "orderLabel": "dt_approved"
+          },
+          "dt_created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creation time",
+            "default": "2026-10-06T15:44:55.253322Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_created",
+            "nullable": false,
+            "orderLabel": "dt_created"
+          },
+          "dt_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Update time",
+            "default": "2026-10-06T15:44:55.253338Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_updated",
+            "nullable": false,
+            "orderLabel": "dt_updated"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "state_one",
+              "state_two",
+              "state_three",
+              "state_four"
+            ],
+            "title": "State",
+            "default": "state_one",
+            "enumDict": {
+              "state_four": "State four",
+              "state_one": "State one",
+              "state_three": "State three",
+              "state_two": "State two"
+            },
+            "filterLabel": "state",
+            "nullable": false,
+            "orderLabel": "state"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "enum": [
+              "first_field",
+              "second_field",
+              "third_field"
+            ],
+            "title": "Field",
+            "blank": true,
+            "enumDict": {
+              "first_field": "First field",
+              "second_field": "Second field",
+              "third_field": "Third field"
+            },
+            "filterLabel": "field",
+            "nullable": true,
+            "orderLabel": "field"
+          },
+          "active_children": {
+            "items": {},
+            "type": "array",
+            "title": "active_children",
+            "readOnly": true
+          },
+          "count_active_children": {
+            "type": "integer",
+            "title": "count_active_children",
+            "readOnly": true
+          },
+          "has_inactive_children": {
+            "type": "boolean",
+            "title": "has_inactive_children",
+            "readOnly": true,
+            "filterLabel": "has_inactive_children"
+          },
+          "extended_entity_price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "extended_entity_price",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes"
+      },
+      "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__child_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "blank": true,
+            "nullable": false
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities"
+      },
+      "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__dependent_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"
+      },
+      "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__extended_entity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
+      },
+      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "name",
+            "filterLabel": "name",
+            "nullable": false,
+            "orderLabel": "name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "description",
+            "blank": true,
+            "filterLabel": "description",
+            "nullable": true,
+            "orderLabel": "description"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "is active",
+            "default": true,
+            "filterLabel": "is_active",
+            "nullable": false,
+            "orderLabel": "is_active"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "price",
+            "blank": true,
+            "filterLabel": "price",
+            "nullable": true,
+            "orderLabel": "price"
+          },
+          "dt_approved": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dt approved",
+            "blank": true,
+            "filterLabel": "dt_approved",
+            "nullable": true,
+            "orderLabel": "dt_approved"
+          },
+          "dt_created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creation time",
+            "default": "2026-10-06T15:44:55.268964Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_created",
+            "nullable": false,
+            "orderLabel": "dt_created"
+          },
+          "dt_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Update time",
+            "default": "2026-10-06T15:44:55.268979Z",
+            "readOnly": true,
+            "blank": true,
+            "filterLabel": "dt_updated",
+            "nullable": false,
+            "orderLabel": "dt_updated"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "state_one",
+              "state_two",
+              "state_three",
+              "state_four"
+            ],
+            "title": "State",
+            "default": "state_one",
+            "enumDict": {
+              "state_four": "State four",
+              "state_one": "State one",
+              "state_three": "State three",
+              "state_two": "State two"
+            },
+            "filterLabel": "state",
+            "nullable": false,
+            "orderLabel": "state"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "enum": [
+              "first_field",
+              "second_field",
+              "third_field"
+            ],
+            "title": "Field",
+            "blank": true,
+            "enumDict": {
+              "first_field": "First field",
+              "second_field": "Second field",
+              "third_field": "Third field"
+            },
+            "filterLabel": "field",
+            "nullable": true,
+            "orderLabel": "field"
+          },
+          "active_children": {
+            "items": {},
+            "type": "array",
+            "title": "active_children",
+            "readOnly": true
+          },
+          "count_active_children": {
+            "type": "integer",
+            "title": "count_active_children",
+            "readOnly": true
+          },
+          "has_inactive_children": {
+            "type": "boolean",
+            "title": "has_inactive_children",
+            "readOnly": true,
+            "filterLabel": "has_inactive_children"
+          },
+          "extended_entity_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "extended_entity_price",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes"
+      },
+      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__child_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "blank": true,
+            "nullable": false
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities"
+      },
+      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities"
+      },
+      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity_null"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null"
+      },
+      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity"
+      },
+      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity_null"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null"
+      },
+      "__entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships": {
+        "properties": {
+          "parent_entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "parent_entities",
+            "filterLabel": "parent_entities",
+            "nullable": true,
+            "orderLabel": "parent_entities"
+          }
+        },
+        "type": "object",
+        "title": "__entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships"
+      },
+      "__entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships": {
+        "properties": {
+          "parent_entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "parent_entities",
+            "filterLabel": "parent_entities",
+            "nullable": true,
+            "orderLabel": "parent_entities"
+          }
+        },
+        "type": "object",
+        "title": "__entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships"
+      },
+      "__entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships": {
+        "properties": {
+          "parent_entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "parent_entities",
+            "filterLabel": "parent_entities",
+            "nullable": true,
+            "orderLabel": "parent_entities"
+          }
+        },
+        "type": "object",
+        "title": "__entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships"
+      },
+      "__entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships": {
+        "properties": {
+          "parent_entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "parent_entities",
+            "filterLabel": "parent_entities",
+            "nullable": true,
+            "orderLabel": "parent_entities"
+          }
+        },
+        "type": "object",
+        "title": "__entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships"
+      },
+      "__entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships": {
+        "properties": {
+          "child_entities": {
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities",
+            "title": "child entities",
+            "blank": true,
+            "filterLabel": "child_entities",
+            "nullable": false,
+            "orderLabel": "child_entities"
+          },
+          "extended_entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "extended_entity",
+            "filterLabel": "extended_entity",
+            "nullable": true,
+            "orderLabel": "extended_entity"
+          },
+          "dependent_entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dependent_entities",
+            "filterLabel": "dependent_entities",
+            "nullable": true,
+            "orderLabel": "dependent_entities"
+          }
+        },
+        "type": "object",
+        "title": "__entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships"
+      },
+      "__entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships": {
+        "properties": {
+          "child_entities": {
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities",
+            "title": "child entities",
+            "blank": true,
+            "filterLabel": "child_entities",
+            "nullable": false,
+            "orderLabel": "child_entities"
+          },
+          "extended_entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "extended_entity",
+            "filterLabel": "extended_entity",
+            "nullable": true,
+            "orderLabel": "extended_entity"
+          },
+          "dependent_entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dependent_entities",
+            "filterLabel": "dependent_entities",
+            "nullable": true,
+            "orderLabel": "dependent_entities"
+          }
+        },
+        "type": "object",
+        "title": "__entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships"
+      },
+      "__entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships": {
+        "properties": {
+          "child_entities": {
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities",
+            "title": "child entities",
+            "blank": true,
+            "filterLabel": "child_entities",
+            "nullable": false,
+            "orderLabel": "child_entities"
+          },
+          "extended_entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "extended_entity",
+            "filterLabel": "extended_entity",
+            "nullable": true,
+            "orderLabel": "extended_entity"
+          },
+          "dependent_entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dependent_entities",
+            "filterLabel": "dependent_entities",
+            "nullable": true,
+            "orderLabel": "dependent_entities"
+          }
+        },
+        "type": "object",
+        "title": "__entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships"
+      },
+      "__entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships": {
+        "properties": {
+          "child_entities": {
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities",
+            "title": "child entities",
+            "blank": true,
+            "filterLabel": "child_entities",
+            "nullable": false,
+            "orderLabel": "child_entities"
+          },
+          "extended_entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "extended_entity",
+            "filterLabel": "extended_entity",
+            "nullable": true,
+            "orderLabel": "extended_entity"
+          },
+          "dependent_entities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dependent_entities",
+            "filterLabel": "dependent_entities",
+            "nullable": true,
+            "orderLabel": "dependent_entities"
+          },
+          "extended_entity_null": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "extended_entity_null",
+            "filterLabel": "extended_entity_null",
+            "nullable": true,
+            "orderLabel": "extended_entity_null"
+          },
+          "dependent_entities_null": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "dependent_entities_null",
+            "filterLabel": "dependent_entities_null",
+            "nullable": true,
+            "orderLabel": "dependent_entities_null"
+          }
+        },
+        "type": "object",
+        "title": "__entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships"
+      },
+      "_entity__child_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
+        "properties": {},
+        "type": "object",
+        "title": "_entity__child_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+      },
+      "_entity__child_entity__schema_create__ResourceIdentifierSchema__entity__parent_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "ddc84f57-70d6-4efa-a8aa-bcb7ebb47573"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.parent_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__child_entity__schema_create__ResourceIdentifierSchema__entity__parent_entity"
+      },
+      "_entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.child_entity"
+          },
+          "bs:action": {
+            "type": "string",
+            "title": "Bs:Action",
+            "default": "add"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/components/schemas/__entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attributes",
+          "relationships"
+        ],
+        "title": "_entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5"
+      },
+      "_entity__child_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6": {
+        "properties": {
+          "pagination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaginationMeta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagination",
+            "description": "\n        Provides pagination metadata, including count, limit, and offset, as a\n        PaginationMeta object.\n        "
+          }
+        },
+        "type": "object",
+        "title": "_entity__child_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6"
+      },
+      "_entity__child_entity__schema_list__ResourceIdentifierSchema__entity__parent_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "31924b3d-f824-4d32-8752-66304c1a47e6"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.parent_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__child_entity__schema_list__ResourceIdentifierSchema__entity__parent_entity"
+      },
+      "_entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.child_entity"
+          },
+          "bs:action": {
+            "type": "string",
+            "title": "Bs:Action",
+            "default": "view"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/___entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/components/schemas/__entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "title": "_entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5"
+      },
+      "_entity__child_entity__schema_retrieve__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
+        "properties": {},
+        "type": "object",
+        "title": "_entity__child_entity__schema_retrieve__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+      },
+      "_entity__child_entity__schema_retrieve__ResourceIdentifierSchema__entity__parent_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "54af1ebb-af4f-4ef9-9773-584d73f8a7e3"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.parent_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__child_entity__schema_retrieve__ResourceIdentifierSchema__entity__parent_entity"
+      },
+      "_entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.child_entity"
+          },
+          "bs:action": {
+            "type": "string",
+            "title": "Bs:Action",
+            "default": "view"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/___entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/components/schemas/__entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "title": "_entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5"
+      },
+      "_entity__child_entity__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
+        "properties": {},
+        "type": "object",
+        "title": "_entity__child_entity__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+      },
+      "_entity__child_entity__schema_update__ResourceIdentifierSchema__entity__parent_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "4a42f706-faa9-4b17-a717-989117caa3e4"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.parent_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__child_entity__schema_update__ResourceIdentifierSchema__entity__parent_entity"
+      },
+      "_entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.child_entity"
+          },
+          "bs:action": {
+            "type": "string",
+            "title": "Bs:Action",
+            "default": "change"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/components/schemas/__entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "title": "_entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5"
+      },
+      "_entity__parent_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
+        "properties": {},
+        "type": "object",
+        "title": "_entity__parent_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+      },
+      "_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__child_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": "",
+            "example": "d08c23b2-1380-4b07-8d7d-880cf5312c48"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.child_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__child_entity"
+      },
+      "_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__dependent_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "3c1f8d2d-a749-4cfe-af83-15436c652ac9"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.dependent_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__dependent_entity"
+      },
+      "_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__extended_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "2fcec181-a5de-4a88-ada1-e2a7f5cf5790"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.extended_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__extended_entity"
+      },
+      "_entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.parent_entity"
+          },
+          "bs:action": {
+            "type": "string",
+            "title": "Bs:Action",
+            "default": "add"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/components/schemas/__entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attributes",
+          "relationships"
+        ],
+        "title": "_entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"
+      },
+      "_entity__parent_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6": {
+        "properties": {
+          "pagination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaginationMeta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagination",
+            "description": "\n        Provides pagination metadata, including count, limit, and offset, as a\n        PaginationMeta object.\n        "
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6"
+      },
+      "_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__child_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": "",
+            "example": "20673ebc-e95c-47c2-9a9f-93c10dec214f"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.child_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__child_entity"
+      },
+      "_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__dependent_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "f813310a-2872-4106-a1f9-541d55ca984f"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.dependent_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__dependent_entity"
+      },
+      "_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__extended_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "7897580b-9a5e-4a5a-8041-925a3efcce9b"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.extended_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__extended_entity"
+      },
+      "_entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.parent_entity"
+          },
+          "bs:action": {
+            "type": "string",
+            "title": "Bs:Action",
+            "default": "view"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/components/schemas/__entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "title": "_entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"
+      },
+      "_entity__parent_entity__schema_retrieve__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
+        "properties": {},
+        "type": "object",
+        "title": "_entity__parent_entity__schema_retrieve__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+      },
+      "_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__child_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": "",
+            "example": "c221f85c-2418-4dc6-af88-9c2d62a9e176"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.child_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__child_entity"
+      },
+      "_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__dependent_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "7d2858be-c782-4d11-88db-05be202505a0"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.dependent_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__dependent_entity"
+      },
+      "_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__extended_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "d1d4b9a2-862f-4c08-b66a-a6b935b2a92f"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.extended_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__extended_entity"
+      },
+      "_entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.parent_entity"
+          },
+          "bs:action": {
+            "type": "string",
+            "title": "Bs:Action",
+            "default": "view"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/components/schemas/__entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "title": "_entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"
+      },
+      "_entity__parent_entity__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
+        "properties": {},
+        "type": "object",
+        "title": "_entity__parent_entity__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+      },
+      "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__child_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": "",
+            "example": "4c1da20d-832a-4d4c-81d1-bbed35ec1f7a"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.child_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__child_entity"
+      },
+      "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "106810a6-51ef-46b1-a1ba-332578353e52"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.dependent_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity"
+      },
+      "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity_null": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "dde24004-0635-402c-8f4d-7509664101fa"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.dependent_entity_null"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity_null"
+      },
+      "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "3ce07cc6-5ed5-47d2-baed-40c93260cfb3"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.extended_entity"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity"
+      },
+      "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity_null": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "194067e6-c7e1-4f0d-a078-c14e5a309b95"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.extended_entity_null"
+          }
+        },
+        "type": "object",
+        "title": "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity_null"
+      },
+      "_entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "entity.parent_entity"
+          },
+          "bs:action": {
+            "type": "string",
+            "title": "Bs:Action",
+            "default": "change"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/components/schemas/__entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "title": "_entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820"
+      },
+      "entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/_entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5",
+            "title": "Data"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__child_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b"
+      },
+      "entity__child_entity__schema_list__386a7615d4b5616073650f2ac25f8e34": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/_entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5"
+            },
+            "type": "array",
+            "title": "List data"
+          },
+          "links": {
+            "$ref": "#/components/schemas/PaginationLinks"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__child_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "links"
+        ],
+        "title": "entity__child_entity__schema_list__386a7615d4b5616073650f2ac25f8e34"
+      },
+      "entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/_entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5",
+            "title": "Data"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__child_entity__schema_retrieve__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644"
+      },
+      "entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/_entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5",
+            "title": "Data"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__child_entity__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b"
+      },
+      "entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/_entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d",
+            "title": "Data"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4"
+      },
+      "entity__parent_entity__schema_list__5ca3fd138a0659ea6e93d756730cf5e4": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/_entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"
+            },
+            "type": "array",
+            "title": "List data"
+          },
+          "links": {
+            "$ref": "#/components/schemas/PaginationLinks"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "links"
+        ],
+        "title": "entity__parent_entity__schema_list__5ca3fd138a0659ea6e93d756730cf5e4"
+      },
+      "entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/_entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d",
+            "title": "Data"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_retrieve__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1"
+      },
+      "entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/_entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820",
+            "title": "Data"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c"
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@bazis/client",
+  "version": "0.0.0",
+  "description": "The JSON:API protocol of Bazis, typed by the OpenAPI types of a project",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ecofuture-tech/bazis-front.git",
+    "directory": "packages/client"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "fixture": "node scripts/extract-fixture.mjs"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}

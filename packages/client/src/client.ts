@@ -1,0 +1,301 @@
+// Copyright 2026 EcoFuture Technology Services LLC and contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import { errorFromResponse } from './errors.js';
+import type { Filter } from './filter.js';
+import type {
+  BodyOf,
+  EndpointOf,
+  IncludeOption,
+  ItemOptions,
+  ListOptions,
+  RequestOptions,
+  ResourceIdentifier,
+  ResponseOf,
+  RouteSetWith,
+  TokenResponse,
+} from './types.js';
+
+const JSONAPI = 'application/vnd.api+json';
+const JSON_TYPE = 'application/json';
+const FORM = 'application/x-www-form-urlencoded';
+const ACCEPT = `${JSONAPI}, ${JSON_TYPE}`;
+
+/** The default path of the token endpoint of bazis-users (`BAZIS_OPENAPI_TOKEN_URL`). */
+export const TOKEN_PATH = '/api/openapi-token/';
+
+type MaybePromise<T> = T | Promise<T>;
+
+export interface ClientOptions {
+  /** Prepended to every path, e.g. `https://api.example.com`; empty for the same origin. */
+  baseUrl?: string;
+  /** The bearer token, or a function that returns the current one. */
+  token?: string | (() => MaybePromise<string | null | undefined>);
+  /** The fetch implementation; the global `fetch` by default. */
+  fetch?: typeof fetch;
+}
+
+type Item = '{item_id}/';
+type Relationship = '{item_id}/relationships/{related_field_name}';
+type SchemaSuffix = {
+  list: 'schema_list/';
+  create: 'schema_create/';
+  retrieve: '{item_id}/schema_retrieve/';
+  update: '{item_id}/schema_update/';
+  transit: '{item_id}/schema_transit/';
+};
+/** Runtime schemas of a route set; `transit` exists on bazis-statusy route sets. */
+export type CollectionSchemaKind = 'list' | 'create';
+export type ItemSchemaKind = 'retrieve' | 'update' | 'transit';
+export type RelationshipOperation = 'add' | 'replace' | 'remove';
+
+/**
+ * A client of a Bazis API typed by the `paths` generated from its OpenAPI. Every operation
+ * takes the path of a route set (`/api/v1/app/model/`) and, for an item, its id.
+ */
+export interface BazisClient<Paths> {
+  list<P extends RouteSetWith<Paths, '', 'get'>>(
+    path: P,
+    options?: ListOptions<EndpointOf<Paths, P, '', 'get'>>,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, '', 'get'>>>;
+
+  create<P extends RouteSetWith<Paths, '', 'post'>>(
+    path: P,
+    document: BodyOf<EndpointOf<Paths, P, '', 'post'>>,
+    options?: ItemOptions<EndpointOf<Paths, P, '', 'post'>>,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, '', 'post'>>>;
+
+  retrieve<P extends RouteSetWith<Paths, Item, 'get'>>(
+    path: P,
+    id: string,
+    options?: ItemOptions<EndpointOf<Paths, P, Item, 'get'>>,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, Item, 'get'>>>;
+
+  update<P extends RouteSetWith<Paths, Item, 'patch'>>(
+    path: P,
+    id: string,
+    document: BodyOf<EndpointOf<Paths, P, Item, 'patch'>>,
+    options?: ItemOptions<EndpointOf<Paths, P, Item, 'patch'>>,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, Item, 'patch'>>>;
+
+  destroy(
+    path: RouteSetWith<Paths, Item, 'delete'>,
+    id: string,
+    options?: RequestOptions,
+  ): Promise<void>;
+
+  /**
+   * Changes a relationship of an item: `add` (POST) adds to a to-many relationship,
+   * `replace` (PATCH) sets it, `remove` (DELETE) removes from it.
+   */
+  relationship(
+    path: RouteSetWith<Paths, Relationship, 'post'>,
+    id: string,
+    field: string,
+    operation: RelationshipOperation,
+    data: ResourceIdentifier | readonly ResourceIdentifier[] | null,
+    options?: RequestOptions,
+  ): Promise<void>;
+
+  /** The JSON schema of an action for the current user (`schema_list/`, `schema_create/`). */
+  schema<K extends CollectionSchemaKind, P extends RouteSetWith<Paths, SchemaSuffix[K], 'get'>>(
+    path: P,
+    kind: K,
+    options?: RequestOptions & IncludeOption<EndpointOf<Paths, P, SchemaSuffix[K], 'get'>>,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, SchemaSuffix[K], 'get'>>>;
+
+  /** The JSON schema of an action on an item for the current user (`schema_update/`...). */
+  schema<K extends ItemSchemaKind, P extends RouteSetWith<Paths, SchemaSuffix[K], 'get'>>(
+    path: P,
+    kind: K,
+    id: string,
+    options?: RequestOptions & IncludeOption<EndpointOf<Paths, P, SchemaSuffix[K], 'get'>>,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, SchemaSuffix[K], 'get'>>>;
+
+  /** The fields a list can be filtered by (`route_filter_fields/`). */
+  filterFields<P extends RouteSetWith<Paths, 'route_filter_fields/', 'get'>>(
+    path: P,
+    options?: RequestOptions,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, 'route_filter_fields/', 'get'>>>;
+
+  /**
+   * Runs a transit of bazis-statusy (`POST {item_id}/transit/`). Resolves to the item, or
+   * to `null` when the user can no longer view it (204).
+   */
+  transit<P extends RouteSetWith<Paths, '{item_id}/transit/', 'post'>>(
+    path: P,
+    id: string,
+    transit: string,
+    payload?: unknown,
+    options?: RequestOptions,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, '{item_id}/transit/', 'post'>> | null>;
+
+  /**
+   * Gets a token from the token endpoint of bazis-users (an OAuth2 password form). The
+   * client does not keep it: return it from the `token` option.
+   */
+  login(
+    credentials: { username: string; password: string },
+    options?: RequestOptions & { path?: string },
+  ): Promise<TokenResponse>;
+}
+
+interface Query {
+  filter?: Filter;
+  search?: string;
+  sort?: readonly string[];
+  page?: { limit?: number; offset?: number };
+  fields?: Readonly<Record<string, readonly string[] | undefined>>;
+  include?: readonly string[];
+  meta?: readonly string[];
+}
+
+interface Send {
+  body?: string;
+  contentType?: string;
+  query?: Query;
+  signal?: AbortSignal | undefined;
+  anonymous?: boolean;
+}
+
+function queryString(query: Query = {}): string {
+  const params = new URLSearchParams();
+  if (query.filter) params.set('filter', query.filter.toString());
+  if (query.search !== undefined) params.set('search', query.search);
+  if (query.sort?.length) params.set('sort', query.sort.join(','));
+  if (query.page?.limit !== undefined) params.set('page[limit]', String(query.page.limit));
+  if (query.page?.offset !== undefined) params.set('page[offset]', String(query.page.offset));
+  for (const [type, names] of Object.entries(query.fields ?? {})) {
+    if (names) params.set(`fields[${type}]`, names.join(','));
+  }
+  if (query.include?.length) params.set('include', query.include.join(','));
+  if (query.meta?.length) params.set('meta', query.meta.join(','));
+  const text = params.toString();
+  return text ? `?${text}` : '';
+}
+
+/** Creates a client of a Bazis API: `createClient<paths>({ baseUrl, token })`. */
+export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Paths> {
+  const baseUrl = (options.baseUrl ?? '').replace(/\/+$/, '');
+  const fetcher: typeof fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
+
+  async function authorization(): Promise<string | null | undefined> {
+    const { token } = options;
+    return typeof token === 'function' ? token() : token;
+  }
+
+  async function send(method: string, path: string, init: Send = {}): Promise<unknown> {
+    const headers: Record<string, string> = { Accept: ACCEPT };
+    if (!init.anonymous) {
+      const token = await authorization();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+    if (init.contentType) headers['Content-Type'] = init.contentType;
+
+    const response = await fetcher(`${baseUrl}${path}${queryString(init.query)}`, {
+      method,
+      headers,
+      ...(init.body === undefined ? {} : { body: init.body }),
+      ...(init.signal ? { signal: init.signal } : {}),
+    });
+    if (response.status === 204) return undefined;
+    const text = await response.text();
+    if (!response.ok) throw errorFromResponse(response.status, response.statusText, text);
+    return text ? (JSON.parse(text) as unknown) : undefined;
+  }
+
+  const item = (path: string, id: string): string => `${path}${encodeURIComponent(id)}/`;
+  const jsonapi = (document: unknown) => ({ body: JSON.stringify(document), contentType: JSONAPI });
+  const json = (body: unknown) => ({ body: JSON.stringify(body), contentType: JSON_TYPE });
+  const methods: Record<RelationshipOperation, string> = {
+    add: 'POST',
+    replace: 'PATCH',
+    remove: 'DELETE',
+  };
+
+  // The typed signatures are in BazisClient; at run time the paths are plain strings.
+  const client = {
+    list: (path: string, { signal, ...query }: Query & RequestOptions = {}) =>
+      send('GET', path, { query, signal }),
+
+    create: (path: string, document: unknown, { signal, ...query }: Query & RequestOptions = {}) =>
+      send('POST', path, { ...jsonapi(document), query, signal }),
+
+    retrieve: (path: string, id: string, { signal, ...query }: Query & RequestOptions = {}) =>
+      send('GET', item(path, id), { query, signal }),
+
+    update: (
+      path: string,
+      id: string,
+      document: unknown,
+      { signal, ...query }: Query & RequestOptions = {},
+    ) => send('PATCH', item(path, id), { ...jsonapi(document), query, signal }),
+
+    destroy: async (path: string, id: string, { signal }: RequestOptions = {}) => {
+      await send('DELETE', item(path, id), { signal });
+    },
+
+    relationship: async (
+      path: string,
+      id: string,
+      field: string,
+      operation: RelationshipOperation,
+      data: unknown,
+      { signal }: RequestOptions = {},
+    ) => {
+      const url = `${item(path, id)}relationships/${encodeURIComponent(field)}`;
+      await send(methods[operation], url, { ...json({ data }), signal });
+    },
+
+    schema: (
+      path: string,
+      kind: CollectionSchemaKind | ItemSchemaKind,
+      idOrOptions?: string | (Query & RequestOptions),
+      itemOptions?: Query & RequestOptions,
+    ) => {
+      const byItem = typeof idOrOptions === 'string';
+      const { signal, ...query } = (byItem ? itemOptions : idOrOptions) ?? {};
+      const base = byItem ? item(path, idOrOptions) : path;
+      return send('GET', `${base}schema_${kind}/`, { query, signal });
+    },
+
+    filterFields: (path: string, { signal }: RequestOptions = {}) =>
+      send('GET', `${path}route_filter_fields/`, { signal }),
+
+    transit: async (
+      path: string,
+      id: string,
+      transit: string,
+      payload?: unknown,
+      { signal }: RequestOptions = {},
+    ) =>
+      (await send('POST', `${item(path, id)}transit/`, {
+        ...json(payload === undefined ? { transit } : { transit, payload }),
+        signal,
+      })) ?? null,
+
+    login: async (
+      { username, password }: { username: string; password: string },
+      { path = TOKEN_PATH, signal }: RequestOptions & { path?: string } = {},
+    ) =>
+      (await send('POST', path, {
+        body: new URLSearchParams({ username, password }).toString(),
+        contentType: FORM,
+        signal,
+        anonymous: true,
+      })) as TokenResponse,
+  };
+
+  return client as unknown as BazisClient<Paths>;
+}

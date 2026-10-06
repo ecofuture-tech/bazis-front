@@ -11,7 +11,7 @@ protocol code comes from versioned npm packages.
 
 | Package | What it is |
 |---|---|
-| `@bazis/client` | The JSON:API protocol of Bazis, typed by the OpenAPI types generated from a project |
+| [`@bazis/client`](packages/client) | The JSON:API protocol of Bazis, typed by the OpenAPI types generated from a project |
 | `@bazis/react` | React hooks over `@bazis/client` (planned) |
 
 Protocol code is versioned and updated through these packages, so that fixes reach every

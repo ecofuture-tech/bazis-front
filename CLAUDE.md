@@ -22,6 +22,20 @@ npm run build
 CI (`.github/workflows/tests.yml`) runs the same commands on every push to `main` and on
 every pull request; all of them must pass before a merge.
 
+## `@bazis/client`
+
+- `packages/client/src/`: `client.ts` (the operations), `types.ts` (types read from the
+  generated `paths`), `filter.ts` (the filter grammar of `bazis.core.utils.query_complex`),
+  `errors.ts`, `pagination.ts`, `permit.ts`.
+- Unit tests (`test/*.test.ts`) assert the exact URLs, headers and bodies against a mocked
+  `fetch`. Type tests (`test/types.typecheck.ts`) are checked by `npm run typecheck` with
+  `@ts-expect-error` for what must not compile.
+- The types of the type tests come from the OpenAPI of the core `sample/`
+  (`test/fixtures/`). Regenerate both files after a change of the core schemas:
+  `npm run fixture -w @bazis/client -- <openapi.json of the core sample>`.
+- Every protocol rule is taken from the code of the core and of the packages, not from
+  JSON:API in general; the README of the package documents the rules the client follows.
+
 ## Conventions
 
 - Code, comments, documentation and commit messages are in English.
