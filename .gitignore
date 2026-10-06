@@ -8,3 +8,7 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+
+# copied into each package by its prepack script
+packages/*/LICENSE
+packages/*/NOTICE
