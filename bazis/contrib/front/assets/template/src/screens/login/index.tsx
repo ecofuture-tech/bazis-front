@@ -17,8 +17,8 @@ import { useState, type SubmitEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
 import { errorMessage } from '@/app/errors';
-import { useApi } from '@/app/providers';
 import { login } from '@/app/session';
+import { useApi } from '@/bazis/react';
 
 export function LoginScreen() {
   const api = useApi();

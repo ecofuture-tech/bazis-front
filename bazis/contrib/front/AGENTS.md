@@ -6,10 +6,10 @@ from this package. There are no npm packages of Bazis: the TypeScript code of th
 is shipped as package data and copied into the product, which then owns the copy.
 
 **Status: pre-release.** The package ships `manage.py bazis_front init` (a frontend made
-from its template, with the protocol client copied into it, and the starters of the specs),
-`manage.py bazis_front contract` (the export of the contract and the TypeScript generated
-from it) and `manage.py bazis_front check` (the validation of the specs against the
-contract). The React hooks, the components and the update of the copies are planned, not
+from its template, with the protocol client and the React hooks copied into it, and the
+starters of the specs), `manage.py bazis_front contract` (the export of the contract and
+the TypeScript generated from it) and `manage.py bazis_front check` (the validation of the
+specs against the contract). The components and the update of the copies are planned, not
 available yet.
 
 ## Setup
@@ -36,12 +36,17 @@ contract. It never overwrites an existing `frontend/`. It writes:
 
 - the files of the template (`assets/template`), which the product owns from then on,
   among them `frontend/AGENTS.md`, the guide of the frontend for agents;
-- the protocol client in `src/bazis/client/`, each file stamped with
-  `// bazis-front <version> asset client` after its license header, and the same pristine
-  copy in `.bazis/base/client@<version>/` for the merge of later versions;
+- the protocol client in `src/bazis/client/` and the React hooks in `src/bazis/react/`,
+  each file stamped with `// bazis-front <version> asset <asset>` after its license header,
+  and the same pristine copy in `.bazis/base/<asset>@<version>/` for the merge of later
+  versions. The hooks of a package are copied only when the product has it at `init` (its
+  app in `INSTALLED_APPS`, as the capabilities of the contract): with bazis-statusy the
+  asset `react-statusy` in `src/bazis/react/statusy/`. A package installed after `init` has
+  no hooks in the frontend until `bazis_front update` (planned) adds them: `check` reports
+  it (`C003`);
 - `bazis-front.lock.json`: the version of bazis-front, the hashes of the contract and of
   the generated files (see below), and the version and the file hashes of every copied
-  asset (`"template"` has only its version).
+  asset (`"template"` has only its version); an asset that was not copied is not in it.
 
 Commit `bazis-front.lock.json` and `.bazis/`. The files that `init` copies are listed in
 `assets/registry.json` of the package. The frontend compiles once `contract` has generated
@@ -355,6 +360,7 @@ warning there, never blocking `migrate` or `contract`.
 |---|---|---|
 | `C001` | error | contract/contract.json cannot be read |
 | `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
+| `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or are there without the package |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
@@ -400,7 +406,7 @@ warning there, never blocking `migrate` or `contract`.
 |---|---|---|
 | 0. Contract | the OpenAPI, `contract.json`, `contract.ts` and the TypeScript types of the API | `contract/`, `frontend/src/bazis/generated/`, only generated |
 | 1. Protocol | the client (`assets/client`) | `frontend/src/bazis/client/`, copied by `init`, not edited |
-| 2. Hooks | React hooks over the client (planned) | `frontend/src/bazis/react/`, copied, not edited |
+| 2. Hooks | React hooks over the client and TanStack Query (`assets/react`) | `frontend/src/bazis/react/`, copied, not edited |
 | 3. Components | visual building blocks on shadcn/ui (planned) | `frontend/src/bazis/ui/`, copied, owned by the product |
 | 4. Specs | product, screens and design specs | `spec/`, validated against the contract by `bazis_front check` |
 | App | the template (`assets/template`): providers, session, router, errors, screens | `frontend/`, copied once by `init`, owned by the product |
@@ -415,10 +421,11 @@ warning there, never blocking `migrate` or `contract`.
   backend to satisfy the specs (models, route sets, roles with their permissions, statuses
   and transits), export the contract, and fix every issue that `check` reports, in the spec
   or in the backend, as its hint says.
-- **Use the client, do not reimplement it.** Requests, filters, errors, pagination,
-  authentication and permission checks go through the client. Do not edit the copied
-  client; extend it with a wrapper in the product code, so that a new version replaces the
-  copy without conflicts.
+- **Use the hooks and the client, do not reimplement them.** Data of the backend is read
+  and changed with the hooks (`@/bazis/react`); requests, filters, errors, pagination,
+  authentication and permission checks go through the client. Do not edit the copies;
+  extend them with wrappers in the product code, so that a new version replaces them
+  without conflicts.
 - **The backend decides the permissions.** Do not encode roles or permission rules in the
   frontend. Hide or disable controls from what the backend reports: the permission meta
   and the runtime schema `schema_update` of the item.
@@ -434,8 +441,10 @@ import type { paths } from '@/bazis/generated/schema';
 export const api = createClient<paths>({ baseUrl, token: () => session.token });
 ```
 
-In a frontend made by `init`, the client is created in `src/app/providers.tsx` and read
-with `useApi()`; the token is kept by `src/app/session.ts`.
+In a frontend made by `init`, the client is created in `src/app/providers.tsx`, given to
+the hooks by `BazisProvider` and read with `useApi()` of `@/bazis/react`; the token is
+kept by `src/app/session.ts`. Read and change data with the hooks (below); call the client
+for what they do not cover (the login, a custom endpoint).
 
 - Address every operation by the path of the route set and the id:
   `api.list(path, …)`, `api.retrieve(path, id, …)`, `api.update(path, id, document)`.
@@ -448,9 +457,39 @@ with `useApi()`; the token is kept by `src/app/session.ts`.
   `ApiError.message`.
 - Request the permission meta (`meta: ['for_change', 'for_delete', 'for_create']` on a
   list, `['crud_actions']` on an item) and read it with `can()`; read the editable fields
-  of an item from `api.schema(path, 'update', id)`.
+  of an item from its runtime schema `schema_update` (`useResourceForm`, `useSchema`).
 - Log in with `api.login()` and keep the token in the application; the client reads it
   through the `token` option on every request.
+
+## The hooks
+
+React hooks over the client and TanStack Query 5, in `src/bazis/react/` of the frontend
+(`assets/react/README.md` of the package documents them in full; `frontend/AGENTS.md` has
+examples):
+
+```tsx
+import { ROUTES } from '@/bazis/generated/contract';
+import { useList, useResourceForm } from '@/bazis/react';
+import { useTransit, useTransits } from '@/bazis/react/statusy';   // with bazis-statusy
+
+const list = useList(ROUTES['tasks.task'], { sort: ['-dt_created'], page: { limit: 20 }, meta: ['pagination'] });
+const form = useResourceForm(ROUTES['tasks.task'], { id });          // without id: a create
+const transits = useTransits(ROUTES['tasks.task'], id);               // [{id, allowed, restricts, payload}]
+```
+
+- `useList`, `useItem`, `useSchema`, `useFilterFields` read; `useCreate`, `useUpdate`,
+  `useDestroy`, `useRelationship` change and then refetch every query of the resource
+  (`['bazis', path]`).
+- `useResourceForm(path, {id?})` takes its fields from `schema_create`/`schema_update`
+  (what the current user may set: type, required, read-only, nullable, choices, the
+  related resource of a relationship), its values from the defaults or the item, and
+  submits the changed attributes and to-one relationships as one document; a 422 gives
+  `errors` by field. To-many relationships go through `useRelationship`.
+- `useTransits(path, id)` reads `meta.state_actions` of the item: the transits the user may
+  run now, `allowed` unless a validator restricts them, with the JSON Schema of their
+  payload. `useTransit(path, id)` runs one; null when the user can no longer view the item.
+- Every query key ends with the session of `BazisProvider` (a number of the template that
+  changes at every login and logout), so the data of one user is never shown to another.
 
 ## Protocol facts that are easy to get wrong
 

@@ -3,8 +3,9 @@
 The frontend of this product: React 19, TypeScript (strict), Vite 7, React Router 7,
 TanStack Query 5, Tailwind 4 with shadcn/ui. It was created by
 `manage.py bazis_front init` of bazis-front: its contract with the backend is generated
-from the backend, its protocol client is copied from bazis-front. The backend, its contract
-and the specs of the product are one directory up (`manage.py`, `contract/`, `spec/`).
+from the backend, its protocol client and its React hooks are copied from bazis-front. The
+backend, its contract and the specs of the product are one directory up (`manage.py`,
+`contract/`, `spec/`).
 
 ## Layers
 
@@ -12,7 +13,8 @@ and the specs of the product are one directory up (`manage.py`, `contract/`, `sp
 |---|---|---|
 | `src/bazis/generated/` | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API) | only `manage.py bazis_front contract` |
 | `src/bazis/client/` | the client of the Bazis protocol | bazis-front; not edited, wrapped in `src/app/` |
-| `src/app/` | providers (client, query cache), session, router, errors | the product |
+| `src/bazis/react/` | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy | bazis-front; not edited |
+| `src/app/` | providers (query cache, `BazisProvider`), session, router, errors | the product |
 | `src/screens/<screen>/` | the screens | the product |
 | `src/components/ui/`, `src/lib/` | shadcn/ui components (`npx shadcn add <name>`) | the product |
 | `../spec/` | the specs: `product.yaml` (roles, entities, access, scenarios), `screens/<id>.yaml`, `design/` | the product; checked by `manage.py bazis_front check` |
@@ -73,23 +75,82 @@ written.
 - **`src/bazis/generated/` is never edited**, and the types of the backend are never
   written by hand. When the backend changes, generate again and fix what the compiler
   reports; never cast an error away.
-- **Use the client through `useApi()`** (`src/app/providers.tsx`): requests, errors,
-  pagination, login and permission meta go through it. Do not edit `src/bazis/client/`;
-  put what the product needs around it in `src/app/`, so that a new version of
-  bazis-front replaces the copy without conflicts.
+- **Read and change the data of the backend with the hooks of `@/bazis/react`** (below),
+  not with `useQuery` around the client: their query keys carry the session and their
+  mutations refetch what they change. The client itself is `useApi()` (login, a request
+  the hooks do not cover). Do not edit `src/bazis/client/` or `src/bazis/react/`; put what
+  the product needs around them in `src/app/`, so that a new version of bazis-front
+  replaces the copies without conflicts.
 - Take the paths of the resources from `ROUTES` of `contract.ts`; address an item by the
-  path and its id (`api.retrieve(ROUTES['app.model'], id)`).
+  path and its id (`useItem(ROUTES['app.model'], id)`).
 - **Filter with `Filter`** (`Filter.where/and/or/not`): one `filter` expression, never
   built by hand.
-- Show validation errors by field from `ApiError.fieldErrors()`, other errors with
-  `errorMessage()` (`src/app/errors.tsx`).
+- Show validation errors by field (`form.errors` of `useResourceForm`, or
+  `ApiError.fieldErrors()`), other errors with `errorMessage()` (`src/app/errors.tsx`).
 - **The backend decides the rights.** Do not encode roles or permissions here: request
   the permission meta (`for_change`, `for_delete`, `for_create` on a list, `crud_actions`
-  on an item), read it with `can()`, and read the editable fields from
-  `api.schema(path, 'update', id)`. Hide or disable what the backend does not allow.
+  on an item), read it with `can()`, and take the fields of a form from its runtime schema
+  (`useResourceForm`). Hide or disable what the backend does not allow.
 - Check for an optional package with `CAPABILITIES.<name> !== null` (`contract.ts`): the
   login exists only with bazis-users (`LOGIN_ENABLED` of `src/app/session.ts`).
-- A 401 of any query or mutation ends the session, and logging in or out clears the query
-  cache (`src/app/providers.tsx`): cached data belongs to the user who loaded it.
+- A 401 of any query or mutation ends the session (`src/app/providers.tsx`). Cached data
+  belongs to the user who loaded it: every query key of the hooks ends with the session
+  (`useSession()` of `src/app/session.ts`, a number that changes at every login and
+  logout), so a user never sees what the previous one loaded. A query of your own over
+  data of the backend ends its key with `useSessionKey()`.
 - No translations: the labels come from the backend (its schemas and names are already in
   the language of the product) and from the screens.
+
+## Hooks (`@/bazis/react`)
+
+Typed by `schema.d.ts`: a path that does not compile is not an endpoint of the backend.
+Every query key starts with `['bazis', path]`; the mutations refetch the queries of their
+resource and stay pending until the active ones are refetched.
+
+```tsx
+import { Filter, can, nextPage, pagination } from '@/bazis/client';
+import { ROUTES } from '@/bazis/generated/contract';
+import { useItem, useList, useResourceForm, useDestroy } from '@/bazis/react';
+
+const TASKS = ROUTES['tasks.task'];
+
+const list = useList(TASKS, {
+  filter: Filter.where('status', 'draft'), search, sort: ['-dt_created'],
+  page: { limit: 20, offset }, meta: ['pagination', 'for_change', 'for_delete', 'for_create'],
+});
+// list.data keeps the previous page while the next one loads (list.isPlaceholderData)
+const next = list.data && nextPage(list.data);      // { limit, offset } or null
+const count = list.data && pagination(list.data)?.count;
+
+const item = useItem(TASKS, id, { include: ['assignee'], meta: ['crud_actions'] });
+const editable = can(item.data?.meta, 'change');
+
+const form = useResourceForm(TASKS, { id });        // without `id`: a create
+// form.status: loading | error | ready; form.fields: name, title, kind, required,
+// readOnly, nullable; attributes: type, format, enum; relations: relation, many
+form.setValue('title', 'Report');                   // a to-one relation takes the id or null
+const saved = await form.submit();                  // null when it failed: form.errors.title
+```
+
+| Hook | What |
+|---|---|
+| `useList(path, {filter, search, sort, page, fields, meta})` | a page of a list |
+| `useItem(path, id, {include, fields, meta})` | an item |
+| `useSchema(path, 'list' \| 'create')`, `useSchema(path, 'retrieve' \| 'update' \| 'transit', id)` | the runtime schema for the current user, kept for the session |
+| `useFilterFields(path)` | the fields a list can be filtered by, with their types |
+| `useCreate(path)`, `useUpdate(path)`, `useDestroy(path)` | `mutate(document)`, `mutate({id, document})`, `mutate(id)` |
+| `useRelationship(path)` | `mutate({id, field, operation: 'add' \| 'replace' \| 'remove', data})`: the relationship endpoint, for to-many relationships |
+| `useResourceForm(path, {id?})` | a form bound to `schema_create`/`schema_update`: fields, values, dirty, submit of the changed attributes and to-one relationships, `errors` of a 422 by field |
+| `useApi()`, `useSessionKey()` | the client; the session, the last item of a query key of your own |
+
+With bazis-statusy, `@/bazis/react/statusy`:
+
+| Hook | What |
+|---|---|
+| `useTransits(path, id)` | the transits the user may run on the item now (`meta.state_actions`): `id`, `allowed` (no `restricts` of its validators), `restricts`, `payload` (the JSON Schema of the payload it requires, or null), `related`; the names are in `TRANSITS` of `contract.ts` |
+| `useTransit(path, id)` | `mutate({transit, payload})`; resolves to the item, or to null when the user can no longer view it (leave its screen) |
+
+A form shows the errors of a 422 by field from `form.errors` and any other error from
+`form.submitError`; the fields a user may not change are not in `schema_update`, and the
+read-only ones are never sent. To-many relationships are in `form.fields` (`many: true`)
+but not in its values: change them with `useRelationship`.

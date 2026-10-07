@@ -12,8 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { errorMessage } from '@/app/errors';
 import { LOGIN_ENABLED, logout } from '@/app/session';
-import { ROUTES } from '@/bazis/generated/contract';
+import { pagination } from '@/bazis/client';
+import { RESOURCES } from '@/bazis/generated/contract';
+import { useList } from '@/bazis/react';
+
+type Resource = (typeof RESOURCES)[keyof typeof RESOURCES];
+/** A resource whose route set has a list. */
+type Listed = Extract<Resource, { actions: { action_list: 'collection' } }>;
+
+function isListed(resource: Resource): resource is Listed {
+  return 'action_list' in resource.actions;
+}
+
+/** The number of the items that the user may view. */
+function Count({ path }: { path: Listed['path'] }) {
+  const list = useList(path, { page: { limit: 1 }, meta: ['pagination'] });
+  if (list.isError) return <span title={errorMessage(list.error)}>—</span>;
+  return <span>{list.data ? (pagination(list.data)?.count ?? '—') : '…'}</span>;
+}
 
 /** The resources of the backend, from the generated contract. */
 export function HomeScreen() {
@@ -28,10 +46,13 @@ export function HomeScreen() {
         )}
       </header>
       <ul className="divide-y rounded-lg border">
-        {Object.entries(ROUTES).map(([type, path]) => (
+        {Object.entries(RESOURCES).map(([type, resource]) => (
           <li key={type} className="flex justify-between gap-4 px-4 py-3">
             <span className="font-medium">{type}</span>
-            <code className="text-sm text-muted-foreground">{path}</code>
+            <span className="flex gap-4 text-sm text-muted-foreground">
+              <code>{resource.path}</code>
+              {isListed(resource) && <Count path={resource.path} />}
+            </span>
           </li>
         ))}
       </ul>

@@ -117,7 +117,7 @@ jobs:
       - run: npm test
 
   # a frontend made by `init` from the sample backend: the template compiles, lints and
-  # builds against the generated contract and the copied client
+  # builds against the generated contract, the copied client and the copied hooks
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -191,6 +191,8 @@ jobs:
       - name: Check and build the frontend
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
         run: |
+          # the sample has bazis-statusy: its hooks are copied and compiled with the rest
+          test -f src/bazis/react/statusy/index.ts
           npx tsc --noEmit
           npm run lint
           npm test

@@ -15,6 +15,7 @@
 from importlib.resources import files
 from pathlib import Path
 
+from bazis.contrib.front.capabilities import CAPABILITIES
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor.copy import stamp
 
@@ -44,6 +45,27 @@ def test_the_registry_lists_the_sources_of_the_client():
     assert sorted(client.files) == files_of(ASSETS / 'client' / 'src')
 
 
+def test_the_registry_lists_the_sources_of_the_hooks():
+    assets = registry.load()
+    react, statusy = assets['react'], assets['react-statusy']
+    assert (react.kind, react.source, react.target, react.capabilities) == (
+        registry.VENDORED, 'react/src', 'src/bazis/react', ()
+    )
+    # the hooks of bazis-statusy, `@/bazis/react/statusy`, only for a product that has it
+    assert (statusy.kind, statusy.source, statusy.target, statusy.capabilities) == (
+        registry.VENDORED, 'react/src/statusy', 'src/bazis/react/statusy', ('statusy',)
+    )
+    listed = [*react.files, *(f'statusy/{name}' for name in statusy.files)]
+    assert sorted(listed) == files_of(ASSETS / 'react' / 'src')
+
+
+def test_the_required_capabilities_are_known():
+    for asset in registry.load().values():
+        assert set(asset.capabilities) <= set(CAPABILITIES), asset.name
+        assert asset.wanted([*asset.capabilities, 'other'])
+        assert asset.wanted([]) is not bool(asset.capabilities)
+
+
 def test_the_registry_lists_every_file_of_the_template():
     template = registry.load()['template']
     assert (template.kind, template.target) == (registry.TEMPLATE, '')
@@ -52,8 +74,10 @@ def test_the_registry_lists_every_file_of_the_template():
 
 def test_the_sources_start_with_the_license_header():
     assets = registry.load()
-    for name in assets['client'].files:
-        assert assets['client'].read(name).decode('utf-8').startswith(HEADER + '\n'), name
+    for asset in assets.values():
+        if asset.kind == registry.VENDORED:
+            for name in asset.files:
+                assert asset.read(name).decode('utf-8').startswith(HEADER + '\n'), name
     for name in assets['template'].files:
         if name.endswith(('.ts', '.tsx', '.js', '.css', '.html')):
             head = assets['template'].read(name).decode('utf-8').splitlines()[:3]

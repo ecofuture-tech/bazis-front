@@ -1,0 +1,528 @@
+{
+  "schema_create": {
+    "$defs": {
+      "___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Attributes__Attributes": {
+        "properties": {
+          "title": {
+            "filterLabel": "title",
+            "maxLength": 255,
+            "nullable": false,
+            "orderLabel": "title",
+            "title": "Title",
+            "type": "string"
+          },
+          "report": {
+            "blank": true,
+            "default": "",
+            "filterLabel": "report",
+            "nullable": false,
+            "orderLabel": "report",
+            "title": "Report",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Attributes__Attributes",
+        "type": "object"
+      },
+      "___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships__Relationships__Data__assignee": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/_tasks__task__schema_create__ResourceIdentifierSchema__users__user"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "blank": true,
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "title": "___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships__Relationships__Data__assignee",
+        "type": "object"
+      },
+      "___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships__Relationships__Data__status": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/_tasks__task__schema_create__ResourceIdentifierSchema__statusy__status"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "blank": null,
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "title": "___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships__Relationships__Data__status",
+        "type": "object"
+      },
+      "__tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships": {
+        "properties": {
+          "status": {
+            "$ref": "#/$defs/___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships__Relationships__Data__status",
+            "default": null,
+            "filterLabel": "status",
+            "nullable": false,
+            "orderLabel": "status",
+            "title": "Current status"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships__Relationships__Data__assignee"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "blank": true,
+            "default": null,
+            "filterLabel": "assignee",
+            "nullable": true,
+            "orderLabel": "assignee",
+            "title": "assignee"
+          }
+        },
+        "title": "__tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships",
+        "type": "object"
+      },
+      "_tasks__task__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
+        "properties": {},
+        "title": "_tasks__task__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43",
+        "type": "object"
+      },
+      "_tasks__task__schema_create__ResourceIdentifierSchema__statusy__status": {
+        "properties": {
+          "id": {
+            "default": null,
+            "example": "draft",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "statusy.status",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "_tasks__task__schema_create__ResourceIdentifierSchema__statusy__status",
+        "type": "object"
+      },
+      "_tasks__task__schema_create__ResourceIdentifierSchema__users__user": {
+        "properties": {
+          "id": {
+            "default": null,
+            "example": "583c3cc6-6738-55da-b4ef-91a5ab17c523",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "users.user",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "_tasks__task__schema_create__ResourceIdentifierSchema__users__user",
+        "type": "object"
+      },
+      "_tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "type": {
+            "default": "tasks.task",
+            "title": "Type",
+            "type": "string"
+          },
+          "bs:action": {
+            "default": "add",
+            "title": "Bs:Action",
+            "type": "string"
+          },
+          "attributes": {
+            "$ref": "#/$defs/___tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/$defs/__tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac_None__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "required": [
+          "attributes",
+          "relationships"
+        ],
+        "title": "_tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac",
+        "type": "object"
+      }
+    },
+    "properties": {
+      "data": {
+        "$ref": "#/$defs/_tasks__task__schema_create__ResourceSchema__e12b46b6e154439b2c461b143431beac",
+        "title": "Data"
+      },
+      "meta": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/_tasks__task__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "data"
+    ],
+    "title": "tasks__task__schema_create__a5311aa45d66698e133904071f2b7e19",
+    "type": "object"
+  },
+  "schema_update": {
+    "$defs": {
+      "___tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Attributes__Attributes": {
+        "properties": {
+          "title": {
+            "default": null,
+            "filterLabel": "title",
+            "maxLength": 255,
+            "nullable": false,
+            "orderLabel": "title",
+            "title": "Title",
+            "type": "string"
+          },
+          "report": {
+            "blank": true,
+            "default": "",
+            "filterLabel": "report",
+            "nullable": false,
+            "orderLabel": "report",
+            "title": "Report",
+            "type": "string"
+          }
+        },
+        "title": "___tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Attributes__Attributes",
+        "type": "object"
+      },
+      "___tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Relationships__Relationships__Data__assignee": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/_tasks__task__schema_update__ResourceIdentifierSchema__users__user"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "blank": true,
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "title": "___tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Relationships__Relationships__Data__assignee",
+        "type": "object"
+      },
+      "__tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Relationships": {
+        "properties": {
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/___tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Relationships__Relationships__Data__assignee"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "blank": true,
+            "default": null,
+            "filterLabel": "assignee",
+            "nullable": true,
+            "orderLabel": "assignee",
+            "title": "assignee"
+          }
+        },
+        "title": "__tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Relationships",
+        "type": "object"
+      },
+      "_tasks__task__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
+        "properties": {},
+        "title": "_tasks__task__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43",
+        "type": "object"
+      },
+      "_tasks__task__schema_update__ResourceIdentifierSchema__users__user": {
+        "properties": {
+          "id": {
+            "default": null,
+            "example": "583c3cc6-6738-55da-b4ef-91a5ab17c523",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "users.user",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "_tasks__task__schema_update__ResourceIdentifierSchema__users__user",
+        "type": "object"
+      },
+      "_tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "tasks.task",
+            "title": "Type",
+            "type": "string"
+          },
+          "bs:action": {
+            "default": "change",
+            "title": "Bs:Action",
+            "type": "string"
+          },
+          "attributes": {
+            "$ref": "#/$defs/___tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Attributes__Attributes",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/$defs/__tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e_False__Relationships",
+            "title": "Relationships"
+          }
+        },
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "title": "_tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e",
+        "type": "object"
+      }
+    },
+    "properties": {
+      "data": {
+        "$ref": "#/$defs/_tasks__task__schema_update__ResourceSchema__8cbdcb6b388077c812f16191c7b94a4e",
+        "title": "Data"
+      },
+      "meta": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/_tasks__task__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "data"
+    ],
+    "title": "tasks__task__schema_update__c32837daaba6c262ad1fad5165f8bc4c",
+    "type": "object"
+  },
+  "retrieve_draft": {
+    "data": {
+      "id": "b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0",
+      "type": "tasks.task",
+      "bs:action": "view",
+      "attributes": {
+        "dt_created": "2026-10-07T12:22:25.372036Z",
+        "dt_updated": "2026-10-07T12:22:25.372044Z",
+        "status_dt": "2026-10-07T12:22:25.372059Z",
+        "title": "T",
+        "report": ""
+      },
+      "relationships": {
+        "status": {
+          "data": {
+            "id": "draft",
+            "type": "statusy.status"
+          }
+        },
+        "status_author": {
+          "data": null
+        },
+        "assignee": {
+          "data": {
+            "id": "6d66c129-f8da-4307-b9a3-8f229faba03b",
+            "type": "users.user"
+          }
+        }
+      }
+    },
+    "meta": {
+      "crud_actions": [
+        "view",
+        "change",
+        "add"
+      ],
+      "state_actions": [
+        {
+          "code": "ACTION_TRANSIT",
+          "endpoint": {
+            "url": "/api/v1/tasks/task/b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0/transit/",
+            "method": "POST",
+            "body": {
+              "properties": {
+                "transit": {
+                  "default": "start",
+                  "title": "Transit",
+                  "type": "string"
+                },
+                "payload": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Payload"
+                }
+              },
+              "required": [
+                "payload"
+              ],
+              "title": "DictOrNone_body_type",
+              "type": "object"
+            }
+          },
+          "restricts": null,
+          "hint": null,
+          "hint_title": null,
+          "hint_action": null,
+          "resource": {
+            "id": "b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0",
+            "type": "tasks.task"
+          }
+        }
+      ]
+    }
+  },
+  "retrieve_in_progress": {
+    "data": {
+      "id": "b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0",
+      "type": "tasks.task",
+      "bs:action": "view",
+      "attributes": {
+        "dt_created": "2026-10-07T12:22:25.372036Z",
+        "dt_updated": "2026-10-07T12:22:25.975736Z",
+        "status_dt": "2026-10-07T12:22:25.965147Z",
+        "title": "X",
+        "report": ""
+      },
+      "relationships": {
+        "status": {
+          "data": {
+            "id": "in_progress",
+            "type": "statusy.status"
+          }
+        },
+        "status_author": {
+          "data": {
+            "id": "2602fe53-5b0d-4a41-8c2f-e41bc579c1c8",
+            "type": "users.user"
+          }
+        },
+        "assignee": {
+          "data": null
+        }
+      }
+    },
+    "meta": {
+      "state_actions": [
+        {
+          "code": "ACTION_TRANSIT",
+          "endpoint": {
+            "url": "/api/v1/tasks/task/b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0/transit/",
+            "method": "POST",
+            "body": {
+              "$defs": {
+                "PayloadType_36307451920": {
+                  "properties": {
+                    "report": {
+                      "title": "Report",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "report"
+                  ],
+                  "title": "PayloadType_36307451920",
+                  "type": "object"
+                }
+              },
+              "properties": {
+                "transit": {
+                  "default": "finish",
+                  "title": "Transit",
+                  "type": "string"
+                },
+                "payload": {
+                  "$ref": "#/$defs/PayloadType_36307451920"
+                }
+              },
+              "required": [
+                "payload"
+              ],
+              "title": "PayloadType_36307451920_body_type",
+              "type": "object"
+            }
+          },
+          "restricts": null,
+          "hint": null,
+          "hint_title": null,
+          "hint_action": null,
+          "resource": {
+            "id": "b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0",
+            "type": "tasks.task"
+          }
+        }
+      ]
+    }
+  },
+  "create_422": {
+    "errors": [
+      {
+        "status": 422,
+        "title": "missing",
+        "code": "ERR_VALIDATE",
+        "detail": "Field required",
+        "source": {
+          "pointer": "/attributes/title"
+        }
+      }
+    ]
+  }
+}

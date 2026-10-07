@@ -22,7 +22,7 @@ from django.test import override_settings
 
 import pytest
 
-from bazis.contrib.front import __version__
+from bazis.contrib.front import __version__, capabilities
 from bazis.contrib.front.spec import create as spec_create
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import copy, registry
@@ -71,27 +71,45 @@ def test_init_creates_the_frontend(product):
     assert (frontend / 'AGENTS.md').read_text(encoding='utf-8').startswith('# Frontend')
 
     lock = json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
-    client = assets['client']
-    files = lock['assets']['client'].pop('files')
+    # the sample has bazis-statusy: its hooks are copied
+    vendored = ['client', 'react', 'react-statusy']
+    files = {name: lock['assets'][name].pop('files') for name in vendored}
     assert lock == {
         'lock': 1,
         'bazis_front': __version__,
         'contract': {},
         'generated': {},
-        'assets': {'client': {'version': __version__}, 'template': {'version': __version__}},
+        'assets': {name: {'version': __version__} for name in [*vendored, 'template']},
     }
-    assert sorted(files) == sorted(f'src/bazis/client/{name}' for name in client.files)
-    for name in client.files:
-        copied = (frontend / 'src' / 'bazis' / 'client' / name).read_bytes()
-        lines = copied.decode('utf-8').splitlines()
-        # the stamp follows the 13 lines of the license header
-        assert lines[13] == f'// bazis-front {__version__} asset client'
-        assert lines[:13] + lines[14:] == client.read(name).decode('utf-8').splitlines()
-        # the pristine copy for the merge of the next version, hashed in the lock
-        base = frontend / '.bazis' / 'base' / f'client@{__version__}' / name
-        assert base.read_bytes() == copied
-        assert files[f'src/bazis/client/{name}'] == digest(copied)
+    for asset in (assets[name] for name in vendored):
+        assert sorted(files[asset.name]) == sorted(asset.target_path(it) for it in asset.files)
+        for name in asset.files:
+            copied = (frontend / asset.target_path(name)).read_bytes()
+            lines = copied.decode('utf-8').splitlines()
+            # the stamp follows the 13 lines of the license header
+            assert lines[13] == f'// bazis-front {__version__} asset {asset.name}'
+            assert lines[:13] + lines[14:] == asset.read(name).decode('utf-8').splitlines()
+            # the pristine copy for the merge of the next version, hashed in the lock
+            base = frontend / '.bazis' / 'base' / f'{asset.name}@{__version__}' / name
+            assert base.read_bytes() == copied
+            assert files[asset.name][asset.target_path(name)] == digest(copied)
+    assert (frontend / 'src' / 'bazis' / 'react' / 'statusy' / 'index.ts').is_file()
     assert not (frontend / 'src' / 'bazis' / 'generated').exists()
+
+
+def test_init_copies_the_hooks_of_the_installed_packages(product, monkeypatch):
+    # a product without bazis-statusy
+    monkeypatch.setattr(capabilities, 'enabled', lambda: ['permit', 'users'])
+    init('--no-node')
+
+    frontend = product / 'frontend'
+    lock = json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
+    assert sorted(lock['assets']) == ['client', 'react', 'template']
+    assert (frontend / 'src' / 'bazis' / 'react' / 'index.ts').is_file()
+    assert not (frontend / 'src' / 'bazis' / 'react' / 'statusy').exists()
+    assert sorted(it.name for it in (frontend / '.bazis' / 'base').iterdir()) == [
+        f'client@{__version__}', f'react@{__version__}'
+    ]
 
 
 def test_init_creates_the_specs(product):

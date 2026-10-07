@@ -17,6 +17,37 @@
       ]
     },
     {
+      "name": "react",
+      "kind": "vendored",
+      "source": "react/src",
+      "target": "src/bazis/react",
+      "files": [
+        "context.tsx",
+        "form.ts",
+        "index.ts",
+        "keys.ts",
+        "mutations.ts",
+        "queries.ts",
+        "schema.ts",
+        "types.ts"
+      ]
+    },
+    {
+      "name": "react-statusy",
+      "kind": "vendored",
+      "source": "react/src/statusy",
+      "target": "src/bazis/react/statusy",
+      "requires": {
+        "capabilities": [
+          "statusy"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "transits.ts"
+      ]
+    },
+    {
       "name": "template",
       "kind": "template",
       "source": "template",

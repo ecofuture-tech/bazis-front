@@ -13,23 +13,15 @@
 // limitations under the License.
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
-import { getToken, logout, onSessionChange } from '@/app/session';
-import { ApiError, createClient, type BazisClient } from '@/bazis/client';
+import { getToken, logout, useSession } from '@/app/session';
+import { ApiError, createClient } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
-
-export type Api = BazisClient<paths>;
+import { BazisProvider, type Api } from '@/bazis/react';
 
 // The API is on the origin of the frontend: the dev server proxies /api (vite.config.ts).
 const api: Api = createClient<paths>({ token: getToken });
-
-const ApiContext = createContext<Api>(api);
-
-/** The client of the backend, typed by the generated schema. */
-export function useApi(): Api {
-  return useContext(ApiContext);
-}
 
 // an expired or revoked token ends the session, whether a query or a mutation finds it out
 function endSessionOn401(error: Error): void {
@@ -49,19 +41,19 @@ function createQueryClient(): QueryClient {
   });
 }
 
+/**
+ * The query cache and the client of the backend for the hooks of `@/bazis/react` (`useApi()`
+ * reads the client). The cached data belongs to the user who loaded it: every query key of
+ * the hooks ends with the session, which changes when a user logs in or out.
+ */
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
-  // the cached data belongs to the user who loaded it: drop it when the user changes
-  useEffect(
-    () =>
-      onSessionChange(() => {
-        queryClient.clear();
-      }),
-    [queryClient],
-  );
+  const session = useSession();
   return (
-    <ApiContext value={api}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ApiContext>
+    <QueryClientProvider client={queryClient}>
+      <BazisProvider client={api} session={session}>
+        {children}
+      </BazisProvider>
+    </QueryClientProvider>
   );
 }

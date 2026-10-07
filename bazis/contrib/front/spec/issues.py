@@ -35,6 +35,7 @@ CONTRACT = 'contract'
 CODES: dict[str, tuple[str, str]] = {
     'C001': (ERROR, 'contract/contract.json cannot be read'),
     'C002': (ERROR, 'contract/contract.json has another format: it was exported by another version of bazis-front'),
+    'C003': (WARNING, 'the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or are there without the package'),
     'P001': (ERROR, 'spec/product.yaml is missing or is not valid YAML'),
     'P002': (ERROR, 'spec/product.yaml does not follow product.schema.json'),
     'P003': (ERROR, 'an id is declared twice (role, entity, field, transition, scenario)'),

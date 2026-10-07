@@ -48,7 +48,8 @@ export interface ClientOptions {
 
 type Item = '{item_id}/';
 type Relationship = '{item_id}/relationships/{related_field_name}';
-type SchemaSuffix = {
+/** The suffix of the endpoint of each runtime schema, after the path of the route set. */
+export type SchemaSuffix = {
   list: 'schema_list/';
   create: 'schema_create/';
   retrieve: '{item_id}/schema_retrieve/';
