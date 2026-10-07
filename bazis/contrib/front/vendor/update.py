@@ -100,9 +100,11 @@ DESCRIPTIONS = {
 #: the names of the two sides in the conflict markers
 LOCAL_NAME = 'frontend'
 
-#: `git merge-file` without the configuration of the user or of the system: the same markers
-#: everywhere
+#: `git merge-file` without the configuration of the system, of the user or of a repository
+#: (a hook or `git rebase -x` passes GIT_DIR): the same markers everywhere; the conflict style
+#: is also set on the command line, which wins over any configuration
 GIT_ENV = {'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull}
+GIT_REPOSITORY_ENV = ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_CONFIG', 'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_COUNT')
 
 
 @dataclass
@@ -238,11 +240,15 @@ def merge_file(path: str, base: str, local: str, upstream: str, version: str) ->
             (Path(directory) / name).write_bytes(text.encode('utf-8'))
         result = subprocess.run(
             [
-                git, 'merge-file', '-p', '-L', LOCAL_NAME, '-L', 'base',
+                git, '-c', 'merge.conflictStyle=merge', 'merge-file', '-p',
+                '-L', LOCAL_NAME, '-L', 'base',
                 '-L', f'bazis-front {version}', 'local', 'base', 'upstream',
             ],
             cwd=directory,
-            env={**os.environ, **GIT_ENV},
+            env={
+                **{key: value for key, value in os.environ.items() if key not in GIT_REPOSITORY_ENV},
+                **GIT_ENV,
+            },
             capture_output=True,
             check=False,
         )

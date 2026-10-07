@@ -21,6 +21,7 @@ installed package (`downgrade`).
 
 import json
 import shutil
+import subprocess
 from io import StringIO
 
 from django.core.management import CommandError, call_command
@@ -531,6 +532,18 @@ def test_merge_ignores_the_configuration_of_git(tmp_path, monkeypatch):
     config = tmp_path / 'gitconfig'
     config.write_text('[merge]\n\tconflictStyle = zdiff3\n[diff]\n\talgorithm = patience\n')
     monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(config))
+    status, text = merge('x\n', 'mine\n', 'theirs\n')
+    assert (status, text) == (vendor_update.CONFLICT, f'{MARKERS[0]}mine\n{MARKERS[1]}theirs\n{MARKERS[2]}')
+
+
+def test_merge_ignores_the_configuration_of_a_repository(tmp_path, monkeypatch):
+    # a hook or `git rebase -x` passes GIT_DIR of the repository of the product
+    repository = tmp_path / 'repository'
+    subprocess.run(['git', 'init', '-q', str(repository)], check=True)
+    subprocess.run(
+        ['git', '-C', str(repository), 'config', 'merge.conflictStyle', 'diff3'], check=True
+    )
+    monkeypatch.setenv('GIT_DIR', str(repository / '.git'))
     status, text = merge('x\n', 'mine\n', 'theirs\n')
     assert (status, text) == (vendor_update.CONFLICT, f'{MARKERS[0]}mine\n{MARKERS[1]}theirs\n{MARKERS[2]}')
 
