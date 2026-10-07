@@ -25,8 +25,8 @@ def sample_app():
 @pytest.fixture
 def workflow(db):
     """
-    The data that the contract reads from the database: two roles with their permission
-    groups, and the statuses and transits of the tasks (created in an order other than the
+    The data that the contract reads from the database: roles with their permission groups
+    and permissions, and the statuses and transits of the tasks (created in an order other than the
     sorted one).
     """
     from django.apps import apps
@@ -35,10 +35,30 @@ def workflow(db):
 
     group_model = apps.get_model('permit.GroupPermission')
     role_model = apps.get_model('permit.Role')
-    groups = {
-        slug: group_model.objects.create(slug=slug, name_en=slug.title())
-        for slug in ('tasks_view', 'tasks_change', 'tasks_transit')
+    permission_model = apps.get_model('permit.Permission')
+    permissions = {
+        slug: permission_model.objects.create(slug=slug)
+        for slug in (
+            'tasks.task.item.view.all.all',
+            'tasks.task.item.change.all.draft',
+            'tasks.task.item.transit.all.draft.start',
+            'tasks.task.field.view.all.report.enable',
+            # in no group: no role has it
+            'tasks.task.item.delete.all.all',
+        )
     }
+    group_permissions = {
+        'tasks_view': ['tasks.task.item.view.all.all', 'tasks.task.field.view.all.report.enable'],
+        # shares a permission with tasks_view: the role lists it once
+        'tasks_change': ['tasks.task.item.view.all.all', 'tasks.task.item.change.all.draft'],
+        'tasks_transit': ['tasks.task.item.transit.all.draft.start'],
+    }
+    groups = {}
+    for slug, slugs in group_permissions.items():
+        groups[slug] = group_model.objects.create(slug=slug, name_en=slug.title())
+        groups[slug].permissions.add(*(permissions[it] for it in slugs))
+    # a role without groups has no permissions
+    role_model.objects.create(slug='guest', name_en='Guest')
     viewer = role_model.objects.create(slug='viewer', name_en='Viewer', for_anonymous=True)
     viewer.groups_permission.add(groups['tasks_view'])
     manager = role_model.objects.create(slug='manager', name_en='Manager')

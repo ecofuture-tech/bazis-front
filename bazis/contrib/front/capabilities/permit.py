@@ -13,14 +13,16 @@
 # limitations under the License.
 
 """
-bazis-permit: the roles with the slugs of their permission groups, from the database.
+bazis-permit: the roles with their permission groups and their effective permissions, from
+the database. A role has permissions only through its groups (Role.groups_permission ->
+GroupPermission.permissions), the same chain PermitService reads for the current role.
 """
 
 from django.apps import apps
 
 
 def section() -> dict:
-    roles = apps.get_model('permit.Role').objects.prefetch_related('groups_permission')
+    roles = apps.get_model('permit.Role').objects.prefetch_related('groups_permission__permissions')
     return {
         'roles': [
             {
@@ -28,6 +30,13 @@ def section() -> dict:
                 'name': role.name,
                 'for_anonymous': role.for_anonymous,
                 'groups': sorted(group.slug for group in role.groups_permission.all()),
+                'permissions': sorted(
+                    {
+                        permission.slug
+                        for group in role.groups_permission.all()
+                        for permission in group.permissions.all()
+                    }
+                ),
             }
             for role in roles.order_by('slug')
         ],

@@ -58,7 +58,8 @@ python manage.py bazis_front contract --out DIR  # another directory
   }},
   "capabilities": {
     "users": {"token_url": "/api/openapi-token/", "user_resource": "users.user"},
-    "permit": {"roles": [{"slug": "manager", "name": "Manager", "for_anonymous": false, "groups": ["tasks_change"]}]},
+    "permit": {"roles": [{"slug": "manager", "name": "Manager", "for_anonymous": false,
+                          "groups": ["tasks_change"], "permissions": ["tasks.task.item.change.all.draft"]}]},
     "statusy": {"models": {"tasks.task": {
       "initial": "draft",
       "statuses": [{"id": "draft", "name": "Draft"}, {"id": "done", "name": "Done"}],
@@ -82,7 +83,9 @@ python manage.py bazis_front contract --out DIR  # another directory
   be filtered or sorted.
 - `capabilities` has a section for each installed package whose app is in
   `INSTALLED_APPS`: `users` (the token endpoint, the resource of the user model), `permit`
-  (the roles with the slugs of their permission groups), `statusy` (per statusy model: the
+  (the roles with the slugs of their permission groups and their effective permissions:
+  the union of the permissions of the groups, as bazis-permit checks them for the current
+  role of a user; a role has no permissions of its own), `statusy` (per statusy model: the
   initial status, the statuses of its transits, the transits with the JSON Schema of the
   payload they require, `null` without one). Names are in `LANGUAGE_CODE`; lists are
   sorted.

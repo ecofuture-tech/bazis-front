@@ -116,12 +116,26 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
 
     assert sorted(sections) == ['permit', 'statusy', 'users']
     assert sections['users'] == {'token_url': '/api/openapi-token/', 'user_resource': 'users.user'}
+    # the effective permissions of a role: the union of those of its groups, sorted
     assert sections['permit']['roles'] == [
+        {'slug': 'guest', 'name': 'Guest', 'for_anonymous': False, 'groups': [], 'permissions': []},
         {
             'slug': 'manager', 'name': 'Manager', 'for_anonymous': False,
             'groups': ['tasks_change', 'tasks_transit', 'tasks_view'],
+            'permissions': [
+                'tasks.task.field.view.all.report.enable',
+                'tasks.task.item.change.all.draft',
+                'tasks.task.item.transit.all.draft.start',
+                'tasks.task.item.view.all.all',
+            ],
         },
-        {'slug': 'viewer', 'name': 'Viewer', 'for_anonymous': True, 'groups': ['tasks_view']},
+        {
+            'slug': 'viewer', 'name': 'Viewer', 'for_anonymous': True,
+            'groups': ['tasks_view'],
+            'permissions': [
+                'tasks.task.field.view.all.report.enable', 'tasks.task.item.view.all.all',
+            ],
+        },
     ]
 
     task = sections['statusy']['models']['tasks.task']
@@ -154,6 +168,12 @@ def test_check_detects_a_stale_contract(sample_app, workflow, tmp_path):
     from django.apps import apps
 
     apps.get_model('permit.Role').objects.create(slug='auditor', name_en='Auditor')
+    with pytest.raises(CommandError, match=r'is stale: contract.json differ'):
+        call_command('bazis_front', 'contract', '--check', '--out', str(tmp_path))
+
+    export(tmp_path)
+    group = apps.get_model('permit.GroupPermission').objects.get(slug='tasks_view')
+    group.permissions.create(slug='tasks.task.item.delete.all.draft')
     with pytest.raises(CommandError, match=r'is stale: contract.json differ'):
         call_command('bazis_front', 'contract', '--check', '--out', str(tmp_path))
 
