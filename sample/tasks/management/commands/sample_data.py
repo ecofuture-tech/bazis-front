@@ -24,7 +24,8 @@ class Command(BaseCommand):
     help = (
         'Create the data of the sample that its migrations do not: the roles, statuses and '
         'transits (read by `bazis_front contract`), and for the end-to-end tests the test users '
-        'of the roles (with the password of E2E_PASSWORD) and a task.'
+        'of the roles and a task. Data that exists is kept, but the password of the test users '
+        'is set to E2E_PASSWORD again.'
     )
 
     def handle(self, *args, **options):

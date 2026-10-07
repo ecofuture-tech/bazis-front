@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from django.conf import settings
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -24,7 +25,8 @@ from .schemas import FinishPayload
 
 
 class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
-    title = models.CharField(_('Title'), max_length=255)
+    # not empty: the scenario `manager-cannot-save-an-empty-title` expects its error
+    title = models.CharField(_('Title'), max_length=255, validators=[MinLengthValidator(1)])
     report = models.TextField(_('Report'), blank=True, default='')
     assignee = models.ForeignKey(
         settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.SET_NULL

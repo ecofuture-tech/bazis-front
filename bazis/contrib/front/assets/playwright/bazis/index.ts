@@ -53,10 +53,17 @@ export function bz(kind: string, id: string): string {
 }
 
 /** The marks of a failure: the error states and the errors of the fields. */
-const FAILED = [
+const FAILURES = [
   ...['error', 'forbidden', 'not_found', 'invalid'].map((state) => bz('state', state)),
   '[data-bz^="error:"]',
-].join(', ');
+];
+const FAILED = FAILURES.join(', ');
+
+/** The attribute that the helpers set on the marks of a failure shown before a step. */
+const SEEN = 'data-bz-seen';
+
+/** The marks of a failure shown since the step started. */
+const NEW_FAILED = FAILURES.map((it) => `${it}:not([${SEEN}])`).join(', ');
 
 /** The login screen of the template (`LoginForm`). */
 const LOGIN_ROUTE = '/login';
@@ -111,7 +118,7 @@ export class App<P extends Product = Product> {
     await this.settled();
     let rows = this.screen().locator('[data-bz^="row:"]');
     for (const [name, value] of Object.entries(where)) {
-      rows = rows.filter({ has: this.page.locator(bz('field', name)).filter({ hasText: exactly(value) }) });
+      rows = rows.filter({ has: this.page.locator(bz('cell', name)).filter({ hasText: exactly(value) }) });
     }
     await rows.first().click();
   }
@@ -144,13 +151,15 @@ export class App<P extends Product = Product> {
   }
 
   /**
-   * Submits the open form and waits until it is closed (saved) or shows an error, which
-   * the next step expects (`expectError`, `expectState`).
+   * Submits the open form and waits until it is closed (saved) or shows an error of this
+   * submit (not one of a previous submit), which the next step expects (`expectError`,
+   * `expectState`).
    */
   async submit(): Promise<void> {
     const form = this.form();
+    await this.seen(form);
     await form.locator(bz('action', 'submit')).click();
-    await this.until(form, form.locator(FAILED), 'the form is closed or shows an error');
+    await this.until(form, form.locator(NEW_FAILED), 'the form is closed or shows an error');
   }
 
   /**
@@ -160,12 +169,13 @@ export class App<P extends Product = Product> {
    */
   async transit(id: string, payload?: Values): Promise<void> {
     const button = this.screen().locator(bz('transit', id));
+    await this.seen(this.page.locator('body'));
     await button.click();
     if (payload !== undefined) {
       await this.fill(payload);
       await this.submit();
     }
-    await this.until(button, this.page.locator(FAILED), `the transit ${id} is done or shows an error`);
+    await this.until(button, this.page.locator(NEW_FAILED), `the transit ${id} is done or shows an error`);
   }
 
   /** The current screen is this one, with its state rendered. */
@@ -236,6 +246,16 @@ export class App<P extends Product = Product> {
   private async settled(): Promise<void> {
     await expect(this.screen().locator('[data-bz^="state:"]').first()).toBeAttached();
     await expect(this.page.locator(bz('state', 'loading'))).toHaveCount(0);
+  }
+
+  /**
+   * Marks the failures shown in the scope, so that a step waits for its own: those of a
+   * previous submit stay on the page until the next one is sent.
+   */
+  private async seen(scope: Locator): Promise<void> {
+    await scope.locator(FAILED).evaluateAll((elements, attribute) => {
+      for (const element of elements) element.setAttribute(attribute, '');
+    }, SEEN);
   }
 
   /** Waits until `gone` is no longer on the page or `failed` is. */

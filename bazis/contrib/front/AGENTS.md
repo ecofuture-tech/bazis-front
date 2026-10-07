@@ -103,7 +103,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `state-panel` | `StatePanel({state, error?, message?, onRetry?, inline?, children})`, `errorState(error)`, `queryState(query, empty?)` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation: 'sidebar' \| 'topbar', items: [{screen, label, to, end?}], session: {user?, onLogout} \| null, children})`, `Screen({id, title?, actions?, children})` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
 | `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, actions?, rowActions?, cells?, emptyMessage?})` | `list:<entity>`, `row:<id>` with its cells `field:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, actions?, rowActions?, cells?, emptyMessage?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`, `statusOf`, `statusName`, `statusOptions`, `transitName` | `status:<id>` | `statusy` |
@@ -331,7 +331,9 @@ scenarios:
   `field_readonly`, `rows`, `error`. The validator follows the steps from screen to screen
   and checks each against the screen it acts on: `open` takes a screen without an item in
   its route (an item is reached with `open_item` or the `then` of a form), a form with
-  `fields` is filled only in them, `action_absent` names an action of the screen. When the
+  `fields` is filled only in them, `action_absent` names an action of the screen. A
+  `submit` followed by an `expect` with `error` fails: its form stays open on its screen
+  (no `then`), and the next steps fix it and submit again. When the
   product logs in (`packages` has `users`), the role of a scenario has a `test_user`, the
   user its end-to-end test logs in as (P025). `bazis_front e2e` turns each scenario into a
   Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
@@ -382,7 +384,7 @@ invalid`.
 
 **`data-bz`**: the screens mark their elements, and the scenarios act through them:
 `screen:<id>`, `state:<loading|empty|loaded|error|forbidden|not_found|invalid>`,
-`list:<entity>`, `row:<id>` (its cells `field:<column>`), `field:<field>`,
+`list:<entity>`, `row:<id>` (its cells `cell:<column>`), `field:<field>`,
 `error:<field>`, `action:<id>`, `transit:<id>`, `status:<id>`, `nav:<screen>`.
 
 ### `spec/design/` (`spec: bazis-design/1`)
@@ -478,7 +480,8 @@ python manage.py bazis_front e2e --check   # write nothing; exit 1 if the genera
 cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSWORD, against the backend
 ```
 
-- `e2e` needs a frontend made by `init` and specs without errors (`bazis_front check`). It
+- `e2e` needs a frontend made by `init` with the helpers (a frontend of an older bazis-front
+  gets them with `bazis_front add playwright`) and specs without errors (`bazis_front check`). It
   writes a Playwright test per scenario, `frontend/e2e/generated/<scenario>.spec.ts`, and
   `e2e/generated/product.ts` (`PRODUCT`: the test user of each role, the route of each
   screen), deletes the tests of a scenario removed from the specs, and records in the lock
@@ -497,10 +500,10 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   |---|---|
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
-  | `open_item: {where}` | `openItem({where})`: the first `row:<id>` of the page whose cells `field:<name>` have exactly these texts; then `expectScreen` of `list.open` |
+  | `open_item: {where}` | `openItem({where})`: the first `row:<id>` of the page whose cells `cell:<name>` have exactly these texts; then `expectScreen` of `list.open` |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/`) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
-  | `submit: {}` | `submit()`: waits until the form is closed or shows an error; then `expectScreen` of the `then` of the form |
+  | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen`, `expectStatus`, `expectState`, `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, `expectError`, in this order |
 
@@ -513,8 +516,10 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   roles, statuses and transits of the specs, a user per `test_user` with its role (in
   `roles` and `role_current`) and the password of `E2E_PASSWORD`, and the items that the
   scenarios open (`open_item`). Create them with a management command or a fixture of the
-  product (the sample of this package: `manage.py sample_data`). The scenarios share the
-  database: `playwright.config.ts` runs them one at a time.
+  product (the sample of this package: `manage.py sample_data`, which also sets the password
+  of the test users again when it runs again). The scenarios share the database and run one
+  at a time (`playwright.config.ts`); none should depend on another: a scenario opens an
+  item that the test data creates, or one it creates itself.
 - `npm run e2e` starts the dev server of the frontend (its `/api` goes to `BAZIS_API_URL`)
   unless `E2E_BASE_URL` names a running frontend; the backend runs separately. In CI, an
   HTML report is written to `frontend/playwright-report/`.

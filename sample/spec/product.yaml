@@ -55,5 +55,24 @@ scenarios:
     steps:
       - open: task-list
       - expect: {action_absent: create}
-      - open_item: {where: {title: Write the report}}
+      - open_item: {where: {title: Review the plan}}   # created by `manage.py sample_data`
       - expect: {screen: task-card, action_absent: delete, field_readonly: report}
+  # a submit followed by the `error` of a field fails: its form stays open
+  - id: manager-cannot-save-an-empty-title
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: ''}
+      - submit: {}
+      - expect: {error: title}
+      - fill: {title: Plan the week}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - fill: {title: ''}
+      - submit: {}
+      - expect: {error: title}
+      - fill: {title: Plan the next week}
+      - submit: {}
+      - transit: start
+      - expect: {status: in_progress, field_readonly: title}

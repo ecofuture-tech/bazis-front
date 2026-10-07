@@ -165,7 +165,7 @@ returns the screen each step leads to (the `then` of a form or a destroy, the `l
 of an item), which the test then expects. The tests call the helpers of the asset
 `playwright` (`frontend/e2e/bazis/`, vendored like the hooks), which drive the screens only
 through `data-bz` (`screen:<id>`, `state:<state>`, `row:<id>` and its cells
-`field:<column>`, `field:<id>`, `action:<id>`, `transit:<id>`, `status:<id>`, …) and wait on
+`cell:<column>`, `field:<id>`, `action:<id>`, `transit:<id>`, `status:<id>`, …) and wait on
 the states the components render, never for a fixed time; the contract tests of the
 components keep those marks. The generated text depends only on the specs: the lock
 records the hashes of the specs and of the tests, the tests of a removed scenario are

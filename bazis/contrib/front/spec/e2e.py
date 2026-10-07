@@ -38,6 +38,10 @@ from .validate import SPEC_DIR, Specs
 GENERATED_DIR = 'e2e/generated'
 PRODUCT_TS = f'{GENERATED_DIR}/product.ts'
 
+#: the asset of the helpers that the generated tests import, and its directory
+HELPERS = 'playwright'
+HELPERS_DIR = 'e2e/bazis'
+
 #: the keys of an `expect` step, in the order of their checks, with their helper
 EXPECT = (
     ('screen', 'expectScreen'),
@@ -182,6 +186,24 @@ def spec_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def generated_path(frontend: Path, path: str) -> bool:
+    """
+    Whether a path of the lock is a file of `e2e/generated/` of the frontend: the generator
+    never deletes or reports any other, whatever the lock lists.
+    """
+    return (frontend / path).resolve().is_relative_to((frontend / GENERATED_DIR).resolve())
+
+
+def removed_files(frontend: Path, lock: dict, rendered: dict[str, str]) -> list[str]:
+    """
+    The generated files of the lock that the specs no longer generate and that still exist.
+    """
+    return sorted(
+        path for path in lock.get('e2e', {}).get('generated', {})
+        if path not in rendered and generated_path(frontend, path) and (frontend / path).is_file()
+    )
+
+
 def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> list[str]:
     """
     Why the generated tests of the frontend differ from those of the specs, one message for
@@ -194,7 +216,7 @@ def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> l
         path for path, text in rendered.items()
         if not (frontend / path).is_file() or (frontend / path).read_bytes() != text.encode('utf-8')
     ]
-    removed = [path for path in generated if path not in rendered and (frontend / path).is_file()]
+    removed = removed_files(frontend, lock, rendered)
     if not names and not removed:
         return []
     problems = [
@@ -210,7 +232,8 @@ def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> l
         problems.append(f'The specs changed since they were generated: {", ".join(changed)}.')
     edited = [
         it for it in names
-        if it in generated and frontend_lock.digest((frontend / it).read_bytes()) != generated[it]
+        if it in generated and (frontend / it).is_file()
+        and frontend_lock.digest((frontend / it).read_bytes()) != generated[it]
     ]
     if edited:
         problems.append(f'Edited after they were generated: {", ".join(edited)}.')
@@ -223,16 +246,13 @@ def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> l
     and records the hashes of the specs and of the files in the lock. Returns the deleted
     paths.
     """
-    previous = lock.get('e2e', {}).get('generated', {})
+    removed = removed_files(frontend, lock, rendered)
     for path, text in rendered.items():
         target = frontend / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding='utf-8', newline='\n')
-    removed = []
-    for path in sorted(previous):
-        if path not in rendered and (frontend / path).is_file():
-            (frontend / path).unlink()
-            removed.append(path)
+    for path in removed:
+        (frontend / path).unlink()
     lock['e2e'] = {
         'spec': spec_hashes(root),
         'generated': {

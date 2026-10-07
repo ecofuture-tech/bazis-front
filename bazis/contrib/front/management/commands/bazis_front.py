@@ -296,6 +296,12 @@ class Command(BaseCommand):
                 f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
                 '`manage.py bazis_front init`.'
             )
+        if e2e.HELPERS not in lock.get('assets', {}):
+            raise CommandError(
+                f'{frontend} has no helpers of the end-to-end tests ({e2e.HELPERS_DIR}/, the asset '
+                f'{e2e.HELPERS}): it was made by an older bazis-front. Copy them with '
+                f'`manage.py bazis_front add {e2e.HELPERS}`.'
+            )
         root = Path(settings.BASE_DIR)
         result = spec_validate.validate(root)
         if result.errors:

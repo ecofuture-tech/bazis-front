@@ -44,6 +44,7 @@ FIXTURES = REPOSITORY / 'bazis' / 'contrib' / 'front' / 'assets' / 'playwright' 
 
 MANAGER = 'e2e/generated/manager-finishes-a-task.spec.ts'
 VIEWER = 'e2e/generated/viewer-only-reads.spec.ts'
+EMPTY_TITLE = 'e2e/generated/manager-cannot-save-an-empty-title.spec.ts'
 
 
 @pytest.fixture
@@ -182,6 +183,34 @@ def test_the_steps_follow_the_walk_of_the_scenario(tmp_path):
     )
 
 
+def test_a_submit_followed_by_an_error_fails():
+    result = validate(REPOSITORY / 'sample')
+    steps = [(it.name, it.edit, it.then) for it in result.specs.scenarios['manager-cannot-save-an-empty-title']]
+    assert steps == [
+        ('open', False, None),
+        ('action', False, None),
+        ('fill', False, None),
+        # the next step expects an error: the form of `create` stays open, no `then`
+        ('submit', False, None),
+        ('expect', False, None),
+        ('fill', False, None),
+        ('submit', False, 'task-card'),
+        ('expect', False, None),
+        # the edit of the card starts with its first change
+        ('fill', True, None),
+        ('submit', False, None),
+        ('expect', False, None),
+        # the edit is still open after the failing submit
+        ('fill', False, None),
+        ('submit', False, None),
+        ('transit', False, None),
+        ('expect', False, None),
+    ]
+    text = rendered(REPOSITORY / 'sample')[EMPTY_TITLE]
+    assert text.count("await app.action('edit');") == 1
+    assert text.count("await app.expectScreen('task-card');") == 2
+
+
 def test_the_product_module():
     text = rendered(REPOSITORY / 'sample')[e2e.PRODUCT_TS]
     assert '  roles: {\n    manager: {\n      username: "manager",\n    },\n' in text
@@ -194,10 +223,10 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     out = generate()
     frontend = root / 'frontend'
     files = rendered(root)
-    assert sorted(files) == [MANAGER, e2e.PRODUCT_TS, VIEWER]
+    assert sorted(files) == [EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS, VIEWER]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 2 end-to-end tests' in out
+    assert 'Generated 3 end-to-end tests' in out
     lock = lock_of(root)
     assert lock['e2e'] == {
         'spec': {
@@ -234,8 +263,38 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert not (frontend / VIEWER).exists()
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
-    assert sorted(lock_of(root)['e2e']['generated']) == [MANAGER, e2e.PRODUCT_TS]
+    assert sorted(lock_of(root)['e2e']['generated']) == [EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS]
     generate('--check')
+
+
+@pytest.mark.django_db
+def test_e2e_deletes_only_files_of_e2e_generated(root):
+    generate()
+    frontend = root / 'frontend'
+    lock = lock_of(root)
+    # a lock edited by hand, or written by something else, lists other files of the frontend
+    others = ['src/main.tsx', 'e2e/bazis/index.ts', 'e2e/generated/../../index.html', '../spec/product.yaml']
+    lock['e2e']['generated'].update({path: 'sha256:0' for path in others})
+    (frontend / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    before = {path: (frontend / path).read_bytes() for path in others}
+
+    # they are not stale
+    assert 'up to date' in generate('--check')
+    assert check_e2e(None) == []
+    generate()
+    assert {path: (frontend / path).read_bytes() for path in others} == before
+    assert sorted(lock_of(root)['e2e']['generated']) == [EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS, VIEWER]
+
+
+@pytest.mark.django_db
+def test_e2e_needs_the_helpers(root):
+    lock = lock_of(root)
+    del lock['assets']['playwright']
+    (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    for args in ((), ('--check',)):
+        with pytest.raises(CommandError, match='`manage.py bazis_front add playwright`'):
+            generate(*args)
+    assert not (root / 'frontend' / 'e2e' / 'generated').exists()
 
 
 @pytest.mark.django_db
@@ -252,6 +311,10 @@ def test_check_finds_the_stale_and_the_edited_tests(root):
     assert (frontend / MANAGER).read_text(encoding='utf-8') == '// edited\n'
     [warning] = check_e2e(None)
     assert warning.id == 'front.W003' and MANAGER in warning.msg
+    # a generated test that was deleted
+    (frontend / VIEWER).unlink()
+    with pytest.raises(CommandError, match=f'are stale: {MANAGER}, {VIEWER}'):
+        generate('--check')
 
     generate()
     edit_product(root, lambda data: data['scenarios'][0]['steps'][2]['fill'].update(title='Another'))
@@ -286,3 +349,24 @@ def test_the_system_check_skips_specs_with_errors(root):
 def test_e2e_needs_a_frontend(tmp_path):
     with override_settings(BASE_DIR=str(tmp_path)), pytest.raises(CommandError, match='init'):
         generate()
+
+
+@pytest.mark.django_db
+def test_the_test_data_of_the_sample(monkeypatch):
+    from django.apps import apps
+    from django.contrib.auth import get_user_model
+
+    from tasks.workflow import TASK
+
+    monkeypatch.delenv('E2E_PASSWORD', raising=False)
+    with pytest.raises(CommandError, match='E2E_PASSWORD'):
+        call_command('sample_data', stdout=StringIO())
+    for password in ('first-password-0', 'second-password-1'):
+        monkeypatch.setenv('E2E_PASSWORD', password)
+        call_command('sample_data', stdout=StringIO())
+    # a second run keeps the data and sets the password of the test users again
+    for username, role in (('manager', 'manager'), ('viewer', 'viewer')):
+        user = get_user_model().objects.get(username=username)
+        assert user.check_password('second-password-1')
+        assert user.role_current.slug == role and list(user.roles.values_list('slug', flat=True)) == [role]
+    assert apps.get_model('tasks.Task').objects.filter(title=TASK).count() == 1

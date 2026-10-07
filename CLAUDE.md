@@ -34,8 +34,10 @@ The sample (`sample/`) installs bazis-users, bazis-permit and bazis-statusy (the
 extra) with a project app `users` and a statusy model `tasks.Task`; the roles, statuses and
 transits are defined once in `sample/tasks/workflow.py`, created for the tests by the
 fixture `workflow` (`tests/conftest.py`) and outside pytest by `manage.py sample_data`
-(with the test users of the roles, password `E2E_PASSWORD`, and a task: the data of the
-end-to-end tests). `sample/spec/` is a complete valid spec of the sample: the permissions
+(with the test users of the roles, their password set to `E2E_PASSWORD` at every run, and
+the task that the scenario of the viewer opens: the data of the end-to-end tests). The
+title of a task is not empty (`MinLengthValidator`), for the scenario of a failing
+submit. `sample/spec/` is a complete valid spec of the sample: the permissions
 of the roles of `workflow` cover its `access`, and `tests/test_spec.py` checks it against
 the contract. `sample/frontend-overlay/` holds the screens of the sample (product code, the
 reference of screens written from specs), copied over a frontend made from the sample by
@@ -84,7 +86,8 @@ the `e2e` job of CI.
   `contract`) through `SystemCheckError`.
 - `spec/scenarios.py` is the only reading of the steps of a scenario: its walk reports the
   issues and returns the steps (`Step`: the name, the value, whether it starts the edit of
-  a card, the screen it leads to) in `validate.Result.specs`, which `spec/e2e.py` turns into
+  a card, the screen it leads to; a `submit` followed by an `expect` of an `error` fails and
+  keeps its form open) in `validate.Result.specs`, which `spec/e2e.py` turns into
   calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the tables of the AGENTS.md files.
 - `spec/e2e.py` (`bazis_front e2e`) renders `frontend/e2e/generated/<scenario>.spec.ts` and

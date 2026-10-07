@@ -44,8 +44,17 @@ class Step:
     edit: bool = False
     #: the screen that the step leads to without naming it: the `list.open` of an
     #: `open_item`, the `then` of a destroy action or of the submitted form; None when the
-    #: screen stays (or is named by the step, `open`)
+    #: screen stays (or is named by the step, `open`), as after a failing submit
     then: str | None = None
+
+
+def fails(steps: list[dict], index: int) -> bool:
+    """
+    Whether the `submit` at the index fails: the next step expects the `error` of a field.
+    The form stays open then, on its screen.
+    """
+    following = steps[index + 1] if index + 1 < len(steps) else {}
+    return 'error' in following.get('expect', {})
 
 
 @dataclass
@@ -103,14 +112,15 @@ class _Scenario:
         self.role = scenario['role']
         self.scenario, self.path, self.issues = scenario, path, issues
         self.state = _State(known=True)
-        # what the current step implies (`Step`)
-        self.edit, self.then = False, None
+        # what the current step implies (`Step`), and whether it is a failing submit
+        self.edit, self.then, self.failing = False, None, False
 
     def run(self) -> list[Step]:
         steps = []
         for i, step in enumerate(self.scenario['steps']):
             (name, value), = step.items()
             self.edit, self.then = False, None
+            self.failing = name == 'submit' and fails(self.scenario['steps'], i)
             getattr(self, f'step_{name}')((*self.path, 'steps', i, name), value)
             steps.append(Step(name, value, self.edit, self.then))
         return steps
@@ -245,7 +255,11 @@ class _Scenario:
             self.fields([((*path, 'field'), value['field'])], self.state.form)
 
     def step_submit(self, path, value):
-        if not self.editing(path):
+        """
+        A submit closes the form and leads to its `then`; a failing one (the next step
+        expects the `error` of a field) keeps the form open.
+        """
+        if not self.editing(path) or self.failing:
             return
         form, self.state.form, self.state.editing = self.state.form, None, False
         then = (form or {}).get('then')

@@ -71,7 +71,7 @@ written.
   `src/screens/<id>/` with the route of its spec, from the components (below), and render
   every state that it lists.
 - Mark the elements with `data-bz` (`screen:<id>`, `state:<state>`, `list:<entity>`,
-  `row:<id>` with its cells `field:<column>`, `field:<field>`, `error:<field>`,
+  `row:<id>` with its cells `cell:<column>`, `field:<field>`, `error:<field>`,
   `action:<id>`, `transit:<id>`, `status:<id>`, `nav:<screen>`): the scenarios of the
   product spec act through them (see [End-to-end tests](#end-to-end-tests)).
 - `access` is what the backend must grant, checked against the permissions of the roles
@@ -291,7 +291,7 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
 
 - **They act through `data-bz` only.** The helpers of `e2e/bazis/` open the route of a
   screen of the specs and wait for `screen:<id>` and its state (no `state:loading` left),
-  click `action:<id>`, `transit:<id>` and `row:<id>` (found by its cells `field:<name>`),
+  click `action:<id>`, `transit:<id>` and `row:<id>` (found by its cells `cell:<name>`),
   fill `field:<name>` in the open form (the `<form>` with `action:submit`), and check
   `status:<id>`, `state:<state>`, `error:<name>`, the absence of an action and the read-only
   fields. A screen that renders the marks of its spec (the components do) passes its
@@ -300,7 +300,10 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   or a fixture of the backend creates the roles, statuses and transits, a user per
   `test_user` of the roles of the specs (with its role and the password of `E2E_PASSWORD`)
   and the items that the scenarios open; load it into the database of the backend that the
-  tests run against. The tests share that database and run one at a time.
+  tests run against. The tests share that database and run one at a time; no scenario
+  relies on what another one created.
+- A `submit` followed by `expect: {error: <field>}` is a failing submit: the test expects
+  the error of the backend in the open form, which stays open for the next steps.
 - `npm run e2e` starts the dev server (its `/api` goes to `BAZIS_API_URL`); with
   `E2E_BASE_URL` it tests a frontend already running (`npm run build` and `npm run preview`
   in CI). The backend runs separately. Without bazis-users there is no login.

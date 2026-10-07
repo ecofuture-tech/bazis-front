@@ -44,8 +44,8 @@ function loading(screen: string, loaded: string, delay = 300): string {
 }
 
 const LIST = `<div data-bz="list:task"><div data-bz="state:loaded"><table><tbody>
-  <tr data-bz="row:1" onclick="document.body.dataset.opened = '1'"><td data-bz="field:title">Write the report again</td></tr>
-  <tr data-bz="row:2" onclick="document.body.dataset.opened = '2'"><td data-bz="field:title"> Write the report </td></tr>
+  <tr data-bz="row:1" onclick="document.body.dataset.opened = '1'"><td data-bz="cell:title">Write the report again</td></tr>
+  <tr data-bz="row:2" onclick="document.body.dataset.opened = '2'"><td data-bz="cell:title"> Write the report </td></tr>
 </tbody></table></div></div>`;
 
 test.describe('open', () => {
@@ -112,6 +112,24 @@ function formPage(onSubmit: string): string {
 test.describe('submit', () => {
   test('waits until the form is closed', async ({ page }) => {
     await page.setContent(formPage('form.remove();'));
+    const app = new App(page, PRODUCT);
+    await app.submit();
+    expect(await page.locator('form').count()).toBe(0);
+  });
+
+  test('does not take the error of a previous submit for its own', async ({ page }) => {
+    // the error stays until the next submit is sent, and the form is closed later
+    await page.setContent(
+      formPage('form.remove();').replace(
+        '<button type="submit"',
+        '<p data-bz="error:title">Required.</p><button type="submit"',
+      ),
+    );
+    await page.evaluate(() => {
+      document.getElementById('form')?.addEventListener('submit', () => {
+        setTimeout(() => document.querySelector('[data-bz="error:title"]')?.remove(), 50);
+      });
+    });
     const app = new App(page, PRODUCT);
     await app.submit();
     expect(await page.locator('form').count()).toBe(0);

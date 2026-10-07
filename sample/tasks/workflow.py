@@ -58,11 +58,13 @@ TRANSITS = [
     ('finish', 'Finish', 'in_progress', 'done', ['before_finish']),
 ]
 
-#: the test users of the roles of spec/product.yaml (`test_user`), by the slug of their role
+#: the test users of the roles of spec/product.yaml (`test_user`): the slug of the role of
+#: each, by username
 TEST_USERS = {'manager': 'manager', 'viewer': 'viewer'}
 
-#: the title of the task that the scenarios of a viewer open
-TASK = 'Write the report'
+#: the title of the task that the scenario of the viewer opens; no scenario creates a task
+#: with this title, so that the scenarios do not depend on their order
+TASK = 'Review the plan'
 
 
 def create_workflow() -> None:
@@ -108,14 +110,14 @@ def create_workflow() -> None:
 
 def create_test_data(password: str) -> None:
     """
-    The data of the end-to-end tests: the test user of each role, with the password, and a
-    task.
+    The data of the end-to-end tests: the test user of each role, with the password (set
+    again when the user exists, so that the tests log in with the current E2E_PASSWORD), and
+    the task that the scenario of the viewer opens.
     """
     role_model = apps.get_model('permit.Role')
     for username, slug in TEST_USERS.items():
-        user = get_user_model().objects.filter(username=username).first()
-        if user is None:
-            user = get_user_model().objects.create_user(username=username, password=password)
+        user = get_user_model().objects.get_or_create(username=username)[0]
+        user.set_password(password)
         role = role_model.objects.get(slug=slug)
         user.roles.add(role)
         user.role_current = role

@@ -228,9 +228,10 @@ CASES = [
         [
             ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/0/payload'),
             ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload'),
-            # the scenario gives `start` no payload, and `finish` one it does not declare
+            # the scenarios give `start` no payload, and `finish` one it does not declare
             ('P024', f'{PRODUCT}#/scenarios/0/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/0/steps/6/transit/payload/report'),
+            ('P024', f'{PRODUCT}#/scenarios/2/steps/13/transit'),
         ],
     ),
     (
