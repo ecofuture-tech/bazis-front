@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ApiError } from '@/bazis/client';
 
@@ -34,7 +34,7 @@ export interface ResourceForm<Saved> {
   status: 'loading' | 'error' | 'ready';
   /** The error of loading the schema or the item (403, 404, ...). */
   error: Error | null;
-  /** The fields that the user may set, from the runtime schema, in its order. */
+  /** The fields of the runtime schema in its order; the user may not change `readOnly` ones. */
   fields: readonly FormField[];
   /**
    * The value of every field but the to-many relationships: the value of an attribute, the
@@ -55,7 +55,7 @@ export interface ResourceForm<Saved> {
    * null when it failed (`errors`, `submitError`); the changes are kept then.
    */
   submit(): Promise<Saved | null>;
-  /** Forgets the changes. */
+  /** Forgets the changes and the errors of the last submit. */
   reset(): void;
 }
 
@@ -142,15 +142,21 @@ export function useResourceForm(path: string, { id }: { id?: string } = {}): Res
     enabled: id !== undefined,
   });
   const mutation = useMutation({
-    mutationFn: (document: unknown) =>
+    mutationFn: ({ document }: { target: string; document: unknown }) =>
       id === undefined ? loose(api).create(path, document) : loose(api).update(path, id, document),
     onSuccess: () => invalidateResource(queryClient, path),
   });
 
-  // the changes of the user, for this path and item: another item starts without them
+  // the changes of the user and the result of their submit, for this path and item: another
+  // item starts without them
   const target = `${path}\n${id ?? ''}`;
   const [changes, setChanges] = useState({ target, values: NO_CHANGES });
   const edits = changes.target === target ? changes.values : NO_CHANGES;
+  const submitError = mutation.variables?.target === target ? mutation.error : null;
+  const { reset: resetMutation } = mutation;
+  useEffect(() => {
+    resetMutation();
+  }, [target, resetMutation]);
 
   const resource = useMemo(() => (schema.data ? resourceSchema(schema.data) : null), [schema.data]);
   const fields = resource?.fields ?? NO_FIELDS;
@@ -178,14 +184,14 @@ export function useResourceForm(path: string, { id }: { id?: string } = {}): Res
       }));
     },
     dirty,
-    errors: mutation.error instanceof ApiError ? mutation.error.fieldErrors() : {},
-    submitError: mutation.error,
+    errors: submitError instanceof ApiError ? submitError.fieldErrors() : {},
+    submitError,
     isSubmitting: mutation.isPending,
     submit: async () => {
       if (!resource) return null;
       const document = formDocument(resource.type, id, fields, values, dirty);
       try {
-        const saved = await mutation.mutateAsync(document);
+        const saved = await mutation.mutateAsync({ target, document });
         setChanges({ target, values: NO_CHANGES });
         return saved;
       } catch {
@@ -194,6 +200,7 @@ export function useResourceForm(path: string, { id }: { id?: string } = {}): Res
     },
     reset: () => {
       setChanges({ target, values: NO_CHANGES });
+      resetMutation();
     },
   };
 }

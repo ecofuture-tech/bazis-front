@@ -13,9 +13,9 @@
 // limitations under the License.
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
-import { getToken, logout, useSession } from '@/app/session';
+import { getToken, logout, onSessionChange, useSession } from '@/app/session';
 import { ApiError, createClient } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
 import { BazisProvider, type Api } from '@/bazis/react';
@@ -42,12 +42,26 @@ function createQueryClient(): QueryClient {
 }
 
 /**
+ * Drops the queries and the mutations (with their variables) when a user logs in or out:
+ * the data of one user does not stay in the page of the next one. Returns the unsubscribe
+ * function.
+ */
+export function clearOnSessionChange(queryClient: QueryClient): () => void {
+  return onSessionChange(() => {
+    // the queries and the mutations
+    queryClient.clear();
+  });
+}
+
+/**
  * The query cache and the client of the backend for the hooks of `@/bazis/react` (`useApi()`
- * reads the client). The cached data belongs to the user who loaded it: every query key of
- * the hooks ends with the session, which changes when a user logs in or out.
+ * reads the client). The cached data belongs to the user who loaded it: the cache is cleared
+ * when the user changes, and every query key of the hooks also ends with the session, so
+ * that a request still running for the previous user never fills a query of the next one.
  */
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
+  useEffect(() => clearOnSessionChange(queryClient), [queryClient]);
   const session = useSession();
   return (
     <QueryClientProvider client={queryClient}>

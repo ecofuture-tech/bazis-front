@@ -90,8 +90,8 @@ product. Its unit tests and type tests stay in this repository; only `src/` is c
 React hooks over the client with TanStack Query as the cache (`assets/react`, imported as
 `@/bazis/react`): `useList`, `useItem`, `useSchema`, `useFilterFields`, the mutations
 `useCreate`, `useUpdate`, `useDestroy`, `useRelationship`, and `useResourceForm`, a form
-bound to the runtime schema of the create or the update (its fields are what the current
-user may set; it submits the changed attributes and to-one relationships as one JSON:API
+bound to the runtime schema of the create or the update (its fields are those of the
+current user, read-only where they may not change them; it submits the changed attributes and to-one relationships as one JSON:API
 document and maps a 422 to the fields). They are typed by the generated `paths` of the
 product and contain no UI. The hooks of a package are a separate asset that `init` copies
 only when the product has its capability (`requires` in the registry): the transits of
@@ -100,9 +100,11 @@ bazis-statusy (`useTransits` from `meta.state_actions`, `useTransit`) in
 
 Runtime metadata (schemas, filter fields, permission meta, state actions) is never part of
 the contract: it is requested at run time and cached by TanStack Query. Every query key is
-`['bazis', path, …, session]`: a mutation invalidates `['bazis', path]`, and the session (a
-value of the application that changes at every login and logout) keeps the cached data of
-one user from another; it is the only such mechanism.
+`['bazis', path, …, session]`: a mutation invalidates `['bazis', path]`. The data of one user
+is kept from the next one twice: the template clears the query and mutation caches when the
+user changes, and the session in the keys (a value of the application that changes at every
+login and logout) keeps a request still running for the previous user out of the queries of
+the next one.
 
 ### 3. Components (planned)
 

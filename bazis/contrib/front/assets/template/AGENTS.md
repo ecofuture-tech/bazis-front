@@ -94,10 +94,11 @@ written.
 - Check for an optional package with `CAPABILITIES.<name> !== null` (`contract.ts`): the
   login exists only with bazis-users (`LOGIN_ENABLED` of `src/app/session.ts`).
 - A 401 of any query or mutation ends the session (`src/app/providers.tsx`). Cached data
-  belongs to the user who loaded it: every query key of the hooks ends with the session
-  (`useSession()` of `src/app/session.ts`, a number that changes at every login and
-  logout), so a user never sees what the previous one loaded. A query of your own over
-  data of the backend ends its key with `useSessionKey()`.
+  belongs to the user who loaded it: logging in or out clears the query and mutation
+  caches, and every query key of the hooks ends with the session (`useSession()` of
+  `src/app/session.ts`, a number that changes at every login and logout), so that a
+  request still running for the previous user never fills a query of the next one. A query
+  of your own over data of the backend ends its key with `useSessionKey()` too.
 - No translations: the labels come from the backend (its schemas and names are already in
   the language of the product) and from the screens.
 
@@ -151,6 +152,6 @@ With bazis-statusy, `@/bazis/react/statusy`:
 | `useTransit(path, id)` | `mutate({transit, payload})`; resolves to the item, or to null when the user can no longer view it (leave its screen) |
 
 A form shows the errors of a 422 by field from `form.errors` and any other error from
-`form.submitError`; the fields a user may not change are not in `schema_update`, and the
-read-only ones are never sent. To-many relationships are in `form.fields` (`many: true`)
+`form.submitError`; the fields a user may not change now are `readOnly` in `schema_update`
+(show them disabled) and are never sent, those permissions disable are not in it. To-many relationships are in `form.fields` (`many: true`)
 but not in its values: change them with `useRelationship`.

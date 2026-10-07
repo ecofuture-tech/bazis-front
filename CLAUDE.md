@@ -157,11 +157,14 @@ npm test
   of the client (`test/support.tsx`) and assert the requests, the exact query keys, the
   invalidations, the documents of the form and the transits; `test/types.typecheck.ts` has
   the type tests. `test/fixtures/sample.json` holds responses of the sample of this
-  repository (runtime schemas, retrieves with `state_actions`, a 422): capture them again
-  if the core or bazis-statusy changes their shape.
-- Every query key ends with the session of `BazisProvider`; it is the only mechanism that
-  separates the cached data of users (the providers of the template do not clear the
-  cache).
+  repository (runtime schemas, retrieves with `state_actions`, a 422), normalized (ids,
+  dates, process-dependent names): `tests/test_react_fixture.py` captures them through the
+  API and fails when they differ. After a change of the core or of bazis-statusy, write the
+  fixture again with `BAZIS_FRONT_WRITE_FIXTURES=1 python -m pytest ../tests/test_react_fixture.py`
+  (from `sample/`, as the other tests) and run the tests of the hooks.
+- Every query key ends with the session of `BazisProvider`, against the requests still
+  running at a login or a logout; the template also clears the query and mutation caches
+  then (`clearOnSessionChange`, for what is not keyed by the session). Keep both.
 
 ### The template (`assets/template`)
 

@@ -123,7 +123,7 @@
         "properties": {
           "id": {
             "default": null,
-            "example": "583c3cc6-6738-55da-b4ef-91a5ab17c523",
+            "example": "00000000-0000-0000-0000-000000000000",
             "title": "Id",
             "type": "string"
           },
@@ -278,7 +278,7 @@
         "properties": {
           "id": {
             "default": null,
-            "example": "583c3cc6-6738-55da-b4ef-91a5ab17c523",
+            "example": "00000000-0000-0000-0000-000000000000",
             "title": "Id",
             "type": "string"
           },
@@ -351,13 +351,13 @@
   },
   "retrieve_draft": {
     "data": {
-      "id": "b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0",
+      "id": "00000000-0000-0000-0000-000000000000",
       "type": "tasks.task",
       "bs:action": "view",
       "attributes": {
-        "dt_created": "2026-10-07T12:22:25.372036Z",
-        "dt_updated": "2026-10-07T12:22:25.372044Z",
-        "status_dt": "2026-10-07T12:22:25.372059Z",
+        "dt_created": "2026-01-01T00:00:00Z",
+        "dt_updated": "2026-01-01T00:00:00Z",
+        "status_dt": "2026-01-01T00:00:00Z",
         "title": "T",
         "report": ""
       },
@@ -373,7 +373,7 @@
         },
         "assignee": {
           "data": {
-            "id": "6d66c129-f8da-4307-b9a3-8f229faba03b",
+            "id": "00000000-0000-0000-0000-000000000000",
             "type": "users.user"
           }
         }
@@ -389,7 +389,7 @@
         {
           "code": "ACTION_TRANSIT",
           "endpoint": {
-            "url": "/api/v1/tasks/task/b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0/transit/",
+            "url": "/api/v1/tasks/task/00000000-0000-0000-0000-000000000000/transit/",
             "method": "POST",
             "body": {
               "properties": {
@@ -423,7 +423,7 @@
           "hint_title": null,
           "hint_action": null,
           "resource": {
-            "id": "b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0",
+            "id": "00000000-0000-0000-0000-000000000000",
             "type": "tasks.task"
           }
         }
@@ -432,14 +432,14 @@
   },
   "retrieve_in_progress": {
     "data": {
-      "id": "b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0",
+      "id": "00000000-0000-0000-0000-000000000000",
       "type": "tasks.task",
       "bs:action": "view",
       "attributes": {
-        "dt_created": "2026-10-07T12:22:25.372036Z",
-        "dt_updated": "2026-10-07T12:22:25.975736Z",
-        "status_dt": "2026-10-07T12:22:25.965147Z",
-        "title": "X",
+        "dt_created": "2026-01-01T00:00:00Z",
+        "dt_updated": "2026-01-01T00:00:00Z",
+        "status_dt": "2026-01-01T00:00:00Z",
+        "title": "T",
         "report": ""
       },
       "relationships": {
@@ -451,12 +451,15 @@
         },
         "status_author": {
           "data": {
-            "id": "2602fe53-5b0d-4a41-8c2f-e41bc579c1c8",
+            "id": "00000000-0000-0000-0000-000000000000",
             "type": "users.user"
           }
         },
         "assignee": {
-          "data": null
+          "data": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "type": "users.user"
+          }
         }
       }
     },
@@ -465,11 +468,11 @@
         {
           "code": "ACTION_TRANSIT",
           "endpoint": {
-            "url": "/api/v1/tasks/task/b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0/transit/",
+            "url": "/api/v1/tasks/task/00000000-0000-0000-0000-000000000000/transit/",
             "method": "POST",
             "body": {
               "$defs": {
-                "PayloadType_36307451920": {
+                "PayloadType": {
                   "properties": {
                     "report": {
                       "title": "Report",
@@ -479,7 +482,7 @@
                   "required": [
                     "report"
                   ],
-                  "title": "PayloadType_36307451920",
+                  "title": "PayloadType",
                   "type": "object"
                 }
               },
@@ -490,13 +493,13 @@
                   "type": "string"
                 },
                 "payload": {
-                  "$ref": "#/$defs/PayloadType_36307451920"
+                  "$ref": "#/$defs/PayloadType"
                 }
               },
               "required": [
                 "payload"
               ],
-              "title": "PayloadType_36307451920_body_type",
+              "title": "PayloadType_body_type",
               "type": "object"
             }
           },
@@ -505,7 +508,7 @@
           "hint_title": null,
           "hint_action": null,
           "resource": {
-            "id": "b1c9bb12-73b3-4e78-85c6-0b7ea4da9ed0",
+            "id": "00000000-0000-0000-0000-000000000000",
             "type": "tasks.task"
           }
         }

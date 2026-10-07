@@ -40,6 +40,9 @@ function readStored(): string | null {
 }
 
 function setToken(value: string | null): void {
+  // the same token is the same session: a logout without a session (an anonymous request
+  // answered with 401) changes nothing, so that it does not refetch every query
+  if (value === token) return;
   token = value;
   session += 1;
   try {
@@ -52,7 +55,7 @@ function setToken(value: string | null): void {
 }
 
 /** Calls the listener when the user logs in or out; returns the unsubscribe function. */
-function onSessionChange(listener: () => void): () => void {
+export function onSessionChange(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

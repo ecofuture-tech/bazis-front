@@ -183,6 +183,50 @@ describe('useResourceForm with an id: an update', () => {
     expect(result.current.dirty).toEqual([]);
   });
 
+  it('forgets the errors of a submit on reset and for another item', async () => {
+    const invalid = { errors: [{ status: 422, detail: 'Too long', source: { pointer: '/attributes/name' } }] };
+    const server = backend()
+      .on('PATCH', `${PARENT}7/`, invalid, 422)
+      .on('GET', `${PARENT}8/schema_update/`, parentSchema('update'))
+      .on('GET', `${PARENT}8/`, { data: { ...item('Boat', null).data, id: '8' } });
+    const { result, rerender } = render(
+      ({ id }: { id: string }) => useResourceForm(PARENT, { id }),
+      server,
+      undefined,
+      { id: '7' },
+    );
+    const failed = async () => {
+      await ready(result);
+      act(() => {
+        result.current.setValue('name', 'x'.repeat(300));
+      });
+      await act(async () => {
+        await result.current.submit();
+      });
+      await waitFor(() => {
+        expect(result.current.errors).toEqual({ name: ['Too long'] });
+      });
+    };
+
+    await failed();
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.errors).toEqual({});
+    expect(result.current.submitError).toBeNull();
+
+    await failed();
+    rerender({ id: '8' });
+    // not even for one render
+    expect(result.current.errors).toEqual({});
+    expect(result.current.submitError).toBeNull();
+    await ready(result);
+    // nor when coming back to the item
+    rerender({ id: '7' });
+    expect(result.current.errors).toEqual({});
+    expect(result.current.submitError).toBeNull();
+  });
+
   it('reports the error of loading the item', async () => {
     const server = new Backend()
       .on('GET', `${PARENT}7/schema_update/`, parentSchema('update'))

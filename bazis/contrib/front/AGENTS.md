@@ -481,15 +481,17 @@ const transits = useTransits(ROUTES['tasks.task'], id);               // [{id, a
   `useDestroy`, `useRelationship` change and then refetch every query of the resource
   (`['bazis', path]`).
 - `useResourceForm(path, {id?})` takes its fields from `schema_create`/`schema_update`
-  (what the current user may set: type, required, read-only, nullable, choices, the
+  (those of the current user: type, required, read-only, nullable, choices, the
   related resource of a relationship), its values from the defaults or the item, and
   submits the changed attributes and to-one relationships as one document; a 422 gives
   `errors` by field. To-many relationships go through `useRelationship`.
 - `useTransits(path, id)` reads `meta.state_actions` of the item: the transits the user may
   run now, `allowed` unless a validator restricts them, with the JSON Schema of their
   payload. `useTransit(path, id)` runs one; null when the user can no longer view the item.
-- Every query key ends with the session of `BazisProvider` (a number of the template that
-  changes at every login and logout), so the data of one user is never shown to another.
+- The template clears the query and mutation caches when the user changes, and every query
+  key ends with the session of `BazisProvider` (a number that changes at every login and
+  logout), so the data of one user is never shown to another, even from a request still
+  running.
 
 ## Protocol facts that are easy to get wrong
 

@@ -72,17 +72,27 @@ refetched; a destroy and a transit answered with 204 remove `['bazis', path, 'it
 first. `useTransits` is the query of `useItem(path, id, {meta: ['state_actions']})`: both
 share it.
 
-The session is the one mechanism that separates the data of users (the providers of the
-template do not clear the cache): every key ends with it, so after a login or a logout no
-query reads the cache of the previous session, whose data the garbage collection of
-TanStack Query drops, and a list never keeps a page of another session as its placeholder.
-A query of the product's own over data of the backend ends its key with `useSessionKey()`.
+Two mechanisms keep the data of one user from the next one, and both are needed:
+
+- The template clears the query cache and the mutation cache (with their variables) when a
+  user logs in or out (`clearOnSessionChange` in `src/app/providers.tsx`): nothing of the
+  previous user stays in the page, also the queries that are not keyed by the session
+  (a query `['me']` of the product) and the inactive ones.
+- Every key of the hooks ends with the session: a request of the previous user still
+  running when the cache is cleared resolves into a query that no one of the next session
+  reads, and a list never keeps a page of another session as its placeholder. A query of
+  the product's own over data of the backend ends its key with `useSessionKey()` for the
+  same reason.
+
+A logout without a session (a 401 of an anonymous request) is no change of the session: it
+neither clears the cache nor changes the keys, so it does not refetch every query.
 
 ### `useResourceForm`
 
-The fields come from the runtime schema, so they are those the current user may set now
-(an update schema has no field the user may not change): `fields` in schema order, each
-with `name`, `title`, `required`, `readOnly`, `nullable` and
+The fields come from the runtime schema of the current user: the core leaves out the fields
+that permissions disable and marks `readOnly` those the user may see but not change now
+(the form never sends them). `fields` are in schema order, each with `name`, `title`,
+`required`, `readOnly`, `nullable` and
 
 - an attribute: `kind: 'attribute'`, `type`, `format`, `enum`, `schema` (its JSON Schema);
 - a relationship: `kind: 'relation'`, `relation` (the JSON:API type of the related
@@ -92,12 +102,15 @@ with `name`, `title`, `required`, `readOnly`, `nullable` and
 attribute's value, the id of the related item of a to-one relationship (null for none);
 `undefined` is no value. `setValue(name, value)` changes one; `dirty` are the fields that
 differ from the initial values. `submit()` sends one JSON:API document with the dirty
-attributes and to-one relationships (never the read-only ones), resolves to the saved item
-and starts the form again from it, or resolves to null and keeps the changes: `errors` has
-the messages of a 422 by field (`ApiError.fieldErrors()`), `submitError` the error. To-many
-relationships are in `fields` with `many: true` but not in `values`: change them with
-`useRelationship` (the relationship endpoint). `status` is `loading`, `error` (`error`: the
-403 or 404 of the schema or of the item) or `ready`; `reset()` drops the changes.
+attributes and to-one relationships (never the read-only ones) and resolves to the saved
+item: the changes are dropped, so a create form is back at the defaults of the schema and
+an update form shows the item as saved. When it fails, it resolves to null and keeps the
+changes: `errors` has the messages of a 422 by field (`ApiError.fieldErrors()`),
+`submitError` the error. To-many relationships are in `fields` with `many: true` but not in
+`values`: change them with `useRelationship` (the relationship endpoint). `status` is
+`loading`, `error` (`error`: the 403 or 404 of the schema or of the item) or `ready`;
+`reset()` drops the changes and the errors of the last submit, as does another `path` or
+`id`.
 
 ### `useTransits` (bazis-statusy)
 
@@ -127,4 +140,6 @@ the form and the transits. The types are those of the fixture of the client (the
 sample) with the endpoints of bazis-statusy added (`test/fixtures/schema.d.ts`), aliased as
 `@/bazis/generated/schema` by `tsconfig.json`. `test/fixtures/sample.json` has runtime
 schemas, retrieves with `state_actions` and a 422 of `tasks.task` of the sample of this
-repository, as the backend returned them; `test/types.typecheck.ts` has the type tests.
+repository, as the backend returns them (normalized; `tests/test_react_fixture.py` of the
+repository checks it against the sample and writes it again with
+`BAZIS_FRONT_WRITE_FIXTURES=1`); `test/types.typecheck.ts` has the type tests.
