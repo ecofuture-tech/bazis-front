@@ -82,20 +82,27 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
 ### The frontend of a product
 
 - `vendor/registry.py` reads `assets/registry.json`, the only list of the files that an
-  asset copies (`vendored`: stamped, kept pristine in `.bazis/base/`, hashed in the lock;
-  `template`: copied once, only its version in the lock). Add a file of an asset to the
-  registry; `tests/test_assets.py` checks that the registry lists every file of the
-  template and every source of the client and of the hooks.
-- An asset with `requires: {capabilities: [...]}` (the hooks of a package, such as
-  `react-statusy`) is copied only into a product that has these capabilities:
-  `bazis_front init` passes `capabilities.enabled()` (the installed apps, the same as the
-  sections of the contract, without the database) to `vendor/copy.py`. Only `init` copies;
-  a package installed later waits for `update`. The lock lists the copied assets, and
-  `spec/validate.py` (`check_assets`) reports the warning `C003` when they differ from the
-  capabilities of `contract.json`.
+  asset copies (`vendored`: stamped, kept pristine in `.bazis/base/`, hashed in the lock,
+  copied by `init`; `ui`: the components and the shadcn/ui components they use, copied the
+  same way by `add`, and by `init` with `init: true`; `template`: copied once, only its
+  version in the lock). Add a file of an asset to the registry; `tests/test_assets.py`
+  checks that the registry lists every file of the template, every source of the client
+  and of the hooks and every file of `assets/ui` but its tooling.
+- `requires` of an asset: `capabilities` (the hooks and the components of a package, such
+  as `react-statusy`, `transit-bar`) are those the product must have; `assets` the assets
+  it imports, copied before it (`registry.resolve`). `bazis_front init` passes
+  `capabilities.enabled()` (the installed apps, the same as the sections of the contract,
+  without the database) to `vendor/copy.py`; `add` reads the capabilities of
+  `contract/contract.json`, only when an asset to copy requires one. The lock lists the
+  copied assets, and `spec/validate.py` (`check_assets`) reports the warning `C003` when a
+  vendored asset of a capability of `contract.json` is missing, or an asset is there
+  without its capability.
 - `vendor/copy.py` creates the frontend (`bazis_front init`) in a temporary directory next
-  to it and renames it; `vendor/lock.py` is `frontend/bazis-front.lock.json` (format
-  `lock: 1`).
+  to it and renames it, and copies the components into an existing one (`add_assets`):
+  everything is checked first (unknown assets, capabilities, a changed copy named again,
+  another version, a file of the product at the path of a copy) and nothing is written on
+  an `AddError`; an asset already there is kept. `vendor/lock.py` is
+  `frontend/bazis-front.lock.json` (format `lock: 1`).
 - `contract/typescript.py` renders `contract.ts` from contract.json; `contract/generated.py`
   writes it, runs openapi-typescript for `schema.d.ts` (`npx --no-install` in the
   frontend), updates the lock and finds the stale generated files for `--check` and
@@ -107,7 +114,7 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
 
 The Node tooling is dev-only: it checks the assets in this repository and is never shipped.
 The root `package.json` (private) has a workspace for every asset that is checked in place
-(the client, the hooks). Node 22 and npm 10 (no pnpm or yarn); from the repository root:
+(the client, the hooks, the components). Node 22 and npm 10 (no pnpm or yarn); from the repository root:
 
 ```bash
 npm ci
@@ -117,10 +124,12 @@ npm test
 ```
 
 - `package.json`, `tsconfig.json`, `test/` and `scripts/` of the client (and
-  `vitest.config.ts` of the hooks) exist only for these checks: `pyproject.toml` excludes
-  them from the wheel (they stay in the sdist), and `scripts/check_wheel.py` (run in CI) checks the wheel against `assets/registry.json`: it
-  has every file of the registry and, of the assets, nothing else than the registry and
-  the READMEs. A new asset adds its own entries to `[tool.setuptools.exclude-package-data]`.
+  `vitest.config.ts` of the hooks and of the components) exist only for these checks:
+  `pyproject.toml` excludes them from the wheel (they stay in the sdist), and
+  `scripts/check_wheel.py` (run in CI) checks the wheel against `assets/registry.json`: it
+  has every file of the registry (the contract tests of the components too: they are
+  copied into products) and, of the assets, nothing else than the registry and the READMEs
+  of their directories. A new asset adds its own entries to `[tool.setuptools.exclude-package-data]`.
   setuptools reuses a stale `build/` directory: delete it before building the wheel locally;
   it packages the files tracked by Git (`git add` a new file first).
 - `node_modules/` and `dist/` are ignored by Git and excluded from package discovery in
@@ -168,21 +177,48 @@ npm test
   running at a login or a logout; the template also clears the query and mutation caches
   then (`clearOnSessionChange`, for what is not keyed by the session). Keep both.
 
+### The components (`assets/ui`)
+
+- A directory per component (`ui/<component>/`: its sources, `index.ts`, its contract test
+  `<component>.contract.test.tsx`), copied to `src/bazis/ui/<component>/`; `ui/resource/`
+  is what they share (`FieldInput`, the only input of a field; `FieldValue`, relations,
+  `permitted`, and `hooks.ts`, the hooks with plain paths: the only casts of the
+  components, so that the lint of a product does not depend on its types); `ui/testing/`
+  the support of the contract tests; `ui/shadcn/` the shadcn/ui components they use (style
+  new-york-v4 with the aliases of `components.json`, their MIT notice in the header of each
+  file), each an asset copied to `src/components/ui/`. `README.md` documents them.
+- The contract tests are copied into products and run there by `npm test` (jsdom, set in
+  `vite.config.ts` of the template): they are package data, and must pass against any
+  product. They use the route set `ITEMS` of `testing` (of no product) and the documents
+  and schemas of `testing`, never a resource of the sample.
+- In this repository `tsconfig.json` and `vitest.config.ts` alias the `@/` imports to the
+  other assets, to `src/lib/utils.ts` of the template and to `test/fixtures/contract.ts`
+  (`contract.ts` of the sample, rendered by `contract/typescript.py` from its
+  `contract.json`: render it again when the sample changes). The root eslint applies the
+  rules of the hooks of the template to them.
+- The npm dependencies of the components are in `package.json` of the template, with the
+  versions of the workspace; `add` never changes the `package.json` of a product.
+- Colors, radii and fonts only through the CSS variables of the template (Tailwind classes
+  such as `bg-primary`), no literal colors (the shadcn/ui files keep theirs); every
+  element that a scenario acts on has its `data-bz`.
+
 ### The template (`assets/template`)
 
 - The frontend of a product, copied once by `init`: `package.json` with pinned versions,
-  `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`), `tsconfig.json`,
-  `eslint.config.js`, shadcn/ui setup (`components.json`, `src/index.css`,
-  `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`, session with its
-  number for the query keys, router, errors), `src/screens/` (login, home with the counts
-  of `useList`) and `AGENTS.md`, the guide of the frontend. The versions of React and
+  `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`, the jsdom of the
+  tests), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
+  `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,
+  session with its number for the query keys, router with the layout `AppShell`, errors),
+  `src/screens/` (login with `LoginForm`, home with the counts of `useList`) and
+  `AGENTS.md`, the guide of the frontend (how to compose screens from the components). The versions of React and
   TanStack Query in the workspace of the hooks are those of its package.json.
 - Its package.json is the product's, every file of it is copied: it is not a workspace and
   the root eslint ignores it, because it compiles only with the generated files of a
   product. The `frontend` job of CI checks it: on the sample (with `BS_BASE_DIR` outside the
   checkout) `init`, `contract`, `contract --check`, `check` (the starters of the specs
-  against the contract), then `tsc --noEmit`, lint, tests and build of the generated
-  frontend. Run the same locally after a change of the template.
+  against the contract), `add` of every component, then `tsc --noEmit`, lint, tests (the
+  contract tests of the components) and build of the generated frontend. Run the same
+  locally after a change of the template or of a component.
 
 CI (`.github/workflows/tests.yml`) runs ruff, pytest, the wheel check, the Node checks and
 the frontend job on every push to `main` and on every pull request; all of them must pass

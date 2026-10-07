@@ -14,7 +14,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { resourceSchema } from '../src/schema.js';
+import { objectFields, resourceSchema } from '../src/schema.js';
+import { transits } from '../src/statusy/transits.js';
 import { parentSchema } from './fixtures/parent.js';
 // the runtime schemas of `tasks.task` of the sample of bazis-front, as the backend returns them
 import sample from './fixtures/sample.json' with { type: 'json' };
@@ -69,7 +70,40 @@ describe('resourceSchema', () => {
     expect(fields.child_entities).toMatchObject({ relation: 'entity.child_entity', many: true, nullable: false });
   });
 
+  it('reads the list and the retrieve schemas of the sample: what the user may see', () => {
+    for (const schema of [sample.schema_list, sample.schema_retrieve]) {
+      const { type, fields } = resourceSchema(schema);
+      expect(type).toBe('tasks.task');
+      expect(fields.map((it) => [it.name, it.title, it.readOnly])).toEqual([
+        ['dt_created', 'Creation time', true],
+        ['dt_updated', 'Update time', true],
+        ['status_dt', 'Status timestamp', true],
+        ['title', 'Title', false],
+        ['report', 'Report', false],
+        ['status', 'Current status', false],
+        ['status_author', 'status author', false],
+        ['assignee', 'assignee', false],
+      ]);
+      expect(fields[0]).toMatchObject({ type: 'string', format: 'date-time' });
+      expect(fields[7]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });
+    }
+  });
+
   it('reads no fields from what is not a resource schema', () => {
     expect(resourceSchema({})).toEqual({ type: '', fields: [] });
+  });
+});
+
+describe('objectFields', () => {
+  it('reads the payload of a transit as attributes', () => {
+    const payload = transits(sample.retrieve_in_progress)[0]?.payload ?? {};
+    expect(objectFields(payload)).toEqual([
+      {
+        kind: 'attribute', name: 'report', title: 'Report', required: true, readOnly: false,
+        nullable: false, type: 'string', format: null, enum: null,
+        schema: { title: 'Report', type: 'string' },
+      },
+    ]);
+    expect(objectFields({})).toEqual([]);
   });
 });

@@ -29,6 +29,12 @@ from bazis.contrib.front.vendor import copy, registry
 from bazis.contrib.front.vendor.lock import digest
 
 
+#: the components that `init` copies, with those they require
+INIT_COMPONENTS = [
+    'state-panel', 'app-shell', 'login-form', 'testing', 'button', 'card', 'input', 'label',
+]
+
+
 @pytest.fixture
 def product(tmp_path):
     with override_settings(BASE_DIR=str(tmp_path)):
@@ -71,8 +77,9 @@ def test_init_creates_the_frontend(product):
     assert (frontend / 'AGENTS.md').read_text(encoding='utf-8').startswith('# Frontend')
 
     lock = json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
-    # the sample has bazis-statusy: its hooks are copied
-    vendored = ['client', 'react', 'react-statusy']
+    # the sample has bazis-statusy: its hooks are copied; and the components marked `init`
+    # with the components and the shadcn/ui components they require
+    vendored = ['client', 'react', 'react-statusy', *INIT_COMPONENTS]
     files = {name: lock['assets'][name].pop('files') for name in vendored}
     assert lock == {
         'lock': 1,
@@ -86,14 +93,20 @@ def test_init_creates_the_frontend(product):
         for name in asset.files:
             copied = (frontend / asset.target_path(name)).read_bytes()
             lines = copied.decode('utf-8').splitlines()
-            # the stamp follows the 13 lines of the license header
-            assert lines[13] == f'// bazis-front {__version__} asset {asset.name}'
-            assert lines[:13] + lines[14:] == asset.read(name).decode('utf-8').splitlines()
+            # the stamp follows the license header (the comment lines the file starts with:
+            # 13 of Apache-2.0, more of the MIT license of shadcn/ui)
+            source = asset.read(name).decode('utf-8').splitlines()
+            header = next(i for i, line in enumerate(source) if not line.startswith('//'))
+            assert header >= 13
+            assert lines[header] == f'// bazis-front {__version__} asset {asset.name}'
+            assert lines[:header] + lines[header + 1:] == source
             # the pristine copy for the merge of the next version, hashed in the lock
             base = frontend / '.bazis' / 'base' / f'{asset.name}@{__version__}' / name
             assert base.read_bytes() == copied
             assert files[asset.name][asset.target_path(name)] == digest(copied)
     assert (frontend / 'src' / 'bazis' / 'react' / 'statusy' / 'index.ts').is_file()
+    assert (frontend / 'src' / 'bazis' / 'ui' / 'login-form' / 'login-form.contract.test.tsx').is_file()
+    assert (frontend / 'src' / 'components' / 'ui' / 'button.tsx').is_file()
     assert not (frontend / 'src' / 'bazis' / 'generated').exists()
 
 
@@ -104,12 +117,12 @@ def test_init_copies_the_hooks_of_the_installed_packages(product, monkeypatch):
 
     frontend = product / 'frontend'
     lock = json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
-    assert sorted(lock['assets']) == ['client', 'react', 'template']
+    assert sorted(lock['assets']) == sorted(['client', 'react', 'template', *INIT_COMPONENTS])
     assert (frontend / 'src' / 'bazis' / 'react' / 'index.ts').is_file()
     assert not (frontend / 'src' / 'bazis' / 'react' / 'statusy').exists()
-    assert sorted(it.name for it in (frontend / '.bazis' / 'base').iterdir()) == [
-        f'client@{__version__}', f'react@{__version__}'
-    ]
+    assert sorted(it.name for it in (frontend / '.bazis' / 'base').iterdir()) == sorted(
+        f'{name}@{__version__}' for name in ['client', 'react', *INIT_COMPONENTS]
+    )
 
 
 def test_init_creates_the_specs(product):

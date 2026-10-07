@@ -173,7 +173,9 @@ def capture(app) -> dict:
     }}), 201)
     item = f'{TASKS}{created["data"]["id"]}/'
     result = {
+        'schema_list': schema(ok(client.get(f'{TASKS}schema_list/'))),
         'schema_create': schema(ok(client.get(f'{TASKS}schema_create/'))),
+        'schema_retrieve': schema(ok(client.get(f'{item}schema_retrieve/'))),
         'schema_update': schema(ok(client.get(f'{item}schema_update/'))),
         'retrieve_draft': actions(ok(client.get(item, params={'meta': 'state_actions,crud_actions'}))),
     }

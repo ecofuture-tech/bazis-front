@@ -1,4 +1,566 @@
 {
+  "schema_list": {
+    "$defs": {
+      "Def1": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "tasks.task",
+            "title": "Type",
+            "type": "string"
+          },
+          "bs:action": {
+            "default": "view",
+            "title": "Bs:Action",
+            "type": "string"
+          },
+          "attributes": {
+            "$ref": "#/$defs/Def2",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/$defs/Def3",
+            "title": "Relationships"
+          }
+        },
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "type": "object"
+      },
+      "Def2": {
+        "properties": {
+          "dt_created": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Creation time",
+            "type": "string"
+          },
+          "dt_updated": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Update time",
+            "type": "string"
+          },
+          "status_dt": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Status timestamp",
+            "type": "string"
+          },
+          "title": {
+            "default": null,
+            "maxLength": 255,
+            "nullable": false,
+            "title": "Title",
+            "type": "string"
+          },
+          "report": {
+            "default": "",
+            "nullable": false,
+            "title": "Report",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def3": {
+        "properties": {
+          "status": {
+            "$ref": "#/$defs/Def4",
+            "default": null,
+            "nullable": false,
+            "title": "Current status"
+          },
+          "status_author": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def6"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "status author"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def8"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "assignee"
+          }
+        },
+        "type": "object"
+      },
+      "Def4": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def5"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def5": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "statusy.status",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def6": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def7"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def7": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "users.user",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def8": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def7"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def9": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "tasks.task",
+            "title": "Type",
+            "type": "string"
+          },
+          "bs:action": {
+            "default": "view",
+            "title": "Bs:Action",
+            "type": "string"
+          },
+          "attributes": {
+            "$ref": "#/$defs/Def10",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/$defs/Def11",
+            "title": "Relationships"
+          }
+        },
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "type": "object"
+      },
+      "Def10": {
+        "properties": {
+          "dt_created": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Creation time",
+            "type": "string"
+          },
+          "dt_updated": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Update time",
+            "type": "string"
+          },
+          "status_dt": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Status timestamp",
+            "type": "string"
+          },
+          "title": {
+            "default": null,
+            "maxLength": 255,
+            "nullable": false,
+            "title": "Title",
+            "type": "string"
+          },
+          "report": {
+            "default": "",
+            "nullable": false,
+            "title": "Report",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def11": {
+        "properties": {
+          "status": {
+            "$ref": "#/$defs/Def12",
+            "default": null,
+            "nullable": false,
+            "title": "Current status"
+          },
+          "status_author": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def13"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "status author"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def14"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "assignee"
+          }
+        },
+        "type": "object"
+      },
+      "Def12": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def5"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def13": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def7"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def14": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def7"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def15": {
+        "properties": {
+          "first": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last"
+          },
+          "prev": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Prev"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Next"
+          }
+        },
+        "type": "object"
+      },
+      "Def16": {
+        "properties": {
+          "for_change": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Available for editing"
+          },
+          "for_delete": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Available for deletion"
+          },
+          "for_create": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Available for creation"
+          },
+          "status_aggs": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Number of elements by status"
+          },
+          "status_allowed": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Allowed statuses"
+          },
+          "pagination": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def17"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pagination"
+          }
+        },
+        "type": "object"
+      },
+      "Def17": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count",
+          "limit",
+          "offset"
+        ],
+        "type": "object"
+      }
+    },
+    "properties": {
+      "data": {
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Def1"
+            },
+            {
+              "$ref": "#/$defs/Def9"
+            }
+          ]
+        },
+        "title": "List data",
+        "type": "array"
+      },
+      "links": {
+        "$ref": "#/$defs/Def15"
+      },
+      "meta": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Def16"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "data",
+      "links"
+    ],
+    "type": "object"
+  },
   "schema_create": {
     "$defs": {
       "Def1": {
@@ -165,6 +727,429 @@
         "anyOf": [
           {
             "$ref": "#/$defs/Def8"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "data"
+    ],
+    "type": "object"
+  },
+  "schema_retrieve": {
+    "$defs": {
+      "Def1": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "tasks.task",
+            "title": "Type",
+            "type": "string"
+          },
+          "bs:action": {
+            "default": "view",
+            "title": "Bs:Action",
+            "type": "string"
+          },
+          "attributes": {
+            "$ref": "#/$defs/Def2",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/$defs/Def3",
+            "title": "Relationships"
+          }
+        },
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "type": "object"
+      },
+      "Def2": {
+        "properties": {
+          "dt_created": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Creation time",
+            "type": "string"
+          },
+          "dt_updated": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Update time",
+            "type": "string"
+          },
+          "status_dt": {
+            "default": null,
+            "format": "date-time",
+            "nullable": false,
+            "readOnly": true,
+            "title": "Status timestamp",
+            "type": "string"
+          },
+          "title": {
+            "default": null,
+            "maxLength": 255,
+            "nullable": false,
+            "title": "Title",
+            "type": "string"
+          },
+          "report": {
+            "default": "",
+            "nullable": false,
+            "title": "Report",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def3": {
+        "properties": {
+          "status": {
+            "$ref": "#/$defs/Def4",
+            "default": null,
+            "nullable": false,
+            "title": "Current status"
+          },
+          "status_author": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def6"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "status author"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def8"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "assignee"
+          }
+        },
+        "type": "object"
+      },
+      "Def4": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def5"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def5": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "statusy.status",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def6": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def7"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def7": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "users.user",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def8": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def7"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def9": {
+        "properties": {
+          "crud_actions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Available actions"
+          },
+          "state_actions": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Def10"
+                    },
+                    {
+                      "items": {
+                        "$ref": "#/$defs/Def10"
+                      },
+                      "type": "array"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Object state actions"
+          }
+        },
+        "type": "object"
+      },
+      "Def10": {
+        "properties": {
+          "code": {
+            "default": "ACTION_TRANSIT",
+            "title": "Transit",
+            "type": "string"
+          },
+          "endpoint": {
+            "$ref": "#/$defs/Def11"
+          },
+          "restricts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Def12"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Restricts"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hint"
+          },
+          "hint_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hint Title"
+          },
+          "hint_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hint Action"
+          },
+          "resource": {
+            "$ref": "#/$defs/Def13"
+          }
+        },
+        "required": [
+          "endpoint",
+          "resource"
+        ],
+        "type": "object"
+      },
+      "Def11": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Body"
+          }
+        },
+        "required": [
+          "url",
+          "method"
+        ],
+        "type": "object"
+      },
+      "Def12": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detail"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Meta"
+          }
+        },
+        "required": [
+          "title",
+          "code"
+        ],
+        "type": "object"
+      },
+      "Def13": {
+        "properties": {
+          "id": {
+            "title": "Id"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "type": "object"
+      }
+    },
+    "properties": {
+      "data": {
+        "$ref": "#/$defs/Def1",
+        "title": "Data"
+      },
+      "meta": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Def9"
           },
           {
             "type": "null"

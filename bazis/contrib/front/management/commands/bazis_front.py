@@ -16,6 +16,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from bazis.contrib.front import __version__, capabilities
@@ -25,8 +26,26 @@ from bazis.contrib.front.contract import generated
 from bazis.contrib.front.contract.openapi import dumps
 from bazis.contrib.front.spec import create as spec_create
 from bazis.contrib.front.spec import validate as spec_validate
+from bazis.contrib.front.spec.issues import Issues
 from bazis.contrib.front.vendor import copy
 from bazis.contrib.front.vendor import lock as frontend_lock
+from bazis.contrib.front.vendor.registry import load as load_registry
+
+
+def contract_capabilities() -> set[str]:
+    """
+    The capabilities of contract/contract.json, for the components of the packages.
+    """
+    issues = Issues()
+    contract_data = spec_validate.load_contract(Path(settings.BASE_DIR), issues)
+    if issues.items:
+        raise copy.AddError([it.message for it in issues.items])
+    if contract_data is None:
+        raise copy.AddError([
+            f'{spec_validate.CONTRACT_FILE} is missing: the components of a package need its '
+            'capability in the contract. Export it with `manage.py bazis_front contract`.'
+        ])
+    return set(contract_data.get('capabilities', {}))
 
 
 class Command(BaseCommand):
@@ -79,6 +98,21 @@ class Command(BaseCommand):
             action='store_true',
             help='Do not run openapi-typescript: schema.d.ts is not generated.',
         )
+
+        add = subcommands.add_parser(
+            'add',
+            help='Copy components (and the assets they require) into the frontend.',
+            description=(
+                'Copy the components of bazis-front into frontend/src/bazis/ui/<name>/ (the '
+                'shadcn/ui components they use into src/components/ui/), with the assets they '
+                'require, their contract tests, their pristine copies in .bazis/base/ and their '
+                'hashes in the lock. A component of a package (such as transit-bar of '
+                'bazis-statusy) needs its capability in contract/contract.json. The product '
+                'owns the copies: an asset already there is kept, and a component named again '
+                'that was changed there is refused (`update` will merge it).'
+            ),
+        )
+        add.add_argument('assets', nargs='+', metavar='asset', help='The components to add.')
 
         check = subcommands.add_parser(
             'check',
@@ -138,6 +172,33 @@ class Command(BaseCommand):
             'Generate its contract with `manage.py bazis_front contract` (from a migrated '
             'database), then build it with `npm run build` in frontend/.'
         )
+
+    def handle_add(self, assets, **options):
+        frontend = frontend_lock.frontend_dir()
+        try:
+            lock = frontend_lock.read(frontend)
+        except frontend_lock.LockError as err:
+            raise CommandError(str(err)) from err
+        if lock is None:
+            raise CommandError(
+                f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
+                '`manage.py bazis_front init`.'
+            )
+        try:
+            added = copy.add_assets(frontend, lock, assets, contract_capabilities)
+        except copy.AddError as err:
+            raise CommandError('\n'.join(err.messages)) from err
+        registry = load_registry()
+        for name in added.copied:
+            self.stdout.write(f'Added {name} to {registry[name].target}/.')
+        for name in added.present:
+            if name in assets:
+                self.stdout.write(f'{name} is already in the frontend.')
+        if added.copied:
+            self.stdout.write(
+                'Run their contract tests with `npm test` in frontend/; the product owns the '
+                'copies and keeps the tests passing when it changes them.'
+            )
 
     def handle_contract(self, check=False, out=None, no_node=False, **options):
         from bazis.core.app import app

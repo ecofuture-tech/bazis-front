@@ -14,10 +14,11 @@
 
 """
 The registry of the assets, `assets/registry.json`: the files that each asset copies into
-the frontend of a product. It is the only list of them: `init` copies what it lists, and
-the wheel is checked against it (`scripts/check_wheel.py`). An asset of a package, such as
-the hooks of bazis-statusy, `requires` its capability: it is copied only into the frontend
-of a product that has it.
+the frontend of a product. It is the only list of them: `init` and `add` copy what it
+lists, and the wheel is checked against it (`scripts/check_wheel.py`). An asset `requires`
+the capabilities of the packages it is for (the hooks and the components of bazis-statusy):
+it is copied only into the frontend of a product that has them; and the other assets it
+imports, copied with it.
 """
 
 import json
@@ -28,8 +29,11 @@ from importlib.resources.abc import Traversable
 
 
 #: copied with the version stamp, kept pristine in `.bazis/base/`, hashed in the lock and
-#: updated from the package
+#: updated from the package; `init` copies them all (those the capabilities allow)
 VENDORED = 'vendored'
+#: a component: copied as a vendored asset, but by `add` (by `init` with `init: true`), and
+#: owned and changed by the product; its contract test comes with it
+UI = 'ui'
 #: copied once by `init`; the product owns it, the lock keeps only its version
 TEMPLATE = 'template'
 
@@ -46,6 +50,10 @@ class Asset:
     files: tuple[str, ...]
     #: the capabilities (`capabilities.CAPABILITIES`) the product must have for the asset
     capabilities: tuple[str, ...] = ()
+    #: the assets it imports, copied before it
+    assets: tuple[str, ...] = ()
+    #: a component that `init` copies
+    init: bool = False
 
     def read(self, name: str) -> bytes:
         return assets_dir().joinpath(*self.source.split('/'), *name.split('/')).read_bytes()
@@ -76,6 +84,32 @@ def load() -> dict[str, Asset]:
         it['name']: Asset(
             it['name'], it['kind'], it['source'], it['target'], tuple(it['files']),
             tuple(it.get('requires', {}).get('capabilities', ())),
+            tuple(it.get('requires', {}).get('assets', ())),
+            it.get('init', False),
         )
         for it in data['assets']
     }
+
+
+def resolve(names: Iterable[str], assets: dict[str, Asset]) -> list[Asset]:
+    """
+    The assets of the names and those they require, each once, every asset after those it
+    requires.
+    """
+    order: list[Asset] = []
+    done: set[str] = set()
+
+    def visit(name: str, path: tuple[str, ...]) -> None:
+        if name in done:
+            return
+        if name in path:
+            raise ValueError(f'the assets require each other: {" -> ".join([*path, name])}')
+        asset = assets[name]
+        for required in asset.assets:
+            visit(required, (*path, name))
+        done.add(name)
+        order.append(asset)
+
+    for name in names:
+        visit(name, ())
+    return order

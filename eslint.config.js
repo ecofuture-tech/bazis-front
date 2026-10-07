@@ -33,7 +33,7 @@ export default tseslint.config(
   },
   // the rules of the hooks, as the eslint config of the template checks them in a product
   {
-    files: ['bazis/contrib/front/assets/react/**/*.{ts,tsx}'],
+    files: ['bazis/contrib/front/assets/{react,ui}/**/*.{ts,tsx}'],
     extends: [reactHooks.configs.flat.recommended],
   },
   {

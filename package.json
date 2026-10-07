@@ -5,7 +5,8 @@
   "license": "Apache-2.0",
   "workspaces": [
     "bazis/contrib/front/assets/client",
-    "bazis/contrib/front/assets/react"
+    "bazis/contrib/front/assets/react",
+    "bazis/contrib/front/assets/ui"
   ],
   "engines": {
     "node": ">=22.13",

@@ -14,9 +14,10 @@
 
 """
 Checks the wheel in the given directory against the registry of the assets
-(`assets/registry.json`): it has every file that the registry copies into a product, and
-of the assets nothing else than the registry and the READMEs of the assets (no tests,
-fixtures, scripts, Node config, node_modules or dist of their checks); and the JSON Schemas
+(`assets/registry.json`): it has every file that the registry copies into a product (the
+contract tests of the components too), and of the assets nothing else than the registry
+and the READMEs of their directories (no tests, fixtures, scripts, Node config,
+node_modules or dist of their checks); and the JSON Schemas
 and the starters of the specs (run from the root of the repository).
 """
 
@@ -41,8 +42,9 @@ assert expected, 'the registry lists no files'
 missing = sorted(expected - names)
 assert not missing, f'the wheel misses files of the registry: {missing}'
 
+# the README of the directory of every asset (`client`, `react`, `ui`, ...)
 allowed = expected | {f'{ASSETS}/registry.json'} | {
-    f'{ASSETS}/{asset["name"]}/README.md' for asset in registry['assets']
+    f'{ASSETS}/{asset["source"].split("/")[0]}/README.md' for asset in registry['assets']
 }
 unexpected = sorted(it for it in names if it.startswith(f'{ASSETS}/') and it not in allowed)
 assert not unexpected, f'the wheel has asset files outside the registry: {unexpected}'

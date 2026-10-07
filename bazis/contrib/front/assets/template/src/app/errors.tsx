@@ -14,17 +14,7 @@
 
 import { Component, type ReactNode } from 'react';
 
-import { ApiError } from '@/bazis/client';
-
-/**
- * The message of an error for the user: the backend writes the messages of ApiError
- * (validation errors are shown by field with `ApiError.fieldErrors()`).
- */
-export function errorMessage(error: unknown): string {
-  if (error instanceof ApiError && error.status === 403) return 'You are not allowed to do this.';
-  if (error instanceof Error) return error.message;
-  return 'Something went wrong.';
-}
+import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 
 interface Props {
   children: ReactNode;
@@ -35,7 +25,10 @@ interface State {
   error: unknown;
 }
 
-/** Shows the error of a screen instead of a blank page, with a retry. */
+/**
+ * Shows the error of a screen instead of a blank page, with a retry: its state and its
+ * message as every component shows them (`StatePanel`, `state:<state>`).
+ */
 export class ErrorBoundary extends Component<Props, State> {
   override state: State = { failed: false, error: undefined };
 
@@ -46,18 +39,14 @@ export class ErrorBoundary extends Component<Props, State> {
   override render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <div role="alert" className="mx-auto max-w-xl space-y-4 p-8">
-        <p className="text-destructive">{errorMessage(this.state.error)}</p>
-        <button
-          type="button"
-          className="rounded-md border px-3 py-1.5 text-sm"
-          onClick={() => {
-            this.setState({ failed: false, error: undefined });
-          }}
-        >
-          Retry
-        </button>
-      </div>
+      <StatePanel
+        state={errorState(this.state.error)}
+        error={this.state.error}
+        className="mx-auto max-w-xl"
+        onRetry={() => {
+          this.setState({ failed: false, error: undefined });
+        }}
+      />
     );
   }
 }

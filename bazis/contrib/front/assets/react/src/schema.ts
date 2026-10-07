@@ -141,9 +141,23 @@ function relation(name: string, property: Node, root: JsonSchema, required: stri
   };
 }
 
-/** The resource of a runtime schema of a create or an update. */
+/**
+ * The resource object of `data`: the item itself, or the item of a list (`schema_list/`:
+ * an array whose `items` are the members of an `anyOf`, of the same fields; the first one).
+ */
+function itemNode(value: unknown, root: JsonSchema): Node {
+  const { node } = withoutNull(value, root);
+  if (node.type === 'array') return itemNode(node.items, root);
+  if (Array.isArray(node.anyOf) && node.anyOf.length > 0) return itemNode(node.anyOf[0], root);
+  return node;
+}
+
+/**
+ * The resource of a runtime schema: of a create or an update (the fields the user may set),
+ * of a retrieve or of a list (the fields the user may see, with their titles).
+ */
 export function resourceSchema(schema: JsonSchema): ResourceSchema {
-  const resource = properties(properties(schema, schema).props.data, schema).props;
+  const resource = properties(itemNode(properties(schema, schema).props.data, schema), schema).props;
   const attributes = properties(resource.attributes, schema);
   const relationships = properties(resource.relationships, schema);
   return {
@@ -157,6 +171,17 @@ export function resourceSchema(schema: JsonSchema): ResourceSchema {
       ),
     ],
   };
+}
+
+/**
+ * The properties of the JSON Schema of an object as attributes, such as the payload of a
+ * transit (`Transit.payload` of `@/bazis/react/statusy`).
+ */
+export function objectFields(schema: JsonSchema): AttributeField[] {
+  const { props, required } = properties(schema, schema);
+  return Object.entries(props).map(([name, property]) =>
+    attribute(name, resolve(property, schema), schema, required),
+  );
 }
 
 /** A schema with its `$ref` resolved, keeping the definitions for the nested ones. */

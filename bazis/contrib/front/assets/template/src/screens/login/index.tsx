@@ -12,75 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useMutation } from '@tanstack/react-query';
-import { useState, type SubmitEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
-import { errorMessage } from '@/app/errors';
 import { login } from '@/app/session';
 import { useApi } from '@/bazis/react';
+import { LoginForm } from '@/bazis/ui/login-form';
 
+/** The login of bazis-users; back to the screen the user came from. */
 export function LoginScreen() {
   const api = useApi();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/';
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const mutation = useMutation({
-    mutationFn: () => login(api, { username, password }),
-    onSuccess: () => navigate(from, { replace: true }),
-  });
-
-  function submit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    mutation.mutate();
-  }
-
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-lg border p-6">
-        <h1 className="text-xl font-semibold">Log in</h1>
-        <label className="block space-y-1 text-sm">
-          <span>Username</span>
-          <input
-            name="username"
-            autoComplete="username"
-            required
-            value={username}
-            onChange={(event) => {
-              setUsername(event.target.value);
-            }}
-            className="w-full rounded-md border px-3 py-2"
-          />
-        </label>
-        <label className="block space-y-1 text-sm">
-          <span>Password</span>
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-            }}
-            className="w-full rounded-md border px-3 py-2"
-          />
-        </label>
-        {mutation.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(mutation.error)}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="w-full rounded-md bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50"
-        >
-          Log in
-        </button>
-      </form>
+    <main data-bz="screen:login" className="flex min-h-screen items-center justify-center p-4">
+      <LoginForm
+        onLogin={(credentials) => login(api, credentials)}
+        onSuccess={() => {
+          void navigate(from, { replace: true });
+        }}
+      />
     </main>
   );
 }

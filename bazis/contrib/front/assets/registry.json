@@ -21,6 +21,11 @@
       "kind": "vendored",
       "source": "react/src",
       "target": "src/bazis/react",
+      "requires": {
+        "assets": [
+          "client"
+        ]
+      },
       "files": [
         "context.tsx",
         "form.ts",
@@ -40,11 +45,299 @@
       "requires": {
         "capabilities": [
           "statusy"
+        ],
+        "assets": [
+          "react"
         ]
       },
       "files": [
         "index.ts",
         "transits.ts"
+      ]
+    },
+    {
+      "name": "state-panel",
+      "kind": "ui",
+      "source": "ui/state-panel",
+      "target": "src/bazis/ui/state-panel",
+      "requires": {
+        "assets": [
+          "client",
+          "testing",
+          "button"
+        ]
+      },
+      "init": true,
+      "files": [
+        "index.ts",
+        "state-panel.contract.test.tsx",
+        "state-panel.tsx"
+      ]
+    },
+    {
+      "name": "app-shell",
+      "kind": "ui",
+      "source": "ui/app-shell",
+      "target": "src/bazis/ui/app-shell",
+      "requires": {
+        "assets": [
+          "testing",
+          "button"
+        ]
+      },
+      "init": true,
+      "files": [
+        "app-shell.contract.test.tsx",
+        "app-shell.tsx",
+        "index.ts"
+      ]
+    },
+    {
+      "name": "login-form",
+      "kind": "ui",
+      "source": "ui/login-form",
+      "target": "src/bazis/ui/login-form",
+      "requires": {
+        "assets": [
+          "state-panel",
+          "testing",
+          "button",
+          "card",
+          "input",
+          "label"
+        ]
+      },
+      "init": true,
+      "files": [
+        "index.ts",
+        "login-form.contract.test.tsx",
+        "login-form.tsx"
+      ]
+    },
+    {
+      "name": "resource",
+      "kind": "ui",
+      "source": "ui/resource",
+      "target": "src/bazis/ui/resource",
+      "requires": {
+        "assets": [
+          "react",
+          "testing",
+          "input",
+          "label",
+          "native-select"
+        ]
+      },
+      "files": [
+        "field-input.tsx",
+        "field-value.tsx",
+        "fields.ts",
+        "hooks.ts",
+        "index.ts",
+        "relation.tsx",
+        "resource.contract.test.tsx"
+      ]
+    },
+    {
+      "name": "resource-form",
+      "kind": "ui",
+      "source": "ui/resource-form",
+      "target": "src/bazis/ui/resource-form",
+      "requires": {
+        "assets": [
+          "resource",
+          "state-panel",
+          "testing",
+          "button"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "resource-form.contract.test.tsx",
+        "resource-form.tsx"
+      ]
+    },
+    {
+      "name": "resource-list",
+      "kind": "ui",
+      "source": "ui/resource-list",
+      "target": "src/bazis/ui/resource-list",
+      "requires": {
+        "assets": [
+          "resource",
+          "state-panel",
+          "testing",
+          "button",
+          "input",
+          "label",
+          "native-select",
+          "table"
+        ]
+      },
+      "files": [
+        "filters.tsx",
+        "index.ts",
+        "resource-list.contract.test.tsx",
+        "resource-list.tsx"
+      ]
+    },
+    {
+      "name": "resource-card",
+      "kind": "ui",
+      "source": "ui/resource-card",
+      "target": "src/bazis/ui/resource-card",
+      "requires": {
+        "assets": [
+          "resource",
+          "resource-form",
+          "state-panel",
+          "testing",
+          "button",
+          "card"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "resource-card.contract.test.tsx",
+        "resource-card.tsx"
+      ]
+    },
+    {
+      "name": "status-badge",
+      "kind": "ui",
+      "source": "ui/status-badge",
+      "target": "src/bazis/ui/status-badge",
+      "requires": {
+        "capabilities": [
+          "statusy"
+        ],
+        "assets": [
+          "resource",
+          "testing",
+          "badge"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "status-badge.contract.test.tsx",
+        "status-badge.tsx",
+        "statusy.ts"
+      ]
+    },
+    {
+      "name": "transit-bar",
+      "kind": "ui",
+      "source": "ui/transit-bar",
+      "target": "src/bazis/ui/transit-bar",
+      "requires": {
+        "capabilities": [
+          "statusy"
+        ],
+        "assets": [
+          "react-statusy",
+          "resource",
+          "status-badge",
+          "state-panel",
+          "testing",
+          "button",
+          "dialog"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "transit-bar.contract.test.tsx",
+        "transit-bar.tsx"
+      ]
+    },
+    {
+      "name": "testing",
+      "kind": "ui",
+      "source": "ui/testing",
+      "target": "src/bazis/ui/testing",
+      "requires": {
+        "assets": [
+          "react"
+        ]
+      },
+      "files": [
+        "index.tsx"
+      ]
+    },
+    {
+      "name": "badge",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "badge.tsx"
+      ]
+    },
+    {
+      "name": "button",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "button.tsx"
+      ]
+    },
+    {
+      "name": "card",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "card.tsx"
+      ]
+    },
+    {
+      "name": "dialog",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "requires": {
+        "assets": [
+          "button"
+        ]
+      },
+      "files": [
+        "dialog.tsx"
+      ]
+    },
+    {
+      "name": "input",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "input.tsx"
+      ]
+    },
+    {
+      "name": "label",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "label.tsx"
+      ]
+    },
+    {
+      "name": "native-select",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "native-select.tsx"
+      ]
+    },
+    {
+      "name": "table",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "table.tsx"
       ]
     },
     {
@@ -59,6 +352,7 @@
         "eslint.config.js",
         "index.html",
         "package.json",
+        "src/app/errors.test.tsx",
         "src/app/errors.tsx",
         "src/app/providers.test.ts",
         "src/app/providers.tsx",

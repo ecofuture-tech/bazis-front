@@ -2,8 +2,9 @@
 
 The React hooks of [Bazis](https://github.com/ecofuture-tech/bazis) over the protocol client
 (`assets/client`) and TanStack Query 5: lists, items, runtime schemas, mutations, a form
-bound to the runtime schema, and the transits of bazis-statusy. No components: the screens
-of a product render what the hooks return. Status: pre-release.
+bound to the runtime schema, and the transits of bazis-statusy. No UI: the components
+(`assets/ui`) and the screens of a product render what the hooks return. Status:
+pre-release.
 
 The hooks are not an npm package: `src/` is copied into a product by
 `manage.py bazis_front init`, to `frontend/src/bazis/react/`, and imported as
@@ -54,6 +55,14 @@ sessions in `src/app/session.ts`); never the token. The template does this in
 
 Pagination is read with the functions of the client: `nextPage(list.data)`,
 `prevPage(list.data)`, `pagination(list.data)` (with `meta: ['pagination']`).
+
+The fields of a runtime schema are read with `resourceSchema(schema)`: its JSON:API type
+and its fields in schema order (as `fields` of `useResourceForm` below), for the schema of a
+create, an update or a retrieve (`data` is the resource) and of a list (`data` is an array
+whose items are the members of an `anyOf`, of the same fields: the first one is read).
+`objectFields(schema)` reads the properties of the JSON Schema of an object as attributes,
+such as the payload of a transit. The types of the paths of the hooks are exported:
+`ListPath`, `ItemPath`, `CreatePath`, `UpdatePath` (and `TransitPath` of `statusy`).
 
 ### Query keys and the session
 
@@ -139,8 +148,8 @@ of the client and assert the requests, the query keys, the invalidations, the do
 the form and the transits. The types are those of the fixture of the client (the core
 sample) with the endpoints of bazis-statusy added (`test/fixtures/schema.d.ts`), aliased as
 `@/bazis/generated/schema` by `tsconfig.json`. `test/fixtures/sample.json` has runtime
-schemas, retrieves with `state_actions` and a 422 of `tasks.task` of the sample of this
-repository, as the backend returns them (reduced to what the hooks read and normalized
+schemas (of the list, the create, the retrieve and the update), retrieves with
+`state_actions` and a 422 of `tasks.task` of the sample of this repository, as the backend returns them (reduced to what the hooks read and normalized
 across the versions of Python and Pydantic; `tests/test_react_fixture.py` of the
 repository checks it against the sample and writes it again with
 `BAZIS_FRONT_WRITE_FIXTURES=1`); `test/types.typecheck.ts` has the type tests.
