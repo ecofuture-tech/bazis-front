@@ -15,6 +15,8 @@
 from importlib.resources import files
 from pathlib import Path
 
+import pytest
+
 from bazis.contrib.front.capabilities import CAPABILITIES
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor.copy import stamp
@@ -66,16 +68,80 @@ def test_the_required_capabilities_are_known():
         assert asset.wanted([]) is not bool(asset.capabilities)
 
 
+#: the files of the workspace of the components that only check them in this repository
+UI_TOOLING = {'package.json', 'tsconfig.json', 'vitest.config.ts', 'README.md'}
+
+
+def test_the_registry_lists_the_sources_of_the_components():
+    assets = registry.load()
+    components = [it for it in assets.values() if it.kind == registry.UI]
+    listed = [f'{it.source.removeprefix("ui/")}/{name}' for it in components for name in it.files]
+    assert sorted(listed) == [
+        it for it in files_of(ASSETS / 'ui') if it not in UI_TOOLING and not it.startswith('test/')
+    ]
+    for asset in components:
+        if asset.source == 'ui/shadcn':
+            # a component of shadcn/ui, where its configuration (components.json) puts it
+            assert (asset.target, asset.files) == ('src/components/ui', (f'{asset.name}.tsx',))
+        else:
+            assert (asset.source, asset.target) == (f'ui/{asset.name}', f'src/bazis/ui/{asset.name}')
+        if asset.source == 'ui/shadcn' or asset.name == 'testing':
+            continue
+        # a component comes with its contract test, which runs with the support of `testing`
+        assert {'index.ts', f'{asset.name}.contract.test.tsx'} <= set(asset.files), asset.name
+        assert 'testing' in asset.assets, asset.name
+
+
+def test_the_required_assets_exist():
+    assets = registry.load()
+    for asset in assets.values():
+        assert set(asset.assets) <= set(assets) - {'template'}, asset.name
+        # the assets of a package require its capabilities
+        for required in asset.assets:
+            assert set(assets[required].capabilities) <= set(asset.capabilities), asset.name
+    # every asset after those it requires, each once
+    order = [it.name for it in registry.resolve(assets, assets)]
+    assert sorted(order) == sorted(assets)
+    for index, name in enumerate(order):
+        assert set(assets[name].assets) <= set(order[:index]), name
+
+
+def test_the_components_of_init_need_no_capability():
+    assets = registry.load()
+    initial = [it.name for it in assets.values() if it.init]
+    assert initial == ['state-panel', 'app-shell', 'login-form']
+    for asset in registry.resolve(initial, assets):
+        assert asset.kind in (registry.UI, registry.VENDORED) and not asset.capabilities, asset.name
+
+
+def test_resolve_rejects_a_cycle():
+    assets = {
+        'a': registry.Asset('a', registry.UI, 'ui/a', 'src/a', (), assets=('b',)),
+        'b': registry.Asset('b', registry.UI, 'ui/b', 'src/b', (), assets=('a',)),
+    }
+    with pytest.raises(ValueError, match='a -> b -> a'):
+        registry.resolve(['a'], assets)
+
+
 def test_the_registry_lists_every_file_of_the_template():
     template = registry.load()['template']
     assert (template.kind, template.target) == (registry.TEMPLATE, '')
     assert sorted(template.files) == files_of(ASSETS / 'template')
 
 
+#: the notice of the MIT license of shadcn/ui, in the header of its components
+SHADCN_LICENSE = '// MIT License\n//\n// Copyright (c) 2023 shadcn\n//\n// Permission is hereby granted'
+
+
 def test_the_sources_start_with_the_license_header():
     assets = registry.load()
     for asset in assets.values():
-        if asset.kind == registry.VENDORED:
+        if asset.source == 'ui/shadcn':
+            text = asset.read(asset.files[0]).decode('utf-8')
+            head = text[:text.index('\n\n')]
+            assert head.startswith(f'// The component {asset.name} of shadcn/ui'), asset.name
+            assert SHADCN_LICENSE in head and 'IN THE\n// SOFTWARE.' in head, asset.name
+        elif asset.kind in (registry.VENDORED, registry.UI):
             for name in asset.files:
                 assert asset.read(name).decode('utf-8').startswith(HEADER + '\n'), name
     for name in assets['template'].files:

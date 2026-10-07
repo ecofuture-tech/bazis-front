@@ -19,6 +19,10 @@ include-package-data = true
 "bazis.contrib.front.assets.react" = ["package.json", "tsconfig.json", "vitest.config.ts"]
 "bazis.contrib.front.assets.react.test" = ["*"]
 "bazis.contrib.front.assets.react.test.fixtures" = ["*"]
+# the contract tests of the components are copied into products: they are package data
+"bazis.contrib.front.assets.ui" = ["package.json", "tsconfig.json", "vitest.config.ts"]
+"bazis.contrib.front.assets.ui.test" = ["*"]
+"bazis.contrib.front.assets.ui.test.fixtures" = ["*"]
 
 [tool.setuptools_scm]
 version_file = "bazis/contrib/front/_version.py"

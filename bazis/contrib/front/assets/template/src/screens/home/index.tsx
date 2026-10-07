@@ -13,10 +13,10 @@
 // limitations under the License.
 
 import { errorMessage } from '@/app/errors';
-import { LOGIN_ENABLED, logout } from '@/app/session';
 import { pagination } from '@/bazis/client';
 import { RESOURCES } from '@/bazis/generated/contract';
 import { useList } from '@/bazis/react';
+import { Screen } from '@/bazis/ui/app-shell';
 
 type Resource = (typeof RESOURCES)[keyof typeof RESOURCES];
 /** A resource whose route set has a list. */
@@ -36,15 +36,7 @@ function Count({ path }: { path: Listed['path'] }) {
 /** The resources of the backend, from the generated contract. */
 export function HomeScreen() {
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-8">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Resources</h1>
-        {LOGIN_ENABLED && (
-          <button type="button" onClick={logout} className="rounded-md border px-3 py-1.5 text-sm">
-            Log out
-          </button>
-        )}
-      </header>
+    <Screen id="home" title="Resources">
       <ul className="divide-y rounded-lg border">
         {Object.entries(RESOURCES).map(([type, resource]) => (
           <li key={type} className="flex justify-between gap-4 px-4 py-3">
@@ -56,6 +48,6 @@ export function HomeScreen() {
           </li>
         ))}
       </ul>
-    </main>
+    </Screen>
   );
 }

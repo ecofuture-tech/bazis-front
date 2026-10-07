@@ -2,3 +2,7 @@ bazis-front
 Copyright 2026 EcoFuture Technology Services LLC and contributors
 
 This product is part of the Bazis framework (https://github.com/ecofuture-tech/bazis)
+
+This product includes components of shadcn/ui (https://ui.shadcn.com),
+Copyright (c) 2023 shadcn, under the MIT License; the notice is in the header of each of
+them (bazis/contrib/front/assets/ui/shadcn/).

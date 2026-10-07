@@ -3,7 +3,8 @@
 The frontend of this product: React 19, TypeScript (strict), Vite 7, React Router 7,
 TanStack Query 5, Tailwind 4 with shadcn/ui. It was created by
 `manage.py bazis_front init` of bazis-front: its contract with the backend is generated
-from the backend, its protocol client and its React hooks are copied from bazis-front. The
+from the backend, its protocol client, its React hooks and its components are copied from
+bazis-front. The
 backend, its contract and the specs of the product are one directory up (`manage.py`,
 `contract/`, `spec/`).
 
@@ -14,9 +15,10 @@ backend, its contract and the specs of the product are one directory up (`manage
 | `src/bazis/generated/` | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API) | only `manage.py bazis_front contract` |
 | `src/bazis/client/` | the client of the Bazis protocol | bazis-front; not edited, wrapped in `src/app/` |
 | `src/bazis/react/` | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy | bazis-front; not edited |
-| `src/app/` | providers (query cache, `BazisProvider`), session, router, errors | the product |
-| `src/screens/<screen>/` | the screens | the product |
-| `src/components/ui/`, `src/lib/` | shadcn/ui components (`npx shadcn add <name>`) | the product |
+| `src/bazis/ui/<component>/` | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies `state-panel`, `app-shell`, `login-form`, `manage.py bazis_front add` the others | the product, keeping the contract tests passing |
+| `src/app/` | providers (query cache, `BazisProvider`), session, router (the layout and the navigation), errors | the product |
+| `src/screens/<screen>/` | the screens, composed from the components | the product |
+| `src/components/ui/`, `src/lib/` | shadcn/ui components: those of the components copied by bazis-front, others with `npx shadcn add <name>` | the product |
 | `../spec/` | the specs: `product.yaml` (roles, entities, access, scenarios), `screens/<id>.yaml`, `design/` | the product; checked by `manage.py bazis_front check` |
 | `bazis-front.lock.json`, `.bazis/base/` | the versions and hashes of the contract, of the generated files and of the copied assets; the pristine copies of the assets | bazis-front; commit them |
 
@@ -29,6 +31,7 @@ transits of the backend (with a migrated database):
 python manage.py bazis_front contract          # contract/, src/bazis/generated/, the lock
 python manage.py bazis_front contract --check  # write nothing; exit 1 if anything is stale (CI)
 python manage.py bazis_front check             # the specs against the contract; exit 1 on errors
+python manage.py bazis_front add resource-list  # copy a component with what it requires
 ```
 
 From `frontend/`:
@@ -58,7 +61,8 @@ written.
   The backend follows the product spec; export the contract and run
   `bazis_front check` until it reports no errors.
 - A screen is one primitive (`list`, `card` or `form`) over an entity; implement it in
-  `src/screens/<id>/` with the route of its spec, and render every state that it lists.
+  `src/screens/<id>/` with the route of its spec, from the components (below), and render
+  every state that it lists.
 - Mark the elements with `data-bz` (`screen:<id>`, `state:<state>`, `list:<entity>`,
   `row:<id>`, `field:<field>`, `error:<field>`, `action:<id>`, `transit:<id>`,
   `status:<id>`, `nav:<screen>`): the scenarios of the product spec act through them.
@@ -155,3 +159,112 @@ A form shows the errors of a 422 by field from `form.errors` and any other error
 `form.submitError`; the fields a user may not change now are `readOnly` in `schema_update`
 (show them disabled) and are never sent, those permissions disable are not in it. To-many relationships are in `form.fields` (`many: true`)
 but not in its values: change them with `useRelationship`.
+
+## Screens from the components
+
+The screens are written here, from their specs; nothing generates them. Compose them from
+the components of `src/bazis/ui/` (the guide of bazis-front, `bazis/contrib/front/AGENTS.md`
+of the installed package, lists their props and their `data-bz`):
+
+| Spec | Component |
+|---|---|
+| a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell`; the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
+| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` |
+| `primitive: card` (`sections`, `edit`, `transitions`) | `ResourceCard` of `@/bazis/ui/resource-card`, with `StatusBadge` and `TransitBar` of `@/bazis/ui/status-badge` and `@/bazis/ui/transit-bar` (bazis-statusy) |
+| `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`) |
+| an action `primitive: destroy` | an action of the card (`permission: 'delete'`) calling `useDestroy` |
+| `states` | the components render them (`state:<state>`); `StatePanel` of `@/bazis/ui/state-panel` for a screen of your own |
+
+```tsx
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
+
+import { ROUTES } from '@/bazis/generated/contract';
+import { useDestroy } from '@/bazis/react';
+import { Screen } from '@/bazis/ui/app-shell';
+import { ResourceCard } from '@/bazis/ui/resource-card';
+import { ResourceForm } from '@/bazis/ui/resource-form';
+import { ResourceList } from '@/bazis/ui/resource-list';
+import { StatusBadge, statusOptions } from '@/bazis/ui/status-badge';
+import { TransitBar } from '@/bazis/ui/transit-bar';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+const TASKS = ROUTES['tasks.task'];
+
+// spec/screens/task-list.yaml
+export function TaskListScreen() {
+  const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
+  return (
+    <Screen id="task-list" title="Tasks">
+      <ResourceList
+        path={TASKS}
+        entity="task"
+        columns={['title', 'status', 'assignee', 'dt_created']}
+        filters={[{ field: 'status', options: statusOptions('tasks.task') }, 'assignee']}
+        sort={['-dt_created']}
+        search
+        onOpen={(id) => void navigate(`/tasks/${id}`)}
+        actions={[{ id: 'create', label: 'Create', permission: 'add', onClick: () => { setCreating(true); } }]}
+        cells={{ status: (row) => <StatusBadge resource={row} /> }}
+      />
+      <Dialog open={creating} onOpenChange={setCreating}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New task</DialogTitle>
+            <DialogDescription>The task is created as a draft.</DialogDescription>
+          </DialogHeader>
+          <ResourceForm
+            path={TASKS}
+            fields={['title', 'assignee']}
+            onSaved={(saved) => void navigate(`/tasks/${saved.data.id}`)}
+            onCancel={() => { setCreating(false); }}
+          />
+        </DialogContent>
+      </Dialog>
+    </Screen>
+  );
+}
+
+// spec/screens/task-card.yaml
+export function TaskCardScreen() {
+  const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const destroy = useDestroy(TASKS);
+  return (
+    <Screen id="task-card" title="Task">
+      <ResourceCard
+        path={TASKS}
+        id={id}
+        edit
+        sections={[{ id: 'main', fields: ['title', 'status', 'assignee'] }, { id: 'report', title: 'Report', fields: ['report'] }]}
+        badge={(item) => <StatusBadge resource={item} />}
+        actions={[{
+          id: 'delete', label: 'Delete', permission: 'delete', variant: 'destructive',
+          onClick: () => { destroy.mutate(id, { onSuccess: () => void navigate('/tasks') }); },
+        }]}
+      >
+        {/* null: the user can no longer view the item */}
+        <TransitBar path={TASKS} id={id} onDone={(item) => { if (item === null) void navigate('/tasks'); }} />
+      </ResourceCard>
+    </Screen>
+  );
+}
+```
+
+Add the routes of the screens to `src/app/router.tsx` (inside `RequireSession`) and their
+links to `NAVIGATION` there.
+
+- **The components are the product's.** Change their look, texts and layout in
+  `src/bazis/ui/` as the product needs; keep `npm test` passing: the contract test of a
+  component (`<component>.contract.test.tsx`) checks the `data-bz` marks and the states
+  that the scenarios act through. A change that breaks it breaks the scenarios.
+- Add a component with `manage.py bazis_front add <component>` rather than by hand: it
+  copies what it requires and records the pristine copy for the updates. It never
+  overwrites a copy that was changed here; the update with a merge of the changes will be
+  `bazis_front update`.
+- The components decide nothing: the fields and their titles come from the runtime
+  schemas, the actions from the permission meta (`permission`), the states from the errors
+  of the backend (`StatePanel`). Pass the field ids of the specs and the paths of
+  `ROUTES`.
+

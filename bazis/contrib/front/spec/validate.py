@@ -176,8 +176,10 @@ def load_contract(root: Path, issues: Issues) -> dict | None:
 def check_assets(root: Path, contract: dict, issues: Issues) -> None:
     """
     The assets of the frontend (recorded in its lock) follow the capabilities of the
-    contract: `init` copies an asset that requires a capability, such as the hooks of
-    bazis-statusy, only when the product has it.
+    contract: `init` copies a vendored asset that requires a capability, such as the hooks of
+    bazis-statusy, only when the product has it; no asset (a component neither) is there
+    without its capabilities. The components are added when the product needs them: their
+    absence is not an issue.
     """
     frontend = root / frontend_lock.FRONTEND_DIR
     try:
@@ -195,14 +197,13 @@ def check_assets(root: Path, contract: dict, issues: Issues) -> None:
             continue
         required = ', '.join(asset.capabilities)
         target = f'{frontend_lock.FRONTEND_DIR}/{asset.target}/'
-        if asset.wanted(capabilities) and asset.name not in present:
+        if asset.kind == registry.VENDORED and asset.wanted(capabilities) and asset.name not in present:
             issues.add(
                 doc, ('assets',), 'C003',
                 f'The contract has the capability {required}, but the frontend does not have '
                 f'the asset {asset.name} ({target}).',
-                '`manage.py bazis_front init` copies it when the package is installed; adding '
-                'it to an existing frontend will be `bazis_front update`. Until then do not '
-                'use its hooks, or create the frontend again.',
+                f'Copy it with `manage.py bazis_front add {asset.name}` (`init` copies it when '
+                'the package is installed).',
             )
         elif not asset.wanted(capabilities) and asset.name in present:
             issues.add(

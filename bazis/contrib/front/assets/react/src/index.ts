@@ -18,16 +18,21 @@ export { useCreate, useDestroy, useRelationship, useUpdate } from './mutations.j
 export { useFilterFields, useItem, useList, useSchema } from './queries.js';
 export { useResourceForm } from './form.js';
 export type { ResourceForm } from './form.js';
-export type { AttributeField, FormField, RelationField } from './schema.js';
+export { objectFields, resourceSchema } from './schema.js';
+export type { AttributeField, FormField, RelationField, ResourceSchema } from './schema.js';
 export type {
   CreateDocument,
+  CreatePath,
   CreateResponse,
+  ItemPath,
   ItemQuery,
   ItemResponse,
   JsonSchema,
+  ListPath,
   ListQuery,
   ListResponse,
   RelationshipChange,
   UpdateDocument,
+  UpdatePath,
   UpdateResponse,
 } from './types.js';

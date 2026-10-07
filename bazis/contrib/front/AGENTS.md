@@ -6,11 +6,11 @@ from this package. There are no npm packages of Bazis: the TypeScript code of th
 is shipped as package data and copied into the product, which then owns the copy.
 
 **Status: pre-release.** The package ships `manage.py bazis_front init` (a frontend made
-from its template, with the protocol client and the React hooks copied into it, and the
-starters of the specs), `manage.py bazis_front contract` (the export of the contract and
-the TypeScript generated from it) and `manage.py bazis_front check` (the validation of the
-specs against the contract). The components and the update of the copies are planned, not
-available yet.
+from its template, with the protocol client, the React hooks and the first components
+copied into it, and the starters of the specs), `manage.py bazis_front add` (the
+components), `manage.py bazis_front contract` (the export of the contract and the
+TypeScript generated from it) and `manage.py bazis_front check` (the validation of the
+specs against the contract). The update of the copies is planned, not available yet.
 
 ## Setup
 
@@ -25,9 +25,10 @@ python manage.py bazis_front init --no-node  # the same without `npm install`
 ```
 
 `init` creates `frontend/` next to `manage.py`, a React 19 + TypeScript + Vite 7 app with
-TanStack Query, React Router 7 and Tailwind 4 set up for shadcn/ui (`components.json`, no
-components yet), with a login screen and a home screen that lists the resources of the
-contract. It never overwrites an existing `frontend/`. It writes:
+TanStack Query, React Router 7 and Tailwind 4 set up for shadcn/ui (`components.json`),
+with the layout of the application (`app-shell`), a login screen (`login-form`) and a home
+screen that lists the resources of the contract. It never overwrites an existing
+`frontend/`. It writes:
 
 - `spec/` next to `manage.py`, when the product has none (an existing one is kept): the
   JSON Schemas of the specs in `spec/schema/` (for the editors) and starters of
@@ -42,16 +43,75 @@ contract. It never overwrites an existing `frontend/`. It writes:
   versions. The hooks of a package are copied only when the product has it at `init` (its
   app in `INSTALLED_APPS`, as the capabilities of the contract): with bazis-statusy the
   asset `react-statusy` in `src/bazis/react/statusy/`. A package installed after `init` has
-  no hooks in the frontend until `bazis_front update` (planned) adds them: `check` reports
-  it (`C003`);
+  no hooks in the frontend until `bazis_front add react-statusy` (or a component that
+  requires them) copies them: `check` reports it (`C003`);
+- the components that the template uses, `state-panel`, `app-shell` and `login-form`, in
+  the same way, with the shadcn/ui components they use (see [The components](#the-components));
 - `bazis-front.lock.json`: the version of bazis-front, the hashes of the contract and of
   the generated files (see below), and the version and the file hashes of every copied
   asset (`"template"` has only its version); an asset that was not copied is not in it.
 
-Commit `bazis-front.lock.json` and `.bazis/`. The files that `init` copies are listed in
-`assets/registry.json` of the package. The frontend compiles once `contract` has generated
+Commit `bazis-front.lock.json` and `.bazis/`. The files that `init` and `add` copy are
+listed in `assets/registry.json` of the package. The frontend compiles once `contract` has generated
 `src/bazis/generated/`. It has a login (the token endpoint of bazis-users) only when the
 backend has bazis-users; without it every screen is open and requests are anonymous.
+
+## The components
+
+```bash
+python manage.py bazis_front add resource-list resource-card resource-form   # the core
+python manage.py bazis_front add status-badge transit-bar                    # with bazis-statusy
+```
+
+The components are the visual building blocks of the screens: React components on
+shadcn/ui and Tailwind 4 over the hooks, in `frontend/src/bazis/ui/<component>/`
+(`@/bazis/ui/<component>`). `add` copies them like `init` copies the hooks (stamped, with
+their pristine copies in `.bazis/base/` and their hashes in the lock), with the assets
+they require: the other components, the hooks, and the shadcn/ui components they use
+(`button`, `input`, `label`, `native-select`, `table`, `badge`, `card`, `dialog`) in
+`src/components/ui/`, where `components.json` puts them. It needs neither the network nor
+the shadcn CLI, and never changes `package.json`: the template declares every npm
+dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-react`, and
+`@testing-library/react` with `jsdom` for their tests).
+
+- A component of a package needs its capability in `contract/contract.json` (export the
+  contract first): `transit-bar` and `status-badge` need `statusy`; `add` fails with the
+  missing capability and copies nothing.
+- An asset already in the frontend is kept as it is; `add` of it again does nothing when
+  it is unchanged. `add` never overwrites: a component named again that was changed in the
+  frontend, a component of another version of bazis-front, or a file of the product at the
+  path of a copy (a shadcn/ui component added with the shadcn CLI) fail the command, and
+  nothing is written. The merge of a new version with the local changes will be
+  `bazis_front update`.
+- **The product owns the copies** and changes them freely (the look, the texts, the
+  layout). Each component comes with its contract test, `<component>.contract.test.tsx`,
+  run by `npm test` of the frontend: it checks the `data-bz` marks and the states that the
+  scenarios of the specs rely on. Keep it passing when the component is changed.
+- There is no generator of screens: the screens are written in `src/screens/<id>/` from
+  their specs, composed from the components; the template's `AGENTS.md` shows how.
+- No translations: the labels are the titles of the runtime schemas and the names of the
+  statuses and transits in the language of the backend, and the props.
+
+| Component | Props | `data-bz` | Requires |
+|---|---|---|---|
+| `state-panel` | `StatePanel({state, error?, message?, onRetry?, inline?, children})`, `errorState(error)`, `queryState(query, empty?)` | `state:<state>`, `action:retry` | |
+| `app-shell` | `AppShell({title, navigation: 'sidebar' \| 'topbar', items: [{screen, label, to, end?}], session: {user?, onLogout} \| null, children})`, `Screen({id, title?, actions?, children})` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
+| `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
+| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, actions?, rowActions?, cells?, emptyMessage?})` | `list:<entity>`, `row:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
+| `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
+| `status-badge` | `StatusBadge({resource})`, `statusOf`, `statusName`, `statusOptions`, `transitName` | `status:<id>` | `statusy` |
+| `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
+
+They read what the backend reports and decide nothing: `state-panel` maps the errors of the
+backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
+`error`) in one place; the fields, their titles and what is read-only come from the
+runtime schemas; an action with a `permission` (`add` on a list, `change` or `delete` on a
+row or an item) is shown when the permission meta of bazis-permit allows it, and always
+when the backend does not report the meta. The shared parts are the asset `resource`
+(`FieldInput`, the only input of a field: the forms and the payloads of the transits use
+it; `FieldValue`, `RelationSelect`, `permitted`) and `testing` (the support of the
+contract tests). `assets/ui/README.md` of the package documents each component.
 
 ## The contract
 
@@ -360,7 +420,7 @@ warning there, never blocking `migrate` or `contract`.
 |---|---|---|
 | `C001` | error | contract/contract.json cannot be read |
 | `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
-| `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or are there without the package |
+| `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or assets of a package are there without it |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
@@ -407,7 +467,7 @@ warning there, never blocking `migrate` or `contract`.
 | 0. Contract | the OpenAPI, `contract.json`, `contract.ts` and the TypeScript types of the API | `contract/`, `frontend/src/bazis/generated/`, only generated |
 | 1. Protocol | the client (`assets/client`) | `frontend/src/bazis/client/`, copied by `init`, not edited |
 | 2. Hooks | React hooks over the client and TanStack Query (`assets/react`) | `frontend/src/bazis/react/`, copied, not edited |
-| 3. Components | visual building blocks on shadcn/ui (planned) | `frontend/src/bazis/ui/`, copied, owned by the product |
+| 3. Components | visual building blocks on shadcn/ui (`assets/ui`) | `frontend/src/bazis/ui/` (and `src/components/ui/`), copied by `init` and `add`, owned by the product |
 | 4. Specs | product, screens and design specs | `spec/`, validated against the contract by `bazis_front check` |
 | App | the template (`assets/template`): providers, session, router, errors, screens | `frontend/`, copied once by `init`, owned by the product |
 
@@ -429,8 +489,9 @@ warning there, never blocking `migrate` or `contract`.
 - **The backend decides the permissions.** Do not encode roles or permission rules in the
   frontend. Hide or disable controls from what the backend reports: the permission meta
   and the runtime schema `schema_update` of the item.
-- **Copy the visual layer, own it.** Components and screens are part of the product and may
-  be changed freely.
+- **Compose the screens from the components, own them.** Components and screens are part
+  of the product and may be changed freely; keep the contract tests of the components
+  passing, since the scenarios act through their `data-bz`.
 
 ## The client
 
@@ -480,6 +541,10 @@ const transits = useTransits(ROUTES['tasks.task'], id);               // [{id, a
 - `useList`, `useItem`, `useSchema`, `useFilterFields` read; `useCreate`, `useUpdate`,
   `useDestroy`, `useRelationship` change and then refetch every query of the resource
   (`['bazis', path]`).
+- `resourceSchema(schema)` reads the fields of a runtime schema (of a create, an update, a
+  retrieve or a list: name, title, type, format, choices, read-only, the related resource)
+  and `objectFields(schema)` those of the JSON Schema of an object, such as the payload of
+  a transit; the components render them.
 - `useResourceForm(path, {id?})` takes its fields from `schema_create`/`schema_update`
   (those of the current user: type, required, read-only, nullable, choices, the
   related resource of a relationship), its values from the defaults or the item, and

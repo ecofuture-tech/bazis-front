@@ -401,11 +401,15 @@ def test_the_assets_follow_the_capabilities(contract):
     root = contract.parent.parent
     edit(root, LOCK, lambda d: lock('client', 'react', 'react-statusy', 'template'))
     assert issues(root) == []
+    # the components of a package are added when the product needs them
+    edit(root, LOCK, lambda d: lock('client', 'react', 'react-statusy', 'status-badge', 'template'))
+    assert issues(root) == []
 
-    # the hooks of bazis-statusy without the package (the specs that need it are wrong too)
+    # the hooks and a component of bazis-statusy without the package (the specs that need it
+    # are wrong too)
     edit(root, CONTRACT, remove_statusy_section)
     c003 = [it for it in issues(root) if it[0] == 'C003']
-    assert c003 == [('C003', f'{LOCK}#/assets/react-statusy')]
+    assert c003 == [('C003', f'{LOCK}#/assets/react-statusy'), ('C003', f'{LOCK}#/assets/status-badge')]
 
     # a lock that cannot be read is front.W001
     edit(root, LOCK, lambda d: '{')

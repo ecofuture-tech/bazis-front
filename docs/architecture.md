@@ -106,12 +106,24 @@ user changes, and the session in the keys (a value of the application that chang
 login and logout) keeps a request still running for the previous user out of the queries of
 the next one.
 
-### 3. Components (planned)
+### 3. Components
 
-Components are primitives on shadcn/ui (`app-shell`,
-`resource-list`, `resource-form`, `transit-bar`, …) listed in `assets/registry.json` with
-what they require; each ships a contract test that checks its `data-bz` test ids and
-states, so that it keeps working after the product edits it.
+Components are primitives on shadcn/ui and Tailwind 4 over the hooks (`assets/ui`):
+`state-panel` (the states of a screen, the only mapping of the errors of the backend:
+401/403 `forbidden`, 404 `not_found`, 422 `invalid`), `app-shell` (the layout, the
+navigation, the session, `Screen`), `login-form`, `resource-list`, `resource-card`,
+`resource-form` and, with bazis-statusy, `status-badge` and `transit-bar`. They are listed
+in `assets/registry.json` with what they require (`requires.assets`: other components, the
+hooks, the shadcn/ui components; `requires.capabilities`), copied by
+`bazis_front add` (and `init` for those the template uses) with their pristine copies and
+lock entries, like the hooks; the product owns and changes them. Each ships a contract test
+that checks its `data-bz` marks and states, run by `npm test` of the product, so that it
+keeps working after the product edits it. The shadcn/ui components they use are copied as
+assets too (into `src/components/ui/`), not through the shadcn CLI: `add` needs no network,
+and the template declares every npm dependency of the components. The components read
+the fields, their titles and what is read-only from the runtime schemas and the actions
+from the permission meta; they are small explicit APIs over the field ids of the specs,
+and the screens are written by the agent from them: there is no generator of screens.
 
 ### 4. Specs
 
@@ -152,10 +164,12 @@ generated.
 (`assets/template`): React 19, TypeScript strict, Vite 7, React Router 7, TanStack Query 5,
 Tailwind 4 set up for shadcn/ui; `src/app/` holds the providers (the query cache and the
 client), the session (the token in memory and `localStorage`, the login of bazis-users),
-the router and the errors, and `src/screens/` a login and a home screen. The template is
-owned by the product from then on. The client is copied into `src/bazis/client/`, the
-hooks into `src/bazis/react/` (with those of the installed packages), their pristine
-copies into `.bazis/base/`, and the lock is written. The files that the assets copy
+the router (in the layout `AppShell`) and the errors, and `src/screens/` a login
+(`LoginForm`) and a home screen. The template is owned by the product from then on. The
+client is copied into `src/bazis/client/`, the hooks into `src/bazis/react/` (with those of
+the installed packages), the components of the template into `src/bazis/ui/`, their
+pristine copies into `.bazis/base/`, and the lock is written; `bazis_front add` copies the
+other components. The files that the assets copy
 are listed in `assets/registry.json`, which the wheel is checked against.
 
 ## Updates of the copied code
@@ -182,8 +196,8 @@ package, and security advisories of the asset registry as errors.
 ## Status
 
 Pre-release. Available: the client (`assets/client`), the hooks (`assets/react`), the
-contract export with the generated TypeScript (`bazis_front contract`, `front.W001`), the
-frontend template with the copies of the client and the hooks and the lock
-(`bazis_front init`), and the specs with their validator (`bazis_front check`,
-`front.W002`). Next: the first components, `add` and `update`, and the end-to-end
-pipeline against a sample backend.
+first components (`assets/ui`, `bazis_front add`), the contract export with the generated
+TypeScript (`bazis_front contract`, `front.W001`), the frontend template with the copies
+of the client, the hooks and its components and the lock (`bazis_front init`), and the
+specs with their validator (`bazis_front check`, `front.W002`). Next: `update`, and the
+end-to-end pipeline against a sample backend.

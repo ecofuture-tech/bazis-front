@@ -1,0 +1,46 @@
+{
+  "extends": "../../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "noEmit": true,
+    "paths": {
+      "@/bazis/client": [
+        "../client/src/index.ts"
+      ],
+      "@/bazis/react": [
+        "../react/src/index.ts"
+      ],
+      "@/bazis/react/statusy": [
+        "../react/src/statusy/index.ts"
+      ],
+      "@/bazis/generated/schema": [
+        "../react/test/fixtures/schema.d.ts"
+      ],
+      "@/bazis/generated/contract": [
+        "./test/fixtures/contract.ts"
+      ],
+      "@/bazis/ui/*": [
+        "./*"
+      ],
+      "@/components/ui/*": [
+        "./shadcn/*"
+      ],
+      "@/lib/utils": [
+        "../template/src/lib/utils.ts"
+      ]
+    }
+  },
+  "include": [
+    "*/*.ts",
+    "*/*.tsx",
+    "test",
+    "vitest.config.ts"
+  ]
+}

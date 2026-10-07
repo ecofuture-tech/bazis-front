@@ -20,8 +20,9 @@ copy and gets fixes through new versions of the package.
 | `manage.py bazis_front init` | Creates the frontend of a product from the template, with copies of the client and the hooks and a lock, and the starters of its specs | available |
 | `manage.py bazis_front contract` | Exports the contract of a product (`contract/openapi.json`, `contract/contract.json`), generates its TypeScript in the frontend and checks that both are up to date | available |
 | `manage.py bazis_front check` | Validates the specs of a product (`spec/`: product, screens, design) against their JSON Schemas, each other and the contract | available |
-| `manage.py bazis_front` (other subcommands) | Adding and updating the assets, end-to-end tests from the scenarios | planned |
-| `assets/ui` | Components on shadcn/ui | planned |
+| [`assets/ui`](bazis/contrib/front/assets/ui) | Components on shadcn/ui and Tailwind 4 over the hooks: layout, states, list, card, form, login, the status and the transits of bazis-statusy, each with its contract test | available |
+| `manage.py bazis_front add` | Copies components into the frontend of a product, with the assets they require | available |
+| `manage.py bazis_front` (other subcommands) | Updating the copied assets, end-to-end tests from the scenarios | planned |
 
 The layers and the principles are described in [docs/architecture.md](docs/architecture.md).
 AI agents building a product read
@@ -29,4 +30,6 @@ AI agents building a product read
 
 ## License
 
-Apache License 2.0, see [LICENSE](LICENSE).
+Apache License 2.0, see [LICENSE](LICENSE). The components of shadcn/ui in
+`bazis/contrib/front/assets/ui/shadcn/` are under the MIT License of shadcn/ui, whose notice
+is in their headers.

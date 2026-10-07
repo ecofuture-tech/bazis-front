@@ -1,0 +1,130 @@
+// Copyright 2026 EcoFuture Technology Services LLC and contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// The contract of the list of a resource: `list:<entity>`, its states (`loading`, `empty`,
+// `error`, `forbidden`, `loaded`), `row:<id>` that opens the item, the titles of the list
+// schema, the actions the backend allows (`action:<id>`), search, filters and pages. Keep it
+// passing when the component is changed.
+
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { ResourceList } from '@/bazis/ui/resource-list';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+
+const schema = runtimeSchema(
+  { title: { attribute: { type: 'string', title: 'Title' } }, done: { attribute: { type: 'boolean', title: 'Done' } } },
+  { list: true },
+);
+
+function backend(list: unknown, status = 200) {
+  return new Backend()
+    .on('GET', `${ITEMS}schema_list/`, schema)
+    .on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'title', py_type: 'string' }] })
+    .on('GET', ITEMS, list, status);
+}
+
+/** Whether a list was requested with this decoded parameter. */
+function requested(server: Backend, parameter: string): boolean {
+  return server.requests('GET').some((it) => decodeURIComponent(it).includes(parameter));
+}
+
+const rows = [resource('a', { title: 'First', done: true }), resource('b', { title: 'Second', done: false })];
+
+describe('ResourceList', () => {
+  it('is loading, then lists the rows with the titles of the schema', async () => {
+    const pending = new Backend().hold('GET', ITEMS).on('GET', `${ITEMS}schema_list/`, schema);
+    const { unmount } = renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} />, pending);
+    expect(within(screen.getByTestId('list:item')).getByTestId('state:loading')).toBeTruthy();
+    unmount();
+
+    const onOpen = vi.fn();
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done']} onOpen={onOpen} />,
+      backend(listDocument(rows)),
+    );
+    const loaded = await screen.findByTestId('state:loaded');
+    expect(within(loaded).getByTestId('row:a').textContent).toContain('First');
+    expect(await within(loaded).findByText('Title')).toBeTruthy();
+    expect(within(screen.getByTestId('row:a')).getByText('Yes')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('row:b'));
+    expect(onOpen).toHaveBeenCalledWith('b');
+  });
+
+  it('marks an empty list, a forbidden one and an error', async () => {
+    const { unmount } = renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} />,
+      backend(listDocument([])),
+    );
+    expect(await screen.findByTestId('state:empty')).toBeTruthy();
+    unmount();
+    const forbidden = renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} />,
+      backend(errors(403), 403),
+    );
+    expect(await screen.findByTestId('state:forbidden')).toBeTruthy();
+    forbidden.unmount();
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} />, backend(errors(500), 500));
+    expect(await screen.findByTestId('state:error')).toBeTruthy();
+  });
+
+  it('shows the actions the backend allows', async () => {
+    const remove = vi.fn();
+    const document = listDocument(rows, { meta: { for_create: false, for_change: [], for_delete: ['a'] } });
+    renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title']}
+        actions={[
+          { id: 'create', label: 'Create', onClick: vi.fn(), permission: 'add' },
+          { id: 'export', label: 'Export', onClick: vi.fn() },
+        ]}
+        rowActions={[{ id: 'delete', label: 'Delete', onClick: remove, permission: 'delete' }]}
+      />,
+      backend(document),
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.queryByTestId('action:create')).toBeNull();
+    expect(screen.getByTestId('action:export')).toBeTruthy();
+    expect(within(screen.getByTestId('row:b')).queryByTestId('action:delete')).toBeNull();
+    fireEvent.click(within(screen.getByTestId('row:a')).getByTestId('action:delete'));
+    expect(remove).toHaveBeenCalledWith('a');
+  });
+
+  it('requests the search, the filters and the next page', async () => {
+    const server = backend(listDocument(rows, { count: 45, next: `${ITEMS}?page%5Blimit%5D=20&page%5Boffset%5D=20` }));
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} search filters={['title']} />,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.getByRole('navigation', { name: 'Pages' }).textContent).toContain('1–2 of 45');
+
+    fireEvent.click(screen.getByTestId('action:next-page'));
+    await waitFor(() => {
+      expect(requested(server, 'page[offset]=20')).toBe(true);
+    });
+
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'rep' } });
+    await waitFor(() => {
+      expect(requested(server, 'filter=title__$search=rep')).toBe(true);
+    });
+
+    fireEvent.change(screen.getByTestId('field:$search'), { target: { value: 'word' } });
+    await waitFor(() => {
+      expect(requested(server, 'search=word')).toBe(true);
+    });
+  });
+});
