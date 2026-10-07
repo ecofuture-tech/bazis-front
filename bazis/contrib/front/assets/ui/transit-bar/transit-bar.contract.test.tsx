@@ -101,6 +101,28 @@ describe('TransitBar', () => {
     });
   });
 
+  it('shows the errors that are not of a field of the payload with those of the fields', async () => {
+    const server = backend().on(
+      'POST',
+      `${ITEM}transit/`,
+      {
+        errors: [
+          { status: 422, detail: 'Field required', source: { pointer: '/payload/report' } },
+          { status: 422, detail: 'The task has no assignee', code: 'ERR_TRANSIT' },
+          { status: 422, detail: 'Unknown', source: { pointer: '/payload/extra' } },
+        ],
+      },
+      422,
+    );
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
+    fireEvent.click(await screen.findByTestId('transit:finish'));
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect((await screen.findByTestId('error:report')).textContent).toBe('Field required');
+    const state = screen.getByTestId('state:invalid');
+    expect(state.textContent).toContain('The task has no assignee');
+    expect(state.textContent).toContain('extra: Unknown');
+  });
+
   it('shows the error of a transit', async () => {
     const server = backend().on('POST', `${ITEM}transit/`, errors(403), 403);
     renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);

@@ -19,7 +19,6 @@
 
 import { useState, type ReactNode } from 'react';
 
-import type { PermitMeta } from '@/bazis/client';
 import type { ItemPath } from '@/bazis/react';
 import {
   FieldValue,
@@ -69,17 +68,12 @@ export interface ResourceCardProps {
   children?: ReactNode;
 }
 
-interface ItemDocument {
-  data: ResourceObject;
-  meta?: PermitMeta | null;
-}
-
 /** The card of an item, with its states, sections, actions and inline edit. */
 export function ResourceCard({ path, id, sections, title, badge, edit = false, actions = [], values = {}, children }: ResourceCardProps) {
   const item = useAnyItem(path, id, { meta: ['crud_actions'] });
   const fields = useItemFields(path, id);
   const [editing, setEditing] = useState(false);
-  const document = item.data as ItemDocument | undefined;
+  const document = item.data;
   if (!document) return <StatePanel state={queryState(item)} error={item.error} onRetry={() => void item.refetch()} />;
 
   const { data, meta } = document;

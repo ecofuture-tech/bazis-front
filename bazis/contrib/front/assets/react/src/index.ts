@@ -15,6 +15,7 @@
 export { BazisProvider, useApi, useSessionKey } from './context.js';
 export type { Api, BazisProviderProps } from './context.js';
 export { useCreate, useDestroy, useRelationship, useUpdate } from './mutations.js';
+export type { QueryOptions } from './keys.js';
 export { useFilterFields, useItem, useList, useSchema } from './queries.js';
 export { useResourceForm } from './form.js';
 export type { ResourceForm } from './form.js';

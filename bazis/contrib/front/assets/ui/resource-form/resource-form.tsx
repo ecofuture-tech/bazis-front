@@ -20,14 +20,9 @@ import type { ReactNode, SubmitEvent } from 'react';
 
 import { ApiError } from '@/bazis/client';
 import type { CreatePath, ResourceForm as Form, UpdatePath } from '@/bazis/react';
-import { FieldInput, useAnyResourceForm, type ResourceObject } from '@/bazis/ui/resource';
+import { FieldInput, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
-
-/** The document that a create or an update returns. */
-export interface SavedDocument {
-  data: ResourceObject;
-}
 
 export type ResourceFormProps = (
   | { /** A create: the route set. */ path: CreatePath; id?: undefined }
@@ -73,7 +68,7 @@ export function ResourceFormBody({
   onCancel,
   submitLabel,
 }: Omit<ResourceFormProps, 'path' | 'id'> & { path: string; id?: string | undefined }) {
-  const form = useAnyResourceForm(path, id === undefined ? {} : { id }) as Form<SavedDocument>;
+  const form = useAnyResourceForm(path, id === undefined ? {} : { id });
 
   if (form.status !== 'ready') {
     const state = form.status === 'loading' ? 'loading' : errorState(form.error);

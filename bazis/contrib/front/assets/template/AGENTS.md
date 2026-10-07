@@ -90,7 +90,11 @@ written.
 - **Filter with `Filter`** (`Filter.where/and/or/not`): one `filter` expression, never
   built by hand.
 - Show validation errors by field (`form.errors` of `useResourceForm`, or
-  `ApiError.fieldErrors()`), other errors with `errorMessage()` (`src/app/errors.tsx`).
+  `ApiError.fieldErrors()`, as `FieldInput` does), any other error and the state it puts a
+  screen in with `StatePanel` of `@/bazis/ui/state-panel` (`errorState(error)`: 401 and 403
+  `forbidden`, 404 `not_found`, 422 `invalid`, else `error`), the only mapping of the
+  errors of the backend; the components and the `ErrorBoundary` of `src/app/errors.tsx`
+  use it.
 - **The backend decides the rights.** Do not encode roles or permissions here: request
   the permission meta (`for_change`, `for_delete`, `for_create` on a list, `crud_actions`
   on an item), read it with `can()`, and take the fields of a form from its runtime schema

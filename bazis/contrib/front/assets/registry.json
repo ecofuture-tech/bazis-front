@@ -352,6 +352,7 @@
         "eslint.config.js",
         "index.html",
         "package.json",
+        "src/app/errors.test.tsx",
         "src/app/errors.tsx",
         "src/app/providers.test.ts",
         "src/app/providers.tsx",

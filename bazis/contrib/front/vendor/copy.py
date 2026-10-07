@@ -150,7 +150,8 @@ def add_assets(
     with the assets they require, as `init` copies the vendored assets: stamped, with their
     pristine copies in `.bazis/base/` and their hashes in the lock, which is written last.
     An asset already in the frontend is kept; a component named again that was changed
-    there is refused (`update` will merge it). `capabilities` returns those of the contract,
+    there is refused (`update` will merge it), and so is any asset of another version of
+    bazis-front, named or required: the copies are of one version. `capabilities` returns those of the contract,
     read only when an asset requires one. Everything is checked before anything is written:
     on an `AddError` nothing is.
     """
@@ -192,10 +193,12 @@ def add_assets(
                 if (frontend / asset.target_path(name)).is_file()
                 and (frontend / asset.target_path(name)).read_bytes() != stamped(asset, name, version)
             ]
-        elif asset.name in names and entry.get('version') != version:
+        elif entry.get('version') != version:
+            required = '' if asset.name in names else ' (required by what you add)'
             errors.append(
-                f'{asset.name} {entry.get("version")} is in the frontend, bazis-front is '
-                f'{version}: `add` does not replace it; `bazis_front update` will.'
+                f'{asset.name} {entry.get("version")} is in the frontend{required}, bazis-front '
+                f'is {version}: `add` does not mix the versions of the copies. Update them all '
+                'to this version first with `bazis_front update` (planned).'
             )
         elif asset.name in names and (changed := modified_files(frontend, entry)):
             errors.append(

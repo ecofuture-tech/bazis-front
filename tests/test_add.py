@@ -129,6 +129,22 @@ def test_add_refuses_a_deleted_file_and_another_version(product):
         add('state-panel')
 
 
+def test_add_refuses_a_required_asset_of_another_version(product):
+    # the hooks were copied by another version of bazis-front: a component that requires
+    # them is not added next to them
+    lock = read_lock(product)
+    lock['assets']['react']['version'] = '0.0.1'
+    (product / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+
+    with pytest.raises(CommandError, match=(
+        f'react 0.0.1 is in the frontend \\(required by what you add\\), bazis-front is '
+        f'{__version__}: `add` does not mix the versions'
+    )):
+        add('resource-form')
+    assert read_lock(product) == lock
+    assert not (product / 'frontend' / 'src' / 'bazis' / 'ui' / 'resource-form').exists()
+
+
 def test_add_never_overwrites_a_file_of_the_product(product):
     # a component of shadcn/ui that the product added itself
     table = product / 'frontend' / 'src' / 'components' / 'ui' / 'table.tsx'

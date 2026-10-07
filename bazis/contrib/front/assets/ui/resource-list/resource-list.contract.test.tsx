@@ -20,7 +20,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ResourceList } from '@/bazis/ui/resource-list';
+import { filterOf, ResourceList } from '@/bazis/ui/resource-list';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 const schema = runtimeSchema(
@@ -60,6 +60,8 @@ describe('ResourceList', () => {
     expect(within(screen.getByTestId('row:a')).getByText('Yes')).toBeTruthy();
     fireEvent.click(screen.getByTestId('row:b'));
     expect(onOpen).toHaveBeenCalledWith('b');
+    fireEvent.keyDown(screen.getByTestId('row:a'), { key: 'Enter' });
+    expect(onOpen).toHaveBeenLastCalledWith('a');
   });
 
   it('marks an empty list, a forbidden one and an error', async () => {
@@ -101,6 +103,61 @@ describe('ResourceList', () => {
     expect(within(screen.getByTestId('row:b')).queryByTestId('action:delete')).toBeNull();
     fireEvent.click(within(screen.getByTestId('row:a')).getByTestId('action:delete'));
     expect(remove).toHaveBeenCalledWith('a');
+  });
+
+  it('does not open a row with the keyboard of its actions', async () => {
+    const onOpen = vi.fn();
+    renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title']}
+        onOpen={onOpen}
+        rowActions={[{ id: 'delete', label: 'Delete', onClick: vi.fn() }]}
+      />,
+      backend(listDocument(rows)),
+    );
+    await screen.findByTestId('state:loaded');
+    fireEvent.keyDown(within(screen.getByTestId('row:a')).getByTestId('action:delete'), { key: 'Enter' });
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('filters by the types of route_filter_fields/ of the core', () => {
+    const types = new Map([
+      ['price', 'Decimal'],
+      ['rate', 'number'],
+      ['count', 'integer'],
+      ['done', 'boolean'],
+      ['day', 'date'],
+      ['dt', 'datetime'],
+      ['title', 'string'],
+      ['owner', '/api/v1/users/user/'],
+      ['state', 'unknown'],
+    ]);
+    const filters = [...types.keys()].map((field) => ({ field }));
+    const values = {
+      price: '10.10', rate: '0.5', count: '3', done: 'false', day__gte: '2026-01-01', dt__lte: '2026-01-31',
+      title: 'two words', owner: 'u1', state: 'draft',
+    };
+    expect(decodeURIComponent(decodeURIComponent(filterOf(filters, values, types)?.toString() ?? ''))).toBe(
+      'price=10.10&rate=0.5&count=3&done=false&day__gte=2026-01-01&dt__lte=2026-01-31T23:59:59' +
+        '&title__$search=two words&owner=u1&state=draft',
+    );
+    expect(filterOf(filters, {}, types)).toBeUndefined();
+  });
+
+  it('renders the numeric filters as numbers', async () => {
+    const server = backend(listDocument(rows)).on('GET', `${ITEMS}route_filter_fields/`, {
+      fields: [{ name: 'price', py_type: 'Decimal' }, { name: 'rate', py_type: 'number' }],
+    });
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['price', 'rate']} />,
+      server,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId<HTMLInputElement>('field:price').type).toBe('number');
+    });
+    expect(screen.getByTestId<HTMLInputElement>('field:rate').type).toBe('number');
   });
 
   it('requests the search, the filters and the next page', async () => {

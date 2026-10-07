@@ -35,7 +35,7 @@ and fonts are the CSS variables of the template.
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName`, `statusOptions`, `transitName` | `status:<id>` | capability `statusy` |
-| `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
+| `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it), `FieldValue`,
@@ -58,6 +58,14 @@ components. `testing` is the support of the contract tests: a backend for the mo
 - **`resource-card`** reads the item with `crud_actions` and its fields from
   `schema_retrieve/`; with `edit`, an edit button (when the backend allows the change)
   replaces the sections with the form of the update of their fields.
+- **The labels of related items** (`RelationLabel`: the cells of a relationship in a
+  list, its value in a card) are read with `useItem` of the related resource, one request
+  per related item, cached by TanStack Query and shared with every other place that shows
+  it; an item the user may not view shows its id. Bazis ignores `include` on a list (only a
+  retrieve, a create and an update include), so a list cannot bring them along. Batching
+  them (one filtered list of the related resource per column) is left to the
+  relation-picker of the next phase, as is a search in the select of a relationship (its
+  first 100 items now).
 - **`resource-form`** is `useResourceForm`: the fields of `schema_create/` or
   `schema_update/` of the current user, read-only ones disabled and never sent; a to-one
   relationship is a select of the related resource (its first 100 items); to-many

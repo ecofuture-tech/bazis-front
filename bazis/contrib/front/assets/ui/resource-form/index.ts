@@ -13,4 +13,5 @@
 // limitations under the License.
 
 export { ResourceForm, ResourceFormBody } from './resource-form.js';
-export type { ResourceFormProps, SavedDocument } from './resource-form.js';
+export type { ResourceFormProps } from './resource-form.js';
+export type { SavedDocument } from '@/bazis/ui/resource';

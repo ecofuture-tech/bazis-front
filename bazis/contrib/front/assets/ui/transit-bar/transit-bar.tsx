@@ -38,15 +38,29 @@ export interface TransitBarProps {
 
 const PAYLOAD_POINTER = /^\/payload\/([^/]+)/;
 
-/** The errors of the fields of the payload of a 422 by name (`source.pointer` `/payload/<name>`). */
-export function payloadErrors(error: unknown): Record<string, string[]> {
+/**
+ * The errors of a transit: those of the fields of its payload by name (`source.pointer`
+ * `/payload/<name>`, a name of `names`), and the others (its validators, a field that the
+ * dialog does not show, an error that is not of the backend).
+ */
+export function payloadErrors(
+  error: unknown,
+  names: readonly string[],
+): { fields: Record<string, string[]>; others: string[] } {
   const fields: Record<string, string[]> = {};
-  if (!(error instanceof ApiError)) return fields;
+  const others: string[] = [];
+  if (!(error instanceof ApiError)) {
+    if (error instanceof Error) others.push(error.message);
+    return { fields, others };
+  }
   for (const item of error.errors) {
     const name = PAYLOAD_POINTER.exec(item.source?.pointer ?? '')?.[1];
-    if (name !== undefined) (fields[name] ??= []).push(item.detail ?? item.title ?? item.code ?? '');
+    const message = item.detail ?? item.title ?? item.code ?? '';
+    if (name !== undefined && names.includes(name)) (fields[name] ??= []).push(message);
+    else others.push(name === undefined ? message : `${name}: ${message}`);
   }
-  return fields;
+  if (!others.length && !Object.keys(fields).length) others.push(error.message);
+  return { fields, others };
 }
 
 function defaults(transit: Transit): Record<string, unknown> {
@@ -91,7 +105,10 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
   }
 
   const fields = open ? objectFields(open.payload ?? {}) : [];
-  const errors = payloadErrors(mutation.error);
+  const errors = payloadErrors(
+    mutation.error,
+    fields.map((it) => it.name),
+  );
   return (
     <div className="grid gap-2">
       <div role="group" aria-label="Transits" className="flex flex-wrap gap-2">
@@ -139,15 +156,20 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
                 <DialogTitle>{transitName(open.resource.type, open.id)}</DialogTitle>
                 <DialogDescription>{open.hint ?? 'Fill in the values of the transit.'}</DialogDescription>
               </DialogHeader>
-              {mutation.isError && Object.keys(errors).length === 0 && (
-                <StatePanel inline state={errorState(mutation.error)} error={mutation.error} message={mutation.error.message} />
+              {mutation.isError && errors.others.length > 0 && (
+                <StatePanel
+                  inline
+                  state={errorState(mutation.error)}
+                  error={mutation.error}
+                  message={errors.others.join(' ')}
+                />
               )}
               {fields.map((field) => (
                 <FieldInput
                   key={field.name}
                   field={field}
                   value={values[field.name]}
-                  errors={errors[field.name]}
+                  errors={errors.fields[field.name]}
                   disabled={mutation.isPending}
                   onChange={(value) => {
                     setValues({ ...values, [field.name]: value });

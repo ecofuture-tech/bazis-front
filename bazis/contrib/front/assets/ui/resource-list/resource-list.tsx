@@ -18,15 +18,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 
-import {
-  nextPage,
-  pagination,
-  prevPage,
-  type Filter,
-  type PaginationLinks,
-  type PaginationMeta,
-  type PermitMeta,
-} from '@/bazis/client';
+import { nextPage, pagination, prevPage, type Filter } from '@/bazis/client';
 import { RESOURCES } from '@/bazis/generated/contract';
 import type { ListPath } from '@/bazis/react';
 import {
@@ -82,12 +74,6 @@ export interface ResourceListProps {
   cells?: Readonly<Record<string, (row: ResourceObject) => ReactNode>>;
   /** The message of the empty list. */
   emptyMessage?: ReactNode;
-}
-
-interface ListDocument {
-  data: readonly ResourceObject[];
-  links?: PaginationLinks | null;
-  meta?: (PermitMeta & { pagination?: PaginationMeta | null }) | null;
 }
 
 interface ContractResource {
@@ -148,7 +134,7 @@ export function ResourceList({
     meta: META,
   };
   const list = useAnyList(path, query);
-  const document = list.data as ListDocument | undefined;
+  const document = list.data;
   const rows = document?.data ?? [];
   const meta = document?.meta;
   const count = document ? pagination(document)?.count : undefined;
@@ -258,7 +244,8 @@ export function ResourceList({
                 onKeyDown={
                   onOpen
                     ? (event) => {
-                        if (event.key === 'Enter') open(row.id);
+                        // not the Enter of a control of the row (its actions), which bubbles
+                        if (event.key === 'Enter' && event.target === event.currentTarget) open(row.id);
                       }
                     : undefined
                 }

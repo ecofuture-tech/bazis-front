@@ -20,7 +20,7 @@ import type { ComponentProps } from 'react';
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 
-import { itemLabel, routeOf, type ResourceObject } from './fields.js';
+import { itemLabel, routeOf } from './fields.js';
 import { useAnyItem, useAnyList } from './hooks.js';
 
 /** How many related items the select lists. */
@@ -28,8 +28,7 @@ const OPTIONS_LIMIT = 100;
 
 function RelatedLabel({ path, id }: { path: string; id: string }) {
   const item = useAnyItem(path, id);
-  const data = (item.data as { data?: ResourceObject } | undefined)?.data;
-  return <>{data ? itemLabel(data) : id}</>;
+  return <>{item.data ? itemLabel(item.data.data) : id}</>;
 }
 
 /**
@@ -56,7 +55,7 @@ type OptionsProps = Omit<RelationSelectProps, 'relation'> & { path: string };
 
 function RelationOptions({ path, value, onChange, placeholder = '—', ...props }: OptionsProps) {
   const list = useAnyList(path, { page: { limit: OPTIONS_LIMIT } });
-  const items = (list.data as { data?: readonly ResourceObject[] } | undefined)?.data ?? [];
+  const items = list.data?.data ?? [];
   const known = value === null || items.some((it) => it.id === value);
   return (
     <NativeSelect

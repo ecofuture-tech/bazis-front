@@ -35,5 +35,6 @@ export {
   useAnyResourceForm,
   useAnySchema,
 } from './hooks.js';
+export type { FilterFieldsDocument, ItemDocument, ListDocument, SavedDocument } from './hooks.js';
 export { RelationLabel, RelationSelect } from './relation.js';
 export type { RelationSelectProps } from './relation.js';

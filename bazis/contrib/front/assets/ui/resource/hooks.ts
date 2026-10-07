@@ -14,10 +14,12 @@
 
 // The hooks of `@/bazis/react` with plain paths and options, for the bodies of the
 // components: a component is generic over the resources of any product, whose screens pass
-// it the typed paths of their contract. The only casts of the components are here.
+// it the typed paths of their contract. The only casts of the components are here: the
+// signatures below, with the documents of Bazis that the components read.
 
 import type { UseQueryResult } from '@tanstack/react-query';
 
+import type { PaginationLinks, PaginationMeta, PermitMeta } from '@/bazis/client';
 import {
   useFilterFields,
   useItem,
@@ -25,14 +27,47 @@ import {
   useResourceForm,
   useSchema,
   type JsonSchema,
+  type QueryOptions,
   type ResourceForm,
 } from '@/bazis/react';
 
+import type { ResourceObject } from './fields.js';
+
+/** A list: its items, its pages and its meta (`pagination`, the permission meta). */
+export interface ListDocument {
+  data: readonly ResourceObject[];
+  links?: PaginationLinks | null;
+  meta?: (PermitMeta & { pagination?: PaginationMeta | null }) | null;
+}
+
+/** An item and its meta (`crud_actions`). */
+export interface ItemDocument {
+  data: ResourceObject;
+  meta?: PermitMeta | null;
+}
+
+/** The document that a create or an update returns. */
+export interface SavedDocument {
+  data: ResourceObject;
+}
+
+/** The fields a list can be filtered by (`route_filter_fields/`). */
+export interface FilterFieldsDocument {
+  fields: readonly { name: string; py_type: string }[];
+}
+
 /** `useList(path, query)`. */
-export const useAnyList = useList as unknown as (path: string, query?: object) => UseQueryResult;
+export const useAnyList = useList as unknown as (
+  path: string,
+  query?: Omit<QueryOptions, 'include'>,
+) => UseQueryResult<ListDocument>;
 
 /** `useItem(path, id, query)`. */
-export const useAnyItem = useItem as unknown as (path: string, id: string, query?: object) => UseQueryResult;
+export const useAnyItem = useItem as unknown as (
+  path: string,
+  id: string,
+  query?: Pick<QueryOptions, 'include' | 'fields' | 'meta'>,
+) => UseQueryResult<ItemDocument>;
 
 /** `useSchema(path, kind)` of the route set, `useSchema(path, kind, id)` of an item. */
 export const useAnySchema = useSchema as unknown as (
@@ -42,13 +77,15 @@ export const useAnySchema = useSchema as unknown as (
 ) => UseQueryResult<JsonSchema>;
 
 /** `useFilterFields(path)`. */
-export const useAnyFilterFields = useFilterFields as unknown as (path: string) => UseQueryResult;
+export const useAnyFilterFields = useFilterFields as unknown as (
+  path: string,
+) => UseQueryResult<FilterFieldsDocument>;
 
 /** `useResourceForm(path, {id})`: a create without an id. */
 export const useAnyResourceForm = useResourceForm as unknown as (
   path: string,
   options: { id?: string },
-) => ResourceForm<unknown>;
+) => ResourceForm<SavedDocument>;
 
 /** A value as text: a JSON value that is not a string, a number or a boolean as JSON. */
 export function text(value: unknown): string {

@@ -36,17 +36,22 @@ export interface ListFilter {
 /** The values of the filters by field; a date range is `<field>__gte` and `<field>__lte`. */
 export type FilterValues = Readonly<Record<string, string>>;
 
-/** The type of a filter field: `py_type` of `route_filter_fields/` (a path for a relation). */
+/**
+ * The type of a filter field: `py_type` of `route_filter_fields/`, the JSON Schema type of
+ * the field written by the core (`integer`, `number`, `Decimal`, `string`, `boolean`,
+ * `date`, `datetime`, `object`, `array`), the path of the list of the related resource for
+ * a relation, `unknown` for what the core cannot type (a relation without a route set, a
+ * JSON field).
+ */
 type FieldType = string;
 
-interface FilterFieldsResponse {
-  fields?: readonly { name: string; py_type: string }[];
-}
+/** The numeric types; a `Decimal` is sent as it is written, not as a float. */
+const NUMBERS = new Set(['integer', 'number', 'Decimal']);
 
 /** The types of the filter fields of the route set by name. */
 export function useFilterTypes(path: string): ReadonlyMap<string, FieldType> {
   const query = useAnyFilterFields(path);
-  const fields = (query.data as FilterFieldsResponse | undefined)?.fields ?? [];
+  const fields = query.data?.fields ?? [];
   return new Map(fields.map((it) => [it.name, it.py_type]));
 }
 
@@ -75,7 +80,9 @@ export function filterOf(
       parts.push(Filter.where(field, value));
     } else if (type === 'boolean') {
       parts.push(Filter.where(field, value === 'true'));
-    } else if (type === 'integer' || type === 'float' || type === 'decimal') {
+    } else if (type === 'Decimal') {
+      parts.push(Filter.where(field, value));
+    } else if (type !== undefined && NUMBERS.has(type)) {
       parts.push(Filter.where(field, Number(value)));
     } else if (type === 'string') {
       // every word of the value is in the field
@@ -169,7 +176,8 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
       <Input
         id={id}
         data-bz={`field:${field}`}
-        type={type === 'integer' || type === 'float' || type === 'decimal' ? 'number' : 'text'}
+        type={type !== undefined && NUMBERS.has(type) ? 'number' : 'text'}
+        step={type === 'integer' ? 1 : type !== undefined && NUMBERS.has(type) ? 'any' : undefined}
         value={value}
         onChange={(event) => {
           onChange(field, event.target.value);
