@@ -1,0 +1,15 @@
+{
+  "name": "bazis-front-client",
+  "private": true,
+  "description": "The JSON:API protocol client of Bazis, copied into products; this file only runs its checks in this repository",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "fixture": "node scripts/extract-fixture.mjs"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}
