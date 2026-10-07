@@ -178,7 +178,14 @@ With bazis-statusy, `@/bazis/react/statusy`:
 A form shows the errors of a 422 by field from `form.errors` and any other error from
 `form.submitError`; the fields a user may not change now are `readOnly` in `schema_update`
 (show them disabled) and are never sent, those permissions disable are not in it. To-many relationships are in `form.fields` (`many: true`)
-but not in its values: change them with `useRelationship`.
+but not in its values: change them with `useRelationship`. The field permissions of
+bazis-permit depend on the item (its selectors, its status): read the fields of an item from
+its own schemas (`schema_retrieve`: those the user sees, `schema_update`: those they may
+change now), never from the roles; a field hidden from the user is also absent from the
+documents, and the schema of a list has every field (the items leave out the hidden ones).
+Show a related item with `RelationLabel` (`useRelatedItem`: the items of a resource shown
+together are read with one request) and choose one with `RelationPicker` of
+`@/bazis/ui/resource`, never with a list of every item.
 
 ## Screens from the components
 
@@ -190,7 +197,7 @@ of the installed package, lists their props and their `data-bz`):
 |---|---|
 | a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell`; the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` |
-| `primitive: card` (`sections`, `edit`, `transitions`) | `ResourceCard` of `@/bazis/ui/resource-card`, with `StatusBadge` and `TransitBar` of `@/bazis/ui/status-badge` and `@/bazis/ui/transit-bar` (bazis-statusy) |
+| `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | an action of the card (`permission: 'delete'`) calling `useDestroy` |
@@ -209,6 +216,7 @@ import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { ResourceList } from '@/bazis/ui/resource-list';
 import { toast } from '@/bazis/ui/state-panel';
 import { StatusBadge, statusOptions } from '@/bazis/ui/status-badge';
+import { StatusHistory } from '@/bazis/ui/status-history';
 import { TransitBar } from '@/bazis/ui/transit-bar';
 import { Button } from '@/components/ui/button';
 
@@ -264,8 +272,13 @@ export function TaskCardScreen() {
           onClick: () => { destroy.mutate(id, { onSuccess: () => { toast({ title: 'Deleted' }); void navigate('/tasks'); } }); },
         }]}
       >
-        {/* null: the user can no longer view the item */}
-        <TransitBar path={TASKS} id={id} onDone={(item) => { if (item === null) void navigate('/tasks'); }} />
+        {(item) => (
+          <>
+            {/* null: the user can no longer view the item */}
+            <TransitBar path={TASKS} id={id} onDone={(done) => { if (done === null) void navigate('/tasks'); }} />
+            <StatusHistory resource={item} />
+          </>
+        )}
       </ResourceCard>
     </Screen>
   );
@@ -387,5 +400,6 @@ test('a manager sees the drafts', async ({ page }) => {
 
   `loginAs`, `open`, `openItem`, `action`, `fill`, `upload` (a file of `e2e/fixtures/`),
   `submit`, `transit(id, payload?)`, `expectScreen`, `expectStatus`, `expectState`,
-  `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, `expectError`: the guide of
+  `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectRows`,
+  `expectError`: the guide of
   bazis-front lists what each one waits for.

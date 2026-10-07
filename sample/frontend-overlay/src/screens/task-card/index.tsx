@@ -24,6 +24,7 @@ import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceCard } from '@/bazis/ui/resource-card';
 import { toast } from '@/bazis/ui/state-panel';
 import { StatusBadge, statusName, statusOf } from '@/bazis/ui/status-badge';
+import { StatusHistory } from '@/bazis/ui/status-history';
 import { TransitBar } from '@/bazis/ui/transit-bar';
 import { Button } from '@/components/ui/button';
 
@@ -73,14 +74,20 @@ export function TaskCardScreen() {
           },
         ]}
       >
-        {/* null: the user can no longer view the task */}
-        <TransitBar
-          path={TASKS}
-          id={id}
-          onDone={(item) => {
-            if (item === null) void navigate('/tasks');
-          }}
-        />
+        {(item) => (
+          <>
+            {/* null: the user can no longer view the task */}
+            <TransitBar
+              path={TASKS}
+              id={id}
+              onDone={(done) => {
+                if (done === null) void navigate('/tasks');
+              }}
+            />
+            {/* `history: true` of the screen */}
+            <StatusHistory resource={item} />
+          </>
+        )}
       </ResourceCard>
     </Screen>
   );

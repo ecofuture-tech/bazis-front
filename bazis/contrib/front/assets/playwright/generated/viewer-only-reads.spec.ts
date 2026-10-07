@@ -19,9 +19,9 @@ test('viewer-only-reads', async ({ page }) => {
     await app.openItem({ where: { title: 'Review the plan' } });
     await app.expectScreen('task-card');
   });
-  await test.step('expect: {screen: task-card, action_absent: delete, field_readonly: report}', async () => {
+  await test.step('expect: {screen: task-card, action_absent: delete, field_absent: report}', async () => {
     await app.expectScreen('task-card');
     await app.expectActionAbsent('delete');
-    await app.expectFieldReadonly('report');
+    await app.expectFieldAbsent('report');
   });
 });

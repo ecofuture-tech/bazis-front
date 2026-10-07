@@ -187,7 +187,7 @@ def test_update_replaces_unchanged_copies(product):
     )
 
     out = update()
-    assert f'react: {OLD} -> {__version__} (8 files unchanged in the frontend replaced)\n' in out
+    assert f'react: {OLD} -> {__version__} (9 files unchanged in the frontend replaced)\n' in out
     assert f'Updated the copies to bazis-front {__version__}.' in out
     for name in ('client', 'react'):
         assert_updated(product, name)

@@ -89,7 +89,9 @@ product. Its unit tests and type tests stay in this repository; only `src/` is c
 
 React hooks over the client with TanStack Query as the cache (`assets/react`, imported as
 `@/bazis/react`): `useList`, `useItem`, `useSchema`, `useFilterFields`, the mutations
-`useCreate`, `useUpdate`, `useDestroy`, `useRelationship`, and `useResourceForm`, a form
+`useCreate`, `useUpdate`, `useDestroy`, `useRelationship`, `useRelatedItem` (the related
+items shown together, such as the labels of a page of rows, read with one list request
+filtered by their primary keys: Bazis has no `include` on a list), and `useResourceForm`, a form
 bound to the runtime schema of the create or the update (its fields are those of the
 current user, read-only where they may not change them; it submits the changed attributes and to-one relationships as one JSON:API
 document and maps a 422 to the fields). They are typed by the generated `paths` of the
@@ -112,7 +114,10 @@ Components are primitives on shadcn/ui and Tailwind 4 over the hooks (`assets/ui
 `state-panel` (the states of a screen, the only mapping of the errors of the backend:
 401/403 `forbidden`, 404 `not_found`, 422 `invalid`), `app-shell` (the layout, the
 navigation, the session, `Screen`), `login-form`, `resource-list`, `resource-card`,
-`resource-form` and, with bazis-statusy, `status-badge` and `transit-bar`. They are listed
+`resource-form` (with `RelationPicker`, the searchable combobox of a relationship, in the
+shared `resource`) and, with bazis-statusy, `status-badge`, `transit-bar` and
+`status-history` (the current status with its date and author: bazis-statusy has no
+endpoint for the earlier transits). They are listed
 in `assets/registry.json` with what they require (`requires.assets`: other components, the
 hooks, the shadcn/ui components; `requires.capabilities`), copied by
 `bazis_front add` (and `init` for those the template uses) with their pristine copies and
@@ -238,8 +243,9 @@ are replaced without conflicts; the components are owned by the product and merg
 - **The backend is the source of truth.** The contract is generated from it; what the user
   may see and change is decided by it.
 - **The frontend is not a security boundary.** Permissions live in the backend
-  (bazis-permit). The frontend only adapts to them: the runtime schema `schema_update`
-  shows which fields the current user may change, and the permission meta (`crud_actions`,
+  (bazis-permit). The frontend only adapts to them: the runtime schemas of an item show
+  which fields the current user may see (`schema_retrieve`, the documents leave out the
+  others) and change (`schema_update`), and the permission meta (`crud_actions`,
   `for_change`, `for_delete`, `for_create`) which actions they may take.
 - **Protocol updated, look owned.** Protocol code is copied but kept pristine and updated
   from the package; components are copied and changed freely by the product.
@@ -255,4 +261,6 @@ with their validator (`bazis_front check`, `front.W002`), and the end-to-end tes
 scenarios with their helpers (`bazis_front e2e`, `assets/playwright`, `front.W003`), run in
 CI against the sample backend, and the update of the copies with a three-way merge
 (`bazis_front update`, `front.W004`), and the design layer: presets and brand tokens compiled
-into the theme of the frontend (`bazis_front design`, `front.W005`).
+into the theme of the frontend (`bazis_front design`, `front.W005`), and the field
+permissions of bazis-permit followed by the components, the picker of a relationship, the
+labels of related items read together and the status history of bazis-statusy.

@@ -128,6 +128,7 @@ The key is a field path with an optional lookup, separated by `__`:
 | `period__overlap=start,end` | range fields, a lookup is required: `contains`, `contained_by`, `overlap`, `fully_lt`, `fully_gt`, `not_lt`, `not_gt`, `adjacent_to` |
 | `point__near=lon,lat[,meters]`, `point__in_bbox=…` | geometry |
 | `app.model=id1,id2` | objects related to these objects of the model |
+| `pk=a\|pk=b` | the objects of these ids: there is no `pk__in`, and `pk=a,b` compares one value (`useRelatedItem` of the hooks) |
 
 An unknown field or a lookup the field does not support (`__in`, `__icontains` on a
 plain field) is rejected with a 400 `ERR_FILTER` error that lists the supported lookups

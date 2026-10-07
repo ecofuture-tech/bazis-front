@@ -139,6 +139,45 @@ test('fill fills the open form only, waiting for the options of a select', async
   await expect(dialog.locator(bz('field', 'urgent'))).not.toBeChecked();
 });
 
+test('fill chooses the item of a combobox by its label, null by the option that clears it', async ({ page }) => {
+  // the picker of a relationship: its popup (`aria-controls`) opens after a delay, and the
+  // backend answers the search after another one
+  const option = (value: string, label: string) => `<li role="option" data-value="${value}">${label}</li>`;
+  await show(page, '/tasks',
+    html(
+      `<section data-bz="screen:task-list"><div data-bz="state:loaded">Tasks</div></section>
+       <form><button type="button" role="combobox" data-bz="field:assignee" aria-controls="popup" data-value="">—</button>
+       <button type="submit" data-bz="action:submit">Create</button></form>`,
+      `const trigger = document.querySelector('[role="combobox"]');
+       trigger.addEventListener('click', () => setTimeout(() => {
+         document.body.insertAdjacentHTML('beforeend', ${JSON.stringify(
+           `<div id="popup"><input role="combobox" aria-label="Search"><ul role="listbox">${option('', '—')}</ul></div>`,
+         )});
+         const popup = document.getElementById('popup');
+         popup.querySelector('input').addEventListener('input', () => setTimeout(() => {
+           popup.querySelector('ul').insertAdjacentHTML('beforeend', ${JSON.stringify(
+             option('u2', 'manager 2') + option('u1', 'manager'),
+           )});
+         }, 300));
+         popup.addEventListener('click', (event) => {
+           const chosen = event.target.closest('[role="option"]');
+           trigger.dataset.value = chosen.dataset.value;
+           trigger.textContent = chosen.textContent;
+           popup.remove();
+         });
+       }, 200));`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-list');
+  const trigger = page.locator(bz('field', 'assignee'));
+  await app.fill({ assignee: 'manager' });
+  await expect(trigger).toHaveAttribute('data-value', 'u1');
+  await expect(page.locator('#popup')).toHaveCount(0);
+  await app.fill({ assignee: null });
+  await expect(trigger).toHaveAttribute('data-value', '');
+});
+
 /** A list screen with a form whose submit runs `onSubmit` after a delay. */
 function formPage(onSubmit: string): string {
   return html(
@@ -299,6 +338,38 @@ test.describe('expectFieldReadonly', () => {
     await app.expectFieldReadonly('assignee');
     // a field that the form does not show cannot be changed either
     await app.expectFieldReadonly('report');
+  });
+});
+
+test.describe('expectFieldAbsent', () => {
+  const CARD = '<article data-bz="state:loaded"><dl><dt>Title</dt><dd data-bz="field:title">Write the report</dd></dl></article>';
+
+  test('waits for the screen to load', async ({ page }) => {
+    // the field is shown once the card is loaded: the expectation must fail then
+    await show(page, '/tasks/1', loading('task-card', CARD));
+    const app = new App(page, PRODUCT);
+    await expect(page.locator(bz('screen', 'task-card'))).toBeVisible();
+    await app.expectScreen('task-card');
+    await expect(app.expectFieldAbsent('title')).rejects.toThrow();
+  });
+
+  test('passes when the loaded screen does not show the field', async ({ page }) => {
+    await show(page, '/tasks/1', loading('task-card', CARD));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-card');
+    await app.expectFieldAbsent('report');
+  });
+
+  test('reads the cells of a list and the open form', async ({ page }) => {
+    await show(page, '/tasks',
+      html(`<section data-bz="screen:task-list">${LIST}</section>
+        <form><input data-bz="field:report"><button type="submit" data-bz="action:submit">Create</button></form>`),
+    );
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    await expect(app.expectFieldAbsent('title')).rejects.toThrow();
+    await expect(app.expectFieldAbsent('report')).rejects.toThrow();
+    await app.expectFieldAbsent('assignee');
   });
 });
 

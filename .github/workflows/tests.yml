@@ -122,8 +122,15 @@ jobs:
   # template and the components compile, lint, pass their contract tests and build against
   # the generated contract, the copied client and the copied hooks
   frontend:
+    name: frontend (${{ matrix.preset }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # the components take their defaults from the theme: their contract tests run under
+    # the starters of both presets
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [workspace, portal]
     services:
       postgres:
         image: postgis/postgis:16-3.4
@@ -186,13 +193,13 @@ jobs:
           export BS_BASE_DIR="$RUNNER_TEMP/product"
           mkdir -p "$BS_BASE_DIR"
           python manage.py migrate
-          python manage.py bazis_front init
+          python manage.py bazis_front init --preset ${{ matrix.preset }}
           python manage.py bazis_front contract
           python manage.py bazis_front contract --check
           python manage.py bazis_front check
           # the theme that init compiled from the starters of the design
           python manage.py bazis_front design --check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge transit-bar
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar
 
       - name: Check and build the frontend
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
@@ -283,7 +290,7 @@ jobs:
           python manage.py bazis_front init
           python manage.py bazis_front contract
           python manage.py bazis_front check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge transit-bar
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar
           # the screens of the sample, product code
           cp -R frontend-overlay/src/. "$BS_BASE_DIR/frontend/src/"
           python manage.py bazis_front e2e

@@ -237,7 +237,7 @@ CASES = [
             # the scenarios give `start` no payload, and `finish` one it does not declare
             ('P024', f'{PRODUCT}#/scenarios/0/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/0/steps/6/transit/payload/report'),
-            ('P024', f'{PRODUCT}#/scenarios/2/steps/13/transit'),
+            ('P024', f'{PRODUCT}#/scenarios/4/steps/13/transit'),
         ],
     ),
     (
@@ -273,12 +273,15 @@ CASES = [
         'P022',
         {PRODUCT: lambda d: [steps(d, 1).__setitem__(1, {'action': 'edit'}),
                              steps(d, 1).__setitem__(0, {'open': 'task-card'}),
-                             steps(d, 0).insert(0, {'submit': {}})]},
+                             steps(d, 0).insert(0, {'submit': {}}),
+                             steps(d, 2)[4]['expect'].update(field_absent='dt_created')]},
         [
             ('P022', f'{PRODUCT}#/scenarios/0/steps/0/submit'),
             # a card needs the id of its item; it has no action `edit`
             ('P022', f'{PRODUCT}#/scenarios/1/steps/0/open'),
             ('P022', f'{PRODUCT}#/scenarios/1/steps/1/action'),
+            # the card does not show the field: it is always absent
+            ('P022', f'{PRODUCT}#/scenarios/2/steps/4/expect/field_absent'),
         ],
     ),
     (

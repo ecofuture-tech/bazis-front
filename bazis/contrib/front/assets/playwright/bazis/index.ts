@@ -142,19 +142,43 @@ export class App<P extends Product = Product> {
 
   /**
    * Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a
-   * choice, a relationship) by the label of its option; a checkbox by true or false.
+   * choice) by the label of its option; a combobox (the picker of a relationship) by the
+   * label of the item, searched in its popup, null by its option that clears the value; a
+   * checkbox by true or false.
    */
   async fill(values: Values): Promise<void> {
     const form = this.form();
     for (const [name, value] of Object.entries(values)) {
       const control = form.locator(bz('field', name));
       const kind = await control.evaluate((element) =>
-        element instanceof HTMLInputElement ? element.type : element.tagName.toLowerCase(),
+        element.getAttribute('role') === 'combobox'
+          ? 'combobox'
+          : element instanceof HTMLInputElement
+            ? element.type
+            : element.tagName.toLowerCase(),
       );
       if (kind === 'checkbox') await control.setChecked(value === true);
       else if (kind === 'select') await control.selectOption(value === null ? { value: '' } : { label: String(value) });
+      else if (kind === 'combobox') await this.choose(control, value);
       else await control.fill(value === null ? '' : String(value));
     }
+  }
+
+  /**
+   * Chooses an item in a combobox: opens its popup (`aria-controls`), searches the label and
+   * clicks the option with exactly that text, or the option that clears the value
+   * (`data-value=""`); waits until the popup is closed.
+   */
+  private async choose(control: Locator, value: string | number | boolean | null): Promise<void> {
+    await control.click();
+    const popup = this.page.locator(`[id=${JSON.stringify((await control.getAttribute('aria-controls')) ?? '')}]`);
+    if (value === null) {
+      await popup.locator('[role="option"][data-value=""]').click();
+    } else {
+      await popup.getByRole('combobox').fill(String(value));
+      await popup.getByRole('option', { name: exactly(value) }).click();
+    }
+    await expect(popup).toHaveCount(0);
   }
 
   /** Sets the file of a field of the open form: a path in `e2e/fixtures/`. */
@@ -244,6 +268,16 @@ export class App<P extends Product = Product> {
     await this.expectReadonlyIn(form, field);
     await form.locator(bz('action', 'cancel')).click();
     await expect(form).toHaveCount(0);
+  }
+
+  /**
+   * The user may not see the field: the current screen, once loaded, has no `field:<name>`
+   * (a card, the open form) and no cell `cell:<name>` (a list).
+   */
+  async expectFieldAbsent(field: string): Promise<void> {
+    await this.settled();
+    await expect(this.screen().locator(`${bz('field', field)}, ${bz('cell', field)}`)).toHaveCount(0);
+    await expect(this.form().locator(bz('field', field))).toHaveCount(0);
   }
 
   /** The list of the current screen has this number of rows, `row:<id>`. */

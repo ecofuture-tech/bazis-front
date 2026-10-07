@@ -38,22 +38,45 @@ export interface Fields {
   title: (name: string) => string;
   /** Whether the schema is loaded (or failed: the names stand for the titles then). */
   ready: boolean;
+  /** Whether the schema is loaded (not failed). */
+  loaded: boolean;
+  /**
+   * Whether the schema has the field: bazis-permit leaves out the fields that the user may
+   * not see (or change, in the schema of an update); every field while the schema is not
+   * loaded.
+   */
+  has: (name: string) => boolean;
 }
 
 function fieldsOf(query: { data?: JsonSchema | undefined; isPending: boolean }): Fields {
   const schema = query.data;
   const fields = new Map((schema ? resourceSchema(schema).fields : []).map((it) => [it.name, it]));
-  return { fields, title: (name) => fields.get(name)?.title ?? name, ready: !query.isPending };
+  return {
+    fields,
+    title: (name) => fields.get(name)?.title ?? name,
+    ready: !query.isPending,
+    loaded: schema !== undefined,
+    has: (name) => schema === undefined || fields.has(name),
+  };
 }
 
-/** The fields that the current user may see in a list (`schema_list/`). */
+/**
+ * The fields of a list (`schema_list/`): their titles and types. Which of them the user sees
+ * is in the items: with bazis-permit the schema of a list also has the fields that the field
+ * permissions hide (its first member has every field), and an item leaves them out.
+ */
 export function useListFields(path: string): Fields {
   return fieldsOf(useAnySchema(path, 'list'));
 }
 
-/** The fields that the current user may see in an item (`schema_retrieve/`). */
-export function useItemFields(path: string, id: string): Fields {
-  return fieldsOf(useAnySchema(path, 'retrieve', id));
+/**
+ * The fields that the current user may see in an item (`schema_retrieve/`, by default), or
+ * may set in its update (`schema_update/`: those they may not change now are `readOnly`),
+ * for this item: the field permissions of bazis-permit depend on the item (its selectors,
+ * its status).
+ */
+export function useItemFields(path: string, id: string, kind: 'retrieve' | 'update' = 'retrieve'): Fields {
+  return fieldsOf(useAnySchema(path, kind, id));
 }
 
 /**
@@ -143,6 +166,12 @@ export function isLongText(field: FormField | undefined): boolean {
   );
 }
 
+/** A date-time of the backend in the language of the browser; the text when it is not one. */
+export function formatDateTime(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 /** The text of the value of an attribute, by its type and format; `—` for no value. */
 export function formatValue(field: FormField | undefined, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
@@ -150,10 +179,7 @@ export function formatValue(field: FormField | undefined, value: unknown): strin
   if (typeof value === 'number') return value.toLocaleString();
   if (typeof value === 'string') {
     const format = field?.kind === 'attribute' ? field.format : null;
-    if (format === 'date-time') {
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? value : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-    }
+    if (format === 'date-time') return formatDateTime(value);
     if (format === 'date') {
       const [year, month, day] = value.split('-').map(Number);
       if (year && month && day) return new Date(year, month - 1, day).toLocaleDateString(undefined, { dateStyle: 'medium' });

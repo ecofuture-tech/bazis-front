@@ -51,6 +51,9 @@ export const keys = {
     ['bazis', path, 'schema', kind, session] as const,
   itemSchema: (path: string, id: string, kind: string, session: string) =>
     ['bazis', path, 'item', id, 'schema', kind, session] as const,
+  /** An item read with others of its resource (`useRelatedItem`). */
+  related: (path: string, id: string, session: string) =>
+    ['bazis', path, 'item', id, 'related', session] as const,
   filterFields: (path: string, session: string) =>
     ['bazis', path, 'filter-fields', session] as const,
 };

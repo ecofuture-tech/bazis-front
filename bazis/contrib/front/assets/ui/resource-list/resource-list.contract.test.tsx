@@ -28,7 +28,11 @@ import { filterOf, ResourceList } from '@/bazis/ui/resource-list';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 const schema = runtimeSchema(
-  { title: { attribute: { type: 'string', title: 'Title' } }, done: { attribute: { type: 'boolean', title: 'Done' } } },
+  {
+    title: { attribute: { type: 'string', title: 'Title' } },
+    done: { attribute: { type: 'boolean', title: 'Done' } },
+    count: { attribute: { type: 'integer', title: 'Count' } },
+  },
   { list: true },
 );
 
@@ -44,7 +48,7 @@ function requested(server: Backend, parameter: string): boolean {
   return server.requests('GET').some((it) => decodeURIComponent(it).includes(parameter));
 }
 
-const rows = [resource('a', { title: 'First', done: true }), resource('b', { title: 'Second', done: false })];
+const rows = [resource('a', { title: 'First', done: true, count: 1 }), resource('b', { title: 'Second', done: false, count: null })];
 
 describe('ResourceList', () => {
   it('is loading, then lists the rows with the titles of the schema', async () => {
@@ -58,7 +62,7 @@ describe('ResourceList', () => {
 
     const onOpen = vi.fn();
     renderWithBazis(
-      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done']} onOpen={onOpen} />,
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done']} onOpen={onOpen} layout="table" />,
       backend(listDocument(rows)),
     );
     const loaded = await screen.findByTestId('state:loaded');
@@ -275,6 +279,31 @@ describe('ResourceList', () => {
     expect(row.getByTestId('cell:title').classList.contains('hidden')).toBe(false);
     // the cell of a hidden column is still there, for the scenarios that look a row up by it
     expect(row.getByTestId('cell:count').classList.contains('hidden')).toBe(true);
+  });
+
+  it('leaves out a column whose field no row has (hidden by the field permissions)', async () => {
+    // the schema of a list has every field; the items leave out those the user may not see
+    const hidden = [resource('a', { title: 'First', done: true }), resource('b', { title: 'Second' })];
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'count', 'done']} layout="table" />,
+      backend(listDocument(hidden)),
+    );
+    const loaded = await screen.findByTestId('state:loaded');
+    expect([...loaded.querySelectorAll('th')].map((it) => it.textContent)).toEqual(['Title', 'Done']);
+    expect(within(screen.getByTestId('row:a')).queryByTestId('cell:count')).toBeNull();
+  });
+
+  it('shows a column that only some rows have, without a value in the others', async () => {
+    // the rows of another group of field permissions (a selector, a status) leave it out
+    const some = [resource('a', { title: 'First' }), resource('b', { title: 'Second', count: 2 })];
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'count']} layout="table" />,
+      backend(listDocument(some)),
+    );
+    const loaded = await screen.findByTestId('state:loaded');
+    expect([...loaded.querySelectorAll('th')].map((it) => it.textContent)).toEqual(['Title', 'Count']);
+    expect(within(screen.getByTestId('row:a')).getByTestId('cell:count').textContent).toBe('—');
+    expect(within(screen.getByTestId('row:b')).getByTestId('cell:count').textContent).toBe('2');
   });
 
   it('shows every column without a card', async () => {

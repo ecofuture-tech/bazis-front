@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 
 import { fromLocalDateTime, toLocalDateTime } from './fields.js';
 import { text } from './hooks.js';
-import { RelationSelect } from './relation.js';
+import { RelationPicker } from './relation-picker.js';
 
 export interface FieldInputProps {
   field: FormField;
@@ -192,8 +192,8 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
 
 /**
  * A field of a runtime schema with its label and its errors: the control by the type,
- * format and choices of an attribute, the select of the related item of a to-one
- * relationship; read-only when the user may not change it. To-many relationships are not
+ * format and choices of an attribute, the picker of the related item of a to-one
+ * relationship (`RelationPicker`); read-only when the user may not change it. To-many relationships are not
  * edited here (`useRelationship`): they are shown read-only.
  */
 export function FieldInput({ field, value, onChange, errors = [], disabled = false }: FieldInputProps) {
@@ -224,10 +224,12 @@ export function FieldInput({ field, value, onChange, errors = [], disabled = fal
         field.many ? (
           <Input {...control} value={Array.isArray(value) ? value.join(', ') : ''} readOnly />
         ) : (
-          <RelationSelect
+          <RelationPicker
             {...control}
             relation={field.relation}
+            label={field.title}
             value={typeof value === 'string' && value ? value : null}
+            nullable={field.nullable}
             disabled={disabled || field.readOnly}
             aria-readonly={field.readOnly || undefined}
             onChange={onChange}

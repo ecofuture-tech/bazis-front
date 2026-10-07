@@ -69,7 +69,11 @@ export interface ResourceListProps {
   path: ListPath;
   /** The entity of the screen: `list:<entity>`. */
   entity: string;
-  /** The fields of the columns: attributes and relationships of the list; the first is the name of a row. */
+  /**
+   * The fields of the columns: attributes and relationships of the list; the first is the
+   * name of a row. A column whose field no row of the page has (hidden by the field
+   * permissions of the user) is left out.
+   */
   columns: readonly string[];
   /** The filter fields (`route_filter_fields/`), with their options. */
   filters?: readonly (string | ListFilter)[];
@@ -365,11 +369,16 @@ export function ResourceList({
   const count = document ? pagination(document)?.count : undefined;
   const toolbar = actions.filter((action) => document && (!action.permission || permitted(meta, action.permission)));
   const filterList = filters.map((it) => (typeof it === 'string' ? { field: it } : it));
-  const sortable = columns.filter((name) => order.has(name));
   // the rows wait for the titles of their columns
   const loaded = queryState(list, rows.length === 0);
   const state = loaded === 'loaded' && !fields.ready ? 'loading' : loaded;
   const filtered = Boolean(search || filter);
+  // bazis-permit leaves out of the items the fields that the user may not see (the schema of
+  // a list has them all): a column is shown when a row of the page has its field
+  const shown = columns.filter(
+    (name) => fields.has(name) && (rows.length === 0 || rows.some((row) => fieldValue(row, name) !== undefined)),
+  );
+  const sortable = shown.filter((name) => order.has(name));
 
   function toggle(name: string) {
     const label = order.get(name);
@@ -386,7 +395,7 @@ export function ResourceList({
 
   const body: BodyProps = {
     rows,
-    columns,
+    columns: shown,
     fields,
     cells,
     onOpen,
