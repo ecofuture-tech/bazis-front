@@ -153,10 +153,26 @@ codes are documented in `bazis/contrib/front/AGENTS.md`.
 
 The specs are written by the agent; there is no generator of screens or of the
 permissions of the roles: the backend is built to satisfy the specs, and the validator
-shows what it lacks. Scenarios will be turned into Playwright tests that drive the screens
-through `data-bz` (`screen:<id>`, `state:<state>`, `field:<id>`, `action:<id>`,
-`transit:<id>`, …); the lock will then record the hashes of the specs from which they are
-generated.
+shows what it lacks.
+
+### End-to-end tests
+
+`bazis_front e2e` (`spec/e2e.py`) turns each scenario into a Playwright test,
+`frontend/e2e/generated/<scenario>.spec.ts`, with `e2e/generated/product.ts`, the part of
+the specs read at run time (the test user of each role, the route of each screen). The
+steps are read by the walk of `spec/scenarios.py`, the same that `check` validates: it
+returns the screen each step leads to (the `then` of a form or a destroy, the `list.open`
+of an item), which the test then expects. The tests call the helpers of the asset
+`playwright` (`frontend/e2e/bazis/`, vendored like the hooks), which drive the screens only
+through `data-bz` (`screen:<id>`, `state:<state>`, `row:<id>` and its cells
+`field:<column>`, `field:<id>`, `action:<id>`, `transit:<id>`, `status:<id>`, …) and wait on
+the states the components render, never for a fixed time; the contract tests of the
+components keep those marks. The generated text depends only on the specs: the lock
+records the hashes of the specs and of the tests, the tests of a removed scenario are
+deleted, and `e2e --check` and the system check `front.W003` compare them byte for byte
+without Node. The tests log in as the `test_user` of a role with the password of
+`E2E_PASSWORD`; the users and the data they use are created by the backend (a command or a
+fixture of the product), never by the tests.
 
 ## The frontend of a product
 
@@ -198,6 +214,7 @@ package, and security advisories of the asset registry as errors.
 Pre-release. Available: the client (`assets/client`), the hooks (`assets/react`), the
 first components (`assets/ui`, `bazis_front add`), the contract export with the generated
 TypeScript (`bazis_front contract`, `front.W001`), the frontend template with the copies
-of the client, the hooks and its components and the lock (`bazis_front init`), and the
-specs with their validator (`bazis_front check`, `front.W002`). Next: `update`, and the
-end-to-end pipeline against a sample backend.
+of the client, the hooks and its components and the lock (`bazis_front init`), the specs
+with their validator (`bazis_front check`, `front.W002`), and the end-to-end tests of the
+scenarios with their helpers (`bazis_front e2e`, `assets/playwright`, `front.W003`), run in
+CI against the sample backend. Next: `update`.

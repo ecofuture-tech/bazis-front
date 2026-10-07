@@ -61,6 +61,15 @@ def test_the_registry_lists_the_sources_of_the_hooks():
     assert sorted(listed) == files_of(ASSETS / 'react' / 'src')
 
 
+def test_the_registry_lists_the_helpers_of_the_end_to_end_tests():
+    helpers = registry.load()['playwright']
+    # next to e2e/generated/ of the frontend, which the generated tests import them from
+    assert (helpers.kind, helpers.source, helpers.target, helpers.capabilities) == (
+        registry.VENDORED, 'playwright/bazis', 'e2e/bazis', ()
+    )
+    assert sorted(helpers.files) == files_of(ASSETS / 'playwright' / 'bazis')
+
+
 def test_the_required_capabilities_are_known():
     for asset in registry.load().values():
         assert set(asset.capabilities) <= set(CAPABILITIES), asset.name

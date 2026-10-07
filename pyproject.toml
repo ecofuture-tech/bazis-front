@@ -23,6 +23,11 @@ include-package-data = true
 "bazis.contrib.front.assets.ui" = ["package.json", "tsconfig.json", "vitest.config.ts"]
 "bazis.contrib.front.assets.ui.test" = ["*"]
 "bazis.contrib.front.assets.ui.test.fixtures" = ["*"]
+# the helpers of the end-to-end tests: `generated/` holds what `bazis_front e2e` renders from
+# the specs of the sample, for their type check and tests here
+"bazis.contrib.front.assets.playwright" = ["package.json", "tsconfig.json", "playwright.config.ts"]
+"bazis.contrib.front.assets.playwright.generated" = ["*"]
+"bazis.contrib.front.assets.playwright.test" = ["*"]
 
 [tool.setuptools_scm]
 version_file = "bazis/contrib/front/_version.py"

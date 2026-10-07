@@ -16,6 +16,8 @@
 Django system checks of bazis-front (see `manage.py bazis_doctor`).
 """
 
+from pathlib import Path
+
 from django.core.checks import Info, Warning, register
 
 
@@ -81,3 +83,41 @@ def check_spec(app_configs, **kwargs):
         )
         for issue in validate.validate(spec.parent).issues
     ]
+
+
+@register()
+def check_e2e(app_configs, **kwargs):
+    """
+    The end-to-end tests generated in the frontend (when its lock records them: the product
+    generates them with `bazis_front e2e`) are those of the specs: the comparison of
+    `bazis_front e2e --check`, without Node and without the database. Specs with errors are
+    not compared: `front.W002` reports their issues, and the tests are generated only from
+    specs without errors.
+    """
+    from django.conf import settings
+
+    from .spec import e2e, validate
+    from .vendor import lock as frontend_lock
+
+    frontend = frontend_lock.frontend_dir()
+    try:
+        lock = frontend_lock.read(frontend)
+    except frontend_lock.LockError:
+        # front.W001 reports it
+        return []
+    if lock is None or 'e2e' not in lock:
+        return []
+    root = Path(settings.BASE_DIR)
+    result = validate.validate(root)
+    if result.errors:
+        return []
+    if problems := e2e.stale(root, frontend, lock, e2e.render(result.specs)):
+        return [
+            Warning(
+                ' '.join(problems),
+                hint='Generate them with `manage.py bazis_front e2e`; never edit them, write the '
+                'tests of your own in frontend/e2e/custom/.',
+                id='front.W003',
+            )
+        ]
+    return []

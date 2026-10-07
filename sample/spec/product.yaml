@@ -10,7 +10,7 @@ product:
 packages: [users, permit, statusy]
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
-  - {id: viewer, permit: viewer, title: Viewer}
+  - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
 entities:
   - id: task
     resource: tasks.task

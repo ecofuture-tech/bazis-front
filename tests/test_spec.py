@@ -294,6 +294,14 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/0/steps/5/transit'),
         ],
     ),
+    (
+        'P025',
+        # the product logs in (`packages` has `users`): the role of a scenario needs a test
+        # user; the guest of no scenario does not
+        {PRODUCT: lambda d: [d['roles'][1].pop('test_user'),
+                             d['roles'].append({'id': 'guest', 'permit': 'guest'})]},
+        [('P025', f'{PRODUCT}#/scenarios/1/role')],
+    ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
     (
@@ -589,6 +597,17 @@ def test_a_transit_id_generated_by_statusy(contract, sample_app):
     group = apps.get_model('permit.GroupPermission').objects.get(slug='tasks_transit')
     group.permissions.create(slug='tasks.task.item.transit.all.draft.task#draft_to_done')
     contract.write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    assert issues(root) == []
+
+
+def test_a_product_without_a_login_needs_no_test_users(root):
+    # without bazis-users the end-to-end tests do not log in
+    def change(data):
+        data['packages'].remove('users')
+        for role in data['roles']:
+            role.pop('test_user')
+
+    edit(root, PRODUCT, change)
     assert issues(root) == []
 
 

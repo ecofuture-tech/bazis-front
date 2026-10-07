@@ -1,0 +1,28 @@
+{
+  "extends": "../../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node"
+    ],
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/bazis/generated/contract": [
+        "../ui/test/fixtures/contract.ts"
+      ]
+    }
+  },
+  "include": [
+    "bazis",
+    "generated",
+    "test",
+    "playwright.config.ts"
+  ]
+}

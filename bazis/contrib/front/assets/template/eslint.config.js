@@ -19,8 +19,8 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   // src/bazis/generated/ is written by `manage.py bazis_front contract`; .bazis/ keeps the
-  // pristine copies of the assets of bazis-front
-  { ignores: ['dist/', 'src/bazis/generated/', '.bazis/'] },
+  // pristine copies of the assets of bazis-front; the others are the runs of Playwright
+  { ignores: ['dist/', 'src/bazis/generated/', '.bazis/', 'test-results/', 'playwright-report/'] },
   js.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],

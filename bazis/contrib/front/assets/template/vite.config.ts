@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
     server: { proxy },
     preview: { proxy },
-    test: { environment: 'jsdom', exclude: ['**/node_modules/**', 'dist/**', '.bazis/**'] },
+    // e2e/ is Playwright (`npm run e2e`)
+    test: { environment: 'jsdom', exclude: ['**/node_modules/**', 'dist/**', '.bazis/**', 'e2e/**'] },
   };
 });

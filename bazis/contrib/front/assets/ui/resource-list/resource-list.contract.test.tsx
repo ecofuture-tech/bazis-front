@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // The contract of the list of a resource: `list:<entity>`, its states (`loading`, `empty`,
-// `error`, `forbidden`, `loaded`), `row:<id>` that opens the item, the titles of the list
+// `error`, `forbidden`, `loaded`), `row:<id>` that opens the item with its cells
+// `field:<column>` (the end-to-end tests find a row by them), the titles of the list
 // schema, the actions the backend allows (`action:<id>`), search, filters and pages. Keep it
 // passing when the component is changed.
 
@@ -40,6 +41,13 @@ function requested(server: Backend, parameter: string): boolean {
   return server.requests('GET').some((it) => decodeURIComponent(it).includes(parameter));
 }
 
+/** The filter `field:<name>`: not a cell of a row, which has the same mark. */
+function filterControl(name: string): HTMLElement {
+  const control = screen.getAllByTestId(`field:${name}`).find((it) => !it.closest('[data-bz^="row:"]'));
+  if (control === undefined) throw new Error(`There is no filter ${name}.`);
+  return control;
+}
+
 const rows = [resource('a', { title: 'First', done: true }), resource('b', { title: 'Second', done: false })];
 
 describe('ResourceList', () => {
@@ -57,7 +65,8 @@ describe('ResourceList', () => {
     const loaded = await screen.findByTestId('state:loaded');
     expect(within(loaded).getByTestId('row:a').textContent).toContain('First');
     expect(await within(loaded).findByText('Title')).toBeTruthy();
-    expect(within(screen.getByTestId('row:a')).getByText('Yes')).toBeTruthy();
+    expect(within(screen.getByTestId('row:a')).getByTestId('field:title').textContent).toBe('First');
+    expect(within(screen.getByTestId('row:a')).getByTestId('field:done').textContent).toBe('Yes');
     fireEvent.click(screen.getByTestId('row:b'));
     expect(onOpen).toHaveBeenCalledWith('b');
     fireEvent.keyDown(screen.getByTestId('row:a'), { key: 'Enter' });
@@ -174,7 +183,7 @@ describe('ResourceList', () => {
       expect(requested(server, 'page[offset]=20')).toBe(true);
     });
 
-    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'rep' } });
+    fireEvent.change(filterControl('title'), { target: { value: 'rep' } });
     await waitFor(() => {
       expect(requested(server, 'filter=title__$search=rep')).toBe(true);
     });

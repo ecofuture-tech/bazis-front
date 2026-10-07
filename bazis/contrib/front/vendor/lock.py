@@ -22,12 +22,16 @@ hashes of what bazis-front wrote there.
  "generated": {"src/bazis/generated/contract.ts": "sha256:…",
                "src/bazis/generated/schema.d.ts": "sha256:…"},
  "assets": {"client": {"version": "0.1.0", "files": {"src/bazis/client/client.ts": "sha256:…"}},
-            "template": {"version": "0.1.0"}}}
+            "template": {"version": "0.1.0"}},
+ "e2e": {"spec": {"spec/product.yaml": "sha256:…"},
+         "generated": {"e2e/generated/product.ts": "sha256:…"}}}
 ```
 
 `contract` has the hashes of the contract files from which the files of `generated` were
 made; a generated file that could not be made is `"missing"`. The hashes of the files of
-a vendored asset are those of its pristine copy in `.bazis/base/<asset>@<version>/`.
+a vendored asset are those of its pristine copy in `.bazis/base/<asset>@<version>/`. `e2e`
+(written by `bazis_front e2e`, `spec/e2e.py`) has the hashes of the specs from which the
+end-to-end tests were generated and of the tests.
 """
 
 import hashlib

@@ -48,3 +48,7 @@ node_modules/
 coverage/
 *.tsbuildinfo
 build/
+
+# Playwright runs of the helpers
+test-results/
+playwright-report/

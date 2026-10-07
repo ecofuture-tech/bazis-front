@@ -56,6 +56,15 @@
       ]
     },
     {
+      "name": "playwright",
+      "kind": "vendored",
+      "source": "playwright/bazis",
+      "target": "e2e/bazis",
+      "files": [
+        "index.ts"
+      ]
+    },
+    {
       "name": "state-panel",
       "kind": "ui",
       "source": "ui/state-panel",
@@ -349,9 +358,11 @@
         ".gitignore",
         "AGENTS.md",
         "components.json",
+        "e2e/custom/README.md",
         "eslint.config.js",
         "index.html",
         "package.json",
+        "playwright.config.ts",
         "src/app/errors.test.tsx",
         "src/app/errors.tsx",
         "src/app/providers.test.ts",

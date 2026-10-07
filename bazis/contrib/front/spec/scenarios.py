@@ -15,6 +15,9 @@
 """
 The scenarios of product.yaml, followed step by step from screen to screen: each step is
 checked against the screen it acts on (its actions, its form, its entity and workflow).
+The walk is the only reading of the steps: `bazis_front check` reports its issues, and the
+generator of the end-to-end tests (`e2e.py`) turns the steps it returns into calls of the
+Playwright helpers.
 """
 
 from dataclasses import dataclass
@@ -23,30 +26,70 @@ from .issues import Document, Issues
 from .refs import Entity, Product
 
 
+#: the package whose users log in: the role of a scenario then needs a `test_user`
+LOGIN_PACKAGE = 'users'
+
+
+@dataclass(frozen=True)
+class Step:
+    """
+    A step of a scenario as the walk understands it: its key and value in product.yaml, and
+    what it implies on the screens.
+    """
+
+    name: str
+    value: object
+    #: a `fill`, `upload` or `submit` on a card with `edit: true` whose edit is not open:
+    #: the step starts the edit of the card first (`action:edit`)
+    edit: bool = False
+    #: the screen that the step leads to without naming it: the `list.open` of an
+    #: `open_item`, the `then` of a destroy action or of the submitted form; None when the
+    #: screen stays (or is named by the step, `open`)
+    then: str | None = None
+
+
 @dataclass
 class _State:
     """
     Where a scenario is: the current screen (None when it cannot be known: an unknown or
-    broken screen, after which the steps are not checked until the next `open`) and
-    whether a form is open on it (the action that opened it, or the screen itself).
+    broken screen, after which the steps are not checked until the next `open`), whether a
+    form is open on it (the action that opened it, or the screen itself) and whether the
+    edit of a card is open.
     """
 
     screen: dict | None = None
     known: bool = False
     form: dict | None = None
+    editing: bool = False
 
 
-def check(doc: Document, product: Product | None, screens: dict, issues: Issues) -> None:
+def check(doc: Document, product: Product | None, screens: dict, issues: Issues) -> dict[str, list[Step]]:
+    """
+    Checks the scenarios; returns the steps of each by its id (those of a spec with errors
+    are not meant to be used).
+    """
     if product is None:
-        return
+        return {}
+    login = LOGIN_PACKAGE in doc.data.get('packages', [])
+    walked = {}
     for i, scenario in enumerate(doc.data.get('scenarios', [])):
         path = ('scenarios', i)
-        if scenario['role'] not in product.roles:
+        role = product.roles.get(scenario['role'])
+        if role is None:
             issues.add(
                 doc, (*path, 'role'), 'P004', f'The role `{scenario["role"]}` is not in `roles`.',
                 'Use the id of a role of `roles`.',
             )
-        _Scenario(doc, product, screens, scenario, path, issues).run()
+        elif login and 'test_user' not in role:
+            issues.add(
+                doc, (*path, 'role'), 'P025',
+                f'The role `{scenario["role"]}` has no `test_user`: the end-to-end test of the '
+                'scenario cannot log in.',
+                'Give the role `test_user: {username: ...}`, a user of this role that the test '
+                'data of the backend creates with the password of E2E_PASSWORD.',
+            )
+        walked[scenario['id']] = _Scenario(doc, product, screens, scenario, path, issues).run()
+    return walked
 
 
 class _Scenario:
@@ -60,11 +103,17 @@ class _Scenario:
         self.role = scenario['role']
         self.scenario, self.path, self.issues = scenario, path, issues
         self.state = _State(known=True)
+        # what the current step implies (`Step`)
+        self.edit, self.then = False, None
 
-    def run(self):
+    def run(self) -> list[Step]:
+        steps = []
         for i, step in enumerate(self.scenario['steps']):
             (name, value), = step.items()
+            self.edit, self.then = False, None
             getattr(self, f'step_{name}')((*self.path, 'steps', i, name), value)
+            steps.append(Step(name, value, self.edit, self.then))
+        return steps
 
     def add(self, path, code, message, hint):
         self.issues.add(self.doc, path, code, message, hint)
@@ -87,6 +136,13 @@ class _Scenario:
         self.state = _State(screen, known=screen is not None)
         if screen is not None and screen['primitive'] == 'form':
             self.state.form = screen['form']
+
+    def lead(self, path, screen_id) -> None:
+        """
+        The step leads to the given screen without naming it.
+        """
+        self.go(path, screen_id)
+        self.then = screen_id
 
     def require(self, path, condition: bool, message: str) -> bool:
         """
@@ -150,7 +206,7 @@ class _Scenario:
             self.state.known = False
             return
         self.fields(((*path, 'where', name), name) for name in value['where'])
-        self.go(path, screen['list']['open'])
+        self.lead(path, screen['list']['open'])
 
     def step_action(self, path, action_id):
         screen = self.state.screen
@@ -162,15 +218,23 @@ class _Scenario:
         if action['primitive'] == 'form':
             self.state.form = action
         elif 'then' in action:
-            self.go(path, action['then'])
+            self.lead(path, action['then'])
 
     def editing(self, path) -> bool:
+        """
+        Whether a form is open for the step: one that is open, or the edit of a card with
+        `edit: true`, which the step starts when it is not open yet.
+        """
         screen = self.state.screen
-        return self.require(
-            path,
-            self.state.form is not None or (bool(screen) and screen['primitive'] == 'card' and screen['card'].get('edit', False)),
+        card = bool(screen) and screen['primitive'] == 'card' and screen['card'].get('edit', False)
+        if not self.require(
+            path, self.state.form is not None or card,
             'No form is open: run a form action, or edit a card with `edit: true`.',
-        )
+        ):
+            return False
+        if self.state.form is None and not self.state.editing:
+            self.state.editing = self.edit = True
+        return True
 
     def step_fill(self, path, values):
         if self.editing(path):
@@ -183,10 +247,10 @@ class _Scenario:
     def step_submit(self, path, value):
         if not self.editing(path):
             return
-        form, self.state.form = self.state.form, None
+        form, self.state.form, self.state.editing = self.state.form, None, False
         then = (form or {}).get('then')
         if then is not None:
-            self.go(path, then)
+            self.lead(path, then)
 
     def step_transit(self, path, value):
         transit_id, payload = (value, None) if isinstance(value, str) else (value['id'], value.get('payload'))

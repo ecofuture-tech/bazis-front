@@ -21,7 +21,7 @@ checks run `validate`; the result is a list of issues with stable codes (`issues
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
 from importlib.resources import files
 from importlib.resources.abc import Traversable
@@ -36,6 +36,7 @@ from ..vendor import lock as frontend_lock
 from ..vendor import registry
 from . import design, refs, scenarios
 from .issues import CONTRACT, ERROR, WARNING, Document, Issue, Issues
+from .scenarios import Step
 
 
 SPEC_DIR = 'spec'
@@ -56,10 +57,25 @@ SCHEMAS = (PRODUCT_SCHEMA, SCREEN_SCHEMA, DESIGN_SCHEMA, TOKENS_SCHEMA)
 
 
 @dataclass(frozen=True)
+class Specs:
+    """
+    The specs as the validation read them, for the generator of the end-to-end tests: the
+    data of product.yaml (None when it does not follow its schema), the screens by id (None
+    for one that does not follow its schema) and the steps of each scenario as the walk of
+    `scenarios.py` understood them. Only those of specs without errors are meant to be used.
+    """
+
+    product: dict | None = None
+    screens: dict[str, dict | None] = field(default_factory=dict)
+    scenarios: dict[str, list[Step]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class Result:
     issues: list[Issue]
     #: whether the specs were checked against contract/contract.json
     contract: bool
+    specs: Specs = field(default_factory=Specs)
 
     @property
     def errors(self) -> list[Issue]:
@@ -245,10 +261,11 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
 
     product = refs.check_product(product_doc, contract, issues)
     screens = refs.check_screens(screen_docs, product, contract, issues)
-    scenarios.check(product_doc, product, screens, issues)
+    walked = scenarios.check(product_doc, product, screens, issues)
     design.check(theme_doc, tokens_doc, issues)
 
     return Result(
         [it for it in issues.items if it.layer in layers or it.layer == CONTRACT],
         contract is not None,
+        Specs(product_doc.data if product_doc.valid else None, screens, walked),
     )

@@ -9,8 +9,9 @@ is shipped as package data and copied into the product, which then owns the copy
 from its template, with the protocol client, the React hooks and the first components
 copied into it, and the starters of the specs), `manage.py bazis_front add` (the
 components), `manage.py bazis_front contract` (the export of the contract and the
-TypeScript generated from it) and `manage.py bazis_front check` (the validation of the
-specs against the contract). The update of the copies is planned, not available yet.
+TypeScript generated from it), `manage.py bazis_front check` (the validation of the
+specs against the contract) and `manage.py bazis_front e2e` (the Playwright tests of the
+scenarios of the specs). The update of the copies is planned, not available yet.
 
 ## Setup
 
@@ -47,9 +48,13 @@ screen that lists the resources of the contract. It never overwrites an existing
   requires them) copies them: `check` reports it (`C003`);
 - the components that the template uses, `state-panel`, `app-shell` and `login-form`, in
   the same way, with the shadcn/ui components they use (see [The components](#the-components));
+- the helpers of the end-to-end tests in `e2e/bazis/` (the asset `playwright`, copied like
+  the hooks), with `playwright.config.ts` and `e2e/custom/` of the template (see
+  [The end-to-end tests](#the-end-to-end-tests));
 - `bazis-front.lock.json`: the version of bazis-front, the hashes of the contract and of
   the generated files (see below), and the version and the file hashes of every copied
   asset (`"template"` has only its version); an asset that was not copied is not in it.
+  `bazis_front e2e` adds the hashes of the specs and of the tests it generates (`e2e`).
 
 Commit `bazis-front.lock.json` and `.bazis/`. The files that `init` and `add` copy are
 listed in `assets/registry.json` of the package. The frontend compiles once `contract` has generated
@@ -98,7 +103,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `state-panel` | `StatePanel({state, error?, message?, onRetry?, inline?, children})`, `errorState(error)`, `queryState(query, empty?)` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation: 'sidebar' \| 'topbar', items: [{screen, label, to, end?}], session: {user?, onLogout} \| null, children})`, `Screen({id, title?, actions?, children})` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
 | `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, actions?, rowActions?, cells?, emptyMessage?})` | `list:<entity>`, `row:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, actions?, rowActions?, cells?, emptyMessage?})` | `list:<entity>`, `row:<id>` with its cells `field:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`, `statusOf`, `statusName`, `statusOptions`, `transitName` | `status:<id>` | `statusy` |
@@ -245,7 +250,7 @@ product: {id: tasks, name: Tasks, summary: The tasks of a team}
 packages: [users, permit, statusy]       # each needs its section in the contract
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
-  - {id: viewer, permit: viewer, title: Viewer}
+  - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
 entities:
   - id: task
     resource: tasks.task                 # the JSON:API type in contract.json
@@ -326,7 +331,10 @@ scenarios:
   `field_readonly`, `rows`, `error`. The validator follows the steps from screen to screen
   and checks each against the screen it acts on: `open` takes a screen without an item in
   its route (an item is reached with `open_item` or the `then` of a form), a form with
-  `fields` is filled only in them, `action_absent` names an action of the screen.
+  `fields` is filled only in them, `action_absent` names an action of the screen. When the
+  product logs in (`packages` has `users`), the role of a scenario has a `test_user`, the
+  user its end-to-end test logs in as (P025). `bazis_front e2e` turns each scenario into a
+  Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
 
 ### `spec/screens/<id>.yaml` (`spec: bazis-screen/1`)
 
@@ -374,8 +382,8 @@ invalid`.
 
 **`data-bz`**: the screens mark their elements, and the scenarios act through them:
 `screen:<id>`, `state:<loading|empty|loaded|error|forbidden|not_found|invalid>`,
-`list:<entity>`, `row:<id>`, `field:<field>`, `error:<field>`, `action:<id>`,
-`transit:<id>`, `status:<id>`, `nav:<screen>`.
+`list:<entity>`, `row:<id>` (its cells `field:<column>`), `field:<field>`,
+`error:<field>`, `action:<id>`, `transit:<id>`, `status:<id>`, `nav:<screen>`.
 
 ### `spec/design/` (`spec: bazis-design/1`)
 
@@ -443,6 +451,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P022` | error | a scenario step is not possible on the current screen |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
 | `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
+| `P025` | error | the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`) |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -461,6 +470,55 @@ warning there, never blocking `migrate` or `contract`.
 | `D005` | error | a token required by the preset is undefined or of another type |
 | `D006` | error | a token references a token of another type |
 
+## The end-to-end tests
+
+```bash
+python manage.py bazis_front e2e           # frontend/e2e/generated/ from the scenarios of spec/product.yaml
+python manage.py bazis_front e2e --check   # write nothing; exit 1 if the generated tests are stale
+cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSWORD, against the backend
+```
+
+- `e2e` needs a frontend made by `init` and specs without errors (`bazis_front check`). It
+  writes a Playwright test per scenario, `frontend/e2e/generated/<scenario>.spec.ts`, and
+  `e2e/generated/product.ts` (`PRODUCT`: the test user of each role, the route of each
+  screen), deletes the tests of a scenario removed from the specs, and records in the lock
+  the hashes of `spec/product.yaml`, `spec/screens/*.yaml` and the generated files (`e2e`).
+  The text depends on the specs only: `--check` and the system check `front.W003` (when
+  the lock has `e2e`; without Node and the database) render it again, compare it byte for
+  byte, and say which specs changed or which test was edited.
+- **The generated tests are never edited**: change the scenario and generate again. Tests
+  of your own go to `frontend/e2e/custom/`, with the same helpers.
+- The helpers, `frontend/e2e/bazis/` (the asset `playwright`, copied by `init` like the
+  hooks, not edited), act only through the `data-bz` marks of the screens and wait on their
+  states (until no `state:loading` is left), never for a fixed time. Each step of a
+  scenario is a `test.step` titled with the step:
+
+  | Step | Calls |
+  |---|---|
+  | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users |
+  | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
+  | `open_item: {where}` | `openItem({where})`: the first `row:<id>` of the page whose cells `field:<name>` have exactly these texts; then `expectScreen` of `list.open` |
+  | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
+  | `fill`, `upload` | `fill(values)` (a select by the label of its option, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/`) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
+  | `submit: {}` | `submit()`: waits until the form is closed or shows an error; then `expectScreen` of the `then` of the form |
+  | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
+  | `expect` | `expectScreen`, `expectStatus`, `expectState`, `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, `expectError`, in this order |
+
+  The screen after a step is the one that `check` follows (the `then` of a form or a
+  destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
+  the same code (`spec/scenarios.py`). `expectFieldReadonly` passes when the open form has
+  the field read-only or disabled (or not at all), and on a card when it has no edit or its
+  edit has the field read-only (it opens the edit and cancels it).
+- **The test data is the job of the backend.** Before `npm run e2e`, its database has the
+  roles, statuses and transits of the specs, a user per `test_user` with its role (in
+  `roles` and `role_current`) and the password of `E2E_PASSWORD`, and the items that the
+  scenarios open (`open_item`). Create them with a management command or a fixture of the
+  product (the sample of this package: `manage.py sample_data`). The scenarios share the
+  database: `playwright.config.ts` runs them one at a time.
+- `npm run e2e` starts the dev server of the frontend (its `/api` goes to `BAZIS_API_URL`)
+  unless `E2E_BASE_URL` names a running frontend; the backend runs separately. In CI, an
+  HTML report is written to `frontend/playwright-report/`.
+
 ## Layers
 
 | Layer | What | In the product |
@@ -469,7 +527,7 @@ warning there, never blocking `migrate` or `contract`.
 | 1. Protocol | the client (`assets/client`) | `frontend/src/bazis/client/`, copied by `init`, not edited |
 | 2. Hooks | React hooks over the client and TanStack Query (`assets/react`) | `frontend/src/bazis/react/`, copied, not edited |
 | 3. Components | visual building blocks on shadcn/ui (`assets/ui`) | `frontend/src/bazis/ui/` (and `src/components/ui/`), copied by `init` and `add`, owned by the product |
-| 4. Specs | product, screens and design specs | `spec/`, validated against the contract by `bazis_front check` |
+| 4. Specs | product, screens and design specs | `spec/`, validated against the contract by `bazis_front check`; its scenarios generate the end-to-end tests (`bazis_front e2e`, `frontend/e2e/generated/`) run with the helpers of `frontend/e2e/bazis/` |
 | App | the template (`assets/template`): providers, session, router, errors, screens | `frontend/`, copied once by `init`, owned by the product |
 
 ## Rules
@@ -493,6 +551,9 @@ warning there, never blocking `migrate` or `contract`.
 - **Compose the screens from the components, own them.** Components and screens are part
   of the product and may be changed freely; keep the contract tests of the components
   passing, since the scenarios act through their `data-bz`.
+- **Generate the end-to-end tests, never edit them.** Run `bazis_front e2e` after every
+  change of the scenarios or the screens of the specs and keep `npm run e2e` green against
+  the backend with its test data; write the other tests in `frontend/e2e/custom/`.
 
 ## The client
 
