@@ -143,7 +143,10 @@ function relation(name: string, property: Node, root: JsonSchema, required: stri
 
 /**
  * The resource object of `data`: the item itself, or the item of a list (`schema_list/`:
- * an array whose `items` are the members of an `anyOf`, of the same fields; the first one).
+ * an array whose `items` are the members of an `anyOf`; the first one). With bazis-permit
+ * the first member has every field of the list and each other one the fields of a group of
+ * the field permissions of the user: the schema of a list gives the titles and the types of
+ * its fields, not which of them the user sees (an item leaves out the fields it hides).
  */
 function itemNode(value: unknown, root: JsonSchema): Node {
   const { node } = withoutNull(value, root);

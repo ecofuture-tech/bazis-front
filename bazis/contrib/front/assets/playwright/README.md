@@ -39,7 +39,7 @@ marks of the states, never for a fixed time:
 | `open(screen)` | `open` | goes to the route of the screen (one without the id of an item), then `expectScreen` |
 | `openItem({where})` | `open_item` | clicks the first `row:<id>` of the current screen whose cells `cell:<name>` have exactly these texts (on the page shown) |
 | `action(id)` | `action` | clicks `action:<id>` of the current screen (also `action:edit` of a card, before a `fill` of its edit) |
-| `fill(values)` | `fill` | fills `field:<name>` of the open form: the `<form>` with `action:submit`; a select (a choice, a relationship) by the label of its option, a checkbox by true or false |
+| `fill(values)` | `fill` | fills `field:<name>` of the open form: the `<form>` with `action:submit`; a select (a choice) by the label of its option, a combobox (`role="combobox"`, the picker of a relationship) by the label of the item searched in its popup (`aria-controls`; null: its option `data-value=""`), a checkbox by true or false |
 | `upload(field, file)` | `upload` | sets a file of `e2e/fixtures/` in `field:<name>` of the open form |
 | `submit()` | `submit` | clicks `action:submit` of the open form and waits until it is closed or shows an error of this submit (`state:<error>`, `error:<name>`; those of a previous submit do not count) |
 | `transit(id, payload?)` | `transit` | clicks `transit:<id>`, fills and submits the dialog of its payload, and waits until the transit is no longer offered or an error is shown |
@@ -48,6 +48,7 @@ marks of the states, never for a fixed time:
 | `expectState(state)` | `expect: {state}` | `state:<state>` on the page |
 | `expectActionAbsent(id)` | `expect: {action_absent}` | once the screen is loaded, it has no `action:<id>` |
 | `expectFieldReadonly(name)` | `expect: {field_readonly}` | the open form has `field:<name>` read-only or disabled (or not at all); on a card, it has no `action:edit`, or its edit has the field read-only (the edit is opened and cancelled) |
+| `expectFieldAbsent(name)` | `expect: {field_absent}` | once the screen is loaded, it has no `field:<name>` and no `cell:<name>`, nor the open form `field:<name>` (a field the user may not see) |
 | `expectRows(count)` | `expect: {rows}` | the number of `row:<id>` of the current screen |
 | `expectError(name)` | `expect: {error}` | `error:<name>` on the page |
 

@@ -74,7 +74,7 @@ backend has bazis-users; without it every screen is open and requests are anonym
 
 ```bash
 python manage.py bazis_front add resource-list resource-card resource-form   # the core
-python manage.py bazis_front add status-badge transit-bar                    # with bazis-statusy
+python manage.py bazis_front add status-badge status-history transit-bar     # with bazis-statusy
 ```
 
 The components are the visual building blocks of the screens: React components on
@@ -82,15 +82,15 @@ shadcn/ui and Tailwind 4 over the hooks, in `frontend/src/bazis/ui/<component>/`
 (`@/bazis/ui/<component>`). `add` copies them like `init` copies the hooks (stamped, with
 their pristine copies in `.bazis/base/` and their hashes in the lock), with the assets
 they require: the other components, the hooks, and the shadcn/ui components they use
-(`button`, `input`, `label`, `native-select`, `table`, `badge`, `card`, `dialog`, `sheet`,
-`skeleton`) in
+(`button`, `input`, `label`, `native-select`, `table`, `badge`, `card`, `dialog`, `popover`,
+`sheet`, `skeleton`) in
 `src/components/ui/`, where `components.json` puts them. It needs neither the network nor
 the shadcn CLI, and never changes `package.json`: the template declares every npm
 dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-react`, and
 `@testing-library/react` with `jsdom` for their tests).
 
 - A component of a package needs its capability in `contract/contract.json` (export the
-  contract first): `transit-bar` and `status-badge` need `statusy`; `add` fails with the
+  contract first): `transit-bar`, `status-badge` and `status-history` need `statusy`; `add` fails with the
   missing capability and copies nothing.
 - An asset already in the frontend is kept as it is; `add` of it again does nothing when
   it is unchanged. `add` never overwrites: a component named again that was changed in the
@@ -121,9 +121,10 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, children})`, `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
 | `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?, cells?, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children, forms?: 'dialog' \| 'page'})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?: 'dialog' \| 'page'})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | `statusy` |
+| `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
@@ -133,8 +134,32 @@ runtime schemas; an action with a `permission` (`add` on a list, `change` or `de
 row or an item) is shown when the permission meta of bazis-permit allows it, and always
 when the backend does not report the meta. The shared parts are the asset `resource`
 (`FieldInput`, the only input of a field: the forms and the payloads of the transits use
-it; `FieldValue`, `RelationSelect`, `permitted`) and `testing` (the support of the
-contract tests). `assets/ui/README.md` of the package documents each component.
+it; `FieldValue`, `RelationLabel`, `RelationPicker`, `permitted`) and `testing` (the support
+of the contract tests). `assets/ui/README.md` of the package documents each component.
+
+- **Field permissions** (bazis-permit, `<app>.<model>.field.<operation>.<selector>[.<status>]
+  .<field>.<restriction>`: `enable`, `readonly`, `disable`…) are read from what the backend
+  returns for the current user and the item, never from the roles: a field the user may not
+  see is absent from `schema_retrieve/` of the item and from the documents; one they may
+  see but not change now is `readOnly` in `schema_update/` of the item. `ResourceCard`
+  shows only the fields of `schema_retrieve/` (and leaves out a section without any) and,
+  when the user may change the item, marks read-only the fields its update does not
+  change; `ResourceForm` leaves out the fields its schema does not have and disables the
+  read-only ones; `ResourceList` shows a column when a row of the page has its field (the
+  schema of a list is the union of the field sets of the groups of permissions: its first
+  member has every field). Check them in the scenarios with `expect: {field_readonly}` and
+  `expect: {field_absent}`.
+- **Relationships**: `RelationPicker` (a to-one relationship in a form, a payload, a filter)
+  is a combobox that searches the related resource on the backend (`search`) page after
+  page (`Load more`) and clears a nullable value; `RelationLabel` shows a related item, the
+  items of a resource shown together (the rows of a page) read with one request
+  (`useRelatedItem`, `filter=pk=<a>|pk=<b>|…`). Both need the route of the related resource
+  in `ROUTES`; the user sees the items its list returns to them. To-many relationships are
+  shown, not edited, by the components: change them with `useRelationship`.
+- **The status history** (`StatusHistory`) is what bazis-statusy exposes: the current
+  status with `status_dt` and `status_author`. bazis-statusy records every transit
+  (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
+  are not shown.
 
 ## The contract
 
@@ -345,10 +370,12 @@ scenarios:
   `fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
   `edit: true`), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
   `transitions: true`), `expect` with `screen`, `status`, `state`, `action_absent`,
-  `field_readonly`, `rows`, `error`. The validator follows the steps from screen to screen
+  `field_readonly`, `field_absent` (a field the screen shows that the user may not see:
+  not on the screen once it is loaded), `rows`, `error`. The validator follows the steps from screen to screen
   and checks each against the screen it acts on: `open` takes a screen without an item in
   its route (an item is reached with `open_item` or the `then` of a form), a form with
-  `fields` is filled only in them, `action_absent` names an action of the screen. A
+  `fields` is filled only in them, `action_absent` names an action of the screen and
+  `field_absent` a field it shows (a column, a field of a section or of the open form). A
   `submit` followed by an `expect` with `error` fails: its form stays open on its screen
   (no `then`), and the next steps fix it and submit again. Only an `error` marks a failing
   submit: `expect: {state: invalid}` after a submit still follows the `then`. When the
@@ -601,10 +628,10 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where}` | `openItem({where})`: the first `row:<id>` of the page whose cells `cell:<name>` have exactly these texts; then `expectScreen` of `list.open` |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)` (a select by the label of its option, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/`) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
+  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/`) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` and `expectError` (visible ones), `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` and `expectError` (visible ones), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectRows`, in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
@@ -813,7 +840,14 @@ const transits = useTransits(ROUTES['tasks.task'], id);               // [{id, a
 
 - The list filter is one `filter` expression (`price__gte=10&(state=new|state=draft)`),
   not `filter[name]=value`.
-- `include` works on retrieve, create and update; list ignores it.
+- `include` works on retrieve, create and update; list ignores it. The items of a list by
+  their ids are `filter=pk=<a>|pk=<b>|…`: there is no `pk__in`, and `pk=<a>,<b>` is one
+  value (a 400 `ERR_FILTER` on a UUID). `<app>.<model>=<ids>` filters the objects related to
+  those objects of another model, not by their own ids.
+- With bazis-permit, the schema of a list (`schema_list/`) is the union of the field sets of
+  the groups of field permissions (its first member has every field): which fields a user
+  sees is in the items, which leave out the hidden ones. The schemas of an item
+  (`schema_retrieve/`, `schema_update/`) are those of the user for this item.
 - Pagination is `page[limit]` and `page[offset]`; sorting is `sort` with `-` for
   descending; meta fields such as `pagination` are returned only when requested with
   `meta`.

@@ -26,16 +26,21 @@ from django.contrib.auth import get_user_model
 
 #: the permissions of the permission groups, by the slug of the group
 GROUPS = {
-    'tasks_view': ['tasks.task.item.view.all.all', 'tasks.task.field.view.all.all.report.enable'],
-    # shares a permission with tasks_view: the role lists it once
+    'tasks_view': ['tasks.task.item.view.all.all'],
+    # shares a permission with tasks_view: the role lists it once; the report is written by
+    # the transit `finish`, never in the form of a change (a field permission: read-only in
+    # `schema_update`)
     'tasks_change': [
         'tasks.task.item.view.all.all', 'tasks.task.item.add.all.all',
-        'tasks.task.item.change.all.draft',
+        'tasks.task.item.change.all.draft', 'tasks.task.field.change.all.all.report.readonly',
     ],
     'tasks_transit': [
         'tasks.task.item.transit.all.draft.start',
         'tasks.task.item.transit.all.in_progress.finish',
     ],
+    # a field permission: the report is left out of `schema_list`/`schema_retrieve` and of
+    # the documents of the items (the scenario `viewer-only-reads` expects it absent)
+    'tasks_report_hidden': ['tasks.task.field.view.all.all.report.disable'],
 }
 
 #: a permission in no group: no role has it
@@ -45,8 +50,8 @@ UNGRANTED = ['tasks.task.item.delete.all.all']
 #: has no permissions
 ROLES = [
     ('guest', 'Guest', False, []),
-    ('viewer', 'Viewer', True, ['tasks_view']),
-    ('manager', 'Manager', False, list(GROUPS)),
+    ('viewer', 'Viewer', True, ['tasks_view', 'tasks_report_hidden']),
+    ('manager', 'Manager', False, ['tasks_view', 'tasks_change', 'tasks_transit']),
 ]
 
 #: the statuses of the tasks: (id, name)

@@ -192,7 +192,7 @@ jobs:
           python manage.py bazis_front check
           # the theme that init compiled from the starters of the design
           python manage.py bazis_front design --check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge transit-bar
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar
 
       - name: Check and build the frontend
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
@@ -283,7 +283,7 @@ jobs:
           python manage.py bazis_front init
           python manage.py bazis_front contract
           python manage.py bazis_front check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge transit-bar
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar
           # the screens of the sample, product code
           cp -R frontend-overlay/src/. "$BS_BASE_DIR/frontend/src/"
           python manage.py bazis_front e2e

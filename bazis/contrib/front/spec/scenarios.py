@@ -230,6 +230,19 @@ class _Scenario:
         elif 'then' in action:
             self.lead(path, action['then'])
 
+    def shown(self) -> set[str] | None:
+        """
+        The fields that the current screen shows: those of its open form (None for every
+        field of the entity), else the columns of a list or the fields of the sections of a
+        card (the edit of a card has them too).
+        """
+        form, screen = self.state.form, self.state.screen
+        if form is not None:
+            return set(form['fields']) if 'fields' in form else None
+        if screen['primitive'] == 'list':
+            return set(screen['list']['columns'])
+        return {name for section in screen['card']['sections'] for name in section['fields']}
+
     def editing(self, path) -> bool:
         """
         Whether a form is open for the step: one that is open, or the edit of a card with
@@ -312,9 +325,17 @@ class _Scenario:
                 (*path, 'action_absent'), value['action_absent'] in actions,
                 f'The screen has no action `{value["action_absent"]}`: it is always absent.',
             )
+        if 'field_absent' in value:
+            name = value['field_absent']
+            self.require(
+                (*path, 'field_absent'), bool(screen) and (self.shown() is None or name in self.shown()),
+                f'The screen does not show the field `{name}`: it is always absent.',
+            )
         if not self.state.known:
             return
-        self.fields(((*path, key), value[key]) for key in ('field_readonly', 'error') if key in value)
+        self.fields(
+            ((*path, key), value[key]) for key in ('field_readonly', 'field_absent', 'error') if key in value
+        )
         entity = self.entity
         if 'status' in value and entity is not None:
             statuses = (entity.workflow or {}).get('statuses', [])

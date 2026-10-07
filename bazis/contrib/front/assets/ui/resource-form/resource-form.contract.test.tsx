@@ -78,11 +78,17 @@ describe('ResourceForm', () => {
       .on('GET', `${ITEMS}${ITEM_ID}/schema_update/`, schema)
       .on('GET', `${ITEMS}${ITEM_ID}/`, { data: resource(ITEM_ID, { title: 'Report', code: 'R1' }) });
     const onCancel = vi.fn();
-    renderWithBazis(<ResourceForm path={ITEMS as never} id={ITEM_ID} onCancel={onCancel} />, backend);
+    // `secret`: a field that the update schema of the item does not have (the field
+    // permissions of the user hide it) is left out
+    renderWithBazis(
+      <ResourceForm path={ITEMS as never} id={ITEM_ID} fields={['title', 'secret', 'code']} onCancel={onCancel} />,
+      backend,
+    );
 
     const code = await screen.findByTestId<HTMLInputElement>('field:code');
     expect(code.value).toBe('R1');
     expect(code.hasAttribute('readonly')).toBe(true);
+    expect(screen.queryByTestId('field:secret')).toBeNull();
     expect(screen.getByTestId<HTMLInputElement>('field:title').value).toBe('Report');
     fireEvent.click(screen.getByTestId('action:cancel'));
     expect(onCancel).toHaveBeenCalledOnce();

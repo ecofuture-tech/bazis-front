@@ -12,20 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The related items: their label, and the select of a to-one relationship over the list of
-// the related resource (its path from `ROUTES` of the contract).
+// The label of a related item, read from the list of its resource (its path from `ROUTES`
+// of the contract) with the other related items of the resource that the page shows: the
+// rows of a list read the labels of a relationship with one request.
 
-import type { ComponentProps } from 'react';
-
-import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { itemLabel, routeOf } from './fields.js';
-import { useAnyItem, useAnyList } from './hooks.js';
-
-/** How many related items the select lists. */
-const OPTIONS_LIMIT = 100;
+import { useAnyRelated } from './hooks.js';
 
 /** An item without a label (the user may not view it): its id, the start of a long one (the whole on hover). */
 function UnknownItem({ id }: { id: string }) {
@@ -38,76 +32,18 @@ function UnknownItem({ id }: { id: string }) {
 }
 
 function RelatedLabel({ path, id }: { path: string; id: string }) {
-  const item = useAnyItem(path, id);
-  if (item.data) return <>{itemLabel(item.data.data)}</>;
+  const item = useAnyRelated(path, id);
+  if (item.data) return <>{itemLabel(item.data)}</>;
   if (item.isPending) return <Skeleton className="inline-block h-3.5 w-20 align-middle" />;
   return <UnknownItem id={id} />;
 }
 
 /**
- * The label of a related item: read from its resource when the contract has a route for
- * it (one request per item, cached), else the start of its id.
+ * The label of a related item: read from its resource when the contract has a route for it
+ * (`useRelatedItem`: the items of a resource shown together are read with one request, and
+ * cached), else the start of its id. `path`: the route set of the related resource, instead
+ * of its route in `ROUTES`.
  */
-export function RelationLabel({ relation, id }: { relation: string; id: string }) {
-  const path = routeOf(relation);
+export function RelationLabel({ relation, id, path = routeOf(relation) }: { relation: string; id: string; path?: string | undefined }) {
   return path ? <RelatedLabel path={path} id={id} /> : <UnknownItem id={id} />;
-}
-
-export interface RelationSelectProps
-  extends Omit<ComponentProps<'select'>, 'value' | 'onChange' | 'size'> {
-  /** The JSON:API type of the related resource. */
-  relation: string;
-  /** The id of the related item, null for none. */
-  value: string | null;
-  onChange: (value: string | null) => void;
-  /** The label of the empty option. */
-  placeholder?: string;
-}
-
-type OptionsProps = Omit<RelationSelectProps, 'relation'> & { path: string };
-
-function RelationOptions({ path, value, onChange, placeholder = '—', ...props }: OptionsProps) {
-  const list = useAnyList(path, { page: { limit: OPTIONS_LIMIT } });
-  const items = list.data?.data ?? [];
-  const known = value === null || items.some((it) => it.id === value);
-  return (
-    <NativeSelect
-      {...props}
-      className="w-full"
-      aria-busy={list.isPending || undefined}
-      value={value ?? ''}
-      onChange={(event) => {
-        onChange(event.target.value || null);
-      }}
-    >
-      <NativeSelectOption value="">{placeholder}</NativeSelectOption>
-      {!known && <NativeSelectOption value={value}>{value}</NativeSelectOption>}
-      {items.map((item) => (
-        <NativeSelectOption key={item.id} value={item.id}>
-          {itemLabel(item)}
-        </NativeSelectOption>
-      ))}
-    </NativeSelect>
-  );
-}
-
-/**
- * A select of the related item of a to-one relationship, over the first items of the list
- * of the related resource; the id in a text input when the contract has no route for it.
- */
-export function RelationSelect({ relation, value, onChange, placeholder, ...props }: RelationSelectProps) {
-  const path = routeOf(relation);
-  if (path) {
-    return <RelationOptions {...props} path={path} value={value} onChange={onChange} placeholder={placeholder} />;
-  }
-  return (
-    <Input
-      {...(props as ComponentProps<'input'>)}
-      value={value ?? ''}
-      placeholder={placeholder}
-      onChange={(event) => {
-        onChange(event.target.value || null);
-      }}
-    />
-  );
 }

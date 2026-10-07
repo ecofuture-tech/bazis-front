@@ -197,7 +197,7 @@ export const ROLES = [
     ],
     name: "Manager",
     permissions: [
-      "tasks.task.field.view.all.all.report.enable",
+      "tasks.task.field.change.all.all.report.readonly",
       "tasks.task.item.add.all.all",
       "tasks.task.item.change.all.draft",
       "tasks.task.item.transit.all.draft.start",
@@ -209,11 +209,12 @@ export const ROLES = [
   {
     for_anonymous: true,
     groups: [
+      "tasks_report_hidden",
       "tasks_view",
     ],
     name: "Viewer",
     permissions: [
-      "tasks.task.field.view.all.all.report.enable",
+      "tasks.task.field.view.all.all.report.disable",
       "tasks.task.item.view.all.all",
     ],
     slug: "viewer",

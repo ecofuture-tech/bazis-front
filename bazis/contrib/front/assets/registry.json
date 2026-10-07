@@ -33,6 +33,7 @@
         "keys.ts",
         "mutations.ts",
         "queries.ts",
+        "related.ts",
         "schema.ts",
         "types.ts"
       ]
@@ -141,6 +142,7 @@
           "input",
           "label",
           "native-select",
+          "popover",
           "skeleton"
         ]
       },
@@ -150,6 +152,8 @@
         "fields.ts",
         "hooks.ts",
         "index.ts",
+        "relation-picker.contract.test.tsx",
+        "relation-picker.tsx",
         "relation.tsx",
         "resource.contract.test.tsx"
       ]
@@ -245,6 +249,27 @@
         "status-badge.contract.test.tsx",
         "status-badge.tsx",
         "statusy.ts"
+      ]
+    },
+    {
+      "name": "status-history",
+      "kind": "ui",
+      "source": "ui/status-history",
+      "target": "src/bazis/ui/status-history",
+      "requires": {
+        "capabilities": [
+          "statusy"
+        ],
+        "assets": [
+          "resource",
+          "status-badge",
+          "testing"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "status-history.contract.test.tsx",
+        "status-history.tsx"
       ]
     },
     {
@@ -353,6 +378,15 @@
       "target": "src/components/ui",
       "files": [
         "native-select.tsx"
+      ]
+    },
+    {
+      "name": "popover",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "popover.tsx"
       ]
     },
     {

@@ -44,6 +44,7 @@ sessions in `src/app/session.ts`); never the token. The template does this in
 | `useItem(path, id, {include, fields, meta})` | `GET path{id}/` | the item |
 | `useSchema(path, 'list' \| 'create')`, `useSchema(path, 'retrieve' \| 'update' \| 'transit', id)` | `GET path[{id}/]schema_<kind>/` | the JSON Schema for the current user, not refetched in the session (`staleTime: Infinity`) but after a mutation of the resource |
 | `useFilterFields(path)` | `GET path route_filter_fields/` | `{fields: [{name, py_type}]}`, kept for the session |
+| `useRelatedItem(path, id)` | `GET path?filter=pk=<id>\|pk=<id>…&page[limit]=<n>`, one for the items of the resource asked for together | the item of the list (to show its label), null when the user may not view it |
 | `useCreate(path)` | `POST path` | `mutate(document)` |
 | `useUpdate(path)` | `PATCH path{id}/` | `mutate({id, document})` |
 | `useDestroy(path)` | `DELETE path{id}/` | `mutate(id)`; the queries of the item are removed |
@@ -59,7 +60,11 @@ Pagination is read with the functions of the client: `nextPage(list.data)`,
 The fields of a runtime schema are read with `resourceSchema(schema)`: its JSON:API type
 and its fields in schema order (as `fields` of `useResourceForm` below), for the schema of a
 create, an update or a retrieve (`data` is the resource) and of a list (`data` is an array
-whose items are the members of an `anyOf`, of the same fields: the first one is read).
+whose items are the members of an `anyOf`: the first one is read). With bazis-permit the
+first member of a list has every field and each other one the fields of a group of the
+field permissions of the user: the schema of a list gives the titles and the types, the
+items leave out the fields the user may not see; the schemas of an item (`retrieve`,
+`update`) are those of the user for this item.
 `objectFields(schema)` reads the properties of the JSON Schema of an object as attributes,
 such as the payload of a transit. The types of the paths of the hooks are exported:
 `ListPath`, `ItemPath`, `CreatePath`, `UpdatePath` (and `TransitPath` of `statusy`).
@@ -73,8 +78,16 @@ such as the payload of a transit. The types of the paths of the hooks are export
 | schema of the route set | `['bazis', path, 'schema', kind, session]` |
 | schema of an item | `['bazis', path, 'item', id, 'schema', kind, session]` |
 | filter fields | `['bazis', path, 'filter-fields', session]` |
+| related item | `['bazis', path, 'item', id, 'related', session]` |
 
-`options` are those given, a filter as its expression. A successful mutation invalidates
+`options` are those given, a filter as its expression.
+
+`useRelatedItem` reads the items of a resource asked for before the next task (the rows of
+a page that mount together) with one list request filtered by their primary keys,
+`pk=<a>|pk=<b>|…` (`RELATED_BATCH`, 50, ids a request; the core has no `pk__in` lookup and
+compares `pk=<a>,<b>` as one value, and Bazis ignores `include` on a list); an id the list
+does not return is null. The request is shared, so the signal of one query does not cancel
+it. A successful mutation invalidates
 `['bazis', path]`: the lists, the items and the schemas of the resource (a change may affect
 other items and what the user may change), and is pending until the active ones are
 refetched; a destroy and a transit answered with 204 remove `['bazis', path, 'item', id]`

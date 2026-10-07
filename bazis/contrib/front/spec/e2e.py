@@ -49,6 +49,7 @@ EXPECT = (
     ('state', 'expectState'),
     ('action_absent', 'expectActionAbsent'),
     ('field_readonly', 'expectFieldReadonly'),
+    ('field_absent', 'expectFieldAbsent'),
     ('rows', 'expectRows'),
     ('error', 'expectError'),
 )

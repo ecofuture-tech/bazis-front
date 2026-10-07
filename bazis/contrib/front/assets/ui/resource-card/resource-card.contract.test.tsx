@@ -14,8 +14,10 @@
 
 // The contract of the card of an item: its states (`loading`, its skeleton, `forbidden`,
 // `not_found`, `error`, `loaded`), `field:<name>` of its values with the titles of the
-// retrieve schema, the actions the backend allows and the edit (`action:edit`, then the
-// form, in a dialog or as a page). Keep it passing when the component is changed.
+// retrieve schema (only the fields it has: the field permissions of the user), the fields
+// that its edit does not change marked read-only, the actions the backend allows and the
+// edit (`action:edit`, then the form, in a dialog or as a page). Keep it passing when the
+// component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -71,6 +73,49 @@ describe('ResourceCard', () => {
     expect(screen.getByText('badge')).toBeTruthy();
     // the backend does not allow the change
     expect(screen.queryByTestId('action:edit')).toBeNull();
+  });
+
+  it('shows only the fields of the retrieve schema of the user, marks those the edit does not change', async () => {
+    const backend = new Backend()
+      // the field permissions of the user hide `secret`; the update has `count` read-only and
+      // no `title`
+      .on('GET', `${ITEM}schema_retrieve/`, schema)
+      .on('GET', `${ITEM}schema_update/`, runtimeSchema({ count: { attribute: { type: 'integer', readOnly: true } }, done: { attribute: { type: 'boolean' } } }))
+      .on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report', count: 3 }), meta: { crud_actions: ['view', 'change'] } });
+    renderWithBazis(
+      <ResourceCard
+        path={ITEMS as never}
+        id={ITEM_ID}
+        edit
+        sections={[
+          { id: 'main', title: 'Main', fields: ['title', 'secret', 'count', 'done'] },
+          { id: 'hidden', title: 'Hidden', fields: ['secret'] },
+        ]}
+      >
+        {(item) => <p>children of {item.id}</p>}
+      </ResourceCard>,
+      backend,
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.queryByTestId('field:secret')).toBeNull();
+    expect(screen.queryByTestId('field:done')).toBeNull();
+    // a section without a field the user may see is left out
+    expect(screen.queryByRole('region', { name: 'Hidden' })).toBeNull();
+    expect(screen.getByText(`children of ${ITEM_ID}`)).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getAllByText('(read-only)')).toHaveLength(2);
+    });
+    const term = (name: string) => screen.getByTestId(`field:${name}`).previousElementSibling?.textContent;
+    expect(term('title')).toBe('Title(read-only)');
+    expect(term('count')).toBe('Count(read-only)');
+  });
+
+  it('marks nothing read-only when the user may not change the item', async () => {
+    const server = backend({ crud_actions: ['view'] });
+    renderWithBazis(<ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} edit />, server);
+    await screen.findByTestId('state:loaded');
+    expect(screen.queryByText('(read-only)')).toBeNull();
+    expect(server.requests().some((it) => it.includes('schema_update'))).toBe(false);
   });
 
   /** The open form of the edit: the `<form>` with `action:submit`, as the scenarios find it. */

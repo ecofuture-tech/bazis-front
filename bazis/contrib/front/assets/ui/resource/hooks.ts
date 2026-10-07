@@ -24,6 +24,7 @@ import {
   useFilterFields,
   useItem,
   useList,
+  useRelatedItem,
   useResourceForm,
   useSchema,
   type JsonSchema,
@@ -68,6 +69,12 @@ export const useAnyItem = useItem as unknown as (
   id: string,
   query?: Pick<QueryOptions, 'include' | 'fields' | 'meta'>,
 ) => UseQueryResult<ItemDocument>;
+
+/** `useRelatedItem(path, id)`: null when the user may not view the item. */
+export const useAnyRelated = useRelatedItem as unknown as (
+  path: string,
+  id: string,
+) => UseQueryResult<ResourceObject | null>;
 
 /** `useSchema(path, kind)` of the route set, `useSchema(path, kind, id)` of an item. */
 export const useAnySchema = useSchema as unknown as (

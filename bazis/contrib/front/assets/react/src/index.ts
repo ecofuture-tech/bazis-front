@@ -20,6 +20,8 @@ export { useFilterFields, useItem, useList, useSchema } from './queries.js';
 export { useResourceForm } from './form.js';
 export type { ResourceForm } from './form.js';
 export { objectFields, resourceSchema } from './schema.js';
+export { RELATED_BATCH, useRelatedItem } from './related.js';
+export type { ListItem } from './related.js';
 export type { AttributeField, FormField, RelationField, ResourceSchema } from './schema.js';
 export type {
   CreateDocument,

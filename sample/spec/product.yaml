@@ -56,7 +56,30 @@ scenarios:
       - open: task-list
       - expect: {action_absent: create}
       - open_item: {where: {title: Review the plan}}   # created by `manage.py sample_data`
-      - expect: {screen: task-card, action_absent: delete, field_readonly: report}
+      # a field permission of the viewer (sample/tasks/workflow.py): the report is hidden
+      - expect: {screen: task-card, action_absent: delete, field_absent: report}
+  # the picker of the assignee searches the user by the label; the list shows the label
+  - id: manager-assigns-a-task
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Assign the review, assignee: manager}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - open: task-list
+      - open_item: {where: {title: Assign the review, assignee: manager}}
+      - expect: {screen: task-card}
+  # a field permission of the manager: the report is written by the transit `finish`, never
+  # in the edit of the task
+  - id: manager-cannot-change-the-report
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Draft the report}
+      - submit: {}
+      - expect: {screen: task-card, status: draft, field_readonly: report}
   # a submit followed by the `error` of a field fails: its form stays open
   - id: manager-cannot-save-an-empty-title
     role: manager

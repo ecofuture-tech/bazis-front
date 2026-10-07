@@ -18,7 +18,7 @@
 // screen (`FormSurface`, as the theme composes the forms). Its states are marked
 // `state:<state>` (the loading one is the skeleton of the card), its values `field:<name>`.
 
-import { Pencil } from 'lucide-react';
+import { Lock, Pencil } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { THEME } from '@/bazis/generated/theme';
@@ -32,6 +32,7 @@ import {
   permitted,
   useAnyItem,
   useItemFields,
+  type Fields,
   type ResourceObject,
 } from '@/bazis/ui/resource';
 import { FormSurface, ResourceFormBody } from '@/bazis/ui/resource-form';
@@ -70,8 +71,11 @@ export interface ResourceCardProps {
   actions?: readonly CardAction[];
   /** The values of fields, instead of the formatted value. */
   values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>;
-  /** Under the heading: the transits of the item (`TransitBar` of transit-bar). */
-  children?: ReactNode;
+  /**
+   * Under the heading: the transits of the item (`TransitBar` of transit-bar), its status
+   * history (`StatusHistory` of status-history, which takes the item).
+   */
+  children?: ReactNode | ((item: ResourceObject) => ReactNode);
   /** The edit in a dialog or as a page; `composition.forms` of the theme by default. */
   forms?: 'dialog' | 'page';
 }
@@ -93,6 +97,71 @@ function CardSkeleton() {
         ))}
       </div>
     </div>
+  );
+}
+
+interface SectionsProps {
+  sections: readonly CardSection[];
+  item: ResourceObject;
+  fields: Fields;
+  values: Readonly<Record<string, (item: ResourceObject) => ReactNode>>;
+  /** Whether the edit changes a field; null: no marks (no edit, or its schema is not loaded). */
+  editable: ((name: string) => boolean) | null;
+}
+
+/**
+ * The sections with the fields that the user may see in the item (`schema_retrieve/`); a
+ * section without any is left out. With `editable`, the fields that the edit does not change
+ * are marked read-only.
+ */
+function Sections({ sections, item, fields, values, editable }: SectionsProps) {
+  return sections.map((section) => {
+    const names = section.fields.filter((name) => fields.has(name));
+    if (!names.length) return null;
+    return (
+      <section
+        key={section.id}
+        aria-label={typeof section.title === 'string' ? section.title : undefined}
+        className="rounded-xl border bg-card text-card-foreground shadow-xs"
+      >
+        {section.title !== undefined && (
+          <h3 className="border-b px-(--space-card) py-3 text-sm font-semibold">{section.title}</h3>
+        )}
+        <dl className="grid gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2">
+          {names.map((name) => {
+            const field = fields.fields.get(name);
+            const readOnly = editable !== null && !editable(name);
+            return (
+              <div key={name} className={cn('grid min-w-0 content-start gap-1', isLongText(field) && 'sm:col-span-2')}>
+                <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <span className="first-letter:uppercase">{fields.title(name)}</span>
+                  {readOnly && (
+                    <span title="Read-only" className="inline-flex text-muted-foreground/70">
+                      <Lock className="size-3" aria-hidden="true" />
+                      <span className="sr-only">(read-only)</span>
+                    </span>
+                  )}
+                </dt>
+                <dd
+                  data-bz={`field:${name}`}
+                  className={cn('break-words', isLongText(field) && 'whitespace-pre-line', isNumeric(field) && 'tabular-nums')}
+                >
+                  {values[name]?.(item) ?? <FieldValue field={field} value={fieldValue(item, name)} />}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      </section>
+    );
+  });
+}
+
+/** The sections of an item the user may change: the fields of its update (`schema_update/`) mark the others read-only. */
+function EditableSections({ path, id, ...props }: Omit<SectionsProps, 'editable'> & { path: string; id: string }) {
+  const update = useItemFields(path, id, 'update');
+  return (
+    <Sections {...props} editable={update.loaded ? (name) => update.fields.get(name)?.readOnly === false : null} />
   );
 }
 
@@ -172,34 +241,12 @@ export function ResourceCard({
             ))}
         </div>
       </header>
-      {children}
-      {sections.map((section) => (
-        <section
-          key={section.id}
-          aria-label={typeof section.title === 'string' ? section.title : undefined}
-          className="rounded-xl border bg-card text-card-foreground shadow-xs"
-        >
-          {section.title !== undefined && (
-            <h3 className="border-b px-(--space-card) py-3 text-sm font-semibold">{section.title}</h3>
-          )}
-          <dl className="grid gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2">
-            {section.fields.map((name) => {
-              const field = fields.fields.get(name);
-              return (
-                <div key={name} className={cn('grid min-w-0 content-start gap-1', isLongText(field) && 'sm:col-span-2')}>
-                  <dt className="text-xs font-medium text-muted-foreground first-letter:uppercase">{fields.title(name)}</dt>
-                  <dd
-                    data-bz={`field:${name}`}
-                    className={cn('break-words', isLongText(field) && 'whitespace-pre-line', isNumeric(field) && 'tabular-nums')}
-                  >
-                    {values[name]?.(data) ?? <FieldValue field={field} value={fieldValue(data, name)} />}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-        </section>
-      ))}
+      {typeof children === 'function' ? children(data) : children}
+      {changeable ? (
+        <EditableSections path={path} id={id} sections={sections} item={data} fields={fields} values={values} />
+      ) : (
+        <Sections sections={sections} item={data} fields={fields} values={values} editable={null} />
+      )}
       {changeable && (
         <FormSurface
           open={editing}

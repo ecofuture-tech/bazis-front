@@ -19,7 +19,7 @@ import { useState } from 'react';
 
 import { Filter } from '@/bazis/client';
 import { ROUTES } from '@/bazis/generated/contract';
-import { RelationSelect, useAnyFilterFields } from '@/bazis/ui/resource';
+import { RelationPicker, useAnyFilterFields } from '@/bazis/ui/resource';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -165,9 +165,10 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
     );
   } else if (relationType !== undefined) {
     control = (
-      <RelationSelect
+      <RelationPicker
         id={id}
         data-bz={`field:${field}`}
+        className="w-48"
         relation={relationType}
         value={value || null}
         placeholder="All"

@@ -14,7 +14,7 @@ copies and changes them freely; each component comes with its contract test
 scenarios of the specs rely on: keep it passing.
 
 The shadcn/ui components they use (`button`, `input`, `label`, `native-select`, `table`,
-`badge`, `card`, `dialog`, `sheet`, `skeleton`) are assets as well, copied into `src/components/ui/` as
+`badge`, `card`, `dialog`, `popover`, `sheet`, `skeleton`) are assets as well, copied into `src/components/ui/` as
 `components.json` of the template places them, so that `add` needs neither the network nor
 the shadcn CLI. Their npm dependencies (`radix-ui`, `class-variance-authority`,
 `lucide-react`) and those of the contract tests (`@testing-library/react`, `jsdom`) are in
@@ -56,15 +56,18 @@ sample (`tests/test_design.py` checks it; write it again with
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
 | `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | capability `statusy` |
+| `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it), `FieldValue`,
-`RelationSelect` and `RelationLabel` (the related resource by its route in `ROUTES`),
-`useListFields`/`useItemFields` (the titles and types of the list and retrieve schemas),
+`RelationPicker({relation, value, onChange, placeholder?, nullable?, disabled?, path?})` and
+`RelationLabel({relation, id, path?})` (the related resource by its route in `ROUTES`, or
+`path`), `useListFields`/`useItemFields` (the titles and types of the list, retrieve and
+update schemas, `has(name)`: whether the schema of the user has the field),
 `permitted(meta, action, id?)` (the permission meta of bazis-permit; allowed when the
 backend does not report it), and the hooks with plain paths for the bodies of the
 components. `testing` is the support of the contract tests: a backend for the mocked
@@ -75,7 +78,7 @@ components. `testing` is the support of the contract tests: a backend for the mo
   and 403 are `forbidden`, 404 `not_found`, 422 `invalid`, any other `error`.
 - **`resource-list`** reads the list with `useList` (`meta`: `pagination`, `for_create`,
   `for_change`, `for_delete`), the titles of the columns from `schema_list/`, the types of
-  the filters from `route_filter_fields/` (a relation: a select of the related resource; a
+  the filters from `route_filter_fields/` (a relation: the picker of the related resource; a
   date: a range; a string: `<field>__$search`; `options` for choices such as the statuses),
   the sort labels from `RESOURCES` of the contract. An action with `permission` is shown
   only when the permission meta allows it.
@@ -85,20 +88,48 @@ components. `testing` is the support of the contract tests: a backend for the mo
   in its place (`pages`).
   `Screen` hosts a form page of `FormSurface`, which takes the place of its content.
 - **`resource-card`** reads the item with `crud_actions` and its fields from
-  `schema_retrieve/`; with `edit`, an edit button (when the backend allows the change)
-  opens the form of the update of their fields in a dialog or as a page (`FormSurface`).
+  `schema_retrieve/` of the item; with `edit`, an edit button (when the backend allows the
+  change) opens the form of the update of their fields in a dialog or as a page
+  (`FormSurface`). `children` may be a function of the item (`StatusHistory` takes it).
+- **The field permissions of bazis-permit** (`<app>.<model>.field.<operation>.<selector>…
+  .<field>.<restriction>`, restrictions `enable`, `readonly`, `disable`, …) are read from
+  what the backend returns, never from the roles: a field that the user may not see is left
+  out of `schema_retrieve/` of the item and of the documents (its attribute or relationship
+  is absent), one that they may see but not change now is `readOnly` in `schema_update/` of
+  the item, and both depend on the item (its selectors and, with bazis-statusy, its
+  status). The card shows only the fields of `schema_retrieve/` (a section without any is
+  left out) and, when the user may change the item, marks read-only (a lock, `(read-only)`
+  for screen readers) the fields that its update does not change; the form leaves out the
+  fields that `schema_update/` does not have and disables the read-only ones. The schema of a
+  list is the union of the field sets of the groups of permissions (its first member has
+  every field), so the list shows a column when a row of the page has its field.
 - **The labels of related items** (`RelationLabel`: the cells of a relationship in a
-  list, its value in a card) are read with `useItem` of the related resource, one request
-  per related item, cached by TanStack Query and shared with every other place that shows
-  it; an item the user may not view shows its id. Bazis ignores `include` on a list (only a
-  retrieve, a create and an update include), so a list cannot bring them along. Batching
-  them (one filtered list of the related resource per column) is left to the
-  relation-picker of the next phase, as is a search in the select of a relationship (its
-  first 100 items now).
+  list, its value in a card, the value of a picker) are read with `useRelatedItem` of the
+  hooks: the items of a resource asked for at the same time (the rows of a page) are read
+  with one list of the related resource filtered by their primary keys
+  (`filter=pk=<a>|pk=<b>|…`, at most 50 ids a request), cached by item and shared with every
+  other place that shows it; an item the user may not view (the list leaves it out) shows
+  its id. Bazis ignores `include` on a list, and the core has no `pk__in` lookup.
+- **`RelationPicker`** (the input of a to-one relationship in a form and in the payload of a
+  transit, and of the filter of a relationship) is a combobox: a button
+  (`role="combobox"`, the marks of the field) with the label of the item opens a popover
+  with a search sent to the backend (`search`, every word in a text field of the related
+  resource) and the items of the list of the related resource, 20 more with `Load more`;
+  a nullable relationship has an option that clears the value (`data-value=""`, which the
+  helpers of the end-to-end tests choose for null). Keyboard: Enter, Space or ArrowDown
+  opens, ArrowUp/ArrowDown move, Enter selects, Escape closes. The popover is modal, so that
+  it scrolls and keeps the focus inside a dialog. A related resource without a route is an
+  input of the id.
 - **`resource-form`** is `useResourceForm`: the fields of `schema_create/` or
   `schema_update/` of the current user, read-only ones disabled and never sent; a to-one
-  relationship is a select of the related resource (its first 100 items); to-many
-  relationships are left out (`useRelationship`).
+  relationship is a `RelationPicker`; to-many relationships are left out
+  (`useRelationship`).
+- **`status-history`** shows what bazis-statusy exposes of the history of an item: its
+  status since `status_dt`, by `status_author` (the user of the transit that set it; none
+  for the initial status), each when the user may see the field. bazis-statusy records
+  every transit (`<Model>StatusyTransit`: transit, status, date, author, `extra`) but has no
+  endpoint that reads them, and does not store the payload of a transit: the earlier
+  transits and their payloads are not shown until it has one.
 - **`transit-bar`** shows the transits of `meta.state_actions` (disabled with the errors of
   their validators when restricted); a transit whose action takes a typed payload opens a
   dialog with its fields, and the errors of a 422 (`/payload/<name>`) are shown by field.

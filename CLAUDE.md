@@ -35,7 +35,9 @@ extra) with a project app `users` and a statusy model `tasks.Task`; the roles, s
 transits are defined once in `sample/tasks/workflow.py`, created for the tests by the
 fixture `workflow` (`tests/conftest.py`) and outside pytest by `manage.py sample_data`
 (with the test users of the roles, their password set to `E2E_PASSWORD` at every run, and
-the task that the scenario of the viewer opens: the data of the end-to-end tests). The
+the task that the scenario of the viewer opens: the data of the end-to-end tests), with
+field permissions (the viewer does not see the report, the manager may not change it) that
+the scenarios check with `field_absent` and `field_readonly`. The
 title of a task is not empty (`MinLengthValidator`), for the scenario of a failing
 submit. `sample/spec/` is a complete valid spec of the sample: the permissions
 of the roles of `workflow` cover its `access`, and `tests/test_spec.py` checks it against
@@ -207,7 +209,8 @@ npm test
 ### The hooks (`assets/react`)
 
 - `src/`: `context.tsx` (`BazisProvider`, `useApi`, `useSessionKey`), `keys.ts` (the query
-  keys), `queries.ts`, `mutations.ts`, `schema.ts` (the fields of a runtime schema),
+  keys), `queries.ts`, `mutations.ts`, `related.ts` (`useRelatedItem`: the related items
+  asked for together read with one list filtered by `pk=<a>|pk=<b>`), `schema.ts` (the fields of a runtime schema),
   `form.ts` (`useResourceForm`), `types.ts`; `src/statusy/` is the separate asset
   `react-statusy` (`requires` the capability `statusy`). `README.md` documents the API, the
   keys and the protocol facts they rely on.
@@ -235,8 +238,8 @@ npm test
 
 - A directory per component (`ui/<component>/`: its sources, `index.ts`, its contract test
   `<component>.contract.test.tsx`), copied to `src/bazis/ui/<component>/`; `ui/resource/`
-  is what they share (`FieldInput`, the only input of a field; `FieldValue`, relations,
-  `permitted`, and `hooks.ts`, the hooks with plain paths: the only casts of the
+  is what they share (`FieldInput`, the only input of a field; `FieldValue`, `RelationLabel`,
+  `RelationPicker`, `permitted`, and `hooks.ts`, the hooks with plain paths: the only casts of the
   components, so that the lint of a product does not depend on its types); `ui/testing/`
   the support of the contract tests; `ui/shadcn/` the shadcn/ui components they use (style
   new-york-v4 with the aliases of `components.json`, their MIT notice in the header of each
@@ -244,7 +247,9 @@ npm test
 - The contract tests are copied into products and run there by `npm test` (jsdom, set in
   `vite.config.ts` of the template): they are package data, and must pass against any
   product. They use the route set `ITEMS` of `testing` (of no product) and the documents
-  and schemas of `testing`, never a resource of the sample.
+  and schemas of `testing`, never a resource of the sample (a related resource is given
+  by its `path`, as `RelationPicker` and `RelationLabel` take it). jsdom has no
+  `ResizeObserver` and no `scrollIntoView`: a contract test that opens a popover stubs them.
 - In this repository `tsconfig.json` and `vitest.config.ts` alias the `@/` imports to the
   other assets, to `src/lib/utils.ts` of the template, to `test/fixtures/contract.ts`
   (`contract.ts` of the sample, rendered by `contract/typescript.py` from its

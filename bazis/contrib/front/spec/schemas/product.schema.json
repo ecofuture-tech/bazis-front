@@ -268,7 +268,8 @@
             "status": {"description": "The status of the current item.", "$ref": "#/$defs/status_id"},
             "state": {"enum": ["loading", "empty", "loaded", "error", "forbidden", "not_found", "invalid"]},
             "action_absent": {"description": "An action of the current screen that is not shown.", "$ref": "#/$defs/id"},
-            "field_readonly": {"$ref": "#/$defs/field_id"},
+            "field_readonly": {"description": "A field that the user may not change on the current screen.", "$ref": "#/$defs/field_id"},
+            "field_absent": {"description": "A field of the current screen that the user may not see: not shown.", "$ref": "#/$defs/field_id"},
             "rows": {"description": "The number of rows of the current list.", "type": "integer", "minimum": 0},
             "error": {"description": "A field with a validation error.", "$ref": "#/$defs/field_id"}
           }
