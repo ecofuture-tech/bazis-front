@@ -25,6 +25,7 @@ from bazis.contrib.front.contract import export as contract
 from bazis.contrib.front.contract import generated
 from bazis.contrib.front.contract.openapi import dumps
 from bazis.contrib.front.spec import create as spec_create
+from bazis.contrib.front.spec import e2e
 from bazis.contrib.front.spec import validate as spec_validate
 from bazis.contrib.front.spec.issues import Issues
 from bazis.contrib.front.vendor import copy
@@ -129,6 +130,25 @@ class Command(BaseCommand):
             '--layer',
             choices=spec_validate.LAYERS,
             help='Report the issues of one layer only (all the layers are read).',
+        )
+
+        e2e_parser = subcommands.add_parser(
+            'e2e',
+            help='Generate the end-to-end tests of the scenarios of the specs.',
+            description=(
+                'Generate a Playwright test per scenario of spec/product.yaml in '
+                'frontend/e2e/generated/<scenario>.spec.ts, and e2e/generated/product.ts (the '
+                'test users of the roles and the routes of the screens), run by `npm run e2e` '
+                'of the frontend with the helpers of e2e/bazis/. The tests of a removed '
+                'scenario are deleted; the lock records the hashes of the specs and of the '
+                'tests. The specs must have no errors (`bazis_front check`). The generated '
+                'tests are never edited: tests of your own go to frontend/e2e/custom/.'
+            ),
+        )
+        e2e_parser.add_argument(
+            '--check',
+            action='store_true',
+            help='Write nothing; exit with 1 if the generated tests differ from the specs.',
         )
 
     def execute(self, *args, **options):
@@ -264,6 +284,49 @@ class Command(BaseCommand):
             self.write_issues(result)
         if result.errors:
             raise CommandError(f'The specs have {len(result.errors)} errors.')
+
+    def handle_e2e(self, check=False, **options):
+        frontend = frontend_lock.frontend_dir()
+        try:
+            lock = frontend_lock.read(frontend)
+        except frontend_lock.LockError as err:
+            raise CommandError(str(err)) from err
+        if lock is None:
+            raise CommandError(
+                f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
+                '`manage.py bazis_front init`.'
+            )
+        if e2e.HELPERS not in lock.get('assets', {}):
+            raise CommandError(
+                f'{frontend} has no helpers of the end-to-end tests ({e2e.HELPERS_DIR}/, the asset '
+                f'{e2e.HELPERS}): it was made by an older bazis-front. Copy them with '
+                f'`manage.py bazis_front add {e2e.HELPERS}`.'
+            )
+        root = Path(settings.BASE_DIR)
+        result = spec_validate.validate(root)
+        if result.errors:
+            self.write_issues(result)
+            raise CommandError(
+                f'The specs have {len(result.errors)} errors: the end-to-end tests are generated '
+                'from specs that `bazis_front check` accepts.'
+            )
+        rendered = e2e.render(result.specs)
+        if check:
+            if problems := e2e.stale(root, frontend, lock, rendered):
+                raise CommandError(
+                    '\n'.join(problems)
+                    + '\nGenerate them with `manage.py bazis_front e2e`; never edit them.'
+                )
+            self.stdout.write(f'The end-to-end tests of {frontend} are up to date.')
+            return
+        removed = e2e.write(root, frontend, lock, rendered)
+        for path in removed:
+            self.stdout.write(f'Deleted {path}: its scenario no longer exists.')
+        self.stdout.write(
+            f'Generated {len(rendered) - 1} end-to-end tests in {frontend / e2e.GENERATED_DIR}. '
+            'Run them with `npm run e2e` in frontend/ against the running backend, with the '
+            'test data loaded and E2E_PASSWORD set.'
+        )
 
     def write_issues(self, result):
         for issue in result.issues:

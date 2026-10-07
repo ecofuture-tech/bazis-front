@@ -1,0 +1,15 @@
+{
+  "name": "bazis-front-playwright",
+  "private": true,
+  "description": "The helpers of the end-to-end tests of Bazis, copied into products; this file only runs their checks in this repository",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.5"
+  }
+}

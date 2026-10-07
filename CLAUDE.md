@@ -32,9 +32,16 @@ Lint: `ruff check bazis tests sample scripts`.
 
 The sample (`sample/`) installs bazis-users, bazis-permit and bazis-statusy (the `test`
 extra) with a project app `users` and a statusy model `tasks.Task`; the roles, statuses and
-transits of the tests are created by the fixture `workflow` (`tests/conftest.py`).
-`sample/spec/` is a complete valid spec of the sample: the permissions of the roles of
-`workflow` cover its `access`, and `tests/test_spec.py` checks it against the contract.
+transits are defined once in `sample/tasks/workflow.py`, created for the tests by the
+fixture `workflow` (`tests/conftest.py`) and outside pytest by `manage.py sample_data`
+(with the test users of the roles, their password set to `E2E_PASSWORD` at every run, and
+the task that the scenario of the viewer opens: the data of the end-to-end tests). The
+title of a task is not empty (`MinLengthValidator`), for the scenario of a failing
+submit. `sample/spec/` is a complete valid spec of the sample: the permissions
+of the roles of `workflow` cover its `access`, and `tests/test_spec.py` checks it against
+the contract. `sample/frontend-overlay/` holds the screens of the sample (product code, the
+reference of screens written from specs), copied over a frontend made from the sample by
+the `e2e` job of CI.
 
 ### The contract export
 
@@ -52,7 +59,8 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
 - `checks.py`: `front.W001` (stale contract or generated files of the frontend, the
   comparison of `contract --check`: `export.stale`), `front.I001` (not checked: the database
   is not migrated); the command fails with `front.E002` in that case. `front.W002`: an
-  issue of the specs (see below).
+  issue of the specs (see below). `front.W003`: stale end-to-end tests (`e2e --check`,
+  without the database; only when the lock has `e2e` and the specs have no errors).
 
 ### The specs
 
@@ -76,8 +84,20 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
   (they would repeat its issues). `checks.check_spec` reports every issue as the warning
   `front.W002`: an error there would block every management command (`migrate`,
   `contract`) through `SystemCheckError`.
-- The lock does not record the specs: the generator of the e2e tests will need their
-  hashes, nothing reads them before.
+- `spec/scenarios.py` is the only reading of the steps of a scenario: its walk reports the
+  issues and returns the steps (`Step`: the name, the value, whether it starts the edit of
+  a card, the screen it leads to; a `submit` followed by an `expect` of an `error` fails and
+  keeps its form open) in `validate.Result.specs`, which `spec/e2e.py` turns into
+  calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
+  helpers (`assets/playwright`) and the tables of the AGENTS.md files.
+- `spec/e2e.py` (`bazis_front e2e`) renders `frontend/e2e/generated/<scenario>.spec.ts` and
+  `product.ts` from specs without errors; the text depends on the specs only, so `--check`
+  and `front.W003` render again and compare byte for byte. The lock records the hashes of
+  the specs and of the generated files (`e2e`); the files of the lock that the specs no
+  longer generate are deleted. `tests/test_e2e.py` compares the tests of the sample with
+  `assets/playwright/generated/` (the fixture of the helpers: write it again with
+  `BAZIS_FRONT_WRITE_FIXTURES=1 python -m pytest ../tests/test_e2e.py` after a change of the
+  generator or of the specs of the sample).
 
 ### The frontend of a product
 
@@ -114,10 +134,11 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
 
 The Node tooling is dev-only: it checks the assets in this repository and is never shipped.
 The root `package.json` (private) has a workspace for every asset that is checked in place
-(the client, the hooks, the components). Node 22 and npm 10 (no pnpm or yarn); from the repository root:
+(the client, the hooks, the components, the Playwright helpers). Node 22 and npm 10 (no pnpm or yarn); from the repository root:
 
 ```bash
 npm ci
+npx playwright install chromium   # the tests of the Playwright helpers
 npm run lint
 npm run typecheck
 npm test
@@ -202,6 +223,23 @@ npm test
   such as `bg-primary`), no literal colors (the shadcn/ui files keep theirs); every
   element that a scenario acts on has its `data-bz`.
 
+### The helpers of the end-to-end tests (`assets/playwright`)
+
+- `bazis/index.ts`, the vendored asset `playwright` copied to `frontend/e2e/bazis/` (the
+  directory is named as in a product, next to `generated/`): `loginAs(page, PRODUCT, role)`
+  and the class `App` with a method per step and per `expect` key. They act only through
+  `data-bz` (and the `<form>` with `action:submit` as the open form), and wait with the
+  auto-waiting of Playwright, `expect.poll` and the absence of `state:loading`, never for a
+  fixed time. They take `PRODUCT` of the generated `product.ts` as a parameter (generic
+  over it), so that a frontend compiles before `bazis_front e2e` has run; they read
+  `CAPABILITIES` of `@/bazis/generated/contract` (no login without bazis-users).
+- `generated/` is the output of the generator for the sample (the fixture: type-checked
+  against the helpers and linted); `test/helpers.spec.ts` runs the helpers in Chromium
+  against pages served by the test with the marks of the components and delays of a
+  backend (also the negative cases: an expectation must not pass before the screen has
+  loaded); `test/types.typecheck.ts` has the type tests. The template declares
+  `@playwright/test` with the version of this workspace.
+
 ### The template (`assets/template`)
 
 - The frontend of a product, copied once by `init`: `package.json` with pinned versions,
@@ -209,8 +247,10 @@ npm test
   tests), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,
   session with its number for the query keys, router with the layout `AppShell`, errors),
-  `src/screens/` (login with `LoginForm`, home with the counts of `useList`) and
-  `AGENTS.md`, the guide of the frontend (how to compose screens from the components). The versions of React and
+  `src/screens/` (login with `LoginForm`, home with the counts of `useList`),
+  `playwright.config.ts` (`npm run e2e`: `e2e/generated/` and `e2e/custom/`, one worker,
+  `E2E_BASE_URL` or the dev server) and `AGENTS.md`, the guide of the frontend (how to
+  compose screens from the components, the end-to-end tests). The versions of React and
   TanStack Query in the workspace of the hooks are those of its package.json.
 - Its package.json is the product's, every file of it is copied: it is not a workspace and
   the root eslint ignores it, because it compiles only with the generated files of a
@@ -219,10 +259,18 @@ npm test
   against the contract), `add` of every component, then `tsc --noEmit`, lint, tests (the
   contract tests of the components) and build of the generated frontend. Run the same
   locally after a change of the template or of a component.
+- The `e2e` job of CI runs the scenarios of the sample: the specs of the sample copied to
+  the product root, `migrate`, `sample_data`, `init`, `contract`, `check`, `add` of the
+  components, the screens of `sample/frontend-overlay/src/` copied over `src/`,
+  `bazis_front e2e` and `--check`, the build, then the backend
+  (`uvicorn sample.main:app`) and `vite preview` (its `/api` proxied to the backend) and
+  `npm run e2e` with `E2E_BASE_URL`; the report of Playwright is uploaded on a failure. Run
+  the same locally after a change of the helpers, the generator, a component or the
+  screens of the sample.
 
-CI (`.github/workflows/tests.yml`) runs ruff, pytest, the wheel check, the Node checks and
-the frontend job on every push to `main` and on every pull request; all of them must pass
-before a merge.
+CI (`.github/workflows/tests.yml`) runs ruff, pytest, the wheel check, the Node checks, the
+frontend job and the e2e job on every push to `main` and on every pull request; all of them
+must pass before a merge.
 
 ## Conventions
 

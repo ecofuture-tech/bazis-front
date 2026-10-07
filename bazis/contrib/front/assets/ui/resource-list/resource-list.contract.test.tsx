@@ -13,8 +13,9 @@
 // limitations under the License.
 
 // The contract of the list of a resource: `list:<entity>`, its states (`loading`, `empty`,
-// `error`, `forbidden`, `loaded`), `row:<id>` that opens the item, the titles of the list
-// schema, the actions the backend allows (`action:<id>`), search, filters and pages. Keep it
+// `error`, `forbidden`, `loaded`), `row:<id>` that opens the item with its cells
+// `cell:<column>` (the end-to-end tests find a row by them; a filter is `field:<name>`),
+// the titles of the list schema, the actions the backend allows (`action:<id>`), search, filters and pages. Keep it
 // passing when the component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
@@ -57,7 +58,8 @@ describe('ResourceList', () => {
     const loaded = await screen.findByTestId('state:loaded');
     expect(within(loaded).getByTestId('row:a').textContent).toContain('First');
     expect(await within(loaded).findByText('Title')).toBeTruthy();
-    expect(within(screen.getByTestId('row:a')).getByText('Yes')).toBeTruthy();
+    expect(within(screen.getByTestId('row:a')).getByTestId('cell:title').textContent).toBe('First');
+    expect(within(screen.getByTestId('row:a')).getByTestId('cell:done').textContent).toBe('Yes');
     fireEvent.click(screen.getByTestId('row:b'));
     expect(onOpen).toHaveBeenCalledWith('b');
     fireEvent.keyDown(screen.getByTestId('row:a'), { key: 'Enter' });

@@ -6,7 +6,8 @@
   "workspaces": [
     "bazis/contrib/front/assets/client",
     "bazis/contrib/front/assets/react",
-    "bazis/contrib/front/assets/ui"
+    "bazis/contrib/front/assets/ui",
+    "bazis/contrib/front/assets/playwright"
   ],
   "engines": {
     "node": ">=22.13",

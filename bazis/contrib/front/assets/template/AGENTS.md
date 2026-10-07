@@ -20,6 +20,9 @@ backend, its contract and the specs of the product are one directory up (`manage
 | `src/screens/<screen>/` | the screens, composed from the components | the product |
 | `src/components/ui/`, `src/lib/` | shadcn/ui components: those of the components copied by bazis-front, others with `npx shadcn add <name>` | the product |
 | `../spec/` | the specs: `product.yaml` (roles, entities, access, scenarios), `screens/<id>.yaml`, `design/` | the product; checked by `manage.py bazis_front check` |
+| `e2e/generated/` | the end-to-end tests of the scenarios of `../spec/product.yaml`, and `product.ts` (the test users and the routes of the specs) | only `manage.py bazis_front e2e` |
+| `e2e/bazis/` | the helpers of the end-to-end tests (Playwright, through `data-bz`) | bazis-front; not edited |
+| `e2e/custom/` | the end-to-end tests written by hand | the product |
 | `bazis-front.lock.json`, `.bazis/base/` | the versions and hashes of the contract, of the generated files and of the copied assets; the pristine copies of the assets | bazis-front; commit them |
 
 ## Commands
@@ -32,6 +35,8 @@ python manage.py bazis_front contract          # contract/, src/bazis/generated/
 python manage.py bazis_front contract --check  # write nothing; exit 1 if anything is stale (CI)
 python manage.py bazis_front check             # the specs against the contract; exit 1 on errors
 python manage.py bazis_front add resource-list  # copy a component with what it requires
+python manage.py bazis_front e2e               # e2e/generated/ from the scenarios of the specs
+python manage.py bazis_front e2e --check       # write nothing; exit 1 if they are stale (CI)
 ```
 
 From `frontend/`:
@@ -43,6 +48,8 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
+npx playwright install chromium   # once
+npm run e2e        # the end-to-end tests, against the running backend (E2E_PASSWORD)
 ```
 
 `schema.d.ts` is generated with the `openapi-typescript` of this `package.json`: run
@@ -64,8 +71,9 @@ written.
   `src/screens/<id>/` with the route of its spec, from the components (below), and render
   every state that it lists.
 - Mark the elements with `data-bz` (`screen:<id>`, `state:<state>`, `list:<entity>`,
-  `row:<id>`, `field:<field>`, `error:<field>`, `action:<id>`, `transit:<id>`,
-  `status:<id>`, `nav:<screen>`): the scenarios of the product spec act through them.
+  `row:<id>` with its cells `cell:<column>`, `field:<field>`, `error:<field>`,
+  `action:<id>`, `transit:<id>`, `status:<id>`, `nav:<screen>`): the scenarios of the
+  product spec act through them (see [End-to-end tests](#end-to-end-tests)).
 - `access` is what the backend must grant, checked against the permissions of the roles
   in the contract. It does not decide what the frontend shows: that is the permission
   meta and the runtime schemas (see below).
@@ -272,3 +280,53 @@ links to `NAVIGATION` there.
   of the backend (`StatePanel`). Pass the field ids of the specs and the paths of
   `ROUTES`.
 
+
+## End-to-end tests
+
+The scenarios of `spec/product.yaml` are the end-to-end tests of the product:
+`manage.py bazis_front e2e` writes one Playwright test per scenario in
+`e2e/generated/<scenario>.spec.ts` (never edited: change the scenario, generate again,
+commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
+`npm run e2e` runs them with the tests of `e2e/custom/`.
+
+- **They act through `data-bz` only.** The helpers of `e2e/bazis/` open the route of a
+  screen of the specs and wait for `screen:<id>` and its state (no `state:loading` left),
+  click `action:<id>`, `transit:<id>` and `row:<id>` (found by its cells `cell:<name>`),
+  fill `field:<name>` in the open form (the `<form>` with `action:submit`), and check
+  `status:<id>`, `state:<state>`, `error:<name>`, the absence of an action and the read-only
+  fields. A screen that renders the marks of its spec (the components do) passes its
+  scenarios; a screen without them fails them, even when it looks right.
+- **The test data is the backend's job**, never created by the tests: a management command
+  or a fixture of the backend creates the roles, statuses and transits, a user per
+  `test_user` of the roles of the specs (with its role and the password of `E2E_PASSWORD`)
+  and the items that the scenarios open; load it into the database of the backend that the
+  tests run against. The tests share that database and run one at a time; no scenario
+  relies on what another one created.
+- A `submit` followed by `expect: {error: <field>}` is a failing submit: the test expects
+  the error of the backend in the open form, which stays open for the next steps.
+- `npm run e2e` starts the dev server (its `/api` goes to `BAZIS_API_URL`); with
+  `E2E_BASE_URL` it tests a frontend already running (`npm run build` and `npm run preview`
+  in CI). The backend runs separately. Without bazis-users there is no login.
+- A test of your own, for what a scenario does not express, uses the same helpers:
+
+```ts
+// e2e/custom/tasks.spec.ts
+import { test } from '@playwright/test';
+
+import { loginAs } from '../bazis';
+import { PRODUCT } from '../generated/product';
+
+test('a manager sees the drafts', async ({ page }) => {
+  const app = await loginAs(page, PRODUCT, 'manager');
+  await app.open('task-list');
+  await app.expectState('loaded');
+  await app.openItem({ where: { title: 'Write the report' } });
+  await app.expectScreen('task-card');
+  await app.expectStatus('draft');
+});
+```
+
+  `loginAs`, `open`, `openItem`, `action`, `fill`, `upload` (a file of `e2e/fixtures/`),
+  `submit`, `transit(id, payload?)`, `expectScreen`, `expectStatus`, `expectState`,
+  `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, `expectError`: the guide of
+  bazis-front lists what each one waits for.

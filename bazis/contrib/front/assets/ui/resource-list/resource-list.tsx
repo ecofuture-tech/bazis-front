@@ -14,7 +14,8 @@
 
 // A list of a resource over `useList`: the columns of the screen with the titles of the list
 // schema, search, filters, sort, pages and the actions the backend allows. Marked
-// `list:<entity>`, its rows `row:<id>`, its states `state:<state>`.
+// `list:<entity>`, its rows `row:<id>` with their cells `cell:<column>`, its states
+// `state:<state>`.
 
 import { useEffect, useState, type ReactNode } from 'react';
 
@@ -251,7 +252,7 @@ export function ResourceList({
                 }
               >
                 {columns.map((name) => (
-                  <TableCell key={name}>
+                  <TableCell key={name} data-bz={`cell:${name}`}>
                     {cells[name]?.(row) ?? <FieldValue field={fields.fields.get(name)} value={fieldValue(row, name)} />}
                   </TableCell>
                 ))}
