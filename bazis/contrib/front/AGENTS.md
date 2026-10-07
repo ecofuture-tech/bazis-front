@@ -333,7 +333,8 @@ scenarios:
   its route (an item is reached with `open_item` or the `then` of a form), a form with
   `fields` is filled only in them, `action_absent` names an action of the screen. A
   `submit` followed by an `expect` with `error` fails: its form stays open on its screen
-  (no `then`), and the next steps fix it and submit again. When the
+  (no `then`), and the next steps fix it and submit again. Only an `error` marks a failing
+  submit: `expect: {state: invalid}` after a submit still follows the `then`. When the
   product logs in (`packages` has `users`), the role of a scenario has a `test_user`, the
   user its end-to-end test logs in as (P025). `bazis_front e2e` turns each scenario into a
   Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
