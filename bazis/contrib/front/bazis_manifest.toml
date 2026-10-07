@@ -1,0 +1,18 @@
+# What the package is for and how to use it, for tools and AI agents (see AGENTS.md).
+# `import` paths and `check` ids are verified by tests/test_manifest.py.
+
+[package]
+name = "bazis-front"
+summary = "the frontend layer of a Bazis product (pre-release): the TypeScript protocol client, copied into a React + TypeScript + Vite frontend"
+solves = [
+    "a typed frontend of a Bazis backend whose contract is generated from its OpenAPI",
+    "the JSON:API protocol of Bazis in TypeScript: filters, errors, pagination, login, permission meta, transits",
+]
+requires = ["bazis"]
+pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
+
+[[pitfalls]]
+text = "the TypeScript types of the API are generated from the OpenAPI of the backend with openapi-typescript --default-non-nullable=false, never written by hand"
+
+[[pitfalls]]
+text = "the frontend is not a security boundary: permissions are checked by the backend, the frontend only reads the permission meta and the runtime schemas"
