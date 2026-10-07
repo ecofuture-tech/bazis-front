@@ -140,6 +140,7 @@ the form and the transits. The types are those of the fixture of the client (the
 sample) with the endpoints of bazis-statusy added (`test/fixtures/schema.d.ts`), aliased as
 `@/bazis/generated/schema` by `tsconfig.json`. `test/fixtures/sample.json` has runtime
 schemas, retrieves with `state_actions` and a 422 of `tasks.task` of the sample of this
-repository, as the backend returns them (normalized; `tests/test_react_fixture.py` of the
+repository, as the backend returns them (reduced to what the hooks read and normalized
+across the versions of Python and Pydantic; `tests/test_react_fixture.py` of the
 repository checks it against the sample and writes it again with
 `BAZIS_FRONT_WRITE_FIXTURES=1`); `test/types.typecheck.ts` has the type tests.

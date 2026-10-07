@@ -157,9 +157,11 @@ npm test
   of the client (`test/support.tsx`) and assert the requests, the exact query keys, the
   invalidations, the documents of the form and the transits; `test/types.typecheck.ts` has
   the type tests. `test/fixtures/sample.json` holds responses of the sample of this
-  repository (runtime schemas, retrieves with `state_actions`, a 422), normalized (ids,
-  dates, process-dependent names): `tests/test_react_fixture.py` captures them through the
-  API and fails when they differ. After a change of the core or of bazis-statusy, write the
+  repository (runtime schemas, retrieves with `state_actions`, a 422) reduced to what the
+  hooks read and normalized so that they do not depend on the versions of Python and
+  Pydantic (the keywords of the schemas the hooks read, the titles of fields only, the
+  definitions renamed, fixed ids, dates and error messages):
+  `tests/test_react_fixture.py` captures them through the API and fails when they differ. After a change of the core or of bazis-statusy, write the
   fixture again with `BAZIS_FRONT_WRITE_FIXTURES=1 python -m pytest ../tests/test_react_fixture.py`
   (from `sample/`, as the other tests) and run the tests of the hooks.
 - Every query key ends with the session of `BazisProvider`, against the requests still

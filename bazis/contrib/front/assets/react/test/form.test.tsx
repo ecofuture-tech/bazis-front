@@ -82,7 +82,7 @@ describe('useResourceForm without an id: a create', () => {
   it('gives the validation errors of a 422 by field and keeps the changes', async () => {
     const backend = new Backend()
       .on('GET', `${PARENT}schema_create/`, parentSchema('create'))
-      // the errors of a create of the sample without a title
+      // the errors of a create of the sample without a title (their messages replaced)
       .on('POST', PARENT, sample.create_422, 422);
     const { result } = render(() => useResourceForm(PARENT), backend);
     await ready(result);
@@ -96,9 +96,9 @@ describe('useResourceForm without an id: a create', () => {
     });
     expect(saved).toBeNull();
     await waitFor(() => {
-      expect(result.current.errors).toEqual({ title: ['Field required'] });
+      expect(result.current.errors).toEqual({ title: ['<detail>'] });
     });
-    expect(result.current.submitError?.message).toBe('Field required');
+    expect(result.current.submitError?.message).toBe('<detail>');
     expect(result.current.values.price).toBe(5);
     expect(result.current.dirty).toEqual(['price']);
   });
