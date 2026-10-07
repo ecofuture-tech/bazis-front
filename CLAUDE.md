@@ -47,14 +47,32 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
 - Bazis imports every subpackage of `bazis.contrib` while it configures the settings: the
   `__init__.py` of a subpackage must not import models, the database or `bazis.core`
   modules that do.
-- `checks.py`: `front.W001` (stale contract), `front.I001` (not checked: the database is
-  not migrated); the command fails with `front.E002` in that case.
+- `checks.py`: `front.W001` (stale contract or generated files of the frontend, the
+  comparison of `contract --check`: `export.stale`), `front.I001` (not checked: the database
+  is not migrated); the command fails with `front.E002` in that case.
+
+### The frontend of a product
+
+- `vendor/registry.py` reads `assets/registry.json`, the only list of the files that an
+  asset copies (`vendored`: stamped, kept pristine in `.bazis/base/`, hashed in the lock;
+  `template`: copied once, only its version in the lock). Add a file of an asset to the
+  registry; `tests/test_assets.py` checks that the registry lists every file of the
+  template and every `src/*.ts` of the client.
+- `vendor/copy.py` creates the frontend (`bazis_front init`) in a temporary directory next
+  to it and renames it; `vendor/lock.py` is `frontend/bazis-front.lock.json` (format
+  `lock: 1`).
+- `contract/typescript.py` renders `contract.ts` from contract.json; `contract/generated.py`
+  writes it, runs openapi-typescript for `schema.d.ts` (`npx --no-install` in the
+  frontend), updates the lock and finds the stale generated files for `--check` and
+  `front.W001` without Node. `typescript.SECTION_TYPES` has the TypeScript type of the
+  section of every capability: a new capability adds its type there. The tests replace `subprocess.run` and `shutil.which`; the real Node run is the
+  `frontend` job of CI.
 
 ## TypeScript assets
 
 The Node tooling is dev-only: it checks the assets in this repository and is never shipped.
-The root `package.json` (private) has a workspace for every asset. Node 22 and npm 10 (no
-pnpm or yarn); from the repository root:
+The root `package.json` (private) has a workspace for every asset that is checked in place
+(the client). Node 22 and npm 10 (no pnpm or yarn); from the repository root:
 
 ```bash
 npm ci
@@ -63,11 +81,13 @@ npm run typecheck
 npm test
 ```
 
-- `package.json`, `tsconfig.json`, `test/` and `scripts/` of an asset exist only for these
+- `package.json`, `tsconfig.json`, `test/` and `scripts/` of the client exist only for these
   checks: `pyproject.toml` excludes them from the wheel (they stay in the sdist), and
-  `scripts/check_wheel.py` (run in CI) checks that the wheel has the sources and none of
-  them. A new asset adds its own entries to `[tool.setuptools.exclude-package-data]`.
-  setuptools reuses a stale `build/` directory: delete it before building the wheel locally.
+  `scripts/check_wheel.py` (run in CI) checks the wheel against `assets/registry.json`: it
+  has every file of the registry and, of the assets, nothing else than the registry and
+  the READMEs. A new asset adds its own entries to `[tool.setuptools.exclude-package-data]`.
+  setuptools reuses a stale `build/` directory: delete it before building the wheel locally;
+  it packages the files tracked by Git (`git add` a new file first).
 - `node_modules/` and `dist/` are ignored by Git and excluded from package discovery in
   `pyproject.toml`, so they never reach the wheel. Check the wheel after changing the
   layout: `python -m build` and list its files.
@@ -86,8 +106,22 @@ npm test
 - Every protocol rule is taken from the code of the core and of the packages, not from
   JSON:API in general; `assets/client/README.md` documents the rules the client follows.
 
-CI (`.github/workflows/tests.yml`) runs ruff, pytest and the Node checks on every push to
-`main` and on every pull request; all of them must pass before a merge.
+### The template (`assets/template`)
+
+- The frontend of a product, copied once by `init`: `package.json` with pinned versions,
+  `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`), `tsconfig.json`,
+  `eslint.config.js`, shadcn/ui setup (`components.json`, `src/index.css`,
+  `src/lib/utils.ts`), `src/app/` (providers, session, router, errors), `src/screens/`
+  (login, home) and `AGENTS.md`, the guide of the frontend.
+- Its package.json is the product's, every file of it is copied: it is not a workspace and
+  the root eslint ignores it, because it compiles only with the generated files of a
+  product. The `frontend` job of CI checks it: on the sample (with `BS_BASE_DIR` outside the
+  checkout) `init`, `contract`, `contract --check`, then `tsc --noEmit`, lint, tests and
+  build of the generated frontend. Run the same locally after a change of the template.
+
+CI (`.github/workflows/tests.yml`) runs ruff, pytest, the wheel check, the Node checks and
+the frontend job on every push to `main` and on every pull request; all of them must pass
+before a merge.
 
 ## Conventions
 

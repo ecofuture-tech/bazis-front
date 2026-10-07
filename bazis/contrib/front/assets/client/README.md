@@ -15,16 +15,17 @@ that new versions replace it without conflicts.
 
 ## Generate the types of a project
 
-The types are generated from the OpenAPI of the backend, never written by hand. A Bazis
-backend serves it at `/api/openapi.json` with `BS_DEBUG=true`:
+The types are generated from the OpenAPI of the backend, never written by hand:
+`manage.py bazis_front contract` writes `frontend/src/bazis/generated/schema.d.ts` with
+openapi-typescript, which it runs as
 
 ```bash
-npx openapi-typescript openapi.json -o src/bazis/generated/schema.d.ts --default-non-nullable=false
+npx --no-install openapi-typescript ../contract/openapi.json -o src/bazis/generated/schema.d.ts --default-non-nullable=false
 ```
 
 `--default-non-nullable=false` is required: without it the fields with a server default
-become required in the bodies of create. Regenerate the file after every change of the
-backend.
+become required in the bodies of create. Generate the file again after every change of
+the backend.
 
 ## Usage
 
