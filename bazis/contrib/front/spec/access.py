@@ -46,6 +46,10 @@ TRANSIT = 'transit'
 ALL = 'all'
 #: not granted
 NONE = 'none'
+#: the object is the selector source itself (`PERM_SELF` of bazis-permit), such as the user
+SELF = 'self'
+#: the separator of the relationships of a multi-level selector (`parent__author`)
+LOOKUP_SEP = '__'
 
 
 @dataclass(frozen=True)
@@ -138,13 +142,34 @@ def selectors(role_access: dict) -> list[tuple[tuple, str]]:
     return [(path, it) for path, it in result if it not in (ALL, NONE)]
 
 
+def selector_problem(selector: str, resource: str, contract: dict) -> str | None:
+    """
+    Why a selector is not one of the resource in the contract, or None. A selector is
+    `self`, or a relationship of the resource that links the object to the user, or a path
+    of relationships to it (`parent__author`, as bazis-permit `parse_selector` follows it):
+    each hop is checked while the contract has the related resource.
+    """
+    if selector == SELF:
+        return None
+    resources = contract['project']['resources']
+    current = resource
+    for part in selector.split(LOOKUP_SEP):
+        if current not in resources:
+            return None
+        field = resources[current]['fields'].get(part)
+        if field is None or 'relation' not in field:
+            return f'`{part}` is not a relationship of `{current}` in the contract'
+        current = field['relation'] if isinstance(field['relation'], str) else None
+    return None
+
+
 def check(
-    doc: Document, entity, resource: dict, statusy: dict | None, product, contract: dict, issues: Issues
+    doc: Document, entity, statusy: dict | None, product, contract: dict, issues: Issues
 ) -> None:
     """
     Checks that the permit role of every role of the access of an entity (`refs.Entity`) to
-    its resource has the permissions that it grants (P019); a selector that is not a
-    relationship of the resource is a warning (P020). `statusy` is the model of the resource
+    its resource has the permissions that it grants (P019); a selector that is not one of
+    the resource is a warning (P020). `statusy` is the model of the resource
     in the statusy section of the contract.
     """
     data = entity.data
@@ -160,13 +185,13 @@ def check(
     for role_id, role_access in data['access'].items():
         path = (*entity.path, 'access', role_id)
         for selector_path, selector in selectors(role_access):
-            if 'relation' not in resource['fields'].get(selector, {}):
+            if problem := selector_problem(selector, data['resource'], contract):
                 issues.add(
                     doc, (*path, *selector_path), 'P020',
-                    f'The selector `{selector}` is not a relationship of `{data["resource"]}` in '
-                    'the contract.',
-                    'A selector of bazis-permit is `all` or a field that links the object to the '
-                    'user (`author`); check the name.',
+                    f'The selector `{selector}` is not a selector of `{data["resource"]}`: {problem}.',
+                    'A selector of bazis-permit is `all`, `self`, a relationship that links the '
+                    'object to the user (`author`) or a path of relationships to it '
+                    '(`parent__author`); check the names.',
                 )
         role = product.roles.get(role_id)
         permit_role = roles.get(role['permit']) if role else None

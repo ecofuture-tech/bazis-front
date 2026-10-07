@@ -61,11 +61,13 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
   and `tokens` (a subset of DTCG). They are package data, copied to `spec/schema/` of a
   product by `init` (`spec/create.py`, with the starters of `spec/starters/`). The
   `packages` enum of the product schema is `capabilities.CAPABILITIES` (tested).
-- `spec/validate.py` loads the files (YAML without implicit timestamps, JSON), checks their
+- `spec/validate.py` loads the files (YAML with the implicit types of YAML 1.2: no
+  timestamps, only true/false booleans; JSON), checks their
   shape, then calls `refs.py` (the references, the comparison with contract.json),
   `scenarios.py` (the scenarios followed screen by screen), `access.py` (`access` compiled to the permissions
   of bazis-permit; the grammar is in its docstring, from bazis-permit and bazis-statusy)
-  and `design.py` (the tokens of the presets). Only the documents valid against their
+  and `design.py` (the tokens of the presets, each a CSS variable of `:root` in the
+  template's `src/index.css`: `tests/test_spec.py` checks the starter against it). Only the documents valid against their
   schema are checked further, so that one broken file does not cascade.
 - `spec/issues.py` has the codes (`CODES`, with their severity); a code never changes its
   meaning. A new code gets a case in `tests/test_spec.py` (`CASES` must cover every code)

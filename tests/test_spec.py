@@ -333,10 +333,22 @@ CASES = [
         [('D004', f'{TOKENS}#/color/sidebar-foreground/$value')],
     ),
     (
+        'D004',
+        # a cycle: color.sidebar-foreground references color.foreground
+        {TOKENS: lambda d: d['color']['foreground'].update({'$value': '{color.sidebar-foreground}'})},
+        [('D004', f'{TOKENS}#/color/foreground/$value'),
+         ('D004', f'{TOKENS}#/color/sidebar-foreground/$value')],
+    ),
+    (
         'D005',
         {TOKENS: lambda d: [d['color'].pop('sidebar'),
-                            d['radius']['md'].update({'$type': 'number', '$value': 10})]},
-        [('D005', f'{TOKENS}#/radius/md/$type'), ('D005', f'{THEME}#/preset')],
+                            d['radius'].update({'$type': 'number', '$value': 10})]},
+        [('D005', f'{TOKENS}#/radius/$type'), ('D005', f'{THEME}#/preset')],
+    ),
+    (
+        'D006',
+        {TOKENS: lambda d: d['font']['heading'].update({'$value': '{color.primary}'})},
+        [('D006', f'{TOKENS}#/font/heading/$value')],
     ),
 ]
 
@@ -486,6 +498,64 @@ def test_the_system_check(root, tmp_path):
         assert check_spec(None) == []
 
 
+@pytest.mark.django_db
+def test_the_selectors_of_bazis_permit(contract):
+    root = contract.parent.parent
+    selectors = {
+        'self': None,
+        'assignee': None,
+        # a path of relationships: tasks.task -> users.user -> permit.role
+        'assignee__roles': None,
+        'assignee__username': '`username` is not a relationship of `users.user`',
+        'owner__author': '`owner` is not a relationship of `tasks.task`',
+        # statusy.status is not a resource of the contract: not checked further
+        'status__author': None,
+    }
+    for selector, problem in selectors.items():
+        edit(root, PRODUCT, lambda d, it=selector: task(d)['access']['manager'].update(view=it))
+        found = [it for it in validate(root).issues]
+        if problem is None:
+            assert found == [], selector
+        else:
+            assert [(it.code, it.path) for it in found] == [('P020', '/entities/0/access/manager/view')]
+            assert problem in found[0].message
+
+
+@pytest.mark.django_db
+def test_a_transit_id_generated_by_statusy(contract, sample_app):
+    from django.apps import apps
+
+    from bazis.contrib.statusy.models import Status, StatusyContentType, Transit
+
+    transit = Transit.objects.create(
+        model=StatusyContentType.objects.get_for_model(apps.get_model('tasks.Task')),
+        status_src=Status.objects.get(pk='draft'), status_dst=Status.objects.get(pk='done'),
+    )
+    assert transit.id == 'task#draft_to_done'
+    contract.write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: [
+        task(d)['workflow']['transitions'].append({'id': transit.id, 'from': 'draft', 'to': 'done'}),
+        task(d)['access']['manager']['transit'].append(transit.id),
+    ])
+    found = validate(root).issues
+    assert [(it.code, it.path) for it in found] == [('P019', '/entities/0/access/manager/transit/2')]
+    assert '`tasks.task.item.transit.all.draft.task#draft_to_done`' in found[0].message
+
+    group = apps.get_model('permit.GroupPermission').objects.get(slug='tasks_transit')
+    group.permissions.create(slug='tasks.task.item.transit.all.draft.task#draft_to_done')
+    contract.write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    assert issues(root) == []
+
+
+def test_only_true_and_false_are_booleans(root):
+    # `No` is the name of the product, not false; `yes` is not the boolean of `search`
+    for name, old, new in ((PRODUCT, 'name: Tasks', 'name: No'), (LIST, 'search: true', 'search: yes')):
+        text = (root / name).read_text(encoding='utf-8')
+        (root / name).write_text(text.replace(old, new), encoding='utf-8')
+    assert issues(root) == [('S002', f'{LIST}#/list/search')]
+
+
 # the slug grammar of bazis-permit
 
 
@@ -534,13 +604,40 @@ def test_the_packages_are_the_capabilities():
     assert schema['properties']['packages']['items']['enum'] == sorted(capabilities.CAPABILITIES)
 
 
+PACKAGE = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front'
+
+
 def test_the_starter_tokens_define_every_preset():
     tokens = design.tokens_of(json.loads(
-        (Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front' / 'spec'
-         / 'starters' / 'design' / 'tokens.json').read_text(encoding='utf-8')
+        (PACKAGE / 'spec' / 'starters' / 'design' / 'tokens.json').read_text(encoding='utf-8')
     ))
     for preset, required in design.PRESET_TOKENS.items():
-        assert {name: tokens[name][1]['$type'] for name in required} == required, preset
+        assert {name: tokens[name][1]['$type'] for name in required} == {
+            name: kind for name, (kind, _) in required.items()
+        }, preset
+
+
+def test_the_tokens_are_the_css_variables_of_the_template():
+    css = (PACKAGE / 'assets' / 'template' / 'src' / 'index.css').read_text(encoding='utf-8')
+    root = dict(re.findall(r'^  (--[\w-]+): (.+);$', css.split(':root {', 1)[1].split('}', 1)[0], re.M))
+    tokens = design.tokens_of(json.loads(
+        (PACKAGE / 'spec' / 'starters' / 'design' / 'tokens.json').read_text(encoding='utf-8')
+    ))
+
+    def css(variable):
+        text = root[variable]
+        return css(text[4:-1]) if text.startswith('var(') else text
+
+    def token(name):
+        data = tokens[name][1]
+        if (target := design.alias(data)) is not None:
+            return token(target)
+        return ', '.join(data['$value']) if isinstance(data['$value'], list) else data['$value']
+
+    for required in design.PRESET_TOKENS.values():
+        for name, (_, variable) in required.items():
+            # the starter has the values of the template
+            assert css(variable) == token(name), name
 
 
 def test_every_code_is_documented():

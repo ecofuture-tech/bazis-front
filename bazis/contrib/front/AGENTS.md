@@ -160,7 +160,9 @@ python manage.py bazis_front check --layer screens  # the issues of one layer (a
 `check` validates each file against its JSON Schema (Draft 2020-12, shipped in the
 package; `init` copies them to `spec/schema/`, and every starter references its schema for
 the editors), then the references between the files and, when the product has
-`contract/contract.json`, against the contract. Without the contract only the shape and
+`contract/contract.json`, against the contract. The YAML files are read with the types of
+YAML 1.2: only `true` and `false` are booleans (`yes`, `No`, `on` are strings) and dates
+stay strings. Without the contract only the shape and
 the references between the specs are checked, and the output says so (`"contract": false`
 in JSON). Export the contract first (`bazis_front contract`); `check` reads it, it does not
 compare it with the backend (that is `contract --check` and `front.W001`).
@@ -224,12 +226,15 @@ scenarios:
   decide it.
 - **Workflow**: the statuses and the transits of bazis-statusy; a transit has one `from`
   (a Transit row has one source status), and `payload` when an action of the transit takes
-  a typed payload. The ids are those of the Status and Transit rows.
+  a typed payload. The ids are those of the Status and Transit rows, including those that
+  bazis-statusy generates for a Transit created without one (`task#draft_to_done`,
+  `task#draft_to_done#1`); any characters but `.` and white space.
 - **Access** says what a role may do; it is compiled to permissions of bazis-permit that
   the permit role of the role must have (through its permission groups). An operation
   (`view`, `add`, `change`, `delete`) takes a selector: `all`, `none` (not granted, as an
-  absent operation), or a field that links the object to the user (`author`, `org_owner`);
-  on a statusy model also `{selector, statuses}` to grant it only in these statuses.
+  absent operation), `self` (the object is the selector source itself, such as the user),
+  a relationship that links the object to the user (`author`, `org_owner`) or a path of
+  relationships to it (`parent__author`); on a statusy model also `{selector, statuses}` to grant it only in these statuses.
   `transit` is a list of transits (selector `all`) or `{transit: selector}`. The
   permissions, as bazis-permit and bazis-statusy name them:
 
@@ -243,8 +248,9 @@ scenarios:
   A permission of the role with the selector `all` covers any selector, and the status
   `all` any status. Missing permissions are errors (P019); permissions the role has beyond
   the access are not reported (the absence of an operation is what the scenarios check,
-  with `expect: {action_absent: ...}`). A selector that is not a relationship of the
-  resource in the contract is a warning (P020).
+  with `expect: {action_absent: ...}`). A selector whose relationships are not in the
+  contract is a warning (P020; each hop is checked while the contract has the related
+  resource).
 - **Scenarios** are the end-to-end tests of the product: steps over the screens, each one
   key: `open: <screen>`, `open_item: {where: {field: value}}` (a row of the current list,
   which opens the screen of its `list.open`), `action: <action of the screen>`,
@@ -319,15 +325,22 @@ composition:
 ```
 
 `spec/design/` is optional; when `theme.yaml` exists, `tokens.json` must define the tokens
-of its preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$value` and `$type`
-(`color`, `dimension` in `px`/`rem`, `fontFamily`, `fontWeight`, `number`, `duration` in
-`ms`) on every token, and references `{group.token}`. The names follow the CSS variables
-of shadcn/ui in the template. Every preset requires `color.background`,
-`color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`,
-`color.muted-foreground`, `color.border`, `color.destructive` (color), `radius.md`
-(dimension) and `font.body` (fontFamily); `workspace` also `color.sidebar` and
-`color.sidebar-foreground`, `portal` also `color.accent` and `font.heading`
-(fontFamily). The starter of `init` defines them all.
+of its preset. `tokens.json` is a subset of the DTCG format: groups of tokens with
+`$value` and `$type` (`color`, `dimension` in `px`/`rem`, `fontFamily`, `fontWeight`,
+`number`, `duration` in `ms`) on every token, and references `{group.token}` to a token of
+the same type (D006), never coming back to the token they start from (D004). Each token
+that a preset requires is a CSS variable of `:root` in `src/index.css` of the frontend:
+
+| Token | Type | CSS variable | Presets |
+|---|---|---|---|
+| `color.background`, `color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`, `color.muted-foreground`, `color.border`, `color.destructive` | color | `--background`, `--foreground`, `--primary`, … (the name in the group) | both |
+| `radius` | dimension | `--radius` (Tailwind derives `--radius-sm` … `--radius-xl` from it) | both |
+| `font.body` | fontFamily | `--font-body` (the Tailwind `font-sans`) | both |
+| `color.sidebar`, `color.sidebar-foreground` | color | `--sidebar`, `--sidebar-foreground` | workspace |
+| `color.accent` | color | `--accent` | portal |
+| `font.heading` | fontFamily | `--font-heading` (`h1`–`h3`) | portal |
+
+The starter of `init` defines them all, with the values of the template.
 
 ### The issues
 
@@ -358,7 +371,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P017` | error | the payload of a transition differs from the contract |
 | `P018` | error | the permit role of a role is not in the contract |
 | `P019` | error | the permit role lacks a permission that `access` grants |
-| `P020` | warning | a selector of `access` is not a relationship of the resource in the contract |
+| `P020` | warning | a selector of `access` is not a relationship (or a path of relationships) of the resource in the contract |
 | `P021` | error | a scenario step references an unknown screen |
 | `P022` | error | a scenario step is not possible on the current screen |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
@@ -377,8 +390,9 @@ warning there, never blocking `migrate` or `contract`.
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
-| `D004` | error | a token references an undefined token |
+| `D004` | error | a token references an undefined token, or references itself through other tokens |
 | `D005` | error | a token required by the preset is undefined or of another type |
+| `D006` | error | a token references a token of another type |
 
 ## Layers
 

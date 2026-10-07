@@ -20,6 +20,7 @@ checks run `validate`; the result is a list of issues with stable codes (`issues
 """
 
 import json
+import re
 from dataclasses import dataclass
 from functools import cache
 from importlib.resources import files
@@ -92,14 +93,22 @@ def validator(name: str) -> Draft202012Validator:
 
 class _Loader(yaml.SafeLoader):
     """
-    YAML without implicit timestamps: `2026-10-07` stays the string the specs mean.
+    YAML whose implicit types are those of YAML 1.2: `2026-10-07` stays a string (no
+    timestamps), and only true and false are booleans (`yes`, `No`, `on`, `Off` are
+    strings, as the specs mean them).
     """
 
 
 _Loader.yaml_implicit_resolvers = {
-    key: [it for it in resolvers if it[0] != 'tag:yaml.org,2002:timestamp']
+    key: [
+        it for it in resolvers
+        if it[0] not in ('tag:yaml.org,2002:timestamp', 'tag:yaml.org,2002:bool')
+    ]
     for key, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
 }
+_Loader.add_implicit_resolver(
+    'tag:yaml.org,2002:bool', re.compile(r'^(?:true|True|TRUE|false|False|FALSE)$'), list('tTfF')
+)
 
 
 def load(

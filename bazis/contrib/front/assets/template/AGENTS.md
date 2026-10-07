@@ -64,7 +64,8 @@ written.
   in the contract. It does not decide what the frontend shows: that is the permission
   meta and the runtime schemas (see below).
 - Colors, radii and fonts are the CSS variables of `src/index.css`, with the values of
-  `spec/design/tokens.json` (`color.primary` is `--primary`, `radius.md` is `--radius`);
+  `spec/design/tokens.json` (`color.primary` is `--primary`, `radius` is `--radius`,
+  `font.body` is `--font-body`; the table is in the guide of bazis-front);
   the components use the variables, never literal colors.
 
 ## Rules

@@ -273,7 +273,7 @@ def _check_entity_contract(
         _check_workflow(doc, entity, contract, issues)
     if data.get('access'):
         statusy = statusy_model(contract, data['resource'])
-        access.check(doc, entity, resource, statusy, product, contract, issues)
+        access.check(doc, entity, statusy, product, contract, issues)
 
 
 def _check_field(

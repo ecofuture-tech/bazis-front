@@ -51,7 +51,7 @@ CODES: dict[str, tuple[str, str]] = {
     'P017': (ERROR, 'the payload of a transition differs from the contract'),
     'P018': (ERROR, 'the permit role of a role is not in the contract'),
     'P019': (ERROR, 'the permit role lacks a permission that `access` grants'),
-    'P020': (WARNING, 'a selector of `access` is not a relationship of the resource in the contract'),
+    'P020': (WARNING, 'a selector of `access` is not a relationship (or a path of relationships) of the resource in the contract'),
     'P021': (ERROR, 'a scenario step references an unknown screen'),
     'P022': (ERROR, 'a scenario step is not possible on the current screen'),
     'P023': (ERROR, 'a scenario step references a field that the entity of the screen does not declare'),
@@ -70,8 +70,9 @@ CODES: dict[str, tuple[str, str]] = {
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),
-    'D004': (ERROR, 'a token references an undefined token'),
+    'D004': (ERROR, 'a token references an undefined token, or references itself through other tokens'),
     'D005': (ERROR, 'a token required by the preset is undefined or of another type'),
+    'D006': (ERROR, 'a token references a token of another type'),
 }
 
 
