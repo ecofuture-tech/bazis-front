@@ -3,8 +3,8 @@
 The frontend of this product: React 19, TypeScript (strict), Vite 7, React Router 7,
 TanStack Query 5, Tailwind 4 with shadcn/ui. It was created by
 `manage.py bazis_front init` of bazis-front: its contract with the backend is generated
-from the backend, its protocol client is copied from bazis-front. The backend and its
-contract are one directory up (`manage.py`, `contract/`).
+from the backend, its protocol client is copied from bazis-front. The backend, its contract
+and the specs of the product are one directory up (`manage.py`, `contract/`, `spec/`).
 
 ## Layers
 
@@ -15,6 +15,7 @@ contract are one directory up (`manage.py`, `contract/`).
 | `src/app/` | providers (client, query cache), session, router, errors | the product |
 | `src/screens/<screen>/` | the screens | the product |
 | `src/components/ui/`, `src/lib/` | shadcn/ui components (`npx shadcn add <name>`) | the product |
+| `../spec/` | the specs: `product.yaml` (roles, entities, access, scenarios), `screens/<id>.yaml`, `design/` | the product; checked by `manage.py bazis_front check` |
 | `bazis-front.lock.json`, `.bazis/base/` | the versions and hashes of the contract, of the generated files and of the copied assets; the pristine copies of the assets | bazis-front; commit them |
 
 ## Commands
@@ -25,6 +26,7 @@ transits of the backend (with a migrated database):
 ```bash
 python manage.py bazis_front contract          # contract/, src/bazis/generated/, the lock
 python manage.py bazis_front contract --check  # write nothing; exit 1 if anything is stale (CI)
+python manage.py bazis_front check             # the specs against the contract; exit 1 on errors
 ```
 
 From `frontend/`:
@@ -40,6 +42,31 @@ npm run build
 
 `schema.d.ts` is generated with the `openapi-typescript` of this `package.json`: run
 `npm install` before `bazis_front contract`.
+
+## Specs
+
+`spec/` describes what this frontend must do; the format, the access grammar and the codes
+of the issues are in the guide of bazis-front (`bazis/contrib/front/AGENTS.md` of the
+installed package, `manage.py bazis_front check --help`). The JSON Schemas are in
+`spec/schema/`: an editor with the YAML language server checks the files as they are
+written.
+
+- Work top down: `spec/product.yaml` (roles, entities with their fields, workflow and
+  access, scenarios), then a file `spec/screens/<id>.yaml` per screen, then the design.
+  The backend follows the product spec; export the contract and run
+  `bazis_front check` until it reports no errors.
+- A screen is one primitive (`list`, `card` or `form`) over an entity; implement it in
+  `src/screens/<id>/` with the route of its spec, and render every state that it lists.
+- Mark the elements with `data-bz` (`screen:<id>`, `state:<state>`, `list:<entity>`,
+  `row:<id>`, `field:<field>`, `error:<field>`, `action:<id>`, `transit:<id>`,
+  `status:<id>`, `nav:<screen>`): the scenarios of the product spec act through them.
+- `access` is what the backend must grant, checked against the permissions of the roles
+  in the contract. It does not decide what the frontend shows: that is the permission
+  meta and the runtime schemas (see below).
+- Colors, radii and fonts are the CSS variables of `src/index.css`, with the values of
+  `spec/design/tokens.json` (`color.primary` is `--primary`, `radius` is `--radius`,
+  `font.body` is `--font-body`; the table is in the guide of bazis-front);
+  the components use the variables, never literal colors.
 
 ## Rules
 

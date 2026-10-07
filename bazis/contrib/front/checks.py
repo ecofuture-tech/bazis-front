@@ -56,3 +56,28 @@ def check_contract(app_configs, **kwargs):
     if problems := contract.stale(directory, rendered, frontend, lock):
         return [Warning(' '.join(problems), hint=hint, id='front.W001')]
     return []
+
+
+@register()
+def check_spec(app_configs, **kwargs):
+    """
+    The specs of the product (`spec/`, when it exists) are those that `bazis_front check`
+    accepts: one `front.W002` for each of its issues, with its code and its severity.
+    Errors of the specs are warnings here: the system checks run before every management
+    command, and an error would block `migrate` or `bazis_front contract`, which the
+    fixes of the specs may need; `bazis_front check` fails on them. Runs without the
+    database.
+    """
+    from .spec import create, validate
+
+    spec = create.spec_dir()
+    if not spec.is_dir():
+        return []
+    return [
+        Warning(
+            f'{issue.code} ({issue.severity}) {issue.location}: {issue.message}',
+            hint=issue.hint,
+            id='front.W002',
+        )
+        for issue in validate.validate(spec.parent).issues
+    ]

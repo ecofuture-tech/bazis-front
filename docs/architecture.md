@@ -34,7 +34,7 @@ assets, for lint, type checks and tests in CI.
 | 1. Protocol | the client (`assets/client`) | `frontend/src/bazis/client/` | copied, not edited; `bazis_front update` |
 | 2. Hooks | React hooks over the client (`assets/react`) | `frontend/src/bazis/react/` | copied, not edited; `bazis_front update` |
 | 3. Components | primitives on shadcn/ui (`assets/ui`) | `frontend/src/bazis/ui/` | copied by `add`, owned and edited by the product |
-| 4. Specs | `spec/product.yaml`, `spec/screens/*.yaml`, `spec/design/` | the product root | written by the agent, validated against the layers below |
+| 4. Specs | `spec/product.yaml`, `spec/screens/*.yaml`, `spec/design/` | the product root | written by the agent, validated against the layers below by `bazis_front check` |
 
 ### 0. Contract
 
@@ -94,12 +94,38 @@ uploadable, ws, async). Components are primitives on shadcn/ui (`app-shell`,
 what they require; each ships a contract test that checks its `data-bz` test ids and
 states, so that it keeps working after the product edits it.
 
-### 4. Specs (planned)
+### 4. Specs
 
-The product is described in layers: the product spec (roles, entities, access, scenarios),
-the screens and the design tokens. The validator (Python, JSON Schema plus cross-checks
-against `contract.json`) reports stable error codes; scenarios are turned into Playwright
-tests that drive the screens through `data-bz`.
+The product is described in `spec/` of the product root, in layers that reference each
+other by id (a screen the entities and roles, a scenario the screens and transitions; the
+contract knows nothing of them): the product spec (`product.yaml`: roles with their permit
+roles, entities with their resource, fields, workflow and access, and scenarios), the
+screens (`screens/<id>.yaml`: one primitive, `list`, `card` or `form`, over an entity,
+its actions and the states it must render) and the design (`design/theme.yaml`: a preset
+and its options; `design/tokens.json`: DTCG tokens). The formats are versioned
+(`spec: bazis-product/1`, `bazis-screen/1`, `bazis-design/1`) and described by JSON
+Schemas (Draft 2020-12) in `bazis/contrib/front/spec/schemas/`, which `init` copies to
+`spec/schema/` for the editors along with starters of the product and the design.
+
+`bazis_front check` (`spec/validate.py`) checks each file against its schema, then the
+references between the files (`spec/refs.py`: entities, roles, fields, screens, actions,
+transitions; `spec/scenarios.py` follows a scenario from screen to screen) and, when the
+product has `contract/contract.json`, against the contract: the resources and their
+fields, the statuses and transits of statusy, the permit roles, and `access` compiled to
+the permissions of bazis-permit (`spec/access.py`) that the role must have. The design is
+checked against the tokens its preset requires (`spec/design.py`). An issue is
+`{layer, file, path, code, severity, message, hint}` with a stable code (`C0xx` contract,
+`P0xx` product, `S0xx` screens, `D0xx` design; `spec/issues.py`); errors fail the command.
+The same validation is the system check `front.W002` when `spec/` exists: a warning, so
+that a spec under construction never blocks `migrate` or `contract`. The format and the
+codes are documented in `bazis/contrib/front/AGENTS.md`.
+
+The specs are written by the agent; there is no generator of screens or of the
+permissions of the roles: the backend is built to satisfy the specs, and the validator
+shows what it lacks. Scenarios will be turned into Playwright tests that drive the screens
+through `data-bz` (`screen:<id>`, `state:<state>`, `field:<id>`, `action:<id>`,
+`transit:<id>`, …); the lock will then record the hashes of the specs from which they are
+generated.
 
 ## The frontend of a product
 
@@ -115,8 +141,8 @@ are listed in `assets/registry.json`, which the wheel is checked against.
 ## Updates of the copied code
 
 Every copied file carries the version of bazis-front in its header, and
-`frontend/bazis-front.lock.json` records the hashes of the contract, the specs and the
-copied assets. Pristine copies of the assets are kept in `frontend/.bazis/base/` and
+`frontend/bazis-front.lock.json` records the hashes of the contract, the generated files
+and the copied assets. Pristine copies of the assets are kept in `frontend/.bazis/base/` and
 committed, so that `bazis_front update` can merge a new version with the local edits
 (three-way merge, `merge3`). `bazis_doctor` reports copied assets older than the installed
 package, and security advisories of the asset registry as errors.
@@ -136,7 +162,7 @@ package, and security advisories of the asset registry as errors.
 ## Status
 
 Pre-release. Available: the client (`assets/client`), the contract export with the
-generated TypeScript (`bazis_front contract`, `front.W001`) and the frontend template with
-the copy of the client and the lock (`bazis_front init`). Next: the spec validator, the
-hooks, the first components, `add` and `update`, and the end-to-end pipeline against a
-sample backend.
+generated TypeScript (`bazis_front contract`, `front.W001`), the frontend template with
+the copy of the client and the lock (`bazis_front init`), and the specs with their
+validator (`bazis_front check`, `front.W002`). Next: the hooks, the first components,
+`add` and `update`, and the end-to-end pipeline against a sample backend.

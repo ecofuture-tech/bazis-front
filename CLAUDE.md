@@ -33,6 +33,8 @@ Lint: `ruff check bazis tests sample scripts`.
 The sample (`sample/`) installs bazis-users, bazis-permit and bazis-statusy (the `test`
 extra) with a project app `users` and a statusy model `tasks.Task`; the roles, statuses and
 transits of the tests are created by the fixture `workflow` (`tests/conftest.py`).
+`sample/spec/` is a complete valid spec of the sample: the permissions of the roles of
+`workflow` cover its `access`, and `tests/test_spec.py` checks it against the contract.
 
 ### The contract export
 
@@ -49,7 +51,33 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
   modules that do.
 - `checks.py`: `front.W001` (stale contract or generated files of the frontend, the
   comparison of `contract --check`: `export.stale`), `front.I001` (not checked: the database
-  is not migrated); the command fails with `front.E002` in that case.
+  is not migrated); the command fails with `front.E002` in that case. `front.W002`: an
+  issue of the specs (see below).
+
+### The specs
+
+- `spec/schemas/*.schema.json` (Draft 2020-12) are the formats: `product`
+  (`bazis-product/1`), `screen` (`bazis-screen/1`), `design` (`bazis-design/1`, theme.yaml)
+  and `tokens` (a subset of DTCG). They are package data, copied to `spec/schema/` of a
+  product by `init` (`spec/create.py`, with the starters of `spec/starters/`). The
+  `packages` enum of the product schema is `capabilities.CAPABILITIES` (tested).
+- `spec/validate.py` loads the files (YAML with the implicit types of YAML 1.2: no
+  timestamps, only true/false booleans; JSON), checks their
+  shape, then calls `refs.py` (the references, the comparison with contract.json),
+  `scenarios.py` (the scenarios followed screen by screen), `access.py` (`access` compiled to the permissions
+  of bazis-permit; the grammar is in its docstring, from bazis-permit and bazis-statusy)
+  and `design.py` (the tokens of the presets, each a CSS variable of `:root` in the
+  template's `src/index.css`: `tests/test_spec.py` checks the starter against it). Only the documents valid against their
+  schema are checked further, so that one broken file does not cascade.
+- `spec/issues.py` has the codes (`CODES`, with their severity); a code never changes its
+  meaning. A new code gets a case in `tests/test_spec.py` (`CASES` must cover every code)
+  and a row in the table of `bazis/contrib/front/AGENTS.md` (tested).
+- `bazis_front check` (`--json`, `--layer`) exits 1 on errors and skips the system checks
+  (they would repeat its issues). `checks.check_spec` reports every issue as the warning
+  `front.W002`: an error there would block every management command (`migrate`,
+  `contract`) through `SystemCheckError`.
+- The lock does not record the specs: the generator of the e2e tests will need their
+  hashes, nothing reads them before.
 
 ### The frontend of a product
 
@@ -116,8 +144,9 @@ npm test
 - Its package.json is the product's, every file of it is copied: it is not a workspace and
   the root eslint ignores it, because it compiles only with the generated files of a
   product. The `frontend` job of CI checks it: on the sample (with `BS_BASE_DIR` outside the
-  checkout) `init`, `contract`, `contract --check`, then `tsc --noEmit`, lint, tests and
-  build of the generated frontend. Run the same locally after a change of the template.
+  checkout) `init`, `contract`, `contract --check`, `check` (the starters of the specs
+  against the contract), then `tsc --noEmit`, lint, tests and build of the generated
+  frontend. Run the same locally after a change of the template.
 
 CI (`.github/workflows/tests.yml`) runs ruff, pytest, the wheel check, the Node checks and
 the frontend job on every push to `main` and on every pull request; all of them must pass

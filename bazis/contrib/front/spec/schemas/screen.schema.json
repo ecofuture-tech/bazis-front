@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bazis-front:spec:screen:1",
+  "title": "bazis-screen/1: spec/screens/<id>.yaml",
+  "description": "A screen of the frontend: one primitive (list, card or form) over an entity of spec/product.yaml, its actions and the states it renders. The screen marks its elements with `data-bz` attributes: screen:<id>, state:<loading|empty|loaded|error|forbidden|not_found|invalid>, list:<entity>, row:<id>, field:<field>, error:<field>, action:<id>, transit:<id>, status:<id>, nav:<screen>. The required states of a primitive: list loading, empty, error, forbidden; card loading, error, forbidden, not_found; form loading, error, forbidden, invalid.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec", "id", "route", "entity", "primitive", "states"],
+  "properties": {
+    "spec": {"const": "bazis-screen/1"},
+    "id": {"description": "The id of the screen, also the name of its file.", "$ref": "#/$defs/id"},
+    "title": {"type": "string"},
+    "route": {
+      "description": "The route of the screen in the frontend; `:id` is the id of the item.",
+      "type": "string",
+      "pattern": "^/[A-Za-z0-9_./:-]*$"
+    },
+    "entity": {"description": "The id of an entity of spec/product.yaml.", "$ref": "#/$defs/id"},
+    "roles": {
+      "description": "The roles that see the screen in the navigation and use it in the scenarios; the backend decides the access.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/id"}
+    },
+    "primitive": {"enum": ["list", "card", "form"]},
+    "list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns"],
+      "properties": {
+        "columns": {"$ref": "#/$defs/fields", "minItems": 1},
+        "filters": {"description": "Fields that the contract can filter by.", "$ref": "#/$defs/fields"},
+        "sort": {
+          "description": "The default order: fields that the contract can sort by, `-` for descending.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^-?[A-Za-z_][A-Za-z0-9_]*$"}
+        },
+        "search": {"description": "A full-text search field (`search`).", "type": "boolean"},
+        "open": {"description": "The card screen that a row opens.", "$ref": "#/$defs/id"}
+      }
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sections"],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "fields"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "title": {"type": "string"},
+              "fields": {"$ref": "#/$defs/fields", "minItems": 1}
+            }
+          }
+        },
+        "edit": {"description": "The item is edited on the card, by the update form of its runtime schema.", "type": "boolean"},
+        "transitions": {"description": "The transits of the item (its workflow).", "type": "boolean"},
+        "history": {"description": "The status history of the item (its workflow).", "type": "boolean"}
+      }
+    },
+    "form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"enum": ["create", "update"]},
+        "fields": {"description": "The fields of the form; all the writable fields of its runtime schema when omitted.", "$ref": "#/$defs/fields"},
+        "then": {"description": "The screen shown after a submit.", "$ref": "#/$defs/id"}
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/action"}
+    },
+    "states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["loading", "empty", "error", "forbidden", "not_found", "invalid"]}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"primitive": {"const": "list"}}},
+      "then": {"required": ["list"], "properties": {"card": false, "form": false}}
+    },
+    {
+      "if": {"properties": {"primitive": {"const": "card"}}},
+      "then": {"required": ["card"], "properties": {"list": false, "form": false}}
+    },
+    {
+      "if": {"properties": {"primitive": {"const": "form"}}},
+      "then": {"required": ["form"], "properties": {"list": false, "card": false}}
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+    "fields": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}
+    },
+    "action": {
+      "description": "`form`: a form of the entity (create on a list or a card, update on a card); `destroy`: the deletion of the item of a card.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "primitive"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "primitive": {"enum": ["form", "destroy"]},
+        "mode": {"enum": ["create", "update"]},
+        "fields": {"$ref": "#/$defs/fields"},
+        "then": {"description": "The screen shown after the action.", "$ref": "#/$defs/id"}
+      },
+      "if": {"properties": {"primitive": {"const": "form"}}},
+      "then": {"required": ["mode"]},
+      "else": {"properties": {"mode": false, "fields": false}}
+    }
+  }
+}

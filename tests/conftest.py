@@ -27,7 +27,8 @@ def workflow(db):
     """
     The data that the contract reads from the database: roles with their permission groups
     and permissions, and the statuses and transits of the tasks (created in an order other than the
-    sorted one).
+    sorted one). They are those of the specs of the sample (`sample/spec/`): the permissions
+    of the roles cover their `access`.
     """
     from django.apps import apps
 
@@ -40,18 +41,27 @@ def workflow(db):
         slug: permission_model.objects.create(slug=slug)
         for slug in (
             'tasks.task.item.view.all.all',
+            'tasks.task.item.add.all.all',
             'tasks.task.item.change.all.draft',
             'tasks.task.item.transit.all.draft.start',
-            'tasks.task.field.view.all.report.enable',
+            'tasks.task.item.transit.all.in_progress.finish',
+            # on a statusy model the status follows the selector also for the fields
+            'tasks.task.field.view.all.all.report.enable',
             # in no group: no role has it
             'tasks.task.item.delete.all.all',
         )
     }
     group_permissions = {
-        'tasks_view': ['tasks.task.item.view.all.all', 'tasks.task.field.view.all.report.enable'],
+        'tasks_view': ['tasks.task.item.view.all.all', 'tasks.task.field.view.all.all.report.enable'],
         # shares a permission with tasks_view: the role lists it once
-        'tasks_change': ['tasks.task.item.view.all.all', 'tasks.task.item.change.all.draft'],
-        'tasks_transit': ['tasks.task.item.transit.all.draft.start'],
+        'tasks_change': [
+            'tasks.task.item.view.all.all', 'tasks.task.item.add.all.all',
+            'tasks.task.item.change.all.draft',
+        ],
+        'tasks_transit': [
+            'tasks.task.item.transit.all.draft.start',
+            'tasks.task.item.transit.all.in_progress.finish',
+        ],
     }
     groups = {}
     for slug, slugs in group_permissions.items():

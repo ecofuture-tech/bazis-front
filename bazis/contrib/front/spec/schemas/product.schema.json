@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bazis-front:spec:product:1",
+  "title": "bazis-product/1: spec/product.yaml",
+  "description": "The product spec of a Bazis product: its roles, its entities (resources of the backend with their fields, workflow and access) and its scenarios. `bazis_front check` validates it against contract/contract.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec", "product"],
+  "properties": {
+    "spec": {"const": "bazis-product/1"},
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "summary": {"type": "string"}
+      }
+    },
+    "packages": {
+      "description": "The Bazis packages the backend installs; each must have its section in the capabilities of the contract.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["permit", "statusy", "users"]}
+    },
+    "roles": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/role"}
+    },
+    "entities": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/entity"}
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/scenario"}
+    }
+  },
+  "$defs": {
+    "id": {
+      "description": "The id of a role, entity, screen, action or scenario.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "field_id": {
+      "description": "The name of a field of the resource in the API.",
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "status_id": {
+      "description": "The id of a status or a transit of bazis-statusy (as stored: a transit created without an id gets one such as `task#draft_to_done` or `task#draft_to_done#1`). Any characters but `.`, which separates the segments of a permission, and white space.",
+      "type": "string",
+      "maxLength": 255,
+      "pattern": "^[^.\\s]+$"
+    },
+    "selector": {
+      "description": "Whose objects: `all`, `none` (not granted), `self` (the object is the selector source itself, such as the user), or a selector of bazis-permit: a relationship of the resource that links the object to the user (`author`, `org_owner`), or a path of relationships to it (`parent__author`). Letters and underscores only, as bazis-permit parses a selector.",
+      "type": "string",
+      "pattern": "^[A-Za-z_]+$"
+    },
+    "scalar": {"type": ["string", "number", "boolean", "null"]},
+    "type": {
+      "description": "The type of an attribute: string, text (a long string), integer, number, boolean, date, datetime, time, json (an object or an array), file.",
+      "enum": ["string", "text", "integer", "number", "boolean", "date", "datetime", "time", "json", "file"]
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "permit"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "permit": {
+          "description": "The slug of the permit role (`Role.slug` of bazis-permit).",
+          "type": "string",
+          "pattern": "^[-a-zA-Z0-9_]+$"
+        },
+        "title": {"type": "string"},
+        "test_user": {
+          "description": "The user the end-to-end tests log in as.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["username"],
+          "properties": {"username": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "field": {
+      "description": "An attribute (`type`) or a relationship (`relation`: the id of the entity it references, `many`) of the resource.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/field_id"},
+        "type": {"$ref": "#/$defs/type"},
+        "relation": {"$ref": "#/$defs/id"},
+        "many": {"type": "boolean"}
+      },
+      "if": {"required": ["relation"]},
+      "then": {"not": {"required": ["type"]}},
+      "else": {"required": ["type"], "not": {"required": ["many"]}}
+    },
+    "payload_field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": {"$ref": "#/$defs/field_id"},
+        "type": {"$ref": "#/$defs/type"}
+      }
+    },
+    "workflow": {
+      "description": "The statuses and transits of bazis-statusy for the resource. An entity with a workflow has the field `status`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["initial", "statuses"],
+      "properties": {
+        "initial": {"$ref": "#/$defs/status_id"},
+        "statuses": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/status_id"}
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "from", "to"],
+            "properties": {
+              "id": {"$ref": "#/$defs/status_id"},
+              "from": {"$ref": "#/$defs/status_id"},
+              "to": {"$ref": "#/$defs/status_id"},
+              "payload": {
+                "description": "The transit requires a payload with these fields.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["fields"],
+                "properties": {
+                  "fields": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/payload_field"}}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "grant": {
+      "description": "A selector, or a selector limited to statuses of the workflow.",
+      "if": {"type": "string"},
+      "then": {"$ref": "#/$defs/selector"},
+      "else": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["selector", "statuses"],
+        "properties": {
+          "selector": {"$ref": "#/$defs/selector"},
+          "statuses": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"$ref": "#/$defs/status_id"}
+          }
+        }
+      }
+    },
+    "access": {
+      "description": "What each role may do with the entity; compiled to the permissions of bazis-permit that the role must have. Unlisted operations are not granted.",
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/id"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "view": {"$ref": "#/$defs/grant"},
+          "add": {"$ref": "#/$defs/grant"},
+          "change": {"$ref": "#/$defs/grant"},
+          "delete": {"$ref": "#/$defs/grant"},
+          "transit": {
+            "description": "The transits the role may run: a list (selector `all`) or a selector by transit.",
+            "if": {"type": "array"},
+            "then": {"uniqueItems": true, "items": {"$ref": "#/$defs/status_id"}},
+            "else": {
+              "type": "object",
+              "propertyNames": {"$ref": "#/$defs/status_id"},
+              "additionalProperties": {"$ref": "#/$defs/selector"}
+            }
+          }
+        }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "resource", "fields"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "resource": {
+          "description": "The JSON:API type of the resource (`app.model`), as in contract.json.",
+          "type": "string",
+          "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$"
+        },
+        "title": {"type": "string"},
+        "fields": {"type": "array", "items": {"$ref": "#/$defs/field"}},
+        "workflow": {"$ref": "#/$defs/workflow"},
+        "access": {"$ref": "#/$defs/access"}
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "steps"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "role": {"$ref": "#/$defs/id"},
+        "steps": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/step"}}
+      }
+    },
+    "values": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/field_id"},
+      "additionalProperties": {"$ref": "#/$defs/scalar"}
+    },
+    "step": {
+      "description": "One step of a scenario: an object with exactly one key. Every step acts through the `data-bz` attributes of the screens.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "open": {"description": "Open a screen by its route.", "$ref": "#/$defs/id"},
+        "open_item": {
+          "description": "On a list screen, open the row whose fields have these values (the screen of `list.open`).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["where"],
+          "properties": {"where": {"$ref": "#/$defs/values"}}
+        },
+        "action": {"description": "Run an action of the current screen.", "$ref": "#/$defs/id"},
+        "fill": {"description": "Fill fields of the open form.", "$ref": "#/$defs/values"},
+        "submit": {"description": "Submit the open form.", "type": "object", "maxProperties": 0},
+        "transit": {
+          "description": "Run a transit on the current card, with its payload.",
+          "if": {"type": "string"},
+          "then": {"$ref": "#/$defs/status_id"},
+          "else": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {"id": {"$ref": "#/$defs/status_id"}, "payload": {"$ref": "#/$defs/values"}}
+          }
+        },
+        "upload": {
+          "description": "Upload a file (a path relative to the e2e fixtures) into a field of the open form.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field", "file"],
+          "properties": {"field": {"$ref": "#/$defs/field_id"}, "file": {"type": "string", "minLength": 1}}
+        },
+        "expect": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "screen": {"description": "The current screen.", "$ref": "#/$defs/id"},
+            "status": {"description": "The status of the current item.", "$ref": "#/$defs/status_id"},
+            "state": {"enum": ["loading", "empty", "loaded", "error", "forbidden", "not_found", "invalid"]},
+            "action_absent": {"description": "An action of the current screen that is not shown.", "$ref": "#/$defs/id"},
+            "field_readonly": {"$ref": "#/$defs/field_id"},
+            "rows": {"description": "The number of rows of the current list.", "type": "integer", "minimum": 0},
+            "error": {"description": "A field with a validation error.", "$ref": "#/$defs/field_id"}
+          }
+        }
+      }
+    }
+  }
+}

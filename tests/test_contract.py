@@ -123,9 +123,11 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
             'slug': 'manager', 'name': 'Manager', 'for_anonymous': False,
             'groups': ['tasks_change', 'tasks_transit', 'tasks_view'],
             'permissions': [
-                'tasks.task.field.view.all.report.enable',
+                'tasks.task.field.view.all.all.report.enable',
+                'tasks.task.item.add.all.all',
                 'tasks.task.item.change.all.draft',
                 'tasks.task.item.transit.all.draft.start',
+                'tasks.task.item.transit.all.in_progress.finish',
                 'tasks.task.item.view.all.all',
             ],
         },
@@ -133,7 +135,7 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
             'slug': 'viewer', 'name': 'Viewer', 'for_anonymous': True,
             'groups': ['tasks_view'],
             'permissions': [
-                'tasks.task.field.view.all.report.enable', 'tasks.task.item.view.all.all',
+                'tasks.task.field.view.all.all.report.enable', 'tasks.task.item.view.all.all',
             ],
         },
     ]

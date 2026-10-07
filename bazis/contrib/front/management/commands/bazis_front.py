@@ -22,6 +22,9 @@ from bazis.contrib.front import __version__
 from bazis.contrib.front.capabilities import DatabaseNotReadyError
 from bazis.contrib.front.contract import export as contract
 from bazis.contrib.front.contract import generated
+from bazis.contrib.front.contract.openapi import dumps
+from bazis.contrib.front.spec import create as spec_create
+from bazis.contrib.front.spec import validate as spec_validate
 from bazis.contrib.front.vendor import copy
 from bazis.contrib.front.vendor import lock as frontend_lock
 
@@ -39,7 +42,9 @@ class Command(BaseCommand):
                 'Create frontend/ from the template of bazis-front (React, TypeScript, Vite), '
                 'with a copy of the protocol client in src/bazis/client/, its pristine copy in '
                 '.bazis/base/ and the lock bazis-front.lock.json, then run `npm install` in it. '
-                'An existing frontend/ is never overwritten.'
+                'Also create spec/ (the JSON Schemas of the specs in spec/schema/, starters of '
+                'product.yaml and of the design) when the product has none. An existing '
+                'frontend/ or spec/ is never overwritten.'
             ),
         )
         init.add_argument('--no-node', action='store_true', help='Do not run `npm install`.')
@@ -73,6 +78,30 @@ class Command(BaseCommand):
             help='Do not run openapi-typescript: schema.d.ts is not generated.',
         )
 
+        check = subcommands.add_parser(
+            'check',
+            help='Validate the specs (spec/) against each other and the contract.',
+            description=(
+                'Validate spec/product.yaml, spec/screens/*.yaml and spec/design/ against their '
+                'JSON Schemas, against each other and against contract/contract.json (without '
+                'it, only their shape and their references to each other). Exit with 1 if '
+                'there are errors; warnings do not fail.'
+            ),
+        )
+        check.add_argument('--json', action='store_true', help='Print the result as JSON.')
+        check.add_argument(
+            '--layer',
+            choices=spec_validate.LAYERS,
+            help='Report the issues of one layer only (all the layers are read).',
+        )
+
+    def execute(self, *args, **options):
+        # `check` reports the issues of the specs itself: the system checks would repeat
+        # them (front.W002)
+        if options.get('subcommand') == 'check':
+            options['skip_checks'] = True
+        return super().execute(*args, **options)
+
     def handle(self, *args, subcommand, **options):
         return getattr(self, f'handle_{subcommand}')(**options)
 
@@ -82,6 +111,15 @@ class Command(BaseCommand):
             raise CommandError(
                 f'{frontend} already exists: `bazis_front init` creates a new frontend and '
                 'never overwrites one.'
+            )
+        spec = spec_create.spec_dir()
+        if spec.exists():
+            self.stdout.write(f'{spec} exists: it is kept as it is.')
+        else:
+            spec_create.create_spec(spec)
+            self.stdout.write(
+                f'Created the specs in {spec}: write the product and its screens there and '
+                'check them with `manage.py bazis_front check`.'
             )
         copy.create_frontend(frontend)
         self.stdout.write(f'Created the frontend in {frontend} (bazis-front {__version__}).')
@@ -148,3 +186,33 @@ class Command(BaseCommand):
                 f'{generated.SCHEMA_TS} is not generated: {missing}. It is `missing` in the '
                 'lock and `bazis_front contract --check` fails until it is generated.'
             )
+
+    def handle_check(self, layer=None, **options):
+        spec = spec_create.spec_dir()
+        if not spec.is_dir():
+            raise CommandError(
+                f'{spec} does not exist: `manage.py bazis_front init` creates it with the '
+                'frontend.'
+            )
+        result = spec_validate.validate(spec.parent, (layer,) if layer else spec_validate.LAYERS)
+        if options['json']:
+            self.stdout.write(dumps(result.as_dict()), ending='')
+        else:
+            self.write_issues(result)
+        if result.errors:
+            raise CommandError(f'The specs have {len(result.errors)} errors.')
+
+    def write_issues(self, result):
+        for issue in result.issues:
+            self.stdout.write(f'{issue.location}: {issue.code} {issue.severity}: {issue.message}')
+            self.stdout.write(f'    {issue.hint}')
+        if not result.contract:
+            self.stdout.write(
+                f'The specs are not checked against the backend: {spec_validate.CONTRACT_FILE} '
+                'is missing or cannot be read, only their shape and their references to each '
+                'other are checked. Export the contract with `manage.py bazis_front contract`.'
+            )
+        self.stdout.write(
+            f'{len(result.errors)} errors, {len(result.warnings)} warnings'
+            + (f' (checked against {spec_validate.CONTRACT_FILE}).' if result.contract else '.')
+        )
