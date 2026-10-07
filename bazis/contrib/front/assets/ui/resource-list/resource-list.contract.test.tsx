@@ -291,8 +291,19 @@ describe('ResourceList', () => {
     const loaded = await screen.findByTestId('state:loaded');
     expect([...loaded.querySelectorAll('th')].map((it) => it.textContent)).toEqual(['Title', 'Done']);
     expect(within(screen.getByTestId('row:a')).queryByTestId('cell:count')).toBeNull();
-    // a row without the field of a shown column (another group of permissions): no value
-    expect(within(screen.getByTestId('row:b')).getByTestId('cell:done').textContent).toBe('—');
+  });
+
+  it('shows a column that only some rows have, without a value in the others', async () => {
+    // the rows of another group of field permissions (a selector, a status) leave it out
+    const some = [resource('a', { title: 'First' }), resource('b', { title: 'Second', count: 2 })];
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'count']} layout="table" />,
+      backend(listDocument(some)),
+    );
+    const loaded = await screen.findByTestId('state:loaded');
+    expect([...loaded.querySelectorAll('th')].map((it) => it.textContent)).toEqual(['Title', 'Count']);
+    expect(within(screen.getByTestId('row:a')).getByTestId('cell:count').textContent).toBe('—');
+    expect(within(screen.getByTestId('row:b')).getByTestId('cell:count').textContent).toBe('2');
   });
 
   it('shows every column without a card', async () => {

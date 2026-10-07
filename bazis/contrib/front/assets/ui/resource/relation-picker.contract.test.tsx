@@ -14,8 +14,11 @@
 
 // The contract of the picker of a related item: a combobox marked as its field
 // (`field:<name>`) with the label of the item, that opens a search over the list of the
-// related resource (the backend searches, `Load more` reads the next page), selects with the
-// mouse or the keyboard and clears a nullable value (the option `data-value=""`, which the
+// related resource (the backend searches, `Load more` reads the next page by its offset),
+// selects with the mouse or the keyboard (the selected item active when it opens, the first
+// item after a search, never the option that clears; Enter ignored while the options are
+// those of another search; Escape and Tab give the focus back), announces the state of the
+// search (`role="status"`) and clears a nullable value (the option `data-value=""`, which the
 // helpers of the end-to-end tests choose for null). The labels of the related items shown
 // together are read with one request. Keep it passing when the component is changed.
 
@@ -107,49 +110,81 @@ describe('RelationPicker', () => {
   it('is searched by the backend and read page after page', async () => {
     const backend = new Backend()
       .on('GET', ITEMS, listDocument([ann], { next: `${ITEMS}?page%5Boffset%5D=${String(PICKER_PAGE)}` }))
-      .on('GET', `${ITEMS}?page%5Blimit%5D=${String(2 * PICKER_PAGE)}`, listDocument([ann, bob]))
-      .on('GET', `${ITEMS}?search=bo&page%5Blimit%5D=${String(PICKER_PAGE)}`, listDocument([bob]));
+      .on('GET', `${ITEMS}?page%5Blimit%5D=${String(PICKER_PAGE)}&page%5Boffset%5D=${String(PICKER_PAGE)}`, listDocument([bob]))
+      .on('GET', `${ITEMS}?search=zz&page%5Blimit%5D=${String(PICKER_PAGE)}`, listDocument([]));
     renderWithBazis(<Picker nullable={false} />, backend);
     expect(screen.getByTestId('field:owner').textContent).toBe('—');
 
     const listbox = await open();
     fireEvent.click(await within(listbox).findByText('Load more'));
-    await within(listbox).findByText('Bob');
-    expect(backend.requests()).toContain(page(2 * PICKER_PAGE));
+    // the next page by its offset, never a larger page (the backend has a maximum)
+    await waitFor(() => {
+      expect(within(listbox).getAllByRole('option').map((it) => it.textContent)).toEqual(['Ann', 'Bob']);
+    });
+    expect(backend.requests().every((it) => it.includes(`page%5Blimit%5D=${String(PICKER_PAGE)}`))).toBe(true);
     // not nullable: no option clears the value
     expect(within(listbox).queryByText('—')).toBeNull();
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Search' }), { target: { value: 'bo' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Search Owner' }), { target: { value: 'zz' } });
+    // the state of the search is announced
     await waitFor(() => {
-      expect(backend.requests()).toContain(page(PICKER_PAGE, 'bo'));
-    });
-    await waitFor(() => {
-      expect(within(listbox).getAllByRole('option').map((it) => it.textContent)).toEqual(['Bob']);
+      expect(screen.getByRole('status').textContent).toBe('Nothing matches the search.');
     });
   });
 
-  it('is used with the keyboard and clears its value', async () => {
-    const backend = new Backend().on('GET', ITEMS, listDocument([ann, bob]));
+  it('keeps its value on Enter and selects the first item found', async () => {
+    const backend = new Backend()
+      .on('GET', ITEMS, listDocument([ann, bob]))
+      .on('GET', `${ITEMS}?search=bob&page%5Blimit%5D=${String(PICKER_PAGE)}`, listDocument([bob]));
     const onChange = vi.fn();
     renderWithBazis(<Picker initial="a1" onChange={onChange} />, backend);
     const trigger = screen.getByTestId('field:owner');
+
+    // opened, the selected item is active (not the option that clears the value)
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
     const listbox = await screen.findByRole('listbox');
     await within(listbox).findByText('Bob');
-    const search = screen.getByRole('combobox', { name: 'Search' });
+    const search = screen.getByRole('combobox', { name: 'Search Owner' });
     expect(document.activeElement).toBe(search);
-    // the first option is active: down twice is Bob
-    fireEvent.keyDown(search, { key: 'ArrowDown' });
-    fireEvent.keyDown(search, { key: 'ArrowDown' });
-    expect(search.getAttribute('aria-activedescendant')).toBe(within(listbox).getByText('Bob').closest('li')?.id);
+    expect(search.getAttribute('aria-activedescendant')).toBe(within(listbox).getByText('Ann').closest('li')?.id);
     fireEvent.keyDown(search, { key: 'Enter' });
-    expect(onChange).toHaveBeenLastCalledWith('b2');
+    expect(onChange).toHaveBeenLastCalledWith('a1');
     await waitFor(() => {
       expect(screen.queryByRole('listbox')).toBeNull();
     });
 
-    const again = await open();
-    fireEvent.click(again.querySelector('[data-value=""]') as Element);
+    // typed: Enter waits for the items of the search, then selects the first one
+    fireEvent.click(trigger);
+    const again = await screen.findByRole('listbox');
+    const input = screen.getByRole('combobox', { name: 'Search Owner' });
+    fireEvent.change(input, { target: { value: 'bob' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(within(again).getAllByRole('option').map((it) => it.textContent)).toEqual(['—', 'Bob']);
+    });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith('b2');
+  });
+
+  it('clears its value and gives the focus back on Escape and Tab', async () => {
+    const backend = new Backend().on('GET', ITEMS, listDocument([ann, bob]));
+    const onChange = vi.fn();
+    renderWithBazis(<Picker initial="a1" onChange={onChange} />, backend);
+    const trigger = screen.getByTestId('field:owner');
+
+    for (const key of ['Escape', 'Tab']) {
+      await open();
+      fireEvent.keyDown(screen.getByRole('combobox', { name: 'Search Owner' }), { key });
+      await waitFor(() => {
+        expect(screen.queryByRole('listbox')).toBeNull();
+      });
+      expect(document.activeElement).toBe(trigger);
+    }
+    expect(onChange).not.toHaveBeenCalled();
+
+    const listbox = await open();
+    fireEvent.click(listbox.querySelector('[data-value=""]') as Element);
     expect(onChange).toHaveBeenLastCalledWith(null);
     await waitFor(() => {
       expect(trigger.textContent).toBe('—');

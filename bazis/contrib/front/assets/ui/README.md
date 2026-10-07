@@ -64,7 +64,7 @@ sample (`tests/test_design.py` checks it; write it again with
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it), `FieldValue`,
-`RelationPicker({relation, value, onChange, placeholder?, nullable?, disabled?, path?})` and
+`RelationPicker({relation, value, onChange, label?, placeholder?, nullable?, disabled?, path?})` and
 `RelationLabel({relation, id, path?})` (the related resource by its route in `ROUTES`, or
 `path`), `useListFields`/`useItemFields` (the titles and types of the list, retrieve and
 update schemas, `has(name)`: whether the schema of the user has the field),
@@ -114,12 +114,18 @@ components. `testing` is the support of the contract tests: a backend for the mo
   transit, and of the filter of a relationship) is a combobox: a button
   (`role="combobox"`, the marks of the field) with the label of the item opens a popover
   with a search sent to the backend (`search`, every word in a text field of the related
-  resource) and the items of the list of the related resource, 20 more with `Load more`;
-  a nullable relationship has an option that clears the value (`data-value=""`, which the
-  helpers of the end-to-end tests choose for null). Keyboard: Enter, Space or ArrowDown
-  opens, ArrowUp/ArrowDown move, Enter selects, Escape closes. The popover is modal, so that
-  it scrolls and keeps the focus inside a dialog. A related resource without a route is an
-  input of the id.
+  resource) and the items of the list of the related resource, the next page of 20 with
+  `Load more` (by `page[offset]`: a larger `page[limit]` would pass the maximum of the
+  backend); a nullable relationship has an option that clears the value (`data-value=""`,
+  which the helpers of the end-to-end tests choose for null). The keyboard follows the
+  combobox pattern of WAI-ARIA: Enter, Space or ArrowDown opens with the selected item
+  active, typing searches with the first item found active (the option that clears is
+  never the default one), ArrowUp/ArrowDown move, Enter selects (not while the options are
+  still those of another search), Escape and Tab close and give the focus back to the
+  button. The search is named after the field (`label`: `Search <label>`) and the state of
+  the search (loading, nothing found, an error) is announced (`role="status"`). The popover
+  is modal, so that it scrolls and keeps the focus inside a dialog. A related resource
+  without a route is an input of the id.
 - **`resource-form`** is `useResourceForm`: the fields of `schema_create/` or
   `schema_update/` of the current user, read-only ones disabled and never sent; a to-one
   relationship is a `RelationPicker`; to-many relationships are left out

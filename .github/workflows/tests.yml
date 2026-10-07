@@ -122,8 +122,15 @@ jobs:
   # template and the components compile, lint, pass their contract tests and build against
   # the generated contract, the copied client and the copied hooks
   frontend:
+    name: frontend (${{ matrix.preset }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # the components take their defaults from the theme: their contract tests run under
+    # the starters of both presets
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [workspace, portal]
     services:
       postgres:
         image: postgis/postgis:16-3.4
@@ -186,7 +193,7 @@ jobs:
           export BS_BASE_DIR="$RUNNER_TEMP/product"
           mkdir -p "$BS_BASE_DIR"
           python manage.py migrate
-          python manage.py bazis_front init
+          python manage.py bazis_front init --preset ${{ matrix.preset }}
           python manage.py bazis_front contract
           python manage.py bazis_front contract --check
           python manage.py bazis_front check

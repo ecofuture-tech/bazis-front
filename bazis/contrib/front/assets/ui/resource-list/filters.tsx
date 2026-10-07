@@ -169,6 +169,7 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
         id={id}
         data-bz={`field:${field}`}
         className="w-48"
+        label={label}
         relation={relationType}
         value={value || null}
         placeholder="All"

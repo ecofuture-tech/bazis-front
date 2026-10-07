@@ -297,7 +297,9 @@ npm test
   TanStack Query in the workspace of the hooks are those of its package.json.
 - Its package.json is the product's, every file of it is copied: it is not a workspace and
   the root eslint ignores it, because it compiles only with the generated files of a
-  product. The `frontend` job of CI checks it: on the sample (with `BS_BASE_DIR` outside the
+  product. The `frontend` job of CI checks it, once per preset (`init --preset workspace`
+  and `portal`: the components take their defaults from the theme, and a contract test
+  passes the prop of a default it relies on): on the sample (with `BS_BASE_DIR` outside the
   checkout) `init`, `contract`, `contract --check`, `check` (the starters of the specs
   against the contract), `design --check`, `add` of every component, then `tsc --noEmit`, lint, tests (the
   contract tests of the components) and build of the generated frontend. Run the same

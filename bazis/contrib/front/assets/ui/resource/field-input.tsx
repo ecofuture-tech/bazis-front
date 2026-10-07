@@ -227,6 +227,7 @@ export function FieldInput({ field, value, onChange, errors = [], disabled = fal
           <RelationPicker
             {...control}
             relation={field.relation}
+            label={field.title}
             value={typeof value === 'string' && value ? value : null}
             nullable={field.nullable}
             disabled={disabled || field.readOnly}

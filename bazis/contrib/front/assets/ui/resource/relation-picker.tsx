@@ -48,6 +48,8 @@ export interface RelationPickerProps
   placeholder?: string;
   /** Whether the value may be cleared (an option with the placeholder): a nullable relationship. */
   nullable?: boolean;
+  /** The name of the field, in the name of the search (`Search <label>`). */
+  label?: string | undefined;
   disabled?: boolean | undefined;
   required?: boolean | undefined;
   'aria-readonly'?: boolean | undefined;
@@ -67,35 +69,58 @@ interface OptionsProps {
   value: string | null;
   nullable: boolean;
   placeholder: string;
+  /** The name of the search for assistive technologies. */
+  searchLabel: string;
   onSelect: (item: ResourceObject | null) => void;
+  /** Closes the picker (Tab): the focus goes back to its button. */
+  onClose: () => void;
 }
 
-/** The search and the options of an open picker. */
-function Options({ path, value, nullable, placeholder, onSelect }: OptionsProps) {
+/**
+ * The search and the options of an open picker. The items are read page after page
+ * (`page[offset]`, `PICKER_PAGE` each: a larger `page[limit]` would pass the maximum of the
+ * backend, `BAZIS_API_PAGINATION_PAGE_SIZE_MAX`). The active option (`aria-activedescendant`)
+ * is, until the user moves, the selected item when the picker opens and the first item
+ * after a search, never the option that clears the value.
+ */
+function Options({ path, value, nullable, placeholder, searchLabel, onSelect, onClose }: OptionsProps) {
   const listId = useId();
   const [text, setText] = useState('');
   const [search, setSearch] = useState('');
-  const [pages, setPages] = useState(1);
-  const [active, setActive] = useState(0);
+  // the items of the pages before the last one, and the offset of the last one
+  const [earlier, setEarlier] = useState<readonly ResourceObject[]>([]);
+  const [offset, setOffset] = useState(0);
+  // the option the user moved to; null: the default one
+  const [active, setActive] = useState<number | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => {
-      setSearch(text.trim());
-      setPages(1);
-      setActive(0);
+      const next = text.trim();
+      if (next === search) return;
+      setSearch(next);
+      setEarlier([]);
+      setOffset(0);
+      setActive(null);
     }, SEARCH_DELAY);
     return () => {
       clearTimeout(timer);
     };
-  }, [text]);
+  }, [text, search]);
 
-  const list = useAnyList(path, { ...(search ? { search } : {}), page: { limit: PICKER_PAGE * pages } });
-  const items = list.data?.data ?? [];
+  const list = useAnyList(path, { ...(search ? { search } : {}), page: offset ? { limit: PICKER_PAGE, offset } : { limit: PICKER_PAGE } });
+  // the previous page (another search, another offset) is not this one
+  const page = list.isPlaceholderData ? [] : (list.data?.data ?? []);
+  const items = [...earlier, ...page];
+  const next = list.data && !list.isPlaceholderData ? nextPage(list.data) : null;
   const entries: Entry[] = [
     ...(nullable ? [{ kind: 'clear' } as const] : []),
     ...items.map((item) => ({ kind: 'item', item }) as const),
-    ...(list.data && nextPage(list.data) !== null ? [{ kind: 'more' } as const] : []),
+    ...(next !== null ? [{ kind: 'more' } as const] : []),
   ];
-  const current = Math.min(active, entries.length - 1);
+  const first = nullable && items.length ? 1 : items.length ? 0 : -1;
+  const selected = search ? -1 : entries.findIndex((entry) => entry.kind === 'item' && entry.item.id === value);
+  const current = active === null ? (selected >= 0 ? selected : first) : Math.min(active, entries.length - 1);
+  // the options shown are not those of the text typed yet
+  const stale = list.isPending || list.isPlaceholderData || text.trim() !== search;
   const optionId = (index: number) => `${listId}-${String(index)}`;
 
   useEffect(() => {
@@ -103,25 +128,32 @@ function Options({ path, value, nullable, placeholder, onSelect }: OptionsProps)
   });
 
   function choose(entry: Entry) {
-    if (entry.kind === 'more') setPages(pages + 1);
-    else onSelect(entry.kind === 'item' ? entry.item : null);
+    if (entry.kind === 'item') onSelect(entry.item);
+    else if (entry.kind === 'clear') onSelect(null);
+    else if (next !== null) {
+      setEarlier(items);
+      setOffset(next.offset ?? offset + PICKER_PAGE);
+    }
   }
 
   function keyDown(event: KeyboardEvent<HTMLInputElement>) {
     const count = entries.length;
-    if (!count) return;
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (event.key === 'Tab') {
       event.preventDefault();
-      setActive((current + (event.key === 'ArrowDown' ? 1 : count - 1)) % count);
+      onClose();
+    } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && count) {
+      event.preventDefault();
+      const down = event.key === 'ArrowDown';
+      setActive(current < 0 ? (down ? 0 : count - 1) : (current + (down ? 1 : count - 1)) % count);
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const entry = entries[current];
-      if (entry) choose(entry);
+      if (entry && !stale) choose(entry);
     }
   }
 
-  let note: ReactNode = null;
-  if (list.isPending) note = 'Loading…';
+  let note = '';
+  if (list.isPending || (list.isPlaceholderData && !earlier.length)) note = 'Loading…';
   else if (list.isError) note = 'The items could not be loaded.';
   else if (!items.length) note = search ? 'Nothing matches the search.' : 'There are no items.';
 
@@ -135,7 +167,7 @@ function Options({ path, value, nullable, placeholder, onSelect }: OptionsProps)
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={current >= 0 ? optionId(current) : undefined}
-          aria-label="Search"
+          aria-label={searchLabel}
           placeholder="Search…"
           className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           value={text}
@@ -149,18 +181,18 @@ function Options({ path, value, nullable, placeholder, onSelect }: OptionsProps)
       <ul
         role="listbox"
         id={listId}
-        aria-label="Items"
+        aria-label={searchLabel}
         aria-busy={list.isFetching || undefined}
         className="max-h-72 overflow-y-auto p-1 empty:hidden"
       >
         {entries.map((entry, index) => {
-          const selected = entry.kind === 'item' ? entry.item.id === value : entry.kind === 'clear' && value === null;
+          const chosen = entry.kind === 'item' ? entry.item.id === value : entry.kind === 'clear' && value === null;
           return (
             <li
               key={entry.kind === 'item' ? entry.item.id : `$${entry.kind}`}
               id={optionId(index)}
               role="option"
-              aria-selected={selected}
+              aria-selected={chosen}
               data-value={entry.kind === 'item' ? entry.item.id : entry.kind === 'clear' ? '' : undefined}
               data-active={index === current || undefined}
               className={cn(
@@ -183,7 +215,7 @@ function Options({ path, value, nullable, placeholder, onSelect }: OptionsProps)
                 <span className="pl-6">Load more</span>
               ) : (
                 <>
-                  <Check className={cn('size-4 shrink-0', !selected && 'invisible')} aria-hidden="true" />
+                  <Check className={cn('size-4 shrink-0', !chosen && 'invisible')} aria-hidden="true" />
                   <span className="min-w-0 truncate">{entry.kind === 'item' ? itemLabel(entry.item) : placeholder}</span>
                 </>
               )}
@@ -191,7 +223,10 @@ function Options({ path, value, nullable, placeholder, onSelect }: OptionsProps)
           );
         })}
       </ul>
-      {note !== null && <p className="px-3 py-4 text-center text-sm text-muted-foreground">{note}</p>}
+      {/* announced: the state of the search */}
+      <p role="status" aria-live="polite" className={note ? 'px-3 py-4 text-center text-sm text-muted-foreground' : 'sr-only'}>
+        {note}
+      </p>
     </div>
   );
 }
@@ -206,6 +241,7 @@ function Picker({
   disabled,
   required,
   className,
+  label: name,
   ...control
 }: Omit<RelationPickerProps, 'path' | 'placeholder' | 'nullable'> & { path: string; placeholder: string; nullable: boolean }) {
   const [open, setOpen] = useState(false);
@@ -244,9 +280,13 @@ function Picker({
           value={value}
           nullable={nullable}
           placeholder={placeholder}
+          searchLabel={`Search ${name ?? control['aria-label'] ?? relation}`}
           onSelect={(item) => {
             setChosen(item);
             onChange(item === null ? null : item.id);
+            setOpen(false);
+          }}
+          onClose={() => {
             setOpen(false);
           }}
         />
@@ -259,17 +299,20 @@ function Picker({
  * The picker of the related item of a to-one relationship: a button with the label of the
  * item (`role="combobox"`, the marks given to it) that opens a search over the list of the
  * related resource, page after page, with an option that clears the value when it is
- * nullable; keyboard: Enter, Space or ArrowDown opens, ArrowUp/ArrowDown choose, Enter
- * selects, Escape closes. The id in a text input when the contract has no route for the
- * related resource.
+ * nullable (never the default option). Keyboard (the combobox pattern of WAI-ARIA): Enter,
+ * Space or ArrowDown opens with the selected item active, typing searches with the first
+ * item active, ArrowUp/ArrowDown move, Enter selects (not while the options are those of
+ * another search), Escape and Tab close and give the focus back to the button. The id in a
+ * text input when the contract has no route for the related resource.
  */
 export function RelationPicker({ placeholder = '—', nullable = true, path, relation, ...props }: RelationPickerProps) {
   const route = path ?? routeOf(relation);
   if (route) return <Picker {...props} relation={relation} path={route} placeholder={placeholder} nullable={nullable} />;
-  const { value, onChange, required, 'aria-readonly': readOnly, ...control } = props;
+  const { value, onChange, required, 'aria-readonly': readOnly, label, ...control } = props;
   return (
     <Input
       {...control}
+      aria-label={control['aria-label'] ?? label}
       value={value ?? ''}
       placeholder={placeholder}
       required={required}
