@@ -19,6 +19,7 @@ export type {
   CollectionSchemaKind,
   ItemSchemaKind,
   RelationshipOperation,
+  SchemaSuffix,
 } from './client.js';
 export { ApiError } from './errors.js';
 export type { ErrorObject } from './errors.js';
@@ -30,6 +31,7 @@ export { can } from './permit.js';
 export type { CrudAccessAction, PermitMeta } from './permit.js';
 export type {
   BodyOf,
+  EndpointOf,
   ItemOptions,
   ListOptions,
   Page,
@@ -37,5 +39,6 @@ export type {
   ResourceIdentifier,
   ResponseOf,
   RouteSetPath,
+  RouteSetWith,
   TokenResponse,
 } from './types.js';

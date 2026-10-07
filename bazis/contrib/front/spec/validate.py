@@ -32,6 +32,8 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import best_match
 
 from ..contract.export import CONTRACT_DIR, CONTRACT_FORMAT
+from ..vendor import lock as frontend_lock
+from ..vendor import registry
 from . import design, refs, scenarios
 from .issues import CONTRACT, ERROR, WARNING, Document, Issue, Issues
 
@@ -171,6 +173,48 @@ def load_contract(root: Path, issues: Issues) -> dict | None:
     return data
 
 
+def check_assets(root: Path, contract: dict, issues: Issues) -> None:
+    """
+    The assets of the frontend (recorded in its lock) follow the capabilities of the
+    contract: `init` copies an asset that requires a capability, such as the hooks of
+    bazis-statusy, only when the product has it.
+    """
+    frontend = root / frontend_lock.FRONTEND_DIR
+    try:
+        lock = frontend_lock.read(frontend)
+    except frontend_lock.LockError:
+        # front.W001 reports it
+        return
+    if lock is None:
+        return
+    doc = Document(CONTRACT, f'{frontend_lock.FRONTEND_DIR}/{frontend_lock.LOCK_FILE}')
+    present = set(lock.get('assets', {}))
+    capabilities = set(contract.get('capabilities', {}))
+    for asset in registry.load().values():
+        if not asset.capabilities:
+            continue
+        required = ', '.join(asset.capabilities)
+        target = f'{frontend_lock.FRONTEND_DIR}/{asset.target}/'
+        if asset.wanted(capabilities) and asset.name not in present:
+            issues.add(
+                doc, ('assets',), 'C003',
+                f'The contract has the capability {required}, but the frontend does not have '
+                f'the asset {asset.name} ({target}).',
+                '`manage.py bazis_front init` copies it when the package is installed; adding '
+                'it to an existing frontend will be `bazis_front update`. Until then do not '
+                'use its hooks, or create the frontend again.',
+            )
+        elif not asset.wanted(capabilities) and asset.name in present:
+            issues.add(
+                doc, ('assets', asset.name), 'C003',
+                f'The frontend has the asset {asset.name} ({target}), but the contract does not '
+                f'have the capability {required}.',
+                f'Install the package and export the contract again, or delete {target}, its '
+                f'pristine copy in {frontend_lock.FRONTEND_DIR}/{frontend_lock.BASE_DIR}/ and its '
+                'entry in the lock.',
+            )
+
+
 def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     """
     Checks `spec/` of the product root against itself and `contract/contract.json`. The
@@ -180,6 +224,8 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     spec = root / SPEC_DIR
     issues = Issues()
     contract = load_contract(root, issues)
+    if contract is not None:
+        check_assets(root, contract, issues)
 
     product_doc = load(root, spec / 'product.yaml', 'product', PRODUCT_SCHEMA, ('P001', 'P002'), issues)
     screen_docs = [

@@ -18,6 +18,7 @@ The copies of the assets in a new frontend (`bazis_front init`).
 
 import os
 import shutil
+from collections.abc import Iterable
 from pathlib import Path
 
 from .. import __version__
@@ -58,18 +59,22 @@ def copy_vendored(asset: Asset, frontend: Path, version: str) -> dict[str, str]:
     return hashes
 
 
-def create_frontend(frontend: Path) -> None:
+def create_frontend(frontend: Path, capabilities: Iterable[str]) -> None:
     """
-    Creates the frontend from the template and the vendored assets of the registry, with
-    its lock. The frontend must not exist: it is built in a temporary directory next to it
-    and renamed, so that a failure leaves nothing behind.
+    Creates the frontend from the template and the vendored assets of the registry that the
+    capabilities of the product allow, with its lock. The frontend must not exist: it is
+    built in a temporary directory next to it and renamed, so that a failure leaves nothing
+    behind.
     """
     version = __version__
+    capabilities = set(capabilities)
     temporary = frontend.with_name(f'.{frontend.name}.init-{os.getpid()}')
     temporary.mkdir()
     try:
         assets = {}
         for asset in load().values():
+            if not asset.wanted(capabilities):
+                continue
             if asset.kind == TEMPLATE:
                 for name in asset.files:
                     write_file(temporary / asset.target_path(name), asset.read(name))

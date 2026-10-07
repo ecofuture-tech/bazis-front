@@ -85,7 +85,14 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
   asset copies (`vendored`: stamped, kept pristine in `.bazis/base/`, hashed in the lock;
   `template`: copied once, only its version in the lock). Add a file of an asset to the
   registry; `tests/test_assets.py` checks that the registry lists every file of the
-  template and every `src/*.ts` of the client.
+  template and every source of the client and of the hooks.
+- An asset with `requires: {capabilities: [...]}` (the hooks of a package, such as
+  `react-statusy`) is copied only into a product that has these capabilities:
+  `bazis_front init` passes `capabilities.enabled()` (the installed apps, the same as the
+  sections of the contract, without the database) to `vendor/copy.py`. Only `init` copies;
+  a package installed later waits for `update`. The lock lists the copied assets, and
+  `spec/validate.py` (`check_assets`) reports the warning `C003` when they differ from the
+  capabilities of `contract.json`.
 - `vendor/copy.py` creates the frontend (`bazis_front init`) in a temporary directory next
   to it and renames it; `vendor/lock.py` is `frontend/bazis-front.lock.json` (format
   `lock: 1`).
@@ -100,7 +107,7 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
 
 The Node tooling is dev-only: it checks the assets in this repository and is never shipped.
 The root `package.json` (private) has a workspace for every asset that is checked in place
-(the client). Node 22 and npm 10 (no pnpm or yarn); from the repository root:
+(the client, the hooks). Node 22 and npm 10 (no pnpm or yarn); from the repository root:
 
 ```bash
 npm ci
@@ -109,9 +116,9 @@ npm run typecheck
 npm test
 ```
 
-- `package.json`, `tsconfig.json`, `test/` and `scripts/` of the client exist only for these
-  checks: `pyproject.toml` excludes them from the wheel (they stay in the sdist), and
-  `scripts/check_wheel.py` (run in CI) checks the wheel against `assets/registry.json`: it
+- `package.json`, `tsconfig.json`, `test/` and `scripts/` of the client (and
+  `vitest.config.ts` of the hooks) exist only for these checks: `pyproject.toml` excludes
+  them from the wheel (they stay in the sdist), and `scripts/check_wheel.py` (run in CI) checks the wheel against `assets/registry.json`: it
   has every file of the registry and, of the assets, nothing else than the registry and
   the READMEs. A new asset adds its own entries to `[tool.setuptools.exclude-package-data]`.
   setuptools reuses a stale `build/` directory: delete it before building the wheel locally;
@@ -134,13 +141,42 @@ npm test
 - Every protocol rule is taken from the code of the core and of the packages, not from
   JSON:API in general; `assets/client/README.md` documents the rules the client follows.
 
+### The hooks (`assets/react`)
+
+- `src/`: `context.tsx` (`BazisProvider`, `useApi`, `useSessionKey`), `keys.ts` (the query
+  keys), `queries.ts`, `mutations.ts`, `schema.ts` (the fields of a runtime schema),
+  `form.ts` (`useResourceForm`), `types.ts`; `src/statusy/` is the separate asset
+  `react-statusy` (`requires` the capability `statusy`). `README.md` documents the API, the
+  keys and the protocol facts they rely on.
+- They import `@/bazis/client` and `@/bazis/generated/schema` as a product does; in this
+  repository `tsconfig.json` (`paths`) and `vitest.config.ts` (`alias`) point them to the
+  client asset and to `test/fixtures/schema.d.ts` (the fixture of the client plus the
+  endpoints of bazis-statusy). The root eslint applies the rules of the hooks of the
+  template to them.
+- Tests (vitest, jsdom, `@testing-library/react`) render the hooks against a mocked `fetch`
+  of the client (`test/support.tsx`) and assert the requests, the exact query keys, the
+  invalidations, the documents of the form and the transits; `test/types.typecheck.ts` has
+  the type tests. `test/fixtures/sample.json` holds responses of the sample of this
+  repository (runtime schemas, retrieves with `state_actions`, a 422) reduced to what the
+  hooks read and normalized so that they do not depend on the versions of Python and
+  Pydantic (the keywords of the schemas the hooks read, the titles of fields only, the
+  definitions renamed, fixed ids, dates and error messages):
+  `tests/test_react_fixture.py` captures them through the API and fails when they differ. After a change of the core or of bazis-statusy, write the
+  fixture again with `BAZIS_FRONT_WRITE_FIXTURES=1 python -m pytest ../tests/test_react_fixture.py`
+  (from `sample/`, as the other tests) and run the tests of the hooks.
+- Every query key ends with the session of `BazisProvider`, against the requests still
+  running at a login or a logout; the template also clears the query and mutation caches
+  then (`clearOnSessionChange`, for what is not keyed by the session). Keep both.
+
 ### The template (`assets/template`)
 
 - The frontend of a product, copied once by `init`: `package.json` with pinned versions,
   `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`), `tsconfig.json`,
   `eslint.config.js`, shadcn/ui setup (`components.json`, `src/index.css`,
-  `src/lib/utils.ts`), `src/app/` (providers, session, router, errors), `src/screens/`
-  (login, home) and `AGENTS.md`, the guide of the frontend.
+  `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`, session with its
+  number for the query keys, router, errors), `src/screens/` (login, home with the counts
+  of `useList`) and `AGENTS.md`, the guide of the frontend. The versions of React and
+  TanStack Query in the workspace of the hooks are those of its package.json.
 - Its package.json is the product's, every file of it is copied: it is not a workspace and
   the root eslint ignores it, because it compiles only with the generated files of a
   product. The `frontend` job of CI checks it: on the sample (with `BS_BASE_DIR` outside the

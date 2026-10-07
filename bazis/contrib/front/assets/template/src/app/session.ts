@@ -14,9 +14,8 @@
 
 import { useSyncExternalStore } from 'react';
 
-import type { BazisClient } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
-import type { paths } from '@/bazis/generated/schema';
+import type { Api } from '@/bazis/react';
 
 /** The key of the token in localStorage: the session survives a reload. */
 const STORAGE_KEY = 'bazis.token';
@@ -29,6 +28,8 @@ export const LOGIN_ENABLED = CAPABILITIES.users !== null;
 
 const listeners = new Set<() => void>();
 let token: string | null = LOGIN_ENABLED ? readStored() : null;
+/** The number of the session in this page: every login and logout starts another one. */
+let session = 0;
 
 function readStored(): string | null {
   try {
@@ -39,7 +40,11 @@ function readStored(): string | null {
 }
 
 function setToken(value: string | null): void {
+  // the same token is the same session: a logout without a session (an anonymous request
+  // answered with 401) changes nothing, so that it does not refetch every query
+  if (value === token) return;
   token = value;
+  session += 1;
   try {
     if (value === null) localStorage.removeItem(STORAGE_KEY);
     else localStorage.setItem(STORAGE_KEY, value);
@@ -67,9 +72,21 @@ export function useToken(): string | null {
   return useSyncExternalStore(onSessionChange, getToken);
 }
 
+function getSession(): string {
+  return String(session);
+}
+
+/**
+ * The current session, for `BazisProvider`: the query keys of the hooks end with it, so that
+ * what one user loaded is never shown to the next one. It is not the token.
+ */
+export function useSession(): string {
+  return useSyncExternalStore(onSessionChange, getSession);
+}
+
 /** Gets a token from the token endpoint of bazis-users and starts the session. */
 export async function login(
-  api: BazisClient<paths>,
+  api: Api,
   credentials: { username: string; password: string },
 ): Promise<void> {
   const { users } = CAPABILITIES;

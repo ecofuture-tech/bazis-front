@@ -18,7 +18,7 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
-from bazis.contrib.front import __version__
+from bazis.contrib.front import __version__, capabilities
 from bazis.contrib.front.capabilities import DatabaseNotReadyError
 from bazis.contrib.front.contract import export as contract
 from bazis.contrib.front.contract import generated
@@ -40,8 +40,10 @@ class Command(BaseCommand):
             help='Create the frontend of the product: frontend/ in BASE_DIR.',
             description=(
                 'Create frontend/ from the template of bazis-front (React, TypeScript, Vite), '
-                'with a copy of the protocol client in src/bazis/client/, its pristine copy in '
-                '.bazis/base/ and the lock bazis-front.lock.json, then run `npm install` in it. '
+                'with copies of the protocol client in src/bazis/client/ and of the React hooks '
+                'in src/bazis/react/ (with those of the installed packages, such as '
+                'bazis-statusy), their pristine copies in .bazis/base/ and the lock '
+                'bazis-front.lock.json, then run `npm install` in it. '
                 'Also create spec/ (the JSON Schemas of the specs in spec/schema/, starters of '
                 'product.yaml and of the design) when the product has none. An existing '
                 'frontend/ or spec/ is never overwritten.'
@@ -121,7 +123,7 @@ class Command(BaseCommand):
                 f'Created the specs in {spec}: write the product and its screens there and '
                 'check them with `manage.py bazis_front check`.'
             )
-        copy.create_frontend(frontend)
+        copy.create_frontend(frontend, capabilities.enabled())
         self.stdout.write(f'Created the frontend in {frontend} (bazis-front {__version__}).')
         self.stdout.flush()
         if no_node:

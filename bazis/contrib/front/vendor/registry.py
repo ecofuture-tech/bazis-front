@@ -15,10 +15,13 @@
 """
 The registry of the assets, `assets/registry.json`: the files that each asset copies into
 the frontend of a product. It is the only list of them: `init` copies what it lists, and
-the wheel is checked against it (`scripts/check_wheel.py`).
+the wheel is checked against it (`scripts/check_wheel.py`). An asset of a package, such as
+the hooks of bazis-statusy, `requires` its capability: it is copied only into the frontend
+of a product that has it.
 """
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from importlib.resources import files
 from importlib.resources.abc import Traversable
@@ -41,9 +44,17 @@ class Asset:
     target: str
     #: the paths of the files, relative to `source` and to `target`
     files: tuple[str, ...]
+    #: the capabilities (`capabilities.CAPABILITIES`) the product must have for the asset
+    capabilities: tuple[str, ...] = ()
 
     def read(self, name: str) -> bytes:
         return assets_dir().joinpath(*self.source.split('/'), *name.split('/')).read_bytes()
+
+    def wanted(self, capabilities: Iterable[str]) -> bool:
+        """
+        Whether a product with these capabilities has the asset.
+        """
+        return set(self.capabilities) <= set(capabilities)
 
     def target_path(self, name: str) -> str:
         """
@@ -62,6 +73,9 @@ def load() -> dict[str, Asset]:
     """
     data = json.loads((assets_dir() / 'registry.json').read_text(encoding='utf-8'))
     return {
-        it['name']: Asset(it['name'], it['kind'], it['source'], it['target'], tuple(it['files']))
+        it['name']: Asset(
+            it['name'], it['kind'], it['source'], it['target'], tuple(it['files']),
+            tuple(it.get('requires', {}).get('capabilities', ())),
+        )
         for it in data['assets']
     }

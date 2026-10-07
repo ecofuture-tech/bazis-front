@@ -86,6 +86,7 @@ def edit(root: Path, name: str, change) -> None:
     path = root / name
     data = read(path) if path.exists() else None
     result = change(data)
+    path.parent.mkdir(parents=True, exist_ok=True)
     if isinstance(result, str):
         path.write_text(result, encoding='utf-8')
         return
@@ -106,6 +107,17 @@ def steps(data, scenario):
 
 PRODUCT, LIST, CARD = 'spec/product.yaml', 'spec/screens/task-list.yaml', 'spec/screens/task-card.yaml'
 THEME, TOKENS, CONTRACT = 'spec/design/theme.yaml', 'spec/design/tokens.json', 'contract/contract.json'
+LOCK = 'frontend/bazis-front.lock.json'
+
+
+def lock(*assets):
+    """
+    The lock of a frontend with these assets.
+    """
+    return {
+        'lock': 1, 'bazis_front': '0.1.0', 'contract': {}, 'generated': {},
+        'assets': {name: {'version': '0.1.0'} for name in assets},
+    }
 
 
 def remove_statusy_section(data):
@@ -135,6 +147,8 @@ def user_card(data, transitions=False):
 CASES = [
     ('C001', {CONTRACT: lambda d: '{'}, [('C001', CONTRACT)]),
     ('C002', {CONTRACT: lambda d: {**d, 'format': 2}}, [('C002', f'{CONTRACT}#/format')]),
+    # the sample has bazis-statusy: a frontend made by `init` has its hooks
+    ('C003', {LOCK: lambda d: lock('client', 'react', 'template')}, [('C003', f'{LOCK}#/assets')]),
     ('P001', {PRODUCT: lambda d: 'spec: [\n'}, [('P001', PRODUCT)]),
     ('P002', {PRODUCT: lambda d: d.update(spec='bazis-product/2')}, [('P002', f'{PRODUCT}#/spec')]),
     (
@@ -377,9 +391,25 @@ def test_issues(contract, code, edits, expected):
 
 
 def layer_of(file: str) -> str:
-    if file == CONTRACT:
+    if file in (CONTRACT, LOCK):
         return 'contract'
     return 'product' if file == PRODUCT else file.split('/')[1]
+
+
+@pytest.mark.django_db
+def test_the_assets_follow_the_capabilities(contract):
+    root = contract.parent.parent
+    edit(root, LOCK, lambda d: lock('client', 'react', 'react-statusy', 'template'))
+    assert issues(root) == []
+
+    # the hooks of bazis-statusy without the package (the specs that need it are wrong too)
+    edit(root, CONTRACT, remove_statusy_section)
+    c003 = [it for it in issues(root) if it[0] == 'C003']
+    assert c003 == [('C003', f'{LOCK}#/assets/react-statusy')]
+
+    # a lock that cannot be read is front.W001
+    edit(root, LOCK, lambda d: '{')
+    assert not [it for it in issues(root) if it[0] == 'C003']
 
 
 @pytest.mark.django_db

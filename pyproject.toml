@@ -9,13 +9,16 @@ packages.find = { include = ["bazis.*"], exclude = ["*.node_modules", "*.node_mo
 include-package-data = true
 
 [tool.setuptools.exclude-package-data]
-# the checks of the client (tests, fixtures, scripts, Node config) stay in the repository;
+# the checks of the assets (tests, fixtures, scripts, Node config) stay in the repository;
 # every asset lists its own: scripts/check_wheel.py fails the build when the wheel has asset
 # files that assets/registry.json does not list
 "bazis.contrib.front.assets.client" = ["package.json", "tsconfig.json"]
 "bazis.contrib.front.assets.client.test" = ["*"]
 "bazis.contrib.front.assets.client.test.fixtures" = ["*"]
 "bazis.contrib.front.assets.client.scripts" = ["*"]
+"bazis.contrib.front.assets.react" = ["package.json", "tsconfig.json", "vitest.config.ts"]
+"bazis.contrib.front.assets.react.test" = ["*"]
+"bazis.contrib.front.assets.react.test.fixtures" = ["*"]
 
 [tool.setuptools_scm]
 version_file = "bazis/contrib/front/_version.py"

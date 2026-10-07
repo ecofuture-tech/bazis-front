@@ -1,0 +1,487 @@
+{
+  "schema_create": {
+    "$defs": {
+      "Def1": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "type": {
+            "default": "tasks.task",
+            "title": "Type",
+            "type": "string"
+          },
+          "bs:action": {
+            "default": "add",
+            "title": "Bs:Action",
+            "type": "string"
+          },
+          "attributes": {
+            "$ref": "#/$defs/Def2",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/$defs/Def3",
+            "title": "Relationships"
+          }
+        },
+        "required": [
+          "attributes",
+          "relationships"
+        ],
+        "type": "object"
+      },
+      "Def2": {
+        "properties": {
+          "title": {
+            "maxLength": 255,
+            "nullable": false,
+            "title": "Title",
+            "type": "string"
+          },
+          "report": {
+            "default": "",
+            "nullable": false,
+            "title": "Report",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      },
+      "Def3": {
+        "properties": {
+          "status": {
+            "$ref": "#/$defs/Def4",
+            "default": null,
+            "nullable": false,
+            "title": "Current status"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def6"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "assignee"
+          }
+        },
+        "type": "object"
+      },
+      "Def4": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def5"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def5": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "statusy.status",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def6": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def7"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def7": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "users.user",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def8": {
+        "properties": {},
+        "type": "object"
+      }
+    },
+    "properties": {
+      "data": {
+        "$ref": "#/$defs/Def1",
+        "title": "Data"
+      },
+      "meta": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Def8"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "data"
+    ],
+    "type": "object"
+  },
+  "schema_update": {
+    "$defs": {
+      "Def1": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "tasks.task",
+            "title": "Type",
+            "type": "string"
+          },
+          "bs:action": {
+            "default": "change",
+            "title": "Bs:Action",
+            "type": "string"
+          },
+          "attributes": {
+            "$ref": "#/$defs/Def2",
+            "title": "Attributes"
+          },
+          "relationships": {
+            "$ref": "#/$defs/Def3",
+            "title": "Relationships"
+          }
+        },
+        "required": [
+          "id",
+          "attributes",
+          "relationships"
+        ],
+        "type": "object"
+      },
+      "Def2": {
+        "properties": {
+          "title": {
+            "default": null,
+            "maxLength": 255,
+            "nullable": false,
+            "title": "Title",
+            "type": "string"
+          },
+          "report": {
+            "default": "",
+            "nullable": false,
+            "title": "Report",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def3": {
+        "properties": {
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def4"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "assignee"
+          }
+        },
+        "type": "object"
+      },
+      "Def4": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def5"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def5": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "users.user",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def6": {
+        "properties": {},
+        "type": "object"
+      }
+    },
+    "properties": {
+      "data": {
+        "$ref": "#/$defs/Def1",
+        "title": "Data"
+      },
+      "meta": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Def6"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "data"
+    ],
+    "type": "object"
+  },
+  "retrieve_draft": {
+    "data": {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "type": "tasks.task",
+      "bs:action": "view",
+      "attributes": {
+        "dt_created": "2026-01-01T00:00:00Z",
+        "dt_updated": "2026-01-01T00:00:00Z",
+        "status_dt": "2026-01-01T00:00:00Z",
+        "title": "T",
+        "report": ""
+      },
+      "relationships": {
+        "status": {
+          "data": {
+            "id": "draft",
+            "type": "statusy.status"
+          }
+        },
+        "status_author": {
+          "data": null
+        },
+        "assignee": {
+          "data": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "type": "users.user"
+          }
+        }
+      }
+    },
+    "meta": {
+      "crud_actions": [
+        "view",
+        "change",
+        "add"
+      ],
+      "state_actions": [
+        {
+          "code": "ACTION_TRANSIT",
+          "endpoint": {
+            "url": "/api/v1/tasks/task/00000000-0000-0000-0000-000000000000/transit/",
+            "method": "POST",
+            "body": {
+              "properties": {
+                "transit": {
+                  "default": "start",
+                  "title": "Transit",
+                  "type": "string"
+                },
+                "payload": {
+                  "anyOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Payload"
+                }
+              },
+              "required": [
+                "payload"
+              ],
+              "type": "object"
+            }
+          },
+          "restricts": null,
+          "hint": null,
+          "hint_title": null,
+          "hint_action": null,
+          "resource": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "type": "tasks.task"
+          }
+        }
+      ]
+    }
+  },
+  "retrieve_in_progress": {
+    "data": {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "type": "tasks.task",
+      "bs:action": "view",
+      "attributes": {
+        "dt_created": "2026-01-01T00:00:00Z",
+        "dt_updated": "2026-01-01T00:00:00Z",
+        "status_dt": "2026-01-01T00:00:00Z",
+        "title": "T",
+        "report": ""
+      },
+      "relationships": {
+        "status": {
+          "data": {
+            "id": "in_progress",
+            "type": "statusy.status"
+          }
+        },
+        "status_author": {
+          "data": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "type": "users.user"
+          }
+        },
+        "assignee": {
+          "data": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "type": "users.user"
+          }
+        }
+      }
+    },
+    "meta": {
+      "state_actions": [
+        {
+          "code": "ACTION_TRANSIT",
+          "endpoint": {
+            "url": "/api/v1/tasks/task/00000000-0000-0000-0000-000000000000/transit/",
+            "method": "POST",
+            "body": {
+              "$defs": {
+                "Def1": {
+                  "properties": {
+                    "report": {
+                      "title": "Report",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "report"
+                  ],
+                  "type": "object"
+                }
+              },
+              "properties": {
+                "transit": {
+                  "default": "finish",
+                  "title": "Transit",
+                  "type": "string"
+                },
+                "payload": {
+                  "$ref": "#/$defs/Def1"
+                }
+              },
+              "required": [
+                "payload"
+              ],
+              "type": "object"
+            }
+          },
+          "restricts": null,
+          "hint": null,
+          "hint_title": null,
+          "hint_action": null,
+          "resource": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "type": "tasks.task"
+          }
+        }
+      ]
+    }
+  },
+  "create_422": {
+    "errors": [
+      {
+        "status": 422,
+        "title": "missing",
+        "code": "ERR_VALIDATE",
+        "detail": "<detail>",
+        "source": {
+          "pointer": "/attributes/title"
+        }
+      }
+    ]
+  }
+}

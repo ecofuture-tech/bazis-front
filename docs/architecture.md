@@ -85,11 +85,30 @@ reimplement it:
 The client implements these once. It is generic over the generated `paths` type of a
 product. Its unit tests and type tests stay in this repository; only `src/` is copied.
 
-### 2. Hooks, 3. Components (planned)
+### 2. Hooks
 
-React hooks over the client with TanStack Query as the cache: session, list, item,
-schema, mutations, forms bound to the runtime schemas, and per package hooks (statusy,
-uploadable, ws, async). Components are primitives on shadcn/ui (`app-shell`,
+React hooks over the client with TanStack Query as the cache (`assets/react`, imported as
+`@/bazis/react`): `useList`, `useItem`, `useSchema`, `useFilterFields`, the mutations
+`useCreate`, `useUpdate`, `useDestroy`, `useRelationship`, and `useResourceForm`, a form
+bound to the runtime schema of the create or the update (its fields are those of the
+current user, read-only where they may not change them; it submits the changed attributes and to-one relationships as one JSON:API
+document and maps a 422 to the fields). They are typed by the generated `paths` of the
+product and contain no UI. The hooks of a package are a separate asset that `init` copies
+only when the product has its capability (`requires` in the registry): the transits of
+bazis-statusy (`useTransits` from `meta.state_actions`, `useTransit`) in
+`@/bazis/react/statusy`; uploadable, ws and async will follow.
+
+Runtime metadata (schemas, filter fields, permission meta, state actions) is never part of
+the contract: it is requested at run time and cached by TanStack Query. Every query key is
+`['bazis', path, …, session]`: a mutation invalidates `['bazis', path]`. The data of one user
+is kept from the next one twice: the template clears the query and mutation caches when the
+user changes, and the session in the keys (a value of the application that changes at every
+login and logout) keeps a request still running for the previous user out of the queries of
+the next one.
+
+### 3. Components (planned)
+
+Components are primitives on shadcn/ui (`app-shell`,
 `resource-list`, `resource-form`, `transit-bar`, …) listed in `assets/registry.json` with
 what they require; each ships a contract test that checks its `data-bz` test ids and
 states, so that it keeps working after the product edits it.
@@ -134,8 +153,9 @@ generated.
 Tailwind 4 set up for shadcn/ui; `src/app/` holds the providers (the query cache and the
 client), the session (the token in memory and `localStorage`, the login of bazis-users),
 the router and the errors, and `src/screens/` a login and a home screen. The template is
-owned by the product from then on. The client is copied into `src/bazis/client/`, its
-pristine copy into `.bazis/base/`, and the lock is written. The files that the assets copy
+owned by the product from then on. The client is copied into `src/bazis/client/`, the
+hooks into `src/bazis/react/` (with those of the installed packages), their pristine
+copies into `.bazis/base/`, and the lock is written. The files that the assets copy
 are listed in `assets/registry.json`, which the wheel is checked against.
 
 ## Updates of the copied code
@@ -161,8 +181,9 @@ package, and security advisories of the asset registry as errors.
 
 ## Status
 
-Pre-release. Available: the client (`assets/client`), the contract export with the
-generated TypeScript (`bazis_front contract`, `front.W001`), the frontend template with
-the copy of the client and the lock (`bazis_front init`), and the specs with their
-validator (`bazis_front check`, `front.W002`). Next: the hooks, the first components,
-`add` and `update`, and the end-to-end pipeline against a sample backend.
+Pre-release. Available: the client (`assets/client`), the hooks (`assets/react`), the
+contract export with the generated TypeScript (`bazis_front contract`, `front.W001`), the
+frontend template with the copies of the client and the hooks and the lock
+(`bazis_front init`), and the specs with their validator (`bazis_front check`,
+`front.W002`). Next: the first components, `add` and `update`, and the end-to-end
+pipeline against a sample backend.

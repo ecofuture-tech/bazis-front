@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import js from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -24,11 +25,16 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
-    files: ['**/*.ts'],
+    files: ['**/*.{ts,tsx}'],
     extends: [tseslint.configs.strictTypeChecked],
     languageOptions: {
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
+  },
+  // the rules of the hooks, as the eslint config of the template checks them in a product
+  {
+    files: ['bazis/contrib/front/assets/react/**/*.{ts,tsx}'],
+    extends: [reactHooks.configs.flat.recommended],
   },
   {
     files: ['**/*.js', '**/*.mjs'],

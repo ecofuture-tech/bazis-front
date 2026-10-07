@@ -4,7 +4,8 @@
   "type": "module",
   "license": "Apache-2.0",
   "workspaces": [
-    "bazis/contrib/front/assets/client"
+    "bazis/contrib/front/assets/client",
+    "bazis/contrib/front/assets/react"
   ],
   "engines": {
     "node": ">=22.13",
@@ -18,6 +19,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.71.1",
