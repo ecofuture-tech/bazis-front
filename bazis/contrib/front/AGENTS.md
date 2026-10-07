@@ -79,10 +79,11 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
   missing capability and copies nothing.
 - An asset already in the frontend is kept as it is; `add` of it again does nothing when
   it is unchanged. `add` never overwrites: a component named again that was changed in the
-  frontend, a component of another version of bazis-front, or a file of the product at the
-  path of a copy (a shadcn/ui component added with the shadcn CLI) fail the command, and
-  nothing is written. The merge of a new version with the local changes will be
-  `bazis_front update`.
+  frontend, any asset it needs (also `client` and `react`) that the frontend has in another
+  version of bazis-front, or a file of the product at the path of a copy (a shadcn/ui
+  component added with the shadcn CLI) fail the command, and nothing is written. So after
+  `pip install -U bazis-front`, `add` refuses until the copies are brought to the new
+  version; the merge of a new version with the local changes will be `bazis_front update`.
 - **The product owns the copies** and changes them freely (the look, the texts, the
   layout). Each component comes with its contract test, `<component>.contract.test.tsx`,
   run by `npm test` of the frontend: it checks the `data-bz` marks and the states that the
