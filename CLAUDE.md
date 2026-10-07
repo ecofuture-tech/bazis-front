@@ -42,8 +42,10 @@ npm test
 ```
 
 - `package.json`, `tsconfig.json`, `test/` and `scripts/` of an asset exist only for these
-  checks. They are in the wheel, but are not copied into a product: the copy command will
-  copy only the files that the asset registry lists (`src/` for the client).
+  checks: `pyproject.toml` excludes them from the wheel (they stay in the sdist), and
+  `scripts/check_wheel.py` (run in CI) checks that the wheel has the sources and none of
+  them. A new asset adds its own entries to `[tool.setuptools.exclude-package-data]`.
+  setuptools reuses a stale `build/` directory: delete it before building the wheel locally.
 - `node_modules/` and `dist/` are ignored by Git and excluded from package discovery in
   `pyproject.toml`, so they never reach the wheel. Check the wheel after changing the
   layout: `python -m build` and list its files.

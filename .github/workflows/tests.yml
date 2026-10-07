@@ -20,7 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uvx ruff check bazis tests sample
+      - run: uvx ruff check bazis tests sample scripts
+      - name: Check the contents of the wheel
+        run: |
+          uv build --wheel --out-dir wheel
+          python scripts/check_wheel.py wheel
 
   tests:
     name: tests (python ${{ matrix.python }}, ${{ matrix.resolution }})

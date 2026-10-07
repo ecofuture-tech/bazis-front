@@ -47,3 +47,4 @@ My*
 node_modules/
 coverage/
 *.tsbuildinfo
+build/

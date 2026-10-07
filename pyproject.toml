@@ -8,6 +8,14 @@ build-backend = "setuptools.build_meta"
 packages.find = { include = ["bazis.*"], exclude = ["*.node_modules", "*.node_modules.*", "*.dist", "*.dist.*"] }
 include-package-data = true
 
+[tool.setuptools.exclude-package-data]
+# the checks of the client (tests, fixtures, scripts, Node config) stay in the repository;
+# every asset lists its own (scripts/check_wheel.py fails the build otherwise)
+"bazis.contrib.front.assets.client" = ["package.json", "tsconfig.json"]
+"bazis.contrib.front.assets.client.test" = ["*"]
+"bazis.contrib.front.assets.client.test.fixtures" = ["*"]
+"bazis.contrib.front.assets.client.scripts" = ["*"]
+
 [tool.setuptools_scm]
 version_file = "bazis/contrib/front/_version.py"
 version_scheme = "no-guess-dev"
