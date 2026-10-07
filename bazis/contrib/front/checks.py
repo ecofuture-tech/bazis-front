@@ -121,3 +121,35 @@ def check_e2e(app_configs, **kwargs):
             )
         ]
     return []
+
+
+@register()
+def check_update(app_configs, **kwargs):
+    """
+    The copies of the assets in the frontend (when it has the lock of `bazis_front init`)
+    and of the JSON Schemas in `spec/schema/` are those of the installed bazis-front: the
+    comparison of `bazis_front update --check`, without Node and without the database.
+    """
+    from django.conf import settings
+
+    from .vendor import lock as frontend_lock
+    from .vendor import update
+
+    frontend = frontend_lock.frontend_dir()
+    try:
+        lock = frontend_lock.read(frontend)
+    except frontend_lock.LockError:
+        # front.W001 reports it
+        return []
+    if lock is None:
+        return []
+    if problems := update.stale(Path(settings.BASE_DIR), frontend, lock):
+        return [
+            Warning(
+                ' '.join(problems),
+                hint='Update them with `manage.py bazis_front update` (`--check` lists the '
+                'changes), resolve the conflicts it reports and run the checks of the frontend.',
+                id='front.W004',
+            )
+        ]
+    return []

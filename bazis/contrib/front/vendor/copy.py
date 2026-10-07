@@ -14,10 +14,11 @@
 
 """
 The copies of the assets: in a new frontend (`bazis_front init`), and of the components in
-an existing one (`bazis_front add`).
+an existing one (`bazis_front add`). `update.py` brings them to a new version.
 """
 
 import os
+import re
 import shutil
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -40,6 +41,20 @@ def stamp(text: str, asset: str, version: str) -> str:
     return ''.join([*lines[:end], f'// bazis-front {version} asset {asset}\n', *lines[end:]])
 
 
+def restamp(text: str, asset: str, version: str) -> str:
+    """
+    The text of a copy of the asset with its stamp line (where it is, if it is there) of
+    another version: the copies of two versions are compared and merged without it.
+    """
+    return re.sub(
+        rf'^// bazis-front \S+ asset {re.escape(asset)}$',
+        f'// bazis-front {version} asset {asset}',
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+
+
 def write_file(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -52,20 +67,47 @@ def stamped(asset: Asset, name: str, version: str) -> bytes:
     return stamp(asset.read(name).decode('utf-8'), asset.name, version).encode('utf-8')
 
 
+def base_dir(frontend: Path, asset: str, version: str) -> Path:
+    """
+    The pristine copy of an asset in the frontend, `.bazis/base/<asset>@<version>/`.
+    """
+    return frontend / frontend_lock.BASE_DIR / f'{asset}@{version}'
+
+
+def hashes(copies: dict[str, bytes]) -> dict[str, str]:
+    """
+    The hashes of the lock of the copies of an asset, by their path in the frontend.
+    """
+    return {path: frontend_lock.digest(data) for path, data in copies.items()}
+
+
+def write_base(asset: Asset, frontend: Path, version: str) -> dict[str, bytes]:
+    """
+    Writes the pristine copy of a vendored asset or of a component, stamped, in
+    `.bazis/base/<asset>@<version>/` (replacing one that is there), and returns its files by
+    their path in the frontend.
+    """
+    base = base_dir(frontend, asset.name, version)
+    if base.exists():
+        shutil.rmtree(base)
+    copies = {}
+    for name in asset.files:
+        data = stamped(asset, name, version)
+        write_file(base / name, data)
+        copies[asset.target_path(name)] = data
+    return copies
+
+
 def copy_vendored(asset: Asset, frontend: Path, version: str) -> dict[str, str]:
     """
     Copies the files of a vendored asset or of a component into the frontend with the
     version stamp, and the same pristine copies into `.bazis/base/<asset>@<version>/`.
     Returns their hashes by their path in the frontend.
     """
-    base = frontend / frontend_lock.BASE_DIR / f'{asset.name}@{version}'
-    hashes = {}
-    for name in asset.files:
-        data = stamped(asset, name, version)
-        write_file(frontend / asset.target_path(name), data)
-        write_file(base / name, data)
-        hashes[asset.target_path(name)] = frontend_lock.digest(data)
-    return hashes
+    copies = write_base(asset, frontend, version)
+    for path, data in copies.items():
+        write_file(frontend / path, data)
+    return hashes(copies)
 
 
 def create_frontend(frontend: Path, capabilities: Iterable[str]) -> None:
@@ -109,14 +151,45 @@ def create_frontend(frontend: Path, capabilities: Iterable[str]) -> None:
         raise
 
 
-class AddError(Exception):
+class CopyError(Exception):
     """
-    `add` copies nothing: the messages say why.
+    `add` or `update` writes nothing: the messages say why.
     """
 
     def __init__(self, messages: Sequence[str]):
         super().__init__('\n'.join(messages))
         self.messages = list(messages)
+
+
+def missing_capabilities(assets: Sequence[Asset], capabilities: Callable[[], set[str]]) -> list[str]:
+    """
+    The messages of the assets to copy that require capabilities the product does not have;
+    `capabilities` (those of the contract) is called only when one of them requires one.
+    """
+    if not any(it.capabilities for it in assets):
+        return []
+    available = capabilities()
+    return [
+        f'{it.name} requires the capabilities {", ".join(it.capabilities)}, which the '
+        'contract does not have: install the package, add its app to INSTALLED_APPS and '
+        'export the contract again.'
+        for it in assets if not it.wanted(available)
+    ]
+
+
+def foreign_files(frontend: Path, asset: Asset, names: Iterable[str], version: str) -> list[str]:
+    """
+    The messages of the files of the frontend at the paths of these files of an asset to copy
+    that are not their copy: written by the product, they are never overwritten. A file that
+    is the copy is taken over.
+    """
+    return [
+        f'{asset.target_path(name)} exists and is not the copy of {asset.name}: bazis-front '
+        'does not overwrite it. Move it away and run the command again.'
+        for name in names
+        if (frontend / asset.target_path(name)).is_file()
+        and (frontend / asset.target_path(name)).read_bytes() != stamped(asset, name, version)
+    ]
 
 
 @dataclass
@@ -150,10 +223,11 @@ def add_assets(
     with the assets they require, as `init` copies the vendored assets: stamped, with their
     pristine copies in `.bazis/base/` and their hashes in the lock, which is written last.
     An asset already in the frontend is kept; a component named again that was changed
-    there is refused (`update` will merge it), and so is any asset of another version of
-    bazis-front, named or required: the copies are of one version. `capabilities` returns those of the contract,
-    read only when an asset requires one. Everything is checked before anything is written:
-    on an `AddError` nothing is.
+    there is refused (`update` merges the next versions with the changes), and so is any
+    asset of another version of bazis-front, named or required: the copies are of one
+    version (`update` brings them to this one). `capabilities` returns those of the
+    contract, read only when an asset requires one. Everything is checked before anything
+    is written: on a `CopyError` nothing is.
     """
     version = __version__
     registry = load()
@@ -165,19 +239,11 @@ def add_assets(
         elif registry[name].kind == TEMPLATE:
             errors.append(f'{name} is copied by `bazis_front init` only.')
     if errors:
-        raise AddError(errors)
+        raise CopyError(errors)
 
     assets = resolve(names, registry)
     present = lock.get('assets', {})
-    missing = [it for it in assets if it.name not in present]
-    if any(it.capabilities for it in missing):
-        available = capabilities()
-        errors += [
-            f'{it.name} requires the capabilities {", ".join(it.capabilities)}, which the '
-            f'contract does not have: install the package, add its app to INSTALLED_APPS and '
-            f'export the contract again.'
-            for it in missing if not it.wanted(available)
-        ]
+    errors += missing_capabilities([it for it in assets if it.name not in present], capabilities)
 
     result = Added()
     to_copy = []
@@ -185,30 +251,24 @@ def add_assets(
         entry = present.get(asset.name)
         if entry is None:
             to_copy.append(asset)
-            # a file of the frontend that this asset would replace: written by the product
-            errors += [
-                f'{asset.target_path(name)} exists and is not the copy of {asset.name}: '
-                f'`add` does not overwrite it. Move it away and add {asset.name} again.'
-                for name in asset.files
-                if (frontend / asset.target_path(name)).is_file()
-                and (frontend / asset.target_path(name)).read_bytes() != stamped(asset, name, version)
-            ]
+            errors += foreign_files(frontend, asset, asset.files, version)
         elif entry.get('version') != version:
             required = '' if asset.name in names else ' (required by what you add)'
             errors.append(
                 f'{asset.name} {entry.get("version")} is in the frontend{required}, bazis-front '
                 f'is {version}: `add` does not mix the versions of the copies. Update them all '
-                'to this version first with `bazis_front update` (planned).'
+                'to this version first with `manage.py bazis_front update`.'
             )
         elif asset.name in names and (changed := modified_files(frontend, entry)):
             errors.append(
                 f'{asset.name} was changed in the frontend ({", ".join(changed)}): `add` does '
-                f'not overwrite it; `bazis_front update` will merge the new versions.'
+                'not overwrite it; `bazis_front update` merges the next versions of bazis-front '
+                'with the changes.'
             )
         else:
             result.present.append(asset.name)
     if errors:
-        raise AddError(errors)
+        raise CopyError(errors)
 
     for asset in to_copy:
         present[asset.name] = {'version': version, 'files': copy_vendored(asset, frontend, version)}

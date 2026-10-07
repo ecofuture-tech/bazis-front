@@ -190,12 +190,30 @@ are listed in `assets/registry.json`, which the wheel is checked against.
 
 ## Updates of the copied code
 
-Every copied file carries the version of bazis-front in its header, and
-`frontend/bazis-front.lock.json` records the hashes of the contract, the generated files
-and the copied assets. Pristine copies of the assets are kept in `frontend/.bazis/base/` and
-committed, so that `bazis_front update` can merge a new version with the local edits
-(three-way merge, `merge3`). `bazis_doctor` reports copied assets older than the installed
-package, and security advisories of the asset registry as errors.
+Every copied file carries the version of bazis-front in its header (a stamp line after its
+license header), and `frontend/bazis-front.lock.json` records the hashes of the contract,
+the generated files and the copied assets. Pristine copies of the assets are kept in
+`frontend/.bazis/base/<asset>@<version>/` and committed: after `pip install -U
+bazis-front` the old version is no longer installed, and the merge needs it.
+
+`bazis_front update` (`vendor/update.py`) brings the copies to the installed version, each
+file from three versions: the pristine copy (the base), the file of the package (the
+upstream) and the file of the product. A file unchanged in the product is replaced, a file
+changed only there is kept, a file changed on both sides is merged by `git merge-file`
+(products are Git repositories: `.bazis/base/` is committed), and where both changed the
+same or adjacent lines the file is
+written with git conflict markers and the command fails. Files added to an asset are added, files removed from it are
+deleted unless the product changed them. The stamp lines are compared at the new version,
+so they never conflict. The assets that a new version requires are copied, the pristine
+copies of the new version replace the old ones, the lock is updated, and the copies of the
+JSON Schemas in `spec/` are refreshed. Everything is read and merged before anything is
+written. The template is the product's and never updated; `update` reports the npm
+dependency versions of the new template that differ from the product's `package.json`.
+`update --check` and the system check `front.W004` (run by `bazis_doctor`) report copies of
+another version without Node.
+
+The client, the hooks and the helpers of the tests are not edited by the product, so they
+are replaced without conflicts; the components are owned by the product and merged.
 
 ## Principles
 
@@ -217,4 +235,5 @@ TypeScript (`bazis_front contract`, `front.W001`), the frontend template with th
 of the client, the hooks and its components and the lock (`bazis_front init`), the specs
 with their validator (`bazis_front check`, `front.W002`), and the end-to-end tests of the
 scenarios with their helpers (`bazis_front e2e`, `assets/playwright`, `front.W003`), run in
-CI against the sample backend. Next: `update`.
+CI against the sample backend, and the update of the copies with a three-way merge
+(`bazis_front update`, `front.W004`).

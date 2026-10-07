@@ -15,7 +15,8 @@
 """
 The specs of a new product (`bazis_front init`): the copies of the JSON Schemas for the
 editors in `spec/schema/`, and starters of `product.yaml` and of the design. There are no
-starters of screens: the agent writes them.
+starters of screens: the agent writes them. `bazis_front update` brings the copies of the
+JSON Schemas to the installed version (`schema_updates`).
 """
 
 import os
@@ -59,3 +60,20 @@ def create_spec(spec: Path) -> None:
     except BaseException:
         shutil.rmtree(temporary, ignore_errors=True)
         raise
+
+
+def schema_updates(spec: Path) -> dict[str, bytes]:
+    """
+    The JSON Schemas of the package whose copies in `spec/schema/` differ or are missing, by
+    file name; none when the product has no `spec/schema/`: the copies are only for the
+    editors, and a product may go without them.
+    """
+    directory = spec / SCHEMA_DIR
+    if not directory.is_dir():
+        return {}
+    updates = {}
+    for name, source in schema_files().items():
+        data = source.read_bytes()
+        if not (directory / name).is_file() or (directory / name).read_bytes() != data:
+            updates[name] = data
+    return updates

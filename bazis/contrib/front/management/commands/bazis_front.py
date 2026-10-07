@@ -28,7 +28,7 @@ from bazis.contrib.front.spec import create as spec_create
 from bazis.contrib.front.spec import e2e
 from bazis.contrib.front.spec import validate as spec_validate
 from bazis.contrib.front.spec.issues import Issues
-from bazis.contrib.front.vendor import copy
+from bazis.contrib.front.vendor import copy, update
 from bazis.contrib.front.vendor import lock as frontend_lock
 from bazis.contrib.front.vendor.registry import load as load_registry
 
@@ -40,9 +40,9 @@ def contract_capabilities() -> set[str]:
     issues = Issues()
     contract_data = spec_validate.load_contract(Path(settings.BASE_DIR), issues)
     if issues.items:
-        raise copy.AddError([it.message for it in issues.items])
+        raise copy.CopyError([it.message for it in issues.items])
     if contract_data is None:
-        raise copy.AddError([
+        raise copy.CopyError([
             f'{spec_validate.CONTRACT_FILE} is missing: the components of a package need its '
             'capability in the contract. Export it with `manage.py bazis_front contract`.'
         ])
@@ -109,11 +109,42 @@ class Command(BaseCommand):
                 'require, their contract tests, their pristine copies in .bazis/base/ and their '
                 'hashes in the lock. A component of a package (such as transit-bar of '
                 'bazis-statusy) needs its capability in contract/contract.json. The product '
-                'owns the copies: an asset already there is kept, and a component named again '
-                'that was changed there is refused (`update` will merge it).'
+                'owns the copies: an asset already there is kept, a component named again '
+                'that was changed there is refused, and so is an asset of another version '
+                '(`update` brings them to this one).'
             ),
         )
         add.add_argument('assets', nargs='+', metavar='asset', help='The components to add.')
+
+        update_parser = subcommands.add_parser(
+            'update',
+            help='Update the copied assets to the installed bazis-front, merging the changes.',
+            description=(
+                'Bring the copies of the assets in frontend/ (the client, the hooks, the '
+                'components, the helpers of the end-to-end tests) to the installed version of '
+                'bazis-front: a file unchanged in the frontend is replaced, a file changed only '
+                'there is kept, a file changed in both is merged with its pristine copy in '
+                '.bazis/base/ (conflicts are written with markers and fail the command); files '
+                'added to an asset are added, files removed from it are deleted unless changed. '
+                'The assets that a new version requires are copied, the pristine copies and the '
+                'lock are updated, and so are the JSON Schemas in spec/schema/. The template '
+                'is the product\'s and never updated: the versions of the npm dependencies of '
+                'its package.json are reported. Nothing is written when an asset cannot be '
+                'updated.'
+            ),
+        )
+        update_parser.add_argument(
+            'assets', nargs='*', metavar='asset',
+            help='The assets to update, with those they require (default: every copied asset).',
+        )
+        update_parser.add_argument(
+            '--all', action='store_true', dest='all_assets', help='Update every copied asset.',
+        )
+        update_parser.add_argument(
+            '--check',
+            action='store_true',
+            help='Write nothing; list the changes and exit with 1 if a copy is not up to date.',
+        )
 
         check = subcommands.add_parser(
             'check',
@@ -152,9 +183,9 @@ class Command(BaseCommand):
         )
 
     def execute(self, *args, **options):
-        # `check` reports the issues of the specs itself: the system checks would repeat
-        # them (front.W002)
-        if options.get('subcommand') == 'check':
+        # `check` reports the issues of the specs itself, `update` the stale copies: the
+        # system checks would repeat them (front.W002, front.W004)
+        if options.get('subcommand') in ('check', 'update'):
             options['skip_checks'] = True
         return super().execute(*args, **options)
 
@@ -206,7 +237,7 @@ class Command(BaseCommand):
             )
         try:
             added = copy.add_assets(frontend, lock, assets, contract_capabilities)
-        except copy.AddError as err:
+        except copy.CopyError as err:
             raise CommandError('\n'.join(err.messages)) from err
         registry = load_registry()
         for name in added.copied:
@@ -219,6 +250,75 @@ class Command(BaseCommand):
                 'Run their contract tests with `npm test` in frontend/; the product owns the '
                 'copies and keeps the tests passing when it changes them.'
             )
+
+    def handle_update(self, assets, all_assets=False, check=False, **options):
+        if assets and all_assets:
+            raise CommandError('Name the assets or pass --all, not both.')
+        frontend = frontend_lock.frontend_dir()
+        try:
+            lock = frontend_lock.read(frontend)
+        except frontend_lock.LockError as err:
+            raise CommandError(str(err)) from err
+        if lock is None:
+            raise CommandError(
+                f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
+                '`manage.py bazis_front init`.'
+            )
+        root = Path(settings.BASE_DIR)
+        try:
+            plan = update.plan(root, frontend, lock, assets, contract_capabilities)
+        except copy.CopyError as err:
+            raise CommandError('\n'.join(err.messages)) from err
+
+        self.write_plan(plan)
+        if changes := update.dependency_changes(frontend):
+            self.stdout.write(
+                f'The package.json of the template of bazis-front {plan.version} has other '
+                'versions of npm dependencies than frontend/package.json. `update` never changes '
+                'it: bump those that the copies need and run `npm install`.'
+            )
+            for line in changes:
+                self.stdout.write(f'  {line}')
+        if not plan:
+            self.stdout.write(f'The copies in {frontend} are those of bazis-front {plan.version}.')
+            return
+        if check:
+            raise CommandError(
+                f'The copies are not those of bazis-front {plan.version}: update them with '
+                '`manage.py bazis_front update`.'
+            )
+        update.apply(root, frontend, lock, plan)
+        if plan.conflicts:
+            raise CommandError(
+                f'Updated to bazis-front {plan.version} with conflicts in {len(plan.conflicts)} '
+                f'files: {", ".join(plan.conflicts)}. Resolve the conflict markers (<<<<<<< '
+                f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them, '
+                'then run `npx tsc --noEmit` and `npm test` in frontend/.'
+            )
+        self.stdout.write(
+            f'Updated the copies to bazis-front {plan.version}. Run `npx tsc --noEmit`, '
+            '`npm run lint` and `npm test` in frontend/, and commit the frontend with '
+            f'{frontend_lock.BASE_DIR}/ and the lock.'
+        )
+
+    def write_plan(self, plan):
+        for asset in plan.assets:
+            if asset.old is None:
+                self.stdout.write(f'{asset.name}: copied ({plan.version}), required by a new version.')
+                continue
+            if asset.asset is None:
+                self.stdout.write(f'{asset.name} {asset.old}: no longer in bazis-front {plan.version}.')
+            else:
+                replaced = sum(it.status == update.REPLACED for it in asset.files)
+                self.stdout.write(
+                    f'{asset.name}: {asset.old} -> {plan.version}'
+                    + (f' ({replaced} files unchanged in the frontend replaced)' if replaced else '')
+                )
+            for it in asset.files:
+                if it.status != update.REPLACED:
+                    self.stdout.write(f'  {it.path}: {update.DESCRIPTIONS[it.status]}')
+        for path in plan.schemas:
+            self.stdout.write(f'{path}: replaced by the copy of bazis-front {plan.version}.')
 
     def handle_contract(self, check=False, out=None, no_node=False, **options):
         from bazis.core.app import app

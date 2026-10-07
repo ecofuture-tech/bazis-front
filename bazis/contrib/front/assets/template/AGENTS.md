@@ -23,7 +23,7 @@ backend, its contract and the specs of the product are one directory up (`manage
 | `e2e/generated/` | the end-to-end tests of the scenarios of `../spec/product.yaml`, and `product.ts` (the test users and the routes of the specs) | only `manage.py bazis_front e2e` |
 | `e2e/bazis/` | the helpers of the end-to-end tests (Playwright, through `data-bz`) | bazis-front; not edited |
 | `e2e/custom/` | the end-to-end tests written by hand | the product |
-| `bazis-front.lock.json`, `.bazis/base/` | the versions and hashes of the contract, of the generated files and of the copied assets; the pristine copies of the assets | bazis-front; commit them |
+| `bazis-front.lock.json`, `.bazis/base/` | the versions and hashes of the contract, of the generated files and of the copied assets; the pristine copies of the assets, from which `bazis_front update` merges a new version | bazis-front; commit them, never edit them |
 
 ## Commands
 
@@ -37,7 +37,14 @@ python manage.py bazis_front check             # the specs against the contract;
 python manage.py bazis_front add resource-list  # copy a component with what it requires
 python manage.py bazis_front e2e               # e2e/generated/ from the scenarios of the specs
 python manage.py bazis_front e2e --check       # write nothing; exit 1 if they are stale (CI)
+python manage.py bazis_front update            # after `pip install -U bazis-front`: the copies of the new version, merged
+python manage.py bazis_front update --check    # write nothing; exit 1 if a copy is of another version
 ```
+
+The files of the template (`package.json`, the configs, `src/app/`, `src/screens/`, this
+file) are the product's: `update` never changes them. It prints the npm dependencies of
+the new template whose versions differ from this `package.json`; bump those that the new
+copies need and run `npm install`.
 
 From `frontend/`:
 
@@ -273,8 +280,13 @@ links to `NAVIGATION` there.
   that the scenarios act through. A change that breaks it breaks the scenarios.
 - Add a component with `manage.py bazis_front add <component>` rather than by hand: it
   copies what it requires and records the pristine copy for the updates. It never
-  overwrites a copy that was changed here; the update with a merge of the changes will be
-  `bazis_front update`.
+  overwrites a copy that was changed here. `manage.py bazis_front update` brings the
+  copies to a new version of bazis-front: a file changed only here is kept, a file changed
+  here and in bazis-front is merged by `git merge-file` (Git is needed then). Where both
+  changed the same or adjacent lines it writes git conflict markers (`<<<<<<< frontend`,
+  `=======`, `>>>>>>> bazis-front <version>`) and fails, listing the files: keep the change of bazis-front, apply the change of the product
+  over it, delete the markers, and run `npm run typecheck` (it reports a marker left
+  behind), `npm run lint` and `npm test`.
 - The components decide nothing: the fields and their titles come from the runtime
   schemas, the actions from the permission meta (`permission`), the states from the errors
   of the backend (`StatePanel`). Pass the field ids of the specs and the paths of
