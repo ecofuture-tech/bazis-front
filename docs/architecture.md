@@ -199,8 +199,9 @@ bazis-front` the old version is no longer installed, and the merge needs it.
 `bazis_front update` (`vendor/update.py`) brings the copies to the installed version, each
 file from three versions: the pristine copy (the base), the file of the package (the
 upstream) and the file of the product. A file unchanged in the product is replaced, a file
-changed only there is kept, a file changed on both sides is merged (a diff3 of the lines
-on the standard library), and where both changed the same or adjacent lines the file is
+changed only there is kept, a file changed on both sides is merged by `git merge-file`
+(products are Git repositories: `.bazis/base/` is committed), and where both changed the
+same or adjacent lines the file is
 written with git conflict markers and the command fails. Files added to an asset are added, files removed from it are
 deleted unless the product changed them. The stamp lines are compared at the new version,
 so they never conflict. The assets that a new version requires are copied, the pristine

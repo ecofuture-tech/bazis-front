@@ -25,8 +25,8 @@ installed package, stamped with its version) and the local file of the product:
 
 - unchanged in the frontend: replaced by the upstream;
 - changed in the frontend only: kept;
-- changed in both: merged (`merge.py`, a diff3 of the lines), with conflict markers (git
-  style) where the two change the same or adjacent lines;
+- changed in both: merged by `git merge-file` (Git is needed then), with conflict markers
+  where the two change the same or adjacent lines;
 - added upstream: added (never over a file of the product: the update fails);
 - removed upstream: deleted when unchanged in the frontend, otherwise kept (the product's);
 - deleted in the frontend: not restored.
@@ -42,7 +42,10 @@ versions of the npm dependencies of its `package.json` are reported (`dependency
 """
 
 import json
+import os
 import shutil
+import subprocess
+import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -63,7 +66,6 @@ from .copy import (
     write_base,
     write_file,
 )
-from .merge import lines, merge_lines
 from .registry import TEMPLATE, Asset, load, resolve
 
 
@@ -97,6 +99,10 @@ DESCRIPTIONS = {
 
 #: the names of the two sides in the conflict markers
 LOCAL_NAME = 'frontend'
+
+#: `git merge-file` without the configuration of the user or of the system: the same markers
+#: everywhere
+GIT_ENV = {'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull}
 
 
 @dataclass
@@ -212,11 +218,41 @@ def merge(path: str, asset: str, base: bytes, local: bytes, upstream: bytes, ver
     upstream_text = upstream.decode('utf-8')
     if base_text == upstream_text:
         return FileUpdate(path, KEPT, local_text.encode('utf-8'))
-    merged, conflict = merge_lines(
-        lines(base_text), lines(local_text), lines(upstream_text),
-        LOCAL_NAME, f'bazis-front {version}',
-    )
-    return FileUpdate(path, CONFLICT if conflict else MERGED, ''.join(merged).encode('utf-8'))
+    merged, conflicts = merge_file(path, base_text, local_text, upstream_text, version)
+    return FileUpdate(path, CONFLICT if conflicts else MERGED, merged)
+
+
+def merge_file(path: str, base: str, local: str, upstream: str, version: str) -> tuple[bytes, int]:
+    """
+    The three-way merge of `git merge-file` (the markers `<<<<<<< frontend`, `=======`,
+    `>>>>>>> bazis-front <version>`) and the number of its conflicts. Git is needed only
+    here, for a file changed in the frontend and in bazis-front.
+    """
+    if (git := shutil.which('git')) is None:
+        raise CopyError([
+            'Git is not found: `update` merges the files changed in the frontend and in '
+            'bazis-front with `git merge-file`. Install Git and run it again.'
+        ])
+    with tempfile.TemporaryDirectory() as directory:
+        for name, text in (('local', local), ('base', base), ('upstream', upstream)):
+            (Path(directory) / name).write_bytes(text.encode('utf-8'))
+        result = subprocess.run(
+            [
+                git, 'merge-file', '-p', '-L', LOCAL_NAME, '-L', 'base',
+                '-L', f'bazis-front {version}', 'local', 'base', 'upstream',
+            ],
+            cwd=directory,
+            env={**os.environ, **GIT_ENV},
+            capture_output=True,
+            check=False,
+        )
+    # the number of the conflicts (at most 127), or an error
+    if not 0 <= result.returncode <= 127:
+        raise CopyError([
+            f'{path} cannot be merged: `git merge-file` failed '
+            f'({result.stderr.decode("utf-8", "replace").strip()}).'
+        ])
+    return result.stdout, result.returncode
 
 
 def pristine(frontend: Path, name: str, entry: dict, path: str, relative: str) -> bytes:
@@ -333,7 +369,7 @@ def plan(
             files = update_files(frontend, name, entry, None, version)
             result.assets.append(AssetUpdate(name, entry.get('version'), None, files))
     if errors:
-        raise CopyError(errors)
+        raise CopyError(list(dict.fromkeys(errors)))
     result.schemas = {
         f'{SPEC_DIR}/{SCHEMA_DIR}/{name}': data
         for name, data in schema_updates(root / SPEC_DIR).items()

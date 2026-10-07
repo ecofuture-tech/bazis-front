@@ -282,9 +282,9 @@ links to `NAVIGATION` there.
   copies what it requires and records the pristine copy for the updates. It never
   overwrites a copy that was changed here. `manage.py bazis_front update` brings the
   copies to a new version of bazis-front: a file changed only here is kept, a file changed
-  here and in bazis-front is merged. Where both changed the same (or adjacent) lines it writes git
-  conflict markers (`<<<<<<< frontend`, `=======`, `>>>>>>> bazis-front <version>`) and
-  fails, listing the files: keep the change of bazis-front, apply the change of the product
+  here and in bazis-front is merged by `git merge-file` (Git is needed then). Where both
+  changed the same or adjacent lines it writes git conflict markers (`<<<<<<< frontend`,
+  `=======`, `>>>>>>> bazis-front <version>`) and fails, listing the files: keep the change of bazis-front, apply the change of the product
   over it, delete the markers, and run `npm run typecheck` (it reports a marker left
   behind), `npm run lint` and `npm test`.
 - The components decide nothing: the fields and their titles come from the runtime

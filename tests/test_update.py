@@ -32,6 +32,7 @@ from bazis.contrib.front import __version__, checks
 from bazis.contrib.front.contract.export import CONTRACT_FORMAT
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import registry
+from bazis.contrib.front.vendor import update as vendor_update
 from bazis.contrib.front.vendor.copy import base_dir, restamp, stamped
 from bazis.contrib.front.vendor.lock import digest
 
@@ -484,3 +485,72 @@ def test_update_needs_a_frontend(tmp_path):
         with pytest.raises(CommandError, match='has no bazis-front.lock.json: create the frontend'):
             update()
         assert checks.check_update(None) == []
+
+
+def merge(base, local, upstream, asset='client'):
+    """
+    `update.merge` of three texts, the base and the local file stamped with OLD.
+    """
+    stamp = f'// header\n// bazis-front {OLD} asset {asset}\n'
+    new = f'// header\n// bazis-front {__version__} asset {asset}\n'
+    result = vendor_update.merge(
+        'a.ts', asset, (stamp + base).encode(), (stamp + local).encode(), (new + upstream).encode(),
+        __version__,
+    )
+    assert result.data.startswith(new.encode()), result.data
+    return result.status, result.data.decode()[len(new):]
+
+
+def test_merge_of_a_file():
+    base = ''.join(f'line {it}\n' for it in range(1, 11))
+    local = base.replace('line 2\n', 'mine\n')
+    upstream = base.replace('line 8\n', 'theirs\n')
+    # the stamps of the old version are not a change
+    assert merge(base, local, upstream) == (
+        vendor_update.MERGED, base.replace('line 2\n', 'mine\n').replace('line 8\n', 'theirs\n'),
+    )
+    status, text = merge(base, base.replace('line 5\n', 'mine\n'), base.replace('line 5\n', 'theirs\n'))
+    assert status == vendor_update.CONFLICT
+    assert text == base.replace(
+        'line 5\n', f'{MARKERS[0]}mine\n{MARKERS[1]}theirs\n{MARKERS[2]}',
+    )
+    # unchanged by bazis-front: the local file, with the new stamp, without Git
+    assert merge(base, local, base) == (vendor_update.KEPT, local)
+    # the end of the last line added by one side, a line by the other
+    assert merge('a\nb', 'a\nb\n', 'z\na\nb') == (vendor_update.MERGED, 'z\na\nb\n')
+
+
+def test_merge_of_repeated_lines_conflicts():
+    # aligned in runs of the same line, the change of one side must not lose a line
+    status, text = merge('a\na\na\n}\n', 'a\na\nX\n', 'a\na\n}\n')
+    assert status == vendor_update.CONFLICT
+    assert text == f'a\na\n{MARKERS[0]}X\n{MARKERS[1]}}}\n{MARKERS[2]}'
+
+
+def test_merge_ignores_the_configuration_of_git(tmp_path, monkeypatch):
+    config = tmp_path / 'gitconfig'
+    config.write_text('[merge]\n\tconflictStyle = zdiff3\n[diff]\n\talgorithm = patience\n')
+    monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(config))
+    status, text = merge('x\n', 'mine\n', 'theirs\n')
+    assert (status, text) == (vendor_update.CONFLICT, f'{MARKERS[0]}mine\n{MARKERS[1]}theirs\n{MARKERS[2]}')
+
+
+def test_update_needs_git_only_to_merge(product, monkeypatch):
+    path = product / 'frontend' / CLIENT
+    downgrade(
+        product, 'client',
+        lambda name, text: change_line(text, late(text), '// old\n') if name == CLIENT else text,
+    )
+    downgrade(product, 'playwright')
+    text = path.read_text(encoding='utf-8')
+    path.write_text(change_line(text, early(text), '// mine\n'), encoding='utf-8')
+    monkeypatch.setattr(vendor_update.shutil, 'which', lambda name: None)
+    before = files(product)
+
+    with pytest.raises(CommandError, match=r'^Git is not found: `update` merges the files changed in the frontend and in bazis-front with `git merge-file`'):
+        update()
+    assert files(product) == before
+
+    # the helpers are not changed in the frontend: replaced without Git
+    update('playwright')
+    assert_updated(product, 'playwright')

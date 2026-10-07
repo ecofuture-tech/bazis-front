@@ -134,10 +134,13 @@ the `e2e` job of CI.
   lines made those of the new version first, `copy.restamp`), raising a `CopyError` before
   anything is written; `apply` writes the files (conflicts with git markers), copies the
   new requirements, replaces the pristine copies, refreshes `spec/schema/`
-  (`spec/create.schema_updates`) and writes the lock last. The merge is `vendor/merge.py`, a
-  diff3 of the lines on `difflib.SequenceMatcher` (no dependency: the merge libraries of
-  PyPI are GPL), tested by `tests/test_merge.py`. The template is never updated: `dependency_changes` reports the npm versions of
-  its `package.json` that differ from the product's. `tests/test_update.py` simulates an
+  (`spec/create.schema_updates`) and writes the lock last. The merge is `git merge-file`
+  (`merge_file`: temporary files, the labels of the markers, without the configuration of
+  the user; Git is looked for only when a file needs a merge, and its absence fails the
+  plan). Do not write a merge of our own: a diff3 that aligns the base with each side
+  separately loses or duplicates lines in runs of the same line, and the merge libraries of
+  PyPI are GPL. The template is never updated: `dependency_changes` reports the npm
+  versions of its `package.json` that differ from the product's. `tests/test_update.py` simulates an
   older version by writing an asset again as that of the version `0.0.1` (its copies, its
   pristine copy and its lock entry). After a change of it, run the `frontend` job locally
   with an update cycle: a frontend of the sample made as there, its copies rewritten as

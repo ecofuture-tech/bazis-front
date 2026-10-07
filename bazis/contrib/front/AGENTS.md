@@ -551,12 +551,18 @@ and the file of the frontend:
 |---|---|---|
 | unchanged | changed or not | replaces it |
 | changed | unchanged | keeps it |
-| changed | changed | merges them line by line; where both changed the same or adjacent lines, writes conflict markers |
+| changed | changed | merges them with `git merge-file`; where both changed the same or adjacent lines, writes conflict markers |
 | deleted | still has it | leaves it deleted |
 | (none) | added it | adds it; a file of the product at its path fails the update |
 | unchanged | removed it | deletes it |
 | changed | removed it | keeps it: the product's from now on |
 
+- The merge needs Git (`git merge-file`), only for the files changed on both sides;
+  without it such an update fails before anything is written. `\r\n` line ends are not
+  supported: the copies and `.bazis/base/` are UTF-8 with `\n`, and a checkout that
+  converts them (Git `core.autocrlf`) makes every copy changed in the frontend and every
+  pristine copy differ from the lock. Keep the frontend in `\n` (`.gitattributes`:
+  `frontend/** text eol=lf`).
 - The stamp line `// bazis-front <version> asset <asset>` never conflicts: the three are
   compared at the new version, and every written file has the new stamp.
 - The assets that a new version requires and the frontend lacks are copied as `add` copies
@@ -575,8 +581,8 @@ and the file of the frontend:
   (`dependencies react: 19.2.0 -> 19.3.0`): bump those that the new copies need and run
   `npm install`.
 
-**Conflicts.** When both changed the same or adjacent lines, `update` writes the file with the markers
-of git and fails (exit 1), listing the files; the rest of the update is written, and the
+**Conflicts.** When both changed the same or adjacent lines, `update` writes the file
+with the markers of git and fails (exit 1), listing the files; the rest of the update is written, and the
 lock and `.bazis/base/` are those of the new version, so a second `update` does not merge
 again:
 
