@@ -16,5 +16,5 @@ export { AppShell, Screen, useScreenPage } from './app-shell.js';
 export type { AppShellProps, Navigation, NavItem, ScreenPage, ScreenProps, ShellSession } from './app-shell.js';
 export { ColorModeToggle, initColorMode, setColorMode, useColorMode } from './color-mode.js';
 export type { ColorMode } from './color-mode.js';
-export { ListCardLayout } from './list-card.js';
+export { ListCardLayout, useBesideCard } from './list-card.js';
 export type { ListCardLayoutProps } from './list-card.js';

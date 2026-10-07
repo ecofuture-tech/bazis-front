@@ -184,6 +184,7 @@
       "target": "src/bazis/ui/resource-list",
       "requires": {
         "assets": [
+          "app-shell",
           "resource",
           "state-panel",
           "testing",

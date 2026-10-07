@@ -25,6 +25,7 @@ import { nextPage, pagination, prevPage, type Filter } from '@/bazis/client';
 import { RESOURCES } from '@/bazis/generated/contract';
 import { THEME } from '@/bazis/generated/theme';
 import type { ListPath } from '@/bazis/react';
+import { useBesideCard } from '@/bazis/ui/app-shell';
 import {
   FieldValue,
   fieldValue,
@@ -89,6 +90,11 @@ export interface ResourceListProps {
   emptyMessage?: ReactNode;
   /** A table or a grid of cards; `composition.list` of the theme by default. */
   layout?: 'table' | 'cards';
+  /**
+   * The columns of the table while it is next to an open card (`ListCardLayout`, `split`):
+   * the first two by default; the others are hidden (their cells stay, for the scenarios).
+   */
+  compactColumns?: readonly string[];
 }
 
 interface ContractResource {
@@ -167,9 +173,11 @@ function TableView(
     header: (name: string) => ReactNode;
     sorted: (name: string) => 'ascending' | 'descending' | undefined;
     actionsColumn: boolean;
+    /** Whether a column is hidden (next to an open card). */
+    hidden: (name: string) => boolean;
   },
 ) {
-  const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn } = props;
+  const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden } = props;
   return (
     <table data-slot="table" className="w-full caption-bottom text-sm">
       <TableHeader>
@@ -181,6 +189,7 @@ function TableView(
               className={cn(
                 'sticky top-0 z-10 h-10 bg-muted px-(--space-cell-x) text-xs font-medium text-muted-foreground',
                 isNumeric(fields.fields.get(name)) && 'text-right',
+                hidden(name) && 'hidden',
               )}
             >
               {header(name)}
@@ -217,6 +226,7 @@ function TableView(
                     index === 0 ? 'min-w-48 font-medium whitespace-normal text-foreground' : 'text-muted-foreground',
                     isNumeric(field) && 'text-right tabular-nums',
                     field?.kind === 'attribute' && field.format === 'date-time' && 'tabular-nums',
+                    hidden(name) && 'hidden',
                   )}
                 >
                   {cell(props, row, name)}
@@ -321,7 +331,9 @@ export function ResourceList({
   cells = {},
   emptyMessage,
   layout = THEME.composition.list,
+  compactColumns = columns.slice(0, 2),
 }: ResourceListProps) {
+  const besideCard = useBesideCard();
   const fields = useListFields(path);
   const order = orderLabels(path);
   const [filter, setFilter] = useState<Filter | undefined>();
@@ -498,6 +510,7 @@ export function ResourceList({
                 {...body}
                 actionsColumn={rowActions.length > 0}
                 sorted={direction}
+                hidden={(name) => besideCard && !compactColumns.includes(name)}
                 header={(name) =>
                   order.has(name) ? (
                     <SortButton

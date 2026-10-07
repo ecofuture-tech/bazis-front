@@ -100,6 +100,19 @@ test('openItem opens the row whose cells are the texts', async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-opened', '2');
 });
 
+test('openItem finds a row by a cell of a hidden column', async ({ page }) => {
+  // a list next to an open card shows its first columns only: the other cells are hidden
+  const list = `<div data-bz="list:task"><div data-bz="state:loaded"><table><tbody>
+    <tr data-bz="row:1" onclick="document.body.dataset.opened = '1'"><td data-bz="cell:title">A</td><td data-bz="cell:assignee" hidden>viewer</td></tr>
+    <tr data-bz="row:2" onclick="document.body.dataset.opened = '2'"><td data-bz="cell:title">A</td><td data-bz="cell:assignee" hidden>manager</td></tr>
+  </tbody></table></div></div>`;
+  await serve(page, { '/tasks': loading('task-list', list) });
+  const app = new App(page, PRODUCT);
+  await app.open('task-list');
+  await app.openItem({ where: { title: 'A', assignee: 'manager' } });
+  await expect(page.locator('body')).toHaveAttribute('data-opened', '2');
+});
+
 test('fill fills the open form only, waiting for the options of a select', async ({ page }) => {
   const form = `<form><input data-bz="field:title"><textarea data-bz="field:report"></textarea>
     <select data-bz="field:assignee" id="assignee"><option value="">—</option></select>

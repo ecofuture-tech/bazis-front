@@ -19,7 +19,7 @@
 // the list. The list stays mounted under the same element whatever is open, so that it keeps
 // its search, filters, sort and page.
 
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { useOutlet } from 'react-router';
 
 import { THEME } from '@/bazis/generated/theme';
@@ -30,6 +30,16 @@ export interface ListCardLayoutProps {
   list: ReactNode;
   /** `composition.list_card` of the theme by default. */
   mode?: 'split' | 'pages';
+}
+
+const BesideCard = createContext(false);
+
+/**
+ * Whether the list is shown next to an open card (`split` on a wide screen): narrow, it
+ * shows only its first columns (`compactColumns` of `ResourceList`).
+ */
+export function useBesideCard(): boolean {
+  return useContext(BesideCard);
 }
 
 /** The screen of a list with the screen of its card (the child route). */
@@ -44,7 +54,9 @@ export function ListCardLayout({ list, mode = THEME.composition.list_card }: Lis
         split && open && 'xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:items-start 2xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]',
       )}
     >
-      <div className={cn('min-w-0', open && (split ? 'hidden xl:block xl:[--bleed:0px]' : 'hidden'))}>{list}</div>
+      <div className={cn('min-w-0', open && (split ? 'hidden xl:block xl:[--bleed:0px]' : 'hidden'))}>
+        <BesideCard value={split && open}>{list}</BesideCard>
+      </div>
       {open && (
         <div
           className={cn(

@@ -218,7 +218,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
     return (
       <ShellContext value={navigation}>
         <div className="flex min-h-dvh flex-col [--bleed:1rem] [--sticky-top:4rem] md:[--bleed:var(--space-page-x)]">
-          <header className="sticky top-0 z-30 h-16 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+          <header className="sticky top-0 z-30 h-16 border-b bg-background">
             <div className="mx-auto flex h-full w-full max-w-6xl items-center gap-6 px-4 md:px-(--space-page-x)">
               <Brand title={title} />
               <div className="hidden md:block">
@@ -265,7 +265,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
           </div>
         </aside>
         <div className="flex min-w-0 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur md:hidden">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
             <Drawer title={title} items={items} session={session} side="left" />
             <Brand title={title} />
             <ColorModeToggle className="ml-auto" />
@@ -333,7 +333,7 @@ export function Screen({ id, title, description, actions, children }: ScreenProp
               className={cn(
                 'flex flex-wrap items-center justify-between gap-4',
                 sticky &&
-                  '-mx-(--bleed) bg-background/90 px-(--bleed) backdrop-blur md:sticky md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:h-(--sticky-top) md:flex-nowrap',
+                  '-mx-(--bleed) bg-background px-(--bleed) md:sticky md:border-b md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:h-(--sticky-top) md:flex-nowrap',
               )}
             >
               {title !== undefined && (

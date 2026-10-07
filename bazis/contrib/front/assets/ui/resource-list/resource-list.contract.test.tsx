@@ -15,12 +15,15 @@
 // The contract of the list of a resource: `list:<entity>`, its states (`loading`, `empty`,
 // `error`, `forbidden`, `loaded`), `row:<id>` that opens the item with its cells
 // `cell:<column>` (the end-to-end tests find a row by them; a filter is `field:<name>`),
-// the titles of the list schema, the actions the backend allows (`action:<id>`), search, filters and pages. Keep it
-// passing when the component is changed.
+// the titles of the list schema, the actions the backend allows (`action:<id>`), search,
+// filters and pages, its first columns only next to an open card. Keep it passing when the
+// component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ListCardLayout } from '@/bazis/ui/app-shell';
 import { filterOf, ResourceList } from '@/bazis/ui/resource-list';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
@@ -249,5 +252,43 @@ describe('ResourceList', () => {
     expect(area?.className).toContain('overflow-auto');
     // the header sticks at the top of the area
     expect(loaded.querySelector('th')?.className).toContain('sticky');
+  });
+
+  it('shows only its first columns next to an open card, keeping the cells', async () => {
+    const columns = ['title', 'done', 'count'];
+    function List() {
+      return <ResourceList path={ITEMS as never} entity="item" columns={columns} layout="table" />;
+    }
+    renderWithBazis(
+      <Routes>
+        <Route path="/items" element={<ListCardLayout mode="split" list={<List />} />}>
+          <Route path=":id" element={<p>card</p>} />
+        </Route>
+      </Routes>,
+      backend(listDocument(rows)),
+      { route: '/items/a' },
+    );
+    const loaded = await screen.findByTestId('state:loaded');
+    const headers = [...loaded.querySelectorAll('th')];
+    expect(headers.map((it) => it.classList.contains('hidden'))).toEqual([false, false, true]);
+    const row = within(screen.getByTestId('row:a'));
+    expect(row.getByTestId('cell:title').classList.contains('hidden')).toBe(false);
+    // the cell of a hidden column is still there, for the scenarios that look a row up by it
+    expect(row.getByTestId('cell:count').classList.contains('hidden')).toBe(true);
+  });
+
+  it('shows every column without a card', async () => {
+    renderWithBazis(
+      <Routes>
+        <Route
+          path="/items"
+          element={<ListCardLayout mode="split" list={<ResourceList path={ITEMS as never} entity="item" columns={['title', 'done', 'count']} layout="table" />} />}
+        />
+      </Routes>,
+      backend(listDocument(rows)),
+      { route: '/items' },
+    );
+    const loaded = await screen.findByTestId('state:loaded');
+    expect([...loaded.querySelectorAll('th')].some((it) => it.classList.contains('hidden'))).toBe(false);
   });
 });
