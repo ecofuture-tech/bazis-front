@@ -18,6 +18,12 @@ import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 
 interface Props {
   children: ReactNode;
+  /**
+   * A value whose change clears the error, such as the path of the screen: the screens under
+   * the boundary are not mounted again when it changes (a list keeps its filters next to its
+   * card).
+   */
+  resetKey?: unknown;
 }
 
 interface State {
@@ -34,6 +40,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: unknown): State {
     return { failed: true, error };
+  }
+
+  override componentDidUpdate(previous: Props) {
+    if (this.state.failed && previous.resetKey !== this.props.resetKey) {
+      this.setState({ failed: false, error: undefined });
+    }
   }
 
   override render() {

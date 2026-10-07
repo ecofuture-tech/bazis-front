@@ -71,6 +71,18 @@ const LOGIN_ROUTE = '/login';
 /** The files that `upload` takes, `e2e/fixtures/` of the frontend. */
 const FIXTURES = path.join(import.meta.dirname, '..', 'fixtures');
 
+/**
+ * The pattern of the paths of a route of the specs: `/tasks/:id` is any `/tasks/<id>`, with or
+ * without a trailing slash.
+ */
+export function routePattern(route: string): RegExp {
+  const parts = route
+    .replace(/\/+$/, '')
+    .split('/')
+    .map((part) => (part.startsWith(':') ? '[^/]+' : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  return new RegExp(`^${parts.join('/')}/?$`);
+}
+
 /** A text that is the whole text of an element. */
 function exactly(value: string | number | boolean | null): RegExp {
   const text = value === null ? '' : String(value);
@@ -178,9 +190,17 @@ export class App<P extends Product = Product> {
     await this.until(button, this.page.locator(NEW_FAILED), `the transit ${id} is done or shows an error`);
   }
 
-  /** The current screen is this one, with its state rendered. */
+  /**
+   * The current screen is this one: at its route (another screen may show next to it, such
+   * as a list next to its card), with its state rendered.
+   */
   async expectScreen(screen: ScreenId<P>): Promise<void> {
+    const target = this.product.screens[screen];
+    if (target === undefined) throw new Error(`The screen ${screen} is not in the specs.`);
     await expect(this.page.locator(bz('screen', screen))).toBeVisible();
+    await expect
+      .poll(() => new URL(this.page.url()).pathname, { message: `the route of the screen ${screen} (${target.route})` })
+      .toMatch(routePattern(target.route));
     this.current = screen;
     await this.settled();
   }
@@ -190,9 +210,9 @@ export class App<P extends Product = Product> {
     await expect(this.screen().locator(bz('status', status)).first()).toBeVisible();
   }
 
-  /** The page shows this state, `state:<state>`. */
+  /** The page shows this state, `state:<state>` (a screen kept hidden next to it does not count). */
   async expectState(state: State): Promise<void> {
-    await expect(this.page.locator(bz('state', state)).first()).toBeVisible();
+    await expect(this.page.locator(bz('state', state)).filter({ visible: true }).first()).toBeVisible();
   }
 
   /** The current screen, once loaded, does not offer this action. */
@@ -234,7 +254,7 @@ export class App<P extends Product = Product> {
 
   /** A field shows a validation error, `error:<name>`. */
   async expectError(field: string): Promise<void> {
-    await expect(this.page.locator(bz('error', field)).first()).toBeVisible();
+    await expect(this.page.locator(bz('error', field)).filter({ visible: true }).first()).toBeVisible();
   }
 
   private async expectReadonlyIn(form: Locator, field: string): Promise<void> {

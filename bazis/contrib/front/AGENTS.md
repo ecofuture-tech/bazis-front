@@ -10,8 +10,9 @@ from its template, with the protocol client, the React hooks and the first compo
 copied into it, and the starters of the specs), `manage.py bazis_front add` (the
 components), `manage.py bazis_front contract` (the export of the contract and the
 TypeScript generated from it), `manage.py bazis_front check` (the validation of the
-specs against the contract), `manage.py bazis_front e2e` (the Playwright tests of the
-scenarios of the specs) and `manage.py bazis_front update` (the copies brought to a new
+specs against the contract), `manage.py bazis_front design` (the theme of the frontend
+compiled from the design of the specs), `manage.py bazis_front e2e` (the Playwright tests of
+the scenarios of the specs) and `manage.py bazis_front update` (the copies brought to a new
 version of bazis-front, merged with the changes of the product).
 
 ## Setup
@@ -22,8 +23,9 @@ version of bazis-front, merged with the changes of the product).
 ## The frontend
 
 ```bash
-python manage.py bazis_front init            # create frontend/ in the product root and run `npm install`
-python manage.py bazis_front init --no-node  # the same without `npm install`
+python manage.py bazis_front init                  # create frontend/ in the product root and run `npm install`
+python manage.py bazis_front init --no-node        # the same without `npm install`
+python manage.py bazis_front init --preset portal  # the starters of the design of the preset portal (workspace by default)
 ```
 
 `init` creates `frontend/` next to `manage.py`, a React 19 + TypeScript + Vite 7 app with
@@ -34,8 +36,11 @@ screen that lists the resources of the contract. It never overwrites an existing
 
 - `spec/` next to `manage.py`, when the product has none (an existing one is kept): the
   JSON Schemas of the specs in `spec/schema/` (for the editors) and starters of
-  `spec/product.yaml`, `spec/design/theme.yaml` and `spec/design/tokens.json`; see
-  [The specs](#the-specs);
+  `spec/product.yaml`, `spec/design/theme.yaml` and `spec/design/tokens.json` (those of the
+  preset of `--preset`); see [The specs](#the-specs);
+- the theme of the frontend, `src/bazis/generated/theme.css` and `theme.ts`, compiled from
+  `spec/design/` as `bazis_front design` does (see [The design](#the-design)); a design with
+  errors is reported and the theme is left to `bazis_front design`;
 
 - the files of the template (`assets/template`), which the product owns from then on,
   among them `frontend/AGENTS.md`, the guide of the frontend for agents;
@@ -55,7 +60,8 @@ screen that lists the resources of the contract. It never overwrites an existing
 - `bazis-front.lock.json`: the version of bazis-front, the hashes of the contract and of
   the generated files (see below), and the version and the file hashes of every copied
   asset (`"template"` has only its version); an asset that was not copied is not in it.
-  `bazis_front e2e` adds the hashes of the specs and of the tests it generates (`e2e`).
+  `bazis_front e2e` adds the hashes of the specs and of the tests it generates (`e2e`),
+  `init` and `bazis_front design` those of the design and of the theme (`design`).
 
 Commit `bazis-front.lock.json` and `.bazis/`: `update` merges a new version with the
 changes of the product from the pristine copies, and the old version is no longer installed
@@ -76,7 +82,8 @@ shadcn/ui and Tailwind 4 over the hooks, in `frontend/src/bazis/ui/<component>/`
 (`@/bazis/ui/<component>`). `add` copies them like `init` copies the hooks (stamped, with
 their pristine copies in `.bazis/base/` and their hashes in the lock), with the assets
 they require: the other components, the hooks, and the shadcn/ui components they use
-(`button`, `input`, `label`, `native-select`, `table`, `badge`, `card`, `dialog`) in
+(`button`, `input`, `label`, `native-select`, `table`, `badge`, `card`, `dialog`, `sheet`,
+`skeleton`) in
 `src/components/ui/`, where `components.json` puts them. It needs neither the network nor
 the shadcn CLI, and never changes `package.json`: the template declares every npm
 dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-react`, and
@@ -100,16 +107,23 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
   their specs, composed from the components; the template's `AGENTS.md` shows how.
 - No translations: the labels are the titles of the runtime schemas and the names of the
   statuses and transits in the language of the backend, and the props.
+- They look as the design of the specs says (see [The design](#the-design)): the colors,
+  radii and fonts are the tokens (Tailwind classes such as `bg-primary`, `text-muted-foreground`,
+  `bg-success-soft text-success-ink`, never literal colors), the spacing is that of the
+  density, and the navigation, the lists, the list with its card and the forms follow the
+  composition of the preset (`THEME` of `src/bazis/generated/theme.ts`; a prop overrides it).
+  The loading states are skeletons of what loads (still `state:loading`), the other states
+  an icon with a title and a hint, and a change that succeeded shows a toast.
 
 | Component | Props | `data-bz` | Requires |
 |---|---|---|---|
-| `state-panel` | `StatePanel({state, error?, message?, onRetry?, inline?, children})`, `errorState(error)`, `queryState(query, empty?)` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell({title, navigation: 'sidebar' \| 'topbar', items: [{screen, label, to, end?}], session: {user?, onLogout} \| null, children})`, `Screen({id, title?, actions?, children})` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
+| `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
+| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, children})`, `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
 | `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, actions?, rowActions?, cells?, emptyMessage?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
-| `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
-| `status-badge` | `StatusBadge({resource})`, `statusOf`, `statusName`, `statusOptions`, `transitName` | `status:<id>` | `statusy` |
+| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?, cells?, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children, forms?: 'dialog' \| 'page'})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
+| `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
+| `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
@@ -400,27 +414,24 @@ preset: workspace          # workspace (a working application) | portal (a publi
 navigation: sidebar        # sidebar | topbar
 density: comfortable       # comfortable | compact
 composition:
+  list: table              # table | cards
   list_card: split         # split (the list and the card side by side) | pages
   forms: dialog            # dialog | page
+statuses:                  # the tone of the badge of each status of bazis-statusy
+  draft: neutral           # neutral | primary | info | success | warning | danger
+  in_progress: info
+  done: success
 ```
 
-`spec/design/` is optional; when `theme.yaml` exists, `tokens.json` must define the tokens
-of its preset. `tokens.json` is a subset of the DTCG format: groups of tokens with
-`$value` and `$type` (`color`, `dimension` in `px`/`rem`, `fontFamily`, `fontWeight`,
-`number`, `duration` in `ms`) on every token, and references `{group.token}` to a token of
-the same type (D006), never coming back to the token they start from (D004). Each token
-that a preset requires is a CSS variable of `:root` in `src/index.css` of the frontend:
-
-| Token | Type | CSS variable | Presets |
-|---|---|---|---|
-| `color.background`, `color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`, `color.muted-foreground`, `color.border`, `color.destructive` | color | `--background`, `--foreground`, `--primary`, … (the name in the group) | both |
-| `radius` | dimension | `--radius` (Tailwind derives `--radius-sm` … `--radius-xl` from it) | both |
-| `font.body` | fontFamily | `--font-body` (the Tailwind `font-sans`) | both |
-| `color.sidebar`, `color.sidebar-foreground` | color | `--sidebar`, `--sidebar-foreground` | workspace |
-| `color.accent` | color | `--accent` | portal |
-| `font.heading` | fontFamily | `--font-heading` (`h1`–`h3`) | portal |
-
-The starter of `init` defines them all, with the values of the template.
+`spec/design/` is optional (without it the theme is that of the starter of `workspace`);
+when `theme.yaml` exists, `tokens.json` must define the tokens of its preset. An option of
+`theme.yaml` that is left out is that of the preset. `tokens.json` is a subset of the DTCG
+format: groups of tokens with `$value` and `$type` (`color`, `dimension` in `px`/`rem`,
+`fontFamily`, `fontWeight`, `number`, `duration` in `ms`) on every token, and references
+`{group.token}` to a token of the same type (D006), never coming back to the token they
+start from (D004). `bazis_front design` compiles them into the theme of the frontend (see
+[The design](#the-design)); `check` reports the statuses of `statuses` that the contract
+does not have (D008) and the text colors below the contrast of WCAG AA (D009).
 
 ### The issues
 
@@ -475,6 +486,90 @@ warning there, never blocking `migrate` or `contract`.
 | `D004` | error | a token references an undefined token, or references itself through other tokens |
 | `D005` | error | a token required by the preset is undefined or of another type |
 | `D006` | error | a token references a token of another type |
+| `D007` | error | a token of the dark mode (the group `dark`) overrides no token of the same name and type |
+| `D008` | warning | a status of `statuses` in theme.yaml is not a status of the contract |
+| `D009` | warning | a text color has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode |
+
+## The design
+
+```bash
+python manage.py bazis_front design           # frontend/src/bazis/generated/theme.css and theme.ts from spec/design/
+python manage.py bazis_front design --check   # write nothing; exit 1 if the theme differs from the design
+```
+
+The design layer is what makes the products look designed rather than like a bare admin
+panel: one preset, a few options and the tokens of a brand, compiled into the frontend.
+`init` generates the theme; generate it again after every change of `spec/design/` (and
+after `bazis_front update`). The text depends on the design only: `--check` and the system
+check `front.W005` (when the lock has `design`; without Node and the database) render it
+again and compare it byte for byte; `front.W005` also reports a frontend with components and
+no theme (made before the design layer: see [Updating the copies](#updating-the-copies)).
+The generated files are never edited. The design must have no errors
+(`bazis_front check --layer design`).
+
+- `src/bazis/generated/theme.css`, imported by `src/index.css` of the template: every token
+  as a CSS variable of `:root` (`color.<name>` is `--<name>`, any other token its dotted name
+  with dashes: `radius` is `--radius`, `font.body` `--font-body`, `spacing.gutter`
+  `--spacing-gutter`), the variables of the dark mode, the spacing of the density
+  (`--space-page-x`, `--space-section`, `--space-card`, `--space-cell-x`, `--space-cell-y`,
+  `--space-field`), the Tailwind theme over them (a color utility for every color token:
+  `bg-primary`, `text-muted-foreground`, `bg-<token>` of a token of the product; the soft
+  colors of the tones, `bg-success-soft text-success-ink`; `font-sans` is `font.body`,
+  `font-display` `font.heading`; `rounded-sm` … `rounded-2xl` from `radius`) and the base
+  styles of the preset.
+- `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
+  `density`, `composition: {list, list_card, forms}`, `statuses`, `dark`), which the
+  components read for their defaults.
+
+| Token | Type | CSS variable | When tokens.json does not define it |
+|---|---|---|---|
+| `color.background`, `color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`, `color.muted-foreground`, `color.border`, `color.destructive` | color | `--background`, `--foreground`, `--primary`, … (the name in the group) | required by both presets |
+| `radius` | dimension | `--radius` | required by both presets |
+| `font.body` | fontFamily | `--font-body` (`font-sans`) | required by both presets |
+| `color.sidebar`, `color.sidebar-foreground` | color | `--sidebar`, `--sidebar-foreground` | required by `workspace`; else the background and the foreground |
+| `color.accent` | color | `--accent` (the hover and the current link of the top bar) | required by `portal`; else `muted` |
+| `font.heading` | fontFamily | `--font-heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
+| `color.card`, `color.card-foreground`, `color.popover`, `color.popover-foreground`, `color.secondary`, `color.secondary-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | color | the name in the group | the background, the foreground, the card, `muted`, the border, the primary (`spec/design.py`, `DEFAULTS`) |
+| `color.success`, `color.warning`, `color.info` | color | `--success`, `--warning`, `--info` (the tones of the statuses) | a green, an amber and a blue of both modes |
+| `color.sidebar-primary`, `color.sidebar-accent`, … | color | the variables of the sidebar of shadcn/ui | from the primary and the sidebar |
+| `color.chart-1` … `color.chart-5` | color | `--chart-1` … `--chart-5` (the charts of shadcn/ui) | the primary, info, success, warning, destructive |
+
+**Presets.** `workspace` is an internal tool for daily work: a sidebar with the icons of the
+screens (a drawer on a phone), a sticky header with the title and the actions of the screen,
+tables with a sticky header, aligned numbers and the open row selected, filters in a
+toolbar, the card next to the list on a wide screen (`list_card: split`; the list stays
+mounted and keeps its search, filters and page, and shows its first two columns next to the
+card, `compactColumns` of `ResourceList`), forms in dialogs. A table scrolls in its own
+area as high as the screen, with its header at the top: a wide table scrolls sideways
+instead of losing columns.
+`portal` is a public shell: a top bar, larger type and more air, lists as grids of cards,
+the card in place of the list, forms in place of the content of the screen, softer shapes
+(the radius of its starter). Both have a light and a dark mode, focus rings, and work down
+to the width of a phone.
+
+**Brand.** Change `color.primary` and `color.primary-foreground` (and their values of the
+dark mode): the focus rings, the current link, the selected row and the soft tints are
+derived from the primary in CSS (`color-mix`), so one color brands the product. The starters
+are OKLCH (`oklch(L C H)`): keep the lightness and the chroma of the starter and change the
+hue for a consistent brand; `check` reports a text color that loses its contrast (D009). Set
+`radius` for the shapes and `density` for the spacing. The fonts are system stacks by
+default; for a web font, load it in `index.html` (a `<link>` of Google Fonts) or with an npm
+package of the font imported in `src/main.tsx`, and put its name first in `font.body` (or
+`font.heading`): `["Inter", "ui-sans-serif", "system-ui", "sans-serif"]`.
+
+**Dark mode.** The tokens of the group `dark` are the values of the dark mode: each
+overrides the token of the same name (`dark.color.background`; D007 when there is none of
+that name and type), the others keep their value. The theme applies them to the class `dark`
+of `<html>` and, until the application starts, to a dark system (unless `<html>` has the
+class `light`); `initColorMode()` of `app-shell` (called by `src/main.tsx`) sets the class
+from the choice of the user (system, light or dark, kept in the storage of the browser, the
+button of `AppShell`). Without the group `dark` there is no dark mode (`THEME.dark` is false).
+
+**Statuses.** `statuses` of `theme.yaml` gives each status of bazis-statusy a tone, by the
+id of the status: bazis-statusy has one table of statuses for every model, so an id is the
+same status everywhere (`draft` of the tasks is `draft` of the orders). It
+draws the `StatusBadge` in the soft colors of the tone, the transits to a status of the tone
+`danger` are destructive buttons; a status without a tone is `neutral`.
 
 ## The end-to-end tests
 
@@ -509,7 +604,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/`) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen`, `expectStatus`, `expectState`, `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, `expectError`, in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` and `expectError` (visible ones), `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
@@ -580,6 +675,12 @@ and the file of the frontend:
   `package.json` of the new template differ from those of `frontend/package.json`
   (`dependencies react: 19.2.0 -> 19.3.0`): bump those that the new copies need and run
   `npm install`.
+- The theme is generated, not copied: run `bazis_front design` after `update` (`front.W005`
+  reports a theme that the new version renders otherwise). A frontend made before the design
+  layer has no theme: run `bazis_front design`, replace the variables of `:root` and `.dark`
+  of its `src/index.css` with `@import './bazis/generated/theme.css';` (after the imports of
+  Tailwind), and call `initColorMode()` of `@/bazis/ui/app-shell` in `src/main.tsx` before the
+  render, as the new template does.
 
 **Conflicts.** When both changed the same or adjacent lines, `update` writes the file
 with the markers of git and fails (exit 1), listing the files; the rest of the update is written, and the
@@ -609,7 +710,7 @@ are replaced without conflicts; wrap them in the product code instead.
 | 1. Protocol | the client (`assets/client`) | `frontend/src/bazis/client/`, copied by `init`, not edited |
 | 2. Hooks | React hooks over the client and TanStack Query (`assets/react`) | `frontend/src/bazis/react/`, copied, not edited |
 | 3. Components | visual building blocks on shadcn/ui (`assets/ui`) | `frontend/src/bazis/ui/` (and `src/components/ui/`), copied by `init` and `add`, owned by the product |
-| 4. Specs | product, screens and design specs | `spec/`, validated against the contract by `bazis_front check`; its scenarios generate the end-to-end tests (`bazis_front e2e`, `frontend/e2e/generated/`) run with the helpers of `frontend/e2e/bazis/` |
+| 4. Specs | product, screens and design specs | `spec/`, validated against the contract by `bazis_front check`; its scenarios generate the end-to-end tests (`bazis_front e2e`, `frontend/e2e/generated/`) run with the helpers of `frontend/e2e/bazis/`; its design generates the theme (`bazis_front design`, `frontend/src/bazis/generated/theme.*`) |
 | App | the template (`assets/template`): providers, session, router, errors, screens | `frontend/`, copied once by `init`, owned by the product |
 
 ## Rules
@@ -633,6 +734,12 @@ are replaced without conflicts; wrap them in the product code instead.
 - **Compose the screens from the components, own them.** Components and screens are part
   of the product and may be changed freely; keep the contract tests of the components
   passing, since the scenarios act through their `data-bz`.
+- **Design through the tokens, never with literal colors.** The look of the product is
+  `spec/design/` compiled by `bazis_front design`: a brand is a change of the tokens, not of
+  the components; the screens use the Tailwind classes of the tokens (`bg-primary`,
+  `text-muted-foreground`, `bg-success-soft`) and the patterns of the preset (`Screen`,
+  `ListCardLayout`, `FormSurface`, the components), never colors such as `bg-blue-600` or
+  `#3b82f6`.
 - **Generate the end-to-end tests, never edit them.** Run `bazis_front e2e` after every
   change of the scenarios or the screens of the specs and keep `npm run e2e` green against
   the backend with its test data; write the other tests in `frontend/e2e/custom/`.

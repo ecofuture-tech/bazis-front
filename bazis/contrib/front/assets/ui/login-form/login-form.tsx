@@ -18,11 +18,12 @@
 // bazis-users).
 
 import { useMutation } from '@tanstack/react-query';
+import { LoaderCircle } from 'lucide-react';
 import { useId, useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -37,10 +38,17 @@ export interface LoginFormProps {
   /** Called after the login. */
   onSuccess?: () => void;
   title?: ReactNode;
+  /** Under the title. */
+  description?: ReactNode;
 }
 
 /** The login of a user with a username and a password. */
-export function LoginForm({ onLogin, onSuccess, title = 'Log in' }: LoginFormProps) {
+export function LoginForm({
+  onLogin,
+  onSuccess,
+  title = 'Log in',
+  description = 'Enter your username and password to continue.',
+}: LoginFormProps) {
   const id = useId();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -57,11 +65,12 @@ export function LoginForm({ onLogin, onSuccess, title = 'Log in' }: LoginFormPro
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
+    <Card className="w-full max-w-sm gap-6 shadow-lg">
+      <CardHeader className="gap-1.5">
         <CardTitle>
-          <h1 className="text-xl">{title}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{title}</h1>
         </CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="grid gap-4" aria-busy={mutation.isPending || undefined}>
@@ -95,7 +104,8 @@ export function LoginForm({ onLogin, onSuccess, title = 'Log in' }: LoginFormPro
             />
           </div>
           {mutation.isError && <StatePanel inline state="error" error={mutation.error} />}
-          <Button type="submit" data-bz="action:submit" disabled={mutation.isPending}>
+          <Button type="submit" size="lg" className="mt-1 w-full" data-bz="action:submit" disabled={mutation.isPending}>
+            {mutation.isPending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
             Log in
           </Button>
         </form>

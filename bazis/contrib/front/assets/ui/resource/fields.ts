@@ -36,21 +36,24 @@ export interface Fields {
   fields: ReadonlyMap<string, FormField>;
   /** The title of a field in the language of the backend, its name until the schema loads. */
   title: (name: string) => string;
+  /** Whether the schema is loaded (or failed: the names stand for the titles then). */
+  ready: boolean;
 }
 
-function fieldsOf(schema: JsonSchema | undefined): Fields {
+function fieldsOf(query: { data?: JsonSchema | undefined; isPending: boolean }): Fields {
+  const schema = query.data;
   const fields = new Map((schema ? resourceSchema(schema).fields : []).map((it) => [it.name, it]));
-  return { fields, title: (name) => fields.get(name)?.title ?? name };
+  return { fields, title: (name) => fields.get(name)?.title ?? name, ready: !query.isPending };
 }
 
 /** The fields that the current user may see in a list (`schema_list/`). */
 export function useListFields(path: string): Fields {
-  return fieldsOf(useAnySchema(path, 'list').data);
+  return fieldsOf(useAnySchema(path, 'list'));
 }
 
 /** The fields that the current user may see in an item (`schema_retrieve/`). */
 export function useItemFields(path: string, id: string): Fields {
-  return fieldsOf(useAnySchema(path, 'retrieve', id).data);
+  return fieldsOf(useAnySchema(path, 'retrieve', id));
 }
 
 /**
@@ -128,6 +131,18 @@ export function fromLocalDateTime(text: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/** Whether a field is a number: aligned to the right, with figures of the same width. */
+export function isNumeric(field: FormField | undefined): boolean {
+  return field?.kind === 'attribute' && (field.type === 'integer' || field.type === 'number');
+}
+
+/** Whether a field is a long text (a string without a format and a maximal length). */
+export function isLongText(field: FormField | undefined): boolean {
+  return (
+    field?.kind === 'attribute' && field.type === 'string' && field.format === null && field.schema.maxLength === undefined
+  );
+}
+
 /** The text of the value of an attribute, by its type and format; `—` for no value. */
 export function formatValue(field: FormField | undefined, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
@@ -137,11 +152,11 @@ export function formatValue(field: FormField | undefined, value: unknown): strin
     const format = field?.kind === 'attribute' ? field.format : null;
     if (format === 'date-time') {
       const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
     }
     if (format === 'date') {
       const [year, month, day] = value.split('-').map(Number);
-      if (year && month && day) return new Date(year, month - 1, day).toLocaleDateString();
+      if (year && month && day) return new Date(year, month - 1, day).toLocaleDateString(undefined, { dateStyle: 'medium' });
     }
     return value;
   }

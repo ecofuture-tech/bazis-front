@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { House } from 'lucide-react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
+import { PRODUCT_NAME } from '@/app/product';
 import { LOGIN_ENABLED, logout, useToken } from '@/app/session';
 import { AppShell, type NavItem } from '@/bazis/ui/app-shell';
 import { HomeScreen } from '@/screens/home';
 import { LoginScreen } from '@/screens/login';
 
-/** The name of the product (`product.name` of spec/product.yaml). */
-const TITLE = 'Frontend';
-
-/** The links of the navigation: a screen of the specs each (`nav:<screen>`). */
-const NAVIGATION: readonly NavItem[] = [{ screen: 'home', label: 'Home', to: '/', end: true }];
+/** The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon. */
+const NAVIGATION: readonly NavItem[] = [{ screen: 'home', label: 'Home', to: '/', end: true, icon: House }];
 
 /**
- * The screens of a logged-in user in the layout of the application (`navigation` of
- * spec/design/theme.yaml); the others go to the login screen and come back. Without a login
- * (no bazis-users) they are open.
+ * The screens of a logged-in user in the layout of the application (a sidebar or a top bar,
+ * `navigation` of spec/design/theme.yaml); the others go to the login screen and come back.
+ * Without a login (no bazis-users) they are open.
  */
 function RequireSession() {
   const token = useToken();
@@ -39,8 +38,8 @@ function RequireSession() {
     return <Navigate to="/login" replace state={{ from }} />;
   }
   return (
-    <AppShell title={TITLE} navigation="sidebar" items={NAVIGATION} session={LOGIN_ENABLED ? { onLogout: logout } : null}>
-      <ErrorBoundary key={location.pathname}>
+    <AppShell title={PRODUCT_NAME} items={NAVIGATION} session={LOGIN_ENABLED ? { onLogout: logout } : null}>
+      <ErrorBoundary resetKey={location.pathname}>
         <Outlet />
       </ErrorBoundary>
     </AppShell>

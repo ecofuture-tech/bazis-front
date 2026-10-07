@@ -17,8 +17,12 @@ import { createRoot } from 'react-dom/client';
 
 import { Providers } from '@/app/providers';
 import { AppRouter } from '@/app/router';
+import { initColorMode } from '@/bazis/ui/app-shell';
 
 import './index.css';
+
+// the light or the dark mode of the user before the first render
+initColorMode();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('index.html has no #root element.');

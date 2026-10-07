@@ -19,7 +19,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { App, bz, loginAs } from '../bazis';
+import { App, bz, loginAs, routePattern } from '../bazis';
 import { PRODUCT } from '../generated/product';
 
 /** Serves the pages by their path on the base URL of the config. */
@@ -28,6 +28,12 @@ async function serve(page: Page, pages: Record<string, string>): Promise<void> {
     const body = pages[new URL(route.request().url()).pathname];
     await (body === undefined ? route.fulfill({ status: 404 }) : route.fulfill({ contentType: 'text/html', body }));
   });
+}
+
+/** Shows a page at a path (the route of a screen of the specs). */
+async function show(page: Page, path: string, body: string): Promise<void> {
+  await serve(page, { [path]: body });
+  await page.goto(path);
 }
 
 /** A page: its body, and a script that runs after it is parsed. */
@@ -47,6 +53,30 @@ const LIST = `<div data-bz="list:task"><div data-bz="state:loaded"><table><tbody
   <tr data-bz="row:1" onclick="document.body.dataset.opened = '1'"><td data-bz="cell:title">Write the report again</td></tr>
   <tr data-bz="row:2" onclick="document.body.dataset.opened = '2'"><td data-bz="cell:title"> Write the report </td></tr>
 </tbody></table></div></div>`;
+
+test.describe('expectScreen', () => {
+  test('expects the route of the screen, not only its mark', async ({ page }) => {
+    // a list next to its card: both screens are on the page, at the route of the card
+    const both = html(
+      `<section data-bz="screen:task-list"><div data-bz="state:loaded">Tasks</div></section>
+       <section data-bz="screen:task-card"><div data-bz="state:loaded">Task</div></section>`,
+    );
+    await show(page, '/tasks/1', both);
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-card');
+    await expect(app.expectScreen('task-list')).rejects.toThrow('the route of the screen task-list');
+    await show(page, '/tasks/', both);
+    await app.expectScreen('task-list');
+  });
+
+  test('matches the parameters of a route', () => {
+    expect(routePattern('/tasks/:id').test('/tasks/7c1e/')).toBe(true);
+    expect(routePattern('/tasks/:id').test('/tasks/7c1e/edit')).toBe(false);
+    expect(routePattern('/').test('/')).toBe(true);
+    expect(routePattern('/').test('/tasks')).toBe(false);
+    expect(routePattern('/a.b').test('/aXb')).toBe(false);
+  });
+});
 
 test.describe('open', () => {
   test('goes to the route of the screen and waits for its state', async ({ page }) => {
@@ -70,11 +100,24 @@ test('openItem opens the row whose cells are the texts', async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-opened', '2');
 });
 
+test('openItem finds a row by a cell of a hidden column', async ({ page }) => {
+  // a list next to an open card shows its first columns only: the other cells are hidden
+  const list = `<div data-bz="list:task"><div data-bz="state:loaded"><table><tbody>
+    <tr data-bz="row:1" onclick="document.body.dataset.opened = '1'"><td data-bz="cell:title">A</td><td data-bz="cell:assignee" hidden>viewer</td></tr>
+    <tr data-bz="row:2" onclick="document.body.dataset.opened = '2'"><td data-bz="cell:title">A</td><td data-bz="cell:assignee" hidden>manager</td></tr>
+  </tbody></table></div></div>`;
+  await serve(page, { '/tasks': loading('task-list', list) });
+  const app = new App(page, PRODUCT);
+  await app.open('task-list');
+  await app.openItem({ where: { title: 'A', assignee: 'manager' } });
+  await expect(page.locator('body')).toHaveAttribute('data-opened', '2');
+});
+
 test('fill fills the open form only, waiting for the options of a select', async ({ page }) => {
   const form = `<form><input data-bz="field:title"><textarea data-bz="field:report"></textarea>
     <select data-bz="field:assignee" id="assignee"><option value="">—</option></select>
     <input type="checkbox" data-bz="field:urgent"><button type="submit" data-bz="action:submit">Create</button></form>`;
-  await page.setContent(
+  await show(page, '/tasks',
     html(
       `<section data-bz="screen:task-list"><div data-bz="state:loaded">
         <select data-bz="field:assignee"><option value="">—</option><option value="u1">manager</option></select>
@@ -111,7 +154,7 @@ function formPage(onSubmit: string): string {
 
 test.describe('submit', () => {
   test('waits until the form is closed', async ({ page }) => {
-    await page.setContent(formPage('form.remove();'));
+    await show(page, '/tasks', formPage('form.remove();'));
     const app = new App(page, PRODUCT);
     await app.submit();
     expect(await page.locator('form').count()).toBe(0);
@@ -119,7 +162,7 @@ test.describe('submit', () => {
 
   test('does not take the error of a previous submit for its own', async ({ page }) => {
     // the error stays until the next submit is sent, and the form is closed later
-    await page.setContent(
+    await show(page, '/tasks',
       formPage('form.remove();').replace(
         '<button type="submit"',
         '<p data-bz="error:title">Required.</p><button type="submit"',
@@ -136,7 +179,7 @@ test.describe('submit', () => {
   });
 
   test('returns when the form shows an error', async ({ page }) => {
-    await page.setContent(
+    await show(page, '/tasks',
       formPage(`form.insertAdjacentHTML('beforeend', '<p data-bz="error:title">Required.</p>');`),
     );
     const app = new App(page, PRODUCT);
@@ -147,7 +190,7 @@ test.describe('submit', () => {
 });
 
 test('transit fills its payload and waits until it is done', async ({ page }) => {
-  await page.setContent(
+  await show(page, '/tasks/1',
     html(
       `<section data-bz="screen:task-card"><article data-bz="state:loaded">
         <span data-bz="status:in_progress">In progress</span>
@@ -178,7 +221,7 @@ test.describe('expectActionAbsent', () => {
   const loaded = `<div data-bz="state:loaded"><button data-bz="action:create">Create</button></div>`;
 
   test('waits for the screen to load', async ({ page }) => {
-    await page.setContent(html('<section data-bz="screen:task-list"><div data-bz="state:empty">Nothing here yet.</div></section>'));
+    await show(page, '/tasks', html('<section data-bz="screen:task-list"><div data-bz="state:empty">Nothing here yet.</div></section>'));
     const app = new App(page, PRODUCT);
     await app.expectScreen('task-list');
     // the list loads again, and then offers the action
@@ -224,14 +267,14 @@ test.describe('expectFieldReadonly', () => {
   }
 
   test('passes on a card without an edit', async ({ page }) => {
-    await page.setContent(card());
+    await show(page, '/tasks/1', card());
     const app = new App(page, PRODUCT);
     await app.expectScreen('task-card');
     await app.expectFieldReadonly('title');
   });
 
   test('opens and cancels the edit of a card', async ({ page }) => {
-    await page.setContent(card('<input data-bz="field:title" readonly value="Write the report">'));
+    await show(page, '/tasks/1', card('<input data-bz="field:title" readonly value="Write the report">'));
     const app = new App(page, PRODUCT);
     await app.expectScreen('task-card');
     await app.expectFieldReadonly('title');
@@ -239,14 +282,14 @@ test.describe('expectFieldReadonly', () => {
   });
 
   test('fails when the edit can change the field', async ({ page }) => {
-    await page.setContent(card('<input data-bz="field:title" value="Write the report">'));
+    await show(page, '/tasks/1', card('<input data-bz="field:title" value="Write the report">'));
     const app = new App(page, PRODUCT);
     await app.expectScreen('task-card');
     await expect(app.expectFieldReadonly('title')).rejects.toThrow();
   });
 
   test('reads the open form', async ({ page }) => {
-    await page.setContent(
+    await show(page, '/tasks',
       html(`<section data-bz="screen:task-list"><div data-bz="state:loaded">Tasks</div></section>
         <form><select data-bz="field:assignee" disabled><option>—</option></select>
         <button type="submit" data-bz="action:submit">Create</button></form>`),

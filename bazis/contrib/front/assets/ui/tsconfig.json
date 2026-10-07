@@ -26,6 +26,9 @@
       "@/bazis/generated/contract": [
         "./test/fixtures/contract.ts"
       ],
+      "@/bazis/generated/theme": [
+        "./test/fixtures/theme.ts"
+      ],
       "@/bazis/ui/*": [
         "./*"
       ],

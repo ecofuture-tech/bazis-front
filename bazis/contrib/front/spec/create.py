@@ -26,11 +26,16 @@ from pathlib import Path
 
 from django.conf import settings
 
+from . import design
 from .validate import SCHEMA_DIR, SPEC_DIR, schema_files
 
 
-#: the starters, by their path in spec/
+#: the starters, by their path in spec/; those of the design are of a preset
+#: (`spec/starters/design/<preset>/`)
 STARTERS = ('product.yaml', 'design/theme.yaml', 'design/tokens.json')
+
+#: the presets of the starters of the design, the first by default
+PRESETS = tuple(design.PRESET_TOKENS)
 
 
 def spec_dir() -> Path:
@@ -40,10 +45,19 @@ def spec_dir() -> Path:
     return Path(settings.BASE_DIR) / SPEC_DIR
 
 
-def create_spec(spec: Path) -> None:
+def starter_path(name: str, preset: str) -> tuple[str, ...]:
     """
-    Creates the specs; the directory must not exist. They are written in a temporary
-    directory next to it and renamed, so that a failure leaves nothing behind.
+    The path of a starter in `spec/starters/`.
+    """
+    parts = name.split('/')
+    return (parts[0], preset, *parts[1:]) if parts[0] == 'design' else tuple(parts)
+
+
+def create_spec(spec: Path, preset: str = PRESETS[0]) -> None:
+    """
+    Creates the specs, with the starters of the design of the preset; the directory must not
+    exist. They are written in a temporary directory next to it and renamed, so that a
+    failure leaves nothing behind.
     """
     temporary = spec.with_name(f'.{spec.name}.init-{os.getpid()}')
     temporary.mkdir()
@@ -55,7 +69,7 @@ def create_spec(spec: Path) -> None:
         for name in STARTERS:
             target = temporary / name
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(starters.joinpath(*name.split('/')).read_bytes())
+            target.write_bytes(starters.joinpath(*starter_path(name, preset)).read_bytes())
         os.rename(temporary, spec)
     except BaseException:
         shutil.rmtree(temporary, ignore_errors=True)

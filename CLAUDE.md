@@ -62,7 +62,8 @@ the `e2e` job of CI.
   issue of the specs (see below). `front.W003`: stale end-to-end tests (`e2e --check`,
   without the database; only when the lock has `e2e` and the specs have no errors).
   `front.W004`: copies of another version (`update --check`: `update.stale`, without Node
-  and the database). A new check id gets its pitfall in `bazis_manifest.toml`
+  and the database). `front.W005`: a stale theme (`design --check`, without the database;
+  only when the lock has `design` and the design has no errors). A new check id gets its pitfall in `bazis_manifest.toml`
   (`tests/test_manifest.py` checks that the ids exist).
 
 ### The specs
@@ -77,8 +78,10 @@ the `e2e` job of CI.
   shape, then calls `refs.py` (the references, the comparison with contract.json),
   `scenarios.py` (the scenarios followed screen by screen), `access.py` (`access` compiled to the permissions
   of bazis-permit; the grammar is in its docstring, from bazis-permit and bazis-statusy)
-  and `design.py` (the tokens of the presets, each a CSS variable of `:root` in the
-  template's `src/index.css`: `tests/test_spec.py` checks the starter against it). Only the documents valid against their
+  and `design.py` (the tokens of the presets and their defaults, the CSS variables of the
+  tokens, the dark mode of the group `dark`, the tones of the statuses, the contrast of the
+  text colors computed by `color.py`: `tests/test_spec.py` checks that the starters of both
+  presets, `spec/starters/design/<preset>/`, reach WCAG AA). Only the documents valid against their
   schema are checked further, so that one broken file does not cascade.
 - `spec/issues.py` has the codes (`CODES`, with their severity); a code never changes its
   meaning. A new code gets a case in `tests/test_spec.py` (`CASES` must cover every code)
@@ -93,6 +96,13 @@ the `e2e` job of CI.
   keeps its form open) in `validate.Result.specs`, which `spec/e2e.py` turns into
   calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the tables of the AGENTS.md files.
+- `spec/theme.py` (`bazis_front design`, also run by `init`) compiles the design into
+  `frontend/src/bazis/generated/theme.css` (the variables of the tokens and of the dark mode,
+  the density, the Tailwind theme, the base styles of the preset) and `theme.ts` (`THEME`,
+  read by the components) from a design without errors; the text depends on the design
+  only, so `--check` and `front.W005` render again and compare byte for byte, and the lock
+  records the hashes (`design`). `tests/test_design.py` compares the theme of the sample with
+  `assets/ui/test/fixtures/theme.ts` (write it again with `BAZIS_FRONT_WRITE_FIXTURES=1`).
 - `spec/e2e.py` (`bazis_front e2e`) renders `frontend/e2e/generated/<scenario>.spec.ts` and
   `product.ts` from specs without errors; the text depends on the specs only, so `--check`
   and `front.W003` render again and compare byte for byte. The lock records the hashes of
@@ -236,15 +246,20 @@ npm test
   product. They use the route set `ITEMS` of `testing` (of no product) and the documents
   and schemas of `testing`, never a resource of the sample.
 - In this repository `tsconfig.json` and `vitest.config.ts` alias the `@/` imports to the
-  other assets, to `src/lib/utils.ts` of the template and to `test/fixtures/contract.ts`
+  other assets, to `src/lib/utils.ts` of the template, to `test/fixtures/contract.ts`
   (`contract.ts` of the sample, rendered by `contract/typescript.py` from its
-  `contract.json`: render it again when the sample changes). The root eslint applies the
+  `contract.json`: render it again when the sample changes) and to `test/fixtures/theme.ts`
+  (the theme of the sample, checked by `tests/test_design.py`). The defaults that the
+  components take from `THEME` have a prop, so that the contract tests check every variant
+  whatever the theme of the product. The root eslint applies the
   rules of the hooks of the template to them.
 - The npm dependencies of the components are in `package.json` of the template, with the
   versions of the workspace; `add` never changes the `package.json` of a product.
-- Colors, radii and fonts only through the CSS variables of the template (Tailwind classes
-  such as `bg-primary`), no literal colors (the shadcn/ui files keep theirs); every
-  element that a scenario acts on has its `data-bz`.
+- Colors, radii and fonts only through the tokens of the generated theme (Tailwind classes
+  such as `bg-primary`, `bg-success-soft`), the spacing through the variables of the
+  density (`p-(--space-card)`), no literal colors (the shadcn/ui files keep theirs); every
+  element that a scenario acts on has its `data-bz`; a loading state stays `state:loading`
+  whatever it draws (a skeleton).
 
 ### The helpers of the end-to-end tests (`assets/playwright`)
 
@@ -279,13 +294,13 @@ npm test
   the root eslint ignores it, because it compiles only with the generated files of a
   product. The `frontend` job of CI checks it: on the sample (with `BS_BASE_DIR` outside the
   checkout) `init`, `contract`, `contract --check`, `check` (the starters of the specs
-  against the contract), `add` of every component, then `tsc --noEmit`, lint, tests (the
+  against the contract), `design --check`, `add` of every component, then `tsc --noEmit`, lint, tests (the
   contract tests of the components) and build of the generated frontend. Run the same
   locally after a change of the template or of a component.
 - The `e2e` job of CI runs the scenarios of the sample: the specs of the sample copied to
   the product root, `migrate`, `sample_data`, `init`, `contract`, `check`, `add` of the
   components, the screens of `sample/frontend-overlay/src/` copied over `src/`,
-  `bazis_front e2e` and `--check`, the build, then the backend
+  `bazis_front e2e` and `--check`, `design --check`, the build, then the backend
   (`uvicorn sample.main:app`) and `vite preview` (its `/api` proxied to the backend) and
   `npm run e2e` with `E2E_BASE_URL`; the report of Playwright is uploaded on a failure. Run
   the same locally after a change of the helpers, the generator, a component or the

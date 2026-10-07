@@ -13,9 +13,11 @@
 // limitations under the License.
 
 // The statuses and the transits of bazis-statusy by the JSON:API type of their model, from
-// `TRANSITS` of the contract: their names in the language of the backend.
+// `TRANSITS` of the contract: their names in the language of the backend; and the tone of a
+// status, from `statuses` of spec/design/theme.yaml (`THEME` of the generated theme).
 
 import { TRANSITS } from '@/bazis/generated/contract';
+import { THEME, type Tone } from '@/bazis/generated/theme';
 import { fieldValue, type ResourceObject } from '@/bazis/ui/resource';
 
 interface Named {
@@ -25,7 +27,7 @@ interface Named {
 
 interface StatusyModel {
   statuses: readonly Named[];
-  transits: readonly Named[];
+  transits: readonly (Named & { dst?: string })[];
 }
 
 function model(type: string): StatusyModel | undefined {
@@ -51,4 +53,14 @@ export function transitName(type: string, transit: string): string {
 /** The statuses of the model as the options of a filter (`filters` of resource-list). */
 export function statusOptions(type: string): { value: string; label: string }[] {
   return (model(type)?.statuses ?? []).map((it) => ({ value: it.id, label: it.name }));
+}
+
+/** The tone of a status: `statuses` of the theme, neutral for another. */
+export function statusTone(status: string): Tone {
+  return THEME.statuses[status] ?? 'neutral';
+}
+
+/** The status that a transit of the model leads to; null when the contract does not have it. */
+export function transitTarget(type: string, transit: string): string | null {
+  return model(type)?.transits.find((it) => it.id === transit)?.dst ?? null;
 }

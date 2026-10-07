@@ -20,7 +20,8 @@ const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 // The components import the other assets as a product does (`@/bazis/...`, the shadcn/ui
 // components of `@/components/ui/`, `@/lib/utils` of the template): here they are the
-// assets next to them, and the contract of the sample of this repository (test/fixtures).
+// assets next to them, and the contract and the theme of the sample of this repository
+// (test/fixtures).
 export default defineConfig({
   resolve: {
     alias: [
@@ -28,6 +29,7 @@ export default defineConfig({
       { find: '@/bazis/react/statusy', replacement: here('../react/src/statusy/index.ts') },
       { find: '@/bazis/react', replacement: here('../react/src/index.ts') },
       { find: '@/bazis/generated/contract', replacement: here('./test/fixtures/contract.ts') },
+      { find: '@/bazis/generated/theme', replacement: here('./test/fixtures/theme.ts') },
       { find: /^@\/bazis\/ui\/(.*)$/, replacement: here('./$1') },
       { find: /^@\/components\/ui\/(.*)$/, replacement: here('./shadcn/$1') },
       { find: '@/lib/utils', replacement: here('../template/src/lib/utils.ts') },

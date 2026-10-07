@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../schema/design.schema.json
+# The design of the frontend: the preset and its options (an option left out is that of the
+# preset), compiled with tokens.json by `manage.py bazis_front design`.
+spec: bazis-design/1
+preset: workspace          # a working application: sidebar, tables, forms in dialogs
+navigation: sidebar        # sidebar | topbar
+density: comfortable       # comfortable | compact
+composition:
+  list: table              # table | cards
+  list_card: split         # split (the list and the card side by side) | pages
+  forms: dialog            # dialog | page
+# the tone of the badge of each status of bazis-statusy (neutral, primary, info, success,
+# warning, danger), by the id of the status:
+# statuses: {draft: neutral, in_progress: info, done: success, rejected: danger}

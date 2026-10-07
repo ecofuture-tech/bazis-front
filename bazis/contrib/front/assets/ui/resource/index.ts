@@ -19,6 +19,8 @@ export {
   fieldValue,
   formatValue,
   fromLocalDateTime,
+  isLongText,
+  isNumeric,
   itemLabel,
   permitted,
   routeOf,

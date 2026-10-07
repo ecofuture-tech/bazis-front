@@ -75,6 +75,9 @@ CODES: dict[str, tuple[str, str]] = {
     'D004': (ERROR, 'a token references an undefined token, or references itself through other tokens'),
     'D005': (ERROR, 'a token required by the preset is undefined or of another type'),
     'D006': (ERROR, 'a token references a token of another type'),
+    'D007': (ERROR, 'a token of the dark mode (the group `dark`) overrides no token of the same name and type'),
+    'D008': (WARNING, 'a status of `statuses` in theme.yaml is not a status of the contract'),
+    'D009': (WARNING, 'a text color has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode'),
 }
 
 

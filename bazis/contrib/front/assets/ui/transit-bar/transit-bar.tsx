@@ -13,19 +13,22 @@
 // limitations under the License.
 
 // The transits that the user may run on an item now (`useTransits`), a button
-// `transit:<id>` each, disabled with the errors of its validators when they restrict it. A
-// transit whose action takes a typed payload opens a dialog with its fields (`FieldInput`,
-// `field:<name>`, `error:<name>`, `action:submit`).
+// `transit:<id>` each, disabled with the errors of its validators when they restrict it; a
+// transit to a status of the tone `danger` is a destructive button. A transit whose action
+// takes a typed payload opens a dialog with its fields (`FieldInput`, `field:<name>`,
+// `error:<name>`, `action:submit`). A toast tells the status the item moved to.
 
+import { ArrowRight, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { ApiError } from '@/bazis/client';
 import { objectFields } from '@/bazis/react';
 import { useTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
 import { FieldInput } from '@/bazis/ui/resource';
-import { transitName } from '@/bazis/ui/status-badge';
-import { errorState, StatePanel } from '@/bazis/ui/state-panel';
+import { statusName, statusTone, transitName, transitTarget } from '@/bazis/ui/status-badge';
+import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export interface TransitBarProps {
@@ -78,7 +81,20 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
   const [open, setOpen] = useState<Transit | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
 
-  if (transits.isPending) return <StatePanel inline state="loading" />;
+  if (transits.isPending) {
+    return (
+      <StatePanel
+        inline
+        state="loading"
+        skeleton={
+          <div className="flex gap-2" aria-hidden="true">
+            <Skeleton className="h-9 w-28" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        }
+      />
+    );
+  }
   if (transits.isError) return <StatePanel inline state={errorState(transits.error)} error={transits.error} />;
   if (!transits.data.length) return null;
 
@@ -88,6 +104,11 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
       {
         onSuccess: (item) => {
           setOpen(null);
+          const target = transitTarget(transit.resource.type, transit.id);
+          toast({
+            title: transitName(transit.resource.type, transit.id),
+            ...(target === null ? {} : { description: `The status is ${statusName(transit.resource.type, target)} now.` }),
+          });
           onDone?.(item);
         },
       },
@@ -110,28 +131,41 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
     fields.map((it) => it.name),
   );
   return (
-    <div className="grid gap-2">
-      <div role="group" aria-label="Transits" className="flex flex-wrap gap-2">
-        {transits.data.map((transit) => (
-          <div key={transit.id} className="grid gap-1">
-            <Button
-              type="button"
-              data-bz={`transit:${transit.id}`}
-              disabled={!transit.allowed || mutation.isPending}
-              aria-describedby={transit.allowed ? undefined : `restricts-${transit.id}`}
-              onClick={() => {
-                start(transit);
-              }}
-            >
-              {transitName(transit.resource.type, transit.id)}
-            </Button>
-            {!transit.allowed && (
-              <p id={`restricts-${transit.id}`} className="text-xs text-muted-foreground">
-                {transit.restricts.map((it) => it.detail ?? it.title).join(' ')}
-              </p>
-            )}
-          </div>
-        ))}
+    <div className="grid gap-3 rounded-xl border bg-card px-(--space-card) py-3 text-card-foreground shadow-xs">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="text-sm font-medium text-muted-foreground">Next step</span>
+        <div role="group" aria-label="Transits" className="flex flex-wrap items-start gap-2">
+          {transits.data.map((transit, index) => {
+            const target = transitTarget(transit.resource.type, transit.id);
+            const danger = target !== null && statusTone(target) === 'danger';
+            return (
+              <div key={transit.id} className="grid gap-1">
+                <Button
+                  type="button"
+                  variant={danger ? 'destructive' : index === 0 ? 'default' : 'outline'}
+                  data-bz={`transit:${transit.id}`}
+                  disabled={!transit.allowed || mutation.isPending}
+                  aria-describedby={transit.allowed ? undefined : `restricts-${transit.id}`}
+                  onClick={() => {
+                    start(transit);
+                  }}
+                >
+                  {mutation.isPending && mutation.variables.transit === transit.id ? (
+                    <LoaderCircle className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ArrowRight aria-hidden="true" />
+                  )}
+                  {transitName(transit.resource.type, transit.id)}
+                </Button>
+                {!transit.allowed && (
+                  <p id={`restricts-${transit.id}`} className="max-w-56 text-xs text-muted-foreground">
+                    {transit.restricts.map((it) => it.detail ?? it.title).join(' ')}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
       {open === null && mutation.isError && (
         <StatePanel inline state={errorState(mutation.error)} error={mutation.error} message={mutation.error.message} />

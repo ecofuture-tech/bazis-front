@@ -13,4 +13,4 @@
 // limitations under the License.
 
 export { StatusBadge } from './status-badge.js';
-export { statusName, statusOf, statusOptions, transitName } from './statusy.js';
+export { statusName, statusOf, statusOptions, statusTone, transitName, transitTarget } from './statusy.js';
