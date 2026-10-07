@@ -47,7 +47,10 @@ describe('ResourceList', () => {
   it('is loading, then lists the rows with the titles of the schema', async () => {
     const pending = new Backend().hold('GET', ITEMS).on('GET', `${ITEMS}schema_list/`, schema);
     const { unmount } = renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} />, pending);
-    expect(within(screen.getByTestId('list:item')).getByTestId('state:loading')).toBeTruthy();
+    // the skeleton of the rows is the loading state
+    const loading = within(screen.getByTestId('list:item')).getByTestId('state:loading');
+    expect(loading.getAttribute('aria-busy')).toBe('true');
+    expect(loading.querySelector('[data-slot="skeleton"]')).not.toBeNull();
     unmount();
 
     const onOpen = vi.fn();
@@ -186,4 +189,28 @@ describe('ResourceList', () => {
       expect(requested(server, 'search=word')).toBe(true);
     });
   });
+
+  for (const layout of ['table', 'cards'] as const) {
+    it(`marks the rows and their cells as ${layout}, the open one selected`, async () => {
+      const onOpen = vi.fn();
+      renderWithBazis(
+        <ResourceList
+          path={ITEMS as never}
+          entity="item"
+          columns={['title', 'done']}
+          layout={layout}
+          selected="b"
+          onOpen={onOpen}
+        />,
+        backend(listDocument(rows)),
+      );
+      await screen.findByTestId('state:loaded');
+      expect(within(screen.getByTestId('row:a')).getByTestId('cell:title').textContent).toBe('First');
+      expect(within(screen.getByTestId('row:b')).getByTestId('cell:done').textContent).toBe('No');
+      expect(screen.getByTestId('row:b').getAttribute('data-state')).toBe('selected');
+      expect(screen.getByTestId('row:a').getAttribute('data-state')).toBeNull();
+      fireEvent.click(screen.getByTestId('row:a'));
+      expect(onOpen).toHaveBeenCalledWith('a');
+    });
+  }
 });

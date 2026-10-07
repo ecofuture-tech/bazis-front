@@ -27,7 +27,7 @@ import yaml
 from bazis.contrib.front import capabilities
 from bazis.contrib.front.checks import check_spec
 from bazis.contrib.front.contract.export import render
-from bazis.contrib.front.spec import design
+from bazis.contrib.front.spec import color, design
 from bazis.contrib.front.spec.access import Grant
 from bazis.contrib.front.spec.issues import CODES
 from bazis.contrib.front.spec.validate import schema_files, validate
@@ -204,7 +204,13 @@ CASES = [
             ('P013', f'{PRODUCT}#/entities/0/fields/3'),
         ],
     ),
-    ('P014', {CONTRACT: remove_statusy_model}, [('P014', f'{PRODUCT}#/entities/0/workflow')]),
+    (
+        'P014',
+        {CONTRACT: remove_statusy_model},
+        # the tones of the statuses of the theme name statuses of no model
+        [('P014', f'{PRODUCT}#/entities/0/workflow'),
+         *(('D008', f'{THEME}#/statuses/{it}') for it in ('draft', 'in_progress', 'done'))],
+    ),
     (
         'P015',
         {PRODUCT: lambda d: [task(d)['workflow'].update(initial='in_progress'),
@@ -358,7 +364,8 @@ CASES = [
     (
         'D004',
         # a cycle: color.sidebar-foreground references color.foreground
-        {TOKENS: lambda d: d['color']['foreground'].update({'$value': '{color.sidebar-foreground}'})},
+        {TOKENS: lambda d: [d['color']['sidebar-foreground'].update({'$value': '{color.foreground}'}),
+                            d['color']['foreground'].update({'$value': '{color.sidebar-foreground}'})]},
         [('D004', f'{TOKENS}#/color/foreground/$value'),
          ('D004', f'{TOKENS}#/color/sidebar-foreground/$value')],
     ),
@@ -372,6 +379,20 @@ CASES = [
         'D006',
         {TOKENS: lambda d: d['font']['heading'].update({'$value': '{color.primary}'})},
         [('D006', f'{TOKENS}#/font/heading/$value')],
+    ),
+    (
+        'D007',
+        # a token of the dark mode of no token, and one of another type
+        {TOKENS: lambda d: [d['dark']['color'].update(brand={'$type': 'color', '$value': 'red'}),
+                            d['dark'].update(radius={'$type': 'number', '$value': 1})]},
+        [('D007', f'{TOKENS}#/dark/color/brand'), ('D007', f'{TOKENS}#/dark/radius')],
+    ),
+    ('D008', {THEME: lambda d: d['statuses'].update(archived='neutral')}, [('D008', f'{THEME}#/statuses/archived')]),
+    (
+        'D009',
+        # a muted text too light: on the backgrounds, and the neutral badges mixed from it
+        {TOKENS: lambda d: d['color']['muted-foreground'].update({'$value': 'oklch(0.8 0 0)'})},
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 4,
     ),
 ]
 
@@ -672,36 +693,45 @@ PACKAGE = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front'
 
 
 def test_the_starter_tokens_define_every_preset():
-    tokens = design.tokens_of(json.loads(
-        (PACKAGE / 'spec' / 'starters' / 'design' / 'tokens.json').read_text(encoding='utf-8')
-    ))
     for preset, required in design.PRESET_TOKENS.items():
-        assert {name: tokens[name][1]['$type'] for name in required} == {
-            name: kind for name, (kind, _) in required.items()
-        }, preset
+        tokens = design.tokens_of(design.starter(preset))
+        assert {name: tokens[name][1]['$type'] for name in required} == required, preset
 
 
-def test_the_tokens_are_the_css_variables_of_the_template():
-    css = (PACKAGE / 'assets' / 'template' / 'src' / 'index.css').read_text(encoding='utf-8')
-    root = dict(re.findall(r'^  (--[\w-]+): (.+);$', css.split(':root {', 1)[1].split('}', 1)[0], re.M))
-    tokens = design.tokens_of(json.loads(
-        (PACKAGE / 'spec' / 'starters' / 'design' / 'tokens.json').read_text(encoding='utf-8')
-    ))
+@pytest.mark.parametrize('preset', list(design.PRESET_TOKENS))
+def test_the_starters_have_the_contrast_of_wcag_aa(preset):
+    # every text color of the starter on its background, in the light and the dark mode
+    defined = design.tokens_of(design.starter(preset))
+    assert design.has_dark(defined)
+    for dark in (False, True):
+        values = design.variables(defined, dark=dark)
+        for text, background in design.CONTRAST:
+            first, second = color.parse(values[text], values), color.parse(values[background], values)
+            assert first is not None and second is not None, (text, background)
+            assert color.contrast(first, second) >= color.AA, (preset, dark, text, background)
 
-    def css(variable):
-        text = root[variable]
-        return css(text[4:-1]) if text.startswith('var(') else text
 
-    def token(name):
-        data = tokens[name][1]
-        if (target := design.alias(data)) is not None:
-            return token(target)
-        return ', '.join(data['$value']) if isinstance(data['$value'], list) else data['$value']
+def test_the_contrast_of_the_dark_mode(root):
+    edit(root, TOKENS, lambda d: d['dark']['color']['muted-foreground'].update({'$value': 'oklch(0.3 0 0)'}))
+    result = validate(root)
+    found = [it for it in result.issues if it.code == 'D009']
+    assert found and {it.location for it in found} == {f'{TOKENS}#/dark/color/muted-foreground'}
+    assert all('in the dark mode' in it.message for it in found)
+    assert {it.severity for it in found} == {'warning'}
 
-    for required in design.PRESET_TOKENS.values():
-        for name, (_, variable) in required.items():
-            # the starter has the values of the template
-            assert css(variable) == token(name), name
+
+def test_the_colors_of_css():
+    assert color.parse('#fff') == (1.0, 1.0, 1.0)
+    assert color.parse('rgb(0 0 0)') == (0.0, 0.0, 0.0)
+    assert color.parse('oklch(1 0 0)') == pytest.approx((1.0, 1.0, 1.0), abs=1e-3)
+    assert color.parse('oklch(62.8% 0.2577 29.23)') == pytest.approx((1.0, 0.0, 0.0), abs=2e-3)
+    # not opaque, or not computed: not checked
+    assert color.parse('oklch(1 0 0 / 10%)') is None
+    assert color.parse('hsl(0 0% 0%)') is None
+    assert color.parse('var(--x)', {'--x': 'var(--y)', '--y': '#000'}) == (0.0, 0.0, 0.0)
+    assert color.parse('var(--x)', {'--x': 'var(--x)'}) is None
+    assert color.parse('color-mix(in srgb, #fff 50%, #000)') == (0.5, 0.5, 0.5)
+    assert round(color.contrast((1.0, 1.0, 1.0), (0.0, 0.0, 0.0)), 2) == 21.0
 
 
 def test_every_code_is_documented():

@@ -14,27 +14,51 @@ copies and changes them freely; each component comes with its contract test
 scenarios of the specs rely on: keep it passing.
 
 The shadcn/ui components they use (`button`, `input`, `label`, `native-select`, `table`,
-`badge`, `card`, `dialog`) are assets as well, copied into `src/components/ui/` as
+`badge`, `card`, `dialog`, `sheet`, `skeleton`) are assets as well, copied into `src/components/ui/` as
 `components.json` of the template places them, so that `add` needs neither the network nor
 the shadcn CLI. Their npm dependencies (`radix-ui`, `class-variance-authority`,
 `lucide-react`) and those of the contract tests (`@testing-library/react`, `jsdom`) are in
 the `package.json` of the template: `add` never changes the `package.json` of a product.
 
 Labels come from the backend (the titles of the runtime schemas, the names of the statuses
-and transits in `contract.ts`) and from the props; there are no translations. Colors, radii
-and fonts are the CSS variables of the template.
+and transits in `contract.ts`) and from the props; there are no translations.
+
+## The design
+
+The components look as the design of the product says (`spec/design/`, compiled by
+`manage.py bazis_front design` into `src/bazis/generated/theme.css` and `theme.ts`):
+
+- colors, radii and fonts only through the Tailwind classes of the tokens (`bg-primary`,
+  `text-muted-foreground`, `bg-success-soft text-success-ink`, `rounded-lg`, `font-display`),
+  never literal colors (the shadcn/ui files keep theirs), so that a brand and the dark mode
+  apply everywhere; the spacing of the density through its variables (`p-(--space-card)`,
+  `py-(--space-cell-y)`);
+- the defaults of the composition from `THEME` (`@/bazis/generated/theme`): the navigation
+  of `AppShell`, the table or the cards of `ResourceList` (`layout`), the list with its card
+  of `ListCardLayout` (`mode`), the dialog or the page of `FormSurface` and of the edit of
+  `ResourceCard` (`mode`, `forms`); a prop overrides it, which the contract tests use to
+  check both;
+- the loading states are skeletons of what loads, still marked `state:loading` with
+  `aria-busy`; the other states an icon, a title and a hint (`STATE_MESSAGES`,
+  `STATE_HINTS`); a change that succeeded shows a toast (`toast`, the `Toaster` of
+  `AppShell`);
+- the tone of a status badge is `statuses` of the theme (`statusTone`), neutral by default.
+
+In this repository `@/bazis/generated/theme` is `test/fixtures/theme.ts`, the theme of the
+sample (`tests/test_design.py` checks it; write it again with
+`BAZIS_FRONT_WRITE_FIXTURES=1 python -m pytest ../tests/test_design.py`).
 
 ## The components
 
 | Component | Props | `data-bz` | Requires |
 |---|---|---|---|
-| `state-panel` | `StatePanel({state, error?, message?, onRetry?, inline?, children})`; `errorState(error)`, `queryState(query, empty?)` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell({title, navigation: 'sidebar' \| 'topbar', items: [{screen, label, to, end?}], session: {user?, onLogout} \| null, children})`; `Screen({id, title?, actions?, children})` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
+| `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`; `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
+| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
 | `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, actions?, rowActions?, cells?, emptyMessage?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
-| `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
-| `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName`, `statusOptions`, `transitName` | `status:<id>` | capability `statusy` |
+| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, emptyMessage?, layout?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
+| `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
+| `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | capability `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
@@ -55,9 +79,12 @@ components. `testing` is the support of the contract tests: a backend for the mo
   date: a range; a string: `<field>__$search`; `options` for choices such as the statuses),
   the sort labels from `RESOURCES` of the contract. An action with `permission` is shown
   only when the permission meta allows it.
+- **`app-shell`**: `ListCardLayout` renders the screen of a list and, as its child route, the
+  screen of its card: next to the list on a wide screen (`split`) or in its place (`pages`).
+  `Screen` hosts a form page of `FormSurface`, which takes the place of its content.
 - **`resource-card`** reads the item with `crud_actions` and its fields from
   `schema_retrieve/`; with `edit`, an edit button (when the backend allows the change)
-  replaces the sections with the form of the update of their fields.
+  opens the form of the update of their fields in a dialog or as a page (`FormSurface`).
 - **The labels of related items** (`RelationLabel`: the cells of a relationship in a
   list, its value in a card) are read with `useItem` of the related resource, one request
   per related item, cached by TanStack Query and shared with every other place that shows

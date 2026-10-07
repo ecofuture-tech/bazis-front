@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { StatusBadge } from './status-badge.js';
-export { statusName, statusOf, statusOptions, statusTone, transitName, transitTarget } from './statusy.js';
+/** The name of the product (`product.name` of spec/product.yaml): the layout and the login show it. */
+export const PRODUCT_NAME = 'Frontend';

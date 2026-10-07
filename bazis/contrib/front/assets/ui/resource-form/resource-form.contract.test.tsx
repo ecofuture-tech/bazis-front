@@ -19,7 +19,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ResourceForm } from '@/bazis/ui/resource-form';
+import { Screen } from '@/bazis/ui/app-shell';
+import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 const schema = runtimeSchema({
@@ -31,7 +32,9 @@ const schema = runtimeSchema({
 describe('ResourceForm', () => {
   it('is loading until the schema is loaded', () => {
     renderWithBazis(<ResourceForm path={ITEMS as never} />, new Backend().hold('GET', `${ITEMS}schema_create/`));
-    expect(screen.getByTestId('state:loading')).toBeTruthy();
+    const loading = screen.getByTestId('state:loading');
+    expect(loading.getAttribute('aria-busy')).toBe('true');
+    expect(loading.querySelector('[data-slot="skeleton"]')).not.toBeNull();
   });
 
   it('is forbidden when the backend refuses the schema', async () => {
@@ -84,4 +87,34 @@ describe('ResourceForm', () => {
     fireEvent.click(screen.getByTestId('action:cancel'));
     expect(onCancel).toHaveBeenCalledOnce();
   });
+});
+
+describe('FormSurface', () => {
+  for (const mode of ['dialog', 'page'] as const) {
+    it(`shows a form in a ${mode} and closes it`, async () => {
+      const onClose = vi.fn();
+      const backend = new Backend().on('GET', `${ITEMS}schema_create/`, schema);
+      renderWithBazis(
+        <Screen id="item-list" title="Items">
+          <p>the list</p>
+          <FormSurface mode={mode} open title="New item" onClose={onClose}>
+            <ResourceForm path={ITEMS as never} onCancel={onClose} />
+          </FormSurface>
+        </Screen>,
+        backend,
+      );
+      const submit = await screen.findByTestId('action:submit');
+      expect(screen.getByText('New item')).toBeTruthy();
+      if (mode === 'page') {
+        // in place of the content of the screen, inside its mark
+        expect(screen.getByTestId('screen:item-list').contains(submit)).toBe(true);
+        expect(screen.getByText('the list').closest('.hidden')).not.toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      } else {
+        expect(screen.getByRole('dialog').contains(submit)).toBe(true);
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+      }
+      expect(onClose).toHaveBeenCalled();
+    });
+  }
 });

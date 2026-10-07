@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The contract of the state panel: every state is marked `state:<state>`, the errors of the
-// backend map to their states. Keep it passing when the component is changed.
+// The contract of the state panel: every state is marked `state:<state>` (the loading one
+// as a busy skeleton), the errors of the backend map to their states; and the toasts of the
+// feedback. Keep it passing when the component is changed.
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/bazis/client';
-import { errorState, queryState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
+import { errorState, queryState, StatePanel, toast, Toaster, type ViewState } from '@/bazis/ui/state-panel';
 import '@/bazis/ui/testing';
 
 describe('StatePanel', () => {
@@ -32,6 +33,24 @@ describe('StatePanel', () => {
     }
     render(<StatePanel state="loaded">content</StatePanel>);
     expect(screen.getByTestId('state:loaded').textContent).toBe('content');
+  });
+
+  it('draws the loading state as a skeleton, marked and busy', () => {
+    const { unmount } = render(<StatePanel state="loading" />);
+    const loading = screen.getByTestId('state:loading');
+    expect(loading.getAttribute('aria-busy')).toBe('true');
+    expect(loading.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    unmount();
+    render(<StatePanel state="loading" skeleton={<span>rows</span>} />);
+    expect(screen.getByTestId('state:loading').textContent).toContain('rows');
+  });
+
+  it('tells what to do about a state', () => {
+    render(<StatePanel state="forbidden" />);
+    const forbidden = screen.getByTestId('state:forbidden');
+    expect(forbidden.getAttribute('role')).toBe('alert');
+    expect(forbidden.querySelector('svg')).not.toBeNull();
+    expect(forbidden.textContent).toContain('administrator');
   });
 
   it('shows the message of an error and retries', () => {
@@ -58,5 +77,19 @@ describe('errorState', () => {
     expect(queryState({ status: 'error', error: new ApiError(404, []) })).toBe('not_found');
     expect(queryState({ status: 'success', error: null }, true)).toBe('empty');
     expect(queryState({ status: 'success', error: null })).toBe('loaded');
+  });
+});
+
+describe('toast', () => {
+  it('shows the feedback of a change in a live region', () => {
+    render(<Toaster />);
+    act(() => {
+      toast({ title: 'Saved', description: 'The task is saved.' });
+    });
+    const region = screen.getByRole('region', { name: 'Notifications' });
+    expect(region.getAttribute('aria-live')).toBe('polite');
+    expect(region.textContent).toContain('Saved');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(region.textContent).not.toContain('Saved');
   });
 });

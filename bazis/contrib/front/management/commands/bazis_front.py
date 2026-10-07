@@ -26,6 +26,7 @@ from bazis.contrib.front.contract import generated
 from bazis.contrib.front.contract.openapi import dumps
 from bazis.contrib.front.spec import create as spec_create
 from bazis.contrib.front.spec import e2e
+from bazis.contrib.front.spec import theme as design_theme
 from bazis.contrib.front.spec import validate as spec_validate
 from bazis.contrib.front.spec.issues import Issues
 from bazis.contrib.front.vendor import copy, update
@@ -63,13 +64,19 @@ class Command(BaseCommand):
                 'with copies of the protocol client in src/bazis/client/ and of the React hooks '
                 'in src/bazis/react/ (with those of the installed packages, such as '
                 'bazis-statusy), their pristine copies in .bazis/base/ and the lock '
-                'bazis-front.lock.json, then run `npm install` in it. '
-                'Also create spec/ (the JSON Schemas of the specs in spec/schema/, starters of '
-                'product.yaml and of the design) when the product has none. An existing '
-                'frontend/ or spec/ is never overwritten.'
+                'bazis-front.lock.json, and its theme (`design`) in src/bazis/generated/, then '
+                'run `npm install` in it. Also create spec/ (the JSON Schemas of the specs in '
+                'spec/schema/, starters of product.yaml and of the design of the preset) when '
+                'the product has none. An existing frontend/ or spec/ is never overwritten.'
             ),
         )
         init.add_argument('--no-node', action='store_true', help='Do not run `npm install`.')
+        init.add_argument(
+            '--preset',
+            choices=spec_create.PRESETS,
+            default=spec_create.PRESETS[0],
+            help='The preset of the starters of spec/design/ (default: %(default)s).',
+        )
 
         export = subcommands.add_parser(
             'contract',
@@ -182,6 +189,27 @@ class Command(BaseCommand):
             help='Write nothing; exit with 1 if the generated tests differ from the specs.',
         )
 
+        design_parser = subcommands.add_parser(
+            'design',
+            help='Generate the theme of the frontend from spec/design/.',
+            description=(
+                'Compile spec/design/theme.yaml and spec/design/tokens.json into '
+                'frontend/src/bazis/generated/theme.css (the tokens as CSS variables of the '
+                'light and the dark mode, the spacing of the density, the Tailwind theme and the '
+                'base styles of the preset) and theme.ts (THEME: the navigation, the density, '
+                'the composition, the tones of the statuses, read by the components); the lock '
+                'records the hashes of the design and of the files. Without spec/design/, the '
+                'theme of the starter of the preset workspace. The design must have no errors '
+                '(`bazis_front check --layer design`). `init` runs it; the generated files are '
+                'never edited.'
+            ),
+        )
+        design_parser.add_argument(
+            '--check',
+            action='store_true',
+            help='Write nothing; exit with 1 if the theme differs from the design.',
+        )
+
     def execute(self, *args, **options):
         # `check` reports the issues of the specs itself, `update` the stale copies: the
         # system checks would repeat them (front.W002, front.W004)
@@ -192,7 +220,7 @@ class Command(BaseCommand):
     def handle(self, *args, subcommand, **options):
         return getattr(self, f'handle_{subcommand}')(**options)
 
-    def handle_init(self, no_node=False, **options):
+    def handle_init(self, no_node=False, preset=spec_create.PRESETS[0], **options):
         frontend = frontend_lock.frontend_dir()
         if frontend.exists():
             raise CommandError(
@@ -203,13 +231,17 @@ class Command(BaseCommand):
         if spec.exists():
             self.stdout.write(f'{spec} exists: it is kept as it is.')
         else:
-            spec_create.create_spec(spec)
+            spec_create.create_spec(spec, preset)
             self.stdout.write(
                 f'Created the specs in {spec}: write the product and its screens there and '
                 'check them with `manage.py bazis_front check`.'
             )
         copy.create_frontend(frontend, capabilities.enabled())
         self.stdout.write(f'Created the frontend in {frontend} (bazis-front {__version__}).')
+        try:
+            self.generate_theme(frontend, frontend_lock.read(frontend))
+        except CommandError as err:
+            self.stderr.write(f'{err} Then generate the theme with `manage.py bazis_front design`.')
         self.stdout.flush()
         if no_node:
             self.stdout.write(f'Run `npm install` in {frontend}.')
@@ -427,6 +459,48 @@ class Command(BaseCommand):
             'Run them with `npm run e2e` in frontend/ against the running backend, with the '
             'test data loaded and E2E_PASSWORD set.'
         )
+
+    def handle_design(self, check=False, **options):
+        frontend = frontend_lock.frontend_dir()
+        try:
+            lock = frontend_lock.read(frontend)
+        except frontend_lock.LockError as err:
+            raise CommandError(str(err)) from err
+        if lock is None:
+            raise CommandError(
+                f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
+                '`manage.py bazis_front init`.'
+            )
+        if check:
+            rendered = self.render_theme()
+            if problems := design_theme.stale(Path(settings.BASE_DIR), frontend, lock, rendered):
+                raise CommandError(
+                    '\n'.join(problems)
+                    + '\nGenerate it with `manage.py bazis_front design`; never edit it.'
+                )
+            self.stdout.write(f'The theme of {frontend} is up to date.')
+            return
+        self.generate_theme(frontend, lock)
+
+    def render_theme(self) -> dict[str, str]:
+        """
+        The theme of the design of the specs; fails with the issues of a design with errors.
+        """
+        result = spec_validate.validate(Path(settings.BASE_DIR), ('design',))
+        if errors := [it for it in result.errors if it.layer == 'design']:
+            for issue in errors:
+                self.stdout.write(f'{issue.location}: {issue.code} {issue.severity}: {issue.message}')
+                self.stdout.write(f'    {issue.hint}')
+            raise CommandError(
+                f'The design has {len(errors)} errors: the theme is generated from a design '
+                'that `bazis_front check` accepts.'
+            )
+        return design_theme.render(result.specs)
+
+    def generate_theme(self, frontend: Path, lock: dict) -> None:
+        rendered = self.render_theme()
+        design_theme.write(Path(settings.BASE_DIR), frontend, lock, rendered)
+        self.stdout.write(f'Generated the theme of {frontend}: {", ".join(rendered)}.')
 
     def write_issues(self, result):
         for issue in result.issues:

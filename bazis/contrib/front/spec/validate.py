@@ -59,15 +59,19 @@ SCHEMAS = (PRODUCT_SCHEMA, SCREEN_SCHEMA, DESIGN_SCHEMA, TOKENS_SCHEMA)
 @dataclass(frozen=True)
 class Specs:
     """
-    The specs as the validation read them, for the generator of the end-to-end tests: the
-    data of product.yaml (None when it does not follow its schema), the screens by id (None
-    for one that does not follow its schema) and the steps of each scenario as the walk of
-    `scenarios.py` understood them. Only those of specs without errors are meant to be used.
+    The specs as the validation read them, for the generators of the end-to-end tests and
+    of the theme: the data of product.yaml (None when it does not follow its schema), the
+    screens by id (None for one that does not follow its schema), the steps of each scenario
+    as the walk of `scenarios.py` understood them, and the data of theme.yaml and tokens.json
+    (None when the file is missing or does not follow its schema). Only those of specs
+    without errors are meant to be used.
     """
 
     product: dict | None = None
     screens: dict[str, dict | None] = field(default_factory=dict)
     scenarios: dict[str, list[Step]] = field(default_factory=dict)
+    theme: dict | None = None
+    tokens: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -262,10 +266,14 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     product = refs.check_product(product_doc, contract, issues)
     screens = refs.check_screens(screen_docs, product, contract, issues)
     walked = scenarios.check(product_doc, product, screens, issues)
-    design.check(theme_doc, tokens_doc, issues)
+    design.check(theme_doc, tokens_doc, contract, issues)
 
     return Result(
         [it for it in issues.items if it.layer in layers or it.layer == CONTRACT],
         contract is not None,
-        Specs(product_doc.data if product_doc.valid else None, screens, walked),
+        Specs(
+            product_doc.data if product_doc.valid else None, screens, walked,
+            theme_doc.data if theme_doc is not None and theme_doc.valid else None,
+            tokens_doc.data if tokens_doc is not None and tokens_doc.valid else None,
+        ),
     )

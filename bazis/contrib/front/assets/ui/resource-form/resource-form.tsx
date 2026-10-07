@@ -14,15 +14,19 @@
 
 // A form of a resource over `useResourceForm`: the fields of the runtime schema of the create
 // or of the update for the current user, rendered by `FieldInput` (`field:<name>`,
-// `error:<name>`), submitted with `action:submit`. A 422 is the state `invalid`.
+// `error:<name>`), submitted with `action:submit`, with a toast when it is saved. A 422 is
+// the state `invalid`. `FormSurface` shows a form in a dialog or as a page, as the theme
+// composes the forms.
 
+import { LoaderCircle } from 'lucide-react';
 import type { ReactNode, SubmitEvent } from 'react';
 
 import { ApiError } from '@/bazis/client';
 import type { CreatePath, ResourceForm as Form, UpdatePath } from '@/bazis/react';
 import { FieldInput, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
-import { errorState, StatePanel } from '@/bazis/ui/state-panel';
+import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export type ResourceFormProps = (
   | { /** A create: the route set. */ path: CreatePath; id?: undefined }
@@ -45,6 +49,21 @@ function otherErrors(form: Form<unknown>, shown: ReadonlySet<string>): string[] 
   return Object.entries(form.errors)
     .filter(([name]) => !shown.has(name))
     .map(([name, messages]) => `${name}: ${messages.join(' ')}`);
+}
+
+/** The skeleton of a form while its schema loads. */
+function FormSkeleton() {
+  return (
+    <div className="grid gap-(--space-field)" aria-hidden="true">
+      {[0, 1, 2].map((it) => (
+        <div key={it} className="grid gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      ))}
+      <Skeleton className="h-9 w-24 justify-self-end" />
+    </div>
+  );
 }
 
 /**
@@ -72,7 +91,7 @@ export function ResourceFormBody({
 
   if (form.status !== 'ready') {
     const state = form.status === 'loading' ? 'loading' : errorState(form.error);
-    return <StatePanel state={state} error={form.error} />;
+    return <StatePanel state={state} error={form.error} skeleton={<FormSkeleton />} />;
   }
 
   const byName = new Map(form.fields.map((it) => [it.name, it]));
@@ -86,12 +105,14 @@ export function ResourceFormBody({
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     void form.submit().then((saved) => {
-      if (saved) onSaved?.(saved);
+      if (!saved) return;
+      toast({ title: id === undefined ? 'Created' : 'Saved' });
+      onSaved?.(saved);
     });
   }
 
   return (
-    <form data-bz="state:loaded" noValidate onSubmit={submit} aria-busy={form.isSubmitting || undefined} className="grid gap-4">
+    <form data-bz="state:loaded" noValidate onSubmit={submit} aria-busy={form.isSubmitting || undefined} className="grid gap-(--space-field)">
       {failure && (
         <StatePanel
           inline
@@ -116,7 +137,7 @@ export function ResourceFormBody({
           }}
         />
       ))}
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
         {onCancel && (
           <Button
             type="button"
@@ -131,6 +152,7 @@ export function ResourceFormBody({
           </Button>
         )}
         <Button type="submit" data-bz="action:submit" disabled={form.isSubmitting}>
+          {form.isSubmitting && <LoaderCircle className="animate-spin" aria-hidden="true" />}
           {submitLabel ?? (id === undefined ? 'Create' : 'Save')}
         </Button>
       </div>

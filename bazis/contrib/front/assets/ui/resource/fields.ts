@@ -128,6 +128,18 @@ export function fromLocalDateTime(text: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/** Whether a field is a number: aligned to the right, with figures of the same width. */
+export function isNumeric(field: FormField | undefined): boolean {
+  return field?.kind === 'attribute' && (field.type === 'integer' || field.type === 'number');
+}
+
+/** Whether a field is a long text (a string without a format and a maximal length). */
+export function isLongText(field: FormField | undefined): boolean {
+  return (
+    field?.kind === 'attribute' && field.type === 'string' && field.format === null && field.schema.maxLength === undefined
+  );
+}
+
 /** The text of the value of an attribute, by its type and format; `—` for no value. */
 export function formatValue(field: FormField | undefined, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
@@ -137,11 +149,11 @@ export function formatValue(field: FormField | undefined, value: unknown): strin
     const format = field?.kind === 'attribute' ? field.format : null;
     if (format === 'date-time') {
       const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
     }
     if (format === 'date') {
       const [year, month, day] = value.split('-').map(Number);
-      if (year && month && day) return new Date(year, month - 1, day).toLocaleDateString();
+      if (year && month && day) return new Date(year, month - 1, day).toLocaleDateString(undefined, { dateStyle: 'medium' });
     }
     return value;
   }

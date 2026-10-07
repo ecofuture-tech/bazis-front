@@ -15,14 +15,17 @@
 // spec/screens/task-card.yaml: a task with its status, its transits, its edit and its
 // deletion.
 
-import { useNavigate, useParams } from 'react-router';
+import { ArrowLeft } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import { ROUTES } from '@/bazis/generated/contract';
 import { useDestroy } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceCard } from '@/bazis/ui/resource-card';
-import { StatusBadge } from '@/bazis/ui/status-badge';
+import { toast } from '@/bazis/ui/state-panel';
+import { StatusBadge, statusName, statusOf } from '@/bazis/ui/status-badge';
 import { TransitBar } from '@/bazis/ui/transit-bar';
+import { Button } from '@/components/ui/button';
 
 const TASKS = ROUTES['tasks.task'];
 
@@ -31,16 +34,28 @@ export function TaskCardScreen() {
   const navigate = useNavigate();
   const destroy = useDestroy(TASKS);
   return (
-    <Screen id="task-card" title="Task">
+    <Screen
+      id="task-card"
+      title="Task"
+      actions={
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/tasks">
+            <ArrowLeft />
+            All tasks
+          </Link>
+        </Button>
+      }
+    >
       <ResourceCard
         path={TASKS}
         id={id}
         edit
         sections={[
-          { id: 'main', fields: ['title', 'status', 'assignee'] },
+          { id: 'main', title: 'Details', fields: ['title', 'status', 'assignee'] },
           { id: 'report', title: 'Report', fields: ['report'] },
         ]}
         badge={(item) => <StatusBadge resource={item} />}
+        values={{ status: (item) => statusName(item.type, statusOf(item) ?? '') }}
         actions={[
           {
             id: 'delete',
@@ -48,7 +63,12 @@ export function TaskCardScreen() {
             permission: 'delete',
             variant: 'destructive',
             onClick: () => {
-              destroy.mutate(id, { onSuccess: () => void navigate('/tasks') });
+              destroy.mutate(id, {
+                onSuccess: () => {
+                  toast({ title: 'Deleted' });
+                  void navigate('/tasks');
+                },
+              });
             },
           },
         ]}

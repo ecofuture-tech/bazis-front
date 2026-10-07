@@ -1,8 +1,14 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/design.schema.json
+# The design of the sample: a working application with the list and the card side by side.
 spec: bazis-design/1
 preset: workspace
 navigation: sidebar
-density: compact
+density: comfortable
 composition:
+  list: table
   list_card: split
   forms: dialog
+statuses:
+  draft: neutral
+  in_progress: info
+  done: success

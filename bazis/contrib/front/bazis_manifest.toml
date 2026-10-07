@@ -17,7 +17,7 @@ pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
 [[extension_points]]
 name = "manage.py bazis_front"
 import = "bazis.contrib.front.management.commands.bazis_front.Command"
-use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock, and the starters of spec/); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares; validate spec/ against the contract with `bazis_front check` (`--json`, exit 1 on errors); after `pip install -U bazis-front`, bring the copies to the new version with `bazis_front update` (a three-way merge with the changes of the product, `--check` only lists them)"
+use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock, and the starters of spec/); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares; validate spec/ against the contract with `bazis_front check` (`--json`, exit 1 on errors); compile spec/design/ into the theme of the frontend with `bazis_front design` (`--check` only compares); after `pip install -U bazis-front`, bring the copies to the new version with `bazis_front update` (a three-way merge with the changes of the product, `--check` only lists them)"
 
 [[pitfalls]]
 text = "the contract (contract/openapi.json, contract/contract.json) is generated: export it again after every change of the backend, never edit it"
@@ -34,6 +34,10 @@ check = "front.W001"
 [[pitfalls]]
 text = "the specs (spec/) are checked against contract/contract.json: export the contract before `bazis_front check`; `access` must be covered by the permissions of the permit roles (P019), and the issues have stable codes (see AGENTS.md)"
 check = "front.W002"
+
+[[pitfalls]]
+text = "the theme of the frontend (frontend/src/bazis/generated/theme.css and theme.ts) is compiled from spec/design/ by `bazis_front design` (and `init`): generate it again after every change of the design and after `bazis_front update`, never edit it; colors, radii and fonts of the screens come from its tokens (Tailwind classes such as `bg-primary`, `bg-success-soft`), never literal colors"
+check = "front.W005"
 
 [[pitfalls]]
 text = "the client in frontend/src/bazis/client/ is a copy kept pristine for the updates of bazis-front: wrap it in src/app/, do not edit it"

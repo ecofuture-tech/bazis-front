@@ -15,7 +15,7 @@ with the other Bazis packages and versioned by setuptools-scm, one version for e
 - **Python** does all that needs no Node: contract export, spec validation, copying and
   updating the assets, Django system checks `front.*` (run by `bazis_doctor` and bazis-mcp).
   It is one management command with subcommands, `manage.py bazis_front`
-  (`init`, `contract`, `check`, `add`, `update`, `e2e`, `tokens`, `impact`).
+  (`init`, `contract`, `check`, `design`, `add`, `update`, `e2e`; `impact` is planned).
 - **TypeScript** is shipped as package data in `bazis/contrib/front/assets/` and copied
   into the product, in the way of shadcn/ui: the protocol client, React hooks, components,
   the project template, Playwright helpers. Only third-party dependencies (React,
@@ -155,6 +155,24 @@ The specs are written by the agent; there is no generator of screens or of the
 permissions of the roles: the backend is built to satisfy the specs, and the validator
 shows what it lacks.
 
+### Design
+
+The design layer keeps generated products from looking like a bare admin panel: the specs
+choose a preset (`workspace`, a working application: a sidebar, tables, the card next to the
+list, forms in dialogs; `portal`, a public shell: a top bar, larger type, grids of cards,
+forms on pages) with its options (navigation, density, composition, the tones of the
+statuses), and the tokens of a brand (DTCG, with the values of a dark mode in the group
+`dark`). `bazis_front design` (`spec/theme.py`, also run by `init`) compiles them into
+`frontend/src/bazis/generated/`: `theme.css`, imported by the `src/index.css` of the
+template (the tokens as CSS variables of the light and the dark mode, the spacing of the
+density, the Tailwind theme over the variables, the base styles of the preset), and
+`theme.ts` (`THEME`, the options the components read for their defaults). Like the
+end-to-end tests, the theme depends on the specs only: the lock records the hashes, `--check`
+and the system check `front.W005` compare it without Node and the database. The components
+use the tokens only (Tailwind classes such as `bg-primary`), so a brand is a change of the
+tokens and never of the components; the validator computes the contrast of the text colors
+(WCAG AA, `D009`) for the light and the dark mode.
+
 ### End-to-end tests
 
 `bazis_front e2e` (`spec/e2e.py`) turns each scenario into a Playwright test,
@@ -236,4 +254,5 @@ of the client, the hooks and its components and the lock (`bazis_front init`), t
 with their validator (`bazis_front check`, `front.W002`), and the end-to-end tests of the
 scenarios with their helpers (`bazis_front e2e`, `assets/playwright`, `front.W003`), run in
 CI against the sample backend, and the update of the copies with a three-way merge
-(`bazis_front update`, `front.W004`).
+(`bazis_front update`, `front.W004`), and the design layer: presets and brand tokens compiled
+into the theme of the frontend (`bazis_front design`, `front.W005`).

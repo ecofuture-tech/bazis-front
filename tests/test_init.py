@@ -24,6 +24,7 @@ import pytest
 
 from bazis.contrib.front import __version__, capabilities
 from bazis.contrib.front.spec import create as spec_create
+from bazis.contrib.front.spec import theme
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import copy, registry
 from bazis.contrib.front.vendor.lock import digest
@@ -32,6 +33,7 @@ from bazis.contrib.front.vendor.lock import digest
 #: the components that `init` copies, with those they require
 INIT_COMPONENTS = [
     'state-panel', 'app-shell', 'login-form', 'testing', 'button', 'card', 'input', 'label',
+    'sheet', 'skeleton',
 ]
 
 
@@ -82,6 +84,8 @@ def test_init_creates_the_frontend(product):
     # components they require
     vendored = ['client', 'react', 'react-statusy', 'playwright', *INIT_COMPONENTS]
     files = {name: lock['assets'][name].pop('files') for name in vendored}
+    # the theme of the starters of the design
+    design = lock.pop('design')
     assert lock == {
         'lock': 1,
         'bazis_front': __version__,
@@ -89,6 +93,10 @@ def test_init_creates_the_frontend(product):
         'generated': {},
         'assets': {name: {'version': __version__} for name in [*vendored, 'template']},
     }
+    assert sorted(design['spec']) == ['spec/design/theme.yaml', 'spec/design/tokens.json']
+    assert sorted(design['generated']) == [theme.THEME_CSS, theme.THEME_TS]
+    for path, value in design['generated'].items():
+        assert digest((frontend / path).read_bytes()) == value
     for asset in (assets[name] for name in vendored):
         assert sorted(files[asset.name]) == sorted(asset.target_path(it) for it in asset.files)
         for name in asset.files:
@@ -110,7 +118,9 @@ def test_init_creates_the_frontend(product):
     assert (frontend / 'src' / 'components' / 'ui' / 'button.tsx').is_file()
     assert (frontend / 'e2e' / 'bazis' / 'index.ts').is_file()
     assert (frontend / 'e2e' / 'custom' / 'README.md').is_file()
-    assert not (frontend / 'src' / 'bazis' / 'generated').exists()
+    # only the theme is generated: the contract needs the database
+    assert sorted(it.name for it in (frontend / 'src' / 'bazis' / 'generated').iterdir()) == ['theme.css', 'theme.ts']
+    assert 'Generated the theme' in out
     assert not (frontend / 'e2e' / 'generated').exists()
 
 
@@ -147,6 +157,29 @@ def test_init_creates_the_specs(product):
     assert tokens['$schema'] == '../schema/tokens.schema.json'
     # no starters of screens: the agent writes them
     assert not (spec / 'screens').exists()
+
+
+def test_init_with_the_preset_portal(product):
+    init('--no-node', '--preset', 'portal')
+
+    spec = product / 'spec'
+    starters = spec_create.files(spec_create.__package__) / 'starters' / 'design' / 'portal'
+    for name in ('theme.yaml', 'tokens.json'):
+        assert (spec / 'design' / name).read_bytes() == (starters / name).read_bytes()
+    text = (product / 'frontend' / theme.THEME_TS).read_text(encoding='utf-8')
+    assert 'preset: "portal"' in text and 'navigation: "topbar"' in text
+
+
+def test_init_with_a_design_with_errors(product):
+    (product / 'spec' / 'design').mkdir(parents=True)
+    (product / 'spec' / 'design' / 'theme.yaml').write_text('spec: bazis-design/1\npreset: admin\n', encoding='utf-8')
+
+    out, err = init('--no-node')
+    # the frontend is created, the theme is not: `design` generates it once the design is fixed
+    assert 'D002' in out
+    assert 'bazis_front design' in err
+    assert (product / 'frontend' / 'package.json').is_file()
+    assert not (product / 'frontend' / theme.THEME_CSS).exists()
 
 
 def test_init_keeps_the_specs(product):

@@ -153,3 +153,40 @@ def check_update(app_configs, **kwargs):
             )
         ]
     return []
+
+
+@register()
+def check_design(app_configs, **kwargs):
+    """
+    The theme generated in the frontend (when its lock records it: `bazis_front init` and
+    `bazis_front design` write it) is that of the design of the specs: the comparison of
+    `bazis_front design --check`, without Node and without the database. A design with
+    errors is not compared: `front.W002` reports its issues.
+    """
+    from django.conf import settings
+
+    from .spec import theme, validate
+    from .vendor import lock as frontend_lock
+
+    frontend = frontend_lock.frontend_dir()
+    try:
+        lock = frontend_lock.read(frontend)
+    except frontend_lock.LockError:
+        # front.W001 reports it
+        return []
+    if lock is None or 'design' not in lock:
+        return []
+    root = Path(settings.BASE_DIR)
+    result = validate.validate(root, ('design',))
+    if any(it.layer == 'design' for it in result.errors):
+        return []
+    if problems := theme.stale(root, frontend, lock, theme.render(result.specs)):
+        return [
+            Warning(
+                ' '.join(problems),
+                hint='Generate it with `manage.py bazis_front design` after every change of '
+                'spec/design/ and after `bazis_front update`; never edit it.',
+                id='front.W005',
+            )
+        ]
+    return []

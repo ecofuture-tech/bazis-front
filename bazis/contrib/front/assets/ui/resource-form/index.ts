@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export { FormSurface } from './form-surface.js';
+export type { FormSurfaceProps } from './form-surface.js';
 export { ResourceForm, ResourceFormBody } from './resource-form.js';
 export type { ResourceFormProps } from './resource-form.js';
 export type { SavedDocument } from '@/bazis/ui/resource';

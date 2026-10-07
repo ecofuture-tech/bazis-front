@@ -73,14 +73,16 @@
         "assets": [
           "client",
           "testing",
-          "button"
+          "button",
+          "skeleton"
         ]
       },
       "init": true,
       "files": [
         "index.ts",
         "state-panel.contract.test.tsx",
-        "state-panel.tsx"
+        "state-panel.tsx",
+        "toast.tsx"
       ]
     },
     {
@@ -91,14 +93,18 @@
       "requires": {
         "assets": [
           "testing",
-          "button"
+          "button",
+          "state-panel",
+          "sheet"
         ]
       },
       "init": true,
       "files": [
         "app-shell.contract.test.tsx",
         "app-shell.tsx",
-        "index.ts"
+        "color-mode.tsx",
+        "index.ts",
+        "list-card.tsx"
       ]
     },
     {
@@ -134,7 +140,8 @@
           "testing",
           "input",
           "label",
-          "native-select"
+          "native-select",
+          "skeleton"
         ]
       },
       "files": [
@@ -157,10 +164,14 @@
           "resource",
           "state-panel",
           "testing",
-          "button"
+          "button",
+          "app-shell",
+          "dialog",
+          "skeleton"
         ]
       },
       "files": [
+        "form-surface.tsx",
         "index.ts",
         "resource-form.contract.test.tsx",
         "resource-form.tsx"
@@ -180,7 +191,8 @@
           "input",
           "label",
           "native-select",
-          "table"
+          "table",
+          "skeleton"
         ]
       },
       "files": [
@@ -202,7 +214,8 @@
           "state-panel",
           "testing",
           "button",
-          "card"
+          "card",
+          "skeleton"
         ]
       },
       "files": [
@@ -249,7 +262,8 @@
           "state-panel",
           "testing",
           "button",
-          "dialog"
+          "dialog",
+          "skeleton"
         ]
       },
       "files": [
@@ -341,6 +355,24 @@
       ]
     },
     {
+      "name": "sheet",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "sheet.tsx"
+      ]
+    },
+    {
+      "name": "skeleton",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "skeleton.tsx"
+      ]
+    },
+    {
       "name": "table",
       "kind": "ui",
       "source": "ui/shadcn",
@@ -365,6 +397,7 @@
         "playwright.config.ts",
         "src/app/errors.test.tsx",
         "src/app/errors.tsx",
+        "src/app/product.ts",
         "src/app/providers.test.ts",
         "src/app/providers.tsx",
         "src/app/router.tsx",

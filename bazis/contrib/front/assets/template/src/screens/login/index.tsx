@@ -14,6 +14,7 @@
 
 import { useLocation, useNavigate } from 'react-router';
 
+import { PRODUCT_NAME } from '@/app/product';
 import { login } from '@/app/session';
 import { useApi } from '@/bazis/react';
 import { LoginForm } from '@/bazis/ui/login-form';
@@ -25,7 +26,19 @@ export function LoginScreen() {
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/';
   return (
-    <main data-bz="screen:login" className="flex min-h-screen items-center justify-center p-4">
+    <main
+      data-bz="screen:login"
+      className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-[radial-gradient(ellipse_at_top,var(--color-primary-soft),transparent_65%)] p-4"
+    >
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden="true"
+          className="flex size-10 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground shadow-sm"
+        >
+          {PRODUCT_NAME.charAt(0).toUpperCase()}
+        </span>
+        <span className="font-display text-xl font-semibold tracking-tight">{PRODUCT_NAME}</span>
+      </div>
       <LoginForm
         onLogin={(credentials) => login(api, credentials)}
         onSuccess={() => {

@@ -19,6 +19,7 @@ import type { ComponentProps } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { itemLabel, routeOf } from './fields.js';
 import { useAnyItem, useAnyList } from './hooks.js';
@@ -26,18 +27,30 @@ import { useAnyItem, useAnyList } from './hooks.js';
 /** How many related items the select lists. */
 const OPTIONS_LIMIT = 100;
 
+/** An item without a label (the user may not view it): its id, the start of a long one (the whole on hover). */
+function UnknownItem({ id }: { id: string }) {
+  if (id.length <= 12) return <>{id}</>;
+  return (
+    <span title={id} className="font-mono text-xs text-muted-foreground">
+      #{id.slice(0, 8)}
+    </span>
+  );
+}
+
 function RelatedLabel({ path, id }: { path: string; id: string }) {
   const item = useAnyItem(path, id);
-  return <>{item.data ? itemLabel(item.data.data) : id}</>;
+  if (item.data) return <>{itemLabel(item.data.data)}</>;
+  if (item.isPending) return <Skeleton className="inline-block h-3.5 w-20 align-middle" />;
+  return <UnknownItem id={id} />;
 }
 
 /**
  * The label of a related item: read from its resource when the contract has a route for
- * it (one request per item, cached), else its id.
+ * it (one request per item, cached), else the start of its id.
  */
 export function RelationLabel({ relation, id }: { relation: string; id: string }) {
   const path = routeOf(relation);
-  return path ? <RelatedLabel path={path} id={id} /> : <>{id}</>;
+  return path ? <RelatedLabel path={path} id={id} /> : <UnknownItem id={id} />;
 }
 
 export interface RelationSelectProps

@@ -53,4 +53,21 @@ describe('ErrorBoundary', () => {
     );
     expect(screen.getByRole('alert').getAttribute('data-bz')).toBe('state:forbidden');
   });
+
+  it('clears the error when its key changes', () => {
+    failing = true;
+    const { rerender } = render(
+      <ErrorBoundary resetKey="/a">
+        <Screen error={new Error('Broken screen')} />
+      </ErrorBoundary>,
+    );
+    expect(screen.getByRole('alert')).toBeTruthy();
+    failing = false;
+    rerender(
+      <ErrorBoundary resetKey="/b">
+        <Screen error={new Error('Broken screen')} />
+      </ErrorBoundary>,
+    );
+    expect(screen.getByText('screen')).toBeTruthy();
+  });
 });

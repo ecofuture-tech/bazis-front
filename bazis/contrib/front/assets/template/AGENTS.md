@@ -12,7 +12,7 @@ backend, its contract and the specs of the product are one directory up (`manage
 
 | Path | What | Changed by |
 |---|---|---|
-| `src/bazis/generated/` | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API) | only `manage.py bazis_front contract` |
+| `src/bazis/generated/` | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API); `theme.css` and `theme.ts` (the design: the tokens as CSS variables, `THEME`) | only `manage.py bazis_front contract`; the theme only `manage.py bazis_front design` |
 | `src/bazis/client/` | the client of the Bazis protocol | bazis-front; not edited, wrapped in `src/app/` |
 | `src/bazis/react/` | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy | bazis-front; not edited |
 | `src/bazis/ui/<component>/` | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies `state-panel`, `app-shell`, `login-form`, `manage.py bazis_front add` the others | the product, keeping the contract tests passing |
@@ -34,6 +34,8 @@ transits of the backend (with a migrated database):
 python manage.py bazis_front contract          # contract/, src/bazis/generated/, the lock
 python manage.py bazis_front contract --check  # write nothing; exit 1 if anything is stale (CI)
 python manage.py bazis_front check             # the specs against the contract; exit 1 on errors
+python manage.py bazis_front design            # src/bazis/generated/theme.* from ../spec/design/ (after every change of it)
+python manage.py bazis_front design --check    # write nothing; exit 1 if the theme is stale (CI)
 python manage.py bazis_front add resource-list  # copy a component with what it requires
 python manage.py bazis_front e2e               # e2e/generated/ from the scenarios of the specs
 python manage.py bazis_front e2e --check       # write nothing; exit 1 if they are stale (CI)
@@ -84,10 +86,9 @@ written.
 - `access` is what the backend must grant, checked against the permissions of the roles
   in the contract. It does not decide what the frontend shows: that is the permission
   meta and the runtime schemas (see below).
-- Colors, radii and fonts are the CSS variables of `src/index.css`, with the values of
-  `spec/design/tokens.json` (`color.primary` is `--primary`, `radius` is `--radius`,
-  `font.body` is `--font-body`; the table is in the guide of bazis-front);
-  the components use the variables, never literal colors.
+- The design is `spec/design/` (`theme.yaml`: the preset and its options; `tokens.json`:
+  the brand), compiled into `src/bazis/generated/theme.css` and `theme.ts` by
+  `manage.py bazis_front design`; see [Design](#design).
 
 ## Rules
 
@@ -190,32 +191,36 @@ of the installed package, lists their props and their `data-bz`):
 | a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell`; the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` |
 | `primitive: card` (`sections`, `edit`, `transitions`) | `ResourceCard` of `@/bazis/ui/resource-card`, with `StatusBadge` and `TransitBar` of `@/bazis/ui/status-badge` and `@/bazis/ui/transit-bar` (bazis-statusy) |
-| `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`) |
+| `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
+| `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | an action of the card (`permission: 'delete'`) calling `useDestroy` |
 | `states` | the components render them (`state:<state>`); `StatePanel` of `@/bazis/ui/state-panel` for a screen of your own |
 
 ```tsx
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import { ROUTES } from '@/bazis/generated/contract';
 import { useDestroy } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceCard } from '@/bazis/ui/resource-card';
-import { ResourceForm } from '@/bazis/ui/resource-form';
+import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { ResourceList } from '@/bazis/ui/resource-list';
+import { toast } from '@/bazis/ui/state-panel';
 import { StatusBadge, statusOptions } from '@/bazis/ui/status-badge';
 import { TransitBar } from '@/bazis/ui/transit-bar';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 const TASKS = ROUTES['tasks.task'];
 
 // spec/screens/task-list.yaml
 export function TaskListScreen() {
   const navigate = useNavigate();
+  const { id } = useParams();   // the task open next to the list (`list_card: split`)
   const [creating, setCreating] = useState(false);
   return (
-    <Screen id="task-list" title="Tasks">
+    <Screen id="task-list" title="Tasks" description="The tasks of the team.">
       <ResourceList
         path={TASKS}
         entity="task"
@@ -223,24 +228,20 @@ export function TaskListScreen() {
         filters={[{ field: 'status', options: statusOptions('tasks.task') }, 'assignee']}
         sort={['-dt_created']}
         search
-        onOpen={(id) => void navigate(`/tasks/${id}`)}
-        actions={[{ id: 'create', label: 'Create', permission: 'add', onClick: () => { setCreating(true); } }]}
+        selected={id}
+        onOpen={(task) => void navigate(`/tasks/${task}`)}
+        actions={[{ id: 'create', label: 'New task', icon: Plus, permission: 'add', onClick: () => { setCreating(true); } }]}
         cells={{ status: (row) => <StatusBadge resource={row} /> }}
       />
-      <Dialog open={creating} onOpenChange={setCreating}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New task</DialogTitle>
-            <DialogDescription>The task is created as a draft.</DialogDescription>
-          </DialogHeader>
-          <ResourceForm
-            path={TASKS}
-            fields={['title', 'assignee']}
-            onSaved={(saved) => void navigate(`/tasks/${saved.data.id}`)}
-            onCancel={() => { setCreating(false); }}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* a dialog or a page, as `composition.forms` of the theme says */}
+      <FormSurface open={creating} title="New task" description="The task is created as a draft." onClose={() => { setCreating(false); }}>
+        <ResourceForm
+          path={TASKS}
+          fields={['title', 'assignee']}
+          onSaved={(saved) => { setCreating(false); void navigate(`/tasks/${saved.data.id}`); }}
+          onCancel={() => { setCreating(false); }}
+        />
+      </FormSurface>
     </Screen>
   );
 }
@@ -251,16 +252,16 @@ export function TaskCardScreen() {
   const navigate = useNavigate();
   const destroy = useDestroy(TASKS);
   return (
-    <Screen id="task-card" title="Task">
+    <Screen id="task-card" title="Task" actions={<Button asChild variant="ghost" size="sm"><Link to="/tasks">All tasks</Link></Button>}>
       <ResourceCard
         path={TASKS}
         id={id}
         edit
-        sections={[{ id: 'main', fields: ['title', 'status', 'assignee'] }, { id: 'report', title: 'Report', fields: ['report'] }]}
+        sections={[{ id: 'main', title: 'Details', fields: ['title', 'status', 'assignee'] }, { id: 'report', title: 'Report', fields: ['report'] }]}
         badge={(item) => <StatusBadge resource={item} />}
         actions={[{
           id: 'delete', label: 'Delete', permission: 'delete', variant: 'destructive',
-          onClick: () => { destroy.mutate(id, { onSuccess: () => void navigate('/tasks') }); },
+          onClick: () => { destroy.mutate(id, { onSuccess: () => { toast({ title: 'Deleted' }); void navigate('/tasks'); } }); },
         }]}
       >
         {/* null: the user can no longer view the item */}
@@ -272,7 +273,15 @@ export function TaskCardScreen() {
 ```
 
 Add the routes of the screens to `src/app/router.tsx` (inside `RequireSession`) and their
-links to `NAVIGATION` there.
+links, with an icon of `lucide-react`, to `NAVIGATION` there. The card of a list is the
+child route of the list in `ListCardLayout` of `@/bazis/ui/app-shell`, which shows it next to
+the list or in its place (`composition.list_card` of the theme):
+
+```tsx
+<Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
+  <Route path=":id" element={<TaskCardScreen />} />
+</Route>
+```
 
 - **The components are the product's.** Change their look, texts and layout in
   `src/bazis/ui/` as the product needs; keep `npm test` passing: the contract test of a
@@ -292,6 +301,41 @@ links to `NAVIGATION` there.
   of the backend (`StatePanel`). Pass the field ids of the specs and the paths of
   `ROUTES`.
 
+
+## Design
+
+The look of the product is `../spec/design/`, compiled by `manage.py bazis_front design` into
+`src/bazis/generated/theme.css` (imported by `src/index.css`) and `theme.ts` (`THEME`). The
+guide of bazis-front lists the tokens and their CSS variables.
+
+- **Follow the preset; do not restyle the components screen by screen.** `workspace` (a
+  working application): the sidebar, the sticky header of `Screen` with the title and the
+  actions, tables, the card next to the list (`ListCardLayout`), forms in dialogs
+  (`FormSurface`), the density of the theme. `portal` (a public shell): the top bar, larger
+  type, grids of cards, forms in place of the screen. The components read `THEME` for these
+  defaults; pass a prop (`layout`, `mode`, `forms`, `navigation`) only for a screen that
+  needs another one.
+- **Colors, radii and fonts only through the tokens.** Use the Tailwind classes of the
+  theme: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border`,
+  `bg-primary text-primary-foreground`, `bg-primary-soft text-primary-ink` (and `success`,
+  `warning`, `info`, `danger`, `neutral` for the tones), `rounded-lg`, `font-display`. Never
+  a color of the Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)` in a
+  class) or `style={{ color }}`: they break the brand and the dark mode. A color the
+  product needs is a token (`color.highlight` in `tokens.json` is `bg-highlight`).
+- **The spacing of the density**: `p-(--space-card)`, `gap-(--space-section)`,
+  `px-(--space-cell-x)` for blocks of your own, so that `density: compact` tightens them.
+- **The states**: the components draw the loading states as skeletons (still marked
+  `state:loading`) and the others with an icon, a title and a hint; a screen of your own uses
+  `StatePanel` with a `skeleton` of its content. After a change that succeeded, `toast()` of
+  `@/bazis/ui/state-panel` (the forms and the transits already do); the errors stay where
+  they happened.
+- **The brand** is a change of the tokens (`color.primary` and `dark.color.primary`,
+  `radius`, `font.body`), then `bazis_front design` and `bazis_front check` (D009 reports a
+  text color that lost its contrast). The tones of the statuses are `statuses` of
+  `theme.yaml`.
+- **Dark mode**: the tokens of the group `dark`; `initColorMode()` (in `src/main.tsx`) and the
+  button of `AppShell` set the class `dark` of `<html>`. Check every screen in both modes and
+  at the width of a phone.
 
 ## End-to-end tests
 

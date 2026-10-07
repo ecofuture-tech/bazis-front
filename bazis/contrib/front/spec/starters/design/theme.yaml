@@ -1,9 +1,0 @@
-# yaml-language-server: $schema=../schema/design.schema.json
-# The design of the frontend; the preset requires tokens of tokens.json.
-spec: bazis-design/1
-preset: workspace
-navigation: sidebar
-density: comfortable
-composition:
-  list_card: pages
-  forms: dialog

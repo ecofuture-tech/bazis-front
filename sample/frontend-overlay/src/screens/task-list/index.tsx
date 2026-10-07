@@ -12,25 +12,65 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// spec/screens/task-list.yaml: the tasks, and the creation of a task in a dialog.
+// spec/screens/task-list.yaml: the tasks with the number of each status, and the creation of
+// a task in a dialog or on a page (`composition.forms` of the theme); the open task is
+// selected, next to the list (`composition.list_card`).
 
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
-import { ROUTES } from '@/bazis/generated/contract';
+import { Filter, pagination } from '@/bazis/client';
+import { ROUTES, TRANSITS } from '@/bazis/generated/contract';
+import { useList } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
-import { ResourceForm } from '@/bazis/ui/resource-form';
+import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { ResourceList } from '@/bazis/ui/resource-list';
-import { StatusBadge, statusOptions } from '@/bazis/ui/status-badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { StatusBadge, statusOptions, statusTone } from '@/bazis/ui/status-badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const TASKS = ROUTES['tasks.task'];
 
+/** The dot of each tone of a status. */
+const DOTS = {
+  neutral: 'bg-neutral',
+  primary: 'bg-primary',
+  info: 'bg-info',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+} as const;
+
+/** The number of the tasks of a status that the user may view. */
+function StatusCount({ status, name }: { status: string; name: string }) {
+  const list = useList(TASKS, { filter: Filter.where('status', status), page: { limit: 1 }, meta: ['pagination'] });
+  return (
+    <div className="grid gap-1 rounded-xl border bg-card px-4 py-3 shadow-xs">
+      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span aria-hidden="true" className={`size-2 rounded-full ${DOTS[statusTone(status)]}`} />
+        {name}
+      </span>
+      {list.data ? (
+        <span className="text-2xl font-semibold tabular-nums">{pagination(list.data)?.count ?? '—'}</span>
+      ) : (
+        <Skeleton className="h-8 w-10" />
+      )}
+    </div>
+  );
+}
+
 export function TaskListScreen() {
   const navigate = useNavigate();
+  // the task open next to the list
+  const { id } = useParams();
   const [creating, setCreating] = useState(false);
   return (
-    <Screen id="task-list" title="Tasks">
+    <Screen id="task-list" title="Tasks" description="The tasks of the team, from the draft to the report.">
+      <div className="grid grid-cols-3 gap-3">
+        {TRANSITS['tasks.task'].statuses.map((status) => (
+          <StatusCount key={status.id} status={status.id} name={status.name} />
+        ))}
+      </div>
       <ResourceList
         path={TASKS}
         entity="task"
@@ -38,11 +78,13 @@ export function TaskListScreen() {
         filters={[{ field: 'status', options: statusOptions('tasks.task') }, 'assignee']}
         sort={['-dt_created']}
         search
-        onOpen={(id) => void navigate(`/tasks/${id}`)}
+        selected={id}
+        onOpen={(task) => void navigate(`/tasks/${task}`)}
         actions={[
           {
             id: 'create',
-            label: 'Create',
+            label: 'New task',
+            icon: Plus,
             permission: 'add',
             onClick: () => {
               setCreating(true);
@@ -50,23 +92,28 @@ export function TaskListScreen() {
           },
         ]}
         cells={{ status: (row) => <StatusBadge resource={row} /> }}
+        emptyMessage="No tasks yet."
       />
-      <Dialog open={creating} onOpenChange={setCreating}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New task</DialogTitle>
-            <DialogDescription>The task is created as a draft.</DialogDescription>
-          </DialogHeader>
-          <ResourceForm
-            path={TASKS}
-            fields={['title', 'assignee']}
-            onSaved={(saved) => void navigate(`/tasks/${saved.data.id}`)}
-            onCancel={() => {
-              setCreating(false);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <FormSurface
+        open={creating}
+        title="New task"
+        description="The task is created as a draft."
+        onClose={() => {
+          setCreating(false);
+        }}
+      >
+        <ResourceForm
+          path={TASKS}
+          fields={['title', 'assignee']}
+          onSaved={(saved) => {
+            setCreating(false);
+            void navigate(`/tasks/${saved.data.id}`);
+          }}
+          onCancel={() => {
+            setCreating(false);
+          }}
+        />
+      </FormSurface>
     </Screen>
   );
 }
