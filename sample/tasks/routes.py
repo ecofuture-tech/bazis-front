@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bazis.core.routing import BazisRouter
+from django.apps import apps
+
+from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
 
 
-router = BazisRouter(prefix='/api/v1')
-
-router.register('tasks.router')
-router.register('bazis.contrib.users.router')
+class TaskRouteSet(StatusyRouteSetBase):
+    model = apps.get_model('tasks.Task')

@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bazis.core.routing import BazisRouter
+"""
+The contract of a product (layer 0): `contract/openapi.json` and `contract/contract.json`,
+exported from the running backend by `manage.py bazis_front contract` (`export`).
 
-
-router = BazisRouter(prefix='/api/v1')
-
-router.register('tasks.router')
-router.register('bazis.contrib.users.router')
+Bazis imports the subpackages of `bazis.contrib` while it configures the settings: the
+modules of the package import the models and stay out of this file.
+"""

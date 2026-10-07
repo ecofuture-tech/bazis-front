@@ -12,10 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bazis.core.routing import BazisRouter
+"""
+bazis-users: the token endpoint and the resource of the user model.
+"""
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+
+from bazis.core.models_abstract import JsonApiMixin
 
 
-router = BazisRouter(prefix='/api/v1')
-
-router.register('tasks.router')
-router.register('bazis.contrib.users.router')
+def section() -> dict:
+    user_model = get_user_model()
+    return {
+        'token_url': settings.BAZIS_OPENAPI_TOKEN_URL,
+        'user_resource': (
+            user_model.get_resource_label() if issubclass(user_model, JsonApiMixin) else None
+        ),
+    }

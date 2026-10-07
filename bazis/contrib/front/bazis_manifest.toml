@@ -3,13 +3,27 @@
 
 [package]
 name = "bazis-front"
-summary = "the frontend layer of a Bazis product (pre-release): the TypeScript protocol client, copied into a React + TypeScript + Vite frontend"
+summary = "the frontend layer of a Bazis product (pre-release): the contract exported from the backend and the TypeScript protocol client, copied into a React + TypeScript + Vite frontend"
 solves = [
     "a typed frontend of a Bazis backend whose contract is generated from its OpenAPI",
+    "the resources, roles and transits of the backend as one generated contract.json for the frontend and AI agents",
     "the JSON:API protocol of Bazis in TypeScript: filters, errors, pagination, login, permission meta, transits",
 ]
 requires = ["bazis"]
 pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
+
+[[extension_points]]
+name = "manage.py bazis_front"
+import = "bazis.contrib.front.management.commands.bazis_front.Command"
+use_when = "export the contract of the product: `bazis_front contract` writes contract/openapi.json and contract/contract.json, `--check` only compares"
+
+[[pitfalls]]
+text = "the contract (contract/openapi.json, contract/contract.json) is generated: export it again after every change of the backend, never edit it"
+check = "front.W001"
+
+[[pitfalls]]
+text = "the permit roles and the statusy transits of the contract are read from the database: export from a migrated database with the data of the project loaded"
+check = "front.E002"
 
 [[pitfalls]]
 text = "the TypeScript types of the API are generated from the OpenAPI of the backend with openapi-typescript --default-non-nullable=false, never written by hand"

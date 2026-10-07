@@ -12,21 +12,43 @@ The package code is in `bazis/contrib/front`, the sample project used by the tes
 
 ## Python
 
-The tests do not need PostgreSQL or Redis yet (see `.github/workflows/tests.yml`). Run them
-from the `sample` directory:
+The tests need PostgreSQL 15 or newer with PostGIS, and Redis (see
+`.github/workflows/tests.yml`): the contract reads the roles and the transits of the sample
+from the database. Run them from the `sample` directory:
 
 ```bash
 cd sample
-BS_DEBUG=true \
+export BS_DEBUG=true \
 BS_SECRET_KEY=local-secret-key-that-is-long-enough-0123456789 \
 BS_DATABASES__DEFAULT__HOST=localhost BS_DATABASES__DEFAULT__PORT=5432 \
 BS_DATABASES__DEFAULT__NAME=bazis BS_DATABASES__DEFAULT__USER=postgres \
 BS_DATABASES__DEFAULT__PASSWORD=postgres \
-BS_CACHES__DEFAULT__LOCATION=redis://localhost:6379/1 \
+BS_CACHES__DEFAULT__LOCATION=redis://localhost:6379/1
+python manage.py makemigrations --check --dry-run
 python -m pytest ../tests -o addopts="" -p no:cacheprovider
 ```
 
-Lint: `ruff check bazis tests sample`.
+Lint: `ruff check bazis tests sample scripts`.
+
+The sample (`sample/`) installs bazis-users, bazis-permit and bazis-statusy (the `test`
+extra) with a project app `users` and a statusy model `tasks.Task`; the roles, statuses and
+transits of the tests are created by the fixture `workflow` (`tests/conftest.py`).
+
+### The contract export
+
+- `manage.py bazis_front` is one command with argparse subcommands
+  (`management/commands/bazis_front.py`); a subcommand is a `handle_<name>` method.
+- `contract/export.py` renders the files (`render`), compares them byte for byte
+  (`stale_files`) and writes them; `contract/openapi.py` is the canonical JSON and the hash
+  of the operation surface, `contract/resources.py` the resources read from the OpenAPI.
+- `capabilities/__init__.py` lists the capabilities with their distribution and app; a
+  module `capabilities/<name>.py` returns its section (`section()`) and is imported only
+  when the package is installed and its app is in `INSTALLED_APPS`.
+- Bazis imports every subpackage of `bazis.contrib` while it configures the settings: the
+  `__init__.py` of a subpackage must not import models, the database or `bazis.core`
+  modules that do.
+- `checks.py`: `front.W001` (stale contract), `front.I001` (not checked: the database is
+  not migrated); the command fails with `front.E002` in that case.
 
 ## TypeScript assets
 

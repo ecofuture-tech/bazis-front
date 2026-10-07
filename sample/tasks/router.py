@@ -14,8 +14,8 @@
 
 from bazis.core.routing import BazisRouter
 
+from . import routes
 
-router = BazisRouter(prefix='/api/v1')
 
-router.register('tasks.router')
-router.register('bazis.contrib.users.router')
+router = BazisRouter(tags=['Tasks'])
+router.register(routes.TaskRouteSet.as_router())

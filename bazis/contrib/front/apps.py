@@ -20,3 +20,7 @@ from bazis.core.utils.apps import BaseConfig
 class FrontConfig(BaseConfig):
     name = 'bazis.contrib.front'
     verbose_name = _('Frontend')
+
+    def ready(self):
+        super().ready()
+        from . import checks  # noqa: F401  registers the system checks

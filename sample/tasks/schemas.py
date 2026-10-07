@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bazis.core.routing import BazisRouter
+from pydantic import BaseModel
 
 
-router = BazisRouter(prefix='/api/v1')
-
-router.register('tasks.router')
-router.register('bazis.contrib.users.router')
+class FinishPayload(BaseModel):
+    report: str

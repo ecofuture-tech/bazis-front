@@ -39,12 +39,20 @@ assets, for lint, type checks and tests in CI.
 ### 0. Contract
 
 `bazis_front contract` exports the OpenAPI of the backend (with the `x-bazis` extension of
-each operation) and `contract.json`: the resources with their actions and fields, and a
-section per installed capability package (users, permit roles, statusy transits, …).
-Permit and statusy sections are read from the database, so the export needs a migrated
-database. From these it generates typed constants (`contract.ts`) and, through
-openapi-typescript with `--default-non-nullable=false`, `schema.d.ts`. `--check` compares
-without writing and is also the system check "contract is stale".
+each operation) and `contract.json` into `contract/` of the product root (`BASE_DIR`, the
+directory of `manage.py`): the resources with their actions and fields, read from
+`x-bazis` and the response schemas of the OpenAPI, and a section per installed capability
+package (users, permit roles, statusy transits, …). A section is made by a module
+`bazis/contrib/front/capabilities/<name>.py`, imported only when the package is installed
+and its app is in `INSTALLED_APPS`. Permit and statusy sections are read from the
+database, so the export needs a migrated database (`front.E002` otherwise). The files are
+canonical JSON (sorted keys, a trailing newline): the same backend gives the same bytes.
+`--check` compares without writing; the same comparison is the system check `front.W001`
+"contract is stale", run by `bazis_doctor` when `contract/` exists. The format of
+`contract.json` is documented in `bazis/contrib/front/AGENTS.md`.
+
+Planned: from these files the command generates typed constants (`contract.ts`) and,
+through openapi-typescript with `--default-non-nullable=false`, `schema.d.ts`.
 
 `--default-non-nullable=false` is required: without it the fields with a server default
 (`is_active`, `dt_created`) become required in the bodies of create.
@@ -109,6 +117,7 @@ package, and security advisories of the asset registry as errors.
 
 ## Status
 
-Pre-release. Available: the package skeleton and the client (`assets/client`). Next: the
-contract export, the spec validator and the copy and update commands; then the hooks, the
+Pre-release. Available: the package skeleton, the client (`assets/client`) and the
+contract export (`bazis_front contract`, `front.W001`). Next: the generated TypeScript of
+the contract, the spec validator and the copy and update commands; then the hooks, the
 first components and the end-to-end pipeline against a sample backend.
