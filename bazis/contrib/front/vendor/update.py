@@ -25,8 +25,8 @@ installed package, stamped with its version) and the local file of the product:
 
 - unchanged in the frontend: replaced by the upstream;
 - changed in the frontend only: kept;
-- changed in both: merged with `merge3`, with conflict markers (git style) where the two
-  change the same lines;
+- changed in both: merged (`merge.py`, a diff3 of the lines), with conflict markers (git
+  style) where the two change the same or adjacent lines;
 - added upstream: added (never over a file of the product: the update fails);
 - removed upstream: deleted when unchanged in the frontend, otherwise kept (the product's);
 - deleted in the frontend: not restored.
@@ -47,8 +47,6 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from merge3 import Merge3
-
 from .. import __version__
 from ..spec.create import schema_updates
 from ..spec.validate import SCHEMA_DIR, SPEC_DIR
@@ -65,6 +63,7 @@ from .copy import (
     write_base,
     write_file,
 )
+from .merge import lines, merge_lines
 from .registry import TEMPLATE, Asset, load, resolve
 
 
@@ -72,7 +71,7 @@ from .registry import TEMPLATE, Asset, load, resolve
 REPLACED = 'replaced'
 #: changed in the frontend and in bazis-front, merged without conflicts
 MERGED = 'merged'
-#: changed in the frontend and in bazis-front on the same lines: written with the markers
+#: changed in the frontend and in bazis-front on the same or adjacent lines: with the markers
 CONFLICT = 'conflict'
 #: changed in the frontend only: kept (with the new stamp)
 KEPT = 'kept'
@@ -201,14 +200,6 @@ def stale(root: Path, frontend: Path, lock: dict) -> list[str]:
     return problems
 
 
-def lines(text: str) -> list[str]:
-    """
-    The lines of a text with their ends, split at '\n' only.
-    """
-    parts = text.split('\n')
-    return [f'{it}\n' for it in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
-
-
 def merge(path: str, asset: str, base: bytes, local: bytes, upstream: bytes, version: str) -> FileUpdate:
     """
     A file changed in the frontend, updated from its pristine copy of the old version (the
@@ -221,13 +212,11 @@ def merge(path: str, asset: str, base: bytes, local: bytes, upstream: bytes, ver
     upstream_text = upstream.decode('utf-8')
     if base_text == upstream_text:
         return FileUpdate(path, KEPT, local_text.encode('utf-8'))
-    merger = Merge3(lines(base_text), lines(local_text), lines(upstream_text))
-    regions = merger.reprocess_merge_regions(merger.merge_regions())
-    conflict = any(it[0] == 'conflict' for it in regions)
-    merged = ''.join(
-        merger.merge_lines(name_a=LOCAL_NAME, name_b=f'bazis-front {version}', reprocess=True)
+    merged, conflict = merge_lines(
+        lines(base_text), lines(local_text), lines(upstream_text),
+        LOCAL_NAME, f'bazis-front {version}',
     )
-    return FileUpdate(path, CONFLICT if conflict else MERGED, merged.encode('utf-8'))
+    return FileUpdate(path, CONFLICT if conflict else MERGED, ''.join(merged).encode('utf-8'))
 
 
 def pristine(frontend: Path, name: str, entry: dict, path: str, relative: str) -> bytes:

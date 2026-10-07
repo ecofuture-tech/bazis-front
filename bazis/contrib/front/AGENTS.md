@@ -551,7 +551,7 @@ and the file of the frontend:
 |---|---|---|
 | unchanged | changed or not | replaces it |
 | changed | unchanged | keeps it |
-| changed | changed | merges them (`merge3`); where both changed the same lines, writes conflict markers |
+| changed | changed | merges them line by line; where both changed the same or adjacent lines, writes conflict markers |
 | deleted | still has it | leaves it deleted |
 | (none) | added it | adds it; a file of the product at its path fails the update |
 | unchanged | removed it | deletes it |
@@ -575,7 +575,7 @@ and the file of the frontend:
   (`dependencies react: 19.2.0 -> 19.3.0`): bump those that the new copies need and run
   `npm install`.
 
-**Conflicts.** When both changed the same lines, `update` writes the file with the markers
+**Conflicts.** When both changed the same or adjacent lines, `update` writes the file with the markers
 of git and fails (exit 1), listing the files; the rest of the update is written, and the
 lock and `.bazis/base/` are those of the new version, so a second `update` does not merge
 again:
