@@ -522,6 +522,16 @@ def test_the_selectors_of_bazis_permit(contract):
 
 
 @pytest.mark.django_db
+def test_a_selector_has_letters_and_underscores_only(contract):
+    # bazis-permit reads a segment with other characters as a query, not as a selector
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: task(d)['access']['manager'].update(view='team1__author'))
+    assert [(it.code, it.path) for it in validate(root).issues] == [
+        ('P002', '/entities/0/access/manager/view')
+    ]
+
+
+@pytest.mark.django_db
 def test_a_transit_id_generated_by_statusy(contract, sample_app):
     from django.apps import apps
 

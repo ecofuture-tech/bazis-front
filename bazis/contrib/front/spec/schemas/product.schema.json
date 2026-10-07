@@ -55,9 +55,9 @@
       "pattern": "^[^.\\s]+$"
     },
     "selector": {
-      "description": "Whose objects: `all`, `none` (not granted), `self` (the object is the selector source itself, such as the user), or a selector of bazis-permit: a relationship of the resource that links the object to the user (`author`, `org_owner`), or a path of relationships to it (`parent__author`).",
+      "description": "Whose objects: `all`, `none` (not granted), `self` (the object is the selector source itself, such as the user), or a selector of bazis-permit: a relationship of the resource that links the object to the user (`author`, `org_owner`), or a path of relationships to it (`parent__author`). Letters and underscores only, as bazis-permit parses a selector.",
       "type": "string",
-      "pattern": "^[a-z_][a-z0-9_]*$"
+      "pattern": "^[A-Za-z_]+$"
     },
     "scalar": {"type": ["string", "number", "boolean", "null"]},
     "type": {
