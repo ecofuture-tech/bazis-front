@@ -40,7 +40,31 @@ jobs:
           - python: '3.12'
             resolution: lowest-direct
 
-    # the tests do not connect to PostgreSQL or Redis yet: no services
+    # the contract reads the roles of bazis-permit and the transits of bazis-statusy from the
+    # database of the sample
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bazis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       BS_DEBUG: 'true'
       BS_SECRET_KEY: ci-only-secret-key-that-is-long-enough-0123456789
@@ -68,6 +92,10 @@ jobs:
 
       - name: Install dependencies
         run: uv pip install --resolution ${{ matrix.resolution }} -e '.[test]'
+
+      - name: Check for missing migrations
+        working-directory: sample
+        run: python manage.py makemigrations --check --dry-run
 
       - name: Run tests
         working-directory: sample

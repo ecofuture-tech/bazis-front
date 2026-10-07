@@ -12,10 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bazis.core.routing import BazisRouter
+from bazis.contrib.permit.models_abstract import (
+    AnonymousUserPermitMixin,
+    PermitSelectorMixin,
+    UserPermitMixin,
+)
+from bazis.contrib.users.models_abstract import AnonymousUserAbstract, UserAbstract
+from bazis.core.models_abstract import JsonApiMixin, UuidMixin
 
 
-router = BazisRouter(prefix='/api/v1')
+class User(UserPermitMixin, PermitSelectorMixin, JsonApiMixin, UuidMixin, UserAbstract):
+    pass
 
-router.register('tasks.router')
-router.register('bazis.contrib.users.router')
+
+class AnonymousUser(AnonymousUserPermitMixin, AnonymousUserAbstract):
+    pass

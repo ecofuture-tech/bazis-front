@@ -12,10 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bazis.core.routing import BazisRouter
+"""
+bazis-permit: the roles with the slugs of their permission groups, from the database.
+"""
+
+from django.apps import apps
 
 
-router = BazisRouter(prefix='/api/v1')
-
-router.register('tasks.router')
-router.register('bazis.contrib.users.router')
+def section() -> dict:
+    roles = apps.get_model('permit.Role').objects.prefetch_related('groups_permission')
+    return {
+        'roles': [
+            {
+                'slug': role.slug,
+                'name': role.name,
+                'for_anonymous': role.for_anonymous,
+                'groups': sorted(group.slug for group in role.groups_permission.all()),
+            }
+            for role in roles.order_by('slug')
+        ],
+    }

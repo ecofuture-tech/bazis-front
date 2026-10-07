@@ -49,7 +49,11 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "bazis-test-utils>=2.3.0"
+    "bazis-test-utils>=2.3.0",
+    # the sample project has the capabilities of the contract: users, permit, statusy
+    "bazis-users>=2.5.0",
+    "bazis-permit>=2.4.1",
+    "bazis-statusy>=2.4.1",
 ]
 dev = [
     "ruff"
