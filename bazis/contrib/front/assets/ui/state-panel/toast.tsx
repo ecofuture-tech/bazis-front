@@ -13,12 +13,12 @@
 // limitations under the License.
 
 // The feedback of a change: a toast after a mutation succeeded (`toast({title})`), shown by
-// the `Toaster` of the layout (`AppShell` renders it) in a polite live region, and gone after
-// a few seconds. The errors of the backend are not toasts: they stay where they happened
-// (`StatePanel`, the errors of the fields).
+// the `Toaster` of the layout (`AppShell` renders it) in one polite live region, and gone
+// after a few seconds, unless the pointer or the focus is on it. The errors of the backend
+// are not toasts: they stay where they happened (`StatePanel`, the errors of the fields).
 
 import { CircleAlert, CircleCheck, Info, X } from 'lucide-react';
-import { useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -46,13 +46,10 @@ export function dismissToast(id: number): void {
   emit(toasts.filter((it) => it.id !== id));
 }
 
-/** Shows a toast, the feedback of a change that succeeded; returns its id. */
+/** Shows a toast, the feedback of a change that succeeded (the last three are kept); returns its id. */
 export function toast({ title, description, tone = 'success' }: Omit<Toast, 'id' | 'tone'> & { tone?: Toast['tone'] }): number {
   const id = next++;
   emit([...toasts.slice(-2), { id, title, description, tone }]);
-  setTimeout(() => {
-    dismissToast(id);
-  }, DURATION);
   return id;
 }
 
@@ -70,7 +67,58 @@ const TONES = {
   danger: 'text-destructive',
 } as const;
 
-/** The toasts, at the bottom of the screen. */
+/** A toast, dismissed after `DURATION` while neither the pointer nor the focus is on it. */
+function ToastItem({ item }: { item: Toast }) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const paused = hovered || focused;
+  useEffect(() => {
+    if (paused) return;
+    const timer = setTimeout(() => {
+      dismissToast(item.id);
+    }, DURATION);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [paused, item.id]);
+  const Icon = ICONS[item.tone];
+  return (
+    <div
+      data-slot="toast"
+      className="pointer-events-auto flex w-full max-w-sm animate-in items-start gap-3 rounded-lg border bg-popover p-4 text-sm text-popover-foreground shadow-lg fade-in-0 slide-in-from-bottom-2"
+      onMouseEnter={() => {
+        setHovered(true);
+      }}
+      onMouseLeave={() => {
+        setHovered(false);
+      }}
+      onFocus={() => {
+        setFocused(true);
+      }}
+      onBlur={() => {
+        setFocused(false);
+      }}
+    >
+      <Icon className={cn('mt-0.5 size-4 shrink-0', TONES[item.tone])} aria-hidden="true" />
+      <div className="grid flex-1 gap-0.5">
+        <p className="font-medium">{item.title}</p>
+        {item.description !== undefined && <p className="text-muted-foreground">{item.description}</p>}
+      </div>
+      <button
+        type="button"
+        className="rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        aria-label="Dismiss"
+        onClick={() => {
+          dismissToast(item.id);
+        }}
+      >
+        <X className="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+/** The toasts, at the bottom of the screen, in one polite live region. */
 export function Toaster() {
   const items = useSyncExternalStore(subscribe, () => toasts, () => toasts);
   return (
@@ -80,32 +128,9 @@ export function Toaster() {
       aria-live="polite"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4 sm:items-end"
     >
-      {items.map((item) => {
-        const Icon = ICONS[item.tone];
-        return (
-          <div
-            key={item.id}
-            role="status"
-            className="pointer-events-auto flex w-full max-w-sm animate-in items-start gap-3 rounded-lg border bg-popover p-4 text-sm text-popover-foreground shadow-lg fade-in-0 slide-in-from-bottom-2"
-          >
-            <Icon className={cn('mt-0.5 size-4 shrink-0', TONES[item.tone])} aria-hidden="true" />
-            <div className="grid flex-1 gap-0.5">
-              <p className="font-medium">{item.title}</p>
-              {item.description !== undefined && <p className="text-muted-foreground">{item.description}</p>}
-            </div>
-            <button
-              type="button"
-              className="rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              aria-label="Dismiss"
-              onClick={() => {
-                dismissToast(item.id);
-              }}
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-        );
-      })}
+      {items.map((item) => (
+        <ToastItem key={item.id} item={item} />
+      ))}
     </div>
   );
 }

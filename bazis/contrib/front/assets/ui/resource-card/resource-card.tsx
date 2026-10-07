@@ -21,6 +21,7 @@
 import { Pencil } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
+import { THEME } from '@/bazis/generated/theme';
 import type { ItemPath } from '@/bazis/react';
 import {
   FieldValue,
@@ -112,10 +113,11 @@ export function ResourceCard({
   const fields = useItemFields(path, id);
   const [editing, setEditing] = useState(false);
   const document = item.data;
-  if (!document) {
+  // the sections wait for the titles of their fields
+  if (!document || !fields.ready) {
     return (
       <StatePanel
-        state={queryState(item)}
+        state={document ? 'loading' : queryState(item)}
         error={item.error}
         onRetry={() => void item.refetch()}
         skeleton={<CardSkeleton />}
@@ -130,7 +132,15 @@ export function ResourceCard({
     <article data-bz="state:loaded" className="grid gap-(--space-section)">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <h2 className="font-display text-2xl font-semibold tracking-tight break-words">{label}</h2>
+          {/* the item is the subject of its screen: above the title of the screen */}
+          <h2
+            className={cn(
+              'font-display font-semibold tracking-tight break-words',
+              THEME.preset === 'portal' ? 'text-3xl md:text-4xl' : 'text-2xl',
+            )}
+          >
+            {label}
+          </h2>
           {badge?.(data)}
         </div>
         <div className="flex flex-wrap gap-2">

@@ -17,7 +17,7 @@
 // feedback. Keep it passing when the component is changed.
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/bazis/client';
 import { errorState, queryState, StatePanel, toast, Toaster, type ViewState } from '@/bazis/ui/state-panel';
@@ -81,7 +81,11 @@ describe('errorState', () => {
 });
 
 describe('toast', () => {
-  it('shows the feedback of a change in a live region', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows the feedback of a change in one live region', () => {
     render(<Toaster />);
     act(() => {
       toast({ title: 'Saved', description: 'The task is saved.' });
@@ -89,7 +93,30 @@ describe('toast', () => {
     const region = screen.getByRole('region', { name: 'Notifications' });
     expect(region.getAttribute('aria-live')).toBe('polite');
     expect(region.textContent).toContain('Saved');
+    // no live region inside the live region
+    expect(region.querySelector('[role="status"], [role="alert"], [aria-live]')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(region.textContent).not.toContain('Saved');
+  });
+
+  it('is dismissed after a while, not while the pointer is on it', () => {
+    vi.useFakeTimers();
+    render(<Toaster />);
+    act(() => {
+      toast({ title: 'Created' });
+    });
+    const region = screen.getByRole('region', { name: 'Notifications' });
+    const item = screen.getByText('Created').closest('[data-slot="toast"]');
+    if (item === null) throw new Error('No toast');
+    fireEvent.mouseEnter(item);
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+    expect(region.textContent).toContain('Created');
+    fireEvent.mouseLeave(item);
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+    expect(region.textContent).not.toContain('Created');
   });
 });

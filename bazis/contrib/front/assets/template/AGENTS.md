@@ -329,6 +329,8 @@ guide of bazis-front lists the tokens and their CSS variables.
   `StatePanel` with a `skeleton` of its content. After a change that succeeded, `toast()` of
   `@/bazis/ui/state-panel` (the forms and the transits already do); the errors stay where
   they happened.
+- **Statuses**: `statuses` of `theme.yaml` is keyed by the id of the status; bazis-statusy
+  has one table of statuses, so an id is the same status in every model.
 - **The brand** is a change of the tokens (`color.primary` and `dark.color.primary`,
   `radius`, `font.body`), then `bazis_front design` and `bazis_front check` (D009 reports a
   text color that lost its contrast). The tones of the statuses are `statuses` of
@@ -346,7 +348,8 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
 `npm run e2e` runs them with the tests of `e2e/custom/`.
 
 - **They act through `data-bz` only.** The helpers of `e2e/bazis/` open the route of a
-  screen of the specs and wait for `screen:<id>` and its state (no `state:loading` left),
+  screen of the specs and wait for `screen:<id>` at the route of the screen (a list may show
+  next to its card) and its state (no `state:loading` left),
   click `action:<id>`, `transit:<id>` and `row:<id>` (found by its cells `cell:<name>`),
   fill `field:<name>` in the open form (the `<form>` with `action:submit`), and check
   `status:<id>`, `state:<state>`, `error:<name>`, the absence of an action and the read-only

@@ -157,7 +157,11 @@ function SortButton({ label, direction, onClick }: { label: ReactNode; direction
   );
 }
 
-/** The rows as a table, its header sticky under the header of the screen. */
+/**
+ * The rows as a table in its own scroll area (as high as the screen under its header): its
+ * header stays at the top of it, and a table wider than the screen (a phone, the list next to
+ * a card) scrolls sideways instead of losing columns.
+ */
 function TableView(
   props: BodyProps & {
     header: (name: string) => ReactNode;
@@ -175,7 +179,7 @@ function TableView(
               key={name}
               aria-sort={sorted(name)}
               className={cn(
-                'h-10 bg-muted/95 px-(--space-cell-x) text-xs font-medium text-muted-foreground backdrop-blur md:sticky md:top-(--sticky-top) md:z-10',
+                'sticky top-0 z-10 h-10 bg-muted px-(--space-cell-x) text-xs font-medium text-muted-foreground',
                 isNumeric(fields.fields.get(name)) && 'text-right',
               )}
             >
@@ -183,7 +187,7 @@ function TableView(
             </TableHead>
           ))}
           {actionsColumn && (
-            <TableHead className="bg-muted/95 backdrop-blur md:sticky md:top-(--sticky-top) md:z-10">
+            <TableHead className="sticky top-0 z-10 bg-muted">
               <span className="sr-only">Actions</span>
             </TableHead>
           )}
@@ -210,7 +214,7 @@ function TableView(
                   data-bz={`cell:${name}`}
                   className={cn(
                     'px-(--space-cell-x) py-(--space-cell-y)',
-                    index === 0 ? 'font-medium whitespace-normal text-foreground' : 'text-muted-foreground',
+                    index === 0 ? 'min-w-48 font-medium whitespace-normal text-foreground' : 'text-muted-foreground',
                     isNumeric(field) && 'text-right tabular-nums',
                     field?.kind === 'attribute' && field.format === 'date-time' && 'tabular-nums',
                   )}
@@ -350,6 +354,10 @@ export function ResourceList({
   const toolbar = actions.filter((action) => document && (!action.permission || permitted(meta, action.permission)));
   const filterList = filters.map((it) => (typeof it === 'string' ? { field: it } : it));
   const sortable = columns.filter((name) => order.has(name));
+  // the rows wait for the titles of their columns
+  const loaded = queryState(list, rows.length === 0);
+  const state = loaded === 'loaded' && !fields.ready ? 'loading' : loaded;
+  const filtered = Boolean(search || filter);
 
   function toggle(name: string) {
     const label = order.get(name);
@@ -415,6 +423,7 @@ export function ResourceList({
             <FilterBar
               path={path}
               filters={filterList}
+              ready={fields.ready}
               title={fields.title}
               onFilter={(next) => {
                 setFilter(next);
@@ -464,10 +473,13 @@ export function ResourceList({
         </div>
       )}
       <StatePanel
-        state={queryState(list, rows.length === 0)}
+        state={state}
         error={list.error}
-        message={rows.length === 0 && document ? emptyMessage : undefined}
-        description={rows.length === 0 && document && (search || filter) ? 'Nothing matches the search and the filters.' : undefined}
+        {...(state === 'empty'
+          ? filtered
+            ? { message: 'Nothing matches the search and the filters.', description: 'Change or clear them to see more.' }
+            : { message: emptyMessage }
+          : {})}
         onRetry={() => void list.refetch()}
         skeleton={<ListSkeleton layout={layout} columns={columns.length} />}
       >
@@ -478,7 +490,10 @@ export function ResourceList({
           {layout === 'cards' ? (
             <CardsView {...body} />
           ) : (
-            <div className="overflow-x-auto rounded-xl border bg-card shadow-xs md:overflow-x-clip">
+            <div
+              data-slot="table-scroll"
+              className="max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto rounded-xl border bg-card shadow-xs"
+            >
               <TableView
                 {...body}
                 actionsColumn={rowActions.length > 0}

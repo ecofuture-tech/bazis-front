@@ -179,7 +179,7 @@ describe('ResourceList', () => {
       expect(requested(server, 'page[offset]=20')).toBe(true);
     });
 
-    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'rep' } });
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'rep' } });
     await waitFor(() => {
       expect(requested(server, 'filter=title__$search=rep')).toBe(true);
     });
@@ -213,4 +213,41 @@ describe('ResourceList', () => {
       expect(onOpen).toHaveBeenCalledWith('a');
     });
   }
+
+  it('shows a skeleton of the filters until their types and titles are loaded', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .hold('GET', `${ITEMS}route_filter_fields/`)
+      .on('GET', ITEMS, listDocument(rows));
+    const { container } = renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['title']} />,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.queryByTestId('field:title')).toBeNull();
+    expect(container.querySelector('[data-filter-skeleton]')).not.toBeNull();
+  });
+
+  it('tells that nothing matches the search, not that there is nothing', async () => {
+    const server = backend(listDocument([]));
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} search emptyMessage="No items yet." />,
+      server,
+    );
+    expect((await screen.findByTestId('state:empty')).textContent).toContain('No items yet.');
+    fireEvent.change(screen.getByTestId('field:$search'), { target: { value: 'word' } });
+    await waitFor(() => {
+      expect(screen.getByTestId('state:empty').textContent).toContain('Nothing matches');
+    });
+    expect(screen.getByTestId('state:empty').textContent).not.toContain('No items yet.');
+  });
+
+  it('keeps every column of a wide table in its own scroll area', async () => {
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'done']} layout="table" />, backend(listDocument(rows)));
+    const loaded = await screen.findByTestId('state:loaded');
+    const area = loaded.querySelector('[data-slot="table-scroll"]');
+    expect(area?.className).toContain('overflow-auto');
+    // the header sticks at the top of the area
+    expect(loaded.querySelector('th')?.className).toContain('sticky');
+  });
 });

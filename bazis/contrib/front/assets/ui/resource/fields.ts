@@ -36,21 +36,24 @@ export interface Fields {
   fields: ReadonlyMap<string, FormField>;
   /** The title of a field in the language of the backend, its name until the schema loads. */
   title: (name: string) => string;
+  /** Whether the schema is loaded (or failed: the names stand for the titles then). */
+  ready: boolean;
 }
 
-function fieldsOf(schema: JsonSchema | undefined): Fields {
+function fieldsOf(query: { data?: JsonSchema | undefined; isPending: boolean }): Fields {
+  const schema = query.data;
   const fields = new Map((schema ? resourceSchema(schema).fields : []).map((it) => [it.name, it]));
-  return { fields, title: (name) => fields.get(name)?.title ?? name };
+  return { fields, title: (name) => fields.get(name)?.title ?? name, ready: !query.isPending };
 }
 
 /** The fields that the current user may see in a list (`schema_list/`). */
 export function useListFields(path: string): Fields {
-  return fieldsOf(useAnySchema(path, 'list').data);
+  return fieldsOf(useAnySchema(path, 'list'));
 }
 
 /** The fields that the current user may see in an item (`schema_retrieve/`). */
 export function useItemFields(path: string, id: string): Fields {
-  return fieldsOf(useAnySchema(path, 'retrieve', id).data);
+  return fieldsOf(useAnySchema(path, 'retrieve', id));
 }
 
 /**

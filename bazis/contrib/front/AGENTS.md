@@ -502,8 +502,10 @@ panel: one preset, a few options and the tokens of a brand, compiled into the fr
 `init` generates the theme; generate it again after every change of `spec/design/` (and
 after `bazis_front update`). The text depends on the design only: `--check` and the system
 check `front.W005` (when the lock has `design`; without Node and the database) render it
-again and compare it byte for byte. The generated files are never edited. The design must
-have no errors (`bazis_front check --layer design`).
+again and compare it byte for byte; `front.W005` also reports a frontend with components and
+no theme (made before the design layer: see [Updating the copies](#updating-the-copies)).
+The generated files are never edited. The design must have no errors
+(`bazis_front check --layer design`).
 
 - `src/bazis/generated/theme.css`, imported by `src/index.css` of the template: every token
   as a CSS variable of `:root` (`color.<name>` is `--<name>`, any other token its dotted name
@@ -530,11 +532,15 @@ have no errors (`bazis_front check --layer design`).
 | `color.card`, `color.card-foreground`, `color.popover`, `color.popover-foreground`, `color.secondary`, `color.secondary-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | color | the name in the group | the background, the foreground, the card, `muted`, the border, the primary (`spec/design.py`, `DEFAULTS`) |
 | `color.success`, `color.warning`, `color.info` | color | `--success`, `--warning`, `--info` (the tones of the statuses) | a green, an amber and a blue of both modes |
 | `color.sidebar-primary`, `color.sidebar-accent`, … | color | the variables of the sidebar of shadcn/ui | from the primary and the sidebar |
+| `color.chart-1` … `color.chart-5` | color | `--chart-1` … `--chart-5` (the charts of shadcn/ui) | the primary, info, success, warning, destructive |
 
 **Presets.** `workspace` is an internal tool for daily work: a sidebar with the icons of the
 screens (a drawer on a phone), a sticky header with the title and the actions of the screen,
 tables with a sticky header, aligned numbers and the open row selected, filters in a
-toolbar, the card next to the list on a wide screen (`list_card: split`), forms in dialogs.
+toolbar, the card next to the list on a wide screen (`list_card: split`; the list stays
+mounted and keeps its search, filters and page), forms in dialogs. A table scrolls in its own
+area as high as the screen, with its header at the top: a wide table scrolls sideways
+instead of losing columns.
 `portal` is a public shell: a top bar, larger type and more air, lists as grids of cards,
 the card in place of the list, forms in place of the content of the screen, softer shapes
 (the radius of its starter). Both have a light and a dark mode, focus rings, and work down
@@ -558,8 +564,10 @@ class `light`); `initColorMode()` of `app-shell` (called by `src/main.tsx`) sets
 from the choice of the user (system, light or dark, kept in the storage of the browser, the
 button of `AppShell`). Without the group `dark` there is no dark mode (`THEME.dark` is false).
 
-**Statuses.** `statuses` of `theme.yaml` gives each status of bazis-statusy a tone:
-`StatusBadge` draws it in the soft colors of the tone, the transits to a status of the tone
+**Statuses.** `statuses` of `theme.yaml` gives each status of bazis-statusy a tone, by the
+id of the status: bazis-statusy has one table of statuses for every model, so an id is the
+same status everywhere (`draft` of the tasks is `draft` of the orders). It
+draws the `StatusBadge` in the soft colors of the tone, the transits to a status of the tone
 `danger` are destructive buttons; a status without a tone is `neutral`.
 
 ## The end-to-end tests
@@ -595,7 +603,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/`) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen`, `expectStatus`, `expectState`, `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, `expectError`, in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` and `expectError` (visible ones), `expectActionAbsent`, `expectFieldReadonly`, `expectRows`, in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with

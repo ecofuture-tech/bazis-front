@@ -18,7 +18,8 @@
 // Keep it passing when the component is changed.
 
 import { fireEvent, screen } from '@testing-library/react';
-import { Route, Routes } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Route, Routes, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { THEME } from '@/bazis/generated/theme';
@@ -61,6 +62,28 @@ describe('AppShell', () => {
     );
     expect(screen.getByTestId('screen:home')).toBeTruthy();
     expect(screen.queryByTestId('action:logout')).toBeNull();
+  });
+
+  it('lays the header of a screen out in the screen, so that it sticks in it', () => {
+    renderWithBazis(
+      <AppShell title="Product" navigation="sidebar" items={items}>
+        <Screen id="home" title="Home" description="The overview">
+          home
+        </Screen>
+      </AppShell>,
+      new Backend(),
+    );
+    const section = screen.getByTestId('screen:home');
+    const header = section.querySelector('header');
+    if (header === null) throw new Error('No header');
+    // its parent is `display: contents`: the containing block of the sticky header is the
+    // screen, not a box of the title alone
+    expect(header.parentElement?.className).toBe('contents');
+    expect(header.parentElement?.parentElement).toBe(section);
+    expect(header.className).toContain('md:sticky');
+    expect(header.className).toContain('--screen-lift');
+    expect(header.className).toContain('md:h-(--sticky-top)');
+    expect(header.textContent).not.toContain('The overview');
   });
 
   it('switches the color mode when the tokens have a dark mode', () => {
@@ -128,9 +151,63 @@ describe('ListCardLayout', () => {
 
   it('shows the card in place of the list (pages)', () => {
     layout('pages', '/items/1');
-    expect(screen.queryByTestId('screen:item-list')).toBeNull();
+    // the list is kept, hidden, with its state
+    expect(screen.getByTestId('screen:item-list').closest('.hidden')).not.toBeNull();
     expect(screen.getByTestId('screen:item-card')).toBeTruthy();
   });
+
+  for (const mode of ['split', 'pages'] as const) {
+    it(`keeps the state of the list when a card opens and closes (${mode})`, () => {
+      let mounted = 0;
+      function List() {
+        const navigate = useNavigate();
+        const [filter, setFilter] = useState('');
+        useEffect(() => {
+          mounted += 1;
+        }, []);
+        return (
+          <Screen id="item-list" title="Items">
+            <input
+              aria-label="Filter"
+              value={filter}
+              onChange={(event) => {
+                setFilter(event.target.value);
+              }}
+            />
+            <button type="button" onClick={() => void navigate('/items/1')}>
+              open
+            </button>
+            <button type="button" onClick={() => void navigate('/items')}>
+              close
+            </button>
+          </Screen>
+        );
+      }
+      renderWithBazis(
+        <Routes>
+          <Route path="/items" element={<ListCardLayout mode={mode} list={<List />} />}>
+            <Route
+              path=":id"
+              element={
+                <Screen id="item-card" title="Item">
+                  card
+                </Screen>
+              }
+            />
+          </Route>
+        </Routes>,
+        new Backend(),
+        { route: '/items' },
+      );
+      fireEvent.change(screen.getByLabelText('Filter'), { target: { value: 'draft' } });
+      fireEvent.click(screen.getByText('open'));
+      expect(screen.getByTestId('screen:item-card')).toBeTruthy();
+      fireEvent.click(screen.getByText('close'));
+      expect(screen.queryByTestId('screen:item-card')).toBeNull();
+      expect(screen.getByLabelText<HTMLInputElement>('Filter').value).toBe('draft');
+      expect(mounted).toBe(1);
+    });
+  }
 
   for (const mode of ['split', 'pages'] as const) {
     it(`shows the list without an item (${mode})`, () => {

@@ -307,9 +307,9 @@ export interface ScreenProps {
 }
 
 /**
- * A screen of the specs: `screen:<id>`, its header (the title, the description and the
- * actions; it stays at the top of a working application while the screen scrolls) and its
- * content.
+ * A screen of the specs: `screen:<id>`, its header (the title and the actions; in a working
+ * application it stays at the top while the screen scrolls, `--sticky-top` high), its
+ * description and its content.
  */
 export function Screen({ id, title, description, actions, children }: ScreenProps) {
   const navigation = useContext(ShellContext);
@@ -319,37 +319,47 @@ export function Screen({ id, title, description, actions, children }: ScreenProp
     setPages((count) => count + (open ? 1 : -1));
   }, []);
   const page = useMemo(() => ({ target, claim }), [target, claim]);
-  const portal = navigation === 'topbar';
+  // the header sticks under the top of the page with the sidebar, never under a top bar
+  const sticky = navigation !== 'topbar';
+  const portal = THEME.preset === 'portal';
   return (
     <section data-bz={`screen:${id}`} className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)] gap-(--space-section)">
       <PageContext value={page}>
+        {/* `contents`: the header is laid out in the section, which it sticks in */}
         <div className={pages > 0 ? 'hidden' : 'contents'}>
           {(title !== undefined || actions !== undefined) && (
-            <div className={cn('grid', portal ? 'gap-1' : 'md:-mt-(--space-section)')}>
-              <header
-                className={cn(
-                  'flex items-center justify-between gap-4',
-                  portal
-                    ? 'flex-wrap'
-                    : '-mx-(--bleed) flex-wrap bg-background/90 px-(--bleed) backdrop-blur md:sticky md:top-0 md:z-20 md:h-16 md:flex-nowrap',
-                )}
-              >
-                {title !== undefined && (
-                  <h1
-                    className={cn(
-                      'min-w-0 truncate font-semibold tracking-tight',
-                      portal ? 'text-3xl md:text-4xl' : 'text-xl',
-                    )}
-                  >
-                    {title}
-                  </h1>
-                )}
-                {actions !== undefined && <div className="ml-auto flex shrink-0 flex-wrap gap-2">{actions}</div>}
-              </header>
-              {description !== undefined && (
-                <p className={cn('text-muted-foreground', portal ? 'text-lg' : 'text-sm')}>{description}</p>
+            <header
+              data-slot="screen-header"
+              className={cn(
+                'flex flex-wrap items-center justify-between gap-4',
+                sticky &&
+                  '-mx-(--bleed) bg-background/90 px-(--bleed) backdrop-blur md:sticky md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:h-(--sticky-top) md:flex-nowrap',
               )}
-            </div>
+            >
+              {title !== undefined && (
+                <h1
+                  className={cn(
+                    'min-w-0 truncate font-semibold tracking-tight',
+                    portal ? 'text-2xl md:text-3xl' : 'text-xl',
+                  )}
+                >
+                  {title}
+                </h1>
+              )}
+              {actions !== undefined && <div className="ml-auto flex shrink-0 flex-wrap gap-2">{actions}</div>}
+            </header>
+          )}
+          {description !== undefined && (
+            <p
+              className={cn(
+                'text-muted-foreground',
+                portal ? 'text-lg' : 'text-sm',
+                // right under the title, not a section of its own
+                title !== undefined && (sticky ? 'md:-mt-(--space-section) -mt-3' : '-mt-4'),
+              )}
+            >
+              {description}
+            </p>
           )}
           {children}
         </div>

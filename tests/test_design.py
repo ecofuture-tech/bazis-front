@@ -222,3 +222,27 @@ def test_design_needs_a_design_without_errors(root):
 def test_design_needs_a_frontend(tmp_path):
     with override_settings(BASE_DIR=str(tmp_path)), pytest.raises(CommandError, match='init'):
         generate()
+
+
+def test_the_charts_of_shadcn():
+    css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
+    assert root_block(css, ':root')['--chart-1'] == 'var(--primary)'
+    assert root_block(css, '@theme inline')['--color-chart-5'] == 'var(--chart-5)'
+
+
+@pytest.mark.django_db
+def test_a_frontend_without_a_theme(root):
+    lock = lock_of(root)
+    # a frontend made before the design layer: components, and no theme in its lock
+    del lock['design']
+    (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    [warning] = check_design(None)
+    assert warning.id == 'front.W005'
+    assert 'has no theme' in warning.msg and 'bazis_front design' in warning.hint
+    assert 'src/index.css' in warning.hint
+    # without components there is nothing to style
+    lock['assets'] = {name: entry for name, entry in lock['assets'].items() if name in ('client', 'react', 'template')}
+    (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    assert check_design(None) == []
+    generate()
+    assert check_design(None) == []

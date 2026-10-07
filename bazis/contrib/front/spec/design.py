@@ -77,6 +77,12 @@ DEFAULTS = {
     'color.sidebar-accent-foreground': ('color', 'var(--sidebar-foreground)', None),
     'color.sidebar-border': ('color', 'var(--border)', None),
     'color.sidebar-ring': ('color', 'var(--ring)', None),
+    # the series of the charts of shadcn/ui (`npx shadcn add chart`)
+    'color.chart-1': ('color', 'var(--primary)', None),
+    'color.chart-2': ('color', 'var(--info)', None),
+    'color.chart-3': ('color', 'var(--success)', None),
+    'color.chart-4': ('color', 'var(--warning)', None),
+    'color.chart-5': ('color', 'var(--destructive)', None),
     'font.heading': ('fontFamily', 'var(--font-body)', None),
 }
 

@@ -23,6 +23,7 @@ import { RelationSelect, useAnyFilterFields } from '@/bazis/ui/resource';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /** A filter of a list: a field of `route_filter_fields/`, its label and its choices. */
 export interface ListFilter {
@@ -48,11 +49,11 @@ type FieldType = string;
 /** The numeric types; a `Decimal` is sent as it is written, not as a float. */
 const NUMBERS = new Set(['integer', 'number', 'Decimal']);
 
-/** The types of the filter fields of the route set by name. */
-export function useFilterTypes(path: string): ReadonlyMap<string, FieldType> {
+/** The types of the filter fields of the route set by name, and whether they are loaded. */
+export function useFilterTypes(path: string): { types: ReadonlyMap<string, FieldType>; pending: boolean } {
   const query = useAnyFilterFields(path);
   const fields = query.data?.fields ?? [];
-  return new Map(fields.map((it) => [it.name, it.py_type]));
+  return { types: new Map(fields.map((it) => [it.name, it.py_type])), pending: query.isPending };
 }
 
 function relationOf(type: FieldType | undefined): string | null {
@@ -203,6 +204,8 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
 export interface FilterBarProps {
   path: string;
   filters: readonly ListFilter[];
+  /** Whether the titles of the fields are loaded: until then, and until the types of the filters are, a skeleton. */
+  ready?: boolean;
   /** The titles of the fields. */
   title: (name: string) => string;
   /** Called with the expression of the filters when a value changes. */
@@ -210,9 +213,18 @@ export interface FilterBarProps {
 }
 
 /** The controls of the filters of a list (their types from `route_filter_fields/`). */
-export function FilterBar({ path, filters, title, onFilter }: FilterBarProps) {
-  const types = useFilterTypes(path);
+export function FilterBar({ path, filters, ready = true, title, onFilter }: FilterBarProps) {
+  const { types, pending } = useFilterTypes(path);
   const [values, setValues] = useState<FilterValues>({});
+  if (pending || !ready) {
+    return (
+      <>
+        {filters.map((filter) => (
+          <Skeleton key={filter.field} data-filter-skeleton="" className="h-9 w-44" />
+        ))}
+      </>
+    );
+  }
   return (
     <>
       {filters.map((filter) => (

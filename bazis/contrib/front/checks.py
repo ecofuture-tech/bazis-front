@@ -161,12 +161,15 @@ def check_design(app_configs, **kwargs):
     The theme generated in the frontend (when its lock records it: `bazis_front init` and
     `bazis_front design` write it) is that of the design of the specs: the comparison of
     `bazis_front design --check`, without Node and without the database. A design with
-    errors is not compared: `front.W002` reports its issues.
+    errors is not compared: `front.W002` reports its issues. A frontend with components and no
+    theme in its lock (made before the design layer, or by an `init` whose design had errors)
+    is reported too: its components import the theme.
     """
     from django.conf import settings
 
     from .spec import theme, validate
     from .vendor import lock as frontend_lock
+    from .vendor import registry
 
     frontend = frontend_lock.frontend_dir()
     try:
@@ -174,8 +177,24 @@ def check_design(app_configs, **kwargs):
     except frontend_lock.LockError:
         # front.W001 reports it
         return []
-    if lock is None or 'design' not in lock:
+    if lock is None:
         return []
+    if 'design' not in lock:
+        assets = registry.load()
+        if not any(name in assets and assets[name].kind == registry.UI for name in lock.get('assets', {})):
+            return []
+        # components that read the theme, and no theme: a frontend made before the design
+        # layer, or an `init` whose design had errors
+        return [
+            Warning(
+                f'The frontend {frontend} has no theme ({theme.THEME_CSS}, {theme.THEME_TS}): its '
+                'components need it.',
+                hint='Generate it with `manage.py bazis_front design`. A frontend made before the '
+                'design layer also imports it in src/index.css and calls initColorMode() in '
+                'src/main.tsx (see "Updating the copies" in the guide of bazis-front).',
+                id='front.W005',
+            )
+        ]
     root = Path(settings.BASE_DIR)
     result = validate.validate(root, ('design',))
     if any(it.layer == 'design' for it in result.errors):
