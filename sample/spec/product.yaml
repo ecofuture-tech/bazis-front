@@ -1,0 +1,59 @@
+# yaml-language-server: $schema=../../bazis/contrib/front/spec/schemas/product.schema.json
+# The product spec of the sample: the tasks of a team with a workflow. The roles,
+# statuses and transits that it references are created by the fixture `workflow` of the
+# tests (tests/conftest.py).
+spec: bazis-product/1
+product:
+  id: tasks
+  name: Tasks
+  summary: The tasks of a team, started and finished with a report
+packages: [users, permit, statusy]
+roles:
+  - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
+  - {id: viewer, permit: viewer, title: Viewer}
+entities:
+  - id: task
+    resource: tasks.task
+    title: Task
+    fields:
+      - {id: title, type: string}
+      - {id: report, type: text}
+      - {id: dt_created, type: datetime}
+      - {id: assignee, relation: user}
+    workflow:
+      initial: draft
+      statuses: [draft, in_progress, done]
+      transitions:
+        - {id: start, from: draft, to: in_progress}
+        - {id: finish, from: in_progress, to: done, payload: {fields: [{id: report, type: text}]}}
+    access:
+      manager:
+        view: all
+        add: all
+        change: {selector: all, statuses: [draft]}
+        transit: [start, finish]
+      viewer: {view: all}
+  - id: user
+    resource: users.user
+    title: User
+    fields:
+      - {id: username, type: string}
+scenarios:
+  - id: manager-finishes-a-task
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Write the report}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - transit: start
+      - transit: {id: finish, payload: {report: Done}}
+      - expect: {status: done, field_readonly: title}
+  - id: viewer-only-reads
+    role: viewer
+    steps:
+      - open: task-list
+      - expect: {action_absent: create}
+      - open_item: {where: {title: Write the report}}
+      - expect: {screen: task-card, action_absent: delete, field_readonly: report}

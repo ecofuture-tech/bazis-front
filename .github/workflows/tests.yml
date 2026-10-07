@@ -186,6 +186,7 @@ jobs:
           python manage.py bazis_front init
           python manage.py bazis_front contract
           python manage.py bazis_front contract --check
+          python manage.py bazis_front check
 
       - name: Check and build the frontend
         working-directory: ${{ env.BS_BASE_DIR }}/frontend

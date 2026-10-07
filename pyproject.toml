@@ -46,6 +46,9 @@ classifiers = [
 ]
 dependencies = [
     "bazis>=2.5.0",
+    # the validation of the specs (`bazis_front check`): YAML files and JSON Schema 2020-12
+    "PyYAML>=6.0.1",
+    "jsonschema>=4.18",
 ]
 
 [project.optional-dependencies]

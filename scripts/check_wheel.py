@@ -16,7 +16,8 @@
 Checks the wheel in the given directory against the registry of the assets
 (`assets/registry.json`): it has every file that the registry copies into a product, and
 of the assets nothing else than the registry and the READMEs of the assets (no tests,
-fixtures, scripts, Node config, node_modules or dist of their checks).
+fixtures, scripts, Node config, node_modules or dist of their checks); and the JSON Schemas
+and the starters of the specs (run from the root of the repository).
 """
 
 import json
@@ -26,6 +27,7 @@ from pathlib import Path
 
 
 ASSETS = 'bazis/contrib/front/assets'
+SPEC = 'bazis/contrib/front/spec'
 
 wheel = next(Path(sys.argv[1]).glob('bazis_front-*.whl'))
 archive = zipfile.ZipFile(wheel)
@@ -44,4 +46,12 @@ allowed = expected | {f'{ASSETS}/registry.json'} | {
 }
 unexpected = sorted(it for it in names if it.startswith(f'{ASSETS}/') and it not in allowed)
 assert not unexpected, f'the wheel has asset files outside the registry: {unexpected}'
-print(f'{wheel.name}: {len(expected)} asset files of the registry')
+
+# the JSON Schemas and the starters of the specs, read by `check` and copied by `init`
+specs = {
+    it.as_posix() for it in Path(SPEC).rglob('*') if it.suffix in ('.json', '.yaml')
+}
+assert specs, 'no JSON Schemas or starters of the specs'
+missing = sorted(specs - names)
+assert not missing, f'the wheel misses files of the specs: {missing}'
+print(f'{wheel.name}: {len(expected)} asset files of the registry, {len(specs)} files of the specs')

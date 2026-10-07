@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
+spec: bazis-screen/1
+id: task-card
+title: Task
+route: /tasks/:id
+entity: task
+roles: [manager, viewer]
+primitive: card
+card:
+  sections:
+    - {id: main, fields: [title, status, assignee]}
+    - {id: report, title: Report, fields: [report]}
+  edit: true
+  transitions: true
+  history: true
+actions:
+  - {id: delete, primitive: destroy, then: task-list}
+states: [loading, error, forbidden, not_found]

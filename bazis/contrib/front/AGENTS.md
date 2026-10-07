@@ -6,10 +6,11 @@ from this package. There are no npm packages of Bazis: the TypeScript code of th
 is shipped as package data and copied into the product, which then owns the copy.
 
 **Status: pre-release.** The package ships `manage.py bazis_front init` (a frontend made
-from its template, with the protocol client copied into it) and
+from its template, with the protocol client copied into it, and the starters of the specs),
 `manage.py bazis_front contract` (the export of the contract and the TypeScript generated
-from it). The React hooks, the components, the update of the copies and the validation of
-the specs are planned, not available yet.
+from it) and `manage.py bazis_front check` (the validation of the specs against the
+contract). The React hooks, the components and the update of the copies are planned, not
+available yet.
 
 ## Setup
 
@@ -27,6 +28,11 @@ python manage.py bazis_front init --no-node  # the same without `npm install`
 TanStack Query, React Router 7 and Tailwind 4 set up for shadcn/ui (`components.json`, no
 components yet), with a login screen and a home screen that lists the resources of the
 contract. It never overwrites an existing `frontend/`. It writes:
+
+- `spec/` next to `manage.py`, when the product has none (an existing one is kept): the
+  JSON Schemas of the specs in `spec/schema/` (for the editors) and starters of
+  `spec/product.yaml`, `spec/design/theme.yaml` and `spec/design/tokens.json`; see
+  [The specs](#the-specs);
 
 - the files of the template (`assets/template`), which the product owns from then on,
   among them `frontend/AGENTS.md`, the guide of the frontend for agents;
@@ -136,6 +142,244 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   payload they require, `null` without one). Names are in `LANGUAGE_CODE`; lists are
   sorted.
 
+## The specs
+
+The product is described in `spec/` of the product root, in three layers: the product
+(`product.yaml`: roles, entities, access, scenarios), the screens (`screens/<id>.yaml`)
+and the design (`design/theme.yaml`, `design/tokens.json`). They reference each other by
+id: a screen the entities and the roles of the product, a scenario the screens, their
+actions and the transitions; the contract knows nothing of them. The agent writes them; the backend is built to satisfy them and
+the validator checks them against the contract:
+
+```bash
+python manage.py bazis_front check                  # every layer; exit 1 if there are errors
+python manage.py bazis_front check --json           # the same as JSON
+python manage.py bazis_front check --layer screens  # the issues of one layer (all are read)
+```
+
+`check` validates each file against its JSON Schema (Draft 2020-12, shipped in the
+package; `init` copies them to `spec/schema/`, and every starter references its schema for
+the editors), then the references between the files and, when the product has
+`contract/contract.json`, against the contract. Without the contract only the shape and
+the references between the specs are checked, and the output says so (`"contract": false`
+in JSON). Export the contract first (`bazis_front contract`); `check` reads it, it does not
+compare it with the backend (that is `contract --check` and `front.W001`).
+
+### `spec/product.yaml` (`spec: bazis-product/1`)
+
+The specs of the sample of this package (its roles, statuses and transits are those of
+its tests):
+
+```yaml
+# yaml-language-server: $schema=./schema/product.schema.json
+spec: bazis-product/1
+product: {id: tasks, name: Tasks, summary: The tasks of a team}
+packages: [users, permit, statusy]       # each needs its section in the contract
+roles:
+  - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
+  - {id: viewer, permit: viewer, title: Viewer}
+entities:
+  - id: task
+    resource: tasks.task                 # the JSON:API type in contract.json
+    title: Task
+    fields:                              # attributes (type) and relationships (relation: entity)
+      - {id: title, type: string}
+      - {id: report, type: text}
+      - {id: dt_created, type: datetime}
+      - {id: assignee, relation: user}   # many: false by default
+    workflow:                            # bazis-statusy; the entity gets the field `status`
+      initial: draft
+      statuses: [draft, in_progress, done]
+      transitions:
+        - {id: start, from: draft, to: in_progress}
+        - {id: finish, from: in_progress, to: done, payload: {fields: [{id: report, type: text}]}}
+    access:
+      manager:
+        view: all
+        add: all
+        change: {selector: all, statuses: [draft]}
+        transit: [start, finish]
+      viewer: {view: all}
+  - id: user
+    resource: users.user
+    fields: [{id: username, type: string}]
+scenarios:
+  - id: manager-finishes-a-task
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Write the report}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - transit: start
+      - transit: {id: finish, payload: {report: Done}}
+      - expect: {status: done, field_readonly: title}
+```
+
+- **Fields** are those of the resource in the API (`fields` of contract.json), with `type`
+  (`string`, `text`, `integer`, `number`, `boolean`, `date`, `datetime`, `time`, `json`,
+  `file`) or `relation` (the id of an entity) and `many`. What is required, writable or
+  visible for the current user is not in the spec: the runtime schemas of the backend
+  decide it.
+- **Workflow**: the statuses and the transits of bazis-statusy; a transit has one `from`
+  (a Transit row has one source status), and `payload` when an action of the transit takes
+  a typed payload. The ids are those of the Status and Transit rows.
+- **Access** says what a role may do; it is compiled to permissions of bazis-permit that
+  the permit role of the role must have (through its permission groups). An operation
+  (`view`, `add`, `change`, `delete`) takes a selector: `all`, `none` (not granted, as an
+  absent operation), or a field that links the object to the user (`author`, `org_owner`);
+  on a statusy model also `{selector, statuses}` to grant it only in these statuses.
+  `transit` is a list of transits (selector `all`) or `{transit: selector}`. The
+  permissions, as bazis-permit and bazis-statusy name them:
+
+  | Access | Model without statuses | Statusy model |
+  |---|---|---|
+  | `view: all` | `app.model.item.view.all` | `app.model.item.view.all.all` |
+  | `change: author` | `app.model.item.change.author` | `app.model.item.change.author.all` |
+  | `change: {selector: all, statuses: [draft]}` | | `app.model.item.change.all.draft` |
+  | `transit: [finish]` | | `app.model.item.transit.all.in_progress.finish` (the source status of the transit) |
+
+  A permission of the role with the selector `all` covers any selector, and the status
+  `all` any status. Missing permissions are errors (P019); permissions the role has beyond
+  the access are not reported (the absence of an operation is what the scenarios check,
+  with `expect: {action_absent: ...}`). A selector that is not a relationship of the
+  resource in the contract is a warning (P020).
+- **Scenarios** are the end-to-end tests of the product: steps over the screens, each one
+  key: `open: <screen>`, `open_item: {where: {field: value}}` (a row of the current list,
+  which opens the screen of its `list.open`), `action: <action of the screen>`,
+  `fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
+  `edit: true`), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
+  `transitions: true`), `expect` with `screen`, `status`, `state`, `action_absent`,
+  `field_readonly`, `rows`, `error`. The validator follows the steps from screen to screen
+  and checks each against the screen it acts on: `open` takes a screen without an item in
+  its route (an item is reached with `open_item` or the `then` of a form), a form with
+  `fields` is filled only in them, `action_absent` names an action of the screen.
+
+### `spec/screens/<id>.yaml` (`spec: bazis-screen/1`)
+
+```yaml
+# yaml-language-server: $schema=../schema/screen.schema.json
+spec: bazis-screen/1
+id: task-list                    # the name of the file
+title: Tasks
+route: /tasks
+entity: task
+roles: [manager, viewer]         # the navigation and the scenarios; the backend decides access
+primitive: list                  # list | card | form, with its section of the same name
+list:
+  columns: [title, status, assignee, dt_created]
+  filters: [status, assignee]    # fields with `filter` in the contract
+  sort: [-dt_created]            # fields with `order` in the contract
+  search: true
+  open: task-card                # the card that a row opens
+actions:
+  - {id: create, primitive: form, mode: create, fields: [title, assignee], then: task-card}
+states: [loading, empty, error, forbidden]
+```
+
+```yaml
+spec: bazis-screen/1
+id: task-card
+route: /tasks/:id
+entity: task
+primitive: card
+card:
+  sections:
+    - {id: main, fields: [title, status, assignee]}
+  edit: true                     # the update form of the runtime schema
+  transitions: true              # the transits of the item (needs a workflow)
+  history: true                  # its status history (needs a workflow)
+actions: [{id: delete, primitive: destroy, then: task-list}]
+states: [loading, error, forbidden, not_found]
+```
+
+A `form` screen has `form: {mode: create | update, fields, then}`. Actions are `form`
+(`mode: create` on a list or a card, `mode: update` on a card) and `destroy` (on a card).
+The states that a primitive must render are required: list `loading, empty, error,
+forbidden`; card `loading, error, forbidden, not_found`; form `loading, error, forbidden,
+invalid`.
+
+**`data-bz`**: the screens mark their elements, and the scenarios act through them:
+`screen:<id>`, `state:<loading|empty|loaded|error|forbidden|not_found|invalid>`,
+`list:<entity>`, `row:<id>`, `field:<field>`, `error:<field>`, `action:<id>`,
+`transit:<id>`, `status:<id>`, `nav:<screen>`.
+
+### `spec/design/` (`spec: bazis-design/1`)
+
+```yaml
+# theme.yaml
+spec: bazis-design/1
+preset: workspace          # workspace (a working application) | portal (a public shell)
+navigation: sidebar        # sidebar | topbar
+density: comfortable       # comfortable | compact
+composition:
+  list_card: split         # split (the list and the card side by side) | pages
+  forms: dialog            # dialog | page
+```
+
+`spec/design/` is optional; when `theme.yaml` exists, `tokens.json` must define the tokens
+of its preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$value` and `$type`
+(`color`, `dimension` in `px`/`rem`, `fontFamily`, `fontWeight`, `number`, `duration` in
+`ms`) on every token, and references `{group.token}`. The names follow the CSS variables
+of shadcn/ui in the template. Every preset requires `color.background`,
+`color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`,
+`color.muted-foreground`, `color.border`, `color.destructive` (color), `radius.md`
+(dimension) and `font.body` (fontFamily); `workspace` also `color.sidebar` and
+`color.sidebar-foreground`, `portal` also `color.accent` and `font.heading`
+(fontFamily). The starter of `init` defines them all.
+
+### The issues
+
+An issue is `{layer, file, path, code, severity, message, hint}`: `file` is relative to
+the product root, `path` the JSON Pointer of the value, `hint` the fix. The codes are
+stable. Errors fail `check` (exit 1); warnings do not. When `spec/` exists, the system
+check `front.W002` (run by `bazis_doctor`) reports every issue with its code and severity:
+the system checks run before every management command, so an error of the specs is a
+warning there, never blocking `migrate` or `contract`.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `C001` | error | contract/contract.json cannot be read |
+| `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
+| `P001` | error | spec/product.yaml is missing or is not valid YAML |
+| `P002` | error | spec/product.yaml does not follow product.schema.json |
+| `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
+| `P004` | error | an unknown role (in access or in a scenario) |
+| `P005` | error | a relation references an unknown entity |
+| `P006` | error | the workflow is inconsistent: a status or a transition that the workflow of the entity does not declare |
+| `P010` | error | a package is not installed: the contract has no section for it |
+| `P011` | error | the resource of an entity is not in the contract |
+| `P012` | error | a field is not in the resource of the contract |
+| `P013` | error | a field differs from the contract: attribute or relationship, type, related resource, many |
+| `P014` | error | the entity has a workflow, the resource is not a statusy model of the contract |
+| `P015` | error | a status of the workflow is not in the contract, or the initial status differs |
+| `P016` | error | a transition is not in the contract, or its from/to differ |
+| `P017` | error | the payload of a transition differs from the contract |
+| `P018` | error | the permit role of a role is not in the contract |
+| `P019` | error | the permit role lacks a permission that `access` grants |
+| `P020` | warning | a selector of `access` is not a relationship of the resource in the contract |
+| `P021` | error | a scenario step references an unknown screen |
+| `P022` | error | a scenario step is not possible on the current screen |
+| `P023` | error | a scenario step references a field that the entity of the screen does not declare |
+| `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
+| `S001` | error | a screen file is not valid YAML |
+| `S002` | error | a screen does not follow screen.schema.json |
+| `S003` | error | the id of a screen differs from its file name, or its route is taken |
+| `S004` | error | a screen references an unknown entity |
+| `S005` | error | a screen references an unknown role |
+| `S006` | error | a screen references an unknown screen, or one of another primitive |
+| `S007` | error | a screen references a field that its entity does not declare |
+| `S008` | error | a filter or a sort field cannot be filtered or sorted by in the contract |
+| `S009` | error | a state required by the primitive is missing |
+| `S010` | error | an action is not valid: a duplicate id, or not possible on the primitive |
+| `S011` | error | transitions or history on a card whose entity has no workflow |
+| `D001` | error | a design file is not valid YAML or JSON |
+| `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
+| `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
+| `D004` | error | a token references an undefined token |
+| `D005` | error | a token required by the preset is undefined or of another type |
+
 ## Layers
 
 | Layer | What | In the product |
@@ -144,7 +388,7 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
 | 1. Protocol | the client (`assets/client`) | `frontend/src/bazis/client/`, copied by `init`, not edited |
 | 2. Hooks | React hooks over the client (planned) | `frontend/src/bazis/react/`, copied, not edited |
 | 3. Components | visual building blocks on shadcn/ui (planned) | `frontend/src/bazis/ui/`, copied, owned by the product |
-| 4. Specs | product, screens and design specs (planned) | `spec/`, validated against the contract |
+| 4. Specs | product, screens and design specs | `spec/`, validated against the contract by `bazis_front check` |
 | App | the template (`assets/template`): providers, session, router, errors, screens | `frontend/`, copied once by `init`, owned by the product |
 
 ## Rules
@@ -153,6 +397,10 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `frontend/src/bazis/generated/` come from `manage.py bazis_front contract`. Generate
   them again after every change of the backend and fix what the compiler reports; do not
   edit the generated files and do not declare resource types by hand.
+- **Describe the product in `spec/` and keep `bazis_front check` green.** Build the
+  backend to satisfy the specs (models, route sets, roles with their permissions, statuses
+  and transits), export the contract, and fix every issue that `check` reports, in the spec
+  or in the backend, as its hint says.
 - **Use the client, do not reimplement it.** Requests, filters, errors, pagination,
   authentication and permission checks go through the client. Do not edit the copied
   client; extend it with a wrapper in the product code, so that a new version replaces the

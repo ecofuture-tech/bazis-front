@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=./schema/product.schema.json
+# The product spec: the roles, the entities (the resources of the backend, with their
+# fields, workflow and access) and the scenarios. Check it against the contract with
+# `python manage.py bazis_front check`; the format is in frontend/AGENTS.md.
+spec: bazis-product/1
+product:
+  id: product
+  name: Product
+roles: []
+entities: []
+scenarios: []

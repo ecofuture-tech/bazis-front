@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
+spec: bazis-screen/1
+id: task-list
+title: Tasks
+route: /tasks
+entity: task
+roles: [manager, viewer]
+primitive: list
+list:
+  columns: [title, status, assignee, dt_created]
+  filters: [status, assignee]
+  sort: [-dt_created]
+  search: true
+  open: task-card
+actions:
+  - {id: create, primitive: form, mode: create, fields: [title, assignee], then: task-card}
+states: [loading, empty, error, forbidden]

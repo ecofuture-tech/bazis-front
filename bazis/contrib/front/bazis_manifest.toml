@@ -3,12 +3,13 @@
 
 [package]
 name = "bazis-front"
-summary = "the frontend layer of a Bazis product (pre-release): a React + TypeScript + Vite frontend made from a template, with the contract and its TypeScript generated from the backend and the protocol client copied into it"
+summary = "the frontend layer of a Bazis product (pre-release): a React + TypeScript + Vite frontend made from a template, with the contract and its TypeScript generated from the backend, the protocol client copied into it, and the specs of the product validated against the contract"
 solves = [
     "a typed frontend of a Bazis backend whose contract is generated from its OpenAPI",
     "the resources, roles and transits of the backend as one generated contract.json for the frontend and AI agents",
     "the JSON:API protocol of Bazis in TypeScript: filters, errors, pagination, login, permission meta, transits",
     "a new frontend next to the backend: React 19, TypeScript, Vite 7, TanStack Query, Tailwind 4 with shadcn/ui",
+    "the product described as specs (roles, entities, access, scenarios, screens, design) and checked against the backend: missing resources, fields, transits and permissions of the roles",
 ]
 requires = ["bazis"]
 pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
@@ -16,7 +17,7 @@ pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
 [[extension_points]]
 name = "manage.py bazis_front"
 import = "bazis.contrib.front.management.commands.bazis_front.Command"
-use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares"
+use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock, and the starters of spec/); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares; validate spec/ against the contract with `bazis_front check` (`--json`, exit 1 on errors)"
 
 [[pitfalls]]
 text = "the contract (contract/openapi.json, contract/contract.json) is generated: export it again after every change of the backend, never edit it"
@@ -29,6 +30,10 @@ check = "front.E002"
 [[pitfalls]]
 text = "frontend/src/bazis/generated/ (contract.ts, schema.d.ts) is written by `bazis_front contract`, never by hand; schema.d.ts needs Node and the `npm install` of the frontend, otherwise it is `missing` in the lock and `contract --check` fails"
 check = "front.W001"
+
+[[pitfalls]]
+text = "the specs (spec/) are checked against contract/contract.json: export the contract before `bazis_front check`; `access` must be covered by the permissions of the permit roles (P019), and the issues have stable codes (see AGENTS.md)"
+check = "front.W002"
 
 [[pitfalls]]
 text = "the client in frontend/src/bazis/client/ is a copy kept pristine for the updates of bazis-front: wrap it in src/app/, do not edit it"
