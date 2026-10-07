@@ -24,7 +24,7 @@ copy and gets fixes through new versions of the package.
 | `manage.py bazis_front add` | Copies components into the frontend of a product, with the assets they require | available |
 | [`assets/playwright`](bazis/contrib/front/assets/playwright) | Playwright helpers that run the steps of the scenarios through the `data-bz` marks of the screens | available |
 | `manage.py bazis_front e2e` | Generates a Playwright test per scenario of the specs and checks that they are up to date | available |
-| `manage.py bazis_front` (other subcommands) | Updating the copied assets | planned |
+| `manage.py bazis_front update` | Brings the copied assets to a new version of the package, merging them with the changes of the product | available |
 
 The layers and the principles are described in [docs/architecture.md](docs/architecture.md).
 AI agents building a product read

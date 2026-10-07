@@ -61,6 +61,8 @@ dependencies = [
     # the validation of the specs (`bazis_front check`): YAML files and JSON Schema 2020-12
     "PyYAML>=6.0.1",
     "jsonschema>=4.18",
+    # the three-way merge of `bazis_front update` (pure Python)
+    "merge3>=0.0.16",
 ]
 
 [project.optional-dependencies]

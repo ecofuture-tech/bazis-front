@@ -10,8 +10,9 @@ from its template, with the protocol client, the React hooks and the first compo
 copied into it, and the starters of the specs), `manage.py bazis_front add` (the
 components), `manage.py bazis_front contract` (the export of the contract and the
 TypeScript generated from it), `manage.py bazis_front check` (the validation of the
-specs against the contract) and `manage.py bazis_front e2e` (the Playwright tests of the
-scenarios of the specs). The update of the copies is planned, not available yet.
+specs against the contract), `manage.py bazis_front e2e` (the Playwright tests of the
+scenarios of the specs) and `manage.py bazis_front update` (the copies brought to a new
+version of bazis-front, merged with the changes of the product).
 
 ## Setup
 
@@ -56,7 +57,9 @@ screen that lists the resources of the contract. It never overwrites an existing
   asset (`"template"` has only its version); an asset that was not copied is not in it.
   `bazis_front e2e` adds the hashes of the specs and of the tests it generates (`e2e`).
 
-Commit `bazis-front.lock.json` and `.bazis/`. The files that `init` and `add` copy are
+Commit `bazis-front.lock.json` and `.bazis/`: `update` merges a new version with the
+changes of the product from the pristine copies, and the old version is no longer installed
+then. The files that `init` and `add` copy are
 listed in `assets/registry.json` of the package. The frontend compiles once `contract` has generated
 `src/bazis/generated/`. It has a login (the token endpoint of bazis-users) only when the
 backend has bazis-users; without it every screen is open and requests are anonymous.
@@ -87,8 +90,8 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
   frontend, any asset it needs (also `client` and `react`) that the frontend has in another
   version of bazis-front, or a file of the product at the path of a copy (a shadcn/ui
   component added with the shadcn CLI) fail the command, and nothing is written. So after
-  `pip install -U bazis-front`, `add` refuses until the copies are brought to the new
-  version; the merge of a new version with the local changes will be `bazis_front update`.
+  `pip install -U bazis-front`, `add` refuses until `bazis_front update` has brought the
+  copies to the new version (see [Updating the copies](#updating-the-copies)).
 - **The product owns the copies** and changes them freely (the look, the texts, the
   layout). Each component comes with its contract test, `<component>.contract.test.tsx`,
   run by `npm test` of the frontend: it checks the `data-bz` marks and the states that the
@@ -524,6 +527,73 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
 - `npm run e2e` starts the dev server of the frontend (its `/api` goes to `BAZIS_API_URL`)
   unless `E2E_BASE_URL` names a running frontend; the backend runs separately. In CI, an
   HTML report is written to `frontend/playwright-report/`.
+
+## Updating the copies
+
+```bash
+pip install -U bazis-front
+python manage.py bazis_front update --check     # write nothing; list the changes, exit 1 if a copy is stale
+python manage.py bazis_front update             # every copied asset
+python manage.py bazis_front update react       # an asset with those it requires
+cd frontend && npx tsc --noEmit && npm run lint && npm test
+```
+
+The copies in `frontend/` stay those of the version that copied them until `update`
+brings them to the installed bazis-front; the system check `front.W004` (run by
+`bazis_doctor`, without Node and the database) reports a copy whose lock entry is not that
+of the installed version, an asset that bazis-front no longer has or one that a new
+version requires, and copies of the JSON Schemas in `spec/schema/` that differ. For each
+file of a stale asset, from its pristine copy of the old version in
+`.bazis/base/<asset>@<old>/` (the base), the file of the installed package (the upstream)
+and the file of the frontend:
+
+| The frontend | bazis-front | `update` |
+|---|---|---|
+| unchanged | changed or not | replaces it |
+| changed | unchanged | keeps it |
+| changed | changed | merges them (`merge3`); where both changed the same lines, writes conflict markers |
+| deleted | still has it | leaves it deleted |
+| (none) | added it | adds it; a file of the product at its path fails the update |
+| unchanged | removed it | deletes it |
+| changed | removed it | keeps it: the product's from now on |
+
+- The stamp line `// bazis-front <version> asset <asset>` never conflicts: the three are
+  compared at the new version, and every written file has the new stamp.
+- The assets that a new version requires and the frontend lacks are copied as `add` copies
+  them (a component of a package needs its capability in the contract); `update <asset>`
+  also updates the assets it requires.
+- Then the pristine copies of the new version replace the old ones in `.bazis/base/`, the
+  lock records the new version and hashes, and the copies of the JSON Schemas in
+  `spec/schema/` (when the product has it) are those of the package.
+- Everything is read and merged first: an asset that cannot be updated (a missing or edited
+  pristine copy, a file of the product at the path of a new file, a missing capability)
+  fails the command and nothing is written.
+- **The template is the product's** (`package.json`, `vite.config.ts`, `src/app/`,
+  `src/screens/`, `AGENTS.md`, …): `update` never changes it, and the lock keeps the
+  version of `init` for it. It prints the npm dependencies whose versions in the
+  `package.json` of the new template differ from those of `frontend/package.json`
+  (`dependencies react: 19.2.0 -> 19.3.0`): bump those that the new copies need and run
+  `npm install`.
+
+**Conflicts.** When both changed the same lines, `update` writes the file with the markers
+of git and fails (exit 1), listing the files; the rest of the update is written, and the
+lock and `.bazis/base/` are those of the new version, so a second `update` does not merge
+again:
+
+```text
+<<<<<<< frontend
+the lines of the frontend
+=======
+the lines of bazis-front <version>
+>>>>>>> bazis-front <version>
+```
+
+Resolve every conflict in the listed files: keep the change of bazis-front (a fix of the
+protocol, a new prop) and apply the change of the product over it, delete the markers,
+then `npx tsc --noEmit` (it reports a marker left behind, `TS1185`), `npm run lint` and
+`npm test` (the contract tests of the components) in `frontend/`. Commit the frontend with
+`.bazis/` and the lock. The client, the hooks and the helpers are never edited, so they
+are replaced without conflicts; wrap them in the product code instead.
 
 ## Layers
 

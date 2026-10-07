@@ -17,7 +17,7 @@ pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
 [[extension_points]]
 name = "manage.py bazis_front"
 import = "bazis.contrib.front.management.commands.bazis_front.Command"
-use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock, and the starters of spec/); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares; validate spec/ against the contract with `bazis_front check` (`--json`, exit 1 on errors)"
+use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock, and the starters of spec/); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares; validate spec/ against the contract with `bazis_front check` (`--json`, exit 1 on errors); after `pip install -U bazis-front`, bring the copies to the new version with `bazis_front update` (a three-way merge with the changes of the product, `--check` only lists them)"
 
 [[pitfalls]]
 text = "the contract (contract/openapi.json, contract/contract.json) is generated: export it again after every change of the backend, never edit it"
@@ -37,6 +37,10 @@ check = "front.W002"
 
 [[pitfalls]]
 text = "the client in frontend/src/bazis/client/ is a copy kept pristine for the updates of bazis-front: wrap it in src/app/, do not edit it"
+
+[[pitfalls]]
+text = "after `pip install -U bazis-front` the copies in frontend/ are of the old version until `bazis_front update` merges the new one with the changes of the product; it fails with conflict markers in the files that both changed (resolve them, then tsc and npm test), and `add` refuses until then; commit frontend/.bazis/ (the pristine copies the merge needs) and the lock"
+check = "front.W004"
 
 [[pitfalls]]
 text = "the frontend is not a security boundary: permissions are checked by the backend, the frontend only reads the permission meta and the runtime schemas"

@@ -61,6 +61,9 @@ the `e2e` job of CI.
   is not migrated); the command fails with `front.E002` in that case. `front.W002`: an
   issue of the specs (see below). `front.W003`: stale end-to-end tests (`e2e --check`,
   without the database; only when the lock has `e2e` and the specs have no errors).
+  `front.W004`: copies of another version (`update --check`: `update.stale`, without Node
+  and the database). A new check id gets its pitfall in `bazis_manifest.toml`
+  (`tests/test_manifest.py` checks that the ids exist).
 
 ### The specs
 
@@ -121,8 +124,24 @@ the `e2e` job of CI.
   to it and renames it, and copies the components into an existing one (`add_assets`):
   everything is checked first (unknown assets, capabilities, a changed copy named again,
   another version, a file of the product at the path of a copy) and nothing is written on
-  an `AddError`; an asset already there is kept. `vendor/lock.py` is
+  a `CopyError`; an asset already there is kept. `vendor/lock.py` is
   `frontend/bazis-front.lock.json` (format `lock: 1`).
+- `vendor/update.py` (`bazis_front update`) brings the copies to the installed version: a
+  copy is stale when its lock entry is not the one this version writes (`is_stale`), its
+  asset left the registry, or an asset it requires is missing. `plan` reads and merges
+  everything in memory (base: `.bazis/base/<asset>@<old>/`, checked against the hash of the
+  lock; upstream: the stamped package file; local: the file of the frontend; the stamp
+  lines made those of the new version first, `copy.restamp`), raising a `CopyError` before
+  anything is written; `apply` writes the files (conflicts with git markers), copies the
+  new requirements, replaces the pristine copies, refreshes `spec/schema/`
+  (`spec/create.schema_updates`) and writes the lock last. The merge is `merge3` (pure
+  Python). The template is never updated: `dependency_changes` reports the npm versions of
+  its `package.json` that differ from the product's. `tests/test_update.py` simulates an
+  older version by writing an asset again as that of the version `0.0.1` (its copies, its
+  pristine copy and its lock entry). After a change of it, run the `frontend` job locally
+  with an update cycle: a frontend of the sample made as there, its copies rewritten as
+  those of an older version with changes on both sides, `update`, `update --check`, then
+  `tsc`, lint, tests and build.
 - `contract/typescript.py` renders `contract.ts` from contract.json; `contract/generated.py`
   writes it, runs openapi-typescript for `schema.d.ts` (`npx --no-install` in the
   frontend), updates the lock and finds the stale generated files for `--check` and
