@@ -62,5 +62,7 @@ npm run build
   `api.schema(path, 'update', id)`. Hide or disable what the backend does not allow.
 - Check for an optional package with `CAPABILITIES.<name> !== null` (`contract.ts`): the
   login exists only with bazis-users (`LOGIN_ENABLED` of `src/app/session.ts`).
+- A 401 of any query or mutation ends the session, and logging in or out clears the query
+  cache (`src/app/providers.tsx`): cached data belongs to the user who loaded it.
 - No translations: the labels come from the backend (its schemas and names are already in
   the language of the product) and from the screens.

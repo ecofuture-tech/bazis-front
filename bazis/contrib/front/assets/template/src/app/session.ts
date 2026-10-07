@@ -49,7 +49,8 @@ function setToken(value: string | null): void {
   for (const listener of listeners) listener();
 }
 
-function subscribe(listener: () => void): () => void {
+/** Calls the listener when the user logs in or out; returns the unsubscribe function. */
+export function onSessionChange(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -63,7 +64,7 @@ export function getToken(): string | null {
 
 /** The token of the current session; re-renders when the user logs in or out. */
 export function useToken(): string | null {
-  return useSyncExternalStore(subscribe, getToken);
+  return useSyncExternalStore(onSessionChange, getToken);
 }
 
 /** Gets a token from the token endpoint of bazis-users and starts the session. */

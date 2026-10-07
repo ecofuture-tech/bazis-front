@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { getToken, logout } from '@/app/session';
+import { getToken, logout, onSessionChange } from '@/app/session';
 import { ApiError, createClient, type BazisClient } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
 
@@ -31,14 +31,15 @@ export function useApi(): Api {
   return useContext(ApiContext);
 }
 
+// an expired or revoked token ends the session, whether a query or a mutation finds it out
+function endSessionOn401(error: Error): void {
+  if (error instanceof ApiError && error.status === 401) logout();
+}
+
 function createQueryClient(): QueryClient {
   return new QueryClient({
-    // an expired or revoked token ends the session
-    queryCache: new QueryCache({
-      onError: (error) => {
-        if (error instanceof ApiError && error.status === 401) logout();
-      },
-    }),
+    queryCache: new QueryCache({ onError: endSessionOn401 }),
+    mutationCache: new MutationCache({ onError: endSessionOn401 }),
     defaultOptions: {
       // an error of the request (4xx) does not change on retry
       queries: {
@@ -50,6 +51,14 @@ function createQueryClient(): QueryClient {
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
+  // the cached data belongs to the user who loaded it: drop it when the user changes
+  useEffect(
+    () =>
+      onSessionChange(() => {
+        queryClient.clear();
+      }),
+    [queryClient],
+  );
   return (
     <ApiContext value={api}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
