@@ -16,6 +16,10 @@
 `contract.ts`: the content of contract.json as typed TypeScript constants (`as const`), so
 that the frontend reads the resources, roles, transits and capabilities of the backend with
 their literal types. The same contract gives the same text.
+
+`CAPABILITIES` has every capability known to bazis-front, `null` when the product does not
+install it, with the type of its section: the code of the frontend compiles with and
+without each package and checks for it at run time.
 """
 
 import json
@@ -29,6 +33,13 @@ HEADER = (
 )
 
 IDENTIFIER = re.compile(r'[A-Za-z_$][A-Za-z0-9_$]*')
+
+#: the TypeScript type of the section of each capability (`capabilities.CAPABILITIES`)
+SECTION_TYPES = {
+    'permit': '{ readonly roles: typeof ROLES }',
+    'statusy': '{ readonly models: typeof TRANSITS }',
+    'users': '{ readonly token_url: string; readonly user_resource: string }',
+}
 
 
 @dataclass(frozen=True)
@@ -74,14 +85,21 @@ def render(contract: dict) -> str:
     """
     resources = contract['project']['resources']
     capabilities = contract['capabilities']
+    if unknown := sorted(set(capabilities) - set(SECTION_TYPES)):
+        raise ValueError(f'contract.ts has no type for the capabilities {unknown}')
     roles = capabilities.get('permit', {}).get('roles', [])
     transits = capabilities.get('statusy', {}).get('models', {})
     # the sections of the capabilities refer to the constants of their parts
     parts = {('permit', 'roles'): Constant('ROLES'), ('statusy', 'models'): Constant('TRANSITS')}
     sections = {
         name: {key: parts.get((name, key), value) for key, value in section.items()}
-        for name, section in capabilities.items()
+        if (section := capabilities.get(name)) is not None
+        else None
+        for name in SECTION_TYPES
     }
+    capabilities_type = ''.join(
+        f'  readonly {name}: {type_} | null;\n' for name, type_ in sorted(SECTION_TYPES.items())
+    )
     return '\n'.join([
         HEADER,
         constant(
@@ -108,9 +126,8 @@ def render(contract: dict) -> str:
             'TRANSITS',
             transits,
         ),
-        constant(
-            'The sections of the installed capability packages, as in contract.json.',
-            'CAPABILITIES',
-            sections,
-        ),
+        '/** The sections of the capability packages, as in contract.json; null without the '
+        'package. */\n'
+        f'export interface Capabilities {{\n{capabilities_type}}}\n',
+        f'export const CAPABILITIES: Capabilities = {literal(sections)};\n',
     ])

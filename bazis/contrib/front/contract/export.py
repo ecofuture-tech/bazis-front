@@ -24,6 +24,7 @@ from django.utils import translation
 from bazis.core.introspect import packages
 
 from ..capabilities import app_enabled, sections
+from . import generated
 from .openapi import dumps, openapi_hash
 from .resources import resources
 
@@ -94,6 +95,23 @@ def stale_files(directory: Path, rendered: dict[str, str]) -> list[str]:
         for name, text in rendered.items()
         if not (path := directory / name).is_file() or path.read_bytes() != text.encode('utf-8')
     ]
+
+
+def stale(directory: Path, rendered: dict[str, str], frontend: Path, lock: dict | None) -> list[str]:
+    """
+    Why the contract in the directory and the generated files of the frontend (with its
+    lock; None when it has none) differ from the rendered contract, one message for each;
+    empty when they are current. It runs no Node: `bazis_front contract --check` and the
+    system check `front.W001` both use it.
+    """
+    problems = []
+    if names := stale_files(directory, rendered):
+        problems.append(
+            f'The contract in {directory} is stale: {", ".join(names)} differ from the backend.'
+        )
+    if lock is not None and (names := generated.stale_files(frontend, lock, rendered)):
+        problems.append(f'The generated files of {frontend} are stale: {", ".join(names)}.')
+    return problems
 
 
 def write(directory: Path, rendered: dict[str, str]) -> None:

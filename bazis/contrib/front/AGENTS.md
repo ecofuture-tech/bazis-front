@@ -39,8 +39,8 @@ contract. It never overwrites an existing `frontend/`. It writes:
 
 Commit `bazis-front.lock.json` and `.bazis/`. The files that `init` copies are listed in
 `assets/registry.json` of the package. The frontend compiles once `contract` has generated
-`src/bazis/generated/`. Its login uses the token endpoint of bazis-users
-(`CAPABILITIES.users.token_url`).
+`src/bazis/generated/`. It has a login (the token endpoint of bazis-users) only when the
+backend has bazis-users; without it every screen is open and requests are anonymous.
 
 ## The contract
 
@@ -55,8 +55,8 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `manage.py` (Bazis sets it from `DJANGO_SETTINGS_MODULE`; `BS_BASE_DIR` overrides it).
 - **The contract is generated, never edited.** Export it again after every change of the
   models, routes, roles, statuses or transits and commit it with the change. The system
-  check `front.W001` (run by `bazis_doctor`) reports a contract that differs from the
-  backend; `--check` does the same in CI.
+  check `front.W001` (run by `bazis_doctor`) reports a contract or generated files that
+  differ from the backend; `--check` does the same in CI.
 - The permit roles and the statusy transits are read from the database: export from a
   migrated database with the data of the project (roles, statuses, transits) loaded, as in
   the tests. Otherwise the command fails with `front.E002`, and `front.W001` is skipped
@@ -68,8 +68,10 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   - `contract.ts`, rendered from `contract.json` by Python: `ROUTES` (the path of each
     resource by its JSON:API type, with the type `ResourceType`), `RESOURCES` (the
     resources as in `contract.json`), `ROLES` (the permit roles, `[]` without
-    bazis-permit), `TRANSITS` (the statusy models, `{}` without bazis-statusy) and
-    `CAPABILITIES` (the capability sections), all `as const`;
+    bazis-permit), `TRANSITS` (the statusy models, `{}` without bazis-statusy), all
+    `as const`, and `CAPABILITIES` (the section of every capability known to bazis-front,
+    `null` when the product does not install the package, typed by the interface
+    `Capabilities`, so that the frontend compiles with and without each package);
   - `schema.d.ts`, the types of the API (`paths`), by
     `npx --no-install openapi-typescript ../contract/openapi.json -o src/bazis/generated/schema.d.ts --default-non-nullable=false`
     in `frontend/`. It needs Node and the `npm install` of the frontend; without them, or
@@ -79,7 +81,7 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   and records in the lock the hashes of the contract files and of the generated files.
   `--check` compares `contract.ts` byte for byte and checks by the lock that `schema.d.ts`
   was generated from the current OpenAPI and not edited; it never runs Node. The system
-  check `front.W001` covers only `contract/`.
+  check `front.W001` makes the same comparison, also for the generated files.
 
 `contract/openapi.json` is `app.openapi()`: every operation of a route set has `x-bazis`
 (`resource`, `route_set`, `action`, `kind`). `contract/contract.json`:

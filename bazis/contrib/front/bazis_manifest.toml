@@ -28,6 +28,7 @@ check = "front.E002"
 
 [[pitfalls]]
 text = "frontend/src/bazis/generated/ (contract.ts, schema.d.ts) is written by `bazis_front contract`, never by hand; schema.d.ts needs Node and the `npm install` of the frontend, otherwise it is `missing` in the lock and `contract --check` fails"
+check = "front.W001"
 
 [[pitfalls]]
 text = "the client in frontend/src/bazis/client/ is a copy kept pristine for the updates of bazis-front: wrap it in src/app/, do not edit it"

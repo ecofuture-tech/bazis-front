@@ -48,16 +48,18 @@ and its app is in `INSTALLED_APPS`. Permit and statusy sections are read from th
 database, so the export needs a migrated database (`front.E002` otherwise). The files are
 canonical JSON (sorted keys, a trailing newline): the same backend gives the same bytes.
 `--check` compares without writing; the same comparison is the system check `front.W001`
-"contract is stale", run by `bazis_doctor` when `contract/` exists. The format of
+"contract is stale", run by `bazis_doctor` when `contract/` or the lock of the frontend
+exists. The format of
 `contract.json` is documented in `bazis/contrib/front/AGENTS.md`.
 
 When the product has a frontend made by `init`, the command also generates
 `frontend/src/bazis/generated/`: typed constants (`contract.ts`: `ROUTES`, `RESOURCES`,
-`ROLES`, `TRANSITS`, `CAPABILITIES`, `as const`), rendered from `contract.json` by Python,
+`ROLES`, `TRANSITS`, `as const`, and `CAPABILITIES`, `null` for a package the product does
+not install), rendered from `contract.json` by Python,
 and, through the openapi-typescript of the frontend with `--default-non-nullable=false`,
 `schema.d.ts`. The lock of the frontend records the hashes of the contract they were made
-from and their own, so that `--check` finds a stale or edited `schema.d.ts` without Node;
-without Node it is `missing` in the lock.
+from and their own, so that `--check` and `front.W001` find a stale or edited
+`schema.d.ts` without Node; without Node it is `missing` in the lock.
 
 `--default-non-nullable=false` is required: without it the fields with a server default
 (`is_active`, `dt_created`) become required in the bodies of create.

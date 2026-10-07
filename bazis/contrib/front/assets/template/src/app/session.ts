@@ -21,8 +21,14 @@ import type { paths } from '@/bazis/generated/schema';
 /** The key of the token in localStorage: the session survives a reload. */
 const STORAGE_KEY = 'bazis.token';
 
+/**
+ * Users log in when the backend has bazis-users; without it there is no login and every
+ * request is anonymous.
+ */
+export const LOGIN_ENABLED = CAPABILITIES.users !== null;
+
 const listeners = new Set<() => void>();
-let token: string | null = readStored();
+let token: string | null = LOGIN_ENABLED ? readStored() : null;
 
 function readStored(): string | null {
   try {
@@ -65,7 +71,9 @@ export async function login(
   api: BazisClient<paths>,
   credentials: { username: string; password: string },
 ): Promise<void> {
-  const { access_token } = await api.login(credentials, { path: CAPABILITIES.users.token_url });
+  const { users } = CAPABILITIES;
+  if (users === null) throw new Error('The backend has no login: bazis-users is not installed.');
+  const { access_token } = await api.login(credentials, { path: users.token_url });
   setToken(access_token);
 }
 

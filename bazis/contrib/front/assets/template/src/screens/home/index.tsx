@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { logout } from '@/app/session';
+import { LOGIN_ENABLED, logout } from '@/app/session';
 import { ROUTES } from '@/bazis/generated/contract';
 
 /** The resources of the backend, from the generated contract. */
@@ -21,9 +21,11 @@ export function HomeScreen() {
     <main className="mx-auto max-w-3xl space-y-6 p-8">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Resources</h1>
-        <button type="button" onClick={logout} className="rounded-md border px-3 py-1.5 text-sm">
-          Log out
-        </button>
+        {LOGIN_ENABLED && (
+          <button type="button" onClick={logout} className="rounded-md border px-3 py-1.5 text-sm">
+            Log out
+          </button>
+        )}
       </header>
       <ul className="divide-y rounded-lg border">
         {Object.entries(ROUTES).map(([type, path]) => (

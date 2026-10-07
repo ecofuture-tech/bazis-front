@@ -120,17 +120,7 @@ class Command(BaseCommand):
             )
 
         if check:
-            problems = []
-            if stale := contract.stale_files(directory, rendered):
-                problems.append(
-                    f'The contract in {directory} is stale: {", ".join(stale)} differ from '
-                    'the backend.'
-                )
-            if lock is not None and (stale := generated.stale_files(frontend, lock, rendered)):
-                problems.append(
-                    f'The generated files of {frontend} are stale: {", ".join(stale)}.'
-                )
-            if problems:
+            if problems := contract.stale(directory, rendered, frontend, lock):
                 raise CommandError(
                     '\n'.join(problems)
                     + '\nExport the contract with `manage.py bazis_front contract`.'

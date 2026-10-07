@@ -15,15 +15,18 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
-import { useToken } from '@/app/session';
+import { LOGIN_ENABLED, useToken } from '@/app/session';
 import { HomeScreen } from '@/screens/home';
 import { LoginScreen } from '@/screens/login';
 
-/** The screens of a logged-in user; the others go to the login screen and come back. */
+/**
+ * The screens of a logged-in user; the others go to the login screen and come back. Without
+ * a login (no bazis-users) they are open.
+ */
 function RequireSession() {
   const token = useToken();
   const location = useLocation();
-  if (!token) {
+  if (LOGIN_ENABLED && !token) {
     const from = location.pathname + location.search;
     return <Navigate to="/login" replace state={{ from }} />;
   }
@@ -38,7 +41,7 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginScreen />} />
+        {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
         <Route element={<RequireSession />}>
           <Route index element={<HomeScreen />} />
         </Route>

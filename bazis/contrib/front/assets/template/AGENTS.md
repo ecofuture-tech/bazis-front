@@ -60,5 +60,7 @@ npm run build
   the permission meta (`for_change`, `for_delete`, `for_create` on a list, `crud_actions`
   on an item), read it with `can()`, and read the editable fields from
   `api.schema(path, 'update', id)`. Hide or disable what the backend does not allow.
+- Check for an optional package with `CAPABILITIES.<name> !== null` (`contract.ts`): the
+  login exists only with bazis-users (`LOGIN_ENABLED` of `src/app/session.ts`).
 - No translations: the labels come from the backend (its schemas and names are already in
   the language of the product) and from the screens.

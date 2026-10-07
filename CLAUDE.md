@@ -47,8 +47,9 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
 - Bazis imports every subpackage of `bazis.contrib` while it configures the settings: the
   `__init__.py` of a subpackage must not import models, the database or `bazis.core`
   modules that do.
-- `checks.py`: `front.W001` (stale contract), `front.I001` (not checked: the database is
-  not migrated); the command fails with `front.E002` in that case.
+- `checks.py`: `front.W001` (stale contract or generated files of the frontend, the
+  comparison of `contract --check`: `export.stale`), `front.I001` (not checked: the database
+  is not migrated); the command fails with `front.E002` in that case.
 
 ### The frontend of a product
 
@@ -62,8 +63,9 @@ transits of the tests are created by the fixture `workflow` (`tests/conftest.py`
   `lock: 1`).
 - `contract/typescript.py` renders `contract.ts` from contract.json; `contract/generated.py`
   writes it, runs openapi-typescript for `schema.d.ts` (`npx --no-install` in the
-  frontend), updates the lock and finds the stale generated files for `--check` without
-  Node. The tests replace `subprocess.run` and `shutil.which`; the real Node run is the
+  frontend), updates the lock and finds the stale generated files for `--check` and
+  `front.W001` without Node. `typescript.SECTION_TYPES` has the TypeScript type of the
+  section of every capability: a new capability adds its type there. The tests replace `subprocess.run` and `shutil.which`; the real Node run is the
   `frontend` job of CI.
 
 ## TypeScript assets

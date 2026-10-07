@@ -24,6 +24,8 @@ from django.test import override_settings
 
 import pytest
 
+from bazis.contrib.front import capabilities
+from bazis.contrib.front.checks import check_contract
 from bazis.contrib.front.contract import typescript
 from bazis.contrib.front.contract.generated import CONTRACT_TS, SCHEMA_TS
 from bazis.contrib.front.vendor.lock import digest
@@ -134,22 +136,49 @@ def test_contract_ts_is_rendered_from_the_contract():
         'transits; empty without it. */',
         'export const TRANSITS = {} as const;',
         '',
-        '/** The sections of the installed capability packages, as in contract.json. */',
-        'export const CAPABILITIES = {',
+        '/** The sections of the capability packages, as in contract.json; null without the '
+        'package. */',
+        'export interface Capabilities {',
+        '  readonly permit: { readonly roles: typeof ROLES } | null;',
+        '  readonly statusy: { readonly models: typeof TRANSITS } | null;',
+        '  readonly users: { readonly token_url: string; readonly user_resource: string } | null;',
+        '}',
+        '',
+        'export const CAPABILITIES: Capabilities = {',
         '  permit: {',
         '    roles: ROLES,',
         '  },',
+        '  statusy: null,',
         '  users: {',
         '    token_url: "/api/openapi-token/",',
         '    user_resource: "users.user",',
         '  },',
-        '} as const;',
+        '};',
         '',
     ])
     # the order of the keys does not matter
     reordered = json.loads(json.dumps(contract_json, sort_keys=True))
     reordered['project']['resources'] = dict(reversed(reordered['project']['resources'].items()))
     assert typescript.render(reordered) == text
+
+
+def test_a_capability_that_is_not_installed_is_null():
+    text = typescript.render({'project': {'resources': {}}, 'capabilities': {}})
+
+    assert 'export const ROLES = [] as const;\n' in text
+    assert 'export const TRANSITS = {} as const;\n' in text
+    # the type keeps the section: the frontend compiles with and without the package
+    assert '  readonly users: { readonly token_url: string; readonly user_resource: string } | null;\n' in text
+    assert (
+        'export const CAPABILITIES: Capabilities = {\n'
+        '  permit: null,\n  statusy: null,\n  users: null,\n};\n'
+    ) in text
+
+
+def test_every_capability_has_a_type():
+    assert sorted(typescript.SECTION_TYPES) == sorted(capabilities.CAPABILITIES)
+    with pytest.raises(ValueError, match=r"no type for the capabilities \['ws'\]"):
+        typescript.render({'project': {'resources': {}}, 'capabilities': {'ws': {}}})
 
 
 def test_contract_generates_the_frontend(frontend):
@@ -274,3 +303,46 @@ def test_an_invalid_lock_fails_the_command(frontend):
     (frontend / 'bazis-front.lock.json').write_text('{"lock": 2}', encoding='utf-8')
     with pytest.raises(CommandError, match='not a lock of format 1'):
         contract('--no-node')
+
+
+def test_the_contract_may_be_exported_elsewhere(frontend, npx):
+    install_openapi_typescript(frontend)
+    out = frontend.parent / 'api' / 'contract'
+
+    contract('--out', str(out))
+
+    assert npx.calls[0][0][3] == '../api/contract/openapi.json'
+    assert read_lock(frontend)['contract'] == {
+        name: digest((out / name).read_bytes()) for name in ('contract.json', 'openapi.json')
+    }
+    assert not (frontend.parent / 'contract').exists()
+    contract('--check', '--out', str(out))
+
+
+def test_system_check_reports_stale_generated_files(frontend, npx):
+    install_openapi_typescript(frontend)
+    contract()
+    assert check_contract(None) == []
+
+    path = frontend / CONTRACT_TS
+    path.write_text(path.read_text(encoding='utf-8') + '// edited\n', encoding='utf-8')
+    (frontend / SCHEMA_TS).write_text('export interface paths { edited: true }\n', encoding='utf-8')
+    messages = check_contract(None)
+    assert [it.id for it in messages] == ['front.W001']
+    assert messages[0].msg == (
+        f'The generated files of {frontend} are stale: {CONTRACT_TS}, {SCHEMA_TS}.'
+    )
+    assert 'bazis_front contract' in messages[0].hint
+
+    # the generated files are checked without contract/
+    contract()
+    shutil.rmtree(frontend.parent / 'contract')
+    messages = check_contract(None)
+    assert [it.id for it in messages] == ['front.W001']
+    assert messages[0].msg.startswith(f'The contract in {frontend.parent / "contract"} is stale')
+    assert 'generated files' not in messages[0].msg
+
+    (frontend / 'bazis-front.lock.json').write_text('{', encoding='utf-8')
+    messages = check_contract(None)
+    assert [it.id for it in messages] == ['front.W001']
+    assert 'is not valid JSON' in messages[0].msg

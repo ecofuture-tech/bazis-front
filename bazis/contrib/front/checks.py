@@ -22,17 +22,26 @@ from django.core.checks import Info, Warning, register
 @register()
 def check_contract(app_configs, **kwargs):
     """
-    The contract in the product root (`contract/`) must be the export of the backend.
-    Runs when the product has a contract and the application is loaded
+    The contract in the product root (`contract/`) and the generated files of its frontend
+    (`frontend/src/bazis/generated/`, when it has the lock of `bazis_front init`) must be
+    those of the backend: the comparison of `bazis_front contract --check`, without Node.
+    Runs when the product has either and the application is loaded
     (`manage.py bazis_doctor`); a database that is not migrated skips it with an info.
     """
     from bazis.core.introspect import loaded_app
 
     from .capabilities import DatabaseNotReadyError
     from .contract import export as contract
+    from .vendor import lock as frontend_lock
 
-    directory = contract.default_dir()
-    if not directory.is_dir() or (app := loaded_app()) is None:
+    hint = 'Export it with `manage.py bazis_front contract`; never edit it by hand.'
+    directory, frontend = contract.default_dir(), frontend_lock.frontend_dir()
+    try:
+        lock = frontend_lock.read(frontend)
+    except frontend_lock.LockError as err:
+        message = f'The generated files of {frontend} are not checked: {err}'
+        return [Warning(message, hint=hint, id='front.W001')]
+    if (not directory.is_dir() and lock is None) or (app := loaded_app()) is None:
         return []
     try:
         rendered = contract.render(app)
@@ -44,13 +53,6 @@ def check_contract(app_configs, **kwargs):
                 id='front.I001',
             )
         ]
-    if stale := contract.stale_files(directory, rendered):
-        return [
-            Warning(
-                f'The contract in {directory} is stale: {", ".join(stale)} differ from the '
-                'backend.',
-                hint='Export it with `manage.py bazis_front contract`; never edit it by hand.',
-                id='front.W001',
-            )
-        ]
+    if problems := contract.stale(directory, rendered, frontend, lock):
+        return [Warning(' '.join(problems), hint=hint, id='front.W001')]
     return []
