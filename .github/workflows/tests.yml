@@ -115,3 +115,82 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+  # a frontend made by `init` from the sample backend: the template compiles, lints and
+  # builds against the generated contract and the copied client
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bazis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      BS_DEBUG: 'true'
+      BS_SECRET_KEY: ci-only-secret-key-that-is-long-enough-0123456789
+      BS_DATABASES__DEFAULT__HOST: localhost
+      BS_DATABASES__DEFAULT__PORT: '5432'
+      BS_DATABASES__DEFAULT__NAME: bazis
+      BS_DATABASES__DEFAULT__USER: postgres
+      BS_DATABASES__DEFAULT__PASSWORD: postgres
+      BS_CACHES__DEFAULT__LOCATION: redis://localhost:6379/1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GDAL (required by the PostGIS database backend)
+        timeout-minutes: 10
+        run: |
+          APT="sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+          $APT update
+          $APT install -y --no-install-recommends gdal-bin
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+          activate-environment: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: uv pip install -e '.[test]'
+
+      # the product root (BASE_DIR) is outside the checkout, so that the frontend is not
+      # inside the npm workspaces of this repository
+      - name: Create the frontend of the sample
+        working-directory: sample
+        run: |
+          echo "BS_BASE_DIR=$RUNNER_TEMP/product" >> "$GITHUB_ENV"
+          export BS_BASE_DIR="$RUNNER_TEMP/product"
+          mkdir -p "$BS_BASE_DIR"
+          python manage.py migrate
+          python manage.py bazis_front init
+          python manage.py bazis_front contract
+          python manage.py bazis_front contract --check
+
+      - name: Check and build the frontend
+        working-directory: ${{ env.BS_BASE_DIR }}/frontend
+        run: |
+          npx tsc --noEmit
+          npm run lint
+          npm test
+          npm run build

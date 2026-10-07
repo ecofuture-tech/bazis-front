@@ -15,9 +15,11 @@ copy and gets fixes through new versions of the package.
 | Part | What it is | State |
 |---|---|---|
 | [`assets/client`](bazis/contrib/front/assets/client) | The JSON:API protocol of Bazis in TypeScript, typed by the OpenAPI types generated from a product | available |
-| `manage.py bazis_front contract` | Exports the contract of a product (`contract/openapi.json`, `contract/contract.json`) and checks that it is up to date | available |
-| `manage.py bazis_front` (other subcommands) | Generated TypeScript of the contract, spec validation, copying and updating the assets | planned |
-| `assets/react`, `assets/ui`, `assets/template` | React hooks, components on shadcn/ui, the frontend project template | planned |
+| [`assets/template`](bazis/contrib/front/assets/template) | The frontend of a product: React, TypeScript, Vite, TanStack Query, Tailwind with shadcn/ui | available |
+| `manage.py bazis_front init` | Creates the frontend of a product from the template, with a copy of the client and a lock | available |
+| `manage.py bazis_front contract` | Exports the contract of a product (`contract/openapi.json`, `contract/contract.json`), generates its TypeScript in the frontend and checks that both are up to date | available |
+| `manage.py bazis_front` (other subcommands) | Spec validation, adding and updating the assets | planned |
+| `assets/react`, `assets/ui` | React hooks, components on shadcn/ui | planned |
 
 The layers and the principles are described in [docs/architecture.md](docs/architecture.md).
 AI agents building a product read

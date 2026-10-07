@@ -13,25 +13,25 @@
 // limitations under the License.
 
 import js from '@eslint/js';
+import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  // the template is linted with its own config in a frontend made from it (see the
-  // frontend job of the CI): it needs the generated files of a product
-  {
-    ignores: ['**/dist/', '**/test/fixtures/', 'build/', 'bazis/contrib/front/assets/template/'],
-  },
+  // src/bazis/generated/ is written by `manage.py bazis_front contract`; .bazis/ keeps the
+  // pristine copies of the assets of bazis-front
+  { ignores: ['dist/', 'src/bazis/generated/', '.bazis/'] },
   js.configs.recommended,
   {
-    files: ['**/*.ts'],
-    extends: [tseslint.configs.strictTypeChecked],
+    files: ['**/*.{ts,tsx}'],
+    extends: [tseslint.configs.strictTypeChecked, reactHooks.configs.flat.recommended],
     languageOptions: {
+      globals: globals.browser,
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
   },
   {
-    files: ['**/*.js', '**/*.mjs'],
+    files: ['**/*.js'],
     languageOptions: { globals: globals.node },
   },
 );

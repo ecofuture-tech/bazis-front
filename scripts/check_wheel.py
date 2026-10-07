@@ -13,23 +13,35 @@
 # limitations under the License.
 
 """
-Checks the wheel in the given directory: it has the sources of the assets and none of
-their checks (tests, fixtures, scripts, Node config, node_modules, dist).
+Checks the wheel in the given directory against the registry of the assets
+(`assets/registry.json`): it has every file that the registry copies into a product, and
+of the assets nothing else than the registry and the READMEs of the assets (no tests,
+fixtures, scripts, Node config, node_modules or dist of their checks).
 """
 
+import json
 import sys
 import zipfile
 from pathlib import Path
 
 
+ASSETS = 'bazis/contrib/front/assets'
+
 wheel = next(Path(sys.argv[1]).glob('bazis_front-*.whl'))
-names = zipfile.ZipFile(wheel).namelist()
-assets = [it for it in names if '/assets/' in it]
-assert 'bazis/contrib/front/assets/client/src/index.ts' in names, 'the client sources are missing'
-unexpected = [
-    it for it in assets
-    if any(part in it for part in ('/test/', '/scripts/', '/node_modules/', '/dist/'))
-    or it.endswith(('/package.json', '/tsconfig.json'))
-]
-assert not unexpected, f'the wheel has the checks of the assets: {unexpected}'
-print(f'{wheel.name}: {len(assets)} asset files')
+archive = zipfile.ZipFile(wheel)
+names = set(archive.namelist())
+registry = json.loads(archive.read(f'{ASSETS}/registry.json'))
+
+expected = {
+    f'{ASSETS}/{asset["source"]}/{name}' for asset in registry['assets'] for name in asset['files']
+}
+assert expected, 'the registry lists no files'
+missing = sorted(expected - names)
+assert not missing, f'the wheel misses files of the registry: {missing}'
+
+allowed = expected | {f'{ASSETS}/registry.json'} | {
+    f'{ASSETS}/{asset["name"]}/README.md' for asset in registry['assets']
+}
+unexpected = sorted(it for it in names if it.startswith(f'{ASSETS}/') and it not in allowed)
+assert not unexpected, f'the wheel has asset files outside the registry: {unexpected}'
+print(f'{wheel.name}: {len(expected)} asset files of the registry')

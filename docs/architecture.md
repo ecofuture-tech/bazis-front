@@ -51,8 +51,13 @@ canonical JSON (sorted keys, a trailing newline): the same backend gives the sam
 "contract is stale", run by `bazis_doctor` when `contract/` exists. The format of
 `contract.json` is documented in `bazis/contrib/front/AGENTS.md`.
 
-Planned: from these files the command generates typed constants (`contract.ts`) and,
-through openapi-typescript with `--default-non-nullable=false`, `schema.d.ts`.
+When the product has a frontend made by `init`, the command also generates
+`frontend/src/bazis/generated/`: typed constants (`contract.ts`: `ROUTES`, `RESOURCES`,
+`ROLES`, `TRANSITS`, `CAPABILITIES`, `as const`), rendered from `contract.json` by Python,
+and, through the openapi-typescript of the frontend with `--default-non-nullable=false`,
+`schema.d.ts`. The lock of the frontend records the hashes of the contract they were made
+from and their own, so that `--check` finds a stale or edited `schema.d.ts` without Node;
+without Node it is `missing` in the lock.
 
 `--default-non-nullable=false` is required: without it the fields with a server default
 (`is_active`, `dt_created`) become required in the bodies of create.
@@ -94,6 +99,17 @@ the screens and the design tokens. The validator (Python, JSON Schema plus cross
 against `contract.json`) reports stable error codes; scenarios are turned into Playwright
 tests that drive the screens through `data-bz`.
 
+## The frontend of a product
+
+`bazis_front init` creates `frontend/` next to `manage.py` from the template
+(`assets/template`): React 19, TypeScript strict, Vite 7, React Router 7, TanStack Query 5,
+Tailwind 4 set up for shadcn/ui; `src/app/` holds the providers (the query cache and the
+client), the session (the token in memory and `localStorage`, the login of bazis-users),
+the router and the errors, and `src/screens/` a login and a home screen. The template is
+owned by the product from then on. The client is copied into `src/bazis/client/`, its
+pristine copy into `.bazis/base/`, and the lock is written. The files that the assets copy
+are listed in `assets/registry.json`, which the wheel is checked against.
+
 ## Updates of the copied code
 
 Every copied file carries the version of bazis-front in its header, and
@@ -117,7 +133,8 @@ package, and security advisories of the asset registry as errors.
 
 ## Status
 
-Pre-release. Available: the package skeleton, the client (`assets/client`) and the
-contract export (`bazis_front contract`, `front.W001`). Next: the generated TypeScript of
-the contract, the spec validator and the copy and update commands; then the hooks, the
-first components and the end-to-end pipeline against a sample backend.
+Pre-release. Available: the client (`assets/client`), the contract export with the
+generated TypeScript (`bazis_front contract`, `front.W001`) and the frontend template with
+the copy of the client and the lock (`bazis_front init`). Next: the spec validator, the
+hooks, the first components, `add` and `update`, and the end-to-end pipeline against a
+sample backend.

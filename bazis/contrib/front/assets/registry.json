@@ -1,0 +1,45 @@
+{
+  "registry": 1,
+  "assets": [
+    {
+      "name": "client",
+      "kind": "vendored",
+      "source": "client/src",
+      "target": "src/bazis/client",
+      "files": [
+        "client.ts",
+        "errors.ts",
+        "filter.ts",
+        "index.ts",
+        "pagination.ts",
+        "permit.ts",
+        "types.ts"
+      ]
+    },
+    {
+      "name": "template",
+      "kind": "template",
+      "source": "template",
+      "target": "",
+      "files": [
+        ".gitignore",
+        "AGENTS.md",
+        "components.json",
+        "eslint.config.js",
+        "index.html",
+        "package.json",
+        "src/app/errors.tsx",
+        "src/app/providers.tsx",
+        "src/app/router.tsx",
+        "src/app/session.ts",
+        "src/index.css",
+        "src/lib/utils.ts",
+        "src/main.tsx",
+        "src/screens/home/index.tsx",
+        "src/screens/login/index.tsx",
+        "tsconfig.json",
+        "vite.config.ts"
+      ]
+    }
+  ]
+}

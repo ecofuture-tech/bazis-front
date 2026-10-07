@@ -3,11 +3,12 @@
 
 [package]
 name = "bazis-front"
-summary = "the frontend layer of a Bazis product (pre-release): the contract exported from the backend and the TypeScript protocol client, copied into a React + TypeScript + Vite frontend"
+summary = "the frontend layer of a Bazis product (pre-release): a React + TypeScript + Vite frontend made from a template, with the contract and its TypeScript generated from the backend and the protocol client copied into it"
 solves = [
     "a typed frontend of a Bazis backend whose contract is generated from its OpenAPI",
     "the resources, roles and transits of the backend as one generated contract.json for the frontend and AI agents",
     "the JSON:API protocol of Bazis in TypeScript: filters, errors, pagination, login, permission meta, transits",
+    "a new frontend next to the backend: React 19, TypeScript, Vite 7, TanStack Query, Tailwind 4 with shadcn/ui",
 ]
 requires = ["bazis"]
 pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
@@ -15,7 +16,7 @@ pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
 [[extension_points]]
 name = "manage.py bazis_front"
 import = "bazis.contrib.front.management.commands.bazis_front.Command"
-use_when = "export the contract of the product: `bazis_front contract` writes contract/openapi.json and contract/contract.json, `--check` only compares"
+use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares"
 
 [[pitfalls]]
 text = "the contract (contract/openapi.json, contract/contract.json) is generated: export it again after every change of the backend, never edit it"
@@ -26,7 +27,10 @@ text = "the permit roles and the statusy transits of the contract are read from 
 check = "front.E002"
 
 [[pitfalls]]
-text = "the TypeScript types of the API are generated from the OpenAPI of the backend with openapi-typescript --default-non-nullable=false, never written by hand"
+text = "frontend/src/bazis/generated/ (contract.ts, schema.d.ts) is written by `bazis_front contract`, never by hand; schema.d.ts needs Node and the `npm install` of the frontend, otherwise it is `missing` in the lock and `contract --check` fails"
+
+[[pitfalls]]
+text = "the client in frontend/src/bazis/client/ is a copy kept pristine for the updates of bazis-front: wrap it in src/app/, do not edit it"
 
 [[pitfalls]]
 text = "the frontend is not a security boundary: permissions are checked by the backend, the frontend only reads the permission meta and the runtime schemas"

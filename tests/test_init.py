@@ -1,0 +1,132 @@
+# Copyright 2026 EcoFuture Technology Services LLC and contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import json
+import shutil
+import subprocess
+from io import StringIO
+
+from django.core.management import CommandError, call_command
+from django.test import override_settings
+
+import pytest
+
+from bazis.contrib.front import __version__
+from bazis.contrib.front.vendor import copy, registry
+from bazis.contrib.front.vendor.lock import digest
+
+
+@pytest.fixture
+def product(tmp_path):
+    with override_settings(BASE_DIR=str(tmp_path)):
+        yield tmp_path
+
+
+def init(*args):
+    out, err = StringIO(), StringIO()
+    call_command('bazis_front', 'init', *args, stdout=out, stderr=err)
+    return out.getvalue(), err.getvalue()
+
+
+@pytest.fixture
+def npm(monkeypatch):
+    """
+    Node on the PATH whose `npm install` succeeds; the calls are recorded.
+    """
+    calls = []
+
+    def run(args, cwd, **kwargs):
+        calls.append((args, cwd))
+        return subprocess.CompletedProcess(args, getattr(run, 'returncode', 0))
+
+    monkeypatch.setattr(shutil, 'which', lambda name: f'/node/bin/{name}')
+    monkeypatch.setattr(subprocess, 'run', run)
+    run.calls = calls
+    return run
+
+
+def test_init_creates_the_frontend(product):
+    out, _ = init('--no-node')
+
+    frontend = product / 'frontend'
+    assert sorted(it.name for it in product.iterdir()) == ['frontend']
+    assert 'Run `npm install`' in out and 'bazis_front contract' in out
+    assets = registry.load()
+    template = assets['template']
+    for name in template.files:
+        assert (frontend / name).read_bytes() == template.read(name), name
+    assert (frontend / 'AGENTS.md').read_text(encoding='utf-8').startswith('# Frontend')
+
+    lock = json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
+    client = assets['client']
+    files = lock['assets']['client'].pop('files')
+    assert lock == {
+        'lock': 1,
+        'bazis_front': __version__,
+        'contract': {},
+        'generated': {},
+        'assets': {'client': {'version': __version__}, 'template': {'version': __version__}},
+    }
+    assert sorted(files) == sorted(f'src/bazis/client/{name}' for name in client.files)
+    for name in client.files:
+        copied = (frontend / 'src' / 'bazis' / 'client' / name).read_bytes()
+        lines = copied.decode('utf-8').splitlines()
+        # the stamp follows the 13 lines of the license header
+        assert lines[13] == f'// bazis-front {__version__} asset client'
+        assert lines[:13] + lines[14:] == client.read(name).decode('utf-8').splitlines()
+        # the pristine copy for the merge of the next version, hashed in the lock
+        base = frontend / '.bazis' / 'base' / f'client@{__version__}' / name
+        assert base.read_bytes() == copied
+        assert files[f'src/bazis/client/{name}'] == digest(copied)
+    assert not (frontend / 'src' / 'bazis' / 'generated').exists()
+
+
+def test_init_never_overwrites_a_frontend(product):
+    (product / 'frontend').mkdir()
+    (product / 'frontend' / 'main.ts').write_text('mine', encoding='utf-8')
+
+    with pytest.raises(CommandError, match='frontend already exists'):
+        init('--no-node')
+    assert [it.name for it in (product / 'frontend').iterdir()] == ['main.ts']
+
+
+def test_a_failed_init_leaves_nothing(product, monkeypatch):
+    def fail(*args):
+        raise OSError('disk full')
+
+    monkeypatch.setattr(copy, 'copy_vendored', fail)
+    with pytest.raises(OSError, match='disk full'):
+        init('--no-node')
+    assert list(product.iterdir()) == []
+
+
+def test_init_installs_the_dependencies(product, npm):
+    init()
+    assert npm.calls == [(['/node/bin/npm', 'install'], product / 'frontend')]
+
+
+def test_init_reports_a_failed_install(product, npm):
+    npm.returncode = 1
+    with pytest.raises(CommandError, match='`npm install` failed'):
+        init()
+    # the frontend is created: the install can be run again
+    assert (product / 'frontend' / 'package.json').is_file()
+
+
+def test_init_without_node(product, monkeypatch):
+    monkeypatch.setattr(shutil, 'which', lambda name: None)
+
+    _, err = init()
+    assert 'Node (npm) is not found' in err
+    assert (product / 'frontend' / 'bazis-front.lock.json').is_file()
