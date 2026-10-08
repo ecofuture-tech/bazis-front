@@ -388,21 +388,66 @@ def test_e2e_needs_a_frontend(tmp_path):
 
 
 @pytest.mark.django_db
-def test_the_test_data_of_the_sample(monkeypatch):
+def test_the_migrations_of_the_sample_create_the_data_of_its_specs(sample_app, tmp_path):
+    from bazis.contrib.front.contract.export import render
+
+    # the contract of the migrated database, without the fixture `workflow`
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    text = render(sample_app)['contract.json']
+    (tmp_path / 'contract').mkdir()
+    (tmp_path / 'contract' / 'contract.json').write_text(text, encoding='utf-8')
+    contract = json.loads(text)['capabilities']
+    with override_settings(BASE_DIR=str(tmp_path)):
+        result = validate(tmp_path)
+    # the permit roles of the roles with the permissions that their `access` compiles to
+    # (P018, P019), the statuses and the transitions of the workflow (P015, P016)
+    assert [(it.code, it.location) for it in result.issues] == []
+
+    # and nothing else of the workflow: the statuses and the transits are those of the specs
+    spec = yaml.safe_load((SAMPLE_SPEC / 'product.yaml').read_text(encoding='utf-8'))
+    workflow = next(it for it in spec['entities'] if it['resource'] == 'tasks.task')['workflow']
+    model = contract['statusy']['models']['tasks.task']
+    assert model['initial'] == workflow['initial']
+    assert {it['id'] for it in model['statuses']} == set(workflow['statuses'])
+    assert {(it['id'], it['src'], it['dst']) for it in model['transits']} == {
+        (it['id'], it['from'], it['to']) for it in workflow['transitions']
+    }
+    assert {it['permit'] for it in spec['roles']} <= {it['slug'] for it in contract['permit']['roles']}
+
+
+@pytest.mark.django_db
+def test_the_e2e_data_of_the_sample(monkeypatch):
     from django.apps import apps
     from django.contrib.auth import get_user_model
 
     from tasks.workflow import TASK
 
+    roles = set(apps.get_model('permit.Role').objects.values_list('pk', flat=True))
     monkeypatch.delenv('E2E_PASSWORD', raising=False)
     with pytest.raises(CommandError, match='E2E_PASSWORD'):
-        call_command('sample_data', stdout=StringIO())
+        call_command('e2e_data', stdout=StringIO())
     for password in ('first-password-0', 'second-password-1'):
         monkeypatch.setenv('E2E_PASSWORD', password)
-        call_command('sample_data', stdout=StringIO())
+        call_command('e2e_data', stdout=StringIO())
     # a second run keeps the data and sets the password of the test users again
     for username, role in (('manager', 'manager'), ('viewer', 'viewer')):
         user = get_user_model().objects.get(username=username)
         assert user.check_password('second-password-1')
         assert user.role_current.slug == role and list(user.roles.values_list('slug', flat=True)) == [role]
     assert apps.get_model('tasks.Task').objects.filter(title=TASK).count() == 1
+    # the roles are those of the migrations
+    assert set(apps.get_model('permit.Role').objects.values_list('pk', flat=True)) == roles
+
+
+@pytest.mark.django_db
+def test_the_e2e_data_needs_the_roles_of_the_migrations(monkeypatch):
+    from django.apps import apps
+    from django.contrib.auth import get_user_model
+
+    apps.get_model('permit.Role').objects.filter(slug='viewer').delete()
+    monkeypatch.setenv('E2E_PASSWORD', 'first-password-0')
+    with pytest.raises(CommandError, match="role 'viewer' .* does not exist: migrate"):
+        call_command('e2e_data', stdout=StringIO())
+    # nothing is created, the role is not either
+    assert not get_user_model().objects.filter(username__in=['manager', 'viewer']).exists()
+    assert not apps.get_model('permit.Role').objects.filter(slug='viewer').exists()

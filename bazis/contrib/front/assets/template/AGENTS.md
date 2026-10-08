@@ -460,12 +460,14 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   notification (`expect: {notification: <text>}`: the bell `action:notifications` opens
   `list:notifications`, which waits for a `notification:<key>` with the text). A screen that renders the marks of its spec (the components do) passes its
   scenarios; a screen without them fails them, even when it looks right.
-- **The test data is the backend's job**, never created by the tests: a management command
-  or a fixture of the backend creates the roles, statuses and transits, a user per
-  `test_user` of the roles of the specs (with its role and the password of `E2E_PASSWORD`)
-  and the items that the scenarios open; load it into the database of the backend that the
-  tests run against. The tests share that database and run one at a time; no scenario
-  relies on what another one created.
+- **The test data is the backend's job**, never created by the tests: the tests run
+  against a migrated backend (its data migrations create the roles, statuses and transits)
+  after `python manage.py e2e_data` (the e2e data command recommended by bazis-front; see
+  its guide, "The end-to-end tests"), with the same
+  `E2E_PASSWORD`. It creates only a user per `test_user` of the roles of the specs (with its
+  role and that password) and the items that the scenarios open, never a role, a status or
+  a transit, and can run again (it sets the passwords again). The tests share that
+  database and run one at a time; no scenario relies on what another one created.
 - A `submit` followed by `expect: {error: <field>}` is a failing submit: the test expects
   the error of the backend in the open form, which stays open for the next steps.
 - `npm run e2e` starts the dev server (its `/api` goes to `BAZIS_API_URL`); with

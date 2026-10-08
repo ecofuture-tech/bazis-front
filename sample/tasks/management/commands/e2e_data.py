@@ -17,22 +17,24 @@ import os
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from tasks.workflow import TEST_USERS, create_test_data, create_workflow
+from tasks.workflow import TEST_USERS, create_test_data
 
 
 class Command(BaseCommand):
     help = (
-        'Create the data of the sample that its migrations do not: the roles, statuses and '
-        'transits (read by `bazis_front contract`), and for the end-to-end tests the test users '
-        'of the roles and a task. Data that exists is kept, but the password of the test users '
-        'is set to E2E_PASSWORD again.'
+        'Create the data of the end-to-end tests on top of the migrations (which create the '
+        'roles, statuses and transits): the test users of the roles of the specs, with the '
+        'password of E2E_PASSWORD, and the task that a scenario opens. It can run again: the '
+        'data that exists is kept, the password of the test users is set again.'
     )
 
     def handle(self, *args, **options):
         password = os.environ.get('E2E_PASSWORD')
         if not password:
             raise CommandError('Set E2E_PASSWORD, the password of the test users.')
-        with transaction.atomic():
-            create_workflow()
-            create_test_data(password)
-        self.stdout.write(f'Created the workflow and the test users {", ".join(TEST_USERS)}.')
+        try:
+            with transaction.atomic():
+                create_test_data(password)
+        except LookupError as error:
+            raise CommandError(str(error)) from None
+        self.stdout.write(f'Created the test users {", ".join(TEST_USERS)} and the data of the scenarios.')

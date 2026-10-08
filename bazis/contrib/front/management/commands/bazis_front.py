@@ -456,8 +456,8 @@ class Command(BaseCommand):
             self.stdout.write(f'Deleted {path}: its scenario no longer exists.')
         self.stdout.write(
             f'Generated {len(rendered) - 1} end-to-end tests in {frontend / e2e.GENERATED_DIR}. '
-            'Run them with `npm run e2e` in frontend/ against the running backend, with the '
-            'test data loaded and E2E_PASSWORD set.'
+            'Run them with `npm run e2e` in frontend/ against the running backend, migrated '
+            'and with the data of `manage.py e2e_data`, and E2E_PASSWORD set.'
         )
 
     def handle_design(self, check=False, **options):

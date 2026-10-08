@@ -122,15 +122,20 @@ jobs:
   # template and the components compile, lint, pass their contract tests and build against
   # the generated contract, the copied client and the copied hooks
   frontend:
-    name: frontend (${{ matrix.preset }})
+    name: frontend (${{ matrix.variant }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # the components take their defaults from the theme: their contract tests run under
-    # the starters of both presets
+    # the starters of both presets. `empty` is a new product before its first model: the
+    # sample without its apps and routes (only bazis-front, as `bazis new` creates it), whose
+    # contract has no resources, roles or transits
     strategy:
       fail-fast: false
       matrix:
-        preset: [workspace, portal]
+        include:
+          - {variant: workspace, preset: workspace}
+          - {variant: portal, preset: portal}
+          - {variant: empty, preset: workspace, empty: true}
     services:
       postgres:
         image: postgis/postgis:16-3.4
@@ -187,6 +192,7 @@ jobs:
       # the product root (BASE_DIR) is outside the checkout, so that the frontend is not
       # inside the npm workspaces of this repository
       - name: Create the frontend of the sample
+        if: ${{ !matrix.empty }}
         working-directory: sample
         run: |
           echo "BS_BASE_DIR=$RUNNER_TEMP/product" >> "$GITHUB_ENV"
@@ -202,6 +208,7 @@ jobs:
           python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress async-result
 
       - name: Check and build the frontend
+        if: ${{ !matrix.empty }}
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
         run: |
           # the sample has bazis-statusy, bazis-uploadable, bazis-ws, bazis-bg and
@@ -219,6 +226,39 @@ jobs:
           npx tsc --noEmit
           npm run lint
           # the contract tests of the components with the tests of the template
+          npm test
+          npm run build
+
+      # the overrides of the settings of sample/project.env: no app of the sample, the
+      # default router (nothing registered) and the user model of Django
+      - name: Create the frontend of a product without resources
+        if: ${{ matrix.empty }}
+        working-directory: sample
+        env:
+          BS_INSTALLED_APPS: '["bazis.contrib.front"]'
+          BS_BAZIS_ROUTER_MODULE: ''
+          BS_AUTH_USER_MODEL: auth.User
+          BS_AUTH_ANONYMOUS_USER_MODEL: ''
+        run: |
+          echo "BS_BASE_DIR=$RUNNER_TEMP/product" >> "$GITHUB_ENV"
+          export BS_BASE_DIR="$RUNNER_TEMP/product"
+          mkdir -p "$BS_BASE_DIR"
+          python manage.py migrate
+          python manage.py bazis_front init --preset ${{ matrix.preset }}
+          python manage.py bazis_front contract
+          python manage.py bazis_front contract --check
+          python -c 'import json, sys; c = json.load(open(sys.argv[1])); assert c["project"]["resources"] == {} and "permit" not in c["capabilities"], c' "$BS_BASE_DIR/contract/contract.json"
+          python manage.py bazis_front check
+          python manage.py bazis_front design --check
+          # the components that need no capability
+          python manage.py bazis_front add resource-list resource-card resource-form
+
+      - name: Check and build the frontend of a product without resources
+        if: ${{ matrix.empty }}
+        working-directory: ${{ env.BS_BASE_DIR }}/frontend
+        run: |
+          npx tsc --noEmit
+          npm run lint
           npm test
           npm run build
 
@@ -261,7 +301,7 @@ jobs:
       BS_DATABASES__DEFAULT__USER: postgres
       BS_DATABASES__DEFAULT__PASSWORD: postgres
       BS_CACHES__DEFAULT__LOCATION: redis://localhost:6379/1
-      # the password of the test users, set by `sample_data` and read by the tests
+      # the password of the test users, set by `e2e_data` and read by the tests
       E2E_PASSWORD: ci-only-e2e-password-0123
     steps:
       - uses: actions/checkout@v4
@@ -293,9 +333,10 @@ jobs:
           export BS_BASE_DIR="$RUNNER_TEMP/product"
           mkdir -p "$BS_BASE_DIR"
           cp -R spec "$BS_BASE_DIR/spec"
+          # the roles, statuses and transits are data migrations of the sample
           python manage.py migrate
-          # the roles, statuses and transits, the test users of the roles and a task
-          python manage.py sample_data
+          # the e2e data command: the test users of the roles and the task of a scenario
+          python manage.py e2e_data
           python manage.py bazis_front init
           python manage.py bazis_front contract
           python manage.py bazis_front check

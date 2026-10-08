@@ -39,12 +39,16 @@ bazis-async-request (the `test` extra) with a project app `users` and a statusy 
 a reference sample never lets a user list, change or delete the files of the others); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
 sample is that of bazis-authing (the token endpoint of bazis-users stays); the roles, statuses and
-transits are defined once in `sample/tasks/workflow.py`, created for the tests by the
-fixture `workflow` (`tests/conftest.py`) and outside pytest by `manage.py sample_data`
-(with the test users of the roles, their password set to `E2E_PASSWORD` at every run, and
-the task that the scenario of the viewer opens: the data of the end-to-end tests), with
+transits are the data migration `sample/tasks/migrations/0005_workflow.py`, its data frozen
+there as in any migration (as a product creates them; the fixture `workflow`,
+`tests/conftest.py`, runs its function again after a test that flushed the tables, and
+`tests/test_e2e.py` checks the migrated data against `sample/spec/`), with
 field permissions (the viewer does not see the report, the manager may not change it) that
-the scenarios check with `field_absent` and `field_readonly`. The user model has
+the scenarios check with `field_absent` and `field_readonly`. `manage.py e2e_data` is the
+e2e data command that bazis-front recommends to products (the module AGENTS.md, "The
+end-to-end tests"): on top of the migrations it creates only the test users of the roles,
+their password set to `E2E_PASSWORD` at every run, and the task that the scenario of the
+viewer opens; it never creates a role, a status or a transit. The user model has
 `UserWsMixin`, `sample/router.py` routes the socket of bazis-ws (`ws_route`, `/ws`, where the
 export sees it) and `sample/main.py` adds `AsyncRequestMiddleware`; `sample/tasks/notify.py`
 publishes, after the commit and robustly (Redis down does not fail the change), every save
@@ -343,10 +347,17 @@ npm test
   passes the prop of a default it relies on): on the sample (with `BS_BASE_DIR` outside the
   checkout) `init`, `contract`, `contract --check`, `check` (the starters of the specs
   against the contract), `design --check`, `add` of every component, then `tsc --noEmit`, lint, tests (the
-  contract tests of the components) and build of the generated frontend. Run the same
-  locally after a change of the template or of a component.
+  contract tests of the components) and build of the generated frontend. Its variant
+  `empty` is a new product before its first model: the sample with the settings of
+  `bazis new` (only `bazis.contrib.front` installed, the default router, the user model of
+  Django: environment variables over `sample/project.env`), whose contract has no
+  resources; the template and the components without a capability must compile, lint,
+  pass their tests and build with it, so the generic code (the home screen, the
+  components) reads the contract as plain records and never derives types from its
+  literal maps (empty, they collapse to `never`/`unknown`). Run the same locally after a
+  change of the template or of a component.
 - The `e2e` job of CI runs the scenarios of the sample: the specs of the sample copied to
-  the product root, `migrate`, `sample_data`, `init`, `contract`, `check`, `add` of the
+  the product root, `migrate`, `e2e_data`, `init`, `contract`, `check`, `add` of the
   components, the screens of `sample/frontend-overlay/src/` copied over `src/`,
   `bazis_front e2e` and `--check`, `design --check`, the build, then the backend
   (`uvicorn sample.main:app`) and `vite preview` (its `/api` proxied to the backend) and

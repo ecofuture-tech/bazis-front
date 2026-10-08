@@ -236,9 +236,12 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   check `front.W001` (run by `bazis_doctor`) reports a contract or generated files that
   differ from the backend; `--check` does the same in CI.
 - The permit roles and the statusy transits are read from the database: export from a
-  migrated database with the data of the project (roles, statuses, transits) loaded, as in
-  the tests. Otherwise the command fails with `front.E002`, and `front.W001` is skipped
-  with the info `front.I001`.
+  migrated database. The roles (with their permission groups and permissions), statuses
+  and transits are data of the product, created by its data migrations (`RunPython` with
+  the models of the migration; a change is a new migration), never by a command or a
+  fixture of the tests only: then every migrated database, the one of CI and the one of the
+  end-to-end tests too, gives the same contract. An unmigrated database fails the command
+  with `front.E002`, and `front.W001` is skipped with the info `front.I001`.
 - The files are JSON with sorted keys, two spaces and a trailing newline; the same backend
   gives the same bytes, so the files are compared byte for byte.
 - When the product has a frontend made by `init` (`frontend/bazis-front.lock.json`),
@@ -361,8 +364,8 @@ compare it with the backend (that is `contract --check` and `front.W001`).
 
 ### `spec/product.yaml` (`spec: bazis-product/1`)
 
-The specs of the sample of this package (its roles, statuses and transits are those of
-its tests):
+The specs of the sample of this package (its roles, statuses and transits are created by
+its data migration, `tasks.0005_workflow`):
 
 ```yaml
 # yaml-language-server: $schema=./schema/product.schema.json
@@ -700,6 +703,7 @@ draws the `StatusBadge` in the soft colors of the tone, the transits to a status
 ```bash
 python manage.py bazis_front e2e           # frontend/e2e/generated/ from the scenarios of spec/product.yaml
 python manage.py bazis_front e2e --check   # write nothing; exit 1 if the generated tests are stale
+E2E_PASSWORD=... python manage.py e2e_data   # the test data of the backend (below)
 cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSWORD, against the backend
 ```
 
@@ -735,14 +739,31 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   the same code (`spec/scenarios.py`). `expectFieldReadonly` passes when the open form has
   the field read-only or disabled (or not at all), and on a card when it has no edit or its
   edit has the field read-only (it opens the edit and cancels it).
-- **The test data is the job of the backend.** Before `npm run e2e`, its database has the
-  roles, statuses and transits of the specs, a user per `test_user` with its role (in
-  `roles` and `role_current`) and the password of `E2E_PASSWORD`, and the items that the
-  scenarios open (`open_item`). Create them with a management command or a fixture of the
-  product (the sample of this package: `manage.py sample_data`, which also sets the password
-  of the test users again when it runs again). The scenarios share the database and run one
-  at a time (`playwright.config.ts`); none should depend on another: a scenario opens an
-  item that the test data creates, or one it creates itself.
+- **The test data is the job of the backend: `manage.py e2e_data`.** Before `npm run e2e`
+  the database of the backend is migrated (the roles, statuses and transits of the specs
+  come from the data migrations, see the contract) and has the data of the e2e data
+  command recommended by bazis-front: a management command of the product named
+  `e2e_data` (the sample of this package has it,
+  `sample/tasks/management/commands/e2e_data.py`):
+
+  ```bash
+  python manage.py migrate
+  E2E_PASSWORD=... python manage.py e2e_data
+  ```
+
+  - it creates only a user per `test_user` of the roles of the specs, with its role (in
+    `roles` and `role_current`) and the password of the environment variable
+    `E2E_PASSWORD` (it fails without it), and the items that the scenarios open
+    (`open_item`) and need;
+  - it never creates a role, a permission, a status or a transit: a role of a `test_user`
+    that the migrations did not create is an error of the command;
+  - it can run again (idempotent): the data that exists is kept, the password of the test
+    users is set again, so that the tests log in with the current `E2E_PASSWORD`; it runs
+    in one transaction.
+
+  The scenarios share the database and run one at a time (`playwright.config.ts`); none
+  should depend on another: a scenario opens an item that `e2e_data` creates, or one it
+  creates itself.
 - `npm run e2e` starts the dev server of the frontend (its `/api` goes to `BAZIS_API_URL`)
   unless `E2E_BASE_URL` names a running frontend; the backend runs separately. In CI, an
   HTML report is written to `frontend/playwright-report/`.
@@ -844,8 +865,8 @@ are replaced without conflicts; wrap them in the product code instead.
   them again after every change of the backend and fix what the compiler reports; do not
   edit the generated files and do not declare resource types by hand.
 - **Describe the product in `spec/` and keep `bazis_front check` green.** Build the
-  backend to satisfy the specs (models, route sets, roles with their permissions, statuses
-  and transits), export the contract, and fix every issue that `check` reports, in the spec
+  backend to satisfy the specs (models, route sets, and as data migrations the roles with
+  their permissions, the statuses and the transits), export the contract, and fix every issue that `check` reports, in the spec
   or in the backend, as its hint says.
 - **Use the hooks and the client, do not reimplement them.** Data of the backend is read
   and changed with the hooks (`@/bazis/react`); requests, filters, errors, pagination,
@@ -866,7 +887,8 @@ are replaced without conflicts; wrap them in the product code instead.
   `#3b82f6`.
 - **Generate the end-to-end tests, never edit them.** Run `bazis_front e2e` after every
   change of the scenarios or the screens of the specs and keep `npm run e2e` green against
-  the backend with its test data; write the other tests in `frontend/e2e/custom/`.
+  the migrated backend with the data of `manage.py e2e_data`; write the other tests in
+  `frontend/e2e/custom/`.
 
 ## The client
 
