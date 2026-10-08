@@ -103,9 +103,10 @@ frontend made from the sample by the `e2e` job of CI.
   modules that do.
 - `checks.py`: `front.W001` (stale contract or generated files of the frontend, the
   comparison of `contract --check`: `export.stale`), `front.I001` (not checked: the database
-  is not migrated); the command fails with `front.E002` in that case. `front.E003`: an
+  is not migrated); the command fails with `front.E002` in that case. `front.W006`: an
   installed package of a capability older than `minimum` of `capabilities.CAPABILITIES`
-  (the version whose protocol the assets follow; `C004` of `check`). `front.W002`: an
+  (the version whose protocol the assets follow; a warning, never blocking `migrate`;
+  the error `C004` of `check`). `front.W002`: an
   issue of the specs (see below). `front.W003`: stale end-to-end tests (`e2e --check`,
   without the database; only when the lock has `e2e` and the specs have no errors).
   `front.W004`: copies of another version (`update --check`: `update.stale`, without Node

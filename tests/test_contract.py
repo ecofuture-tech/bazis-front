@@ -15,6 +15,7 @@
 import json
 from types import SimpleNamespace
 
+from django.core.checks import WARNING
 from django.core.management import CommandError, call_command
 from django.db import models
 from django.db.migrations.recorder import MigrationRecorder
@@ -463,10 +464,11 @@ def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch)
     # a pre-release of the version counts as the version
     versions = {'bazis-ws': '2.4.0', 'bazis-authing': '2.6.0rc1', 'bazis-uploadable': '2.4.9'}
     monkeypatch.setattr(metadata, 'version', lambda name: versions.get(name) or real(name))
-    errors = check_packages(None)
-    assert [it.id for it in errors] == ['front.E003', 'front.E003']
-    assert 'bazis-uploadable 2.4.9 is installed' in errors[0].msg
-    assert 'bazis-ws>=2.5.0' in errors[1].msg and 'subscribed' in errors[1].msg
+    warnings = check_packages(None)
+    # warnings: an outdated package never blocks migrate or runserver (C004 of check fails)
+    assert [(it.id, it.level) for it in warnings] == [('front.W006', WARNING), ('front.W006', WARNING)]
+    assert 'bazis-uploadable 2.4.9 is installed' in warnings[0].msg
+    assert 'bazis-ws>=2.5.0' in warnings[1].msg and 'subscribed' in warnings[1].msg
     assert [name for name, _, _ in capabilities.outdated(['ws', 'statusy', 'unknown'])] == ['ws']
 
 

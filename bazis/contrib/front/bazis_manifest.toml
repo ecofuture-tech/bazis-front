@@ -43,8 +43,8 @@ text = "the theme of the frontend (frontend/src/bazis/generated/theme.css and th
 check = "front.W005"
 
 [[pitfalls]]
-text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-uploadable>=2.5.0 (the files of their author); an older installed package is the error front.E003 (C004 of `bazis_front check`): upgrade it"
-check = "front.E003"
+text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-uploadable>=2.5.0 (the files of their author); an older installed package is the warning front.W006 (the error C004 of `bazis_front check`): upgrade it"
+check = "front.W006"
 
 [[pitfalls]]
 text = "the client in frontend/src/bazis/client/ is a copy kept pristine for the updates of bazis-front: wrap it in src/app/, do not edit it"

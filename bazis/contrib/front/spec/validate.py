@@ -241,7 +241,7 @@ def check_packages(contract: dict, issues: Issues) -> None:
     """
     The installed packages of the capabilities of the contract are not older than the
     versions whose protocol the assets follow (`minimum` of `capabilities.CAPABILITIES`);
-    the system check `front.E003` reports the same.
+    the system check `front.W006` reports the same (as a warning).
     """
     doc = Document(CONTRACT, CONTRACT_FILE)
     for name, capability, version in outdated(sorted(contract.get('capabilities', {}))):
