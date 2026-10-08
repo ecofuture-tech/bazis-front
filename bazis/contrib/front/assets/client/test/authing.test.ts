@@ -160,3 +160,20 @@ describe('authWait', () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe('authLogout', () => {
+  const LOGOUT = '/api/v1/authing/logout/';
+
+  it('posts to the logout endpoint with the cookies of the browser and without the session token', async () => {
+    const { api, calls } = setup([new Response(null, { status: 204 })]);
+    await expect(api.authLogout(LOGOUT)).resolves.toBeUndefined();
+    expect(calls).toEqual([
+      { url: `${BASE}${LOGOUT}`, init: { method: 'POST', headers: { Accept: ACCEPT }, credentials: 'include' } },
+    ]);
+  });
+
+  it('throws an error of the endpoint', async () => {
+    const { api } = setup([json({ errors: [{ status: 404, title: 'Not found' }] }, 404)]);
+    await expect(api.authLogout(LOGOUT)).rejects.toBeInstanceOf(ApiError);
+  });
+});

@@ -143,7 +143,7 @@ def test_contract_ts_is_rendered_from_the_contract():
         '  readonly async_request: { readonly header: string } | null;',
         '  readonly authing: { readonly auth_url: string | null; readonly actions: readonly '
         '{ readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; '
-        'readonly token_param: string } | null;',
+        'readonly logout_url: string | null; readonly token_param: string } | null;',
         '  readonly bg: { readonly resource: string | null } | null;',
         '  readonly permit: { readonly roles: typeof ROLES } | null;',
         '  readonly statusy: { readonly models: typeof TRANSITS } | null;',

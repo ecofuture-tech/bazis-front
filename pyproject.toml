@@ -70,7 +70,7 @@ test = [
     # the sample project has the capabilities of the contract: users, authing, permit,
     # statusy, uploadable, ws, bg (with bazis-author), async_background, async_request
     "bazis-users>=2.5.0",
-    "bazis-authing>=2.5.0",
+    "bazis-authing>=2.6.0",
     "bazis-permit>=2.4.1",
     "bazis-statusy>=2.4.1",
     "bazis-uploadable>=2.4.0",

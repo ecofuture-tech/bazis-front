@@ -21,6 +21,7 @@ import {
   logout,
   onSessionChange,
   PASSWORD_LOGIN,
+  signOut,
 } from '@/app/session';
 import { ApiError } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
@@ -57,6 +58,19 @@ describe.skipIf(!PASSWORD_LOGIN)('the session', () => {
     logout();
     expect(changes).toBe(3);
     unsubscribe();
+  });
+});
+
+describe.skipIf(!PASSWORD_LOGIN)('the sign-out', () => {
+  it('ends the session at once and posts to the logout endpoint of bazis-authing', async () => {
+    const authLogout = vi.fn(() => Promise.reject(new TypeError('offline')));
+    await login(api('signed-in'), credentials);
+    signOut({ authLogout } as unknown as Api);
+    // the token is dropped whatever the endpoint answers
+    expect(getToken()).toBeNull();
+    const url = CAPABILITIES.authing?.logout_url ?? null;
+    expect(authLogout.mock.calls).toEqual(url === null ? [] : [[url]]);
+    await Promise.resolve();
   });
 });
 

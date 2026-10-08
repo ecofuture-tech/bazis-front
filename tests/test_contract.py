@@ -146,6 +146,8 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
         'actions': [
             {'code': 'password', 'name': 'Login/Password', 'method': 'POST', 'url': '/api/v1/authing/password/'},
         ],
+        # the logout endpoint of bazis-authing 2.6.0, which the frontend calls at a sign-out
+        'logout_url': '/api/v1/authing/logout/',
         'token_param': 'bazis_auth',
     }
     # the resources of the route sets of FileUploadRouteSet; no size limit by default
@@ -314,6 +316,16 @@ def test_the_sections_follow_the_routes_and_the_settings(sample_app, settings, m
     # the route of a service that is not registered (Google) is left out
     settings.BAZIS_AUTH_KINDS = ['bazis.contrib.authing.services.google', 'bazis.contrib.authing.services.password']
     assert [it['code'] for it in authing.section()['actions']] == ['password']
+    # an endpoint that is not routed is null: the logout (an older bazis-authing), the auth
+    # endpoint (no login actions then)
+    routed = authing.url_path
+    monkeypatch.setattr(authing, 'url_path', lambda app, name: None if name == 'auth_logout' else routed(app, name))
+    assert authing.section()['logout_url'] is None
+    assert authing.section()['auth_url'] == '/api/v1/authing/auth/'
+    monkeypatch.setattr(authing, 'url_path', lambda app, name: None if name == 'auth' else routed(app, name))
+    assert authing.section() == {
+        'auth_url': None, 'actions': [], 'logout_url': '/api/v1/authing/logout/', 'token_param': 'bazis_auth',
+    }
 
 
 @pytest.mark.django_db

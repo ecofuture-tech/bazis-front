@@ -285,7 +285,7 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   }},
   "capabilities": {
     "users": {"token_url": "/api/openapi-token/", "user_resource": "users.user"},
-    "authing": {"auth_url": "/api/v1/authing/auth/", "token_param": "bazis_auth",
+    "authing": {"auth_url": "/api/v1/authing/auth/", "logout_url": "/api/v1/authing/logout/", "token_param": "bazis_auth",
                 "actions": [{"code": "password", "name": "Login/Password", "method": "POST",
                              "url": "/api/v1/authing/password/"}]},
     "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"]},
@@ -320,8 +320,9 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `INSTALLED_APPS` (bazis-ws: its installed package): `users` (the token endpoint, the resource of the user model), `authing`
   (the auth endpoint of bazis-authing, null when it is not routed; the login actions of
   the services of `BAZIS_AUTH_KINDS` as the endpoint lists them in `meta.actions`, in the
-  order of the setting, without those whose route is not registered; the query parameter
-  of the store token, `BAZIS_AUTH_COOKIE_NAME`), `uploadable` (`max_size`, the
+  order of the setting, without those whose route is not registered; the logout endpoint
+  `logout_url`, null when it is not routed; the query parameter of the store token,
+  `BAZIS_AUTH_COOKIE_NAME`), `uploadable` (`max_size`, the
   `BAZIS_FILE_UPLOAD_MAX_SIZE` of an upload in bytes, null for no limit; `resources`, the
   JSON:API types of the route sets of `FileUploadRouteSet` and its subclasses: a to-one
   relationship to one of them is a file), `permit`
@@ -1059,7 +1060,8 @@ bazis-users, sent as the bearer token like the token of `token_url`. The templat
    endpoint, which answers 200 `{user_id, username, …, token}` (`token` is the session
    token), or 400 with the error `USERNAME_PASSWORD_ERROR` (status 422) of the store.
 3. A service in its page (`GET`, Google): the template opens a window at
-   `<url>?<token_param>=<store>` (the service returns to the auth endpoint in that window)
+   `<url>?<token_param>=<store>` (the service ends in that window on a page of
+   bazis-authing without tokens, which tries to close it)
    and asks the auth endpoint with the store token every 1.5 s until it is signed in, has an
    error (`GOOGLE_AUTH_ERROR`), or has expired (`BAZIS_AUTH_COOKIE_LIFETIME`: the endpoint
    answers with another store); the login screen offers a cancel meanwhile, also for a user
@@ -1070,7 +1072,11 @@ bazis-users, sent as the bearer token like the token of `token_url`. The templat
 
 The client sends these requests without cookies (`credentials: 'omit'`): the endpoint sets
 the store token as a cookie, and a store that is signed in would sign the next user in as
-the previous one until it expires. The store token is kept only during the login. Without
+the previous one until it expires. The store token is kept only during the login; a store
+gives its session once (bazis-authing 2.6.0). The sign-out of the template (`signOut` of
+`src/app/session.ts`) drops the session token, which is stateless, and posts to the logout
+endpoint (`logout_url` of the section, `POST /logout/`, `api.authLogout`) with the cookies
+of the browser: it deletes the store cookie that a login in a window leaves. Without
 the service `password` the login screen has no username and password, and the end-to-end
 tests cannot log in (P026).
 

@@ -125,8 +125,11 @@ written.
   the password through the service `password` (`login()`, `PASSWORD_LOGIN`), and a button
   for each service whose page opens in a window (`WINDOW_LOGINS`, `loginInWindow()`:
   Google). Keep the store token of bazis-authing out of the session: only the session
-  token it gives is kept, and the client sends its requests without cookies.
-- A 401 of any query or mutation ends the session (`src/app/providers.tsx`). Cached data
+  token it gives is kept, and the client sends its requests without cookies. The sign-out
+  of `AppShell` is `signOut(api)`: it drops the session at once and, with bazis-authing,
+  posts to its logout endpoint (`CAPABILITIES.authing.logout_url`, `api.authLogout`), which
+  deletes the store cookie that a login in a window may leave.
+- A 401 of any query or mutation ends the session (`logout()`, `src/app/providers.tsx`). Cached data
   belongs to the user who loaded it: logging in or out clears the query and mutation
   caches, and every query key of the hooks ends with the session (`useSession()` of
   `src/app/session.ts`, a number that changes at every login and logout), so that a

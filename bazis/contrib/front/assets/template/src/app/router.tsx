@@ -17,7 +17,8 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 
 import { ErrorBoundary } from '@/app/errors';
 import { PRODUCT_NAME } from '@/app/product';
-import { LOGIN_ENABLED, logout, useToken } from '@/app/session';
+import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
+import { useApi } from '@/bazis/react';
 import { AppShell, type NavItem } from '@/bazis/ui/app-shell';
 import { HomeScreen } from '@/screens/home';
 import { LoginScreen } from '@/screens/login';
@@ -32,13 +33,18 @@ const NAVIGATION: readonly NavItem[] = [{ screen: 'home', label: 'Home', to: '/'
  */
 function RequireSession() {
   const token = useToken();
+  const api = useApi();
   const location = useLocation();
   if (LOGIN_ENABLED && !token) {
     const from = location.pathname + location.search;
     return <Navigate to="/login" replace state={{ from }} />;
   }
+  // the sign-out: the session ends, and bazis-authing deletes its stores
+  const onLogout = () => {
+    signOut(api);
+  };
   return (
-    <AppShell title={PRODUCT_NAME} items={NAVIGATION} session={LOGIN_ENABLED ? { onLogout: logout } : null}>
+    <AppShell title={PRODUCT_NAME} items={NAVIGATION} session={LOGIN_ENABLED ? { onLogout } : null}>
       <ErrorBoundary resetKey={location.pathname}>
         <Outlet />
       </ErrorBoundary>

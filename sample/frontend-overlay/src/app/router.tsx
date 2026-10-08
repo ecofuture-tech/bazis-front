@@ -17,8 +17,9 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigat
 
 import { ErrorBoundary } from '@/app/errors';
 import { PRODUCT_NAME } from '@/app/product';
-import { LOGIN_ENABLED, logout, useToken } from '@/app/session';
+import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { CAPABILITIES } from '@/bazis/generated/contract';
+import { useApi } from '@/bazis/react';
 import { SocketProvider, type Notification } from '@/bazis/react/ws';
 import { AppShell, ListCardLayout, type NavItem } from '@/bazis/ui/app-shell';
 import { FileFieldProvider } from '@/bazis/ui/file-field';
@@ -42,12 +43,17 @@ const NAVIGATION: readonly NavItem[] = [
  */
 function RequireSession() {
   const token = useToken();
+  const api = useApi();
   const location = useLocation();
   const navigate = useNavigate();
   if (LOGIN_ENABLED && !token) {
     const from = location.pathname + location.search;
     return <Navigate to="/login" replace state={{ from }} />;
   }
+  // the sign-out: the session ends, and bazis-authing deletes its stores
+  const onLogout = () => {
+    signOut(api);
+  };
   // a notification of a task opens its card
   const open = (notification: Notification) => {
     if (notification.resource === 'tasks.task' && notification.id !== null) void navigate(`/tasks/${notification.id}`);
@@ -56,7 +62,7 @@ function RequireSession() {
     <AppShell
       title={PRODUCT_NAME}
       items={NAVIGATION}
-      session={LOGIN_ENABLED ? { onLogout: logout } : null}
+      session={LOGIN_ENABLED ? { onLogout } : null}
       // bazis-ws: the lists and the cards refetched when a task changes, the notifications
       tools={
         <>

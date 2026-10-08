@@ -203,6 +203,15 @@ export interface BazisClient<Paths> {
   ): Promise<AuthState>;
 
   /**
+   * bazis-authing: `POST` of its logout endpoint (`logout_url` of the contract), at a
+   * sign-out: it deletes the stores of the request and their cookie (204, idempotent). With
+   * the cookies of the browser and without the token: the session token is stateless (the
+   * application drops it), the store cookie that a login in a window of a service may leave
+   * is what it deletes.
+   */
+  authLogout(path: string, options?: RequestOptions): Promise<void>;
+
+  /**
    * bazis-async-request: sends a request of the API with `X-Async-Background` (a body as
    * `application/vnd.api+json`). Resolves to its task when it is queued (202), or to its
    * response when the backend ran it at once (without Kafka); an error status is an
@@ -499,6 +508,16 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       authorize('POST', path, { store, body, signal }),
 
     authWait,
+
+    authLogout: async (path: string, { signal }: RequestOptions = {}) => {
+      const response = await fetcher(`${baseUrl}${path}`, {
+        method: 'POST',
+        headers: { Accept: ACCEPT },
+        credentials: 'include',
+        ...(signal ? { signal } : {}),
+      });
+      if (!response.ok) throw errorFromResponse(response.status, response.statusText, await response.text());
+    },
 
     background: async (
       method: BackgroundMethod,

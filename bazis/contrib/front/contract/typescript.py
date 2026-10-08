@@ -41,7 +41,7 @@ SECTION_TYPES = {
     'authing': (
         '{ readonly auth_url: string | null; readonly actions: readonly '
         '{ readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; '
-        'readonly token_param: string }'
+        'readonly logout_url: string | null; readonly token_param: string }'
     ),
     'bg': '{ readonly resource: string | null }',
     'permit': '{ readonly roles: typeof ROLES }',

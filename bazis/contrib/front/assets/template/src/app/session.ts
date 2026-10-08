@@ -170,7 +170,22 @@ export async function loginInWindow(api: Api, action: AuthAction, signal?: Abort
   }
 }
 
-/** Ends the session; the router sends the user to the login screen. */
+/**
+ * Ends the session; the router sends the user to the login screen. Also the end of a session
+ * that the backend no longer takes (a 401): nothing is sent.
+ */
 export function logout(): void {
   setToken(null);
+}
+
+/**
+ * The sign-out of the user: ends the session at once and, with bazis-authing, posts to its
+ * logout endpoint (`logout_url`), which deletes the stores and the store cookie that a login
+ * may leave in the browser. The session token is stateless: the sign-out never waits for the
+ * endpoint, and its failure changes nothing.
+ */
+export function signOut(api: Api): void {
+  const url = CAPABILITIES.authing?.logout_url ?? null;
+  logout();
+  if (url !== null) void api.authLogout(url).catch(() => undefined);
 }

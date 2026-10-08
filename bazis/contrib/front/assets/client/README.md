@@ -88,6 +88,7 @@ Every operation takes the path of a route set and, for an item, its id:
 | `auth(path, {store})` | `GET path` (bazis-authing), the store token as the bearer token, without cookies; the state of the store |
 | `authLogin(path, store, body)` | `POST path` of a login action, `application/json` in the store, its redirect to the auth endpoint followed; the state of the store |
 | `authWait(path, store, {interval})` | `GET path` every `interval` ms (`AUTH_POLL_INTERVAL`, 1.5 s) until the store is signed in, has an error or has expired |
+| `authLogout(path)` | `POST path` of the logout endpoint (bazis-authing), with the cookies of the browser, without the token; 204 |
 | `background(method, path, {body})` | `method path` with `X-Async-Background: true` (`BACKGROUND_HEADER`, bazis-async-request), a body as `application/vnd.api+json`; `{status: 'queued', taskId}` (202) or `{status: 'done', response}` |
 | `backgroundResult(path)` | `GET path?full_response=true` (bazis-async-background); `{status, response}` |
 
@@ -115,13 +116,18 @@ that is signed in answers 200 with the user and the session token (`token`, the 
 bazis-users with `auth_type`); else the 400 lists the errors of the logins of the store
 (status 422: `USERNAME_PASSWORD_ERROR`, `GOOGLE_AUTH_ERROR`), and an expired store is
 replaced by a new one (another `meta.token`). A login action with a body (`POST` of the
-password service, `{username, password}`) answers 303 to the auth endpoint with the store
-token in the query, which fetch follows. `AuthState` is
+password service, `{username, password}`) answers 303 to the auth endpoint, which fetch
+follows with the same bearer token (bazis-authing 2.6.0 puts no store token in a URL). A
+store gives its session once: the next request with its token gets a new store. `AuthState` is
 `{status: 'signed_in', user}` or `{status: 'signed_out', store, errors}`; other errors are
 thrown (`ApiError`, 401 for a store that expired before a login). The requests are sent
 without cookies: the endpoint sets the store token as a cookie, which would sign the next
 user in with the store of the previous one. The store token has no `exp`: bazis-users
 treats a request with it as anonymous; only the session token is a bearer token of the API.
+`POST` of the logout endpoint (`authLogout`, `logout_url` of the contract) deletes the
+stores of the request and the store cookie (204, idempotent): it is sent with the cookies
+of the browser (a login in a window of a service leaves the cookie there) and without the
+session token, which is stateless: the application drops it.
 
 **Background requests** (bazis-async-request, bazis-async-background). A request with the
 header `X-Async-Background` (its presence is enough) and a bearer token that names a
