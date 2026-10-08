@@ -179,7 +179,9 @@ the package documents each component.
   `uploadable.FileUpload`; its field is a to-one relationship to `uploadable.file_upload`
   (a resource of `resources` of the capability `uploadable`), `type: file` in the specs.
   `FieldValue` shows it (`FileValue`: a link to the file with its size, a thumbnail of an
-  image, read with the retrieve of the route set) in the cards and the lists. In the
+  image, read with the retrieve of the route set) in the cards and the lists; the file of
+  another user, which bazis-uploadable does not give (a 404), is `file:unavailable`
+  ("File not available"). In the
   forms, with `FileFieldProvider` around the routes (`src/app/router.tsx`), `FieldInput`
   edits it with `FileField`: a drop zone and a picker, the file uploaded at once with its
   progress and a cancel (one file at a time: another one is not taken while it uploads),
@@ -190,17 +192,20 @@ the package documents each component.
   submitted while a file uploads. Without the provider the field is the picker of a
   relationship. The payloads of the transits have no files (a payload has no
   relationships).
-- **Protect the route set of the uploaded files.** The frontend needs only its create (the
-  upload) and its retrieve (the file of a field). `FileUpload` has no owner: a list, an
-  update or a delete open to every user gives each one the files of the others (their ids
-  are integers), and the bundled `FileUploadRouteSet` has no access control at all
-  (`uploadable.W001`). Register a subclass that requires a user, without the update and the
-  delete and with a list that returns no file (as the sample does: `actions =
-  ['action_create', 'action_retrieve', 'action_list']` and `get_queryset_for_list()` that
-  returns `.none()`; the core needs the list of the route set of a related model for the
-  filter fields of the models that reference it, `route_filter_fields/`), or with the
-  permissions of bazis-permit on a model of your own (`FileUploadAbstract` with an owner).
-  The section `uploadable` lists only the route sets with their create.
+- **The uploaded files belong to their author** (bazis-uploadable 2.5.0): the bundled
+  `FileUploadRouteSet` (`bazis.contrib.uploadable.router`) requires a user, makes the user
+  who uploads a file its `author`, lists and retrieves only his own files and changes or
+  deletes none: route it as it is (the sample does), a subclass is no longer needed. The
+  frontend needs its create (the upload) and its retrieve (the file of a field); the file
+  of another user is a 404, which `FileValue` shows as not available.
+- **Refuse the files of the others in the route set that references them.** The core does
+  not check yet that a relationship targets an item the user may see: a user could link the
+  file of another user by its id to his own item and read it with `include`. Until it does,
+  the route set of every model with a foreign key to `uploadable.FileUpload` refuses a file
+  that the user did not upload, on a create, an update and the relationships endpoint (403
+  `ERR_ATTACHMENT_NOT_OWN`), as bazis-uploadable recommends: see `TaskRouteSet` of the
+  sample (`sample/tasks/routes.py`). The section `uploadable` lists only the route sets
+  with their create.
 - **The status history** (`StatusHistory`) is what bazis-statusy exposes: the current
   status with `status_dt` and `status_author`. bazis-statusy records every transit
   (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
@@ -524,7 +529,8 @@ invalid`.
 `screen:<id>`, `state:<loading|empty|loaded|error|forbidden|not_found|invalid>`,
 `list:<entity>`, `row:<id>` (its cells `cell:<column>`), `field:<field>`,
 `error:<field>`, `upload:<field>` (a file field, `aria-busy` while its file uploads; the
-input of the file is its `field:<field>`), `action:<id>`, `transit:<id>`, `status:<id>`,
+input of the file is its `field:<field>`), `file:unavailable` (a file the user may not
+read), `action:<id>`, `transit:<id>`, `status:<id>`,
 `nav:<screen>`; of the components of the packages `socket:<status>` (the socket of
 bazis-ws), `list:notifications` with `notification:<key>` (opened by
 `action:notifications`), `bg:<state>` (a task of bazis-bg), `async:<status>` (a background

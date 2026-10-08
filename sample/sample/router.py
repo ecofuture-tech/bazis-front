@@ -23,6 +23,8 @@ router.routes.append(ws_route)
 
 router.register('tasks.router')
 router.register('bazis.contrib.users.router')
+# the uploaded files of the tasks (bazis-uploadable: a user lists and reads his own files)
+router.register('bazis.contrib.uploadable.router')
 # bazis-authing: GET /auth/ and the login by password (BAZIS_AUTH_KINDS)
 router.register('/authing', 'bazis.contrib.authing.router')
 router.register('/authing', 'bazis.contrib.authing.services.password.router')

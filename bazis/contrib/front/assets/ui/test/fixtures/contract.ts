@@ -239,8 +239,14 @@ export const RESOURCES = {
   "uploadable.file_upload": {
     actions: {
       action_create: "create",
+      action_dict_data: "other",
       action_list: "collection",
+      action_list_id: "other",
       action_retrieve: "item",
+      action_schema_create: "schema",
+      action_schema_list: "schema",
+      action_schema_retrieve: "schema",
+      get_route_filter_fields: "schema",
     },
     fields: {
       extension: {
@@ -264,7 +270,7 @@ export const RESOURCES = {
     },
     model: "uploadable.FileUpload",
     path: "/api/v1/uploadable/file_upload/",
-    route_set: "tasks.routes.FileRouteSet",
+    route_set: "bazis.contrib.uploadable.routes.FileUploadRouteSet",
   },
   "users.user": {
     actions: {

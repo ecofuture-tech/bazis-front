@@ -19,9 +19,10 @@
 // image); `FieldInput` edits one with the control that `FilesProvider` gives it (`FileField`
 // of the component file-field, which uploads), else with the picker of a relationship.
 
-import { FileText } from 'lucide-react';
+import { FileLock, FileText } from 'lucide-react';
 import { createContext, use, useMemo, type ComponentProps, type ComponentType, type ReactNode } from 'react';
 
+import { ApiError } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
 import type { FormField, RelationField } from '@/bazis/react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -163,9 +164,10 @@ export function FileView({ file, preview }: { file: UploadedFile; preview?: stri
 }
 
 /**
- * An uploaded file by its id, read with the retrieve of its route set (a route set of the
- * uploaded files needs no list, which would let a user read the files of the others).
- * `path`: the route set of the resource, instead of its route in `ROUTES`.
+ * An uploaded file by its id, read with the retrieve of its route set. bazis-uploadable gives
+ * a user only the files he uploaded: the file of another user is `file:unavailable` ("File
+ * not available"), as one that cannot be read. `path`: the route set of the resource,
+ * instead of its route in `ROUTES`.
  */
 export function FileValue({
   relation,
@@ -186,6 +188,17 @@ function StoredFile({ path, id, preview }: { path: string; id: string; preview: 
   const item = useAnyItem(path, id);
   if (item.data) return <FileView file={uploadedFile(item.data.data)} preview={preview} />;
   if (item.isPending) return <Skeleton className="inline-block h-4 w-28 align-middle" />;
-  // the user may not view the file
-  return <span className="font-mono text-xs text-muted-foreground">#{id}</span>;
+  // bazis-uploadable gives a user only his own files: the file of another user (the
+  // attachment of a shared item) is a 404, as a deleted one
+  const hidden = item.error instanceof ApiError && (item.error.status === 404 || item.error.status === 403);
+  return (
+    <span
+      data-bz="file:unavailable"
+      className="inline-flex items-center gap-1.5 text-muted-foreground"
+      title={hidden ? 'Only the user who uploaded the file can open it' : `The file #${id} could not be loaded`}
+    >
+      <FileLock aria-hidden className="size-4 shrink-0" />
+      <span>{hidden ? 'File not available' : 'File not loaded'}</span>
+    </span>
+  );
 }

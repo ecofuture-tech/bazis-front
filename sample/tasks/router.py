@@ -19,4 +19,3 @@ from . import routes
 
 router = BazisRouter(tags=['Tasks'])
 router.register(routes.TaskRouteSet.as_router())
-router.register(routes.FileRouteSet.as_router())

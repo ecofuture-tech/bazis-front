@@ -34,9 +34,11 @@ The sample (`sample/`) installs bazis-users, bazis-authing, bazis-permit, bazis-
 bazis-uploadable, bazis-ws, bazis-author with bazis-bg, bazis-async-background and
 bazis-async-request (the `test` extra) with a project app `users` and a statusy model
 `tasks.Task`, whose `attachment` is a file of bazis-uploadable (a foreign key to
-`uploadable.FileUpload`, uploaded through `tasks.routes.FileRouteSet`, a
-`FileUploadRouteSet` that requires a user, has no update and no delete and lists no file:
-a reference sample never lets a user list, change or delete the files of the others); the auth endpoint and the password service of
+`uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
+bazis-uploadable, routed as it is: it requires a user and gives him only his own files;
+`tasks.routes.TaskRouteSet` refuses as the attachment a file of another user, 403
+`ERR_ATTACHMENT_NOT_OWN`, as bazis-uploadable recommends until the core checks the targets
+of relationships); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
 sample is that of bazis-authing (the token endpoint of bazis-users stays); the roles, statuses and
 transits are the data migration `sample/tasks/migrations/0005_workflow.py`, its data frozen

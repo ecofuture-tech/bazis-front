@@ -27,13 +27,16 @@ TASKS = '/api/v1/tasks/task/'
 USERS = '/api/v1/users/user/'
 
 
-def manager_client(app):
+def manager_client(app, username: str = 'manager'):
+    """
+    A user with the role manager, and a client of the API with his token.
+    """
     from django.apps import apps
 
     from bazis.contrib.users import get_user_model
 
     role = apps.get_model('permit.Role').objects.get(slug='manager')
-    user = get_user_model().objects.create_user('manager', password='p')
+    user = get_user_model().objects.create_user(username, password='p')
     user.roles.add(role)
     user.role_current = role
     user.save()
@@ -70,25 +73,82 @@ def test_the_items_of_a_resource_by_their_primary_keys(sample_app, workflow):
     assert ids(response) == [str(user.id)]
 
 
+FILES = '/api/v1/uploadable/file_upload/'
+
+
+def upload(client, name: str) -> str:
+    response = client.post(FILES, files={'file': (name, b'The brief.', 'text/plain')})
+    assert response.status_code == 201, response.text
+    return str(response.json()['data']['id'])
+
+
 @pytest.mark.django_db(transaction=True)
-def test_the_files_of_the_sample_are_read_by_their_ids_only(sample_app, workflow):
+def test_a_user_reads_only_the_files_he_uploaded(sample_app, workflow):
     """
-    The route set of the files of the sample (bazis-uploadable): a user uploads a file and
-    reads it by its id (`FileValue` of the components retrieves it), but lists no file and
-    changes or deletes none; the filter fields of the tasks name its list.
+    The route set of the uploaded files (bazis-uploadable 2.5.0, routed as it is): a user
+    uploads a file, lists and reads his own files; the file of another user is a 404 (which
+    `FileValue` shows as not available); no file is changed or deleted; the filter fields of
+    the tasks name its list.
     """
     _, client = manager_client(sample_app)
-    files = '/api/v1/uploadable/file_upload/'
-    response = client.post(files, files={'file': ('brief.txt', b'The brief.', 'text/plain')})
-    assert response.status_code == 201, response.text
-    item = response.json()['data']
-    assert item['attributes']['name'] == 'brief.txt'
+    _, other = manager_client(sample_app, 'other')
+    mine, theirs = upload(client, 'brief.txt'), upload(other, 'secret.txt')
 
-    assert client.get(f'{files}{item["id"]}/').json()['data']['attributes']['size'] == 10
-    assert client.get(files).json()['data'] == []
-    assert client.patch(f'{files}{item["id"]}/', json_data={}).status_code == 405
-    assert client.delete(f'{files}{item["id"]}/').status_code == 405
+    assert client.get(f'{FILES}{mine}/').json()['data']['attributes']['size'] == 10
+    # the ids of the files are integers (JSON numbers in their documents)
+    assert [str(it['id']) for it in client.get(FILES).json()['data']] == [mine]
+    assert client.get(f'{FILES}{theirs}/').status_code == 404
+    assert client.patch(f'{FILES}{mine}/', json_data={}).status_code == 405
+    assert client.delete(f'{FILES}{mine}/').status_code == 405
     filters = client.get(f'{TASKS}route_filter_fields/').json()['fields']
-    assert {'name': 'attachment', 'py_type': files} in filters
+    assert {'name': 'attachment', 'py_type': FILES} in filters
     # an anonymous user uploads nothing
-    assert get_api_client(sample_app).post(files, files={'file': ('a.txt', b'a', 'text/plain')}).status_code == 401
+    assert get_api_client(sample_app).post(FILES, files={'file': ('a.txt', b'a', 'text/plain')}).status_code == 401
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_task_takes_only_a_file_that_the_user_uploaded(sample_app, workflow):
+    """
+    The core does not check yet that a relationship targets an item the user may see: the
+    route set of the tasks refuses the file of another user (403 `ERR_ATTACHMENT_NOT_OWN`) on
+    a create, an update and the relationships endpoint, as bazis-uploadable recommends;
+    otherwise a user would link it by its id and read it with `include=attachment`.
+    """
+    from django.apps import apps
+
+    _, client = manager_client(sample_app)
+    _, other = manager_client(sample_app, 'other')
+    mine, theirs = upload(client, 'brief.txt'), upload(other, 'secret.txt')
+
+    def document(file_id, task_id=None):
+        data = {
+            'type': 'tasks.task',
+            'attributes': {'title': 'Attached'},
+            'relationships': {'attachment': {'data': {'type': 'uploadable.file_upload', 'id': file_id}}},
+        }
+        return {'data': {**data, 'id': task_id} if task_id else data}
+
+    refused = client.post(TASKS, json_data=document(theirs))
+    assert refused.status_code == 403, refused.text
+    assert refused.json()['errors'][0]['code'] == 'ERR_ATTACHMENT_NOT_OWN'
+    assert not apps.get_model('tasks.Task').objects.filter(attachment_id=theirs).exists()
+
+    created = client.post(TASKS, json_data=document(mine))
+    assert created.status_code == 201, created.text
+    task_id = created.json()['data']['id']
+    item = f'{TASKS}{task_id}/'
+
+    # an update that keeps the attachment, or changes it to a file of another user
+    assert client.patch(item, json_data={'data': {'type': 'tasks.task', 'id': task_id, 'attributes': {'title': 'Kept'}}}).status_code == 200
+    assert client.patch(item, json_data=document(theirs, task_id)).status_code == 403
+    response = client.patch(
+        f'{item}relationships/attachment',
+        json_data={'data': {'type': 'uploadable.file_upload', 'id': theirs}},
+    )
+    assert response.status_code == 403, response.text
+    assert str(apps.get_model('tasks.Task').objects.get(pk=task_id).attachment_id) == mine
+    # no attachment is always allowed
+    response = client.patch(item, json_data={'data': {
+        'type': 'tasks.task', 'id': task_id, 'relationships': {'attachment': {'data': None}},
+    }})
+    assert response.status_code == 200, response.text

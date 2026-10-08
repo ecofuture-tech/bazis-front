@@ -144,7 +144,10 @@ components. `testing` is the support of the contract tests: a backend for the mo
   items have `file`, the URL in the storage, `name`, `extension`, `size`). `FieldValue`
   shows it with `FileValue` in the cards and the lists: a link to the file (in a new tab)
   with its size and a thumbnail of an image (by its extension), read with the retrieve of
-  the route set (`useItem`: a route set of the uploaded files needs no list).
+  the route set (`useItem`). bazis-uploadable gives a user only the files he uploaded: the
+  file of another user (the attachment of a shared item) is a 404, shown as
+  `file:unavailable` ("File not available", with a hint; "File not loaded" for another
+  error), never as an id.
   **`file-field`**: `FileField` is a drop zone with a
   picker (the input is hidden, `field:<name>`; the label of the field opens it), the file
   uploaded at once with `useUpload` (its progress, a cancel; no other file is taken, chosen

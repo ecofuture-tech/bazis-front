@@ -56,6 +56,9 @@ text = "bazis-ws keeps nothing: a message published before the page subscribed i
 text = "the common channel of bazis-ws reaches every user session (anonymous ones with BAZIS_WS_ANONYMOUS_COMMON_CHANNEL): it is not for data, publish only the invalidation hint {\"resource\": \"<type>\"} there, the ids and the notifications only to the users who may see the item (user.ws_publish)"
 
 [[pitfalls]]
+text = "bazis-uploadable gives a user only his own files, and the core does not check yet that a relationship targets an item the user may see: the route set of a model with a foreign key to uploadable.FileUpload refuses a file the user did not upload (on create, update and the relationships endpoint), as TaskRouteSet of the sample of bazis-front does"
+
+[[pitfalls]]
 text = "the contract knows the socket of bazis-ws only when ws_route is routed in the router module (router.routes.append(ws_route)) or on the application of BAZIS_APP_MODULE; registered only in the main module, CAPABILITIES.ws.path is null and the frontend opens no socket"
 
 [[pitfalls]]

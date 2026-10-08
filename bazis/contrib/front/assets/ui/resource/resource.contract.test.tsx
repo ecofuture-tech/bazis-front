@@ -17,7 +17,7 @@
 // the uploaded files) is edited by the control of `FilesProvider` and shown as a file. Keep
 // it passing when the component is changed.
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { FormField } from '@/bazis/react';
@@ -31,7 +31,7 @@ import {
   permitted,
   type FileControlProps,
 } from '@/bazis/ui/resource';
-import { Backend, renderWithBazis, resource } from '@/bazis/ui/testing';
+import { Backend, errors, renderWithBazis, resource } from '@/bazis/ui/testing';
 
 const base = { required: false, readOnly: false, nullable: false };
 
@@ -150,6 +150,29 @@ describe('file fields', () => {
     expect(backend.requests('GET').sort()).toEqual([`GET ${FILES}1/`, `GET ${FILES}2/`]);
     expect(document.querySelector('img')?.getAttribute('src')).toBe('/media/photo.png');
     expect(screen.getByTestId('field:other').textContent).toBe('3');
+  });
+
+  it('shows a file that the user may not read (another user uploaded it) as not available', async () => {
+    const backend = new Backend()
+      .on('GET', `${FILES}4/`, errors(404), 404)
+      .on('GET', `${FILES}5/`, errors(500), 500);
+    renderWithBazis(
+      <FilesProvider control={null} resources={['test.file']}>
+        <span data-bz="field:attachment">
+          <FileValue relation="test.file" id="4" path={FILES} />
+        </span>
+        <span data-bz="field:other">
+          <FileValue relation="test.file" id="5" path={FILES} />
+        </span>
+      </FilesProvider>,
+      backend,
+    );
+    const hidden = await within(screen.getByTestId('field:attachment')).findByTestId('file:unavailable');
+    expect(hidden.getAttribute('title')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+    await within(screen.getByTestId('field:other')).findByTestId('file:unavailable');
+    // the two states say different things
+    expect(hidden.textContent).not.toBe(screen.getByTestId('field:other').textContent);
   });
 
   it('formats the sizes', () => {
