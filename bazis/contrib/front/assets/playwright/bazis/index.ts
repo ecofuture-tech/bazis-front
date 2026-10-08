@@ -89,14 +89,14 @@ function exactly(value: string | number | boolean | null): RegExp {
   return new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
 }
 
+/** The languages that `language` goes through before it gives up. */
+const MAX_LANGUAGES = 20;
+
 /**
  * The application in a page, at a screen of the specs. The steps act on the current screen
  * (set by `open` and `expectScreen`) and on the open form, the `<form>` with
  * `action:submit` (a dialog, the edit of a card, a form screen).
  */
-/** The languages that `language` goes through before it gives up. */
-const MAX_LANGUAGES = 20;
-
 export class App<P extends Product = Product> {
   private current: ScreenId<P> | null = null;
 
