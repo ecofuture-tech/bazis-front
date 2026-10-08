@@ -164,6 +164,25 @@ def test_the_search_is_that_of_the_list_schema(sample_app, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_the_labels_are_those_of_the_list_schema(sample_app, monkeypatch):
+    from tasks.routes import TaskRouteSet
+
+    from bazis.core.schemas import CrudApiAction, SchemaFields
+
+    # the core 2.9 filters and sorts by the fields of the LIST schema of the route set only:
+    # a field of the item schema that the LIST schema does not have is neither (400)
+    monkeypatch.setattr(
+        TaskRouteSet, 'fields', {**TaskRouteSet.fields, CrudApiAction.LIST: SchemaFields(exclude={'report': None})},
+    )
+    monkeypatch.setitem(
+        TaskRouteSet.schema_factories, CrudApiAction.LIST, TaskRouteSet.build_schema_factory(CrudApiAction.LIST),
+    )
+    fields = resources(sample_app.openapi())['tasks.task']['fields']
+    assert fields['report'] == {'type': 'string'}
+    assert fields['title'] == {'type': 'string', 'filter': 'title', 'order': 'title'}
+
+
+@pytest.mark.django_db
 def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path):
     sections = export(tmp_path)['capabilities']
 

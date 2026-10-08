@@ -16,8 +16,10 @@
 The resources of the contract: the route sets of the OpenAPI grouped by the JSON:API type
 of their model. Everything is read from the OpenAPI (the `x-bazis` of the operations and
 the schemas of their responses), so that the contract describes exactly the API that the
-OpenAPI describes; only the search, which the OpenAPI does not tell (every list has the
-parameter `search`), is read from the route set.
+OpenAPI describes; what `filter`, `sort` and `search` reach is read from the route set
+(`QueryScope` of the core: the LIST schema of the route set and its search fields), which
+the OpenAPI does not tell (the schema of an item may have fields that the LIST schema does
+not, every list has the parameter `search`).
 """
 
 import os
@@ -55,13 +57,14 @@ def resources(openapi: dict) -> dict:
         items.sort(key=lambda it: (it['route_set'] != default, it['path'], it['route_set']))
         main, others = items[0], items[1:]
         main_cls = default_cls if main['route_set'] == default else pydoc.locate(main['route_set'])
+        scope = _scope(main_cls)
         entry = {
             'model': models.get(resource),
             'route_set': main['route_set'],
             'path': main['path'],
             'actions': main['actions'],
-            'fields': _fields(openapi, main['operations']),
-            'search': _search(main_cls),
+            'fields': _fields(openapi, main['operations'], scope),
+            'search': _search(main_cls, scope),
         }
         if others:
             entry['other_routes'] = [
@@ -124,16 +127,26 @@ def _qualified_name(route_cls: type) -> str:
     return f'{route_cls.__module__}.{route_cls.__qualname__}'
 
 
-def _search(route_cls) -> list[str]:
+def _scope(route_cls) -> QueryScope | None:
     """
-    The search fields of a route set that its LIST schema reaches, as declared (with their
-    lookup prefix): those the core searches with `search` (bazis 2.9; `bazis.W007` reports
-    the others). Empty when the route set has none: a `search` is then 400 `ERR_FILTER`.
+    What `filter`, `sort` and `search` of the route set reach (bazis 2.9): the fields of its
+    LIST schema that can filter and order and its search fields, those of the route set
+    itself (`query_fields` of the core, not the fields a package gives per user). None for
+    a route set that is not a JSON:API route set of the project.
     """
     if not (isinstance(route_cls, type) and issubclass(route_cls, JsonapiRouteBase)):
+        return None
+    return QueryScope.for_route(route_cls, schema=True)
+
+
+def _search(route_cls, scope: QueryScope | None) -> list[str]:
+    """
+    The search fields of a route set that its LIST schema reaches, as declared (with their
+    lookup prefix): those the core searches with `search` (`bazis.W007` reports the
+    others). Empty when the route set has none: a `search` is then 400 `ERR_FILTER`.
+    """
+    if scope is None:
         return []
-    # the LIST schema of the route set itself, not the fields a package gives per user
-    scope = QueryScope.for_route(route_cls, schema=True)
     names = [str(field) for field in route_cls.search_fields or ()]
     return [
         name
@@ -142,12 +155,14 @@ def _search(route_cls) -> list[str]:
     ]
 
 
-def _fields(openapi: dict, operations: list[dict]) -> dict:
+def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None) -> dict:
     """
     The attributes and relationships of the resource in the response of the item route
     (else of the list route): `{name: {type[, format] | relation, many[, filter][, order]}}`.
     `filter` and `order` are the labels of the field in `filter` and `sort` (the
-    `filterLabel` and `orderLabel` of the schema), absent when the field is neither.
+    `filterLabel` and `orderLabel` of the schema), absent when the scope of the route set
+    does not take them (a field the LIST schema does not have, or cannot filter or order
+    by: 400 `ERR_FILTER`; any field without a scope).
     """
     resource = None
     for kind in FIELDS_KINDS:
@@ -164,14 +179,14 @@ def _fields(openapi: dict, operations: list[dict]) -> dict:
         fields[name] = {'type': schema.get('type', 'object')}
         if 'format' in schema:
             fields[name]['format'] = schema['format']
-        fields[name].update(_labels(prop))
+        fields[name].update(_labels(prop, scope))
     for name, prop in _resolve(openapi, props.get('relationships', {})).get('properties', {}).items():
         data = _not_null(openapi, _not_null(openapi, prop).get('properties', {}).get('data', {}))
         many = data.get('type') == 'array'
         identifiers = _alternatives(openapi, data['items'] if many else data)
         types = sorted({it.get('properties', {}).get('type', {}).get('default') for it in identifiers} - {None})
         fields[name] = {'relation': types[0] if len(types) == 1 else types, 'many': many}
-        fields[name].update(_labels(prop))
+        fields[name].update(_labels(prop, scope))
     return fields
 
 
@@ -192,11 +207,17 @@ def _response_resource(openapi: dict, operation: dict) -> dict | None:
     return None
 
 
-def _labels(prop: dict) -> dict:
+def _labels(prop: dict, scope: QueryScope | None) -> dict:
+    """
+    The labels of a field of the item schema (its source) that the scope of the route set
+    takes: in its fields that can filter, in those that can order.
+    """
+    if scope is None:
+        return {}
     labels = {}
-    if 'filterLabel' in prop:
+    if prop.get('filterLabel') in scope.fields:
         labels['filter'] = prop['filterLabel']
-    if 'orderLabel' in prop:
+    if prop.get('orderLabel') in scope.order_fields:
         labels['order'] = prop['orderLabel']
     return labels
 

@@ -354,9 +354,15 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `fields` are the attributes and relationships of the item response: `type` (and
   `format`) of an attribute, `relation` (the JSON:API type) and `many` of a relationship;
   `filter` and `order` are the labels for `filter` and `sort`, absent when the field cannot
-  be filtered or sorted. `search` lists the search fields of the route set (`search_fields`,
-  as declared) that its LIST schema reaches, those the core searches with `search`; empty,
-  the route set has no search, and a `search` is 400 `ERR_FILTER` (bazis 2.9).
+  be filtered or sorted: they are those the core takes (bazis 2.9), the fields of the LIST
+  schema of the route set that can filter or order (`query_fields`), so a field of the item
+  schema that the LIST schema does not have has neither. `search` lists the search fields of
+  the route set (`search_fields`, as declared) that its LIST schema reaches, those the core
+  searches with `search`; empty, the route set has no search, and a `search` is 400
+  `ERR_FILTER`. Both are read for the LIST schema of the route set itself: a package that
+  narrows it per user (the field permissions of bazis-permit) may refuse a field for some
+  users, and `BS_BAZIS_FILTERS_STRICT=false` (transitional) searches a route set without
+  search fields anyway; the contract follows the strict scope.
 - `capabilities` has a section for each installed package whose app is in
   `INSTALLED_APPS` (bazis-ws: its installed package): `users` (the token endpoint, the resource of the user model,
   `profile_language`: whether the user model has a text field `language`, the language of
@@ -509,7 +515,10 @@ scenarios:
   the resource it reaches (a reverse relation such as `members` or a many-to-many field,
   bazis-permit 2.6.0, whether the route shows it or not; `self` only on a selector
   source), and each relation of its path a relationship of the contract or a selector;
-  what the contract does not describe is not checked.
+  what the contract does not describe is not checked. A path through a relation that the
+  route set does not show and that is not a selector (a reverse relation to a model that
+  is no selector source) is still reported: show the relation in the route set, or ignore
+  the warning when bazis-permit resolves it.
 - **Scenarios** are the end-to-end tests of the product: steps over the screens, each one
   key: `open: <screen>`, `open_item: {where: {field: value}}` (a row of the current list,
   which opens the screen of its `list.open`), `action: <action of the screen>`,
