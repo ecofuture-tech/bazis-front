@@ -85,7 +85,7 @@ def upload(client, name: str) -> str:
 @pytest.mark.django_db(transaction=True)
 def test_a_user_reads_only_the_files_he_uploaded(sample_app, workflow):
     """
-    The route set of the uploaded files (bazis-uploadable 2.5.0, routed as it is): a user
+    The route set of the uploaded files (bazis-uploadable 2.6.0, routed as it is): a user
     uploads a file, lists and reads his own files; the file of another user is a 404 (which
     `FileValue` shows as not available); no file is changed or deleted; the filter fields of
     the tasks name its list.
@@ -109,10 +109,12 @@ def test_a_user_reads_only_the_files_he_uploaded(sample_app, workflow):
 @pytest.mark.django_db(transaction=True)
 def test_a_task_takes_only_a_file_that_the_user_uploaded(sample_app, workflow):
     """
-    The core does not check yet that a relationship targets an item the user may see: the
-    route set of the tasks refuses the file of another user (403 `ERR_ATTACHMENT_NOT_OWN`) on
-    a create, an update and the relationships endpoint, as bazis-uploadable recommends;
-    otherwise a user would link it by its id and read it with `include=attachment`.
+    The core (2.7) links only the objects that the default route of the related model shows
+    the user, and bazis-uploadable (2.6) shows a user only his own files: the file of
+    another user is refused (403 `ERR_RELATION_ACCESS`) on a create, an update and the
+    relationships endpoint, and `include=attachment` leaves out the files of the others
+    (the relationship keeps the id: `FileValue` shows the file as not available). The route
+    set of the tasks has no check of its own.
     """
     from django.apps import apps
 
@@ -130,7 +132,7 @@ def test_a_task_takes_only_a_file_that_the_user_uploaded(sample_app, workflow):
 
     refused = client.post(TASKS, json_data=document(theirs))
     assert refused.status_code == 403, refused.text
-    assert refused.json()['errors'][0]['code'] == 'ERR_ATTACHMENT_NOT_OWN'
+    assert refused.json()['errors'][0]['code'] == 'ERR_RELATION_ACCESS'
     assert not apps.get_model('tasks.Task').objects.filter(attachment_id=theirs).exists()
 
     created = client.post(TASKS, json_data=document(mine))
@@ -140,13 +142,26 @@ def test_a_task_takes_only_a_file_that_the_user_uploaded(sample_app, workflow):
 
     # an update that keeps the attachment, or changes it to a file of another user
     assert client.patch(item, json_data={'data': {'type': 'tasks.task', 'id': task_id, 'attributes': {'title': 'Kept'}}}).status_code == 200
-    assert client.patch(item, json_data=document(theirs, task_id)).status_code == 403
-    response = client.patch(
-        f'{item}relationships/attachment',
-        json_data={'data': {'type': 'uploadable.file_upload', 'id': theirs}},
-    )
-    assert response.status_code == 403, response.text
+    for response in (
+        client.patch(item, json_data=document(theirs, task_id)),
+        client.patch(
+            f'{item}relationships/attachment',
+            json_data={'data': {'type': 'uploadable.file_upload', 'id': theirs}},
+        ),
+    ):
+        assert response.status_code == 403, response.text
+        assert response.json()['errors'][0]['code'] == 'ERR_RELATION_ACCESS'
     assert str(apps.get_model('tasks.Task').objects.get(pk=task_id).attachment_id) == mine
+
+    # the author reads his file with the task; another user, who may view the task, reads
+    # its id only
+    def included(reader):
+        document = reader.get(item, params={'include': 'attachment'}).json()
+        linked = document['data']['relationships']['attachment']['data']['id']
+        return str(linked), [str(it['id']) for it in document.get('included', [])]
+
+    assert included(client) == (mine, [mine])
+    assert included(other) == (mine, [])
     # no attachment is always allowed
     response = client.patch(item, json_data={'data': {
         'type': 'tasks.task', 'id': task_id, 'relationships': {'attachment': {'data': None}},

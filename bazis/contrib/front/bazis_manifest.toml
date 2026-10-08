@@ -43,7 +43,7 @@ text = "the theme of the frontend (frontend/src/bazis/generated/theme.css and th
 check = "front.W005"
 
 [[pitfalls]]
-text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-uploadable>=2.5.0 (the files of their author); an older installed package is the warning front.W006 (the error C004 of `bazis_front check`): upgrade it"
+text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-uploadable>=2.6.0 (the files of their author, for every route); an older installed package is the warning front.W006 (the error C004 of `bazis_front check`): upgrade it"
 check = "front.W006"
 
 [[pitfalls]]
@@ -60,7 +60,7 @@ text = "bazis-ws keeps nothing: a message published before the page subscribed i
 text = "the common channel of bazis-ws reaches every user session (anonymous ones with BAZIS_WS_ANONYMOUS_COMMON_CHANNEL): it is not for data, publish only the invalidation hint {\"resource\": \"<type>\"} there, the ids and the notifications only to the users who may see the item (user.ws_publish)"
 
 [[pitfalls]]
-text = "bazis-uploadable gives a user only his own files, and the core does not check yet that a relationship targets an item the user may see: the route set of a model with a foreign key to uploadable.FileUpload refuses a file the user did not upload (on create, update and the relationships endpoint), as TaskRouteSet of the sample of bazis-front does"
+text = "bazis-uploadable gives a user only his own files, and the core (2.7) links and includes only the objects the user may see: a relationship to the file of another user is 403 ERR_RELATION_ACCESS (no check of its own in the route set, which must know the user: UserRouteBase or a route set of bazis-permit), and include leaves the file out; FileValue shows it as not available"
 
 [[pitfalls]]
 text = "the frontend is in the languages of the backend (LANGUAGES, LANGUAGE_CODE): every text of a screen goes through t() of @/bazis/i18n with a key of the dictionaries of the product (src/i18n/<language>.ts, merged over those of the components), dates and numbers through its Intl formatters; the backend translates with gettext (.po and .mo committed) and the translated fields of its data (the names of roles, statuses and transits in every language in the data migrations)"

@@ -17,11 +17,11 @@ version of bazis-front, merged with the changes of the product).
 
 ## Setup
 
-`pip install bazis-front` (needs bazis 2.5.0 or newer) and add `"bazis.contrib.front"` to
+`pip install bazis-front` (needs bazis 2.7.0 or newer) and add `"bazis.contrib.front"` to
 `BS_INSTALLED_APPS`. The assets follow the protocol of recent versions of the packages of
 the capabilities: bazis-ws 2.5.0 (the socket is open once the server sends `subscribed`),
-bazis-authing 2.6.0 (the logout endpoint), bazis-uploadable 2.5.0 (the files of their
-author). An older one that the project installs is the warning `front.W006` of the system
+bazis-authing 2.6.0 (the logout endpoint), bazis-uploadable 2.6.0 (the files of their
+author, for every route). An older one that the project installs is the warning `front.W006` of the system
 checks (it does not block `migrate`) and the error `C004` of `bazis_front check`: upgrade it.
 
 ## The frontend
@@ -203,20 +203,24 @@ the package documents each component.
   submitted while a file uploads. Without the provider the field is the picker of a
   relationship. The payloads of the transits have no files (a payload has no
   relationships).
-- **The uploaded files belong to their author** (bazis-uploadable 2.5.0): the bundled
+- **The uploaded files belong to their author** (bazis-uploadable 2.6.0): the bundled
   `FileUploadRouteSet` (`bazis.contrib.uploadable.router`) requires a user, makes the user
   who uploads a file its `author`, lists and retrieves only his own files and changes or
   deletes none: route it as it is (the sample does), a subclass is no longer needed. The
   frontend needs its create (the upload) and its retrieve (the file of a field); the file
   of another user is a 404, which `FileValue` shows as not available.
-- **Refuse the files of the others in the route set that references them.** The core does
-  not check yet that a relationship targets an item the user may see: a user could link the
-  file of another user by its id to his own item and read it with `include`. Until it does,
-  the route set of every model with a foreign key to `uploadable.FileUpload` refuses a file
-  that the user did not upload, on a create, an update and the relationships endpoint (403
-  `ERR_ATTACHMENT_NOT_OWN`), as bazis-uploadable recommends: see `TaskRouteSet` of the
-  sample (`sample/tasks/routes.py`). The section `uploadable` lists only the route sets
-  with their create.
+- **The files of the others are neither linked nor included** (bazis 2.7.0 with
+  bazis-uploadable 2.6.0): the core links only the objects that the default route of the
+  related model shows the user, so a relationship to a file the user did not upload fails
+  with 403 `ERR_RELATION_ACCESS` (the pointer `/data/relationships/<field>`, the error of
+  the field in the forms) on a create, an update and the relationships endpoint, and
+  `include` leaves the file out (the relationship keeps its id). The route set of a model
+  that references files needs no check of its own (`TaskRouteSet` of the sample has none),
+  but must know the user (`UserRouteBase`, `UserRequiredRouteBase`, or a route set of
+  bazis-permit or bazis-statusy): on a route without a user even his own file is refused.
+  A product that shares the attachments of shared items widens `restrict_queryset` of a
+  subclass of `FileUploadRouteSet` with `default_route = True` (the guide of
+  bazis-uploadable). The section `uploadable` lists only the route sets with their create.
 - **The status history** (`StatusHistory`) is what bazis-statusy exposes: the current
   status with `status_dt` and `status_author`. bazis-statusy records every transit
   (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
@@ -608,7 +612,7 @@ warning there, never blocking `migrate` or `contract`.
 | `C001` | error | contract/contract.json cannot be read |
 | `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
 | `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or assets of a package are there without it |
-| `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-uploadable 2.5.0); the system check `front.W006` (a warning) reports it too |
+| `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-uploadable 2.6.0); the system check `front.W006` (a warning) reports it too |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |

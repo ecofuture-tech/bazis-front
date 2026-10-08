@@ -57,8 +57,8 @@ CAPABILITIES = {
     'permit': Capability('bazis-permit', 'bazis.contrib.permit', needs_db=True),
     'statusy': Capability('bazis-statusy', 'bazis.contrib.statusy', needs_db=True),
     'uploadable': Capability(
-        'bazis-uploadable', 'bazis.contrib.uploadable', minimum='2.5.0',
-        needs='the files of their author: the route set gives a user his own files only',
+        'bazis-uploadable', 'bazis.contrib.uploadable', minimum='2.6.0',
+        needs='the files of their author for every route: no route links or includes the file of another user',
     ),
     'ws': Capability(
         'bazis-ws', 'bazis.contrib.ws', app=False, minimum='2.5.0',

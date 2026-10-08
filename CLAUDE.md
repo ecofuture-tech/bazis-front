@@ -35,10 +35,10 @@ bazis-uploadable, bazis-ws, bazis-author with bazis-bg, bazis-async-background a
 bazis-async-request (the `test` extra) with a project app `users` and a statusy model
 `tasks.Task`, whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
-bazis-uploadable, routed as it is: it requires a user and gives him only his own files;
-`tasks.routes.TaskRouteSet` refuses as the attachment a file of another user, 403
-`ERR_ATTACHMENT_NOT_OWN`, as bazis-uploadable recommends until the core checks the targets
-of relationships); the auth endpoint and the password service of
+bazis-uploadable, routed as it is: it requires a user and gives him only his own files,
+also to the other routes, so the core refuses as the attachment of a task a file of another
+user, 403 `ERR_RELATION_ACCESS`, and leaves it out of `included`: `tasks.routes.TaskRouteSet`
+has no check of its own); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
 sample is that of bazis-authing (the token endpoint of bazis-users stays). The sample is in
 English and Russian (`BS_LANGUAGES` of `sample/project.env`, `LANGUAGE_CODE` `en`): the
