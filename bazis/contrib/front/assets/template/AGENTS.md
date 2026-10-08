@@ -58,7 +58,7 @@ npm run lint
 npm test
 npm run build
 npx playwright install chromium   # once
-npm run e2e        # the end-to-end tests, against the running backend (E2E_PASSWORD)
+npm run e2e        # the end-to-end tests, against the running backend of BAZIS_API_URL (E2E_PASSWORD)
 ```
 
 `schema.d.ts` is generated with the `openapi-typescript` of this `package.json`: run
@@ -495,10 +495,20 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   database and run one at a time; no scenario relies on what another one created.
 - A `submit` followed by `expect: {error: <field>}` is a failing submit: the test expects
   the error of the backend in the open form, which stays open for the next steps.
-- `npm run e2e` starts the dev server (its `/api` goes to `BAZIS_API_URL`); with
-  `E2E_BASE_URL` it tests a frontend already running (`npm run build` and `npm run preview`
-  in CI). The backend runs separately. Without bazis-users there is no login; with
-  bazis-authing the tests log in through its service `password`.
+- `npm run e2e` starts its own dev server on `E2E_PORT` (5173 by default), whose `/api` goes
+  to `BAZIS_API_URL` (`http://localhost:8000` by default, also read from `.env.local`, as
+  for `npm run dev`), and starts the tests once the backend answers its health check
+  through it. The backend runs separately: start it first, at that address. It never
+  reuses a server: when the port is taken (`npm run dev` of this frontend, or another app)
+  the run fails, so that the tests never pass against another frontend; choose a free
+  port, `E2E_PORT=5191 BAZIS_API_URL=http://localhost:8031 npm run e2e`, or name a frontend
+  already running with `E2E_BASE_URL` (`npm run build` and `npm run preview` in CI). A run
+  that waits for the web server until its timeout has no Bazis backend at `BAZIS_API_URL`.
+- The browser of the tests is in UTC and in the default language of the backend
+  (`timezoneId` and `locale` of `playwright.config.ts`), whatever the machine: the times
+  that a scenario fills (`dt_start: '2030-03-04T10:00'`) and the dates it reads are in UTC,
+  like the data of `e2e_data`. Without bazis-users there is no login; with bazis-authing the
+  tests log in through its service `password`.
 - The files that the scenarios upload (`upload: {field, file}`) are in `e2e/fixtures/`.
 - A test of your own, for what a scenario does not express, uses the same helpers:
 

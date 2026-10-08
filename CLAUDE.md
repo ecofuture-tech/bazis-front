@@ -367,8 +367,10 @@ npm test
   session with its number for the query keys, router with the layout `AppShell`, errors),
   `src/screens/` (login with `LoginForm`, home with the counts of `useList`),
   `playwright.config.ts` (`npm run e2e`: `e2e/generated/` and `e2e/custom/`, one worker,
-  `E2E_BASE_URL` or the dev server) and `AGENTS.md`, the guide of the frontend (how to
-  compose screens from the components, the end-to-end tests). The versions of React and
+  `E2E_BASE_URL` or a dev server of its own on `E2E_PORT`, never one already running, ready
+  when the backend of `BAZIS_API_URL` answers through its proxy; the browser in UTC and in
+  `LANGUAGE` of the contract, `tests/test_assets.py`) and `AGENTS.md`, the guide of the
+  frontend (how to compose screens from the components, the end-to-end tests). The versions of React and
   TanStack Query in the workspace of the hooks are those of its package.json.
 - Its package.json is the product's, every file of it is copied: it is not a workspace and
   the root eslint ignores it, because it compiles only with the generated files of a

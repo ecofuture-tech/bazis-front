@@ -811,9 +811,15 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   The scenarios share the database and run one at a time (`playwright.config.ts`); none
   should depend on another: a scenario opens an item that `e2e_data` creates, or one it
   creates itself.
-- `npm run e2e` starts the dev server of the frontend (its `/api` goes to `BAZIS_API_URL`)
-  unless `E2E_BASE_URL` names a running frontend; the backend runs separately. In CI, an
-  HTML report is written to `frontend/playwright-report/`.
+- `npm run e2e` starts its own dev server of the frontend on `E2E_PORT` (5173 by default;
+  its `/api` goes to `BAZIS_API_URL`, `http://localhost:8000` by default, as for `npm run
+  dev`) and runs the tests once the backend answers its health check through it, unless
+  `E2E_BASE_URL` names a running frontend; the backend runs separately. It never reuses a
+  server already on the port: the run fails instead of testing another frontend (choose
+  another `E2E_PORT`, or `E2E_BASE_URL`). The browser is in UTC and in the default language
+  of the backend (`timezoneId`, `locale`): the times that the scenarios fill and the dates
+  they read are in UTC, like the data of `e2e_data`. In CI, an HTML report is written to
+  `frontend/playwright-report/`.
 
 ## Updating the copies
 

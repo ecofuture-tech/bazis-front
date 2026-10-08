@@ -20,8 +20,12 @@
 
 import { defineConfig, devices } from '@playwright/test';
 
-/** The frontend under test; without E2E_BASE_URL, the dev server (`/api` goes to BAZIS_API_URL). */
-const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
+import { LANGUAGE } from './src/bazis/generated/contract';
+
+/** The port of the dev server that the tests start: E2E_PORT, 5173 by default. */
+const port = process.env.E2E_PORT ?? '5173';
+/** The frontend under test: E2E_BASE_URL (a frontend already running), else that dev server. */
+const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: 'e2e',
@@ -30,9 +34,25 @@ export default defineConfig({
   // the scenarios share the database of the backend
   workers: 1,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
-  use: { baseURL, trace: 'retain-on-failure' },
+  use: {
+    baseURL,
+    trace: 'retain-on-failure',
+    // the same texts on every machine: the times that the scenarios fill and read are in UTC
+    // (the default time zone of Bazis, that of the data of `e2e_data`), and the interface is in
+    // the default language of the backend (the languages of the browser would choose another)
+    timezoneId: 'UTC',
+    locale: LANGUAGE,
+  },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // the tests start their own dev server, never reuse one: a server already on the port fails
+  // the run instead of being tested in place of this frontend (E2E_BASE_URL names a running
+  // one). It is ready when the backend of BAZIS_API_URL (as for `npm run dev`) answers its
+  // health check through the proxy.
   webServer: process.env.E2E_BASE_URL
     ? undefined
-    : { command: 'npm run dev -- --port 5173 --strictPort', url: baseURL, reuseExistingServer: true },
+    : {
+        command: `npm run dev -- --port ${port} --strictPort`,
+        url: `${baseURL}/api/healthcheck`,
+        reuseExistingServer: false,
+      },
 });
