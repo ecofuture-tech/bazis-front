@@ -198,20 +198,12 @@ def capture(app, settings, monkeypatch) -> dict:
     return normalize(result)
 
 
-def subscribed(channel: str) -> None:
+def subscribed(socket) -> None:
     """
-    Waits until the socket subscribed to the channel: a message published before is lost.
+    Waits until the server subscribed the session of the socket (bazis-ws sends
+    `{"type": "subscribed"}`, which the hooks wait for): a message published before is lost.
     """
-    from django.conf import settings
-
-    from redis import Redis
-
-    redis = Redis.from_url(settings.CACHES['default']['LOCATION'])
-    for _ in range(100):
-        if redis.pubsub_numsub(channel)[0][1]:
-            return
-        asyncio.run(asyncio.sleep(0.05))
-    raise AssertionError(f'nobody subscribed to {channel}')
+    assert socket.receive_json() == {'type': 'subscribed'}
 
 
 def received(socket, count: int) -> list[dict]:
@@ -257,7 +249,7 @@ def background(app, settings, monkeypatch, user) -> dict:
     item_id = created.json()['data']['id']
     with get_api_client(app).client.websocket_connect('/ws') as socket:
         socket.send_json({'token': token})
-        subscribed(user.user_channel)
+        subscribed(socket)
         response = client.patch(
             f'{TASKS}{item_id}/',
             json_data={'data': {'type': 'tasks.task', 'id': item_id, 'attributes': {'title': 'Later'}}},
@@ -309,13 +301,13 @@ def background(app, settings, monkeypatch, user) -> dict:
 def notified(app, user, tasks_client) -> dict:
     """
     The messages of the socket of the user while a task assigned to them is finished: the
-    first change of a task on the common channel (the resource, never the id of an item: an
-    anonymous session receives it too), and the notification of the assignee.
+    first change of a task on the common channel (the resource, never the id of an item: every
+    user session receives it), and the notification of the assignee.
     """
     token = user.jwt_build()
     with get_api_client(app).client.websocket_connect('/ws') as socket:
         socket.send_json({'token': token})
-        subscribed(user.user_channel)
+        subscribed(socket)
         created = tasks_client.post(TASKS, json_data={'data': {
             'type': 'tasks.task', 'attributes': {'title': 'Notify'},
             'relationships': {'assignee': {'data': {'type': 'users.user', 'id': str(user.id)}}},

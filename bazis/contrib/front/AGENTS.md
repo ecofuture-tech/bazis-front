@@ -993,7 +993,7 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
 
 bazis-ws delivers the messages that the backend publishes to the channel of a user
 (`user.ws_publish({...})` of `UserWsMixin`, `user_ws::<pk>`), to the channel of an anonymous
-token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every session
+token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every user session
 (`COMMON_CHANNEL`, `user_ws:common`). The facts that the hooks rely on:
 
 - **Route the socket where the contract sees it**: append `ws_route` to the routes of the
@@ -1008,15 +1008,15 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every sessio
 - The socket is at `CAPABILITIES.ws.path` (`/ws`, without the prefix of the API; the dev
   server of the template proxies it). The token is sent in the first message
   (`{"token": "<token>"}`), never in the URL: a session JWT of bazis-users (`exp` and `sub`
-  required: a token without `exp` is refused) subscribes to the channel of its user, any
-  other token of 16–128 characters `A-Z a-z 0-9 _ -` to its anonymous channel. A refused
-  token is `{"type": "error", "code": "expired_token" | "invalid_token" | "user_not_found"}`
-  (the socket stays open but receives nothing: the hooks close it, `rejected`, and wait for
-  another token). The server accepts the connection before it takes the token, and keeps a
-  socket open after `internal_error`: the hooks send a ping with the token and the socket is
-  `open` only once the server answered after it (a refused token is an error before the
-  pong); `internal_error` and a close (1011 when Redis fails, also right after the session
-  started) are retried after 1 s, doubling up to 30 s, and the backoff starts again only
+  required: a token without `exp` is refused) subscribes to the channel of its user and to
+  the common channel, any other token of 16–128 characters `A-Z a-z 0-9 _ -` to its
+  anonymous channel only. The server accepts the connection before it takes the token, and
+  sends `{"type": "subscribed"}` once the subscription of the session is active: the socket
+  is `open` only then (bazis-ws 2.5.0). A refused token is
+  `{"type": "error", "code": "expired_token" | "invalid_token" | "user_not_found"}` and a
+  close with 1008: the socket is `rejected`, and the hooks wait for another token (a new
+  login); `internal_error` is followed by a close with 1011, as a failure of Redis. A close
+  (1011, also right after the session started) is retried after 1 s, doubling up to 30 s, and the backoff starts again only
   after a connection that lasted 10 s, so a server that drops every session is not asked
   every second. Five handshakes that failed in a row (no socket at the path: a 404, the
   server down or restarting, no network) make it `unavailable`: the attempts go on every
@@ -1030,10 +1030,11 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every sessio
   hooks refetch every query after a reconnect that the server took; publish after the
   commit (`transaction.on_commit(..., robust=True)`: Redis down must not fail a change that
   is committed), or a client refetches the old data.
-- **The common channel is public**: every session receives it, an anonymous one too (any
-  token of 16–128 characters). Publish there only `{"resource": "<JSON:API type>"}`, never
-  the id of an item, its data or a notification: an id tells who may not see the item that
-  it exists and when it changes. A message about an item (its id, a notification) goes only
+- **The common channel is not public data**: every user session receives it (an anonymous
+  one only with `BS_BAZIS_WS_ANONYMOUS_COMMON_CHANNEL=true`, when anybody can open one).
+  Publish there only the invalidation hint `{"resource": "<JSON:API type>"}`, never the id
+  of an item, its data or a notification: an id tells who may not see the item that it
+  exists and when it changes. A message about an item (its id, a notification) goes only
   to the users who may see it, `user.ws_publish(...)` (the author, the assignee).
 - The formats that the hooks read (bazis-ws carries any JSON):
   `{"resource": "<JSON:API type>", "id"?: "<id>"}` (the resource or the item changed:

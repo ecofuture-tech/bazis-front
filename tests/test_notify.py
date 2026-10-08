@@ -14,8 +14,8 @@
 
 """
 The messages of the sample on the socket of bazis-ws (`sample/tasks/notify.py`): the
-common channel, which every session receives (anonymous ones too), carries only the
-resource that changed, never the id of an item; the notification of an item goes to the
+common channel, which every user session receives, carries only the resource that
+changed, never the id of an item; the notification of an item goes to the
 channel of its assignee; a publication that fails does not fail a change that is committed.
 """
 

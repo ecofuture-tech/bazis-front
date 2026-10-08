@@ -52,7 +52,7 @@ viewer opens; it never creates a role, a status or a transit. The user model has
 `UserWsMixin`, `sample/router.py` routes the socket of bazis-ws (`ws_route`, `/ws`, where the
 export sees it) and `sample/main.py` adds `AsyncRequestMiddleware`; `sample/tasks/notify.py`
 publishes, after the commit and robustly (Redis down does not fail the change), every save
-of a task to the common channel (`{"resource"}` only: anonymous sessions receive it) and
+of a task to the common channel (`{"resource"}` only: an invalidation hint, never data) and
 the notification of the assignee of a finished task (`{"action": "notification", ...}`, to
 the channel of the assignee), which the scenario
 `manager-is-notified-of-a-finished-task` expects (Redis only). The sample has no Kafka and

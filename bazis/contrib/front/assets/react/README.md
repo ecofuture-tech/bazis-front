@@ -176,16 +176,17 @@ required payload is missing; 422 with the errors of the payload and the validato
 page; a `ws://`/`wss://` URL as it is) when it has a `token`, and sends `{"token": <token>}`
 as its first message (never in the URL): a session JWT of bazis-users (`exp` and `sub`
 required) subscribes to the channel of its user, an anonymous token of bazis-ws (16–128
-characters `A-Z a-z 0-9 _ -`) to its own channel; every session also gets the common
+characters `A-Z a-z 0-9 _ -`) to its own channel; a user session also gets the common
 channel. The server sends `{"type": "data", "data": "<published JSON as a string>"}`,
-which the hooks parse (a text that is not JSON as it is), `{"type": "pong"}` for the ping
+which the hooks parse (a text that is not JSON as it is), `{"type": "subscribed"}` once the
+subscription of the session is active (bazis-ws 2.5.0: the socket is `open` then, and not
+before: a message published earlier is not delivered), `{"type": "pong"}` for the ping
 that the hooks send every `PING_INTERVAL` (25 s; nothing received since the last one: the
-socket is dead and reconnected), and `{"type": "error", "code"}`. `expired_token`,
-`invalid_token` and `user_not_found` make it `rejected` (closed, no new attempt until the
-token changes). The server accepts the connection before it takes the token: the ping sent
-with the token proves the session, and the socket is `open` at its pong (or at the first
-message). Another error or a close is retried after `reconnectDelay`, from `RECONNECT_MIN`
-(1 s) doubling to `RECONNECT_MAX` (30 s), half of it random; the backoff starts again only
+socket is dead and reconnected), and `{"type": "error", "code"}` before it closes a session
+that cannot run. `expired_token`, `invalid_token` and `user_not_found`, and a close with
+1008, make it `rejected` (closed, no new attempt until the token changes: a new login).
+`internal_error`, a close with 1011 (Redis failed) and any other close are retried after
+`reconnectDelay`, from `RECONNECT_MIN` (1 s) doubling to `RECONNECT_MAX` (30 s), half of it random; the backoff starts again only
 after a connection that stayed `open` `STABLE_AFTER` (10 s), so a server that drops every
 session at once is asked less and less often. `UNAVAILABLE_AFTER` (5) handshakes that
 failed in a row make it `unavailable` (no socket at the path, a server that restarts, no
@@ -196,7 +197,7 @@ reconnect that the server took.
 
 The formats that the hooks read (`changedResource`, `notificationOf`,
 `backgroundStatusOf`): `{"resource": "<type>", "id"?: "<id>"}` (an item or a resource
-changed; on the common channel, which anonymous sessions receive too, the resource
+changed; on the common channel of the user sessions, only a hint, the resource
 only), `{"action": "notification", "title", "text"?, "resource"?, "id"?}` (a
 notification, which also says its item changed) and `{"action": "async_bg", "task_id",
 "status"}` of bazis-async-background. `useNotifications` keeps the notifications received

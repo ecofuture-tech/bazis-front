@@ -134,7 +134,7 @@ describe('the socket', () => {
     expect(socketUrl('wss://api.example.com/ws')).toBe('wss://api.example.com/ws');
   });
 
-  it('sends the token in its first message, and is open once the server answered after it', () => {
+  it('sends the token in its first message, and is open once the server subscribed the session', () => {
     const { result } = renderSocket(() => useSocket());
     expect(result.current).toMatchObject({ status: 'connecting', error: null });
     const socket = FakeSocket.last();
@@ -142,11 +142,16 @@ describe('the socket', () => {
     act(() => {
       socket.open();
     });
-    // never in the URL; the ping proves that the server took the token
-    expect(socket.sent).toEqual([{ token: 'session-jwt' }, { type: 'ping' }]);
+    // never in the URL
+    expect(socket.sent).toEqual([{ token: 'session-jwt' }]);
     expect(result.current.status).toBe('connecting');
+    // a pong does not prove the session: the subscription may not be active yet
     act(() => {
       socket.receive({ type: 'pong' });
+    });
+    expect(result.current.status).toBe('connecting');
+    act(() => {
+      socket.receive({ type: 'subscribed' });
     });
     expect(result.current).toMatchObject({ status: 'open', error: null });
   });
@@ -168,7 +173,7 @@ describe('the socket', () => {
     rerender();
     accept();
     expect(FakeSocket.sockets).toHaveLength(2);
-    expect(FakeSocket.last().sent).toEqual([{ token: 'next-jwt' }, { type: 'ping' }]);
+    expect(FakeSocket.last().sent).toEqual([{ token: 'next-jwt' }]);
   });
 
   it('backs off while the server drops the session at once, and starts again after a connection that lasted', () => {
@@ -227,6 +232,26 @@ describe('the socket', () => {
     expect(FakeSocket.last().closed).toBe(1000);
     advance(RECONNECT_MAX * 2);
     expect(FakeSocket.sockets).toHaveLength(1);
+  });
+
+  it('stops at a close of a refused token (1008), and retries a close of a failure (1011)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(1);
+    const { result } = renderSocket(() => useSocket());
+    // the server fails (Redis): 1011, a new attempt after the delay
+    accept();
+    drop(1011);
+    expect(result.current.status).toBe('connecting');
+    advance(RECONNECT_MIN);
+    expect(FakeSocket.sockets).toHaveLength(2);
+    // the token is refused: 1008, no new attempt with it
+    act(() => {
+      FakeSocket.last().open();
+    });
+    drop(1008);
+    expect(result.current).toMatchObject({ status: 'rejected', error: null });
+    advance(RECONNECT_MAX * 2);
+    expect(FakeSocket.sockets).toHaveLength(2);
   });
 
   it('is unavailable when no socket answers at the path, and keeps trying slowly', () => {
@@ -313,12 +338,12 @@ describe('the socket', () => {
     const socket = FakeSocket.last();
     accept();
     advance(PING_INTERVAL);
-    expect(socket.sent).toEqual([{ token: 'session-jwt' }, { type: 'ping' }, { type: 'ping' }]);
+    expect(socket.sent).toEqual([{ token: 'session-jwt' }, { type: 'ping' }]);
     act(() => {
       socket.receive({ type: 'pong' });
     });
     advance(PING_INTERVAL);
-    expect(socket.sent).toHaveLength(4);
+    expect(socket.sent).toHaveLength(3);
     // no pong: the socket is dead
     advance(PING_INTERVAL);
     expect(socket.closed).not.toBeNull();
@@ -427,7 +452,7 @@ describe('useLiveQueries', () => {
     expect(keys()).toEqual([]);
     // the next one is taken: one refetch of every query
     act(() => {
-      FakeSocket.last().receive({ type: 'pong' });
+      FakeSocket.last().receive({ type: 'subscribed' });
     });
     expect(keys()).toEqual([['bazis']]);
     invalidate.mockClear();

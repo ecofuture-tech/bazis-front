@@ -296,10 +296,10 @@ export class FakeSocket {
     this.onopen?.(new Event('open'));
   }
 
-  /** The server accepts the connection and the token: it answers the ping sent with it. */
+  /** The server accepts the connection and the token: the subscription of the session is active. */
   accept(): void {
     this.open();
-    this.receive({ type: 'pong' });
+    this.receive({ type: 'subscribed' });
   }
 
   /** A message of the server. */

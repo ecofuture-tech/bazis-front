@@ -14,9 +14,10 @@
 
 """
 The messages of the tasks on the socket of bazis-ws, in the formats that the frontend reads
-(`@/bazis/react/ws` of bazis-front). The common channel reaches every session, anonymous
-ones too: it carries only `{"resource": "<type>"}` (the clients refetch the lists and the
-items of the resource, with their own permissions), never an id. A message about an item,
+(`@/bazis/react/ws` of bazis-front). The common channel reaches every user session (and
+anonymous ones with `BAZIS_WS_ANONYMOUS_COMMON_CHANNEL`): it is no data of its own, only a
+hint `{"resource": "<type>"}` that the resource changed (the clients refetch the lists and
+the items of the resource, with their own permissions), never an id. A message about an item,
 here the notification `{"action": "notification", "title", "text", "resource", "id"}`, goes
 only to a user who may see it (`user.ws_publish`, the channel of the user): the assignee.
 

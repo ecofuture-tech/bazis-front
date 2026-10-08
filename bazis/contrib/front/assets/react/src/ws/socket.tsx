@@ -15,14 +15,15 @@
 // The socket of bazis-ws: one connection per page, opened with the token of the session and
 // closed without it (a logout), reconnected with a backoff when it drops. The server sends
 // `{"type": "data", "data": <the published JSON, as a string>}` for each message of the
-// channels of the session (the channel of the user, or of an anonymous token, and the common
-// channel), `{"type": "pong"}` for `{"type": "ping"}` and `{"type": "error", "code"}` when
-// the token is refused or the session fails. It accepts the connection before it takes the
-// token: the socket is live only once the server answered after the token (the pong of a
-// ping sent with it), and the backoff starts again only after a connection that lasted;
-// one that the server drops at once (Redis down) keeps backing off. Pub/sub keeps nothing:
-// a message published while the page is not subscribed is lost (`useLiveQueries` refetches
-// after a reconnect).
+// channels of the session (the channel of the user, or of an anonymous token, and for a user
+// session the common channel), `{"type": "subscribed"}` once the subscription of the session
+// is active, `{"type": "pong"}` for `{"type": "ping"}`, and `{"type": "error", "code"}` before
+// it closes a session that cannot run: with 1008 when the token is refused (connect again
+// only with another token), with 1011 when the server fails (reconnect). The socket is live
+// only once the server sent `subscribed`, and the backoff starts again only after a
+// connection that lasted; one that the server drops at once (Redis down) keeps backing off.
+// Pub/sub keeps nothing: a message published while the page is not subscribed is lost
+// (`useLiveQueries` refetches after a reconnect).
 
 import {
   createContext,
@@ -41,9 +42,9 @@ import { notificationOf, type Notification } from './messages.js';
 
 /**
  * `idle`: no socket (no path or no token); `connecting` (also between two attempts, and
- * until the server answered after the token); `open`: the server took the token, the
- * messages of its channels come; `rejected`: the server refused the token (`error`:
- * `expired_token`, `invalid_token`, `user_not_found`), no new attempt until the token
+ * until the server sent `subscribed`); `open`: the server took the token, the messages of
+ * its channels come; `rejected`: the server refused the token (`error`: `expired_token`,
+ * `invalid_token`, `user_not_found`; a close with 1008), no new attempt until the token
  * changes; `unavailable`: `UNAVAILABLE_AFTER` handshakes failed in a row (no socket at the
  * path, the server is down or restarts, no network): the attempts go on at the longest
  * delay, and at once when the network comes back, the page is shown again or `retry()`.
@@ -67,6 +68,8 @@ let nextKey = 1;
 
 /** The errors of bazis-ws after which a new attempt with the same token would fail again. */
 const REFUSED = new Set(['expired_token', 'invalid_token', 'user_not_found']);
+/** The close of bazis-ws after a refused token (policy violation): no new attempt with it. */
+const CLOSE_REFUSED = 1008;
 
 type Listener = (message: unknown) => void;
 
@@ -207,25 +210,30 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
     window.addEventListener('online', wake);
     document.addEventListener('visibilitychange', visible);
 
+    // the token is refused: the same token would be refused again
+    const refused = (code: string | null) => {
+      stopped = true;
+      release(1000);
+      update('rejected', code);
+    };
+
     function connect() {
       const opening = new WebSocket(url);
       socket = opening;
       let opened = false;
       let live = false;
       let alive = true;
-      const ask = () => {
-        alive = false;
-        opening.send(JSON.stringify({ type: 'ping' }));
-      };
       opening.onopen = () => {
         opened = true;
-        // the server answers the ping after it took the token: the first answer proves the
-        // session (a refused token is an error before it)
         opening.send(JSON.stringify({ token }));
-        ask();
+        // a socket that answered nothing since the last ping is dead
         ping = setInterval(() => {
-          if (alive) ask();
-          else reconnect(true);
+          if (!alive) {
+            reconnect(true);
+            return;
+          }
+          alive = false;
+          opening.send(JSON.stringify({ type: 'ping' }));
         }, PING_INTERVAL);
       };
       opening.onmessage = (event: MessageEvent) => {
@@ -233,18 +241,14 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
         if (typeof event.data !== 'string') return;
         const message = parse(event.data) as { type?: unknown; data?: unknown; code?: unknown } | null;
         if (message?.type === 'error') {
+          // the server closes the socket after it: 1008 for a refused token, 1011 else
           const code = typeof message.code === 'string' ? message.code : 'internal_error';
-          if (!REFUSED.has(code)) {
-            reconnect(true);
-            return;
-          }
-          // the same token would be refused again
-          stopped = true;
-          release(1000);
-          update('rejected', code);
+          if (REFUSED.has(code)) refused(code);
+          else reconnect(true);
           return;
         }
-        if (!live) {
+        if (message?.type === 'subscribed' && !live) {
+          // the subscription is active: the messages published from now on come
           live = true;
           update('open');
           // a connection that the server keeps resets the backoff
@@ -254,8 +258,9 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
         }
         if (message?.type === 'data' && typeof message.data === 'string') received(parse(message.data));
       };
-      opening.onclose = () => {
-        reconnect(opened);
+      opening.onclose = (event: CloseEvent) => {
+        if (event.code === CLOSE_REFUSED) refused(null);
+        else reconnect(opened);
       };
     }
 
