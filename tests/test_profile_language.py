@@ -17,7 +17,8 @@ The language of the profile of a user (`UserLanguageMixin` of bazis-users 2.7.0)
 frontend reads and saves it (`followProfileLanguage` of the asset i18n): the contract says
 the users have one (`users.profile_language`), the user finds his item by the username of
 his session token (`filter=username=<sub>`), reads his language (null: none) and changes it
-with a PATCH of the attribute `language`; nobody else changes it. Skipped while the user
+with a PATCH of the attribute `language` (a language of LANGUAGES, else 422); nobody else
+changes it. Skipped while the user
 model has no such field: the language of the frontend is kept in the browser then.
 """
 
@@ -66,6 +67,15 @@ def test_the_user_reads_and_saves_the_language_of_his_profile(sample_app, workfl
     response = client.patch(item, json_data=document)
     assert response.status_code == 200, response.text
     assert client.get(item).json()['data']['attributes']['language'] == 'ru'
+
+    # only a language of the backend (422 at the attribute), and none is null
+    response = client.patch(item, json_data={'data': {**document['data'], 'attributes': {'language': 'de'}}})
+    assert response.status_code == 422, response.text
+    assert response.json()['errors'][0]['source']['pointer'] == '/data/attributes/language'
+    response = client.patch(item, json_data={'data': {**document['data'], 'attributes': {'language': None}}})
+    assert response.status_code == 200, response.text
+    assert response.json()['data']['attributes']['language'] is None
+    assert client.patch(item, json_data=document).status_code == 200
 
     # another user neither reads nor changes it
     _, other = user_client(sample_app, 'other')
