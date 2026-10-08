@@ -94,20 +94,8 @@ export const RESOURCES = {
   "uploadable.file_upload": {
     actions: {
       action_create: "create",
-      action_delete_relationships: "relationship",
-      action_destroy: "delete",
-      action_dict_data: "other",
       action_list: "collection",
-      action_list_id: "other",
-      action_post_relationships: "relationship",
       action_retrieve: "item",
-      action_schema_create: "schema",
-      action_schema_list: "schema",
-      action_schema_retrieve: "schema",
-      action_schema_update: "schema",
-      action_update: "update",
-      action_update_relationships: "relationship",
-      get_route_filter_fields: "schema",
     },
     fields: {
       extension: {

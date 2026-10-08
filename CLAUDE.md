@@ -34,7 +34,8 @@ The sample (`sample/`) installs bazis-users, bazis-authing, bazis-permit, bazis-
 bazis-uploadable (the `test` extra) with a project app `users` and a statusy model
 `tasks.Task`, whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through `tasks.routes.FileRouteSet`, a
-`FileUploadRouteSet` that requires a user); the auth endpoint and the password service of
+`FileUploadRouteSet` that requires a user, has no update and no delete and lists no file:
+a reference sample never lets a user list, change or delete the files of the others); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
 sample is that of bazis-authing (the token endpoint of bazis-users stays); the roles, statuses and
 transits are defined once in `sample/tasks/workflow.py`, created for the tests by the

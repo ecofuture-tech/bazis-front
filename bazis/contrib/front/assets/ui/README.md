@@ -139,10 +139,12 @@ components. `testing` is the support of the contract tests: a backend for the mo
   resource of `resources` of the capability `uploadable` (`uploadable.file_upload`, whose
   items have `file`, the URL in the storage, `name`, `extension`, `size`). `FieldValue`
   shows it with `FileValue` in the cards and the lists: a link to the file (in a new tab)
-  with its size and a thumbnail of an image (by its extension), the files of a page read
-  with one request (`useRelatedItem`). **`file-field`**: `FileField` is a drop zone with a
+  with its size and a thumbnail of an image (by its extension), read with the retrieve of
+  the route set (`useItem`: a route set of the uploaded files needs no list).
+  **`file-field`**: `FileField` is a drop zone with a
   picker (the input is hidden, `field:<name>`; the label of the field opens it), the file
-  uploaded at once with `useUpload` (its progress, a cancel), then the field set to the id
+  uploaded at once with `useUpload` (its progress, a cancel; no other file is taken, chosen
+  or dropped, while it uploads), then the field set to the id
   of the created item (a string); the file of the value with a replace and, for a nullable
   relationship, a remove; a thumbnail of an image chosen is its local copy until it is
   saved. A file larger than `maxSize` (`max_size` of the contract) or of a type that

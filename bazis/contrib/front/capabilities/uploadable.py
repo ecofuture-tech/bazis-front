@@ -14,9 +14,9 @@
 
 """
 bazis-uploadable: the resources whose files are uploaded with multipart form data (a route
-set of the application that is `FileUploadRouteSet` or a subclass of it) and the size limit
-of an upload. A model references an uploaded file with a foreign key to such a model: its
-relationship to the resource is a file field.
+set of the application that is `FileUploadRouteSet` or a subclass of it, with its create)
+and the size limit of an upload. A model references an uploaded file with a foreign key to
+such a model: its relationship to the resource is a file field.
 """
 
 from django.conf import settings
@@ -30,8 +30,9 @@ def section() -> dict:
 
     resources = {
         route_set.model.get_resource_label()
-        for route_set in route_sets(app)
+        for route_set, routes in route_sets(app).items()
         if issubclass(route_set, FileUploadRouteSet)
+        and any(it.get('action') == 'action_create' for it in routes)
     }
     return {
         # BAZIS_FILE_UPLOAD_MAX_SIZE: 0 is no limit

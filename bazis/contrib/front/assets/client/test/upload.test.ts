@@ -148,6 +148,18 @@ describe('upload', () => {
     expect(await uploading).toMatchObject({ status: 413, message: 'Request Entity Too Large' });
   });
 
+  it('rejects a successful response that is not JSON', async () => {
+    const { api, xhr } = setup();
+    const uploading = api.upload(FILES, FILE).catch((error: unknown) => error);
+    await opened();
+    xhr.status = 200;
+    xhr.responseText = '<html>a proxy</html>';
+    xhr.onload?.();
+    const error = await uploading;
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 200, message: 'The response of the upload is not JSON.' });
+  });
+
   it('rejects a network error', async () => {
     const { api, xhr } = setup();
     const uploading = api.upload(FILES, FILE).catch((error: unknown) => error);

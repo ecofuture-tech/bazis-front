@@ -68,3 +68,27 @@ def test_the_items_of_a_resource_by_their_primary_keys(sample_app, workflow):
     stranger = get_user_model().objects.create_user('stranger', password='p')
     response = client.get(USERS, params={'filter': f'pk={user.id}|pk={stranger.id}', 'page[limit]': 2})
     assert ids(response) == [str(user.id)]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_files_of_the_sample_are_read_by_their_ids_only(sample_app, workflow):
+    """
+    The route set of the files of the sample (bazis-uploadable): a user uploads a file and
+    reads it by its id (`FileValue` of the components retrieves it), but lists no file and
+    changes or deletes none; the filter fields of the tasks name its list.
+    """
+    _, client = manager_client(sample_app)
+    files = '/api/v1/uploadable/file_upload/'
+    response = client.post(files, files={'file': ('brief.txt', b'The brief.', 'text/plain')})
+    assert response.status_code == 201, response.text
+    item = response.json()['data']
+    assert item['attributes']['name'] == 'brief.txt'
+
+    assert client.get(f'{files}{item["id"]}/').json()['data']['attributes']['size'] == 10
+    assert client.get(files).json()['data'] == []
+    assert client.patch(f'{files}{item["id"]}/', json_data={}).status_code == 405
+    assert client.delete(f'{files}{item["id"]}/').status_code == 405
+    filters = client.get(f'{TASKS}route_filter_fields/').json()['fields']
+    assert {'name': 'attachment', 'py_type': files} in filters
+    # an anonymous user uploads nothing
+    assert get_api_client(sample_app).post(files, files={'file': ('a.txt', b'a', 'text/plain')}).status_code == 401

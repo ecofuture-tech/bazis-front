@@ -85,7 +85,10 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     }
     files = resources['uploadable.file_upload']
     assert files['route_set'] == 'tasks.routes.FileRouteSet'
-    assert files['actions']['action_create'] == 'create'
+    # the sample protects the files: no list, update or delete of the files of the others
+    assert files['actions'] == {
+        'action_create': 'create', 'action_list': 'collection', 'action_retrieve': 'item'
+    }
     assert sorted(files['fields']) == ['extension', 'file', 'name', 'size']
     assert resources['users.user']['fields']['roles']['many'] is True
     # a write-only attribute can be neither filtered nor sorted
@@ -265,11 +268,16 @@ def test_capabilities_follow_the_installed_apps():
 
 
 @pytest.mark.django_db
-def test_the_sections_follow_the_routes_and_the_settings(sample_app, settings):
+def test_the_sections_follow_the_routes_and_the_settings(sample_app, settings, monkeypatch):
+    from tasks.routes import FileRouteSet
+
     from bazis.contrib.front.capabilities import authing, uploadable
 
     settings.BAZIS_FILE_UPLOAD_MAX_SIZE = 1024
     assert uploadable.section()['max_size'] == 1024
+    # a route set of the uploaded files without its create takes no file
+    monkeypatch.setattr(uploadable, 'route_sets', lambda app: {FileRouteSet: [{'action': 'action_retrieve'}]})
+    assert uploadable.section()['resources'] == []
     # a service that does not import, one without a login action, and the password
     settings.BAZIS_AUTH_KINDS = [
         'not.a.service', 'bazis.contrib.authing.services', 'bazis.contrib.authing.services.password',

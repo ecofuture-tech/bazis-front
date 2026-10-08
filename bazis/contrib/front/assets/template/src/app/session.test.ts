@@ -12,9 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { login, logout, onSessionChange, PASSWORD_LOGIN } from '@/app/session';
+import {
+  getToken,
+  login,
+  loginInWindow,
+  logout,
+  onSessionChange,
+  PASSWORD_LOGIN,
+  WINDOW_CHECK_INTERVAL,
+  WINDOW_CLOSED,
+} from '@/app/session';
 import { ApiError } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
 import type { Api } from '@/bazis/react';
@@ -78,5 +87,106 @@ describe.skipIf(!PASSWORD_LOGIN || !CAPABILITIES.authing?.auth_url)('the passwor
       ['auth', CAPABILITIES.authing?.auth_url],
       ['authLogin', password?.url, 'store', credentials],
     ]);
+  });
+});
+
+describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in a window', () => {
+  const authing = CAPABILITIES.authing;
+  const GOOGLE = { code: 'google', name: 'Google', method: 'GET', url: '/api/v1/authing/google-auth-init/' };
+  const signedOut = (store: string, errors: unknown[] = []) => Promise.resolve({ status: 'signed_out', store, errors });
+  const signedIn = (token: string) => Promise.resolve({ status: 'signed_in', user: { token } });
+
+  /** The window of the service: its location, closed by the login or by the user. */
+  function openWindow(): { closed: boolean; location: { href: string }; close: () => void } {
+    const popup = {
+      closed: false,
+      location: { href: '' },
+      close() {
+        popup.closed = true;
+      },
+    };
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+    return popup;
+  }
+
+  /** A wait for the store that ends only when it is aborted. */
+  function waitForever(_path: string, _store: string, { signal }: { signal: AbortSignal }): Promise<never> {
+    return new Promise((_, reject) => {
+      signal.addEventListener('abort', () => {
+        reject(signal.reason as Error);
+      });
+    });
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    logout();
+  });
+
+  it('opens the page of the service with the store and takes the session token', async () => {
+    const popup = openWindow();
+    const authWait = vi.fn(() => signedIn('google-session'));
+    const api = { auth: () => signedOut('store'), authWait } as unknown as Api;
+    await loginInWindow(api, GOOGLE);
+    expect(popup.location.href).toBe(`${GOOGLE.url}?${authing?.token_param ?? ''}=store`);
+    expect(authWait).toHaveBeenCalledWith(authing?.auth_url, 'store', { signal: expect.any(AbortSignal) as unknown });
+    expect(getToken()).toBe('google-session');
+    expect(popup.closed).toBe(true);
+  });
+
+  it('is cancelled by the signal', async () => {
+    const popup = openWindow();
+    const api = { auth: () => signedOut('store'), authWait: waitForever } as unknown as Api;
+    const controller = new AbortController();
+    const login = loginInWindow(api, GOOGLE, controller.signal).catch((error: unknown) => error);
+    await vi.waitFor(() => {
+      expect(popup.location.href).not.toBe('');
+    });
+    controller.abort();
+    expect(await login).toMatchObject({ name: 'AbortError' });
+    expect(popup.closed).toBe(true);
+    expect(getToken()).toBeNull();
+  });
+
+  it('ends when the user closes the window, unless the store was signed in just before', async () => {
+    vi.useFakeTimers();
+    for (const [last, result] of [
+      [signedOut('store'), WINDOW_CLOSED],
+      [signedIn('late-session'), undefined],
+    ] as const) {
+      const popup = openWindow();
+      const auth = vi.fn().mockReturnValueOnce(signedOut('store')).mockReturnValueOnce(last);
+      const api = { auth, authWait: waitForever } as unknown as Api;
+      const login = loginInWindow(api, GOOGLE).then(() => undefined, (error: unknown) => (error as Error).message);
+      await vi.advanceTimersByTimeAsync(0);
+      popup.closed = true;
+      await vi.advanceTimersByTimeAsync(WINDOW_CHECK_INTERVAL);
+      expect(await login).toBe(result);
+      // the store is asked once more with its token
+      expect(auth).toHaveBeenLastCalledWith(authing?.auth_url, { store: 'store' });
+    }
+    expect(getToken()).toBe('late-session');
+  });
+
+  it('fails when the store expires or its login fails', async () => {
+    openWindow();
+    const expired = { auth: () => signedOut('store'), authWait: () => signedOut('another') } as unknown as Api;
+    await expect(loginInWindow(expired, GOOGLE)).rejects.toThrow('The login has expired');
+
+    openWindow();
+    const failed = {
+      auth: () => signedOut('store'),
+      authWait: () => signedOut('store', [{ status: 422, code: 'GOOGLE_AUTH_ERROR', detail: 'Google authentication failed' }]),
+    } as unknown as Api;
+    await expect(loginInWindow(failed, GOOGLE)).rejects.toThrow('Google authentication failed');
+    expect(getToken()).toBeNull();
+  });
+
+  it('needs its window', async () => {
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    const auth = vi.fn();
+    await expect(loginInWindow({ auth } as unknown as Api, GOOGLE)).rejects.toThrow('blocked the window');
+    expect(auth).not.toHaveBeenCalled();
   });
 });

@@ -26,7 +26,7 @@ import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { RelationField } from '@/bazis/react';
 import { accepts, FileField, FileFieldProvider, type FileFieldProps } from '@/bazis/ui/file-field';
 import { FieldInput } from '@/bazis/ui/resource';
-import { Backend, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
+import { Backend, renderWithBazis, resource } from '@/bazis/ui/testing';
 
 /** The route set of the uploaded files of the tests, of no product. */
 const FILES = '/api/test/file/';
@@ -92,7 +92,7 @@ describe('FileField', () => {
   it('uploads the chosen file and takes the id of its item', async () => {
     const backend = new Backend()
       .on('POST', FILES, { data: uploaded(1, 'brief.txt') }, 201)
-      .on('GET', FILES, listDocument([uploaded(1, 'brief.txt')]));
+      .on('GET', `${FILES}1/`, { data: uploaded(1, 'brief.txt') });
     const field = spies();
     renderWithBazis(<Field spies={field} />, backend);
 
@@ -115,7 +115,7 @@ describe('FileField', () => {
   it('is busy while the file uploads, and the cancel keeps the value', async () => {
     const backend = new Backend()
       .hold('POST', FILES)
-      .on('GET', FILES, listDocument([uploaded(5, 'old.txt')]));
+      .on('GET', `${FILES}5/`, { data: uploaded(5, 'old.txt') });
     const field = spies();
     renderWithBazis(<Field spies={field} initial="5" />, backend);
     await screen.findByRole('link', { name: 'old.txt' });
@@ -133,6 +133,36 @@ describe('FileField', () => {
     expect(await screen.findByRole('link', { name: 'old.txt' })).toBeTruthy();
     expect(field.onChange).not.toHaveBeenCalled();
     expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('takes no other file while one uploads', async () => {
+    const backend = new Backend().hold('POST', FILES);
+    const field = spies();
+    renderWithBazis(<Field spies={field} />, backend);
+
+    choose(BRIEF);
+    await waitFor(() => {
+      expect(screen.getByTestId('upload:attachment').getAttribute('aria-busy')).toBe('true');
+    });
+    // a second file, chosen or dropped, while the first one uploads
+    choose(new File(['other'], 'other.txt'));
+    fireEvent.drop(screen.getByTestId('upload:attachment'), {
+      dataTransfer: { files: [new File(['dropped'], 'dropped.txt')] },
+    });
+    expect(backend.requests('POST')).toEqual([`POST ${FILES}`]);
+    expect(field.onBusy.mock.calls).toEqual([[true]]);
+    expect(screen.getByTestId('upload:attachment').getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByTestId('upload:attachment').textContent).toContain('brief.txt');
+
+    // once it is cancelled, the field takes a file again
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
+    });
+    choose(new File(['other'], 'other.txt'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toHaveLength(2);
+    });
   });
 
   it('does not send a file larger than the limit or of another type', () => {
@@ -173,7 +203,8 @@ describe('FileField', () => {
   it('replaces and removes the file', async () => {
     const backend = new Backend()
       .on('POST', FILES, { data: uploaded(2, 'new.txt') }, 201)
-      .on('GET', FILES, listDocument([uploaded(1, 'brief.txt'), uploaded(2, 'new.txt')]));
+      .on('GET', `${FILES}1/`, { data: uploaded(1, 'brief.txt') })
+      .on('GET', `${FILES}2/`, { data: uploaded(2, 'new.txt') });
     const field = spies();
     renderWithBazis(<Field spies={field} initial="1" />, backend);
     await screen.findByRole('link', { name: 'brief.txt' });
@@ -189,7 +220,7 @@ describe('FileField', () => {
   });
 
   it('has no remove for a required file, and no change when disabled', async () => {
-    const backend = new Backend().on('GET', FILES, listDocument([uploaded(1, 'brief.txt')]));
+    const backend = new Backend().on('GET', `${FILES}1/`, { data: uploaded(1, 'brief.txt') });
     const { unmount } = renderWithBazis(
       <Field spies={spies()} initial="1" field={{ ...FIELD, required: true, nullable: false }} />,
       backend,

@@ -27,7 +27,7 @@ import type { FormField, RelationField } from '@/bazis/react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { routeOf, type ResourceObject } from './fields.js';
-import { useAnyRelated } from './hooks.js';
+import { useAnyItem } from './hooks.js';
 
 /** The resources of the uploaded files of the contract; none without bazis-uploadable. */
 export const FILE_RESOURCES: readonly string[] = CAPABILITIES.uploadable?.resources ?? [];
@@ -163,9 +163,9 @@ export function FileView({ file, preview }: { file: UploadedFile; preview?: stri
 }
 
 /**
- * An uploaded file by its id, read from its resource (`useRelatedItem`: the files of a page
- * are read with one request). `path`: the route set of the resource, instead of its route in
- * `ROUTES`.
+ * An uploaded file by its id, read with the retrieve of its route set (a route set of the
+ * uploaded files needs no list, which would let a user read the files of the others).
+ * `path`: the route set of the resource, instead of its route in `ROUTES`.
  */
 export function FileValue({
   relation,
@@ -183,8 +183,8 @@ export function FileValue({
 }
 
 function StoredFile({ path, id, preview }: { path: string; id: string; preview: string | null | undefined }) {
-  const item = useAnyRelated(path, id);
-  if (item.data) return <FileView file={uploadedFile(item.data)} preview={preview} />;
+  const item = useAnyItem(path, id);
+  if (item.data) return <FileView file={uploadedFile(item.data.data)} preview={preview} />;
   if (item.isPending) return <Skeleton className="inline-block h-4 w-28 align-middle" />;
   // the user may not view the file
   return <span className="font-mono text-xs text-muted-foreground">#{id}</span>;

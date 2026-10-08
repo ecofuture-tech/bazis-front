@@ -313,7 +313,10 @@ the list or in its place (`composition.list_card` of the theme):
 With bazis-uploadable, `manage.py bazis_front add file-field` and wrap the routes in
 `FileFieldProvider`, so that the forms upload the files of their file fields (without it a
 file field is the picker of the uploaded files); `accept` limits the types of a field, the
-size limit is `max_size` of the contract:
+size limit is `max_size` of the contract. The backend protects the route set of the
+uploaded files: the frontend needs only its create and its retrieve, and a list, an update
+or a delete open to every user would give each one the files of the others (see the guide
+of bazis-front, "Protect the route set of the uploaded files"):
 
 ```tsx
 import { FileFieldProvider } from '@/bazis/ui/file-field';

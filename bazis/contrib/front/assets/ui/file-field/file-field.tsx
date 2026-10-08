@@ -123,6 +123,8 @@ export function FileField({
   path = routeOf(field.relation),
 }: FileFieldProps) {
   const input = useRef<HTMLInputElement>(null);
+  // an upload runs: set at once, before the state of the upload renders
+  const running = useRef(false);
   const upload = useAnyUpload(path ?? '');
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -141,7 +143,8 @@ export function FileField({
   useEffect(() => abort, [abort]);
 
   async function take(file: File | undefined) {
-    if (!file || disabled) return;
+    // one file at a time: another file waits until the upload ends or is cancelled
+    if (!file || disabled || running.current) return;
     if (maxSize !== null && file.size > maxSize) {
       onError(`The file is larger than ${formatSize(maxSize)}.`);
       return;
@@ -156,21 +159,27 @@ export function FileField({
     }
     onError(null);
     setChosen({ file, preview: isImage(file.name) ? URL.createObjectURL(file) : null, id: null });
+    running.current = true;
     onBusy(true);
+    // what this upload changes is for its own file only
+    const forget = () => {
+      setChosen((current) => (current?.file === file ? null : current));
+    };
     try {
       const created = await upload.upload(file);
       if (created === null) {
         // cancelled: the field keeps its file
-        setChosen(null);
+        forget();
         return;
       }
       const id = String(created.data.id);
       setChosen((current) => (current?.file === file ? { ...current, id } : current));
       onChange(id);
     } catch (error) {
-      setChosen(null);
+      forget();
       onError(message(error));
     } finally {
+      running.current = false;
       onBusy(false);
     }
   }
@@ -256,7 +265,7 @@ export function FileField({
       data-bz={`upload:${field.name}`}
       aria-busy={uploading || undefined}
       onDragOver={(event) => {
-        if (disabled) return;
+        if (disabled || uploading) return;
         event.preventDefault();
         setDragging(true);
       }}

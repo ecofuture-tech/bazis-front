@@ -31,7 +31,7 @@ import {
   permitted,
   type FileControlProps,
 } from '@/bazis/ui/resource';
-import { Backend, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
+import { Backend, renderWithBazis, resource } from '@/bazis/ui/testing';
 
 const base = { required: false, readOnly: false, nullable: false };
 
@@ -126,7 +126,10 @@ describe('file fields', () => {
   it('shows a file: its link, its size, the thumbnail of an image', async () => {
     const item = (id: string, name: string, size: number) =>
       resource(id, { file: `/media/${name}`, name, extension: name.split('.').pop(), size }, {}, 'test.file');
-    const backend = new Backend().on('GET', FILES, listDocument([item('1', 'brief.txt', 2048), item('2', 'photo.png', 11)]));
+    // read with the retrieve of the route set: it may have no list
+    const backend = new Backend()
+      .on('GET', `${FILES}1/`, { data: item('1', 'brief.txt', 2048) })
+      .on('GET', `${FILES}2/`, { data: item('2', 'photo.png', 11) });
     renderWithBazis(
       <FilesProvider control={null} resources={['test.file']}>
         <span data-bz="field:attachment">
@@ -143,9 +146,8 @@ describe('file fields', () => {
     const link = await screen.findByRole('link', { name: 'brief.txt' });
     expect(link.getAttribute('href')).toBe('/media/brief.txt');
     expect(screen.getByTestId('field:attachment').textContent).toBe('brief.txt2 KB');
-    // the files of a page are read with one request
     await screen.findByRole('link', { name: 'photo.png' });
-    expect(backend.requests('GET')).toHaveLength(1);
+    expect(backend.requests('GET').sort()).toEqual([`GET ${FILES}1/`, `GET ${FILES}2/`]);
     expect(document.querySelector('img')?.getAttribute('src')).toBe('/media/photo.png');
     expect(screen.getByTestId('field:other').textContent).toBe('3');
   });

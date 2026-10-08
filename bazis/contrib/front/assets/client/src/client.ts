@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { errorFromResponse } from './errors.js';
+import { ApiError, errorFromResponse } from './errors.js';
 import type { Filter } from './filter.js';
 import type {
   AuthState,
@@ -270,8 +270,16 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       xhr.onload = () => {
         signal?.removeEventListener('abort', abort);
         const text = xhr.responseText;
-        if (xhr.status >= 200 && xhr.status < 300) resolve(text ? (JSON.parse(text) as unknown) : undefined);
-        else reject(errorFromResponse(xhr.status, xhr.statusText, text));
+        if (xhr.status < 200 || xhr.status >= 300) {
+          reject(errorFromResponse(xhr.status, xhr.statusText, text));
+          return;
+        }
+        try {
+          resolve(text ? (JSON.parse(text) as unknown) : undefined);
+        } catch {
+          // a page of a proxy instead of the item: the upload cannot be read
+          reject(new ApiError(xhr.status, [{ status: xhr.status, title: 'The response of the upload is not JSON.' }]));
+        }
       };
       xhr.onerror = () => {
         signal?.removeEventListener('abort', abort);

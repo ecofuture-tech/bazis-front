@@ -168,16 +168,28 @@ the package documents each component.
   `uploadable.FileUpload`; its field is a to-one relationship to `uploadable.file_upload`
   (a resource of `resources` of the capability `uploadable`), `type: file` in the specs.
   `FieldValue` shows it (`FileValue`: a link to the file with its size, a thumbnail of an
-  image, the files of a page read with one request) in the cards and the lists. In the
+  image, read with the retrieve of the route set) in the cards and the lists. In the
   forms, with `FileFieldProvider` around the routes (`src/app/router.tsx`), `FieldInput`
   edits it with `FileField`: a drop zone and a picker, the file uploaded at once with its
-  progress and a cancel, its id set as the value of the relationship, a replace and a
+  progress and a cancel (one file at a time: another one is not taken while it uploads),
+  its id set as the value of the relationship, a replace and a
   remove (when the relationship is nullable); a file larger than `max_size` of the
   contract, or of a type that `accept` refuses, is not sent, and the 413
   `ERR_FILE_TOO_LARGE` of the backend is the error of the field; `ResourceForm` is not
   submitted while a file uploads. Without the provider the field is the picker of a
   relationship. The payloads of the transits have no files (a payload has no
   relationships).
+- **Protect the route set of the uploaded files.** The frontend needs only its create (the
+  upload) and its retrieve (the file of a field). `FileUpload` has no owner: a list, an
+  update or a delete open to every user gives each one the files of the others (their ids
+  are integers), and the bundled `FileUploadRouteSet` has no access control at all
+  (`uploadable.W001`). Register a subclass that requires a user, without the update and the
+  delete and with a list that returns no file (as the sample does: `actions =
+  ['action_create', 'action_retrieve', 'action_list']` and `get_queryset_for_list()` that
+  returns `.none()`; the core needs the list of the route set of a related model for the
+  filter fields of the models that reference it, `route_filter_fields/`), or with the
+  permissions of bazis-permit on a model of your own (`FileUploadAbstract` with an owner).
+  The section `uploadable` lists only the route sets with their create.
 - **The status history** (`StatusHistory`) is what bazis-statusy exposes: the current
   status with `status_dt` and `status_author`. bazis-statusy records every transit
   (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
@@ -909,7 +921,8 @@ bazis-users, sent as the bearer token like the token of `token_url`. The templat
    `<url>?<token_param>=<store>` (the service returns to the auth endpoint in that window)
    and asks the auth endpoint with the store token every 1.5 s until it is signed in, has an
    error (`GOOGLE_AUTH_ERROR`), or has expired (`BAZIS_AUTH_COOKIE_LIFETIME`: the endpoint
-   answers with another store); the login screen offers a cancel meanwhile. The services
+   answers with another store) or the user closes the window (the store is asked once
+   more); the login screen offers a cancel meanwhile. The services
    with another body than the password (an own service) are not offered.
 
 The client sends these requests without cookies (`credentials: 'omit'`): the endpoint sets
