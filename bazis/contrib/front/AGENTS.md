@@ -921,8 +921,10 @@ bazis-users, sent as the bearer token like the token of `token_url`. The templat
    `<url>?<token_param>=<store>` (the service returns to the auth endpoint in that window)
    and asks the auth endpoint with the store token every 1.5 s until it is signed in, has an
    error (`GOOGLE_AUTH_ERROR`), or has expired (`BAZIS_AUTH_COOKIE_LIFETIME`: the endpoint
-   answers with another store) or the user closes the window (the store is asked once
-   more); the login screen offers a cancel meanwhile. The services
+   answers with another store); the login screen offers a cancel meanwhile, also for a user
+   who closed the window. The closing of the window is not watched: the sign-in pages of
+   Google send Cross-Origin-Opener-Policy, after which the opener sees the window as
+   closed while the user still signs in there. The services
    with another body than the password (an own service) are not offered.
 
 The client sends these requests without cookies (`credentials: 'omit'`): the endpoint sets

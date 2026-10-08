@@ -137,58 +137,35 @@ export async function login(
   setToken(access_token);
 }
 
-/** How often the login in a window checks whether the user closed it, in milliseconds. */
-export const WINDOW_CHECK_INTERVAL = 500;
-
-/** The error of a login whose window the user closed before it ended. */
-export const WINDOW_CLOSED = 'The window of the login was closed.';
-
 /**
  * Logs in with a service of bazis-authing whose page is opened in a window (Google): a new
  * store of its auth endpoint, the page of the service with the store token, then the auth
  * endpoint is asked until the store is signed in (the window is closed then), a login of the
- * store fails, the store expires or the user closes the window (the store is asked once
- * more: the login may have ended just before). The signal aborts it (the cancel of the login
- * screen). The window is opened at once: a browser blocks a window that a click does not
- * open.
+ * store fails or the store expires (BAZIS_AUTH_COOKIE_LIFETIME). The signal aborts it: the
+ * cancel of the login screen, which is also how a user who closed the window stops it. The
+ * window is opened at once: a browser blocks a window that a click does not open.
+ *
+ * `popup.closed` is not read: the sign-in pages of Google send Cross-Origin-Opener-Policy,
+ * after which the opener sees the window as closed while the user still signs in there.
  */
 export async function loginInWindow(api: Api, action: AuthAction, signal?: AbortSignal): Promise<void> {
   if (AUTHING?.auth_url == null) throw new Error('The backend has no auth endpoint of bazis-authing.');
   const popup = window.open('', 'bazis-login', 'popup,width=520,height=680');
   if (popup === null) throw new Error('The browser blocked the window of the login: allow it and try again.');
-  const closed = new Error(WINDOW_CLOSED);
-  const stop = new AbortController();
-  const cancel = () => {
-    stop.abort(signal?.reason);
-  };
-  if (signal?.aborted) cancel();
-  signal?.addEventListener('abort', cancel, { once: true });
-  const timer = setInterval(() => {
-    if (popup.closed) stop.abort(closed);
-  }, WINDOW_CHECK_INTERVAL);
   try {
     const { auth_url: authUrl, token_param: param } = AUTHING;
-    const start = await api.auth(authUrl, { signal: stop.signal });
+    const start = await api.auth(authUrl, signal ? { signal } : {});
     if (start.status === 'signed_in') {
       setToken(start.user.token);
       return;
     }
     popup.location.href = `${action.url}?${new URLSearchParams({ [param]: start.store }).toString()}`;
-    let state: AuthState;
-    try {
-      state = await api.authWait(authUrl, start.store, { signal: stop.signal });
-    } catch (error) {
-      if (stop.signal.reason !== closed) throw error;
-      state = await api.auth(authUrl, { store: start.store });
-      if (state.status !== 'signed_in') throw closed;
-    }
+    const state = await api.authWait(authUrl, start.store, signal ? { signal } : {});
     if (state.status === 'signed_out' && !state.errors.length) {
       throw new Error('The login has expired: try again.');
     }
     setToken(sessionToken(state));
   } finally {
-    clearInterval(timer);
-    signal?.removeEventListener('abort', cancel);
     popup.close();
   }
 }

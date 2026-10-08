@@ -120,7 +120,7 @@ export function LoginForm({
       })}
       {waiting && (
         <p className="flex items-center justify-between gap-2 text-sm text-muted-foreground" role="status">
-          Finish the login in its window.
+          Finish the login in its window. If you closed it, cancel.
           <Button
             type="button"
             variant="ghost"

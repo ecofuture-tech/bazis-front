@@ -21,8 +21,6 @@ import {
   logout,
   onSessionChange,
   PASSWORD_LOGIN,
-  WINDOW_CHECK_INTERVAL,
-  WINDOW_CLOSED,
 } from '@/app/session';
 import { ApiError } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
@@ -120,7 +118,6 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
     logout();
   });
 
@@ -130,7 +127,7 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
     const api = { auth: () => signedOut('store'), authWait } as unknown as Api;
     await loginInWindow(api, GOOGLE);
     expect(popup.location.href).toBe(`${GOOGLE.url}?${authing?.token_param ?? ''}=store`);
-    expect(authWait).toHaveBeenCalledWith(authing?.auth_url, 'store', { signal: expect.any(AbortSignal) as unknown });
+    expect(authWait).toHaveBeenCalledWith(authing?.auth_url, 'store', {});
     expect(getToken()).toBe('google-session');
     expect(popup.closed).toBe(true);
   });
@@ -149,24 +146,41 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
     expect(getToken()).toBeNull();
   });
 
-  it('ends when the user closes the window, unless the store was signed in just before', async () => {
-    vi.useFakeTimers();
-    for (const [last, result] of [
-      [signedOut('store'), WINDOW_CLOSED],
-      [signedIn('late-session'), undefined],
-    ] as const) {
-      const popup = openWindow();
-      const auth = vi.fn().mockReturnValueOnce(signedOut('store')).mockReturnValueOnce(last);
-      const api = { auth, authWait: waitForever } as unknown as Api;
-      const login = loginInWindow(api, GOOGLE).then(() => undefined, (error: unknown) => (error as Error).message);
-      await vi.advanceTimersByTimeAsync(0);
-      popup.closed = true;
-      await vi.advanceTimersByTimeAsync(WINDOW_CHECK_INTERVAL);
-      expect(await login).toBe(result);
-      // the store is asked once more with its token
-      expect(auth).toHaveBeenLastCalledWith(authing?.auth_url, { store: 'store' });
-    }
-    expect(getToken()).toBe('late-session');
+  it('keeps asking the store when the window looks closed (Cross-Origin-Opener-Policy)', async () => {
+    const popup = openWindow();
+    let finish: (state: unknown) => void = () => undefined;
+    const authWait = vi.fn(() => new Promise((resolve) => (finish = resolve)));
+    const api = { auth: () => signedOut('store'), authWait } as unknown as Api;
+    const login = loginInWindow(api, GOOGLE);
+    await vi.waitFor(() => {
+      expect(authWait).toHaveBeenCalled();
+    });
+    // the page of Google severs the window from the opener: it looks closed meanwhile
+    popup.closed = true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    finish({ status: 'signed_in', user: { token: 'google-session' } });
+    await login;
+    expect(getToken()).toBe('google-session');
+  });
+
+  it('is stopped by the cancel only, also when the window is closed', async () => {
+    const popup = openWindow();
+    const api = { auth: () => signedOut('store'), authWait: waitForever } as unknown as Api;
+    const controller = new AbortController();
+    let settled = false;
+    const login = loginInWindow(api, GOOGLE, controller.signal).catch((error: unknown) => {
+      settled = true;
+      return error;
+    });
+    await vi.waitFor(() => {
+      expect(popup.location.href).not.toBe('');
+    });
+    popup.closed = true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(settled).toBe(false);
+    controller.abort();
+    expect(await login).toMatchObject({ name: 'AbortError' });
+    expect(getToken()).toBeNull();
   });
 
   it('fails when the store expires or its login fails', async () => {
