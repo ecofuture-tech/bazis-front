@@ -52,6 +52,7 @@ marks of the states, never for a fixed time:
 | `expectValues(values)` | `expect: {values}` | once the screen is loaded, the text of each `field:<name>` of the current screen (a card) contains its value (a file: its name) |
 | `expectRows(count)` | `expect: {rows}` | the number of `row:<id>` of the current screen |
 | `expectError(name)` | `expect: {error}` | `error:<name>` on the page |
+| `expectNotification(text)` | `expect: {notification}` | the visible bell `action:notifications` opens `list:notifications`, which shows a `notification:<key>` with the text (it waits for it to come over the socket); the list is closed with Escape |
 
 ## Checks in this repository
 

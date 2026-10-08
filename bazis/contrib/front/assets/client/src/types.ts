@@ -180,3 +180,42 @@ export interface AuthUser {
 export type AuthState =
   | { status: 'signed_in'; user: AuthUser }
   | { status: 'signed_out'; store: string; errors: readonly ErrorObject[] };
+
+/**
+ * The statuses of a task of bazis-async-background: `created` (registered, not sent to Kafka
+ * yet), `pending` (queued), `processing`, then `completed` or `failed`.
+ */
+export type BackgroundStatus = 'created' | 'pending' | 'processing' | 'completed' | 'failed';
+
+/** The methods of a request that bazis-async-request runs in the background. */
+export type BackgroundMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+/**
+ * How a request sent with `X-Async-Background` was answered: queued (202 of
+ * bazis-async-request with Kafka) with the id of its task, or run at once (no Kafka, or
+ * the middleware is not added) with the body of its response (undefined for 204).
+ */
+export type BackgroundStart = { status: 'queued'; taskId: string } | { status: 'done'; response: unknown };
+
+/**
+ * The state of a task of bazis-async-background (its result with `full_response=true`):
+ * its status and its response, null until the task sets one. The response of a request
+ * of bazis-async-request is the response of the request it replayed (`ReplayedResponse`).
+ */
+export interface BackgroundResult {
+  status: BackgroundStatus;
+  response: unknown;
+}
+
+/**
+ * The response of a request replayed by bazis-async-request, the response of its task: an
+ * HTTP error is a `completed` task with its status.
+ */
+export interface ReplayedResponse {
+  task_id: string;
+  endpoint: string;
+  status: number;
+  headers: readonly (readonly [string, string])[];
+  response: unknown;
+}
+

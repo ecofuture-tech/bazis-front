@@ -18,6 +18,13 @@ the hooks read: they must stay those of the backend. This test captures them aga
 the API and compares them with the fixture; with `BAZIS_FRONT_WRITE_FIXTURES=1` it writes
 the fixture instead.
 
+It also holds what the hooks of the packages read: the messages of the socket of bazis-ws
+(as the server sends them: the notification and the change of a task of the sample, the
+statuses of a background request), the documents of a task of bazis-bg (`bg.task`) and the
+answers of bazis-async-request and bazis-async-background. The sample has no Kafka: the
+request is queued with the publication to Kafka replaced, and the consumer is the function
+of bazis-async-request that it runs (`execute_internal_request`), called here.
+
 The fixture keeps what the hooks read, in a form that does not depend on the versions of
 Python, Pydantic or the process: of a JSON Schema only the keywords that the hooks read,
 the titles of the fields but no other titles (the title of the body of a transit is the
@@ -26,6 +33,7 @@ definitions renamed in the order of their first reference; the ids and dates of 
 fixed; the messages of the errors replaced (Pydantic writes them).
 """
 
+import asyncio
 import json
 import os
 import re
@@ -149,7 +157,7 @@ def normalize(value):
     return value
 
 
-def capture(app) -> dict:
+def capture(app, settings, monkeypatch) -> dict:
     from django.apps import apps
 
     from bazis.contrib.users import get_user_model
@@ -184,12 +192,188 @@ def capture(app) -> dict:
     result['create_422'] = errors(
         ok(client.post(TASKS, json_data={'data': {'type': 'tasks.task', 'attributes': {}}}), 422)
     )
+    result.update(notified(app, user, client))
+    result.update(bg_task(app, user))
+    result.update(background(app, settings, monkeypatch, user))
     return normalize(result)
 
 
+def subscribed(channel: str) -> None:
+    """
+    Waits until the socket subscribed to the channel: a message published before is lost.
+    """
+    from django.conf import settings
+
+    from redis import Redis
+
+    redis = Redis.from_url(settings.CACHES['default']['LOCATION'])
+    for _ in range(100):
+        if redis.pubsub_numsub(channel)[0][1]:
+            return
+        asyncio.run(asyncio.sleep(0.05))
+    raise AssertionError(f'nobody subscribed to {channel}')
+
+
+def received(socket, count: int) -> list[dict]:
+    """
+    The next messages of the socket, their data parsed (the server sends it as a string).
+    """
+    return [{**it, 'data': json.loads(it['data'])} for it in (socket.receive_json() for _ in range(count))]
+
+
+def queued(publications: list):
+    """
+    The publication of a task to Kafka replaced: the task is kept.
+    """
+
+    async def publish(topic_name, message, partition_marker=None):
+        publications.append(message)
+
+    return publish
+
+
+def background(app, settings, monkeypatch, user) -> dict:
+    """
+    A change of a task sent with `X-Async-Background` to the middleware of
+    bazis-async-request with Kafka (its publication replaced), the result before and after
+    the consumer ran it, and the messages of its statuses on the socket of the user.
+    """
+    from bazis.contrib.async_background import producer
+    from bazis.contrib.async_background.schemas import KafkaTask, TaskStatus
+    from bazis.contrib.async_background.utils import set_and_publish_status_async
+    from bazis.contrib.async_request.schemas import AsyncRequestPayload
+
+    settings.KAFKA_ENABLED = True
+    settings.KAFKA_TOPIC_ASYNC_BG = 'sample'
+    publications = []
+    monkeypatch.setattr(producer, 'publish_message', queued(publications))
+    # the consumer of the requests, which registers on the broker of the consumer
+    from bazis.contrib.async_request.tasks import execute_internal_request
+
+    token = user.jwt_build()
+    client = get_api_client(app, token)
+    # a task in draft, which the manager may change
+    created = client.post(TASKS, json_data={'data': {'type': 'tasks.task', 'attributes': {'title': 'Draft'}}})
+    item_id = created.json()['data']['id']
+    with get_api_client(app).client.websocket_connect('/ws') as socket:
+        socket.send_json({'token': token})
+        subscribed(user.user_channel)
+        response = client.patch(
+            f'{TASKS}{item_id}/',
+            json_data={'data': {'type': 'tasks.task', 'id': item_id, 'attributes': {'title': 'Later'}}},
+            headers={'X-Async-Background': 'true'},
+        )
+        assert response.status_code == 202, response.text
+        started = response.json()
+        result = f'/api/v1/async_background_response/{started["meta"]["async_request_id"]}/'
+        pending = client.get(result, params={'full_response': 'true'}).json()
+        before = client.get(result).json()
+
+        task = KafkaTask[AsyncRequestPayload].model_validate(publications[0])
+
+        async def consume():
+            await set_and_publish_status_async(
+                task_id=task.task_id, channel_name=task.channel_name, status=TaskStatus.PROCESSING
+            )
+            response = await execute_internal_request(task)
+            await set_and_publish_status_async(
+                task_id=task.task_id, channel_name=task.channel_name, status=TaskStatus.COMPLETED,
+                response=response,
+            )
+
+        asyncio.run(consume())
+        # the statuses of the task; the change of the task that it replayed comes between them
+        messages = []
+        while not messages or messages[-1]['data']['status'] != 'completed':
+            messages += [it for it in received(socket, 1) if it['data'].get('action') == 'async_bg']
+    completed = client.get(result, params={'full_response': 'true'}).json()
+    # the replayed response: its headers are those of the server, of no use to the hooks, and
+    # of its document only the identifier and the changed title
+    replayed = completed['response']
+    assert replayed['status'] == 200, replayed
+    replayed['headers'] = []
+    document = replayed['response']['data']
+    replayed['response'] = {'data': {
+        'id': document['id'], 'type': document['type'],
+        'attributes': {'title': document['attributes']['title']},
+    }}
+    return {
+        'async_request_queued': started,
+        'async_result_pending': pending,
+        'async_result_not_ready': before,
+        'async_result_completed': completed,
+        'ws_async_bg': messages,
+    }
+
+
+def notified(app, user, tasks_client) -> dict:
+    """
+    The messages of the socket of the user while a task assigned to them is finished: the
+    first change of a task on the common channel (the resource, never the id of an item: an
+    anonymous session receives it too), and the notification of the assignee.
+    """
+    token = user.jwt_build()
+    with get_api_client(app).client.websocket_connect('/ws') as socket:
+        socket.send_json({'token': token})
+        subscribed(user.user_channel)
+        created = tasks_client.post(TASKS, json_data={'data': {
+            'type': 'tasks.task', 'attributes': {'title': 'Notify'},
+            'relationships': {'assignee': {'data': {'type': 'users.user', 'id': str(user.id)}}},
+        }}).json()
+        item = f'{TASKS}{created["data"]["id"]}/'
+        assert tasks_client.post(f'{item}transit/', json_data={'transit': 'start'}).status_code == 200
+        finished = tasks_client.post(f'{item}transit/', json_data={'transit': 'finish', 'payload': {'report': 'Done'}})
+        assert finished.status_code == 200, finished.text
+        changed, notification = None, None
+        while notification is None:
+            message, = received(socket, 1)
+            if message['data'].get('action') == 'notification':
+                notification = message
+            elif changed is None:
+                changed = message
+    assert changed['data'] == {'resource': 'tasks.task'}
+    return {'ws_changed': changed, 'ws_notification': notification}
+
+
+#: the attributes of a task of bazis-bg that the hooks read (the others hold its arguments,
+#: its log with the times of its records, the durations of its phases)
+BG_ATTRIBUTES = [
+    'name', 'state', 'phase', 'expected', 'performed', 'result', 'error', 'interrupt',
+    'dt_start', 'dt_finish',
+]
+
+
+def bg_task(app, user) -> dict:
+    """
+    A task of bazis-bg queued by the user, as they read it: waiting, running (its progress
+    set as `progress` saves it) and done (run in this process, as `manage.py bg_task` does).
+    """
+    from tasks.bg.count import CountTasks
+
+    client = get_api_client(app, user.jwt_build())
+    task = CountTasks.delay(author=user)
+    item = f'/api/v1/bg/task/{task.pk}/'
+
+    def read():
+        response = client.get(item)
+        assert response.status_code == 200, response.text
+        data = response.json()['data']
+        attributes = {name: data['attributes'][name] for name in BG_ATTRIBUTES}
+        return {'data': {'id': data['id'], 'type': data['type'], 'attributes': attributes}}
+
+    waiting = read()
+    task.state, task.phase, task.expected, task.performed = 'running', 'Count the tasks', 2, 1
+    task.save()
+    running = read()
+    task.state, task.phase, task.expected, task.performed = 'starting', 'starting', None, None
+    task.save()
+    CountTasks.run(task)
+    return {'bg_task_waiting': waiting, 'bg_task_running': running, 'bg_task_done': read()}
+
+
 @pytest.mark.django_db(transaction=True)
-def test_the_fixture_of_the_hooks_is_the_sample(sample_app, workflow):
-    captured = capture(sample_app)
+def test_the_fixture_of_the_hooks_is_the_sample(sample_app, workflow, settings, monkeypatch):
+    captured = capture(sample_app, settings, monkeypatch)
     if os.environ.get('BAZIS_FRONT_WRITE_FIXTURES') == '1':
         FIXTURE.write_text(json.dumps(captured, indent=2) + '\n', encoding='utf-8')
     assert json.loads(FIXTURE.read_text(encoding='utf-8')) == captured

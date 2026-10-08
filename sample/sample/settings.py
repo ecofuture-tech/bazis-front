@@ -13,3 +13,8 @@
 # limitations under the License.
 
 import bazis.core.configure  # noqa: F401
+
+
+# no Kafka in the sample: the requests with X-Async-Background of bazis-async-request run at
+# once, which the frontend takes as a result without a task
+SILENCED_SYSTEM_CHECKS = ['async_request.W001']

@@ -50,7 +50,10 @@ screen that lists the resources of the contract. It never overwrites an existing
   versions. The hooks of a package are copied only when the product has it at `init` (its
   app in `INSTALLED_APPS`, as the capabilities of the contract): with bazis-statusy the
   asset `react-statusy` in `src/bazis/react/statusy/`, with bazis-uploadable `react-uploadable`
-  in `src/bazis/react/uploadable/`. A package installed after `init` has
+  in `src/bazis/react/uploadable/`, with bazis-ws `react-ws` in `src/bazis/react/ws/` (bazis-ws
+  is not a Django app: its installed package is enough), with bazis-bg `react-bg` in
+  `src/bazis/react/bg/`, with bazis-async-background `react-async` in
+  `src/bazis/react/async/`. A package installed after `init` has
   no hooks in the frontend until `bazis_front add react-statusy` (or a component that
   requires them) copies them: `check` reports it (`C003`);
 - the components that the template uses, `state-panel`, `app-shell` and `login-form`, in
@@ -80,6 +83,9 @@ see [Logins with bazis-authing](#logins-with-bazis-authing).
 python manage.py bazis_front add resource-list resource-card resource-form   # the core
 python manage.py bazis_front add status-badge status-history transit-bar     # with bazis-statusy
 python manage.py bazis_front add file-field                                  # with bazis-uploadable
+python manage.py bazis_front add live-query notification-center              # with bazis-ws
+python manage.py bazis_front add task-progress                               # with bazis-bg
+python manage.py bazis_front add async-result                                # with bazis-async-background
 ```
 
 The components are the visual building blocks of the screens: React components on
@@ -96,7 +102,8 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 
 - A component of a package needs its capability in `contract/contract.json` (export the
   contract first): `transit-bar`, `status-badge` and `status-history` need `statusy`,
-  `file-field` needs `uploadable`; `add` fails with the
+  `file-field` needs `uploadable`, `live-query` and `notification-center` need `ws`,
+  `task-progress` needs `bg`, `async-result` needs `async_background`; `add` fails with the
   missing capability and copies nothing.
 - An asset already in the frontend is kept as it is; `add` of it again does nothing when
   it is unchanged. `add` never overwrites: a component named again that was changed in the
@@ -124,7 +131,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | Component | Props | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, children})`, `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
+| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?, cells?, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?: 'dialog' \| 'page'})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
@@ -133,6 +140,10 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider({accept?: {field: types}, maxSize?, children})`: `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField(props)`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
+| `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket; `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
+| `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list, a toast for each new one | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | `ws` |
+| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS`, `TASK_LABELS` | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
+| `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH`, `RESULT_LABELS` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -194,6 +205,20 @@ the package documents each component.
   status with `status_dt` and `status_author`. bazis-statusy records every transit
   (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
   are not shown.
+- **The socket** (bazis-ws): wrap the routes in `SocketProvider` of `@/bazis/react/ws` with
+  `path={CAPABILITIES.ws?.path ?? null}` and the token of the session (`useToken()` of the
+  template; null before the login: no socket), and give `AppShell` the `tools`
+  `<LiveQuery />` and `<NotificationCenter onOpen={…} />` (see [The socket](#the-socket)).
+  `LiveQuery` refetches the lists and the items that the backend says changed, and every
+  query after a reconnect; `NotificationCenter` keeps the notifications of the session (none
+  of before the page was opened: pub/sub keeps nothing).
+- **Background work**: `TaskProgress` shows a task of bazis-bg whose id the endpoint of the
+  product that queued it returned (`delay(author=user)`; a user reads only their tasks),
+  read until it is done; the traceback of a failure is not shown. `AsyncResult` shows the
+  result of `useAsyncRequest` (bazis-async-request) or of a task of
+  bazis-async-background (`{status: 'queued', taskId}`), read until it is done; a request
+  that the backend ran at once (no Kafka) is completed at once, and an HTTP error of the
+  replayed request is a failure.
 
 ## The contract
 
@@ -261,6 +286,10 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
                 "actions": [{"code": "password", "name": "Login/Password", "method": "POST",
                              "url": "/api/v1/authing/password/"}]},
     "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"]},
+    "ws": {"path": "/ws"},
+    "bg": {"resource": "bg.task"},
+    "async_background": {"result_path": "/api/v1/async_background_response/{task_id}/"},
+    "async_request": {"header": "X-Async-Background"},
     "permit": {"roles": [{"slug": "manager", "name": "Manager", "for_anonymous": false,
                           "groups": ["tasks_change"], "permissions": ["tasks.task.item.change.all.draft"]}]},
     "statusy": {"models": {"tasks.task": {
@@ -285,7 +314,7 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `filter` and `order` are the labels for `filter` and `sort`, absent when the field cannot
   be filtered or sorted.
 - `capabilities` has a section for each installed package whose app is in
-  `INSTALLED_APPS`: `users` (the token endpoint, the resource of the user model), `authing`
+  `INSTALLED_APPS` (bazis-ws: its installed package): `users` (the token endpoint, the resource of the user model), `authing`
   (the auth endpoint of bazis-authing, null when it is not routed; the login actions of
   the services of `BAZIS_AUTH_KINDS` as the endpoint lists them in `meta.actions`, in the
   order of the setting, without those whose route is not registered; the query parameter
@@ -297,8 +326,13 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   the union of the permissions of the groups, as bazis-permit checks them for the current
   role of a user; a role has no permissions of its own), `statusy` (per statusy model: the
   initial status, the statuses of its transits, the transits with the JSON Schema of the
-  payload they require, `null` without one). Names are in `LANGUAGE_CODE`; lists are
-  sorted.
+  payload they require, `null` without one), `ws` (`path`: the path of the socket, that of
+  a route of `WsEndpoint` that the application of `bazis.core.app` has, null without one;
+  see [The socket](#the-socket)), `bg` (`resource`: the JSON:API type of the route set of `BgRoute`, null
+  when it is not routed), `async_background` (`result_path`: the path of the result of a
+  task with `{task_id}`, null when it is not routed), `async_request` (`header`: the header
+  that asks for the background execution, `X-Async-Background`). Names are in
+  `LANGUAGE_CODE`; lists are sorted.
 
 ## The specs
 
@@ -334,7 +368,7 @@ its tests):
 # yaml-language-server: $schema=./schema/product.schema.json
 spec: bazis-product/1
 product: {id: tasks, name: Tasks, summary: The tasks of a team}
-packages: [users, authing, permit, statusy, uploadable]   # each needs its section in the contract
+packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request]   # each needs its section in the contract
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
@@ -423,7 +457,9 @@ scenarios:
   `field_readonly`, `field_absent` (a field the screen shows that the user may not see:
   not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
   current card, without an open form, show these texts; a file its name), `rows`,
-  `error`. The validator follows the steps from screen to screen
+  `error`, `notification` (a notification of the user whose text contains the text, in the
+  list of the notifications; the product has bazis-ws, `packages` has `ws`: P027). The
+  validator follows the steps from screen to screen
   and checks each against the screen it acts on: `open` takes a screen without an item in
   its route (an item is reached with `open_item` or the `then` of a form), a form with
   `fields` is filled only in them, `action_absent` names an action of the screen and
@@ -485,7 +521,10 @@ invalid`.
 `list:<entity>`, `row:<id>` (its cells `cell:<column>`), `field:<field>`,
 `error:<field>`, `upload:<field>` (a file field, `aria-busy` while its file uploads; the
 input of the file is its `field:<field>`), `action:<id>`, `transit:<id>`, `status:<id>`,
-`nav:<screen>`.
+`nav:<screen>`; of the components of the packages `socket:<status>` (the socket of
+bazis-ws), `list:notifications` with `notification:<key>` (opened by
+`action:notifications`), `bg:<state>` (a task of bazis-bg), `async:<status>` (a background
+result).
 
 ### `spec/design/` (`spec: bazis-design/1`)
 
@@ -552,6 +591,8 @@ warning there, never blocking `migrate` or `contract`.
 | `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
 | `P025` | error | the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`) |
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
+| `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has no `ws`) |
+| `P028` | error | `packages` has `ws`, and the contract has no path of the socket: `ws_route` is not routed where the export sees it |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -687,7 +728,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
@@ -860,6 +901,10 @@ for what they do not cover (the login, a custom endpoint).
 - Upload a file with `api.upload(path, file, {name?, onProgress?, signal?})` (or
   `useUpload`): a multipart `POST` to the route set of the uploaded files, with
   XMLHttpRequest for its progress.
+- Run a request in the background with `api.background(method, path, {body?})` (or
+  `useAsyncRequest`, bazis-async-request): `{status: 'queued', taskId}` or `{status:
+  'done', response}`; read a task with `api.backgroundResult(resultPath)` (or
+  `useAsyncTask`): `{status, response}`.
 
 ## The hooks
 
@@ -872,11 +917,18 @@ import { ROUTES } from '@/bazis/generated/contract';
 import { useList, useResourceForm } from '@/bazis/react';
 import { useTransit, useTransits } from '@/bazis/react/statusy';   // with bazis-statusy
 import { useUpload } from '@/bazis/react/uploadable';             // with bazis-uploadable
+import { SocketProvider, useChannel, useNotifications } from '@/bazis/react/ws';   // with bazis-ws
+import { useBgTask } from '@/bazis/react/bg';                     // with bazis-bg
+import { useAsyncRequest, useAsyncTask } from '@/bazis/react/async';   // with bazis-async-background
 
 const list = useList(ROUTES['tasks.task'], { sort: ['-dt_created'], page: { limit: 20 }, meta: ['pagination'] });
 const form = useResourceForm(ROUTES['tasks.task'], { id });          // without id: a create
 const transits = useTransits(ROUTES['tasks.task'], id);               // [{id, allowed, restricts, payload}]
 const upload = useUpload(ROUTES['uploadable.file_upload']);           // upload(file) -> the item; progress, abort
+useChannel((message) => { … });                                       // the messages of the socket, parsed
+const task = useBgTask(ROUTES['bg.task'], taskId);                    // a task of bazis-bg, until it is done
+const request = useAsyncRequest();                                    // mutate({method, path, body}) with X-Async-Background
+const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);   // {status, response, done, error}
 ```
 
 - `useList`, `useItem`, `useSchema`, `useFilterFields` read; `useCreate`, `useUpdate`,
@@ -898,10 +950,76 @@ const upload = useUpload(ROUTES['uploadable.file_upload']);           // upload(
   `upload(file, {name?})` resolves to the created item (null when aborted), with `status`
   (`idle`, `uploading`, `success`, `error`), `progress` (`{loaded, total}` while it uploads),
   `error`, `abort()` and `reset()`; it refetches the queries of the route set.
+- `SocketProvider({path, token})` opens the socket of bazis-ws (one a page; see
+  [The socket](#the-socket)); `useSocket()` is its `status` (`idle`, `connecting`, `open`,
+  `rejected`, `unavailable`), the `error` of a refused token and `retry()`;
+  `useChannel(handler)` gets every message of the channels of the session, parsed; `useLiveQueries(ROUTES)` refetches what the
+  messages say changed; `useNotifications()` is `{items, unread, markRead, clear}`.
+- `useBgTask(path, id)` reads a task of bazis-bg (the query of `useItem`) every 2 s until it
+  is `done`: `{state, phase, outcome, progress, result, …}` (`bgTask(document)`).
+- `useAsyncRequest()` sends a request with `X-Async-Background`: `{status: 'queued',
+  taskId}` (202), or `{status: 'done', response}` when the backend ran it at once (without
+  Kafka); `useAsyncTask(resultPath, taskId)` reads the task every 2 s until it is
+  `completed` or `failed` (a status on the socket refetches it at once with
+  `useLiveQueries`); `replayedResponse(response)` reads the response of a replayed request.
 - The template clears the query and mutation caches when the user changes, and every query
   key ends with the session of `BazisProvider` (a number that changes at every login and
   logout), so the data of one user is never shown to another, even from a request still
   running.
+
+## The socket
+
+bazis-ws delivers the messages that the backend publishes to the channel of a user
+(`user.ws_publish({...})` of `UserWsMixin`, `user_ws::<pk>`), to the channel of an anonymous
+token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every session
+(`COMMON_CHANNEL`, `user_ws:common`). The facts that the hooks rely on:
+
+- **Route the socket where the contract sees it**: append `ws_route` to the routes of the
+  router module (`router.routes.append(ws_route)` in the module of
+  `BS_BAZIS_ROUTER_MODULE`: a route appended as it is keeps its path, `/ws`), or register it
+  on the application of `BAZIS_APP_MODULE`. The export imports `bazis.core.app`, never the
+  main module of the project: a socket registered only there (as the guide of bazis-ws
+  shows) is not known, and `ws.path` is null (`check` reports it when `packages` has `ws`:
+  P028). bazis-ws is not a Django app and bazis-async-background installs it: the section
+  `ws` is there whenever the package is, with a null path when nothing routes the socket,
+  and the frontend then opens none.
+- The socket is at `CAPABILITIES.ws.path` (`/ws`, without the prefix of the API; the dev
+  server of the template proxies it). The token is sent in the first message
+  (`{"token": "<token>"}`), never in the URL: a session JWT of bazis-users (`exp` and `sub`
+  required: a token without `exp` is refused) subscribes to the channel of its user, any
+  other token of 16–128 characters `A-Z a-z 0-9 _ -` to its anonymous channel. A refused
+  token is `{"type": "error", "code": "expired_token" | "invalid_token" | "user_not_found"}`
+  (the socket stays open but receives nothing: the hooks close it, `rejected`, and wait for
+  another token). The server accepts the connection before it takes the token, and keeps a
+  socket open after `internal_error`: the hooks send a ping with the token and the socket is
+  `open` only once the server answered after it (a refused token is an error before the
+  pong); `internal_error` and a close (1011 when Redis fails, also right after the session
+  started) are retried after 1 s, doubling up to 30 s, and the backoff starts again only
+  after a connection that lasted 10 s, so a server that drops every session is not asked
+  every second. Five handshakes that failed in a row (no socket at the path: a 404, the
+  server down or restarting, no network) make it `unavailable`: the attempts go on every
+  15–30 s, and at once when the browser is online again, the page is shown again or the
+  user retries (`LiveQuery`, `action:reconnect`). A JWT that expires later does not close
+  the session.
+- A message is `{"type": "data", "data": "<the published JSON as a string>"}`: the hooks
+  parse `data`. `{"type": "ping"}` is answered `{"type": "pong"}`: the hooks ping every 25 s
+  and reconnect when nothing answered.
+- Pub/sub keeps nothing: a message published while the page is not subscribed is lost. The
+  hooks refetch every query after a reconnect that the server took; publish after the
+  commit (`transaction.on_commit(..., robust=True)`: Redis down must not fail a change that
+  is committed), or a client refetches the old data.
+- **The common channel is public**: every session receives it, an anonymous one too (any
+  token of 16–128 characters). Publish there only `{"resource": "<JSON:API type>"}`, never
+  the id of an item, its data or a notification: an id tells who may not see the item that
+  it exists and when it changes. A message about an item (its id, a notification) goes only
+  to the users who may see it, `user.ws_publish(...)` (the author, the assignee).
+- The formats that the hooks read (bazis-ws carries any JSON):
+  `{"resource": "<JSON:API type>", "id"?: "<id>"}` (the resource or the item changed:
+  `useLiveQueries` refetches the queries of the resource, each client with its own
+  permissions; to `COMMON_CHANNEL` without the id),
+  `{"action": "notification", "title": "…", "text"?: "…", "resource"?: "…", "id"?: "…"}`
+  (a notification of the user; with a resource, the item also changed), and
+  `{"action": "async_bg", "task_id", "status"}`, which bazis-async-background sends itself.
 
 ## Logins with bazis-authing
 
@@ -960,3 +1078,21 @@ tests cannot log in (P026).
 - The `id` of an item of a model with an integer primary key (`FileUpload`) is a JSON number
   in its documents, a string in the relationships that reference it: compare them as
   strings.
+- A task of bazis-bg (`bg.task`, `BgRoute`: `list` and `retrieve`, authentication required, a
+  user reads the tasks whose `author` they are, staff all) goes `waiting` → `starting` →
+  `running` → `done`; `phase` is the phase that runs, `expected`/`performed` its counters
+  (numbers, or numbers by key), saved every few seconds and cleared when the phase ends;
+  done, `phase` is `completed`, `error` or `interrupted`, `error` the traceback of a failure,
+  `interrupt` true for an interruption, `result` what the task set. A task runs only with a
+  `manage.py bg_scheduler` process (no Kafka); without it, it stays `waiting`.
+- bazis-async-request queues a request sent with `X-Async-Background` (its presence is
+  enough) and a bearer token that names a channel of bazis-ws (else 401), answering 202
+  `{"data": null, "meta": {"async_request_id": <task id>}}`; without Kafka
+  (`async_request.W001`) it runs the request at once and answers as usual. The result is
+  `GET <result_path>?full_response=true` with the same token (403 with another one, 404
+  for an unknown or expired task, `KAFKA_RESPONSE_HOLD_SEC`): `{status, channel_name,
+  response}`, the status `created`, `pending`, `processing`, `completed` or `failed`;
+  without `full_response` it is the response or `{"status": "not ready"}`, which a response
+  cannot be told from. The response of a replayed request is `{task_id, endpoint, status,
+  headers, response}`: an HTTP error there is a `completed` task. The queued request keeps
+  the token, which must still be valid when the consumer runs it.

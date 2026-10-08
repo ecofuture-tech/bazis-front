@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+from types import SimpleNamespace
 
 from django.core.management import CommandError, call_command
 from django.db.migrations.recorder import MigrationRecorder
@@ -62,7 +63,7 @@ def test_export_is_deterministic(sample_app, workflow, tmp_path):
 def test_resources_come_from_x_bazis(sample_app, tmp_path):
     resources = export(tmp_path)['project']['resources']
 
-    assert sorted(resources) == ['tasks.task', 'uploadable.file_upload', 'users.user']
+    assert sorted(resources) == ['bg.task', 'tasks.task', 'uploadable.file_upload', 'users.user']
     task = resources['tasks.task']
     assert task['model'] == 'tasks.Task'
     assert task['route_set'] == 'tasks.routes.TaskRouteSet'
@@ -125,7 +126,18 @@ def test_a_resource_is_described_by_the_default_route_of_its_model():
 def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path):
     sections = export(tmp_path)['capabilities']
 
-    assert sorted(sections) == ['authing', 'permit', 'statusy', 'uploadable', 'users']
+    assert sorted(sections) == [
+        'async_background', 'async_request', 'authing', 'bg', 'permit', 'statusy', 'uploadable',
+        'users', 'ws',
+    ]
+    # the socket of bazis-ws, the resource of the tasks of bazis-bg, the result of
+    # bazis-async-background and the header of bazis-async-request
+    assert sections['ws'] == {'path': '/ws'}
+    assert sections['bg'] == {'resource': 'bg.task'}
+    assert sections['async_background'] == {
+        'result_path': '/api/v1/async_background_response/{task_id}/'
+    }
+    assert sections['async_request'] == {'header': 'X-Async-Background'}
     assert sections['users'] == {'token_url': '/api/openapi-token/', 'user_resource': 'users.user'}
     # the login actions of BAZIS_AUTH_KINDS (the password only by default), as GET /auth/
     # lists them
@@ -253,18 +265,34 @@ def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monke
         capabilities.CAPABILITIES, 'statusy', capabilities.Capability('bazis-not-installed', 'x')
     )
 
-    # the sections of bazis-users, bazis-authing and bazis-uploadable are read from the
-    # settings and the routes
-    assert capabilities.enabled() == ['authing', 'uploadable', 'users']
-    assert list(capabilities.sections()) == ['authing', 'uploadable', 'users']
+    # the other sections are read from the settings and the routes
+    names = ['async_background', 'async_request', 'authing', 'bg', 'uploadable', 'users', 'ws']
+    assert capabilities.enabled() == names
+    assert list(capabilities.sections()) == names
 
 
 def test_capabilities_follow_the_installed_apps():
     # the project app users extends the app config of bazis-users
     assert capabilities.app_enabled('bazis.contrib.users')
     assert capabilities.app_enabled('bazis.contrib.permit')
+    # bazis-ws is not a Django app: its capability is the installed package
     assert not capabilities.app_enabled('bazis.contrib.ws')
-    assert capabilities.enabled() == ['authing', 'permit', 'statusy', 'uploadable', 'users']
+    assert capabilities.enabled() == [
+        'async_background', 'async_request', 'authing', 'bg', 'permit', 'statusy', 'uploadable',
+        'users', 'ws',
+    ]
+
+
+def test_a_capability_needs_its_app_or_its_package(monkeypatch):
+    monkeypatch.setitem(
+        capabilities.CAPABILITIES, 'bg', capabilities.Capability('bazis-bg', 'not.installed')
+    )
+    monkeypatch.setitem(
+        capabilities.CAPABILITIES, 'ws',
+        capabilities.Capability('bazis-not-installed', 'bazis.contrib.ws', app=False),
+    )
+    assert 'bg' not in capabilities.enabled()
+    assert 'ws' not in capabilities.enabled()
 
 
 @pytest.mark.django_db
@@ -286,6 +314,45 @@ def test_the_sections_follow_the_routes_and_the_settings(sample_app, settings, m
     # the route of a service that is not registered (Google) is left out
     settings.BAZIS_AUTH_KINDS = ['bazis.contrib.authing.services.google', 'bazis.contrib.authing.services.password']
     assert [it['code'] for it in authing.section()['actions']] == ['password']
+
+
+@pytest.mark.django_db
+def test_the_sections_of_the_background_and_the_socket_follow_the_application(sample_app, monkeypatch):
+    from fastapi import APIRouter, FastAPI
+
+    from starlette.endpoints import WebSocketEndpoint
+    from starlette.routing import NoMatchFound, WebSocketRoute
+
+    import bazis.core.app
+    from bazis.contrib.bg.routes import BgRoute
+    from bazis.contrib.front.capabilities import async_background, bg, ws
+    from bazis.contrib.ws.ws import WsEndpoint
+
+    class Socket(WsEndpoint):
+        pass
+
+    def unrouted(name, **params):
+        raise NoMatchFound(name, params)
+
+    # a socket of the application, a subclass of WsEndpoint at its own path, in an included
+    # router with a prefix
+    socket = APIRouter()
+    socket.routes.append(WebSocketRoute('/socket/', Socket))
+    application = FastAPI()
+    application.include_router(socket, prefix='/api/v1')
+    application.router.routes.append(WebSocketRoute('/other/', WebSocketEndpoint))
+    monkeypatch.setattr(bazis.core.app, 'app', application)
+    assert ws.section() == {'path': '/api/v1/socket/'}
+    # registered only in the main module, which the export does not import: no socket
+    monkeypatch.setattr(bazis.core.app, 'app', SimpleNamespace(routes=[], url_path_for=unrouted))
+    assert ws.section() == {'path': None}
+    # the result of the background tasks is not routed
+    assert async_background.section() == {'result_path': None}
+    # the tasks of bazis-bg are not routed, or without their retrieve
+    monkeypatch.setattr(bg, 'route_sets', lambda app: {})
+    assert bg.section() == {'resource': None}
+    monkeypatch.setattr(bg, 'route_sets', lambda app: {BgRoute: [{'action': 'action_list'}]})
+    assert bg.section() == {'resource': None}
 
 
 def test_openapi_hash_covers_the_operation_surface():

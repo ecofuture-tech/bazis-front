@@ -75,6 +75,62 @@
       ]
     },
     {
+      "name": "react-ws",
+      "kind": "vendored",
+      "source": "react/src/ws",
+      "target": "src/bazis/react/ws",
+      "requires": {
+        "capabilities": [
+          "ws"
+        ],
+        "assets": [
+          "react"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "live.ts",
+        "messages.ts",
+        "socket.tsx"
+      ]
+    },
+    {
+      "name": "react-bg",
+      "kind": "vendored",
+      "source": "react/src/bg",
+      "target": "src/bazis/react/bg",
+      "requires": {
+        "capabilities": [
+          "bg"
+        ],
+        "assets": [
+          "react"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "tasks.ts"
+      ]
+    },
+    {
+      "name": "react-async",
+      "kind": "vendored",
+      "source": "react/src/async",
+      "target": "src/bazis/react/async",
+      "requires": {
+        "capabilities": [
+          "async_background"
+        ],
+        "assets": [
+          "react"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "tasks.ts"
+      ]
+    },
+    {
       "name": "playwright",
       "kind": "vendored",
       "source": "playwright/bazis",
@@ -336,6 +392,92 @@
       "files": [
         "file-field.contract.test.tsx",
         "file-field.tsx",
+        "index.ts"
+      ]
+    },
+    {
+      "name": "live-query",
+      "kind": "ui",
+      "source": "ui/live-query",
+      "target": "src/bazis/ui/live-query",
+      "requires": {
+        "capabilities": [
+          "ws"
+        ],
+        "assets": [
+          "react-ws",
+          "testing",
+          "button"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "live-query.contract.test.tsx",
+        "live-query.tsx"
+      ]
+    },
+    {
+      "name": "notification-center",
+      "kind": "ui",
+      "source": "ui/notification-center",
+      "target": "src/bazis/ui/notification-center",
+      "requires": {
+        "capabilities": [
+          "ws"
+        ],
+        "assets": [
+          "react-ws",
+          "state-panel",
+          "testing",
+          "button",
+          "popover"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "notification-center.contract.test.tsx",
+        "notification-center.tsx"
+      ]
+    },
+    {
+      "name": "task-progress",
+      "kind": "ui",
+      "source": "ui/task-progress",
+      "target": "src/bazis/ui/task-progress",
+      "requires": {
+        "capabilities": [
+          "bg"
+        ],
+        "assets": [
+          "react-bg",
+          "state-panel",
+          "testing"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "task-progress.contract.test.tsx",
+        "task-progress.tsx"
+      ]
+    },
+    {
+      "name": "async-result",
+      "kind": "ui",
+      "source": "ui/async-result",
+      "target": "src/bazis/ui/async-result",
+      "requires": {
+        "capabilities": [
+          "async_background"
+        ],
+        "assets": [
+          "react-async",
+          "state-panel",
+          "testing"
+        ]
+      },
+      "files": [
+        "async-result.contract.test.tsx",
+        "async-result.tsx",
         "index.ts"
       ]
     },

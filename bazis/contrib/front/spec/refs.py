@@ -248,6 +248,15 @@ def _check_packages(doc: Document, data: dict, contract: dict, issues: Issues) -
                 f'The contract has no section `{package}`: bazis-{package} is not installed.',
                 f'Install bazis-{package} with its app in BS_INSTALLED_APPS, and {EXPORT_HINT}.',
             )
+        elif package == 'ws' and contract['capabilities']['ws'].get('path') is None:
+            issues.add(
+                doc, ('packages', i), 'P028',
+                'The contract has no path of the socket of bazis-ws: the application does not '
+                'route `ws_route` where the export sees it, and the frontend opens no socket '
+                '(no notification, no live update).',
+                'Append `ws_route` to the routes of the router module (`router.routes.append(ws_route)` '
+                f'in the module of BS_BAZIS_ROUTER_MODULE), not in the main module, and {EXPORT_HINT}.',
+            )
 
 
 def _check_login(doc: Document, data: dict, contract: dict, issues: Issues) -> None:

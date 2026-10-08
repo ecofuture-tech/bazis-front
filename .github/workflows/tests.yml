@@ -199,17 +199,23 @@ jobs:
           python manage.py bazis_front check
           # the theme that init compiled from the starters of the design
           python manage.py bazis_front design --check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress async-result
 
       - name: Check and build the frontend
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
         run: |
-          # the sample has bazis-statusy and bazis-uploadable: their hooks are copied and
-          # compiled with the rest
+          # the sample has bazis-statusy, bazis-uploadable, bazis-ws, bazis-bg and
+          # bazis-async-background: their hooks are copied and compiled with the rest
           test -f src/bazis/react/statusy/index.ts
           test -f src/bazis/react/uploadable/index.ts
+          test -f src/bazis/react/ws/index.ts
+          test -f src/bazis/react/bg/index.ts
+          test -f src/bazis/react/async/index.ts
           test -f src/bazis/ui/transit-bar/transit-bar.contract.test.tsx
           test -f src/bazis/ui/file-field/file-field.contract.test.tsx
+          test -f src/bazis/ui/notification-center/notification-center.contract.test.tsx
+          test -f src/bazis/ui/task-progress/task-progress.contract.test.tsx
+          test -f src/bazis/ui/async-result/async-result.contract.test.tsx
           npx tsc --noEmit
           npm run lint
           # the contract tests of the components with the tests of the template
@@ -293,7 +299,7 @@ jobs:
           python manage.py bazis_front init
           python manage.py bazis_front contract
           python manage.py bazis_front check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center
           # the screens of the sample, product code, and the files that its scenarios upload
           cp -R frontend-overlay/src/. "$BS_BASE_DIR/frontend/src/"
           cp -R frontend-overlay/e2e/. "$BS_BASE_DIR/frontend/e2e/"
@@ -309,6 +315,8 @@ jobs:
           npm run lint
           npm run build
 
+      # the backend serves the socket of bazis-ws (`/ws`), which `vite preview` proxies: the
+      # notifications of the scenarios come over it (Redis pub/sub)
       - name: Start the backend and the frontend
         run: |
           (cd sample && nohup uvicorn sample.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/backend.log" 2>&1 &)

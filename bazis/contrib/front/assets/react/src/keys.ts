@@ -38,7 +38,12 @@ function options({ filter, ...rest }: QueryOptions): Record<string, unknown> {
   return result;
 }
 
+/** The second item of the keys of the tasks of bazis-async-background: not a path. */
+const ASYNC_TASKS = 'async_background';
+
 export const keys = {
+  /** Every query of the hooks. */
+  all: ['bazis'] as const,
   /** Every query of a resource. */
   resource: (path: string) => ['bazis', path] as const,
   /** Every query of an item: its retrieves, its schemas. */
@@ -56,4 +61,8 @@ export const keys = {
     ['bazis', path, 'item', id, 'related', session] as const,
   filterFields: (path: string, session: string) =>
     ['bazis', path, 'filter-fields', session] as const,
+  /** The state of a task of bazis-async-background (`useAsyncTask`). */
+  asyncTask: (taskId: string, session: string) => ['bazis', ASYNC_TASKS, taskId, session] as const,
+  /** Every query of the state of a task, whatever the session. */
+  asyncTasks: (taskId: string) => ['bazis', ASYNC_TASKS, taskId] as const,
 };

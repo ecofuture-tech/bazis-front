@@ -18,10 +18,12 @@ from bazis.contrib.permit.models_abstract import (
     UserPermitMixin,
 )
 from bazis.contrib.users.models_abstract import AnonymousUserAbstract, UserAbstract
+from bazis.contrib.ws.models_abstract import UserWsMixin
 from bazis.core.models_abstract import JsonApiMixin, UuidMixin
 
 
-class User(UserPermitMixin, PermitSelectorMixin, JsonApiMixin, UuidMixin, UserAbstract):
+# UserWsMixin (bazis-ws): the channel of the user, its notifications
+class User(UserWsMixin, UserPermitMixin, PermitSelectorMixin, JsonApiMixin, UuidMixin, UserAbstract):
     pass
 
 

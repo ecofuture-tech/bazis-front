@@ -293,6 +293,39 @@ test.describe('expectValues', () => {
   });
 });
 
+test.describe('expectNotification', () => {
+  // the bell of a layout with a hidden copy (the sidebar on a phone); the list it opens, closed
+  // by Escape, gets the notification after a delay
+  const bell = html(
+    `<section data-bz="screen:task-card"><div data-bz="state:loaded">Task</div></section>
+     <button data-bz="action:notifications" style="display: none"></button>
+     <button data-bz="action:notifications" id="bell">Notifications</button>`,
+    `document.getElementById('bell').onclick = () => {
+       const list = document.createElement('ul');
+       list.dataset.bz = 'list:notifications';
+       list.innerHTML = '<li data-bz="notification:1">Task finished Plan the week</li>';
+       document.body.append(list);
+       setTimeout(() => { list.insertAdjacentHTML('afterbegin', '<li data-bz="notification:2">Task finished Write the report</li>'); }, 300);
+     };
+     document.addEventListener('keydown', (event) => {
+       if (event.key === 'Escape') document.querySelector('[data-bz="list:notifications"]')?.remove();
+     });`,
+  );
+
+  test('opens the list of the notifications and waits for the text', async ({ page }) => {
+    await show(page, '/tasks/1', bell);
+    const app = new App(page, PRODUCT);
+    await app.expectNotification('Write the report');
+    await expect(page.locator(bz('list', 'notifications'))).toHaveCount(0);
+  });
+
+  test('fails when no notification has the text', async ({ page }) => {
+    await show(page, '/tasks/1', bell);
+    const app = new App(page, PRODUCT);
+    await expect(app.expectNotification('Archive the task')).rejects.toThrow();
+  });
+});
+
 test('transit fills its payload and waits until it is done', async ({ page }) => {
   await show(page, '/tasks/1',
     html(

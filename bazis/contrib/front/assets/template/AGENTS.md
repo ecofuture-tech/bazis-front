@@ -14,7 +14,7 @@ backend, its contract and the specs of the product are one directory up (`manage
 |---|---|---|
 | `src/bazis/generated/` | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API); `theme.css` and `theme.ts` (the design: the tokens as CSS variables, `THEME`) | only `manage.py bazis_front contract`; the theme only `manage.py bazis_front design` |
 | `src/bazis/client/` | the client of the Bazis protocol | bazis-front; not edited, wrapped in `src/app/` |
-| `src/bazis/react/` | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy, `uploadable/` (`@/bazis/react/uploadable`) when it has bazis-uploadable | bazis-front; not edited |
+| `src/bazis/react/` | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy, `uploadable/` (`@/bazis/react/uploadable`) when it has bazis-uploadable, `ws/` with bazis-ws, `bg/` with bazis-bg, `async/` with bazis-async-background | bazis-front; not edited |
 | `src/bazis/ui/<component>/` | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies `state-panel`, `app-shell`, `login-form`, `manage.py bazis_front add` the others | the product, keeping the contract tests passing |
 | `src/app/` | providers (query cache, `BazisProvider`), session, router (the layout and the navigation), errors | the product |
 | `src/screens/<screen>/` | the screens, composed from the components | the product |
@@ -82,7 +82,9 @@ written.
 - Mark the elements with `data-bz` (`screen:<id>`, `state:<state>`, `list:<entity>`,
   `row:<id>` with its cells `cell:<column>`, `field:<field>`, `error:<field>`,
   `upload:<field>` (a file field), `action:<id>`, `transit:<id>`, `status:<id>`,
-  `nav:<screen>`): the scenarios of the
+  `nav:<screen>`; the components of the packages add `socket:<status>`,
+  `action:notifications`, `list:notifications`, `notification:<key>`, `bg:<state>`,
+  `async:<status>`): the scenarios of the
   product spec act through them (see [End-to-end tests](#end-to-end-tests)).
 - `access` is what the backend must grant, checked against the permissions of the roles
   in the contract. It does not decide what the frontend shows: that is the permission
@@ -188,6 +190,29 @@ With bazis-uploadable, `@/bazis/react/uploadable`:
 |---|---|
 | `useUpload(path)` | uploads a file to the route set of the uploaded files (`ROUTES['uploadable.file_upload']`): `upload(file, {name?})` resolves to the created item (its id may be a number: `String(item.data.id)` is the value of the relationship), null when aborted; `status`, `progress` (`{loaded, total}`), `error` (413 `ERR_FILE_TOO_LARGE`...), `abort()`, `reset()` |
 
+With bazis-ws, `@/bazis/react/ws` (the socket: see below):
+
+| Hook | What |
+|---|---|
+| `SocketProvider({path, token})` | opens the socket at `CAPABILITIES.ws.path` with the token of the session, sent in its first message; none without a token; reconnects with a backoff, closed by a logout |
+| `useSocket()` | `{status: 'idle' \| 'connecting' \| 'open' \| 'rejected' \| 'unavailable', error}`: `open` once the server took the token; `rejected` with `expired_token`, `invalid_token`, `user_not_found` (no new attempt until the token changes); `unavailable` when no socket answers at the path (five failed handshakes; it keeps trying every 15–30 s and at once when the browser is online or the page shown again); `retry()` tries at once |
+| `useChannel(handler)` | every message of the channels of the session, the published JSON parsed |
+| `useLiveQueries(ROUTES)` | refetches the queries of a resource that a message says changed, a task of bazis-async-background, and every query after a reconnect; `LiveQuery` mounts it |
+| `useNotifications()` | `{items, unread, markRead, clear}`: the notifications received in the session, the newest first |
+
+With bazis-bg, `@/bazis/react/bg`:
+
+| Hook | What |
+|---|---|
+| `useBgTask(path, id)` | a task of `ROUTES['bg.task']` (the user's own), read every 2 s until it is done: `state` (`waiting`, `starting`, `running`, `done`), `phase`, `progress` (`[{key, performed, expected}]`), `outcome` (`success`, `error`, `interrupted`), `result` |
+
+With bazis-async-background (and bazis-async-request), `@/bazis/react/async`:
+
+| Hook | What |
+|---|---|
+| `useAsyncRequest()` | `mutate({method, path, body})` with `X-Async-Background`: `{status: 'queued', taskId}` (202), or `{status: 'done', response}` when the backend ran it at once (no Kafka); nothing is refetched until the task is done |
+| `useAsyncTask(resultPath, taskId)` | `{status, response, done, error}` of a task, read at `CAPABILITIES.async_background.result_path` every 2 s until it is `completed` or `failed`; `replayedResponse(response)`: the HTTP status and body of a replayed request (an HTTP error there is still `completed`) |
+
 A form shows the errors of a 422 by field from `form.errors` and any other error from
 `form.submitError`; the fields a user may not change now are `readOnly` in `schema_update`
 (show them disabled) and are never sent, those permissions disable are not in it. To-many relationships are in `form.fields` (`many: true`)
@@ -211,6 +236,8 @@ of the installed package, lists their props and their `data-bz`):
 | a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell`; the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
+| the notifications and the live updates (bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` (below) |
+| a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
 | a field `type: file` (bazis-uploadable) | shown by the components (a link to the file, a thumbnail of an image); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes (below) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
@@ -326,6 +353,38 @@ import { FileFieldProvider } from '@/bazis/ui/file-field';
 </FileFieldProvider>
 ```
 
+With bazis-ws, `manage.py bazis_front add live-query notification-center`, wrap the routes
+in `SocketProvider` with the token of the session (none before the login; the logout
+closes it) and give the layout the tools. A notification is
+`{"action": "notification", "title", "text"?, "resource"?, "id"?}` published by the
+backend to the user (`user.ws_publish(...)`, after the commit); a change is
+`{"resource": "<type>"}` on `COMMON_CHANNEL` of bazis-ws, which every session receives,
+anonymous ones too: never an id, data or a notification there. The backend routes
+`ws_route` in its router module, where the contract finds its path (null otherwise: no
+socket):
+
+```tsx
+import { CAPABILITIES } from '@/bazis/generated/contract';
+import { SocketProvider } from '@/bazis/react/ws';
+import { LiveQuery } from '@/bazis/ui/live-query';
+import { NotificationCenter } from '@/bazis/ui/notification-center';
+
+// AppRouter: useToken() of src/app/session.ts
+<SocketProvider path={CAPABILITIES.ws?.path ?? null} token={useToken()}>
+  <BrowserRouter>…</BrowserRouter>
+</SocketProvider>
+
+// RequireSession: the tools are mounted once (the bell opens the card of a task)
+<AppShell
+  …
+  tools={<><LiveQuery /><NotificationCenter onOpen={(it) => { if (it.resource === 'tasks.task') void navigate(`/tasks/${String(it.id)}`); }} /></>}
+>
+```
+
+The dev server proxies the socket (`vite.config.ts` reads its path from the contract).
+Pub/sub keeps nothing: the notifications published while the page was closed are not
+shown, and `LiveQuery` refetches every query after a reconnect.
+
 - **The components are the product's.** Change their look, texts and layout in
   `src/bazis/ui/` as the product needs; keep `npm test` passing: the contract test of a
   component (`<component>.contract.test.tsx`) checks the `data-bz` marks and the states
@@ -397,7 +456,9 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   fill `field:<name>` in the open form (the `<form>` with `action:submit`), upload a file of
   `e2e/fixtures/` into the input `field:<name>` of a file field and wait while its
   `upload:<name>` is busy, and check `status:<id>`, `state:<state>`, `error:<name>`, the
-  texts of `field:<name>` of a card, the absence of an action and the read-only fields. A screen that renders the marks of its spec (the components do) passes its
+  texts of `field:<name>` of a card, the absence of an action, the read-only fields and a
+  notification (`expect: {notification: <text>}`: the bell `action:notifications` opens
+  `list:notifications`, which waits for a `notification:<key>` with the text). A screen that renders the marks of its spec (the components do) passes its
   scenarios; a screen without them fails them, even when it looks right.
 - **The test data is the backend's job**, never created by the tests: a management command
   or a fixture of the backend creates the roles, statuses and transits, a user per
@@ -434,5 +495,5 @@ test('a manager sees the drafts', async ({ page }) => {
   `loginAs`, `open`, `openItem`, `action`, `fill`, `upload` (a file of `e2e/fixtures/`),
   `submit`, `transit(id, payload?)`, `expectScreen`, `expectStatus`, `expectState`,
   `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectRows`,
-  `expectError`: the guide of
+  `expectError`, `expectNotification`: the guide of
   bazis-front lists what each one waits for.

@@ -22,7 +22,7 @@
       "description": "The Bazis packages the backend installs; each must have its section in the capabilities of the contract.",
       "type": "array",
       "uniqueItems": true,
-      "items": {"enum": ["authing", "permit", "statusy", "uploadable", "users"]}
+      "items": {"enum": ["async_background", "async_request", "authing", "bg", "permit", "statusy", "uploadable", "users", "ws"]}
     },
     "roles": {
       "type": "array",
@@ -278,7 +278,8 @@
             "field_absent": {"description": "A field of the current screen that the user may not see: not shown.", "$ref": "#/$defs/field_id"},
             "values": {"description": "Fields of the current card whose shown values contain these texts (a file: its name).", "$ref": "#/$defs/texts"},
             "rows": {"description": "The number of rows of the current list.", "type": "integer", "minimum": 0},
-            "error": {"description": "A field with a validation error.", "$ref": "#/$defs/field_id"}
+            "error": {"description": "A field with a validation error.", "$ref": "#/$defs/field_id"},
+            "notification": {"description": "A notification of the user (bazis-ws: `packages` has `ws`) whose text contains this text, in the list of the notifications.", "type": "string", "minLength": 1}
           }
         }
       }

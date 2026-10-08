@@ -7,7 +7,7 @@ product:
   id: tasks
   name: Tasks
   summary: The tasks of a team, started and finished with a report
-packages: [users, authing, permit, statusy, uploadable]
+packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request]
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
@@ -113,3 +113,16 @@ scenarios:
       - upload: {field: attachment, file: brief.txt}
       - submit: {}
       - expect: {values: {title: Attach the brief, attachment: brief.txt}}
+  # bazis-ws: the assignee of a finished task is notified (sample/tasks/notify.py), over the
+  # socket that the frontend opens after the login
+  - id: manager-is-notified-of-a-finished-task
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Notify the assignee, assignee: manager}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - transit: start
+      - transit: {id: finish, payload: {report: Done}}
+      - expect: {status: done, notification: Notify the assignee}

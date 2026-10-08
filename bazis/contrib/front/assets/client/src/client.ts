@@ -17,6 +17,9 @@ import type { Filter } from './filter.js';
 import type {
   AuthState,
   AuthUser,
+  BackgroundMethod,
+  BackgroundResult,
+  BackgroundStart,
   BodyOf,
   EndpointOf,
   IncludeOption,
@@ -50,6 +53,9 @@ export interface ClientOptions {
   /** Creates the XMLHttpRequest of an upload (fetch reports no progress of a body); `new XMLHttpRequest()` by default. */
   xhr?: () => XMLHttpRequest;
 }
+
+/** The header that asks bazis-async-request to run a request in the background (`async_request` of the contract). */
+export const BACKGROUND_HEADER = 'X-Async-Background';
 
 /** How often `authWait` asks the auth endpoint of bazis-authing, in milliseconds. */
 export const AUTH_POLL_INTERVAL = 1500;
@@ -195,6 +201,25 @@ export interface BazisClient<Paths> {
     store: string,
     options?: RequestOptions & { interval?: number },
   ): Promise<AuthState>;
+
+  /**
+   * bazis-async-request: sends a request of the API with `X-Async-Background` (a body as
+   * `application/vnd.api+json`). Resolves to its task when it is queued (202), or to its
+   * response when the backend ran it at once (without Kafka); an error status is an
+   * `ApiError` (401 without a token that names a channel of bazis-ws).
+   */
+  background(
+    method: BackgroundMethod,
+    path: string,
+    options?: RequestOptions & { body?: unknown },
+  ): Promise<BackgroundStart>;
+
+  /**
+   * bazis-async-background: the state of a task, `GET` of its result path (`result_path` of
+   * the contract with its id) with `full_response=true`, with the token of the request that
+   * queued it (403 with another one, 404 for an unknown or expired task).
+   */
+  backgroundResult(path: string, options?: RequestOptions): Promise<BackgroundResult>;
 }
 
 interface Query {
@@ -213,6 +238,7 @@ interface Send {
   query?: Query;
   signal?: AbortSignal | undefined;
   anonymous?: boolean;
+  headers?: Record<string, string>;
 }
 
 function queryString(query: Query = {}): string {
@@ -351,8 +377,9 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
     }
   }
 
-  async function send(method: string, path: string, init: Send = {}): Promise<unknown> {
-    const headers: Record<string, string> = { Accept: ACCEPT };
+  /** A request: the status and the body of a successful response (undefined for 204). */
+  async function request(method: string, path: string, init: Send = {}): Promise<{ status: number; body: unknown }> {
+    const headers: Record<string, string> = { Accept: ACCEPT, ...init.headers };
     if (!init.anonymous) {
       const token = await authorization();
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -365,10 +392,21 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       ...(init.body === undefined ? {} : { body: init.body }),
       ...(init.signal ? { signal: init.signal } : {}),
     });
-    if (response.status === 204) return undefined;
+    if (response.status === 204) return { status: 204, body: undefined };
     const text = await response.text();
     if (!response.ok) throw errorFromResponse(response.status, response.statusText, text);
-    return text ? (JSON.parse(text) as unknown) : undefined;
+    return { status: response.status, body: text ? (JSON.parse(text) as unknown) : undefined };
+  }
+
+  async function send(method: string, path: string, init: Send = {}): Promise<unknown> {
+    return (await request(method, path, init)).body;
+  }
+
+  /** 202 of bazis-async-request: `{data: null, meta: {async_request_id}}`. */
+  function queuedTask(status: number, body: unknown): string | null {
+    if (status !== 202 || typeof body !== 'object' || body === null) return null;
+    const id = (body as { meta?: { async_request_id?: unknown } | null }).meta?.async_request_id;
+    return typeof id === 'string' ? id : null;
   }
 
   const item = (path: string, id: string): string => `${path}${encodeURIComponent(id)}/`;
@@ -461,6 +499,25 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       authorize('POST', path, { store, body, signal }),
 
     authWait,
+
+    background: async (
+      method: BackgroundMethod,
+      path: string,
+      { body, signal }: RequestOptions & { body?: unknown } = {},
+    ): Promise<BackgroundStart> => {
+      const answer = await request(method, path, {
+        ...(body === undefined ? {} : jsonapi(body)),
+        headers: { [BACKGROUND_HEADER]: 'true' },
+        signal,
+      });
+      const taskId = queuedTask(answer.status, answer.body);
+      return taskId === null ? { status: 'done', response: answer.body } : { status: 'queued', taskId };
+    },
+
+    backgroundResult: async (path: string, { signal }: RequestOptions = {}): Promise<BackgroundResult> => {
+      const { status, response } = (await send('GET', `${path}?full_response=true`, { signal })) as BackgroundResult;
+      return { status, response: response ?? null };
+    },
   };
 
   return client as unknown as BazisClient<Paths>;

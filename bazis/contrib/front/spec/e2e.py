@@ -53,6 +53,7 @@ EXPECT = (
     ('values', 'expectValues'),
     ('rows', 'expectRows'),
     ('error', 'expectError'),
+    ('notification', 'expectNotification'),
 )
 
 

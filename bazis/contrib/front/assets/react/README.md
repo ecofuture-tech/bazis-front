@@ -2,8 +2,9 @@
 
 The React hooks of [Bazis](https://github.com/ecofuture-tech/bazis) over the protocol client
 (`assets/client`) and TanStack Query 5: lists, items, runtime schemas, mutations, a form
-bound to the runtime schema, the transits of bazis-statusy and the uploads of
-bazis-uploadable. No UI: the components
+bound to the runtime schema, the transits of bazis-statusy, the uploads of
+bazis-uploadable, the socket of bazis-ws, the tasks of bazis-bg and the background requests
+of bazis-async-request and bazis-async-background. No UI: the components
 (`assets/ui`) and the screens of a product render what the hooks return. Status:
 pre-release.
 
@@ -12,7 +13,10 @@ The hooks are not an npm package: `src/` is copied into a product by
 `@/bazis/react`. The hooks of a package are a separate asset that `init` copies only when
 the product has its capability (`requires` in `assets/registry.json`): `src/statusy/` is
 the asset `react-statusy`, `@/bazis/react/statusy`, `src/uploadable/` the asset
-`react-uploadable`, `@/bazis/react/uploadable`. Do not edit the copies.
+`react-uploadable`, `@/bazis/react/uploadable`, `src/ws/` the asset `react-ws`
+(`@/bazis/react/ws`, the capability `ws`), `src/bg/` the asset `react-bg`
+(`@/bazis/react/bg`, `bg`), `src/async/` the asset `react-async` (`@/bazis/react/async`,
+`async_background`). Do not edit the copies.
 
 They import the client as `@/bazis/client` and the generated types of the product as
 `@/bazis/generated/schema` (the `paths` of openapi-typescript), so every path, option and
@@ -56,6 +60,13 @@ sessions in `src/app/session.ts`); never the token. The template does this in
 | `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
 | `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
 | `useUpload(path)` (uploadable) | `POST path`, multipart, with XMLHttpRequest | `upload(file, {name?})`: the created item, null when aborted; `status`, `progress`, `error`, `abort()`, `reset()` |
+| `SocketProvider({path, token})`, `useSocket()` (ws) | the socket of bazis-ws | `{status, error, retry}`: `idle`, `connecting`, `open`, `rejected`, `unavailable` |
+| `useChannel(handler)` (ws) | | every message of the channels of the session, parsed |
+| `useLiveQueries(routes)` (ws) | refetches | the queries of a resource that a message says changed, of a task of bazis-async-background, and all after a reconnect |
+| `useNotifications()` (ws) | | `{items, unread, markRead, clear}` |
+| `useBgTask(path, id)` (bg) | `GET path{id}/` every `BG_POLL_INTERVAL` (2 s) until `done` | `BgTask` (`bgTask(document)`): `state`, `phase`, `outcome`, `progress`, `result`, `started`, `finished` |
+| `useAsyncRequest()` (async) | `method path` with `X-Async-Background` | `mutate({method, path, body})`: `{status: 'queued', taskId}` or `{status: 'done', response}` |
+| `useAsyncTask(resultPath, taskId)` (async) | `GET <result path>?full_response=true` every `ASYNC_POLL_INTERVAL` (2 s) until `completed` or `failed` | `{status, response, done, error}`; `replayedResponse(response)` |
 
 Pagination is read with the functions of the client: `nextPage(list.data)`,
 `prevPage(list.data)`, `pagination(list.data)` (with `meta: ['pagination']`).
@@ -85,6 +96,7 @@ string in the relationships.
 | schema of an item | `['bazis', path, 'item', id, 'schema', kind, session]` |
 | filter fields | `['bazis', path, 'filter-fields', session]` |
 | related item | `['bazis', path, 'item', id, 'related', session]` |
+| a task of bazis-async-background | `['bazis', 'async_background', taskId, session]` |
 
 `options` are those given, a filter as its expression.
 
@@ -158,6 +170,54 @@ related items (`related`). The names of the transits are in `TRANSITS` of `contr
 view it (null: leave its screen); 403 when the transit is not allowed now; 400 when a
 required payload is missing; 422 with the errors of the payload and the validators.
 
+### The socket (bazis-ws)
+
+`SocketProvider` opens one WebSocket at `path` (`CAPABILITIES.ws.path`, on the origin of the
+page; a `ws://`/`wss://` URL as it is) when it has a `token`, and sends `{"token": <token>}`
+as its first message (never in the URL): a session JWT of bazis-users (`exp` and `sub`
+required) subscribes to the channel of its user, an anonymous token of bazis-ws (16–128
+characters `A-Z a-z 0-9 _ -`) to its own channel; every session also gets the common
+channel. The server sends `{"type": "data", "data": "<published JSON as a string>"}`,
+which the hooks parse (a text that is not JSON as it is), `{"type": "pong"}` for the ping
+that the hooks send every `PING_INTERVAL` (25 s; nothing received since the last one: the
+socket is dead and reconnected), and `{"type": "error", "code"}`. `expired_token`,
+`invalid_token` and `user_not_found` make it `rejected` (closed, no new attempt until the
+token changes). The server accepts the connection before it takes the token: the ping sent
+with the token proves the session, and the socket is `open` at its pong (or at the first
+message). Another error or a close is retried after `reconnectDelay`, from `RECONNECT_MIN`
+(1 s) doubling to `RECONNECT_MAX` (30 s), half of it random; the backoff starts again only
+after a connection that stayed `open` `STABLE_AFTER` (10 s), so a server that drops every
+session at once is asked less and less often. `UNAVAILABLE_AFTER` (5) handshakes that
+failed in a row make it `unavailable` (no socket at the path, a server that restarts, no
+network): the attempts go on at the longest delay (15–30 s), and at once on `online`, on
+`visibilitychange` to visible and on `retry()` of `useSocket`. Another token (a login) opens another socket, none (a logout)
+closes it. Pub/sub keeps nothing, so `useLiveQueries` refetches every query after a
+reconnect that the server took.
+
+The formats that the hooks read (`changedResource`, `notificationOf`,
+`backgroundStatusOf`): `{"resource": "<type>", "id"?: "<id>"}` (an item or a resource
+changed; on the common channel, which anonymous sessions receive too, the resource
+only), `{"action": "notification", "title", "text"?, "resource"?, "id"?}` (a
+notification, which also says its item changed) and `{"action": "async_bg", "task_id",
+"status"}` of bazis-async-background. `useNotifications` keeps the notifications received
+in the session (`NOTIFICATIONS_KEPT`, 50), each with a `key` unique in the page; they are
+dropped when the session changes.
+
+### The tasks (bazis-bg) and the background requests (bazis-async-request)
+
+`useBgTask` is the query of `useItem(path, id)` with a `select` (`bgTask`): a message of the
+socket about `bg.task` refetches it too. `progress` has a counter (`key: null`) or a
+counter by key from `expected` and `performed`, which bazis-bg saves every few seconds and
+clears when a phase ends; `outcome` is `interrupted` (`interrupt`), `error` (`error`, the
+traceback) or `success` once `done`.
+
+`useAsyncRequest` is a mutation of `api.background`: the backend answers 202 with the id of
+the task (Kafka), or runs the request at once without Kafka (`{status: 'done', response}`).
+It refetches nothing: the change is done when the task is; refetch what it changed then
+(`['bazis', path]`). `useAsyncTask` reads `api.backgroundResult` with the token of the
+request (another one is 403; an unknown or expired task 404, and it stops); `response` is
+null until the task sets one.
+
 ### `useUpload` (bazis-uploadable)
 
 One file at a time (a new upload aborts the one running), with `upload` of the client:
@@ -178,7 +238,9 @@ the form and the transits. The types are those of the fixture of the client (the
 sample) with the endpoints of bazis-statusy added (`test/fixtures/schema.d.ts`), aliased as
 `@/bazis/generated/schema` by `tsconfig.json`. `test/fixtures/sample.json` has runtime
 schemas (of the list, the create, the retrieve and the update), retrieves with
-`state_actions` and a 422 of `tasks.task` of the sample of this repository, as the backend returns them (reduced to what the hooks read and normalized
+`state_actions` and a 422 of `tasks.task` of the sample of this repository, the messages of
+its socket (a change, a notification, the statuses of a background request), the documents
+of a task of bazis-bg and the answers of a background request, as the backend returns them (reduced to what the hooks read and normalized
 across the versions of Python and Pydantic; `tests/test_react_fixture.py` of the
 repository checks it against the sample and writes it again with
 `BAZIS_FRONT_WRITE_FIXTURES=1`); `test/types.typecheck.ts` has the type tests.

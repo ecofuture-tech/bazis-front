@@ -79,10 +79,14 @@ def test_init_creates_the_frontend(product):
     assert (frontend / 'AGENTS.md').read_text(encoding='utf-8').startswith('# Frontend')
 
     lock = json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
-    # the sample has bazis-statusy and bazis-uploadable: their hooks are copied; the helpers
-    # of the end-to-end tests; and the components marked `init` with the components and the
-    # shadcn/ui components they require
-    vendored = ['client', 'react', 'react-statusy', 'react-uploadable', 'playwright', *INIT_COMPONENTS]
+    # the sample has bazis-statusy, bazis-uploadable, bazis-ws, bazis-bg and
+    # bazis-async-background: their hooks are copied; the helpers of the end-to-end tests; and
+    # the components marked `init` with the components and the shadcn/ui components they
+    # require
+    vendored = [
+        'client', 'react', 'react-statusy', 'react-uploadable', 'react-ws', 'react-bg', 'react-async',
+        'playwright', *INIT_COMPONENTS,
+    ]
     files = {name: lock['assets'][name].pop('files') for name in vendored}
     # the theme of the starters of the design
     design = lock.pop('design')

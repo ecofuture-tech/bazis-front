@@ -21,6 +21,7 @@ from bazis.contrib.statusy import transit_before
 from bazis.contrib.statusy.models_abstract import StatusyMixin, StatusyTransit
 from bazis.core.models_abstract import DtMixin, JsonApiMixin, UuidMixin
 
+from . import notify
 from .schemas import FinishPayload
 
 
@@ -41,7 +42,12 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
         verbose_name = _('Task')
         verbose_name_plural = _('Tasks')
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        notify.changed(self)
+
     @transit_before('Save the report')
     def before_finish(self, statusy_transit: StatusyTransit, payload: FinishPayload):
         self.report = payload.report
         self.save()
+        notify.finished(self)

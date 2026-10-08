@@ -18,18 +18,22 @@ import path from 'node:path';
 
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
+
+import { CAPABILITIES } from './src/bazis/generated/contract';
 
 // The dev server proxies `/api` to the backend: BAZIS_API_URL from the environment or from
-// `.env.local`, http://localhost:8000 by default; and `/media`, the files of bazis-uploadable
-// in the file system storage (MEDIA_URL), which the backend redirects to MEDIA_HOST_URL. The
-// built frontend is served from the origin of the API. The tests run in jsdom (the contract
-// tests of the components render them); the pristine copies of the assets in `.bazis/` are
-// not tests of the product.
+// `.env.local`, http://localhost:8000 by default; `/media`, the files of bazis-uploadable
+// in the file system storage (MEDIA_URL), which the backend redirects to MEDIA_HOST_URL; and
+// the socket of bazis-ws (its path in the contract, when the backend routes it). The built
+// frontend is served from the origin of the API. The tests run in jsdom (the contract tests
+// of the components render them); the pristine copies of the assets in `.bazis/` are not
+// tests of the product.
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, 'BAZIS_');
   const backend = { target: env.BAZIS_API_URL ?? 'http://localhost:8000', changeOrigin: true };
-  const proxy = { '/api': backend, '/media': backend };
+  const proxy: Record<string, ProxyOptions> = { '/api': backend, '/media': backend };
+  if (CAPABILITIES.ws?.path) proxy[CAPABILITIES.ws.path] = { ...backend, ws: true };
   return {
     plugins: [react(), tailwindcss()],
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
