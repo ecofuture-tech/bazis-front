@@ -48,7 +48,7 @@ const FINISHED = { action: 'notification', title: 'Task finished', text: 'Write 
 
 function open() {
   act(() => {
-    FakeSocket.last().open();
+    FakeSocket.last().accept();
   });
 }
 
@@ -71,7 +71,7 @@ describe('NotificationCenter', () => {
     const bell = screen.getByTestId('action:notifications');
     expect(bell.getAttribute('aria-label')).toBe('Notifications');
     publish(FINISHED);
-    publish({ resource: 'test.item', id: '7' });
+    publish({ resource: 'test.item' });
     publish({ action: 'notification', title: 'Second' });
     expect(bell.getAttribute('aria-label')).toBe('Notifications, 2 unread');
     const toasts = screen.getByRole('region', { name: 'Notifications' });

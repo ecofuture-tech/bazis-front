@@ -149,7 +149,7 @@ def test_contract_ts_is_rendered_from_the_contract():
         '  readonly statusy: { readonly models: typeof TRANSITS } | null;',
         '  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;',
         '  readonly users: { readonly token_url: string; readonly user_resource: string } | null;',
-        '  readonly ws: { readonly path: string } | null;',
+        '  readonly ws: { readonly path: string | null } | null;',
         '}',
         '',
         'export const CAPABILITIES: Capabilities = {',

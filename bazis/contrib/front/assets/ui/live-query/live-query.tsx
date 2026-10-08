@@ -26,6 +26,7 @@ export const SOCKET_LABELS: Readonly<Record<SocketStatus, string>> = {
   connecting: 'Connecting for live updates',
   open: 'Live updates on',
   rejected: 'Live updates refused: log in again',
+  unavailable: 'Live updates unavailable',
 };
 
 const DOTS: Readonly<Record<SocketStatus, string>> = {
@@ -33,6 +34,7 @@ const DOTS: Readonly<Record<SocketStatus, string>> = {
   connecting: 'bg-warning motion-safe:animate-pulse',
   open: 'bg-success',
   rejected: 'bg-danger',
+  unavailable: 'bg-danger',
 };
 
 export interface LiveQueryProps {

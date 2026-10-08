@@ -1490,8 +1490,7 @@
   "ws_changed": {
     "type": "data",
     "data": {
-      "resource": "tasks.task",
-      "id": "00000000-0000-0000-0000-000000000000"
+      "resource": "tasks.task"
     }
   },
   "ws_notification": {

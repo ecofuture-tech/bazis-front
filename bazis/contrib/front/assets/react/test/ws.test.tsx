@@ -30,6 +30,8 @@ import {
   reconnectDelay,
   SocketProvider,
   socketUrl,
+  STABLE_AFTER,
+  UNAVAILABLE_AFTER,
   useChannel,
   useLiveQueries,
   useNotifications,
@@ -76,9 +78,9 @@ afterEach(() => {
 
 describe('the messages', () => {
   it('read the formats of the sample', () => {
-    // as the server sends them: the published JSON as a string
-    const changed = JSON.parse(JSON.stringify(sample.ws_changed.data)) as unknown;
-    expect(changedResource(changed)).toEqual({ resource: 'tasks.task', id: sample.ws_changed.data.id });
+    // the common channel of the sample: the resource, never the id of an item
+    expect(sample.ws_changed.data).toEqual({ resource: 'tasks.task' });
+    expect(changedResource(sample.ws_changed.data)).toEqual({ resource: 'tasks.task', id: null });
     const received = new Date();
     expect(notificationOf(sample.ws_notification.data, 1, received)).toEqual({
       key: 1,
@@ -105,13 +107,34 @@ describe('the messages', () => {
   });
 });
 
+/** Advances the fake timers inside act. */
+function advance(ms: number) {
+  act(() => {
+    vi.advanceTimersByTime(ms);
+  });
+}
+
+/** The server accepts the last socket and the token. */
+function accept() {
+  act(() => {
+    FakeSocket.last().accept();
+  });
+}
+
+/** The last socket drops. */
+function drop(code?: number) {
+  act(() => {
+    FakeSocket.last().drop(code);
+  });
+}
+
 describe('the socket', () => {
   it('is on the origin of the page, or at a URL', () => {
     expect(socketUrl('/ws')).toBe(`ws://${window.location.host}/ws`);
     expect(socketUrl('wss://api.example.com/ws')).toBe('wss://api.example.com/ws');
   });
 
-  it('sends the token in its first message, never in the URL', () => {
+  it('sends the token in its first message, and is open once the server answered after it', () => {
     const { result } = renderSocket(() => useSocket());
     expect(result.current).toEqual({ status: 'connecting', error: null });
     const socket = FakeSocket.last();
@@ -119,15 +142,18 @@ describe('the socket', () => {
     act(() => {
       socket.open();
     });
-    expect(socket.sent).toEqual([{ token: 'session-jwt' }]);
+    // never in the URL; the ping proves that the server took the token
+    expect(socket.sent).toEqual([{ token: 'session-jwt' }, { type: 'ping' }]);
+    expect(result.current.status).toBe('connecting');
+    act(() => {
+      socket.receive({ type: 'pong' });
+    });
     expect(result.current).toEqual({ status: 'open', error: null });
   });
 
   it('is not opened without a path or a token, and closed at a logout', () => {
     const { result, props, rerender } = renderSocket(() => useSocket());
-    act(() => {
-      FakeSocket.last().open();
-    });
+    accept();
     props.token = null;
     rerender();
     expect(result.current.status).toBe('idle');
@@ -140,45 +166,54 @@ describe('the socket', () => {
     // the token of the next user: another socket
     props.path = '/ws';
     rerender();
-    act(() => {
-      FakeSocket.last().open();
-    });
+    accept();
     expect(FakeSocket.sockets).toHaveLength(2);
-    expect(FakeSocket.last().sent).toEqual([{ token: 'next-jwt' }]);
+    expect(FakeSocket.last().sent).toEqual([{ token: 'next-jwt' }, { type: 'ping' }]);
   });
 
-  it('reconnects after a drop with a doubling delay', () => {
+  it('backs off while the server drops the session at once, and starts again after a connection that lasted', () => {
     vi.useFakeTimers();
     vi.spyOn(Math, 'random').mockReturnValue(1);
     expect(reconnectDelay(0)).toBe(RECONNECT_MIN);
     expect(reconnectDelay(1)).toBe(2 * RECONNECT_MIN);
     expect(reconnectDelay(20)).toBe(RECONNECT_MAX);
     const { result } = renderSocket(() => useSocket());
-    act(() => {
-      FakeSocket.last().open();
-      FakeSocket.last().drop();
-    });
-    expect(result.current.status).toBe('connecting');
-    expect(FakeSocket.sockets).toHaveLength(1);
-    act(() => {
-      vi.advanceTimersByTime(RECONNECT_MIN);
-    });
-    expect(FakeSocket.sockets).toHaveLength(2);
-    // the server cannot be reached: the next attempt waits twice as long
-    act(() => {
-      FakeSocket.last().drop(1006);
-      vi.advanceTimersByTime(RECONNECT_MIN);
-    });
-    expect(FakeSocket.sockets).toHaveLength(2);
-    act(() => {
-      vi.advanceTimersByTime(RECONNECT_MIN);
-    });
-    expect(FakeSocket.sockets).toHaveLength(3);
-    act(() => {
-      FakeSocket.last().open();
-    });
-    expect(result.current.status).toBe('open');
-    expect(FakeSocket.last().sent).toEqual([{ token: 'session-jwt' }]);
+    // accepted, then dropped (1011: Redis is down), again and again: the delays double
+    for (const delay of [RECONNECT_MIN, 2 * RECONNECT_MIN, 4 * RECONNECT_MIN]) {
+      const count = FakeSocket.sockets.length;
+      accept();
+      drop();
+      expect(result.current.status).toBe('connecting');
+      advance(delay - 1);
+      expect(FakeSocket.sockets).toHaveLength(count);
+      advance(1);
+      expect(FakeSocket.sockets).toHaveLength(count + 1);
+    }
+    // a connection that lasted: the next drop waits the first delay again
+    accept();
+    advance(STABLE_AFTER);
+    drop();
+    advance(RECONNECT_MIN);
+    expect(FakeSocket.sockets).toHaveLength(5);
+  });
+
+  it('backs off after an error of the server, as after a drop', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(1);
+    const { result } = renderSocket(() => useSocket());
+    for (const delay of [RECONNECT_MIN, 2 * RECONNECT_MIN]) {
+      const count = FakeSocket.sockets.length;
+      act(() => {
+        FakeSocket.last().open();
+        FakeSocket.last().receive({ type: 'error', code: 'internal_error', detail: 'Internal server error' });
+      });
+      expect(result.current.status).toBe('connecting');
+      expect(FakeSocket.last().closed).not.toBeNull();
+      advance(delay - 1);
+      expect(FakeSocket.sockets).toHaveLength(count);
+      advance(1);
+      expect(FakeSocket.sockets).toHaveLength(count + 1);
+    }
   });
 
   it('stops at a token that the server refuses', () => {
@@ -190,48 +225,46 @@ describe('the socket', () => {
     });
     expect(result.current).toEqual({ status: 'rejected', error: 'expired_token' });
     expect(FakeSocket.last().closed).toBe(1000);
-    act(() => {
-      vi.advanceTimersByTime(RECONNECT_MAX * 2);
-    });
+    advance(RECONNECT_MAX * 2);
     expect(FakeSocket.sockets).toHaveLength(1);
   });
 
-  it('reconnects after an internal error of the server', () => {
+  it('is unavailable when no socket answers at the path, until the token changes', () => {
     vi.useFakeTimers();
-    const { result } = renderSocket(() => useSocket());
-    act(() => {
-      FakeSocket.last().open();
-      FakeSocket.last().receive({ type: 'error', code: 'internal_error', detail: 'Internal server error' });
-    });
+    vi.spyOn(Math, 'random').mockReturnValue(1);
+    const { result, props, rerender } = renderSocket(() => useSocket());
+    // a 404 of the handshake: the socket closes without being opened
+    for (let attempt = 1; attempt < UNAVAILABLE_AFTER; attempt += 1) {
+      drop(1006);
+      expect(result.current.status).toBe('connecting');
+      advance(RECONNECT_MAX);
+    }
+    drop(1006);
+    expect(result.current).toEqual({ status: 'unavailable', error: null });
+    advance(RECONNECT_MAX * 4);
+    expect(FakeSocket.sockets).toHaveLength(UNAVAILABLE_AFTER);
+    props.token = 'next-jwt';
+    rerender();
     expect(result.current.status).toBe('connecting');
-    act(() => {
-      vi.advanceTimersByTime(RECONNECT_MIN);
-    });
-    expect(FakeSocket.sockets).toHaveLength(2);
+    expect(FakeSocket.sockets).toHaveLength(UNAVAILABLE_AFTER + 1);
   });
 
   it('pings, and reconnects when nothing answered', () => {
     vi.useFakeTimers();
     renderSocket(() => useSocket());
     const socket = FakeSocket.last();
-    act(() => {
-      socket.open();
-      vi.advanceTimersByTime(PING_INTERVAL);
-    });
-    expect(socket.sent).toEqual([{ token: 'session-jwt' }, { type: 'ping' }]);
+    accept();
+    advance(PING_INTERVAL);
+    expect(socket.sent).toEqual([{ token: 'session-jwt' }, { type: 'ping' }, { type: 'ping' }]);
     act(() => {
       socket.receive({ type: 'pong' });
-      vi.advanceTimersByTime(PING_INTERVAL);
     });
-    expect(socket.sent).toHaveLength(3);
+    advance(PING_INTERVAL);
+    expect(socket.sent).toHaveLength(4);
     // no pong: the socket is dead
-    act(() => {
-      vi.advanceTimersByTime(PING_INTERVAL);
-    });
+    advance(PING_INTERVAL);
     expect(socket.closed).not.toBeNull();
-    act(() => {
-      vi.advanceTimersByTime(RECONNECT_MIN);
-    });
+    advance(RECONNECT_MIN);
     expect(FakeSocket.sockets).toHaveLength(2);
   });
 
@@ -244,12 +277,11 @@ describe('the socket', () => {
     });
     act(() => {
       const socket = FakeSocket.last();
-      socket.open();
-      socket.receive({ type: 'pong' });
-      socket.publish({ resource: 'tasks.task', id: '1' });
+      socket.accept();
+      socket.publish({ resource: 'tasks.task' });
       socket.publish('for everybody');
     });
-    expect(messages).toEqual([{ resource: 'tasks.task', id: '1' }, 'for everybody']);
+    expect(messages).toEqual([{ resource: 'tasks.task' }, 'for everybody']);
   });
 });
 
@@ -258,7 +290,7 @@ describe('useNotifications', () => {
     const { result, props, rerender } = renderSocket(() => useNotifications());
     act(() => {
       const socket = FakeSocket.last();
-      socket.open();
+      socket.accept();
       socket.publish(sample.ws_notification.data);
       socket.publish(sample.ws_changed.data);
       socket.publish({ ...sample.ws_notification.data, title: 'Second', text: undefined });
@@ -290,39 +322,56 @@ describe('useNotifications', () => {
 describe('useLiveQueries', () => {
   const ROUTES = { 'entity.parent_entity': PARENT, 'entity.child_entity': CHILD };
 
-  it('refetches the queries of a changed resource and of a task, and all after a reconnect', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+  function live() {
     const backend = new Backend().on('GET', PARENT, { data: [] }).on('GET', CHILD, { data: [] });
-    const { queryClient } = renderSocket(() => {
+    const rendered = renderSocket(() => {
       useLiveQueries(ROUTES);
       useList(PARENT);
       useList(CHILD);
     }, backend);
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const invalidate = vi.spyOn(rendered.queryClient, 'invalidateQueries');
+    return { invalidate, keys: () => invalidate.mock.calls.map(([filters]) => filters?.queryKey) };
+  }
+
+  it('refetches the queries of a changed resource and of a task', () => {
+    const { keys } = live();
     act(() => {
       const socket = FakeSocket.last();
-      socket.open();
-      socket.publish({ resource: 'entity.parent_entity', id: '1' });
+      socket.accept();
+      socket.publish({ resource: 'entity.parent_entity' });
       socket.publish({ resource: 'unknown.model' });
       socket.publish(sample.ws_notification.data);
       socket.publish(sample.ws_async_bg[0]?.data);
     });
-    expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).toEqual([
+    expect(keys()).toEqual([
       ['bazis', PARENT],
       ['bazis', 'async_background', sample.ws_async_bg[0]?.data.task_id],
     ]);
+  });
+
+  it('refetches every query after a reconnect that the server took, not while it drops the session', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    vi.spyOn(Math, 'random').mockReturnValue(1);
+    const { invalidate, keys } = live();
+    // the first open refetches nothing
+    accept();
+    expect(keys()).toEqual([]);
+    // opened, then dropped before the server answered: no refetch, and the delays grow
+    let delay = RECONNECT_MIN;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      drop();
+      advance(delay);
+      act(() => {
+        FakeSocket.last().open();
+      });
+      delay *= 2;
+    }
+    expect(keys()).toEqual([]);
+    // the next one is taken: one refetch of every query
+    act(() => {
+      FakeSocket.last().receive({ type: 'pong' });
+    });
+    expect(keys()).toEqual([['bazis']]);
     invalidate.mockClear();
-    // the first open refetches nothing; an open after a drop refetches every query
-    act(() => {
-      FakeSocket.last().drop();
-    });
-    act(() => {
-      vi.advanceTimersByTime(RECONNECT_MIN);
-      FakeSocket.last().open();
-    });
-    expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).toEqual([['bazis']]);
-    await act(async () => {
-      await Promise.resolve();
-    });
   });
 });

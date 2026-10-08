@@ -195,7 +195,7 @@ With bazis-ws, `@/bazis/react/ws` (the socket: see below):
 | Hook | What |
 |---|---|
 | `SocketProvider({path, token})` | opens the socket at `CAPABILITIES.ws.path` with the token of the session, sent in its first message; none without a token; reconnects with a backoff, closed by a logout |
-| `useSocket()` | `{status: 'idle' \| 'connecting' \| 'open' \| 'rejected', error}`: `rejected` with `expired_token`, `invalid_token`, `user_not_found` (no new attempt until the token changes) |
+| `useSocket()` | `{status: 'idle' \| 'connecting' \| 'open' \| 'rejected' \| 'unavailable', error}`: `open` once the server took the token; `rejected` with `expired_token`, `invalid_token`, `user_not_found` (no new attempt until the token changes); `unavailable` when no socket answers at the path (five failed handshakes) |
 | `useChannel(handler)` | every message of the channels of the session, the published JSON parsed |
 | `useLiveQueries(ROUTES)` | refetches the queries of a resource that a message says changed, a task of bazis-async-background, and every query after a reconnect; `LiveQuery` mounts it |
 | `useNotifications()` | `{items, unread, markRead, clear}`: the notifications received in the session, the newest first |
@@ -358,7 +358,10 @@ in `SocketProvider` with the token of the session (none before the login; the lo
 closes it) and give the layout the tools. A notification is
 `{"action": "notification", "title", "text"?, "resource"?, "id"?}` published by the
 backend to the user (`user.ws_publish(...)`, after the commit); a change is
-`{"resource": "<type>", "id": "<id>"}` (to `COMMON_CHANNEL` of bazis-ws for every user):
+`{"resource": "<type>"}` on `COMMON_CHANNEL` of bazis-ws, which every session receives,
+anonymous ones too: never an id, data or a notification there. The backend routes
+`ws_route` in its router module, where the contract finds its path (null otherwise: no
+socket):
 
 ```tsx
 import { CAPABILITIES } from '@/bazis/generated/contract';

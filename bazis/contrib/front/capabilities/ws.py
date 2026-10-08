@@ -13,28 +13,38 @@
 # limitations under the License.
 
 """
-bazis-ws: the path of the socket. bazis-ws is not a Django app: the capability is there
-when the package is installed. The path is that of the route of `WsEndpoint` (or a subclass)
-that the application registers, when `bazis.core.app` has it (a route of the router
-module); bazis-ws registers `ws_route` in the main module of the project
-(`app.router.routes.append(ws_route)`), which the export does not import: then it is the
-path of `ws_route`, `/ws`. The messages are not in the contract: the server sends
-`{"type": "data", "data": <the published JSON as a string>}`, and the frontend reads the
-formats of bazis-front (`@/bazis/react/ws`).
+bazis-ws: the path of the socket, that of a route of `WsEndpoint` (or a subclass) that the
+application of `bazis.core.app` has: `ws_route` appended to the routes of the router module
+(`router.routes.append(ws_route)`, `/ws`: a route appended as it is keeps its path) or to the
+application of BAZIS_APP_MODULE. Null when it has none: bazis-ws is not a Django app, its
+capability is the installed package, which bazis-async-background installs too, and a socket
+registered only in the main module of the project (which the export does not import) is not
+known to the contract. The frontend opens no socket without a path. The messages are not in
+the contract: the server sends `{"type": "data", "data": <the published JSON as a string>}`,
+and the frontend reads the formats of bazis-front (`@/bazis/react/ws`).
 """
 
-from starlette.routing import WebSocketRoute
+from collections.abc import Iterator, Sequence
+
+from starlette.routing import BaseRoute, WebSocketRoute
+
+
+def socket_paths(routes: Sequence[BaseRoute], endpoint: type, prefix: str = '') -> Iterator[str]:
+    """
+    The full paths of the WebSocket routes of the endpoint (or of a subclass), with the
+    prefixes of the included routers.
+    """
+    for route in routes:
+        if isinstance(route, WebSocketRoute):
+            if isinstance(route.endpoint, type) and issubclass(route.endpoint, endpoint):
+                yield prefix + route.path
+        elif (router := getattr(route, 'original_router', None)) is not None:
+            context = getattr(route, 'include_context', None)
+            yield from socket_paths(router.routes, endpoint, prefix + (getattr(context, 'prefix', '') or ''))
 
 
 def section() -> dict:
-    from bazis.contrib.ws.ws import WsEndpoint, ws_route
+    from bazis.contrib.ws.ws import WsEndpoint
     from bazis.core.app import app
 
-    paths = [
-        route.path
-        for route in app.routes
-        if isinstance(route, WebSocketRoute)
-        and isinstance(route.endpoint, type)
-        and issubclass(route.endpoint, WsEndpoint)
-    ]
-    return {'path': paths[0] if paths else ws_route.path}
+    return {'path': next(socket_paths(app.routes, WsEndpoint), None)}

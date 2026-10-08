@@ -140,7 +140,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider({accept?: {field: types}, maxSize?, children})`: `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField(props)`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
-| `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket; `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected>` | `ws` |
+| `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket; `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected\|unavailable>` | `ws` |
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list, a toast for each new one | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | `ws` |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS`, `TASK_LABELS` | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH`, `RESULT_LABELS` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
@@ -327,9 +327,8 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   role of a user; a role has no permissions of its own), `statusy` (per statusy model: the
   initial status, the statuses of its transits, the transits with the JSON Schema of the
   payload they require, `null` without one), `ws` (`path`: the path of the socket, that of
-  a route of `WsEndpoint` registered where `bazis.core.app` has it, else `/ws`, the path of
-  `ws_route`, which bazis-ws registers in the main module of the project that the export
-  does not import), `bg` (`resource`: the JSON:API type of the route set of `BgRoute`, null
+  a route of `WsEndpoint` that the application of `bazis.core.app` has, null without one;
+  see [The socket](#the-socket)), `bg` (`resource`: the JSON:API type of the route set of `BgRoute`, null
   when it is not routed), `async_background` (`result_path`: the path of the result of a
   task with `{task_id}`, null when it is not routed), `async_request` (`header`: the header
   that asks for the background execution, `X-Async-Background`). Names are in
@@ -952,7 +951,7 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   `error`, `abort()` and `reset()`; it refetches the queries of the route set.
 - `SocketProvider({path, token})` opens the socket of bazis-ws (one a page; see
   [The socket](#the-socket)); `useSocket()` is its `status` (`idle`, `connecting`, `open`,
-  `rejected`) and the `error` of a refused token; `useChannel(handler)` gets every message
+  `rejected`, `unavailable`) and the `error` of a refused token; `useChannel(handler)` gets every message
   of the channels of the session, parsed; `useLiveQueries(ROUTES)` refetches what the
   messages say changed; `useNotifications()` is `{items, unread, markRead, clear}`.
 - `useBgTask(path, id)` reads a task of bazis-bg (the query of `useItem`) every 2 s until it
@@ -974,6 +973,14 @@ bazis-ws delivers the messages that the backend publishes to the channel of a us
 token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every session
 (`COMMON_CHANNEL`, `user_ws:common`). The facts that the hooks rely on:
 
+- **Route the socket where the contract sees it**: append `ws_route` to the routes of the
+  router module (`router.routes.append(ws_route)` in the module of
+  `BS_BAZIS_ROUTER_MODULE`: a route appended as it is keeps its path, `/ws`), or register it
+  on the application of `BAZIS_APP_MODULE`. The export imports `bazis.core.app`, never the
+  main module of the project: a socket registered only there (as the guide of bazis-ws
+  shows) is not known, and `ws.path` is null. bazis-ws is not a Django app and
+  bazis-async-background installs it: the section `ws` is there whenever the package is,
+  with a null path when nothing routes the socket, and the frontend then opens none.
 - The socket is at `CAPABILITIES.ws.path` (`/ws`, without the prefix of the API; the dev
   server of the template proxies it). The token is sent in the first message
   (`{"token": "<token>"}`), never in the URL: a session JWT of bazis-users (`exp` and `sub`
@@ -981,24 +988,34 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every sessio
   other token of 16–128 characters `A-Z a-z 0-9 _ -` to its anonymous channel. A refused
   token is `{"type": "error", "code": "expired_token" | "invalid_token" | "user_not_found"}`
   (the socket stays open but receives nothing: the hooks close it, `rejected`, and wait for
-  another token); `internal_error` and a close (1011 when Redis fails) are retried after
-  1 s, doubling up to 30 s. A JWT that expires later does not close the session.
+  another token). The server accepts the connection before it takes the token, and keeps a
+  socket open after `internal_error`: the hooks send a ping with the token and the socket is
+  `open` only once the server answered after it (a refused token is an error before the
+  pong); `internal_error` and a close (1011 when Redis fails, also right after the session
+  started) are retried after 1 s, doubling up to 30 s, and the backoff starts again only
+  after a connection that lasted 10 s, so a server that drops every session is not asked
+  every second. Five handshakes that failed in a row (no socket at the path: a 404, the
+  server down) make it `unavailable`, without new attempts until the path or the token
+  changes (a reload). A JWT that expires later does not close the session.
 - A message is `{"type": "data", "data": "<the published JSON as a string>"}`: the hooks
   parse `data`. `{"type": "ping"}` is answered `{"type": "pong"}`: the hooks ping every 25 s
   and reconnect when nothing answered.
 - Pub/sub keeps nothing: a message published while the page is not subscribed is lost. The
-  hooks refetch every query after a reconnect; publish after the commit
-  (`transaction.on_commit`), or a client refetches the old data.
+  hooks refetch every query after a reconnect that the server took; publish after the
+  commit (`transaction.on_commit(..., robust=True)`: Redis down must not fail a change that
+  is committed), or a client refetches the old data.
+- **The common channel is public**: every session receives it, an anonymous one too (any
+  token of 16–128 characters). Publish there only `{"resource": "<JSON:API type>"}`, never
+  the id of an item, its data or a notification: an id tells who may not see the item that
+  it exists and when it changes. A message about an item (its id, a notification) goes only
+  to the users who may see it, `user.ws_publish(...)` (the author, the assignee).
 - The formats that the hooks read (bazis-ws carries any JSON):
-  `{"resource": "<JSON:API type>", "id": "<id>"}` (the item changed: `useLiveQueries`
-  refetches the queries of the resource; publish it to `COMMON_CHANNEL` for every user,
-  with the id only: each reads the item with its own permissions),
+  `{"resource": "<JSON:API type>", "id"?: "<id>"}` (the resource or the item changed:
+  `useLiveQueries` refetches the queries of the resource, each client with its own
+  permissions; to `COMMON_CHANNEL` without the id),
   `{"action": "notification", "title": "…", "text"?: "…", "resource"?: "…", "id"?: "…"}`
   (a notification of the user; with a resource, the item also changed), and
   `{"action": "async_bg", "task_id", "status"}`, which bazis-async-background sends itself.
-- With bazis-async-background installed, bazis-ws is installed too (its dependency): the
-  section `ws` is there even when the project does not register `ws_route`; the socket then
-  keeps reconnecting. Register it, or do not mount `SocketProvider`.
 
 ## Logins with bazis-authing
 

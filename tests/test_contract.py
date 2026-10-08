@@ -318,6 +318,9 @@ def test_the_sections_follow_the_routes_and_the_settings(sample_app, settings, m
 
 @pytest.mark.django_db
 def test_the_sections_of_the_background_and_the_socket_follow_the_application(sample_app, monkeypatch):
+    from fastapi import APIRouter, FastAPI
+
+    from starlette.endpoints import WebSocketEndpoint
     from starlette.routing import NoMatchFound, WebSocketRoute
 
     import bazis.core.app
@@ -331,14 +334,18 @@ def test_the_sections_of_the_background_and_the_socket_follow_the_application(sa
     def unrouted(name, **params):
         raise NoMatchFound(name, params)
 
-    # a socket of the application, a subclass of WsEndpoint at its own path
-    monkeypatch.setattr(
-        bazis.core.app, 'app', SimpleNamespace(routes=[WebSocketRoute('/api/v1/socket/', Socket)])
-    )
+    # a socket of the application, a subclass of WsEndpoint at its own path, in an included
+    # router with a prefix
+    socket = APIRouter()
+    socket.routes.append(WebSocketRoute('/socket/', Socket))
+    application = FastAPI()
+    application.include_router(socket, prefix='/api/v1')
+    application.router.routes.append(WebSocketRoute('/other/', WebSocketEndpoint))
+    monkeypatch.setattr(bazis.core.app, 'app', application)
     assert ws.section() == {'path': '/api/v1/socket/'}
-    # registered in the main module, which the export does not import: the path of ws_route
+    # registered only in the main module, which the export does not import: no socket
     monkeypatch.setattr(bazis.core.app, 'app', SimpleNamespace(routes=[], url_path_for=unrouted))
-    assert ws.section() == {'path': '/ws'}
+    assert ws.section() == {'path': None}
     # the result of the background tasks is not routed
     assert async_background.section() == {'result_path': None}
     # the tasks of bazis-bg are not routed, or without their retrieve

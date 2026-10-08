@@ -309,7 +309,8 @@ def background(app, settings, monkeypatch, user) -> dict:
 def notified(app, user, tasks_client) -> dict:
     """
     The messages of the socket of the user while a task assigned to them is finished: the
-    first change of a task on the common channel, and the notification of the assignee.
+    first change of a task on the common channel (the resource, never the id of an item: an
+    anonymous session receives it too), and the notification of the assignee.
     """
     token = user.jwt_build()
     with get_api_client(app).client.websocket_connect('/ws') as socket:
@@ -330,6 +331,7 @@ def notified(app, user, tasks_client) -> dict:
                 notification = message
             elif changed is None:
                 changed = message
+    assert changed['data'] == {'resource': 'tasks.task'}
     return {'ws_changed': changed, 'ws_notification': notification}
 
 

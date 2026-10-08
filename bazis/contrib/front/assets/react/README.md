@@ -60,7 +60,7 @@ sessions in `src/app/session.ts`); never the token. The template does this in
 | `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
 | `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
 | `useUpload(path)` (uploadable) | `POST path`, multipart, with XMLHttpRequest | `upload(file, {name?})`: the created item, null when aborted; `status`, `progress`, `error`, `abort()`, `reset()` |
-| `SocketProvider({path, token})`, `useSocket()` (ws) | the socket of bazis-ws | `{status, error}`: `idle`, `connecting`, `open`, `rejected` |
+| `SocketProvider({path, token})`, `useSocket()` (ws) | the socket of bazis-ws | `{status, error}`: `idle`, `connecting`, `open`, `rejected`, `unavailable` |
 | `useChannel(handler)` (ws) | | every message of the channels of the session, parsed |
 | `useLiveQueries(routes)` (ws) | refetches | the queries of a resource that a message says changed, of a task of bazis-async-background, and all after a reconnect |
 | `useNotifications()` (ws) | | `{items, unread, markRead, clear}` |
@@ -182,14 +182,21 @@ which the hooks parse (a text that is not JSON as it is), `{"type": "pong"}` for
 that the hooks send every `PING_INTERVAL` (25 s; nothing received since the last one: the
 socket is dead and reconnected), and `{"type": "error", "code"}`. `expired_token`,
 `invalid_token` and `user_not_found` make it `rejected` (closed, no new attempt until the
-token changes); another error or a close is retried after `reconnectDelay`, from
-`RECONNECT_MIN` (1 s) doubling to `RECONNECT_MAX` (30 s), half of it random. Another token
-(a login) opens another socket, none (a logout) closes it. Pub/sub keeps nothing, so
-`useLiveQueries` refetches every query after a reconnect.
+token changes). The server accepts the connection before it takes the token: the ping sent
+with the token proves the session, and the socket is `open` at its pong (or at the first
+message). Another error or a close is retried after `reconnectDelay`, from `RECONNECT_MIN`
+(1 s) doubling to `RECONNECT_MAX` (30 s), half of it random; the backoff starts again only
+after a connection that stayed `open` `STABLE_AFTER` (10 s), so a server that drops every
+session at once is asked less and less often. `UNAVAILABLE_AFTER` (5) handshakes that
+failed in a row make it `unavailable` (no socket at the path), with no new attempt until the
+path or the token changes. Another token (a login) opens another socket, none (a logout)
+closes it. Pub/sub keeps nothing, so `useLiveQueries` refetches every query after a
+reconnect that the server took.
 
 The formats that the hooks read (`changedResource`, `notificationOf`,
 `backgroundStatusOf`): `{"resource": "<type>", "id"?: "<id>"}` (an item or a resource
-changed), `{"action": "notification", "title", "text"?, "resource"?, "id"?}` (a
+changed; on the common channel, which anonymous sessions receive too, the resource
+only), `{"action": "notification", "title", "text"?, "resource"?, "id"?}` (a
 notification, which also says its item changed) and `{"action": "async_bg", "task_id",
 "status"}` of bazis-async-background. `useNotifications` keeps the notifications received
 in the session (`NOTIFICATIONS_KEPT`, 50), each with a `key` unique in the page; they are

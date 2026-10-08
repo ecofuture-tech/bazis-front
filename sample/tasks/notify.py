@@ -13,12 +13,16 @@
 # limitations under the License.
 
 """
-The messages of the tasks on the socket of bazis-ws, in the format that the frontend reads
-(`@/bazis/react/ws` of bazis-front): `{"resource", "id"}` makes the clients refetch the
-item and the lists of the resource; `{"action": "notification", "title", "text",
-"resource", "id"}` is a notification of the user. They are published after the commit:
-pub/sub keeps nothing, and a client that refetched before the commit would read the old
-data.
+The messages of the tasks on the socket of bazis-ws, in the formats that the frontend reads
+(`@/bazis/react/ws` of bazis-front). The common channel reaches every session, anonymous
+ones too: it carries only `{"resource": "<type>"}` (the clients refetch the lists and the
+items of the resource, with their own permissions), never an id. A message about an item,
+here the notification `{"action": "notification", "title", "text", "resource", "id"}`, goes
+only to a user who may see it (`user.ws_publish`, the channel of the user): the assignee.
+
+They are published after the commit: pub/sub keeps nothing, and a client that refetched
+before the commit would read the old data. The publication is robust: Redis down does not
+fail a change that is committed (the error is logged), it only loses the message.
 """
 
 import json
@@ -43,11 +47,10 @@ def _publish(channel: str, message: dict) -> None:
 
 def changed(task) -> None:
     """
-    Every client refetches the task: its id on the common channel, without its data, which
-    each client reads with its own permissions.
+    Every client refetches the tasks: the resource on the common channel, without the id.
     """
-    message = {'resource': task.get_resource_label(), 'id': str(task.pk)}
-    transaction.on_commit(lambda: _publish(COMMON_CHANNEL, message))
+    message = {'resource': task.get_resource_label()}
+    transaction.on_commit(lambda: _publish(COMMON_CHANNEL, message), robust=True)
 
 
 def finished(task) -> None:
@@ -64,4 +67,4 @@ def finished(task) -> None:
         'resource': task.get_resource_label(),
         'id': str(task.pk),
     }
-    transaction.on_commit(lambda: _publish(assignee.user_channel, message))
+    transaction.on_commit(lambda: _publish(assignee.user_channel, message), robust=True)

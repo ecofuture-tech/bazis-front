@@ -114,9 +114,10 @@ reconnect, since pub/sub keeps nothing; `useNotifications`), the tasks of bazis-
 (`useBgTask`, the item of `bg.task` read until it is done) in `@/bazis/react/bg`, and the
 background requests in `@/bazis/react/async` (`useAsyncRequest`, `useAsyncTask`: the result
 read until the task is done, at once when its status comes on the socket). bazis-ws carries
-any JSON: the formats of a change (`{"resource", "id"}`) and of a notification
-(`{"action": "notification", "title", …}`) are those of bazis-front, which the backend of a
-product publishes.
+any JSON: the formats of a change (`{"resource"}` on the common channel, which anonymous
+sessions receive too, so never with an id) and of a notification (`{"action":
+"notification", "title", …}`, to the channel of a user who may see its item) are those of
+bazis-front, which the backend of a product publishes.
 
 Runtime metadata (schemas, filter fields, permission meta, state actions) is never part of
 the contract: it is requested at run time and cached by TanStack Query. Every query key is

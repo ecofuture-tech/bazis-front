@@ -53,6 +53,12 @@ check = "front.W004"
 text = "bazis-ws keeps nothing: a message published before the page subscribed is lost; publish after the commit, and the hooks refetch every query after a reconnect; the notifications are those of the session"
 
 [[pitfalls]]
+text = "the common channel of bazis-ws reaches every session, anonymous ones too: publish only {\"resource\": \"<type>\"} there, the ids and the notifications only to the users who may see the item (user.ws_publish)"
+
+[[pitfalls]]
+text = "the contract knows the socket of bazis-ws only when ws_route is routed in the router module (router.routes.append(ws_route)) or on the application of BAZIS_APP_MODULE; registered only in the main module, CAPABILITIES.ws.path is null and the frontend opens no socket"
+
+[[pitfalls]]
 text = "without Kafka bazis-async-request runs a request with X-Async-Background at once and answers as usual: the frontend takes both the 202 with a task and the response"
 
 [[pitfalls]]

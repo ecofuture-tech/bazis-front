@@ -23,6 +23,8 @@ export {
   reconnectDelay,
   SocketProvider,
   socketUrl,
+  STABLE_AFTER,
+  UNAVAILABLE_AFTER,
   useChannel,
   useNotifications,
   useSocket,

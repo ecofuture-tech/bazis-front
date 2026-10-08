@@ -296,6 +296,17 @@ export class FakeSocket {
     this.onopen?.(new Event('open'));
   }
 
+  /** The server accepts the connection and the token: it answers the ping sent with it. */
+  accept(): void {
+    this.open();
+    this.receive({ type: 'pong' });
+  }
+
+  /** A message of the server. */
+  receive(message: unknown): void {
+    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(message) }));
+  }
+
   /** A message published to a channel of the session, as the server sends it (its text). */
   publish(published: unknown): void {
     const data = typeof published === 'string' ? published : JSON.stringify(published);

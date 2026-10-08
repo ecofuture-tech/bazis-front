@@ -17,8 +17,12 @@
 // `{"type": "data", "data": <the published JSON, as a string>}` for each message of the
 // channels of the session (the channel of the user, or of an anonymous token, and the common
 // channel), `{"type": "pong"}` for `{"type": "ping"}` and `{"type": "error", "code"}` when
-// the token is refused. Pub/sub keeps nothing: a message published while the page is not
-// subscribed is lost (`useLiveQueries` refetches after a reconnect).
+// the token is refused or the session fails. It accepts the connection before it takes the
+// token: the socket is live only once the server answered after the token (the pong of a
+// ping sent with it), and the backoff starts again only after a connection that lasted;
+// one that the server drops at once (Redis down) keeps backing off. Pub/sub keeps nothing:
+// a message published while the page is not subscribed is lost (`useLiveQueries` refetches
+// after a reconnect).
 
 import {
   createContext,
@@ -35,18 +39,24 @@ import { useSessionKey } from '../context.js';
 import { notificationOf, type Notification } from './messages.js';
 
 /**
- * `idle`: no socket (no path or no token); `connecting` (also between two attempts);
- * `open`: the token is sent, the messages of its channels come; `rejected`: the server
- * refused the token (`error`: `expired_token`, `invalid_token`, `user_not_found`), no new
- * attempt until the token changes.
+ * `idle`: no socket (no path or no token); `connecting` (also between two attempts, and
+ * until the server answered after the token); `open`: the server took the token, the
+ * messages of its channels come; `rejected`: the server refused the token (`error`:
+ * `expired_token`, `invalid_token`, `user_not_found`), no new attempt until the token
+ * changes; `unavailable`: `UNAVAILABLE_AFTER` handshakes failed in a row (no socket at the
+ * path, the server is down), no new attempt until the path or the token changes.
  */
-export type SocketStatus = 'idle' | 'connecting' | 'open' | 'rejected';
+export type SocketStatus = 'idle' | 'connecting' | 'open' | 'rejected' | 'unavailable';
 
 /** The first delay before a new attempt to connect, in milliseconds; it doubles up to `RECONNECT_MAX`. */
 export const RECONNECT_MIN = 1000;
 export const RECONNECT_MAX = 30000;
 /** How often the page pings the server: a socket that answered nothing since the last ping is dead. */
 export const PING_INTERVAL = 25000;
+/** How long a live connection lasts before the backoff starts again from `RECONNECT_MIN`. */
+export const STABLE_AFTER = 10000;
+/** The handshakes failed in a row after which the socket is `unavailable`. */
+export const UNAVAILABLE_AFTER = 5;
 /** The notifications kept, the newest first. */
 export const NOTIFICATIONS_KEPT = 50;
 
@@ -147,65 +157,91 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
       setConnection({ target: current, status, error });
     };
     let socket: WebSocket | null = null;
+    // the attempts since the last connection that stayed live STABLE_AFTER: the backoff
     let failures = 0;
+    // the attempts in a row whose handshake failed (no socket at the path)
+    let unopened = 0;
     let retry: ReturnType<typeof setTimeout> | undefined;
     let ping: ReturnType<typeof setInterval> | undefined;
+    let stable: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
 
     // the socket without its handlers, closed
     const release = (code?: number) => {
       clearInterval(ping);
+      clearTimeout(stable);
       if (socket === null) return;
       socket.onopen = socket.onmessage = socket.onclose = socket.onerror = null;
       socket.close(code);
       socket = null;
     };
 
-    // the socket dropped (closed, dead, an error of the server): a new attempt after a delay
-    const reconnect = () => {
+    // the socket dropped (a failed handshake, a close, no answer, an error of the server): a
+    // new attempt after a delay, none after UNAVAILABLE_AFTER handshakes failed in a row
+    const reconnect = (opened: boolean) => {
       release();
       if (stopped) return;
+      unopened = opened ? 0 : unopened + 1;
+      if (unopened >= UNAVAILABLE_AFTER) {
+        stopped = true;
+        update('unavailable');
+        return;
+      }
       update('connecting');
       retry = setTimeout(connect, reconnectDelay(failures));
       failures += 1;
     };
 
     function connect() {
-      const opened = new WebSocket(url);
-      socket = opened;
+      const opening = new WebSocket(url);
+      socket = opening;
+      let opened = false;
+      let live = false;
       let alive = true;
-      opened.onopen = () => {
-        opened.send(JSON.stringify({ token }));
-        failures = 0;
-        update('open');
+      const ask = () => {
+        alive = false;
+        opening.send(JSON.stringify({ type: 'ping' }));
+      };
+      opening.onopen = () => {
+        opened = true;
+        // the server answers the ping after it took the token: the first answer proves the
+        // session (a refused token is an error before it)
+        opening.send(JSON.stringify({ token }));
+        ask();
         ping = setInterval(() => {
-          if (!alive) {
-            reconnect();
-            return;
-          }
-          alive = false;
-          opened.send(JSON.stringify({ type: 'ping' }));
+          if (alive) ask();
+          else reconnect(true);
         }, PING_INTERVAL);
       };
-      opened.onmessage = (event: MessageEvent) => {
+      opening.onmessage = (event: MessageEvent) => {
         alive = true;
         if (typeof event.data !== 'string') return;
         const message = parse(event.data) as { type?: unknown; data?: unknown; code?: unknown } | null;
-        if (message?.type === 'data' && typeof message.data === 'string') {
-          received(parse(message.data));
-        } else if (message?.type === 'error') {
+        if (message?.type === 'error') {
           const code = typeof message.code === 'string' ? message.code : 'internal_error';
           if (!REFUSED.has(code)) {
-            reconnect();
+            reconnect(true);
             return;
           }
           // the same token would be refused again
           stopped = true;
           release(1000);
           update('rejected', code);
+          return;
         }
+        if (!live) {
+          live = true;
+          update('open');
+          // a connection that the server keeps resets the backoff
+          stable = setTimeout(() => {
+            failures = 0;
+          }, STABLE_AFTER);
+        }
+        if (message?.type === 'data' && typeof message.data === 'string') received(parse(message.data));
       };
-      opened.onclose = reconnect;
+      opening.onclose = () => {
+        reconnect(opened);
+      };
     }
 
     connect();

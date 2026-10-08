@@ -48,7 +48,7 @@ SECTION_TYPES = {
     'statusy': '{ readonly models: typeof TRANSITS }',
     'uploadable': '{ readonly max_size: number | null; readonly resources: readonly string[] }',
     'users': '{ readonly token_url: string; readonly user_resource: string }',
-    'ws': '{ readonly path: string }',
+    'ws': '{ readonly path: string | null }',
 }
 
 

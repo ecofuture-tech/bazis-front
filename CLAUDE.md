@@ -45,10 +45,12 @@ fixture `workflow` (`tests/conftest.py`) and outside pytest by `manage.py sample
 the task that the scenario of the viewer opens: the data of the end-to-end tests), with
 field permissions (the viewer does not see the report, the manager may not change it) that
 the scenarios check with `field_absent` and `field_readonly`. The user model has
-`UserWsMixin` and `sample/main.py` registers the socket of bazis-ws (`ws_route`, `/ws`) and
-`AsyncRequestMiddleware`; `sample/tasks/notify.py` publishes, after the commit, every save
-of a task to the common channel (`{"resource", "id"}`) and the notification of the
-assignee of a finished task (`{"action": "notification", ...}`), which the scenario
+`UserWsMixin`, `sample/router.py` routes the socket of bazis-ws (`ws_route`, `/ws`, where the
+export sees it) and `sample/main.py` adds `AsyncRequestMiddleware`; `sample/tasks/notify.py`
+publishes, after the commit and robustly (Redis down does not fail the change), every save
+of a task to the common channel (`{"resource"}` only: anonymous sessions receive it) and
+the notification of the assignee of a finished task (`{"action": "notification", ...}`, to
+the channel of the assignee), which the scenario
 `manager-is-notified-of-a-finished-task` expects (Redis only). The sample has no Kafka and
 no `bg_scheduler`: a request with `X-Async-Background` runs at once
 (`async_request.W001` is silenced in `sample/settings.py`), and the task of bazis-bg of the
@@ -76,8 +78,9 @@ frontend made from the sample by the `e2e` job of CI.
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the
   package is not a Django app, bazis-ws, and its installed distribution is enough). The
   export imports `bazis.core.app`, not the main module of the project: what the main
-  module adds (`ws_route`, a middleware) is not seen, so `ws.path` falls back to the path
-  of `ws_route` and `async_request` states its header only.
+  module adds (`ws_route`, a middleware) is not seen, so `ws.path` is null unless the
+  socket is routed in the router module (or BAZIS_APP_MODULE), and `async_request` states
+  its header only.
 - Bazis imports every subpackage of `bazis.contrib` while it configures the settings: the
   `__init__.py` of a subpackage must not import models, the database or `bazis.core`
   modules that do.
