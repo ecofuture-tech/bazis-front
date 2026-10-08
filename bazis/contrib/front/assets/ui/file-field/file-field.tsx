@@ -187,6 +187,7 @@ export function FileField({
   function drop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragging(false);
+    if (disabled || uploading) return;
     void take(event.dataTransfer.files[0]);
   }
 
@@ -265,8 +266,12 @@ export function FileField({
       data-bz={`upload:${field.name}`}
       aria-busy={uploading || undefined}
       onDragOver={(event) => {
-        if (disabled || uploading) return;
+        // always take the drag over the field: a file left to the browser opens in the tab
         event.preventDefault();
+        if (disabled || uploading) {
+          event.dataTransfer.dropEffect = 'none';
+          return;
+        }
         setDragging(true);
       }}
       onDragLeave={() => {

@@ -144,8 +144,10 @@ describe('FileField', () => {
     await waitFor(() => {
       expect(screen.getByTestId('upload:attachment').getAttribute('aria-busy')).toBe('true');
     });
-    // a second file, chosen or dropped, while the first one uploads
+    // a second file, chosen or dropped, while the first one uploads; the drag over is
+    // still taken, so the browser does not open the file in the tab
     choose(new File(['other'], 'other.txt'));
+    expect(fireEvent.dragOver(screen.getByTestId('upload:attachment'), { dataTransfer: { dropEffect: 'copy' } })).toBe(false);
     fireEvent.drop(screen.getByTestId('upload:attachment'), {
       dataTransfer: { files: [new File(['dropped'], 'dropped.txt')] },
     });
