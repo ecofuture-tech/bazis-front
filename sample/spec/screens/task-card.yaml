@@ -8,7 +8,7 @@ roles: [manager, viewer]
 primitive: card
 card:
   sections:
-    - {id: main, fields: [title, status, assignee]}
+    - {id: main, fields: [title, status, assignee, attachment]}
     - {id: report, title: Report, fields: [report]}
   edit: true
   transitions: true

@@ -84,6 +84,10 @@ Every operation takes the path of a route set and, for an item, its id:
 | `filterFields(path)` | `GET path route_filter_fields/` |
 | `transit(path, id, transit, payload?)` | `POST path{id}/transit/` (bazis-statusy); `null` on 204 |
 | `login({username, password}, {path})` | `POST /api/openapi-token/` (bazis-users), a form |
+| `upload(path, file, {name, onProgress})` | `POST path`, `multipart/form-data` with `file` (and `name`), with XMLHttpRequest (bazis-uploadable); the created item |
+| `auth(path, {store})` | `GET path` (bazis-authing), the store token as the bearer token, without cookies; the state of the store |
+| `authLogin(path, store, body)` | `POST path` of a login action, `application/json` in the store, its redirect to the auth endpoint followed; the state of the store |
+| `authWait(path, store, {interval})` | `GET path` every `interval` ms (`AUTH_POLL_INTERVAL`, 1.5 s) until the store is signed in, has an error or has expired |
 
 All of them accept `signal` (an `AbortSignal`). `include` exists only on retrieve, create
 and update: Bazis ignores it on a list, and the types reject it. A meta field such as
@@ -92,6 +96,30 @@ and update: Bazis ignores it on a list, and the types reject it. A meta field su
 Errors are thrown as `ApiError` with the HTTP `status` and the JSON:API `errors`;
 `fieldErrors()` groups the messages by attribute or relationship name from
 `source.pointer` (`/attributes/<name>`, `/relationships/<name>`).
+
+**Uploads** (bazis-uploadable). A file is the multipart create of a route set of
+`FileUploadRouteSet`: fetch reports no progress of a body, so `upload` sends it with
+XMLHttpRequest (`xhr` of the options creates it, for the tests) with the bearer token, and
+`onProgress` gets `{loaded, total}` of the body. 2xx resolves to the item (`file`: the URL
+of the file in the storage, `name`, `extension`, `size`; its `id` is a number for an integer
+primary key); an error status is an `ApiError` (413 `ERR_FILE_TOO_LARGE` beyond
+`BAZIS_FILE_UPLOAD_MAX_SIZE`, also a page of a proxy that refuses the body), a network
+error a `TypeError`, an abort (`signal`) a `DOMException` `AbortError`. A model references
+the file by a to-one relationship set to its id.
+
+**bazis-authing.** `GET` of the auth endpoint without a store token creates a store: a 400
+whose error `UNAUTHORIZED` has the store token in `meta.token`. With a store token, a store
+that is signed in answers 200 with the user and the session token (`token`, the JWT of
+bazis-users with `auth_type`); else the 400 lists the errors of the logins of the store
+(status 422: `USERNAME_PASSWORD_ERROR`, `GOOGLE_AUTH_ERROR`), and an expired store is
+replaced by a new one (another `meta.token`). A login action with a body (`POST` of the
+password service, `{username, password}`) answers 303 to the auth endpoint with the store
+token in the query, which fetch follows. `AuthState` is
+`{status: 'signed_in', user}` or `{status: 'signed_out', store, errors}`; other errors are
+thrown (`ApiError`, 401 for a store that expired before a login). The requests are sent
+without cookies: the endpoint sets the store token as a cookie, which would sign the next
+user in with the store of the previous one. The store token has no `exp`: bazis-users
+treats a request with it as anonymous; only the session token is a bearer token of the API.
 
 `can(meta, action, id?)` reads the permission meta of bazis-permit: on a list
 `can(meta, 'change' | 'delete', id)` (`for_change`, `for_delete`) and `can(meta, 'add')`

@@ -36,8 +36,14 @@ IDENTIFIER = re.compile(r'[A-Za-z_$][A-Za-z0-9_$]*')
 
 #: the TypeScript type of the section of each capability (`capabilities.CAPABILITIES`)
 SECTION_TYPES = {
+    'authing': (
+        '{ readonly auth_url: string | null; readonly actions: readonly '
+        '{ readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; '
+        'readonly token_param: string }'
+    ),
     'permit': '{ readonly roles: typeof ROLES }',
     'statusy': '{ readonly models: typeof TRANSITS }',
+    'uploadable': '{ readonly max_size: number | null; readonly resources: readonly string[] }',
     'users': '{ readonly token_url: string; readonly user_resource: string }',
 }
 

@@ -42,6 +42,8 @@ interface Reply {
 /** A backend: `on(method, url, body, status)` registers a reply; `calls` are the requests. */
 export class Backend {
   readonly calls: Call[] = [];
+  /** The XMLHttpRequest of the uploads of the client. */
+  xhr: (() => XMLHttpRequest) | undefined;
   private readonly replies = new Map<string, Reply>();
   private readonly pending = new Map<string, Promise<undefined>>();
 
@@ -101,7 +103,11 @@ export function render<Result, Props>(
   queryClient = createQueryClient(),
   initialProps?: Props,
 ): RenderHookResult<Result, Props> & { queryClient: QueryClient; session: Session } {
-  const api = createClient<paths>({ baseUrl: BASE, fetch: backend.fetch });
+  const api = createClient<paths>({
+    baseUrl: BASE,
+    fetch: backend.fetch,
+    ...(backend.xhr === undefined ? {} : { xhr: backend.xhr }),
+  });
   const session: Session = { value: 's1' };
   function Wrapper({ children }: { children: ReactNode }) {
     return (

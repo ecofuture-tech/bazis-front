@@ -4,6 +4,7 @@
 /** The path of the route set of each resource, by its JSON:API type. */
 export const ROUTES = {
   "tasks.task": "/api/v1/tasks/task/",
+  "uploadable.file_upload": "/api/v1/uploadable/file_upload/",
   "users.user": "/api/v1/users/user/",
 } as const;
 
@@ -38,6 +39,12 @@ export const RESOURCES = {
         many: false,
         order: "assignee",
         relation: "users.user",
+      },
+      attachment: {
+        filter: "attachment",
+        many: false,
+        order: "attachment",
+        relation: "uploadable.file_upload",
       },
       dt_created: {
         filter: "dt_created",
@@ -83,6 +90,36 @@ export const RESOURCES = {
     model: "tasks.Task",
     path: "/api/v1/tasks/task/",
     route_set: "tasks.routes.TaskRouteSet",
+  },
+  "uploadable.file_upload": {
+    actions: {
+      action_create: "create",
+      action_list: "collection",
+      action_retrieve: "item",
+    },
+    fields: {
+      extension: {
+        filter: "extension",
+        order: "extension",
+        type: "string",
+      },
+      file: {
+        filter: "file",
+        order: "file",
+        type: "string",
+      },
+      name: {
+        filter: "name",
+        order: "name",
+        type: "string",
+      },
+      size: {
+        type: "integer",
+      },
+    },
+    model: "uploadable.FileUpload",
+    path: "/api/v1/uploadable/file_upload/",
+    route_set: "tasks.routes.FileRouteSet",
   },
   "users.user": {
     actions: {
@@ -274,17 +311,37 @@ export const TRANSITS = {
 
 /** The sections of the capability packages, as in contract.json; null without the package. */
 export interface Capabilities {
+  readonly authing: { readonly auth_url: string | null; readonly actions: readonly { readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; readonly token_param: string } | null;
   readonly permit: { readonly roles: typeof ROLES } | null;
   readonly statusy: { readonly models: typeof TRANSITS } | null;
+  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;
   readonly users: { readonly token_url: string; readonly user_resource: string } | null;
 }
 
 export const CAPABILITIES: Capabilities = {
+  authing: {
+    actions: [
+      {
+        code: "password",
+        method: "POST",
+        name: "Login/Password",
+        url: "/api/v1/authing/password/",
+      },
+    ],
+    auth_url: "/api/v1/authing/auth/",
+    token_param: "bazis_auth",
+  },
   permit: {
     roles: ROLES,
   },
   statusy: {
     models: TRANSITS,
+  },
+  uploadable: {
+    max_size: null,
+    resources: [
+      "uploadable.file_upload",
+    ],
   },
   users: {
     token_url: "/api/openapi-token/",

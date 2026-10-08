@@ -2,7 +2,8 @@
 
 The React hooks of [Bazis](https://github.com/ecofuture-tech/bazis) over the protocol client
 (`assets/client`) and TanStack Query 5: lists, items, runtime schemas, mutations, a form
-bound to the runtime schema, and the transits of bazis-statusy. No UI: the components
+bound to the runtime schema, the transits of bazis-statusy and the uploads of
+bazis-uploadable. No UI: the components
 (`assets/ui`) and the screens of a product render what the hooks return. Status:
 pre-release.
 
@@ -10,7 +11,8 @@ The hooks are not an npm package: `src/` is copied into a product by
 `manage.py bazis_front init`, to `frontend/src/bazis/react/`, and imported as
 `@/bazis/react`. The hooks of a package are a separate asset that `init` copies only when
 the product has its capability (`requires` in `assets/registry.json`): `src/statusy/` is
-the asset `react-statusy`, `@/bazis/react/statusy`. Do not edit the copies.
+the asset `react-statusy`, `@/bazis/react/statusy`, `src/uploadable/` the asset
+`react-uploadable`, `@/bazis/react/uploadable`. Do not edit the copies.
 
 They import the client as `@/bazis/client` and the generated types of the product as
 `@/bazis/generated/schema` (the `paths` of openapi-typescript), so every path, option and
@@ -53,6 +55,7 @@ sessions in `src/app/session.ts`); never the token. The template does this in
 | `useApi()`, `useSessionKey()` | | the client; the session of the provider |
 | `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
 | `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
+| `useUpload(path)` (uploadable) | `POST path`, multipart, with XMLHttpRequest | `upload(file, {name?})`: the created item, null when aborted; `status`, `progress`, `error`, `abort()`, `reset()` |
 
 Pagination is read with the functions of the client: `nextPage(list.data)`,
 `prevPage(list.data)`, `pagination(list.data)` (with `meta: ['pagination']`).
@@ -67,7 +70,10 @@ items leave out the fields the user may not see; the schemas of an item (`retrie
 `update`) are those of the user for this item.
 `objectFields(schema)` reads the properties of the JSON Schema of an object as attributes,
 such as the payload of a transit. The types of the paths of the hooks are exported:
-`ListPath`, `ItemPath`, `CreatePath`, `UpdatePath` (and `TransitPath` of `statusy`).
+`ListPath`, `ItemPath`, `CreatePath`, `UpdatePath` (and `TransitPath` of `statusy`,
+`UploadPath` of `uploadable`). `useRelatedItem` compares the ids as strings: the id of an
+item of a model with an integer primary key is a number in the documents of the core, a
+string in the relationships.
 
 ### Query keys and the session
 
@@ -151,6 +157,16 @@ related items (`related`). The names of the transits are in `TRANSITS` of `contr
 `useTransit` posts `{transit, payload}`: 200 with the item; 204 when the user can no longer
 view it (null: leave its screen); 403 when the transit is not allowed now; 400 when a
 required payload is missing; 422 with the errors of the payload and the validators.
+
+### `useUpload` (bazis-uploadable)
+
+One file at a time (a new upload aborts the one running), with `upload` of the client:
+`status` is `idle`, `uploading` (with `progress`, `{loaded, total}` of the body), `success`
+(`data`, the created item) or `error` (`error`: the `ApiError` of the backend, 413
+`ERR_FILE_TOO_LARGE`, or a network error); `abort()` drops the upload that runs and goes
+back to `idle` without an error. A success refetches the queries of the route set. The
+item's id (a number for the integer primary key of `FileUpload`) as a string is the value
+of the to-one relationship that references the file.
 
 ## Checks in this repository
 

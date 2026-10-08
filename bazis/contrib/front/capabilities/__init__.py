@@ -39,8 +39,10 @@ class Capability:
 
 CAPABILITIES = {
     'users': Capability('bazis-users', 'bazis.contrib.users'),
+    'authing': Capability('bazis-authing', 'bazis.contrib.authing'),
     'permit': Capability('bazis-permit', 'bazis.contrib.permit', needs_db=True),
     'statusy': Capability('bazis-statusy', 'bazis.contrib.statusy', needs_db=True),
+    'uploadable': Capability('bazis-uploadable', 'bazis.contrib.uploadable'),
 }
 
 

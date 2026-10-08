@@ -14,7 +14,7 @@ backend, its contract and the specs of the product are one directory up (`manage
 |---|---|---|
 | `src/bazis/generated/` | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API); `theme.css` and `theme.ts` (the design: the tokens as CSS variables, `THEME`) | only `manage.py bazis_front contract`; the theme only `manage.py bazis_front design` |
 | `src/bazis/client/` | the client of the Bazis protocol | bazis-front; not edited, wrapped in `src/app/` |
-| `src/bazis/react/` | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy | bazis-front; not edited |
+| `src/bazis/react/` | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy, `uploadable/` (`@/bazis/react/uploadable`) when it has bazis-uploadable | bazis-front; not edited |
 | `src/bazis/ui/<component>/` | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies `state-panel`, `app-shell`, `login-form`, `manage.py bazis_front add` the others | the product, keeping the contract tests passing |
 | `src/app/` | providers (query cache, `BazisProvider`), session, router (the layout and the navigation), errors | the product |
 | `src/screens/<screen>/` | the screens, composed from the components | the product |
@@ -81,7 +81,8 @@ written.
   every state that it lists.
 - Mark the elements with `data-bz` (`screen:<id>`, `state:<state>`, `list:<entity>`,
   `row:<id>` with its cells `cell:<column>`, `field:<field>`, `error:<field>`,
-  `action:<id>`, `transit:<id>`, `status:<id>`, `nav:<screen>`): the scenarios of the
+  `upload:<field>` (a file field), `action:<id>`, `transit:<id>`, `status:<id>`,
+  `nav:<screen>`): the scenarios of the
   product spec act through them (see [End-to-end tests](#end-to-end-tests)).
 - `access` is what the backend must grant, checked against the permissions of the roles
   in the contract. It does not decide what the frontend shows: that is the permission
@@ -117,6 +118,12 @@ written.
   (`useResourceForm`). Hide or disable what the backend does not allow.
 - Check for an optional package with `CAPABILITIES.<name> !== null` (`contract.ts`): the
   login exists only with bazis-users (`LOGIN_ENABLED` of `src/app/session.ts`).
+- **The login** (`src/app/session.ts`, `src/screens/login/`): the token endpoint of
+  bazis-users; with bazis-authing (`CAPABILITIES.authing`), its services: the username and
+  the password through the service `password` (`login()`, `PASSWORD_LOGIN`), and a button
+  for each service whose page opens in a window (`WINDOW_LOGINS`, `loginInWindow()`:
+  Google). Keep the store token of bazis-authing out of the session: only the session
+  token it gives is kept, and the client sends its requests without cookies.
 - A 401 of any query or mutation ends the session (`src/app/providers.tsx`). Cached data
   belongs to the user who loaded it: logging in or out clears the query and mutation
   caches, and every query key of the hooks ends with the session (`useSession()` of
@@ -175,6 +182,12 @@ With bazis-statusy, `@/bazis/react/statusy`:
 | `useTransits(path, id)` | the transits the user may run on the item now (`meta.state_actions`): `id`, `allowed` (no `restricts` of its validators), `restricts`, `payload` (the JSON Schema of the payload it requires, or null), `related`; the names are in `TRANSITS` of `contract.ts` |
 | `useTransit(path, id)` | `mutate({transit, payload})`; resolves to the item, or to null when the user can no longer view it (leave its screen) |
 
+With bazis-uploadable, `@/bazis/react/uploadable`:
+
+| Hook | What |
+|---|---|
+| `useUpload(path)` | uploads a file to the route set of the uploaded files (`ROUTES['uploadable.file_upload']`): `upload(file, {name?})` resolves to the created item (its id may be a number: `String(item.data.id)` is the value of the relationship), null when aborted; `status`, `progress` (`{loaded, total}`), `error` (413 `ERR_FILE_TOO_LARGE`...), `abort()`, `reset()` |
+
 A form shows the errors of a 422 by field from `form.errors` and any other error from
 `form.submitError`; the fields a user may not change now are `readOnly` in `schema_update`
 (show them disabled) and are never sent, those permissions disable are not in it. To-many relationships are in `form.fields` (`many: true`)
@@ -198,6 +211,7 @@ of the installed package, lists their props and their `data-bz`):
 | a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell`; the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
+| a field `type: file` (bazis-uploadable) | shown by the components (a link to the file, a thumbnail of an image); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes (below) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | an action of the card (`permission: 'delete'`) calling `useDestroy` |
@@ -296,6 +310,22 @@ the list or in its place (`composition.list_card` of the theme):
 </Route>
 ```
 
+With bazis-uploadable, `manage.py bazis_front add file-field` and wrap the routes in
+`FileFieldProvider`, so that the forms upload the files of their file fields (without it a
+file field is the picker of the uploaded files); `accept` limits the types of a field, the
+size limit is `max_size` of the contract. The backend protects the route set of the
+uploaded files: the frontend needs only its create and its retrieve, and a list, an update
+or a delete open to every user would give each one the files of the others (see the guide
+of bazis-front, "Protect the route set of the uploaded files"):
+
+```tsx
+import { FileFieldProvider } from '@/bazis/ui/file-field';
+
+<FileFieldProvider accept={{ avatar: 'image/*' }}>
+  <BrowserRouter>…</BrowserRouter>
+</FileFieldProvider>
+```
+
 - **The components are the product's.** Change their look, texts and layout in
   `src/bazis/ui/` as the product needs; keep `npm test` passing: the contract test of a
   component (`<component>.contract.test.tsx`) checks the `data-bz` marks and the states
@@ -364,9 +394,10 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   screen of the specs and wait for `screen:<id>` at the route of the screen (a list may show
   next to its card) and its state (no `state:loading` left),
   click `action:<id>`, `transit:<id>` and `row:<id>` (found by its cells `cell:<name>`),
-  fill `field:<name>` in the open form (the `<form>` with `action:submit`), and check
-  `status:<id>`, `state:<state>`, `error:<name>`, the absence of an action and the read-only
-  fields. A screen that renders the marks of its spec (the components do) passes its
+  fill `field:<name>` in the open form (the `<form>` with `action:submit`), upload a file of
+  `e2e/fixtures/` into the input `field:<name>` of a file field and wait while its
+  `upload:<name>` is busy, and check `status:<id>`, `state:<state>`, `error:<name>`, the
+  texts of `field:<name>` of a card, the absence of an action and the read-only fields. A screen that renders the marks of its spec (the components do) passes its
   scenarios; a screen without them fails them, even when it looks right.
 - **The test data is the backend's job**, never created by the tests: a management command
   or a fixture of the backend creates the roles, statuses and transits, a user per
@@ -378,7 +409,9 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   the error of the backend in the open form, which stays open for the next steps.
 - `npm run e2e` starts the dev server (its `/api` goes to `BAZIS_API_URL`); with
   `E2E_BASE_URL` it tests a frontend already running (`npm run build` and `npm run preview`
-  in CI). The backend runs separately. Without bazis-users there is no login.
+  in CI). The backend runs separately. Without bazis-users there is no login; with
+  bazis-authing the tests log in through its service `password`.
+- The files that the scenarios upload (`upload: {field, file}`) are in `e2e/fixtures/`.
 - A test of your own, for what a scenario does not express, uses the same helpers:
 
 ```ts

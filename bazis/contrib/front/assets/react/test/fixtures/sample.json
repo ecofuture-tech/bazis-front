@@ -109,6 +109,19 @@
             "default": null,
             "nullable": true,
             "title": "assignee"
+          },
+          "attachment": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def9"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Attachment"
           }
         },
         "type": "object"
@@ -199,6 +212,39 @@
       },
       "Def9": {
         "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def10"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def10": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "uploadable.file_upload",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def11": {
+        "properties": {
           "first": {
             "anyOf": [
               {
@@ -250,7 +296,7 @@
         },
         "type": "object"
       },
-      "Def10": {
+      "Def12": {
         "properties": {
           "for_change": {
             "anyOf": [
@@ -324,7 +370,7 @@
           "pagination": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def11"
+                "$ref": "#/$defs/Def13"
               },
               {
                 "type": "null"
@@ -336,7 +382,7 @@
         },
         "type": "object"
       },
-      "Def11": {
+      "Def13": {
         "properties": {
           "count": {
             "title": "Count",
@@ -368,12 +414,12 @@
         "type": "array"
       },
       "links": {
-        "$ref": "#/$defs/Def9"
+        "$ref": "#/$defs/Def11"
       },
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def10"
+            "$ref": "#/$defs/Def12"
           },
           {
             "type": "null"
@@ -470,6 +516,19 @@
             "default": null,
             "nullable": true,
             "title": "assignee"
+          },
+          "attachment": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def8"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Attachment"
           }
         },
         "type": "object"
@@ -541,6 +600,39 @@
         "type": "object"
       },
       "Def8": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def9"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def9": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "uploadable.file_upload",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def10": {
         "properties": {},
         "type": "object"
       }
@@ -553,7 +645,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def8"
+            "$ref": "#/$defs/Def10"
           },
           {
             "type": "null"
@@ -677,6 +769,19 @@
             "default": null,
             "nullable": true,
             "title": "assignee"
+          },
+          "attachment": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def9"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Attachment"
           }
         },
         "type": "object"
@@ -767,6 +872,39 @@
       },
       "Def9": {
         "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def10"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def10": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "uploadable.file_upload",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def11": {
+        "properties": {
           "crud_actions": {
             "anyOf": [
               {
@@ -788,11 +926,11 @@
                 "items": {
                   "anyOf": [
                     {
-                      "$ref": "#/$defs/Def10"
+                      "$ref": "#/$defs/Def12"
                     },
                     {
                       "items": {
-                        "$ref": "#/$defs/Def10"
+                        "$ref": "#/$defs/Def12"
                       },
                       "type": "array"
                     }
@@ -810,7 +948,7 @@
         },
         "type": "object"
       },
-      "Def10": {
+      "Def12": {
         "properties": {
           "code": {
             "default": "ACTION_TRANSIT",
@@ -818,13 +956,13 @@
             "type": "string"
           },
           "endpoint": {
-            "$ref": "#/$defs/Def11"
+            "$ref": "#/$defs/Def13"
           },
           "restricts": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/$defs/Def12"
+                  "$ref": "#/$defs/Def14"
                 },
                 "type": "array"
               },
@@ -872,7 +1010,7 @@
             "title": "Hint Action"
           },
           "resource": {
-            "$ref": "#/$defs/Def13"
+            "$ref": "#/$defs/Def15"
           }
         },
         "required": [
@@ -881,7 +1019,7 @@
         ],
         "type": "object"
       },
-      "Def11": {
+      "Def13": {
         "properties": {
           "url": {
             "title": "Url",
@@ -910,7 +1048,7 @@
         ],
         "type": "object"
       },
-      "Def12": {
+      "Def14": {
         "properties": {
           "title": {
             "title": "Title",
@@ -951,7 +1089,7 @@
         ],
         "type": "object"
       },
-      "Def13": {
+      "Def15": {
         "properties": {
           "id": {
             "title": "Id"
@@ -976,7 +1114,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def9"
+            "$ref": "#/$defs/Def11"
           },
           {
             "type": "null"
@@ -1058,6 +1196,19 @@
             "default": null,
             "nullable": true,
             "title": "assignee"
+          },
+          "attachment": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def6"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Attachment"
           }
         },
         "type": "object"
@@ -1096,6 +1247,39 @@
         "type": "object"
       },
       "Def6": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def7"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def7": {
+        "properties": {
+          "id": {
+            "default": null,
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "default": "uploadable.file_upload",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Def8": {
         "properties": {},
         "type": "object"
       }
@@ -1108,7 +1292,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def6"
+            "$ref": "#/$defs/Def8"
           },
           {
             "type": "null"
@@ -1149,6 +1333,9 @@
             "id": "00000000-0000-0000-0000-000000000000",
             "type": "users.user"
           }
+        },
+        "attachment": {
+          "data": null
         }
       }
     },
@@ -1231,6 +1418,9 @@
             "id": "00000000-0000-0000-0000-000000000000",
             "type": "users.user"
           }
+        },
+        "attachment": {
+          "data": null
         }
       }
     },

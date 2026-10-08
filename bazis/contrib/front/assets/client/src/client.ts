@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { errorFromResponse } from './errors.js';
+import { ApiError, errorFromResponse } from './errors.js';
 import type { Filter } from './filter.js';
 import type {
+  AuthState,
+  AuthUser,
   BodyOf,
   EndpointOf,
   IncludeOption,
@@ -25,6 +27,7 @@ import type {
   ResponseOf,
   RouteSetWith,
   TokenResponse,
+  UploadOptions,
 } from './types.js';
 
 const JSONAPI = 'application/vnd.api+json';
@@ -44,7 +47,12 @@ export interface ClientOptions {
   token?: string | (() => MaybePromise<string | null | undefined>);
   /** The fetch implementation; the global `fetch` by default. */
   fetch?: typeof fetch;
+  /** Creates the XMLHttpRequest of an upload (fetch reports no progress of a body); `new XMLHttpRequest()` by default. */
+  xhr?: () => XMLHttpRequest;
 }
+
+/** How often `authWait` asks the auth endpoint of bazis-authing, in milliseconds. */
+export const AUTH_POLL_INTERVAL = 1500;
 
 type Item = '{item_id}/';
 type Relationship = '{item_id}/relationships/{related_field_name}';
@@ -150,6 +158,43 @@ export interface BazisClient<Paths> {
     credentials: { username: string; password: string },
     options?: RequestOptions & { path?: string },
   ): Promise<TokenResponse>;
+
+  /**
+   * Uploads a file to a route set of bazis-uploadable (`FileUploadRouteSet` or a subclass):
+   * a `POST` of multipart form data with `file` (and `name`), sent with XMLHttpRequest, whose
+   * progress `onProgress` reports. Resolves to the created item (its `id` may be a number);
+   * a file larger than `BAZIS_FILE_UPLOAD_MAX_SIZE` is a 413 `ERR_FILE_TOO_LARGE`.
+   */
+  upload<P extends RouteSetWith<Paths, '', 'post'>>(
+    path: P,
+    file: Blob,
+    options?: UploadOptions,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, '', 'post'>>>;
+
+  /**
+   * bazis-authing: the state of an authorization store, `GET` of its auth endpoint with the
+   * store token of `store` (a new store without one). Without cookies: the cookie that the
+   * endpoint sets would sign in the next user with the store of the previous one.
+   */
+  auth(path: string, options?: RequestOptions & { store?: string }): Promise<AuthState>;
+
+  /**
+   * bazis-authing: a login action with a body in a store (`POST` of the password service,
+   * `{username, password}`); resolves to the state of the store, which its redirect to the
+   * auth endpoint answers.
+   */
+  authLogin(path: string, store: string, body: unknown, options?: RequestOptions): Promise<AuthState>;
+
+  /**
+   * bazis-authing: waits for a login in a page of a service (Google) in the store: asks the
+   * auth endpoint every `interval` ms until the store is signed in, has an error of a login,
+   * or has expired (the endpoint answers with another store). Rejects when aborted.
+   */
+  authWait(
+    path: string,
+    store: string,
+    options?: RequestOptions & { interval?: number },
+  ): Promise<AuthState>;
 }
 
 interface Query {
@@ -194,6 +239,116 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
   async function authorization(): Promise<string | null | undefined> {
     const { token } = options;
     return typeof token === 'function' ? token() : token;
+  }
+
+  function abortError(signal: AbortSignal): Error {
+    const reason: unknown = signal.reason;
+    return reason instanceof Error ? reason : new DOMException('The request was aborted.', 'AbortError');
+  }
+
+  async function upload(
+    path: string,
+    file: Blob,
+    { name, onProgress, signal }: UploadOptions = {},
+  ): Promise<unknown> {
+    const token = await authorization();
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(abortError(signal));
+        return;
+      }
+      const xhr = options.xhr?.() ?? new XMLHttpRequest();
+      const abort = () => {
+        xhr.abort();
+      };
+      xhr.open('POST', `${baseUrl}${path}`);
+      xhr.setRequestHeader('Accept', ACCEPT);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.upload.onprogress = (event) => {
+        onProgress?.({ loaded: event.loaded, total: event.lengthComputable ? event.total : file.size });
+      };
+      xhr.onload = () => {
+        signal?.removeEventListener('abort', abort);
+        const text = xhr.responseText;
+        if (xhr.status < 200 || xhr.status >= 300) {
+          reject(errorFromResponse(xhr.status, xhr.statusText, text));
+          return;
+        }
+        try {
+          resolve(text ? (JSON.parse(text) as unknown) : undefined);
+        } catch {
+          // a page of a proxy instead of the item: the upload cannot be read
+          reject(new ApiError(xhr.status, [{ status: xhr.status, title: 'The response of the upload is not JSON.' }]));
+        }
+      };
+      xhr.onerror = () => {
+        signal?.removeEventListener('abort', abort);
+        reject(new TypeError('The upload failed: the backend cannot be reached.'));
+      };
+      xhr.onabort = () => {
+        reject(signal ? abortError(signal) : new DOMException('The upload was aborted.', 'AbortError'));
+      };
+      signal?.addEventListener('abort', abort, { once: true });
+      const body = new FormData();
+      body.append('file', file);
+      if (name !== undefined) body.append('name', name);
+      // the browser sets the type with the boundary of the multipart body
+      xhr.send(body);
+    });
+  }
+
+  /**
+   * A request of bazis-authing: with the store token as the bearer token and without
+   * cookies; 200 is the signed-in user, a 400 with the error `UNAUTHORIZED` the store
+   * (`meta.token`) and the errors of its logins (status 422).
+   */
+  async function authorize(
+    method: string,
+    path: string,
+    { store, body, signal }: { store?: string | undefined; body?: unknown; signal?: AbortSignal | undefined },
+  ): Promise<AuthState> {
+    const headers: Record<string, string> = { Accept: ACCEPT };
+    if (store) headers.Authorization = `Bearer ${store}`;
+    if (body !== undefined) headers['Content-Type'] = JSON_TYPE;
+    const response = await fetcher(`${baseUrl}${path}`, {
+      method,
+      headers,
+      credentials: 'omit',
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(signal ? { signal } : {}),
+    });
+    const text = await response.text();
+    if (response.ok) return { status: 'signed_in', user: JSON.parse(text) as AuthUser };
+    const error = errorFromResponse(response.status, response.statusText, text);
+    const token = error.errors.find((it) => it.code === 'UNAUTHORIZED')?.meta?.token;
+    if (response.status !== 400 || typeof token !== 'string') throw error;
+    return { status: 'signed_out', store: token, errors: error.errors.filter((it) => Number(it.status) === 422) };
+  }
+
+  async function authWait(
+    path: string,
+    store: string,
+    { signal, interval = AUTH_POLL_INTERVAL }: RequestOptions & { interval?: number } = {},
+  ): Promise<AuthState> {
+    for (;;) {
+      await new Promise<void>((resolve, reject) => {
+        if (signal?.aborted) {
+          reject(abortError(signal));
+          return;
+        }
+        const timer = setTimeout(() => {
+          signal?.removeEventListener('abort', stop);
+          resolve();
+        }, interval);
+        function stop() {
+          clearTimeout(timer);
+          reject(abortError(signal as AbortSignal));
+        }
+        signal?.addEventListener('abort', stop, { once: true });
+      });
+      const state = await authorize('GET', path, { store, signal });
+      if (state.status === 'signed_in' || state.errors.length || state.store !== store) return state;
+    }
   }
 
   async function send(method: string, path: string, init: Send = {}): Promise<unknown> {
@@ -296,6 +451,16 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
         signal,
         anonymous: true,
       })) as TokenResponse,
+
+    upload,
+
+    auth: (path: string, { store, signal }: RequestOptions & { store?: string } = {}) =>
+      authorize('GET', path, { store, signal }),
+
+    authLogin: (path: string, store: string, body: unknown, { signal }: RequestOptions = {}) =>
+      authorize('POST', path, { store, body, signal }),
+
+    authWait,
   };
 
   return client as unknown as BazisClient<Paths>;

@@ -19,7 +19,7 @@
 // composes the forms.
 
 import { LoaderCircle } from 'lucide-react';
-import type { ReactNode, SubmitEvent } from 'react';
+import { useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { ApiError } from '@/bazis/client';
 import type { CreatePath, ResourceForm as Form, UpdatePath } from '@/bazis/react';
@@ -88,6 +88,8 @@ export function ResourceFormBody({
   submitLabel,
 }: Omit<ResourceFormProps, 'path' | 'id'> & { path: string; id?: string | undefined }) {
   const form = useAnyResourceForm(path, id === undefined ? {} : { id });
+  // the fields whose file uploads: the form waits for them
+  const [uploading, setUploading] = useState<ReadonlySet<string>>(() => new Set());
 
   if (form.status !== 'ready') {
     const state = form.status === 'loading' ? 'loading' : errorState(form.error);
@@ -102,8 +104,11 @@ export function ResourceFormBody({
   const failure = form.submitError ? errorState(form.submitError) : null;
   const others = otherErrors(form, new Set(shown.map((it) => it.name)));
 
+  const busy = form.isSubmitting || uploading.size > 0;
+
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (uploading.size > 0) return;
     void form.submit().then((saved) => {
       if (!saved) return;
       toast({ title: id === undefined ? 'Created' : 'Saved' });
@@ -112,7 +117,7 @@ export function ResourceFormBody({
   }
 
   return (
-    <form data-bz="state:loaded" noValidate onSubmit={submit} aria-busy={form.isSubmitting || undefined} className="grid gap-(--space-field)">
+    <form data-bz="state:loaded" noValidate onSubmit={submit} aria-busy={busy || undefined} className="grid gap-(--space-field)">
       {failure && (
         <StatePanel
           inline
@@ -135,6 +140,14 @@ export function ResourceFormBody({
           onChange={(value) => {
             form.setValue(field.name, value);
           }}
+          onBusy={(running) => {
+            setUploading((current) => {
+              const next = new Set(current);
+              if (running) next.add(field.name);
+              else next.delete(field.name);
+              return next;
+            });
+          }}
         />
       ))}
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
@@ -151,7 +164,7 @@ export function ResourceFormBody({
             Cancel
           </Button>
         )}
-        <Button type="submit" data-bz="action:submit" disabled={form.isSubmitting}>
+        <Button type="submit" data-bz="action:submit" disabled={busy}>
           {form.isSubmitting && <LoaderCircle className="animate-spin" aria-hidden="true" />}
           {submitLabel ?? (id === undefined ? 'Create' : 'Save')}
         </Button>

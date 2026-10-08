@@ -16,6 +16,7 @@
 // of a Bazis project. A route set of Bazis is addressed by its path (`/api/v1/app/model/`);
 // its endpoints are that path with a suffix (`{item_id}/`, `schema_list/`...).
 
+import type { ErrorObject } from './errors.js';
 import type { Filter } from './filter.js';
 
 export type HttpMethod = 'get' | 'post' | 'patch' | 'delete';
@@ -133,3 +134,49 @@ export interface TokenResponse {
   access_token: string;
   token_type: string;
 }
+
+/** The progress of an upload: the bytes of the body sent, of `total`. */
+export interface UploadProgress {
+  loaded: number;
+  total: number;
+}
+
+/** The options of an upload of bazis-uploadable. */
+export interface UploadOptions extends RequestOptions {
+  /** The name of the file (`name` of the form); the backend takes the name of the file by default. */
+  name?: string;
+  /** Called while the body is sent. */
+  onProgress?: (progress: UploadProgress) => void;
+}
+
+/** A login action of bazis-authing (`meta.actions` of its auth endpoint, `actions` of the contract). */
+export interface AuthAction {
+  /** The service: `password`, `google`... */
+  code: string;
+  name: string;
+  /** `POST` (a body, such as the username and the password) or `GET` (a page of the service, opened in the browser). */
+  method: string;
+  url: string;
+}
+
+/** The user that the auth endpoint of bazis-authing returns, with the session token. */
+export interface AuthUser {
+  user_id: string | number;
+  username: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  /** The session token (a JWT of bazis-users): send it as the bearer token. */
+  token: string;
+  logout_actions: readonly Readonly<Record<string, unknown>>[] | null;
+}
+
+/**
+ * The state of an authorization store of bazis-authing: signed in, with the user and the
+ * session token; or not, with the store token (never a session token: a request with it is
+ * anonymous) and the errors of the logins of the store (`USERNAME_PASSWORD_ERROR`,
+ * `GOOGLE_AUTH_ERROR`...).
+ */
+export type AuthState =
+  | { status: 'signed_in'; user: AuthUser }
+  | { status: 'signed_out'; store: string; errors: readonly ErrorObject[] };

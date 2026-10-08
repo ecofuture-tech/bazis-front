@@ -139,16 +139,22 @@ def test_contract_ts_is_rendered_from_the_contract():
         '/** The sections of the capability packages, as in contract.json; null without the '
         'package. */',
         'export interface Capabilities {',
+        '  readonly authing: { readonly auth_url: string | null; readonly actions: readonly '
+        '{ readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; '
+        'readonly token_param: string } | null;',
         '  readonly permit: { readonly roles: typeof ROLES } | null;',
         '  readonly statusy: { readonly models: typeof TRANSITS } | null;',
+        '  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;',
         '  readonly users: { readonly token_url: string; readonly user_resource: string } | null;',
         '}',
         '',
         'export const CAPABILITIES: Capabilities = {',
+        '  authing: null,',
         '  permit: {',
         '    roles: ROLES,',
         '  },',
         '  statusy: null,',
+        '  uploadable: null,',
         '  users: {',
         '    token_url: "/api/openapi-token/",',
         '    user_resource: "users.user",',
@@ -171,7 +177,7 @@ def test_a_capability_that_is_not_installed_is_null():
     assert '  readonly users: { readonly token_url: string; readonly user_resource: string } | null;\n' in text
     assert (
         'export const CAPABILITIES: Capabilities = {\n'
-        '  permit: null,\n  statusy: null,\n  users: null,\n};\n'
+        '  authing: null,\n  permit: null,\n  statusy: null,\n  uploadable: null,\n  users: null,\n};\n'
     ) in text
 
 

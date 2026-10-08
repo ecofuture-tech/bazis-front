@@ -13,4 +13,4 @@
 // limitations under the License.
 
 export { LoginForm } from './login-form.js';
-export type { Credentials, LoginFormProps } from './login-form.js';
+export type { Credentials, LoginFormProps, LoginMethod } from './login-form.js';

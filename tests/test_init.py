@@ -79,10 +79,10 @@ def test_init_creates_the_frontend(product):
     assert (frontend / 'AGENTS.md').read_text(encoding='utf-8').startswith('# Frontend')
 
     lock = json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
-    # the sample has bazis-statusy: its hooks are copied; the helpers of the end-to-end
-    # tests; and the components marked `init` with the components and the shadcn/ui
-    # components they require
-    vendored = ['client', 'react', 'react-statusy', 'playwright', *INIT_COMPONENTS]
+    # the sample has bazis-statusy and bazis-uploadable: their hooks are copied; the helpers
+    # of the end-to-end tests; and the components marked `init` with the components and the
+    # shadcn/ui components they require
+    vendored = ['client', 'react', 'react-statusy', 'react-uploadable', 'playwright', *INIT_COMPONENTS]
     files = {name: lock['assets'][name].pop('files') for name in vendored}
     # the theme of the starters of the design
     design = lock.pop('design')
@@ -114,6 +114,7 @@ def test_init_creates_the_frontend(product):
             assert base.read_bytes() == copied
             assert files[asset.name][asset.target_path(name)] == digest(copied)
     assert (frontend / 'src' / 'bazis' / 'react' / 'statusy' / 'index.ts').is_file()
+    assert (frontend / 'src' / 'bazis' / 'react' / 'uploadable' / 'upload.ts').is_file()
     assert (frontend / 'src' / 'bazis' / 'ui' / 'login-form' / 'login-form.contract.test.tsx').is_file()
     assert (frontend / 'src' / 'components' / 'ui' / 'button.tsx').is_file()
     assert (frontend / 'e2e' / 'bazis' / 'index.ts').is_file()
@@ -125,8 +126,8 @@ def test_init_creates_the_frontend(product):
 
 
 def test_init_copies_the_hooks_of_the_installed_packages(product, monkeypatch):
-    # a product without bazis-statusy
-    monkeypatch.setattr(capabilities, 'enabled', lambda: ['permit', 'users'])
+    # a product without bazis-statusy and bazis-uploadable
+    monkeypatch.setattr(capabilities, 'enabled', lambda: ['authing', 'permit', 'users'])
     init('--no-node')
 
     frontend = product / 'frontend'
@@ -134,6 +135,7 @@ def test_init_copies_the_hooks_of_the_installed_packages(product, monkeypatch):
     assert sorted(lock['assets']) == sorted(['client', 'react', 'playwright', 'template', *INIT_COMPONENTS])
     assert (frontend / 'src' / 'bazis' / 'react' / 'index.ts').is_file()
     assert not (frontend / 'src' / 'bazis' / 'react' / 'statusy').exists()
+    assert not (frontend / 'src' / 'bazis' / 'react' / 'uploadable').exists()
     assert sorted(it.name for it in (frontend / '.bazis' / 'base').iterdir()) == sorted(
         f'{name}@{__version__}' for name in ['client', 'react', 'playwright', *INIT_COMPONENTS]
     )

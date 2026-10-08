@@ -71,6 +71,16 @@ describe('useRelatedItem', () => {
     expect(result.current[0]?.data?.id).toBe('1');
   });
 
+  it('finds an item whose id is a number in the list (an integer primary key)', async () => {
+    const backend = new Backend().on('GET', `${PARENT}${byIds(['7'])}`, { data: [{ ...item('7'), id: 7 }] });
+    const { result } = render(() => useRelatedItem(PARENT, '7'), backend);
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(result.current.data).toMatchObject({ id: 7, attributes: { name: 'Item 7' } });
+  });
+
   it('fails the items of a request that fails', async () => {
     const backend = new Backend().on('GET', `${PARENT}${byIds(['1', '2'])}`, { errors: [{ status: 403 }] }, 403);
     const { result } = render(() => [useRelatedItem(PARENT, '1'), useRelatedItem(PARENT, '2')], backend);

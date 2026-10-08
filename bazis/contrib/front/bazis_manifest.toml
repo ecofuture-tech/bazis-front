@@ -7,12 +7,12 @@ summary = "the frontend layer of a Bazis product (pre-release): a React + TypeSc
 solves = [
     "a typed frontend of a Bazis backend whose contract is generated from its OpenAPI",
     "the resources, roles and transits of the backend as one generated contract.json for the frontend and AI agents",
-    "the JSON:API protocol of Bazis in TypeScript: filters, errors, pagination, login, permission meta, transits",
+    "the JSON:API protocol of Bazis in TypeScript: filters, errors, pagination, login, permission meta, transits, uploads",
     "a new frontend next to the backend: React 19, TypeScript, Vite 7, TanStack Query, Tailwind 4 with shadcn/ui",
     "the product described as specs (roles, entities, access, scenarios, screens, design) and checked against the backend: missing resources, fields, transits and permissions of the roles",
 ]
 requires = ["bazis"]
-pairs_well = ["bazis-users", "bazis-permit", "bazis-statusy"]
+pairs_well = ["bazis-users", "bazis-authing", "bazis-permit", "bazis-statusy", "bazis-uploadable"]
 
 [[extension_points]]
 name = "manage.py bazis_front"

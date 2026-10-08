@@ -31,6 +31,18 @@ export {
 } from './fields.js';
 export type { Fields, ResourceObject } from './fields.js';
 export {
+  FILE_RESOURCES,
+  FilesProvider,
+  FileValue,
+  FileView,
+  formatSize,
+  isFile,
+  isImage,
+  uploadedFile,
+  useFiles,
+} from './files.js';
+export type { ControlProps, FileControlProps, UploadedFile } from './files.js';
+export {
   text,
   useAnyFilterFields,
   useAnyItem,

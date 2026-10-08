@@ -42,7 +42,8 @@ assets, for lint, type checks and tests in CI.
 each operation) and `contract.json` into `contract/` of the product root (`BASE_DIR`, the
 directory of `manage.py`): the resources with their actions and fields, read from
 `x-bazis` and the response schemas of the OpenAPI, and a section per installed capability
-package (users, permit roles, statusy transits, …). A section is made by a module
+package (users, the auth endpoint and login actions of authing, permit roles, statusy
+transits, the upload resources and size limit of uploadable, …). A section is made by a module
 `bazis/contrib/front/capabilities/<name>.py`, imported only when the package is installed
 and its app is in `INSTALLED_APPS`. Permit and statusy sections are read from the
 database, so the export needs a migrated database (`front.E002` otherwise). The files are
@@ -79,8 +80,10 @@ reimplement it:
 - errors as JSON:API `errors` with `source.pointer`;
 - runtime schemas (`schema_list`, `schema_create`, `schema_retrieve`, `schema_update`) and
   `route_filter_fields`;
-- the token endpoint of bazis-users, the permission meta of bazis-permit and the transits
-  of bazis-statusy.
+- the token endpoint of bazis-users, the authorization store of bazis-authing (a store
+  token without `exp`, anonymous on HTTP, exchanged for the session token), the permission
+  meta of bazis-permit, the transits of bazis-statusy and the multipart uploads of
+  bazis-uploadable (with XMLHttpRequest for their progress).
 
 The client implements these once. It is generic over the generated `paths` type of a
 product. Its unit tests and type tests stay in this repository; only `src/` is copied.
@@ -98,7 +101,8 @@ document and maps a 422 to the fields). They are typed by the generated `paths` 
 product and contain no UI. The hooks of a package are a separate asset that `init` copies
 only when the product has its capability (`requires` in the registry): the transits of
 bazis-statusy (`useTransits` from `meta.state_actions`, `useTransit`) in
-`@/bazis/react/statusy`; uploadable, ws and async will follow.
+`@/bazis/react/statusy`, the uploads of bazis-uploadable (`useUpload`, with its progress and
+abort) in `@/bazis/react/uploadable`; ws and async will follow.
 
 Runtime metadata (schemas, filter fields, permission meta, state actions) is never part of
 the contract: it is requested at run time and cached by TanStack Query. Every query key is
@@ -115,9 +119,13 @@ Components are primitives on shadcn/ui and Tailwind 4 over the hooks (`assets/ui
 401/403 `forbidden`, 404 `not_found`, 422 `invalid`), `app-shell` (the layout, the
 navigation, the session, `Screen`), `login-form`, `resource-list`, `resource-card`,
 `resource-form` (with `RelationPicker`, the searchable combobox of a relationship, in the
-shared `resource`) and, with bazis-statusy, `status-badge`, `transit-bar` and
-`status-history` (the current status with its date and author: bazis-statusy has no
-endpoint for the earlier transits). They are listed
+shared `resource`, which also shows the files of bazis-uploadable) and, with bazis-statusy,
+`status-badge`, `transit-bar` and `status-history` (the current status with its date and
+author: bazis-statusy has no endpoint for the earlier transits), with bazis-uploadable
+`file-field` (the upload of a file field, given to the input of the fields of the forms by
+`FileFieldProvider`). The login form takes the logins of bazis-authing: the password
+through its service `password`, and a button for a service whose page opens in a window.
+They are listed
 in `assets/registry.json` with what they require (`requires.assets`: other components, the
 hooks, the shadcn/ui components; `requires.capabilities`), copied by
 `bazis_front add` (and `init` for those the template uses) with their pristine copies and
@@ -202,7 +210,7 @@ fixture of the product), never by the tests.
 `bazis_front init` creates `frontend/` next to `manage.py` from the template
 (`assets/template`): React 19, TypeScript strict, Vite 7, React Router 7, TanStack Query 5,
 Tailwind 4 set up for shadcn/ui; `src/app/` holds the providers (the query cache and the
-client), the session (the token in memory and `localStorage`, the login of bazis-users),
+client), the session (the token in memory and `localStorage`, the login of bazis-users or of bazis-authing),
 the router (in the layout `AppShell`) and the errors, and `src/screens/` a login
 (`LoginForm`) and a home screen. The template is owned by the product from then on. The
 client is copied into `src/bazis/client/`, the hooks into `src/bazis/react/` (with those of
@@ -263,4 +271,5 @@ CI against the sample backend, and the update of the copies with a three-way mer
 (`bazis_front update`, `front.W004`), and the design layer: presets and brand tokens compiled
 into the theme of the frontend (`bazis_front design`, `front.W005`), and the field
 permissions of bazis-permit followed by the components, the picker of a relationship, the
-labels of related items read together and the status history of bazis-statusy.
+labels of related items read together and the status history of bazis-statusy, the logins
+of bazis-authing and the files of bazis-uploadable.

@@ -44,6 +44,11 @@ describe('resourceSchema', () => {
           kind: 'relation', name: 'assignee', title: 'assignee', required: false, readOnly: false,
           nullable: true, relation: 'users.user', many: false,
         },
+        // a file of bazis-uploadable: a relationship to its uploaded files
+        {
+          kind: 'relation', name: 'attachment', title: 'Attachment', required: false, readOnly: false,
+          nullable: true, relation: 'uploadable.file_upload', many: false,
+        },
       ],
     });
   });
@@ -55,6 +60,7 @@ describe('resourceSchema', () => {
       ['title', 'attribute', false],
       ['report', 'attribute', false],
       ['assignee', 'relation', false],
+      ['attachment', 'relation', false],
     ]);
   });
 
@@ -83,6 +89,7 @@ describe('resourceSchema', () => {
         ['status', 'Current status', false],
         ['status_author', 'status author', false],
         ['assignee', 'assignee', false],
+        ['attachment', 'Attachment', false],
       ]);
       expect(fields[0]).toMatchObject({ type: 'string', format: 'date-time' });
       expect(fields[7]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });

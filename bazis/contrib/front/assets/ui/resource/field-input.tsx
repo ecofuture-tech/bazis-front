@@ -16,7 +16,7 @@
 // payloads of the transits render their fields with it. The control is marked
 // `data-bz="field:<name>"` and its errors `data-bz="error:<name>"`.
 
-import { useId, useState, type ComponentProps } from 'react';
+import { useId, useState } from 'react';
 
 import type { AttributeField, FormField } from '@/bazis/react';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils';
 
 import { fromLocalDateTime, toLocalDateTime } from './fields.js';
+import { isFile, useFiles, type ControlProps } from './files.js';
 import { text } from './hooks.js';
 import { RelationPicker } from './relation-picker.js';
 
@@ -37,16 +38,14 @@ export interface FieldInputProps {
   errors?: readonly string[] | undefined;
   /** Disables the control, e.g. while the form is submitted. */
   disabled?: boolean;
+  /** A file of the field starts or ends uploading: the form waits for it to be submitted. */
+  onBusy?: (busy: boolean) => void;
 }
 
 const TEXTAREA =
   'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none ' +
   'placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 ' +
   'disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive md:text-sm';
-
-type ControlProps = Pick<ComponentProps<'input'>, 'id' | 'required' | 'aria-invalid' | 'aria-describedby'> & {
-  'data-bz': string;
-};
 
 /** A JSON value (an object, an array) as text; kept as text while it is not valid JSON. */
 function JsonInput({ value, onChange, readOnly, disabled, control }: {
@@ -190,16 +189,26 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
   return <JsonInput value={value} onChange={onChange} readOnly={readOnly} disabled={disabled} control={control} />;
 }
 
+function noBusy(): void {
+  // a form without uploads to wait for
+}
+
 /**
  * A field of a runtime schema with its label and its errors: the control by the type,
  * format and choices of an attribute, the picker of the related item of a to-one
- * relationship (`RelationPicker`); read-only when the user may not change it. To-many relationships are not
- * edited here (`useRelationship`): they are shown read-only.
+ * relationship (`RelationPicker`), the upload of a file field (the control of
+ * `FilesProvider`, `FileField` of file-field); read-only when the user may not change it.
+ * To-many relationships are not edited here (`useRelationship`): they are shown read-only.
  */
-export function FieldInput({ field, value, onChange, errors = [], disabled = false }: FieldInputProps) {
+export function FieldInput({ field, value, onChange, errors: fieldErrors = [], disabled = false, onBusy = noBusy }: FieldInputProps) {
   const id = useId();
+  const files = useFiles();
+  // the error of the file of a file field, until it is replaced
+  const [fileError, setFileError] = useState<string | null>(null);
+  const errors = fileError === null ? fieldErrors : [...fieldErrors, fileError];
   const errorId = `${id}-error`;
   const invalid = errors.length > 0;
+  const FileControl = isFile(field, files.resources) ? files.control : null;
   const control: ControlProps = {
     id,
     required: field.required,
@@ -220,7 +229,17 @@ export function FieldInput({ field, value, onChange, errors = [], disabled = fal
         {field.title}
         {field.required && <span aria-hidden="true">*</span>}
       </Label>
-      {field.kind === 'relation' ? (
+      {FileControl !== null && field.kind === 'relation' ? (
+        <FileControl
+          field={field}
+          value={typeof value === 'string' && value ? value : null}
+          onChange={onChange}
+          disabled={disabled || field.readOnly}
+          control={control}
+          onBusy={onBusy}
+          onError={setFileError}
+        />
+      ) : field.kind === 'relation' ? (
         field.many ? (
           <Input {...control} value={Array.isArray(value) ? value.join(', ') : ''} readOnly />
         ) : (

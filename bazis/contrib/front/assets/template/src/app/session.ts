@@ -14,6 +14,7 @@
 
 import { useSyncExternalStore } from 'react';
 
+import { ApiError, type AuthAction, type AuthState } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
 import type { Api } from '@/bazis/react';
 
@@ -25,6 +26,27 @@ const STORAGE_KEY = 'bazis.token';
  * request is anonymous.
  */
 export const LOGIN_ENABLED = CAPABILITIES.users !== null;
+
+/** bazis-authing, when the backend routes its auth endpoint: its services log the users in. */
+const AUTHING = CAPABILITIES.authing?.auth_url ? CAPABILITIES.authing : null;
+
+/** The service `password` of bazis-authing. */
+const PASSWORD_ACTION = AUTHING?.actions.find((it) => it.code === 'password' && it.method === 'POST') ?? null;
+
+/**
+ * Whether users log in with a username and a password: through the token endpoint of
+ * bazis-users, or the service `password` of bazis-authing when the backend has it.
+ */
+export const PASSWORD_LOGIN = LOGIN_ENABLED && (AUTHING === null || PASSWORD_ACTION !== null);
+
+/**
+ * The logins of bazis-authing in a page of their service (`GET`: Google), opened in a window:
+ * a button each on the login screen. The services with another body than the password are
+ * not offered.
+ */
+export const WINDOW_LOGINS: readonly AuthAction[] = LOGIN_ENABLED
+  ? (AUTHING?.actions.filter((it) => it.method === 'GET') ?? [])
+  : [];
 
 const listeners = new Set<() => void>();
 let token: string | null = LOGIN_ENABLED ? readStored() : null;
@@ -84,15 +106,68 @@ export function useSession(): string {
   return useSyncExternalStore(onSessionChange, getSession);
 }
 
-/** Gets a token from the token endpoint of bazis-users and starts the session. */
+/**
+ * The session token of a store of bazis-authing that is signed in; else the errors of its
+ * logins, as the error of the login.
+ */
+function sessionToken(state: AuthState): string {
+  if (state.status === 'signed_in') return state.user.token;
+  throw new ApiError(401, state.errors.length ? state.errors : [{ status: 401, detail: 'The login did not succeed.' }]);
+}
+
+/**
+ * Logs in with the username and the password and starts the session: the service
+ * `password` of bazis-authing (in a new store of its auth endpoint), else the token endpoint
+ * of bazis-users.
+ */
 export async function login(
   api: Api,
   credentials: { username: string; password: string },
 ): Promise<void> {
   const { users } = CAPABILITIES;
   if (users === null) throw new Error('The backend has no login: bazis-users is not installed.');
+  if (AUTHING?.auth_url) {
+    if (PASSWORD_ACTION === null) throw new Error('bazis-authing has no service password.');
+    const start = await api.auth(AUTHING.auth_url);
+    const state = start.status === 'signed_in' ? start : await api.authLogin(PASSWORD_ACTION.url, start.store, credentials);
+    setToken(sessionToken(state));
+    return;
+  }
   const { access_token } = await api.login(credentials, { path: users.token_url });
   setToken(access_token);
+}
+
+/**
+ * Logs in with a service of bazis-authing whose page is opened in a window (Google): a new
+ * store of its auth endpoint, the page of the service with the store token, then the auth
+ * endpoint is asked until the store is signed in (the window is closed then), a login of the
+ * store fails or the store expires (BAZIS_AUTH_COOKIE_LIFETIME). The signal aborts it: the
+ * cancel of the login screen, which is also how a user who closed the window stops it. The
+ * window is opened at once: a browser blocks a window that a click does not open.
+ *
+ * `popup.closed` is not read: the sign-in pages of Google send Cross-Origin-Opener-Policy,
+ * after which the opener sees the window as closed while the user still signs in there.
+ */
+export async function loginInWindow(api: Api, action: AuthAction, signal?: AbortSignal): Promise<void> {
+  if (AUTHING?.auth_url == null) throw new Error('The backend has no auth endpoint of bazis-authing.');
+  const popup = window.open('', 'bazis-login', 'popup,width=520,height=680');
+  if (popup === null) throw new Error('The browser blocked the window of the login: allow it and try again.');
+  try {
+    const { auth_url: authUrl, token_param: param } = AUTHING;
+    const start = await api.auth(authUrl, signal ? { signal } : {});
+    if (start.status === 'signed_in') {
+      setToken(start.user.token);
+      return;
+    }
+    popup.location.href = `${action.url}?${new URLSearchParams({ [param]: start.store }).toString()}`;
+    const state = await api.authWait(authUrl, start.store, signal ? { signal } : {});
+    if (state.status === 'signed_out' && !state.errors.length) {
+      throw new Error('The login has expired: try again.');
+    }
+    setToken(sessionToken(state));
+  } finally {
+    popup.close();
+  }
 }
 
 /** Ends the session; the router sends the user to the login screen. */

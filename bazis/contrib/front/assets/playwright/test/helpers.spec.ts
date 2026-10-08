@@ -228,6 +228,71 @@ test.describe('submit', () => {
   });
 });
 
+/** A card with an open form and its file field, whose upload ends after a delay with `onUpload`. */
+function uploadPage(onUpload: string): string {
+  return html(
+    `<section data-bz="screen:task-card"><div data-bz="state:loaded">Task</div></section>
+     <form id="form"><div data-bz="upload:attachment">Drop a file here
+       <input type="file" data-bz="field:attachment"></div>
+       <button type="submit" data-bz="action:submit">Save</button></form>`,
+    `const zone = document.querySelector('[data-bz="upload:attachment"]');
+     document.querySelector('input').addEventListener('change', (event) => {
+       const name = event.target.files[0].name;
+       zone.setAttribute('aria-busy', 'true');
+       zone.firstChild.textContent = name + ' 0%';
+       setTimeout(() => { ${onUpload} }, 300);
+     });`,
+  );
+}
+
+test.describe('upload', () => {
+  test('waits until the file is uploaded', async ({ page }) => {
+    await show(page, '/tasks/1', uploadPage(`zone.removeAttribute('aria-busy'); zone.firstChild.textContent = name + ' 23 B';`));
+    const app = new App(page, PRODUCT);
+    await app.upload('attachment', 'brief.txt');
+    await expect(page.locator(bz('upload', 'attachment'))).not.toHaveAttribute('aria-busy');
+    expect(await page.locator(bz('upload', 'attachment')).innerText()).toContain('brief.txt 23 B');
+  });
+
+  test('returns when the upload shows an error', async ({ page }) => {
+    await show(page, '/tasks/1',
+      uploadPage(`zone.removeAttribute('aria-busy'); zone.firstChild.textContent = 'Drop a file here';
+        form.insertAdjacentHTML('beforeend', '<p data-bz="error:attachment">Too large.</p>');`)
+        .replace("const zone", "const form = document.getElementById('form'); const zone"),
+    );
+    const app = new App(page, PRODUCT);
+    await app.upload('attachment', 'brief.txt');
+    await app.expectError('attachment');
+  });
+
+  test('fails when the file is never uploaded', async ({ page }) => {
+    await show(page, '/tasks/1', uploadPage(''));
+    const app = new App(page, PRODUCT);
+    await expect(app.upload('attachment', 'brief.txt')).rejects.toThrow('the file brief.txt is uploaded into attachment');
+  });
+});
+
+test.describe('expectValues', () => {
+  const card = `<article data-bz="state:loaded"><dl>
+    <dd data-bz="field:title">Attach the brief</dd>
+    <dd data-bz="field:attachment"><a href="/media/brief.txt">brief.txt</a> <span>23 B</span></dd>
+  </dl></article>`;
+
+  test('waits for the screen to load and reads the texts of the fields', async ({ page }) => {
+    await show(page, '/tasks/1', loading('task-card', card));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-card');
+    await app.expectValues({ title: 'Attach the brief', attachment: 'brief.txt' });
+  });
+
+  test('fails when a field shows another text', async ({ page }) => {
+    await show(page, '/tasks/1', loading('task-card', card));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-card');
+    await expect(app.expectValues({ attachment: 'report.pdf' })).rejects.toThrow();
+  });
+});
+
 test('transit fills its payload and waits until it is done', async ({ page }) => {
   await show(page, '/tasks/1',
     html(

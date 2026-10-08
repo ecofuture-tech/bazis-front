@@ -7,7 +7,7 @@ product:
   id: tasks
   name: Tasks
   summary: The tasks of a team, started and finished with a report
-packages: [users, permit, statusy]
+packages: [users, authing, permit, statusy, uploadable]
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
@@ -20,6 +20,7 @@ entities:
       - {id: report, type: text}
       - {id: dt_created, type: datetime}
       - {id: assignee, relation: user}
+      - {id: attachment, type: file}     # bazis-uploadable: a file uploaded with the task
     workflow:
       initial: draft
       statuses: [draft, in_progress, done]
@@ -99,3 +100,16 @@ scenarios:
       - submit: {}
       - transit: start
       - expect: {status: in_progress, field_readonly: title}
+  # the file is uploaded in the edit of the card (e2e/fixtures/ of the frontend), then shown
+  # on the card
+  - id: manager-attaches-a-brief
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Attach the brief}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - upload: {field: attachment, file: brief.txt}
+      - submit: {}
+      - expect: {values: {title: Attach the brief, attachment: brief.txt}}

@@ -90,12 +90,28 @@ def matches_type(spec_type: str, schema: dict) -> bool:
     if spec_type in ('string', 'text'):
         return kind == 'string' and fmt not in FORMATS.values()
     if spec_type == 'file':
-        return kind == 'string'
+        # an uploaded file is a relationship (`is_file`), never an attribute
+        return False
     if spec_type in FORMATS:
         return kind == 'string' and fmt == FORMATS[spec_type]
     if spec_type == 'json':
         return kind in ('object', 'array')
     return kind == spec_type
+
+
+def uploads(contract: dict) -> set[str]:
+    """
+    The resources of the uploaded files of bazis-uploadable in the contract.
+    """
+    return set((contract['capabilities'].get('uploadable') or {}).get('resources', []))
+
+
+def is_file(schema: dict, contract: dict) -> bool:
+    """
+    Whether a field of the contract is a file of the specs (`type: file`): a to-one
+    relationship to a resource of the uploaded files of bazis-uploadable.
+    """
+    return schema.get('many') is False and schema.get('relation') in uploads(contract)
 
 
 def _describe(schema: dict) -> str:
@@ -130,6 +146,7 @@ def check_product(doc: Document, contract: dict | None, issues: Issues) -> Produ
 
     if contract is not None:
         _check_packages(doc, data, contract, issues)
+        _check_login(doc, data, contract, issues)
         _check_roles(doc, product, contract, issues)
         for entity in product.entities.values():
             _check_entity_contract(doc, entity, product, contract, issues)
@@ -233,6 +250,25 @@ def _check_packages(doc: Document, data: dict, contract: dict, issues: Issues) -
             )
 
 
+def _check_login(doc: Document, data: dict, contract: dict, issues: Issues) -> None:
+    """
+    The end-to-end tests log in with the username and the password of the test users: with
+    bazis-authing, through its service `password` (the login screen has no password without
+    it).
+    """
+    authing = contract['capabilities'].get('authing')
+    if not data.get('scenarios') or 'users' not in data.get('packages', []) or not (authing or {}).get('auth_url'):
+        return
+    if not any(it['code'] == 'password' and it['method'] == 'POST' for it in authing['actions']):
+        issues.add(
+            doc, ('scenarios',), 'P026',
+            'The scenarios log in with a password, and bazis-authing has no service `password`: '
+            'the login screen offers no password.',
+            'Add `bazis.contrib.authing.services.password` to BAZIS_AUTH_KINDS and register its '
+            f'router, then {EXPORT_HINT}.',
+        )
+
+
 def _check_roles(doc: Document, product: Product, contract: dict, issues: Issues) -> None:
     if not product.roles:
         return
@@ -268,7 +304,7 @@ def _check_entity_contract(
         return
     for i, item in enumerate(data['fields']):
         if entity.fields.get(item['id']) is item:
-            _check_field(doc, (*path, 'fields', i), item, data['resource'], resource, product, issues)
+            _check_field(doc, (*path, 'fields', i), item, data['resource'], resource, product, contract, issues)
     if entity.workflow is not None:
         _check_workflow(doc, entity, contract, issues)
     if data.get('access'):
@@ -277,7 +313,8 @@ def _check_entity_contract(
 
 
 def _check_field(
-    doc: Document, path: tuple, item: dict, name: str, resource: dict, product: Product, issues: Issues
+    doc: Document, path: tuple, item: dict, name: str, resource: dict, product: Product,
+    contract: dict, issues: Issues,
 ) -> None:
     actual = resource['fields'].get(item['id'])
     if actual is None:
@@ -296,6 +333,18 @@ def _check_field(
         if target.data['resource'] in related and actual.get('many') == item.get('many', False):
             return
         expected = {'relation': target.data['resource'], 'many': item.get('many', False)}
+    elif item['type'] == 'file':
+        if is_file(actual, contract):
+            return
+        issues.add(
+            doc, path, 'P013',
+            f'The field `{item["id"]}` of `{name}` is {_describe(actual)} in the contract, the '
+            'spec declares a file: a relationship to the uploaded files of bazis-uploadable.',
+            'Make the field a foreign key to `uploadable.FileUpload` (bazis-uploadable, with a '
+            'route set of FileUploadRouteSet registered), or give the spec its type; then '
+            f'{EXPORT_HINT}.',
+        )
+        return
     else:
         if matches_type(item['type'], actual):
             return
@@ -304,7 +353,8 @@ def _check_field(
         doc, path, 'P013',
         f'The field `{item["id"]}` of `{name}` is {_describe(actual)} in the contract, '
         + (f'the spec declares {_describe(expected)}.' if expected else f'the spec declares the type `{item["type"]}`.'),
-        'Make the spec follow the contract, or change the model.',
+        'Make the spec follow the contract, or change the model.'
+        + (' A relationship to the uploaded files of bazis-uploadable is `type: file`.' if is_file(actual, contract) else ''),
     )
 
 

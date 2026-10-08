@@ -147,15 +147,19 @@ def user_card(data, transitions=False):
 CASES = [
     ('C001', {CONTRACT: lambda d: '{'}, [('C001', CONTRACT)]),
     ('C002', {CONTRACT: lambda d: {**d, 'format': 2}}, [('C002', f'{CONTRACT}#/format')]),
-    # the sample has bazis-statusy: a frontend made by `init` has its hooks
-    ('C003', {LOCK: lambda d: lock('client', 'react', 'template')}, [('C003', f'{LOCK}#/assets')]),
+    # the sample has bazis-statusy and bazis-uploadable: a frontend made by `init` has their hooks
+    (
+        'C003',
+        {LOCK: lambda d: lock('client', 'react', 'template')},
+        [('C003', f'{LOCK}#/assets'), ('C003', f'{LOCK}#/assets')],
+    ),
     ('P001', {PRODUCT: lambda d: 'spec: [\n'}, [('P001', PRODUCT)]),
     ('P002', {PRODUCT: lambda d: d.update(spec='bazis-product/2')}, [('P002', f'{PRODUCT}#/spec')]),
     (
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/4/id')],
+        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/5/id')],
     ),
     (
         'P004',
@@ -181,7 +185,7 @@ CASES = [
     (
         'P010',
         {CONTRACT: remove_statusy_section},
-        [('P010', f'{PRODUCT}#/packages/2'), ('P014', f'{PRODUCT}#/entities/0/workflow')],
+        [('P010', f'{PRODUCT}#/packages/3'), ('P014', f'{PRODUCT}#/entities/0/workflow')],
     ),
     (
         'P011',
@@ -191,7 +195,7 @@ CASES = [
     (
         'P012',
         {PRODUCT: lambda d: task(d)['fields'].append({'id': 'due_date', 'type': 'date'})},
-        [('P012', f'{PRODUCT}#/entities/0/fields/4')],
+        [('P012', f'{PRODUCT}#/entities/0/fields/5')],
     ),
     (
         'P013',
@@ -202,6 +206,19 @@ CASES = [
             ('P013', f'{PRODUCT}#/entities/0/fields/0'),
             ('P013', f'{PRODUCT}#/entities/0/fields/2'),
             ('P013', f'{PRODUCT}#/entities/0/fields/3'),
+        ],
+    ),
+    (
+        'P013',
+        # a file is a relationship to the uploaded files of bazis-uploadable, and a
+        # relationship to them is a file
+        {PRODUCT: lambda d: [task(d)['fields'][1].update(type='file'),
+                             task(d)['fields'][4].update(type='string')]},
+        [
+            ('P013', f'{PRODUCT}#/entities/0/fields/1'),
+            ('P013', f'{PRODUCT}#/entities/0/fields/4'),
+            # and the scenario uploads into a field that is no longer a file
+            ('P022', f'{PRODUCT}#/scenarios/5/steps/5/upload/field'),
         ],
     ),
     (
@@ -285,6 +302,20 @@ CASES = [
         ],
     ),
     (
+        'P022',
+        # a file is uploaded, not filled; a list shows no values, nor a card the fields that
+        # its sections do not have
+        {PRODUCT: lambda d: [steps(d, 5).__setitem__(5, {'fill': {'attachment': 'brief.txt'}}),
+                             steps(d, 5)[4]['expect'].update(values={'dt_created': 'today', 'due': 'never'}),
+                             steps(d, 1).insert(1, {'expect': {'values': {'title': 'Review the plan'}}})]},
+        [
+            ('P022', f'{PRODUCT}#/scenarios/1/steps/1/expect/values'),
+            ('P022', f'{PRODUCT}#/scenarios/5/steps/4/expect/values/dt_created'),
+            ('P023', f'{PRODUCT}#/scenarios/5/steps/4/expect/values/due'),
+            ('P022', f'{PRODUCT}#/scenarios/5/steps/5/fill/attachment'),
+        ],
+    ),
+    (
         'P023',
         {PRODUCT: lambda d: [steps(d, 0)[2]['fill'].update(due='tomorrow', report='Later'),
                              steps(d, 1)[2]['open_item']['where'].update(owner='me')]},
@@ -312,6 +343,12 @@ CASES = [
                              d['roles'].append({'id': 'guest', 'permit': 'guest'})]},
         [('P025', f'{PRODUCT}#/scenarios/1/role')],
     ),
+    (
+        'P026',
+        # bazis-authing without its service `password`: the test users cannot log in
+        {CONTRACT: lambda d: d['capabilities']['authing'].update(actions=[])},
+        [('P026', f'{PRODUCT}#/scenarios')],
+    ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
     (
@@ -337,7 +374,7 @@ CASES = [
     (
         'S007',
         {CARD: lambda d: d['card']['sections'][0]['fields'].append('priority')},
-        [('S007', f'{CARD}#/card/sections/0/fields/3')],
+        [('S007', f'{CARD}#/card/sections/0/fields/4')],
     ),
     (
         'S008',
@@ -432,10 +469,12 @@ def layer_of(file: str) -> str:
 @pytest.mark.django_db
 def test_the_assets_follow_the_capabilities(contract):
     root = contract.parent.parent
-    edit(root, LOCK, lambda d: lock('client', 'react', 'react-statusy', 'template'))
+    edit(root, LOCK, lambda d: lock('client', 'react', 'react-statusy', 'react-uploadable', 'template'))
     assert issues(root) == []
     # the components of a package are added when the product needs them
-    edit(root, LOCK, lambda d: lock('client', 'react', 'react-statusy', 'status-badge', 'template'))
+    edit(root, LOCK, lambda d: lock(
+        'client', 'react', 'react-statusy', 'react-uploadable', 'status-badge', 'file-field', 'template'
+    ))
     assert issues(root) == []
 
     # the hooks and a component of bazis-statusy without the package (the specs that need it

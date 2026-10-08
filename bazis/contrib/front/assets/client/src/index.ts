@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { createClient, TOKEN_PATH } from './client.js';
+export { AUTH_POLL_INTERVAL, createClient, TOKEN_PATH } from './client.js';
 export type {
   BazisClient,
   ClientOptions,
@@ -30,6 +30,9 @@ export type { PaginationLinks, PaginationMeta } from './pagination.js';
 export { can } from './permit.js';
 export type { CrudAccessAction, PermitMeta } from './permit.js';
 export type {
+  AuthAction,
+  AuthState,
+  AuthUser,
   BodyOf,
   EndpointOf,
   ItemOptions,
@@ -41,4 +44,6 @@ export type {
   RouteSetPath,
   RouteSetWith,
   TokenResponse,
+  UploadOptions,
+  UploadProgress,
 } from './types.js';

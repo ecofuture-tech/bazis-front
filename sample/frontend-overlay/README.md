@@ -2,8 +2,10 @@
 
 The product code of the frontend of the sample: its screens (`src/screens/task-list/`,
 `src/screens/task-card/`), composed from the components as the specs of the sample
-(`sample/spec/screens/`) describe them, and the router of the template with their routes
-(`src/app/router.tsx`). It is the reference of a product frontend written from its specs.
+(`sample/spec/screens/`) describe them, the router of the template with their routes
+(`src/app/router.tsx`, inside `FileFieldProvider`: the forms upload the files of
+bazis-uploadable), and the files that the scenarios upload (`e2e/fixtures/`). It is the
+reference of a product frontend written from its specs.
 
 A frontend is not kept in this repository: the `e2e` job of CI makes one from the sample
 (`bazis_front init`, `contract`, `add` of the components), copies these files over it, generates
