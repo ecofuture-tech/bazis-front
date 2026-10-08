@@ -18,14 +18,23 @@
 // (`Accept-Language`), the query keys of the hooks end with it, and a change clears the
 // cache (`src/app/providers.tsx`). When the users have a language of their own
 // (`CAPABILITIES.users.profile_language`), the language follows the profile of the user who
-// is logged in: adopted at the login, saved at every change.
+// is logged in: adopted at the login, saved when the user changes it.
 
-import { getToken, onSessionChange } from '@/app/session';
 import { CAPABILITIES, LANGUAGE, LANGUAGES, ROUTES } from '@/bazis/generated/contract';
-import { createLanguageStore, followProfileLanguage, type ProfileResource } from '@/bazis/i18n';
+import {
+  createLanguageStore,
+  followProfileLanguage,
+  translator,
+  type LanguageStore,
+  type ProfileResource,
+} from '@/bazis/i18n';
 import type { Api } from '@/bazis/react';
+import { MESSAGES } from '@/i18n';
 
 export const languageStore = createLanguageStore({ languages: LANGUAGES, fallback: LANGUAGE });
+
+/** The texts of the current language outside the components: the errors of a login. */
+export const t = translator(languageStore, MESSAGES);
 
 /** The current language; the client reads it on every request. */
 export function getLanguage(): string {
@@ -40,28 +49,39 @@ markPage();
 languageStore.subscribe(markPage);
 
 /** The user resource that has the language of its users; null when they have none. */
-const PROFILE: ProfileResource | null = (() => {
+export const PROFILE: ProfileResource | null = (() => {
   const users = CAPABILITIES.users;
   if (!users?.profile_language) return null;
   const path = (ROUTES as Readonly<Record<string, string | undefined>>)[users.user_resource];
   return path === undefined ? null : { path, type: users.user_resource };
 })();
 
+/** The session that the language follows: `getToken` and `onSessionChange` of `src/app/session.ts`. */
+export interface LanguageSession {
+  getToken: () => string | null;
+  onSessionChange: (listener: () => void) => () => void;
+}
+
 /**
  * Makes the language follow the profile of the user who is logged in, from now and at every
- * login (nothing without a language of the users); returns the unsubscribe function.
+ * login (nothing without a language of the users): `followProfileLanguage` for each
+ * session, stopped at its end. Returns the unsubscribe function.
  */
-export function followSessionLanguage(api: Api): () => void {
-  if (PROFILE === null) return () => undefined;
-  const profile = PROFILE;
+export function followSessionLanguage(
+  api: Api,
+  session: LanguageSession,
+  profile: ProfileResource | null = PROFILE,
+  store: LanguageStore = languageStore,
+): () => void {
+  if (profile === null) return () => undefined;
   let stop: () => void = () => undefined;
   const follow = () => {
     stop();
-    const token = getToken();
-    stop = token === null ? () => undefined : followProfileLanguage(languageStore, api, profile, token);
+    const token = session.getToken();
+    stop = token === null ? () => undefined : followProfileLanguage(store, api, profile, token);
   };
   follow();
-  const unsubscribe = onSessionChange(follow);
+  const unsubscribe = session.onSessionChange(follow);
   return () => {
     unsubscribe();
     stop();

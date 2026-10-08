@@ -74,10 +74,9 @@ export function accepts(file: File, accept: string | undefined): boolean {
     );
 }
 
-/** The message of a failed upload. */
+/** The message of a failed upload: that of the backend, else (the network) `upload.failed`. */
 function message(error: unknown, t: Translate): string {
-  if (error instanceof ApiError) return error.message;
-  return error instanceof Error ? error.message : t('upload.failed');
+  return error instanceof ApiError ? error.message : t('upload.failed');
 }
 
 /** The file just chosen: its thumbnail while it uploads and once it is the value. */

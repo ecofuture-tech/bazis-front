@@ -81,7 +81,7 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => clearOnSessionChange(queryClient), [queryClient]);
   useEffect(() => clearOnLanguageChange(queryClient), [queryClient]);
   // the language of the profile of the user, when the users have one
-  useEffect(() => followSessionLanguage(api), []);
+  useEffect(() => followSessionLanguage(api, { getToken, onSessionChange }), []);
   const session = useSession();
   const language = useSyncExternalStore(languageStore.subscribe, languageStore.get);
   return (

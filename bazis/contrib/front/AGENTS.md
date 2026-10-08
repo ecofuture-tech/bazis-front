@@ -447,6 +447,10 @@ scenarios:
       - expect: {status: done, field_readonly: title}
 ```
 
+- **Languages** (optional): `languages`, the codes of the languages of the interface, and
+  `language`, the default one (one of them), as the backend has them: `check` compares them
+  with `project.languages` (`LANGUAGES`) and `project.language` (the code of `LANGUAGES`
+  that `LANGUAGE_CODE` names) of the contract (P029). See [The language](#the-language).
 - **Fields** are those of the resource in the API (`fields` of contract.json), with `type`
   (`string`, `text`, `integer`, `number`, `boolean`, `date`, `datetime`, `time`, `json`,
   `file`) or `relation` (the id of an entity) and `many`. A `file` is a to-one
@@ -752,7 +756,8 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   the lock has `e2e`; without Node and the database) render it again, compare it byte for
   byte, and say which specs changed or which test was edited.
 - **The generated tests are never edited**: change the scenario and generate again. Tests
-  of your own go to `frontend/e2e/custom/`, with the same helpers.
+  of your own go to `frontend/e2e/custom/`, with the same helpers (and `language(code)`,
+  which switches the language of the interface: not a step of the scenarios).
 - The helpers, `frontend/e2e/bazis/` (the asset `playwright`, copied by `init` like the
   hooks, not edited), act only through the `data-bz` marks of the screens and wait on their
   states (until no `state:loading` is left), never for a fixed time. Each step of a
@@ -1079,6 +1084,65 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every user s
   `{"action": "notification", "title": "…", "text"?: "…", "resource"?: "…", "id"?: "…"}`
   (a notification of the user; with a resource, the item also changed), and
   `{"action": "async_bg", "task_id", "status"}`, which bazis-async-background sends itself.
+
+## The language
+
+A product is in the languages of its backend: `LANGUAGES` and `LANGUAGE_CODE` of its
+settings (`BS_LANGUAGES='[["en", "English"], ["ru", "Русский"]]'`, `BS_LANGUAGE_CODE=en`),
+which the contract exports (`project.languages`; `project.language`, the code of
+`LANGUAGES` that `LANGUAGE_CODE` names) and `contract.ts` exposes (`LANGUAGES`,
+`LANGUAGE`). The backend translates with gettext (`gettext_lazy` with English msgids in the
+models and the route sets, `.po` files compiled to `.mo` by `manage.py compilemessages` in
+`locale/<language>/LC_MESSAGES/` of each app, both committed) and with the translated fields
+of its data (the names of the roles of bazis-permit and of the statuses and transits of
+bazis-statusy have a column per language: set them in the data migrations).
+
+- **The asset `i18n`** (`src/bazis/i18n/`, copied by `init` like the hooks, not edited):
+  `LanguageProvider`, `useLanguage()` (`{language, languages, setLanguage, t}`),
+  `t(key, params)` over flat dictionaries by language with stable keys (those of the
+  components in `src/bazis/i18n/messages/<language>.ts`, English and Russian), the plural
+  forms of `Intl.PluralRules` (`<key>.one`, `<key>.few`, `<key>.many`, `<key>.other`, with
+  the parameter `count`), `translator(store, messages)` (`t` outside the components), and
+  `formatNumber`, `formatDate`, `formatDateTime`, `formatTime` (`Intl`, in the language of
+  the interface). No i18next.
+- **The dictionaries of the product** are `src/i18n/<language>.ts` of the frontend (the
+  template has `en` and `ru`, listed in `src/i18n/index.ts`): the texts of its screens, and
+  the texts of the components it words otherwise (the same key). They are merged over those
+  of the package and are the product's: `update` never changes them. A language of the
+  backend without a dictionary shows the texts of the package in it, else the English ones.
+  Every text of a screen goes through `t()`; never write a text of the interface in the JSX.
+- **The language of the interface** is one of `LANGUAGES`: the language of the profile of
+  the user (below), else the choice kept in the browser (localStorage), else the languages
+  of the browser (`navigator.languages`, also by their base code: `ru-RU` is `ru`), else
+  `LANGUAGE`. `AppShell` shows `LanguageToggle` next to the color mode when there is more
+  than one language (`action:language`, the code in `data-value`); the `lang` of the page
+  follows it.
+- **The backend answers in it**: the client sends `Accept-Language: <language>` on every
+  request (`language` of `createClient`), the `LanguageMiddleware` of the core activates it
+  when it is one of `LANGUAGES` (else `LANGUAGE_CODE`). The query keys of the hooks end with
+  the session and the language, and the template clears the cache when the language changes:
+  the titles of the runtime schemas and the messages of the errors are those of the language
+  they were read in. The names of the statuses, the transits and the roles are in
+  `contract.ts` in every language (`statusName(type, id, language)`).
+- **The language of the profile**: when the user model has a text field `language` (the
+  capability `users.profile_language` of the contract), the template makes the interface
+  follow it (`followSessionLanguage` of `src/app/language.ts`): at a login it adopts the
+  language of the profile of the user, and a change of the language by the user is saved to
+  the profile (`PATCH` of the attribute `language` of the user, found by the username of the
+  session token); a change made while the profile loads wins over it, and a profile without
+  a language is never written at a login. Without the field the language is kept in the
+  browser only. bazis-users has no such field yet: it is expected as `User.language` (a
+  `CharField` of a code of `LANGUAGES`, blank for none), readable and writable by the user
+  himself on his item of the user resource.
+- **Known limitation of the core**: it builds the schemas of a route set once per process,
+  with the titles of the language of the first request; until it translates them when it
+  answers, the titles of the fields may stay in the language a process answered first. The
+  export of the contract builds the OpenAPI again in `LANGUAGE_CODE`, so the contract does
+  not depend on it.
+- **The tests**: the contract tests of the components never depend on a text (`data-bz`,
+  roles): `renderWithBazis` of `testing` renders in English, `testLanguages('ru', 'en')` in
+  another language. The end-to-end tests act through `data-bz`; a test of `e2e/custom/`
+  switches the language with `app.language('<code>')` of the helpers.
 
 ## Logins with bazis-authing
 

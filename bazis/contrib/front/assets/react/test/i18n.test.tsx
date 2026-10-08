@@ -244,15 +244,37 @@ describe('the language of the profile', () => {
     expect(backend.requests('PATCH')).toHaveLength(1);
   });
 
-  it('gets the language of the interface when it has none', async () => {
+  it('is never written at a login: only a change of the user is saved', async () => {
     const { backend, api } = setup(null);
     const languages = store({ stored: 'ru' });
     followProfileLanguage(languages, api, RESOURCE, token);
     await vi.waitFor(() => {
+      expect(backend.requests('GET')).toHaveLength(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect([languages.get(), backend.requests('PATCH')]).toEqual(['ru', []]);
+    languages.set('en');
+    await vi.waitFor(() => {
       expect(backend.calls.find((it) => it.method === 'PATCH')?.body).toEqual({
-        data: { type: 'users.user', id: 'u1', attributes: { language: 'ru' } },
+        data: { type: 'users.user', id: 'u1', attributes: { language: 'en' } },
       });
     });
-    expect(languages.get()).toBe('ru');
+  });
+
+  it('keeps a change of the user made while the profile loads, and saves it', async () => {
+    const { backend, api } = setup('ru');
+    const release = backend.hold('GET', `${USERS}?filter=username%3Dmanager&page%5Blimit%5D=1`);
+    const languages = store();
+    followProfileLanguage(languages, api, RESOURCE, token);
+    languages.set('en');
+    languages.set('ru');
+    languages.set('en');
+    release();
+    await vi.waitFor(() => {
+      expect(backend.requests('PATCH')).toEqual([`PATCH ${USERS}u1/`]);
+    });
+    // the language of the profile does not replace the choice of the user
+    expect(languages.get()).toBe('en');
+    expect(backend.calls.at(-1)?.body).toEqual({ data: { type: 'users.user', id: 'u1', attributes: { language: 'en' } } });
   });
 });

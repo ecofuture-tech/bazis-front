@@ -15,8 +15,9 @@
 // The language of the profile of the user: with a text attribute `language` of the user
 // resource (`profile_language` of the capability `users` of the contract), the language of
 // the interface follows the user from device to device. At a login the interface adopts the
-// language of the profile (or saves its own when the profile has none), and a change of the
-// language is saved to the profile. Without it the language is kept in the browser only.
+// language of the profile, and a change of the language by the user is saved to it (only
+// that: a profile without a language is never written at a login). Without it the language
+// is kept in the browser only.
 // The user is found by the username of the session token (`sub` of the JWT of bazis-users):
 // a user who is not staff reads and changes only himself.
 
@@ -82,9 +83,11 @@ export async function saveProfileLanguage(
 
 /**
  * Makes the language of the store follow the profile of the user of the session token
- * while it lasts: adopts the language of the profile (or saves the current one when the
- * profile has none), then saves every change of the language. Returns the function that
- * stops it (a logout). A failure of the backend leaves the language in the browser only.
+ * while it lasts: adopts the language of the profile, then saves every change of the
+ * language by the user. A change made while the profile loads wins: the profile does not
+ * replace it, it is saved. A profile without a language is not written until the user
+ * changes the language. Returns the function that stops it (a logout). A failure of the
+ * backend leaves the language in the browser only.
  */
 export function followProfileLanguage(
   store: LanguageStore,
@@ -95,11 +98,15 @@ export function followProfileLanguage(
   let stopped = false;
   let profile: Profile | null = null;
   let adopting = false;
+  // the user changed the language before the profile was read
+  let changed = false;
   const save = (language: string) => {
     if (profile !== null) void saveProfileLanguage(api, resource, profile.id, language).catch(() => undefined);
   };
   const unsubscribe = store.subscribe(() => {
-    if (!adopting) save(store.get());
+    if (adopting) return;
+    if (profile === null) changed = true;
+    else save(store.get());
   });
   const username = tokenSubject(token);
   if (username !== null) {
@@ -107,11 +114,12 @@ export function followProfileLanguage(
       .then((found) => {
         if (stopped || found === null) return;
         profile = found;
-        const language = matchLanguage(store.languages, found.language);
-        if (language === null) {
+        if (changed) {
           save(store.get());
           return;
         }
+        const language = matchLanguage(store.languages, found.language);
+        if (language === null) return;
         adopting = true;
         try {
           store.set(language);

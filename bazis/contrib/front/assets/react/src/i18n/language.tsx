@@ -189,6 +189,18 @@ export const ENGLISH: LanguageContextValue = context(BASE, BASE, [], () => undef
 
 const LanguageContext = createContext<LanguageContextValue>(ENGLISH);
 
+/**
+ * `t` outside the components (the errors that the application throws, which a component
+ * shows): the texts of the current language of the store, the dictionaries of the product
+ * over those of the package.
+ */
+export function translator(store: LanguageStore, messages: Readonly<Record<string, Messages>> = {}): Translate {
+  return (key, params) => {
+    const language = store.get();
+    return translate(dictionaries(language, store.fallback, messages), language, key, params);
+  };
+}
+
 /** A store whose language never changes: the default of `LanguageProvider`, and the tests. */
 const fixed = (code: string): LanguageStore => ({
   languages: [],

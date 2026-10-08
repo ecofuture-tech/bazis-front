@@ -27,7 +27,7 @@ language) and from the props. Every other text is a key of the dictionaries of `
 `src/bazis/i18n/messages/<language>.ts`), in the language of `LanguageProvider` (English
 without it), and the dates and numbers are formatted in that language with `Intl`. A
 product changes a text with its key in its own dictionary (`src/i18n/<language>.ts`), not in
-the copy. The contract tests never depend on a text: `renderWithBazis` of `testing` renders
+the copy (the close buttons of the shadcn/ui `dialog` and `sheet` too: `action.close`). The contract tests never depend on a text: `renderWithBazis` of `testing` renders
 in English (`language: testLanguages('ru', 'en')` for a test of another language).
 
 ## The design

@@ -1,5 +1,6 @@
 // The component dialog of shadcn/ui (https://ui.shadcn.com, style new-york-v4),
-// copied by bazis-front with the aliases of components.json.
+// copied by bazis-front with the aliases of components.json; its texts are those of
+// @/bazis/i18n.
 //
 // MIT License
 //
@@ -24,6 +25,7 @@
 // SOFTWARE.
 
 import * as React from "react"
+import { useLanguage } from "@/bazis/i18n"
 import { cn } from "@/lib/utils"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
@@ -78,6 +80,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  const { t } = useLanguage()
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -96,7 +99,7 @@ function DialogContent({
             className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t("action.close")}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -122,6 +125,7 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
 }) {
+  const { t } = useLanguage()
   return (
     <div
       data-slot="dialog-footer"
@@ -134,7 +138,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">{t("action.close")}</Button>
         </DialogPrimitive.Close>
       )}
     </div>

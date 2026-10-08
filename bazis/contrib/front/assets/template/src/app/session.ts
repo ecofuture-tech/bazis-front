@@ -14,6 +14,7 @@
 
 import { useSyncExternalStore } from 'react';
 
+import { t } from '@/app/language';
 import { ApiError, type AuthAction, type AuthState } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
 import type { Api } from '@/bazis/react';
@@ -112,7 +113,7 @@ export function useSession(): string {
  */
 function sessionToken(state: AuthState): string {
   if (state.status === 'signed_in') return state.user.token;
-  throw new ApiError(401, state.errors.length ? state.errors : [{ status: 401, detail: 'The login did not succeed.' }]);
+  throw new ApiError(401, state.errors.length ? state.errors : [{ status: 401, detail: t('login.failed') }]);
 }
 
 /**
@@ -151,7 +152,7 @@ export async function login(
 export async function loginInWindow(api: Api, action: AuthAction, signal?: AbortSignal): Promise<void> {
   if (AUTHING?.auth_url == null) throw new Error('The backend has no auth endpoint of bazis-authing.');
   const popup = window.open('', 'bazis-login', 'popup,width=520,height=680');
-  if (popup === null) throw new Error('The browser blocked the window of the login: allow it and try again.');
+  if (popup === null) throw new Error(t('login.blocked'));
   try {
     const { auth_url: authUrl, token_param: param } = AUTHING;
     const start = await api.auth(authUrl, signal ? { signal } : {});
@@ -162,7 +163,7 @@ export async function loginInWindow(api: Api, action: AuthAction, signal?: Abort
     popup.location.href = `${action.url}?${new URLSearchParams({ [param]: start.store }).toString()}`;
     const state = await api.authWait(authUrl, start.store, signal ? { signal } : {});
     if (state.status === 'signed_out' && !state.errors.length) {
-      throw new Error('The login has expired: try again.');
+      throw new Error(t('login.expired'));
     }
     setToken(sessionToken(state));
   } finally {

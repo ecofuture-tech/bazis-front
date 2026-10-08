@@ -22,6 +22,7 @@ import type { Messages } from '../translate.js';
 
 export const ru: Messages = {
   'action.cancel': 'Отмена',
+  'action.close': 'Закрыть',
   'async.completed': 'Готово',
   'async.failed': 'Ошибка',
   'async.pending': 'В очереди',
@@ -71,8 +72,11 @@ export const ru: Messages = {
   'list.search': 'Поиск',
   'list.sort': 'Сортировка',
   'list.sort_default': 'По умолчанию',
+  'login.blocked': 'Браузер заблокировал окно входа: разрешите его и повторите попытку.',
   'login.choose': 'Выберите способ входа.',
   'login.description': 'Введите имя пользователя и пароль.',
+  'login.expired': 'Время входа истекло: попробуйте снова.',
+  'login.failed': 'Войти не удалось.',
   'login.or': 'или',
   'login.password': 'Пароль',
   'login.submit': 'Войти',

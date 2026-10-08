@@ -162,9 +162,11 @@ the components), and `Intl` for the plural forms, the dates and the numbers.
 - The language of the profile: with `profile_language` of the capability `users` (a text
   field `language` of the user model), `followProfileLanguage(store, api, {path, type},
   token)` finds the user of the session token (`sub` of its JWT, `filter=username=<sub>`),
-  adopts the language of his profile (or saves the current one when it has none) and saves
-  every change of the language (`PATCH` of the attribute `language`); the template calls it
-  at every login (`src/app/language.ts`). Without the field the language stays in the
+  adopts the language of his profile and saves every change of the language by the user
+  (`PATCH` of the attribute `language`); a change made while the profile loads wins over
+  it, and a profile without a language is never written at a login. The template calls it
+  at every login (`followSessionLanguage` of `src/app/language.ts`). `translator(store,
+  messages)` is `t` outside the components (the errors of a login). Without the field the language stays in the
   browser.
 
 ### `useResourceForm`

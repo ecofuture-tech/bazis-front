@@ -22,6 +22,7 @@ import type { Messages } from '../translate.js';
 
 export const en: Messages = {
   'action.cancel': 'Cancel',
+  'action.close': 'Close',
   'async.completed': 'Done',
   'async.failed': 'Failed',
   'async.pending': 'Queued',
@@ -71,8 +72,11 @@ export const en: Messages = {
   'list.search': 'Search',
   'list.sort': 'Sort',
   'list.sort_default': 'Default',
+  'login.blocked': 'The browser blocked the window of the login: allow it and try again.',
   'login.choose': 'Choose how to log in.',
   'login.description': 'Enter your username and password to continue.',
+  'login.expired': 'The login has expired: try again.',
+  'login.failed': 'The login did not succeed.',
   'login.or': 'or',
   'login.password': 'Password',
   'login.submit': 'Log in',

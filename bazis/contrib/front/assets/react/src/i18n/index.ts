@@ -23,6 +23,7 @@ export {
   matchLanguage,
   MESSAGES,
   resolveLanguage,
+  translator,
   useLanguage,
 } from './language.js';
 export type {

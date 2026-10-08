@@ -141,7 +141,7 @@ of the components in the package, those of the product in `src/i18n/<language>.t
 over them), `t(key, params)` with the plural forms of `Intl.PluralRules`, and the dates and
 the numbers formatted with `Intl` in the language of the interface. The language is that of
 the profile of the user when the user model has one (the capability
-`users.profile_language`: adopted at a login, saved at every change), else the choice kept
+`users.profile_language`: adopted at a login, saved when the user changes it), else the choice kept
 in the browser, else the languages of the browser, else the default of the backend; a
 toggle of the layout changes it. The client sends it (`Accept-Language`), so the backend
 answers its schemas and errors in it; the query keys end with the session and the language,
