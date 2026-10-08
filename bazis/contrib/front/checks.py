@@ -18,7 +18,7 @@ Django system checks of bazis-front (see `manage.py bazis_doctor`).
 
 from pathlib import Path
 
-from django.core.checks import Info, Warning, register
+from django.core.checks import Error, Info, Warning, register
 
 
 @register()
@@ -58,6 +58,28 @@ def check_contract(app_configs, **kwargs):
     if problems := contract.stale(directory, rendered, frontend, lock):
         return [Warning(' '.join(problems), hint=hint, id='front.W001')]
     return []
+
+
+@register()
+def check_packages(app_configs, **kwargs):
+    """
+    The installed packages of the capabilities of the project are not older than the
+    versions whose protocol the assets of the frontend follow (`minimum` of
+    `capabilities.CAPABILITIES`): with an older one a part of the frontend does not work
+    (the socket of bazis-ws before 2.5.0 is never open). `bazis_front check` reports the
+    same as `C004`. Runs without the database.
+    """
+    from .capabilities import outdated
+
+    return [
+        Error(
+            f'{capability.distribution} {version} is installed; the frontend of bazis-front '
+            f'needs {capability.distribution}>={capability.minimum}: {capability.needs}.',
+            hint=f"Upgrade it: `pip install -U '{capability.distribution}>={capability.minimum}'`.",
+            id='front.E003',
+        )
+        for _name, capability, version in outdated()
+    ]
 
 
 @register()

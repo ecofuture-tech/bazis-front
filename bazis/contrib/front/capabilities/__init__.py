@@ -21,6 +21,7 @@ this package while it configures the settings: nothing here imports a model or t
 database at the module level.
 """
 
+import re
 from dataclasses import dataclass
 from importlib import import_module, metadata
 
@@ -41,15 +42,28 @@ class Capability:
     #: the package is a Django app, which the project installs; else it is enough that the
     #: distribution is installed (bazis-ws)
     app: bool = True
+    #: the oldest version of the package whose protocol the assets follow, with what they
+    #: rely on in it; None for any version
+    minimum: str | None = None
+    needs: str = ''
 
 
 CAPABILITIES = {
     'users': Capability('bazis-users', 'bazis.contrib.users'),
-    'authing': Capability('bazis-authing', 'bazis.contrib.authing'),
+    'authing': Capability(
+        'bazis-authing', 'bazis.contrib.authing', minimum='2.6.0',
+        needs='its logout endpoint, a store that gives its session once',
+    ),
     'permit': Capability('bazis-permit', 'bazis.contrib.permit', needs_db=True),
     'statusy': Capability('bazis-statusy', 'bazis.contrib.statusy', needs_db=True),
-    'uploadable': Capability('bazis-uploadable', 'bazis.contrib.uploadable'),
-    'ws': Capability('bazis-ws', 'bazis.contrib.ws', app=False),
+    'uploadable': Capability(
+        'bazis-uploadable', 'bazis.contrib.uploadable', minimum='2.5.0',
+        needs='the files of their author: the route set gives a user his own files only',
+    ),
+    'ws': Capability(
+        'bazis-ws', 'bazis.contrib.ws', app=False, minimum='2.5.0',
+        needs='`{"type": "subscribed"}`, without which the socket of the frontend is never open',
+    ),
     'bg': Capability('bazis-bg', 'bazis.contrib.bg'),
     'async_background': Capability('bazis-async-background', 'bazis.contrib.async_background'),
     'async_request': Capability('bazis-async-request', 'bazis.contrib.async_request'),
@@ -102,6 +116,34 @@ def enabled() -> list[str]:
             continue
         if not capability.app or app_enabled(capability.module):
             result.append(name)
+    return result
+
+
+def release(version: str) -> tuple[int, ...]:
+    """
+    The release numbers of a version (`2.5.0` of `2.5.0.post1.dev3`), for a comparison.
+    """
+    match = re.match(r'\d+(?:\.\d+)*', version)
+    return tuple(int(it) for it in match.group().split('.')) if match else ()
+
+
+def outdated(names: list[str] | None = None) -> list[tuple[str, Capability, str]]:
+    """
+    The capabilities (of `names`, those of the project by default) whose installed package
+    is older than its `minimum`: `(name, capability, the installed version)`. A package that
+    is not installed is left out.
+    """
+    result = []
+    for name in enabled() if names is None else names:
+        capability = CAPABILITIES.get(name)
+        if capability is None or capability.minimum is None:
+            continue
+        try:
+            version = metadata.version(capability.distribution)
+        except metadata.PackageNotFoundError:
+            continue
+        if release(version) < release(capability.minimum):
+            result.append((name, capability, version))
     return result
 
 

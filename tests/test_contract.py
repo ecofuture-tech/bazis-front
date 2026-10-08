@@ -447,3 +447,24 @@ def test_the_users_have_a_language_of_their_own_with_a_text_field_language():
     # another field `language`, or a model that is no resource
     assert profile_language(Polyglot) is False
     assert profile_language(Plain) is False
+
+
+def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch):
+    from importlib import metadata
+
+    from bazis.contrib.front.checks import check_packages
+
+    assert capabilities.release('2.5.0.post1.dev3') == (2, 5, 0)
+    assert capabilities.release('2.10.1') > capabilities.release('2.9')
+    # the packages of the sample are recent enough
+    assert check_packages(None) == []
+
+    real = metadata.version
+    # a pre-release of the version counts as the version
+    versions = {'bazis-ws': '2.4.0', 'bazis-authing': '2.6.0rc1', 'bazis-uploadable': '2.4.9'}
+    monkeypatch.setattr(metadata, 'version', lambda name: versions.get(name) or real(name))
+    errors = check_packages(None)
+    assert [it.id for it in errors] == ['front.E003', 'front.E003']
+    assert 'bazis-uploadable 2.4.9 is installed' in errors[0].msg
+    assert 'bazis-ws>=2.5.0' in errors[1].msg and 'subscribed' in errors[1].msg
+    assert [name for name, _, _ in capabilities.outdated(['ws', 'statusy', 'unknown'])] == ['ws']

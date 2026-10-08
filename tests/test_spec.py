@@ -70,6 +70,23 @@ def issues(root, **kwargs) -> list[tuple[str, str]]:
     return [(it.code, it.location) for it in validate(root, **kwargs).issues]
 
 
+#: the edit of a case of the installed versions of the distributions: `change(versions)`
+VERSIONS = 'installed versions'
+
+
+def installed(monkeypatch, change) -> None:
+    """
+    The versions of the installed distributions, as `importlib.metadata` reads them, changed
+    by `change` (a dict of the versions to report instead).
+    """
+    from importlib import metadata
+
+    versions: dict[str, str] = {}
+    change(versions)
+    real = metadata.version
+    monkeypatch.setattr(metadata, 'version', lambda name: versions.get(name) or real(name))
+
+
 # the files of the specs, edited by the cases
 
 
@@ -147,6 +164,12 @@ def user_card(data, transitions=False):
 CASES = [
     ('C001', {CONTRACT: lambda d: '{'}, [('C001', CONTRACT)]),
     ('C002', {CONTRACT: lambda d: {**d, 'format': 1}}, [('C002', f'{CONTRACT}#/format')]),
+    (
+        'C004',
+        # the installed bazis-ws is older than the one whose protocol the hooks follow
+        {VERSIONS: lambda versions: versions.update({'bazis-ws': '2.4.0'})},
+        [('C004', f'{CONTRACT}#/capabilities/ws')],
+    ),
     # the sample has bazis-statusy and bazis-uploadable: a frontend made by `init` has their hooks
     (
         'C003',
@@ -470,10 +493,13 @@ def test_the_sample_spec_is_valid(contract):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('code', 'edits', 'expected'), CASES, ids=[it[0] for it in CASES])
-def test_issues(contract, code, edits, expected):
+def test_issues(contract, code, edits, expected, monkeypatch):
     root = contract.parent.parent
     for name, change in edits.items():
-        edit(root, name, change)
+        if name == VERSIONS:
+            installed(monkeypatch, change)
+        else:
+            edit(root, name, change)
 
     assert issues(root) == expected
     for issue in validate(root).issues:

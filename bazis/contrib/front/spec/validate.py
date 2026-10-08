@@ -31,6 +31,7 @@ import yaml
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import best_match
 
+from ..capabilities import outdated
 from ..contract.export import CONTRACT_DIR, CONTRACT_FORMAT
 from ..vendor import lock as frontend_lock
 from ..vendor import registry
@@ -236,6 +237,23 @@ def check_assets(root: Path, contract: dict, issues: Issues) -> None:
             )
 
 
+def check_packages(contract: dict, issues: Issues) -> None:
+    """
+    The installed packages of the capabilities of the contract are not older than the
+    versions whose protocol the assets follow (`minimum` of `capabilities.CAPABILITIES`);
+    the system check `front.E003` reports the same.
+    """
+    doc = Document(CONTRACT, CONTRACT_FILE)
+    for name, capability, version in outdated(sorted(contract.get('capabilities', {}))):
+        issues.add(
+            doc, ('capabilities', name), 'C004',
+            f'{capability.distribution} {version} is installed; the frontend needs '
+            f'{capability.distribution}>={capability.minimum}: {capability.needs}.',
+            f"Upgrade it (`pip install -U '{capability.distribution}>={capability.minimum}'`), "
+            'then export the contract again.',
+        )
+
+
 def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     """
     Checks `spec/` of the product root against itself and `contract/contract.json`. The
@@ -247,6 +265,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     contract = load_contract(root, issues)
     if contract is not None:
         check_assets(root, contract, issues)
+        check_packages(contract, issues)
 
     product_doc = load(root, spec / 'product.yaml', 'product', PRODUCT_SCHEMA, ('P001', 'P002'), issues)
     screen_docs = [
