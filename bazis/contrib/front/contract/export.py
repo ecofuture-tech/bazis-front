@@ -50,13 +50,14 @@ def default_dir() -> Path:
 def render(app) -> dict[str, str]:
     """
     The files of the contract of the application as text, by file name, in LANGUAGE_CODE
-    whatever the language of the process: the OpenAPI is built again (its titles and
-    descriptions are translated). Raises `capabilities.DatabaseNotReadyError` when a
-    section needs the database and it is not migrated.
+    whatever the language of the process. Raises `capabilities.DatabaseNotReadyError` when
+    a section needs the database and it is not migrated.
 
-    The core builds the schemas of the route sets once per process, in the language active
-    then: a process that answered a request in another language first exports its titles
-    (a limitation of the core, not worked around here).
+    The core 2.8 builds the OpenAPI per language and translates the titles of the schemas
+    in the active language, so the override is enough; the core 2.7 keeps one OpenAPI and
+    the titles of the language of the first request of the process: the OpenAPI is built
+    again (the titles of schemas already built in another language stay so: upgrade the
+    core).
     """
     with translation.override(settings.LANGUAGE_CODE):
         app.openapi_schema = None

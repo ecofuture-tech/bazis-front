@@ -14,10 +14,12 @@
 
 """
 bazis-users: the token endpoint, the resource of the user model and whether its users have
-a language of their own (`profile_language`: a text field `language` of the user model, the
-code of a language of LANGUAGES, which the frontend adopts at a login and changes with the
-language of the interface). bazis-users has no such field yet; a project may add it to its
-user model.
+a language of their own (`profile_language`): a text field `language` of the user model
+(`UserLanguageMixin` of bazis-users 2.7.0, which the built-in user has and a user model of
+the project opts in to; a code of LANGUAGES, null for none), which the user reads and
+changes on his own item of the user resource. The frontend adopts it at a login and saves
+there the language the user chooses; without the field the language is kept in the browser
+only.
 """
 
 from django.conf import settings

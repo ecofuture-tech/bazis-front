@@ -45,7 +45,13 @@ English and Russian (`BS_LANGUAGES` of `sample/project.env`, `LANGUAGE_CODE` `en
 Russian texts of the tasks are `sample/tasks/locale/ru/LC_MESSAGES/django.po`, compiled to
 the `.mo` next to it (both committed, as in the other Bazis repositories; run
 `python manage.py compilemessages -l ru` in `sample/tasks/` after a change), and the Russian
-names of its roles, statuses and transits the data migration `0006_workflow_ru.py`. The roles, statuses and
+names of its roles, statuses and transits the data migration `0006_workflow_ru.py`. The language of the profile of the users (`users.profile_language`, the field `language`
+of `UserLanguageMixin` of bazis-users 2.7.0, not released yet) is tested by
+`tests/test_profile_language.py` and the end-to-end test
+`frontend-overlay/e2e/custom/profile-language.spec.ts`, both skipped while the user model of
+the sample has no such field; once it is released, bump the test extra, add the mixin to
+`sample/users/models.py` and its migration to `sample/users/migrations/` (`e2e_data` already
+clears the language of the test users). The roles, statuses and
 transits are the data migration `sample/tasks/migrations/0005_workflow.py`, its data frozen
 there as in any migration (as a product creates them; the fixture `workflow`,
 `tests/conftest.py`, runs its function again after a test that flushed the tables, and

@@ -37,7 +37,8 @@ def create_test_data(password: str) -> None:
     """
     The data of the end-to-end tests on top of the migrations: the test user of each role,
     with the password (set again when the user exists, so that the tests log in with the
-    current E2E_PASSWORD), and the task that the scenario of the viewer opens. A role that
+    current E2E_PASSWORD, and the language of the profile cleared), and the task that the
+    scenario of the viewer opens. A role that
     the migrations did not create is an error: this data never creates one.
     """
     role_model = global_apps.get_model('permit', 'Role')
@@ -52,6 +53,10 @@ def create_test_data(password: str) -> None:
         user.set_password(password)
         user.roles.add(role)
         user.role_current = role
+        # the language of the profile (`UserLanguageMixin` of bazis-users 2.7.0): none, as a
+        # new user, so that a run does not depend on the language a previous one chose
+        if hasattr(user, 'language'):
+            user.language = None
         user.save()
     task_model = global_apps.get_model('tasks', 'Task')
     if not task_model.objects.filter(title=TASK).exists():

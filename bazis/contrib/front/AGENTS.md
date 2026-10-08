@@ -1128,21 +1128,23 @@ bazis-statusy have a column per language: set them in the data migrations).
   the titles of the runtime schemas and the messages of the errors are those of the language
   they were read in. The names of the statuses, the transits and the roles are in
   `contract.ts` in every language (`statusName(type, id, language)`).
-- **The language of the profile**: when the user model has a text field `language` (the
-  capability `users.profile_language` of the contract), the template makes the interface
+- **The language of the profile**: when the users have a language of their own (the
+  capability `users.profile_language` of the contract: a text field `language` of the user
+  model, `UserLanguageMixin` of bazis-users 2.7.0, which its built-in user has and a user
+  model of the product opts in to; a code of `LANGUAGES`, null for none, validated by the
+  backend; the user reads and changes it on his own item of the user resource), the template makes the interface
   follow it (`followSessionLanguage` of `src/app/language.ts`): at a login it adopts the
   language of the profile of the user, and a change of the language by the user is saved to
   the profile (`PATCH` of the attribute `language` of the user, found by the username of the
   session token); a change made while the profile loads wins over it, and a profile without
-  a language is never written at a login. Without the field the language is kept in the
-  browser only. bazis-users has no such field yet: it is expected as `User.language` (a
-  `CharField` of a code of `LANGUAGES`, blank for none), readable and writable by the user
-  himself on his item of the user resource.
-- **Known limitation of the core**: it builds the schemas of a route set once per process,
-  with the titles of the language of the first request; until it translates them when it
-  answers, the titles of the fields may stay in the language a process answered first. The
-  export of the contract builds the OpenAPI again in `LANGUAGE_CODE`, so the contract does
-  not depend on it.
+  a language is never written at a login; only codes of `LANGUAGES` are sent. Without the
+  field (an older bazis-users, a user model without the mixin) the language is kept in the
+  browser only. A user model of the product opts in with the mixin and `makemigrations`.
+- **The titles of the schemas** are in the language of each request with bazis 2.8.0 (it
+  translates them when it answers; `/openapi.json` is built per language). With bazis 2.7
+  the schemas are built once per process, with the titles of the language of its first
+  request, which they keep. The export of the contract is in `LANGUAGE_CODE` with both
+  (`translation.override`, the OpenAPI built again).
 - **The tests**: the contract tests of the components never depend on a text (`data-bz`,
   roles): `renderWithBazis` of `testing` renders in English, `testLanguages('ru', 'en')` in
   another language. The end-to-end tests act through `data-bz`; a test of `e2e/custom/`

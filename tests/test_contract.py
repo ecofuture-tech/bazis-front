@@ -153,9 +153,14 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
         'result_path': '/api/v1/async_background_response/{task_id}/'
     }
     assert sections['async_request'] == {'header': 'X-Async-Background'}
-    # the user of bazis-users has no language of his own (yet)
+    # the user has a language of his own with bazis-users 2.7.0 (tests/test_profile_language.py)
+    from django.contrib.auth import get_user_model
+
+    from bazis.contrib.front.capabilities.users import profile_language
+
     assert sections['users'] == {
-        'token_url': '/api/openapi-token/', 'user_resource': 'users.user', 'profile_language': False,
+        'token_url': '/api/openapi-token/', 'user_resource': 'users.user',
+        'profile_language': profile_language(get_user_model()),
     }
     # the login actions of BAZIS_AUTH_KINDS (the password only by default), as GET /auth/
     # lists them
@@ -427,7 +432,7 @@ def test_the_users_have_a_language_of_their_own_with_a_text_field_language():
     from bazis.core.models_abstract import JsonApiMixin
 
     class Speaker(JsonApiMixin, models.Model):
-        language = models.CharField(max_length=15, blank=True)
+        language = models.CharField(max_length=15, blank=True, null=True)
 
         class Meta:
             app_label = 'users'
