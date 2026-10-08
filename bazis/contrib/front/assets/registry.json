@@ -406,7 +406,8 @@
         ],
         "assets": [
           "react-ws",
-          "testing"
+          "testing",
+          "button"
         ]
       },
       "files": [

@@ -31,6 +31,7 @@ import {
   useEffect,
   useEffectEvent,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -44,7 +45,8 @@ import { notificationOf, type Notification } from './messages.js';
  * messages of its channels come; `rejected`: the server refused the token (`error`:
  * `expired_token`, `invalid_token`, `user_not_found`), no new attempt until the token
  * changes; `unavailable`: `UNAVAILABLE_AFTER` handshakes failed in a row (no socket at the
- * path, the server is down), no new attempt until the path or the token changes.
+ * path, the server is down or restarts, no network): the attempts go on at the longest
+ * delay, and at once when the network comes back, the page is shown again or `retry()`.
  */
 export type SocketStatus = 'idle' | 'connecting' | 'open' | 'rejected' | 'unavailable';
 
@@ -72,6 +74,7 @@ interface Socket {
   status: SocketStatus;
   /** The code of the error of the server that refused the token. */
   error: string | null;
+  retry: () => void;
   listeners: Set<Listener>;
   notifications: readonly Notification[];
   markRead: () => void;
@@ -136,6 +139,8 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
     items: [],
   });
   const [listeners] = useState(() => new Set<Listener>());
+  // a new attempt now, set by the connection that runs
+  const retryNow = useRef<() => void>(() => undefined);
 
   const received = useEffectEvent((message: unknown) => {
     const notification = notificationOf(message, nextKey, new Date());
@@ -177,20 +182,30 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
     };
 
     // the socket dropped (a failed handshake, a close, no answer, an error of the server): a
-    // new attempt after a delay, none after UNAVAILABLE_AFTER handshakes failed in a row
+    // new attempt after a delay; after UNAVAILABLE_AFTER handshakes failed in a row it is
+    // `unavailable` and the attempts go on at the longest delay of the backoff
     const reconnect = (opened: boolean) => {
       release();
       if (stopped) return;
       unopened = opened ? 0 : unopened + 1;
-      if (unopened >= UNAVAILABLE_AFTER) {
-        stopped = true;
-        update('unavailable');
-        return;
-      }
-      update('connecting');
-      retry = setTimeout(connect, reconnectDelay(failures));
+      update(unopened >= UNAVAILABLE_AFTER ? 'unavailable' : 'connecting');
+      retry = setTimeout(connect, unopened >= UNAVAILABLE_AFTER ? reconnectDelay(Infinity) : reconnectDelay(failures));
       failures += 1;
     };
+
+    // an attempt now, while one waits (the network is back, the page is shown again, a
+    // retry of the user); none while a socket is open or opening
+    const wake = () => {
+      if (stopped || socket !== null) return;
+      clearTimeout(retry);
+      connect();
+    };
+    const visible = () => {
+      if (document.visibilityState === 'visible') wake();
+    };
+    retryNow.current = wake;
+    window.addEventListener('online', wake);
+    document.addEventListener('visibilitychange', visible);
 
     function connect() {
       const opening = new WebSocket(url);
@@ -249,6 +264,9 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
       stopped = true;
       clearTimeout(retry);
       release(1000);
+      retryNow.current = () => undefined;
+      window.removeEventListener('online', wake);
+      document.removeEventListener('visibilitychange', visible);
     };
   }, [path, token]);
 
@@ -267,9 +285,12 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
   const clear = useCallback(() => {
     setNotifications((current) => ({ session: current.session, items: [] }));
   }, []);
+  const retry = useCallback(() => {
+    retryNow.current();
+  }, []);
   const value = useMemo(
-    () => ({ status, error, listeners, notifications: items, markRead, clear }),
-    [status, error, listeners, items, markRead, clear],
+    () => ({ status, error, retry, listeners, notifications: items, markRead, clear }),
+    [status, error, retry, listeners, items, markRead, clear],
   );
   return <SocketContext value={value}>{children}</SocketContext>;
 }
@@ -280,10 +301,13 @@ function useSocketContext(): Socket {
   return socket;
 }
 
-/** The state of the socket: `status` and the `error` of a refused token. */
-export function useSocket(): { status: SocketStatus; error: string | null } {
-  const { status, error } = useSocketContext();
-  return { status, error };
+/**
+ * The state of the socket: `status`, the `error` of a refused token, and `retry()`, an
+ * attempt now instead of after the delay (the action of `unavailable`).
+ */
+export function useSocket(): { status: SocketStatus; error: string | null; retry: () => void } {
+  const { status, error, retry } = useSocketContext();
+  return { status, error, retry };
 }
 
 /**

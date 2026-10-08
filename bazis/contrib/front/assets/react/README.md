@@ -60,7 +60,7 @@ sessions in `src/app/session.ts`); never the token. The template does this in
 | `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
 | `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
 | `useUpload(path)` (uploadable) | `POST path`, multipart, with XMLHttpRequest | `upload(file, {name?})`: the created item, null when aborted; `status`, `progress`, `error`, `abort()`, `reset()` |
-| `SocketProvider({path, token})`, `useSocket()` (ws) | the socket of bazis-ws | `{status, error}`: `idle`, `connecting`, `open`, `rejected`, `unavailable` |
+| `SocketProvider({path, token})`, `useSocket()` (ws) | the socket of bazis-ws | `{status, error, retry}`: `idle`, `connecting`, `open`, `rejected`, `unavailable` |
 | `useChannel(handler)` (ws) | | every message of the channels of the session, parsed |
 | `useLiveQueries(routes)` (ws) | refetches | the queries of a resource that a message says changed, of a task of bazis-async-background, and all after a reconnect |
 | `useNotifications()` (ws) | | `{items, unread, markRead, clear}` |
@@ -188,8 +188,9 @@ message). Another error or a close is retried after `reconnectDelay`, from `RECO
 (1 s) doubling to `RECONNECT_MAX` (30 s), half of it random; the backoff starts again only
 after a connection that stayed `open` `STABLE_AFTER` (10 s), so a server that drops every
 session at once is asked less and less often. `UNAVAILABLE_AFTER` (5) handshakes that
-failed in a row make it `unavailable` (no socket at the path), with no new attempt until the
-path or the token changes. Another token (a login) opens another socket, none (a logout)
+failed in a row make it `unavailable` (no socket at the path, a server that restarts, no
+network): the attempts go on at the longest delay (15–30 s), and at once on `online`, on
+`visibilitychange` to visible and on `retry()` of `useSocket`. Another token (a login) opens another socket, none (a logout)
 closes it. Pub/sub keeps nothing, so `useLiveQueries` refetches every query after a
 reconnect that the server took.
 

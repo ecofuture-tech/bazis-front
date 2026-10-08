@@ -140,7 +140,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider({accept?: {field: types}, maxSize?, children})`: `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField(props)`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
-| `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket; `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected\|unavailable>` | `ws` |
+| `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket; `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list, a toast for each new one | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | `ws` |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS`, `TASK_LABELS` | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH`, `RESULT_LABELS` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
@@ -592,6 +592,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P025` | error | the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`) |
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has no `ws`) |
+| `P028` | error | `packages` has `ws`, and the contract has no path of the socket: `ws_route` is not routed where the export sees it |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -951,8 +952,8 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   `error`, `abort()` and `reset()`; it refetches the queries of the route set.
 - `SocketProvider({path, token})` opens the socket of bazis-ws (one a page; see
   [The socket](#the-socket)); `useSocket()` is its `status` (`idle`, `connecting`, `open`,
-  `rejected`, `unavailable`) and the `error` of a refused token; `useChannel(handler)` gets every message
-  of the channels of the session, parsed; `useLiveQueries(ROUTES)` refetches what the
+  `rejected`, `unavailable`), the `error` of a refused token and `retry()`;
+  `useChannel(handler)` gets every message of the channels of the session, parsed; `useLiveQueries(ROUTES)` refetches what the
   messages say changed; `useNotifications()` is `{items, unread, markRead, clear}`.
 - `useBgTask(path, id)` reads a task of bazis-bg (the query of `useItem`) every 2 s until it
   is `done`: `{state, phase, outcome, progress, result, …}` (`bgTask(document)`).
@@ -978,9 +979,10 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every sessio
   `BS_BAZIS_ROUTER_MODULE`: a route appended as it is keeps its path, `/ws`), or register it
   on the application of `BAZIS_APP_MODULE`. The export imports `bazis.core.app`, never the
   main module of the project: a socket registered only there (as the guide of bazis-ws
-  shows) is not known, and `ws.path` is null. bazis-ws is not a Django app and
-  bazis-async-background installs it: the section `ws` is there whenever the package is,
-  with a null path when nothing routes the socket, and the frontend then opens none.
+  shows) is not known, and `ws.path` is null (`check` reports it when `packages` has `ws`:
+  P028). bazis-ws is not a Django app and bazis-async-background installs it: the section
+  `ws` is there whenever the package is, with a null path when nothing routes the socket,
+  and the frontend then opens none.
 - The socket is at `CAPABILITIES.ws.path` (`/ws`, without the prefix of the API; the dev
   server of the template proxies it). The token is sent in the first message
   (`{"token": "<token>"}`), never in the URL: a session JWT of bazis-users (`exp` and `sub`
@@ -995,8 +997,10 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every sessio
   started) are retried after 1 s, doubling up to 30 s, and the backoff starts again only
   after a connection that lasted 10 s, so a server that drops every session is not asked
   every second. Five handshakes that failed in a row (no socket at the path: a 404, the
-  server down) make it `unavailable`, without new attempts until the path or the token
-  changes (a reload). A JWT that expires later does not close the session.
+  server down or restarting, no network) make it `unavailable`: the attempts go on every
+  15–30 s, and at once when the browser is online again, the page is shown again or the
+  user retries (`LiveQuery`, `action:reconnect`). A JWT that expires later does not close
+  the session.
 - A message is `{"type": "data", "data": "<the published JSON as a string>"}`: the hooks
   parse `data`. `{"type": "ping"}` is answered `{"type": "pong"}`: the hooks ping every 25 s
   and reconnect when nothing answered.

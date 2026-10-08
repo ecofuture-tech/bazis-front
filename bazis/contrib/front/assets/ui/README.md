@@ -62,7 +62,7 @@ sample (`tests/test_design.py` checks it; write it again with
 | `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 | `file-field` | `FileFieldProvider({accept?, maxSize?, resources?, children})`; `FileField(props)` (the control of a file field of `FieldInput`, with `maxSize?`, `accept?`, `path?`); `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
-| `live-query` | `LiveQuery({routes?})` (`ROUTES` by default); `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected\|unavailable>` | capability `ws` |
+| `live-query` | `LiveQuery({routes?})` (`ROUTES` by default); `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | capability `ws` |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`, `TASK_LABELS` | `bg:<waiting\|running\|success\|error\|interrupted>`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`, `RESULT_LABELS` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
@@ -171,7 +171,8 @@ components. `testing` is the support of the contract tests: a backend for the mo
   resource refetched when a message of the socket says it changed, a task of
   bazis-async-background when its status comes, every query after a reconnect) and shows the
   state of the socket as a dot with its label for assistive technologies
-  (`socket:<status>`). Mount it once, under `SocketProvider` of `@/bazis/react/ws`.
+  (`socket:<status>`); when no socket answers (`unavailable`) a `Retry`
+  (`action:reconnect`) tries at once. Mount it once, under `SocketProvider` of `@/bazis/react/ws`.
 - **`notification-center`** (bazis-ws): a bell with the count of the unread notifications
   (`action:notifications`, its label says the count) opens their list
   (`list:notifications`, newest first, each `notification:<key>`: the title, the text, the

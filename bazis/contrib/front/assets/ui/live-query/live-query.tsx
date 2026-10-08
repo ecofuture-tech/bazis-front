@@ -15,10 +15,13 @@
 // The live queries of bazis-ws: what the messages of the socket say changed is refetched
 // (`useLiveQueries`: a resource by its type in `ROUTES`, a task of bazis-async-background,
 // every query after a reconnect), and the state of the socket is shown as a dot,
-// `socket:<status>`. Mount it once under `SocketProvider`, in the `tools` of `AppShell`.
+// `socket:<status>`; when no socket answers (`unavailable`, the socket keeps trying slowly)
+// a retry tries at once (`action:reconnect`). Mount it once under `SocketProvider`, in the
+// `tools` of `AppShell`.
 
 import { ROUTES } from '@/bazis/generated/contract';
 import { useLiveQueries, useSocket, type SocketStatus } from '@/bazis/react/ws';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export const SOCKET_LABELS: Readonly<Record<SocketStatus, string>> = {
@@ -45,16 +48,23 @@ export interface LiveQueryProps {
 /** Refetches what the socket says changed; shows the state of the socket. */
 export function LiveQuery({ routes = ROUTES }: LiveQueryProps) {
   useLiveQueries(routes);
-  const { status } = useSocket();
+  const { status, retry } = useSocket();
   return (
-    <span
-      data-bz={`socket:${status}`}
-      role="status"
-      title={SOCKET_LABELS[status]}
-      className="inline-flex size-8 items-center justify-center"
-    >
-      <span aria-hidden="true" className={cn('size-2 rounded-full', DOTS[status])} />
-      <span className="sr-only">{SOCKET_LABELS[status]}</span>
+    <span className="inline-flex items-center">
+      <span
+        data-bz={`socket:${status}`}
+        role="status"
+        title={SOCKET_LABELS[status]}
+        className="inline-flex size-8 items-center justify-center"
+      >
+        <span aria-hidden="true" className={cn('size-2 rounded-full', DOTS[status])} />
+        <span className="sr-only">{SOCKET_LABELS[status]}</span>
+      </span>
+      {status === 'unavailable' && (
+        <Button type="button" variant="ghost" size="sm" data-bz="action:reconnect" onClick={retry}>
+          Retry
+        </Button>
+      )}
     </span>
   );
 }

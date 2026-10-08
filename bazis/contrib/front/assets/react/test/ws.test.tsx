@@ -136,7 +136,7 @@ describe('the socket', () => {
 
   it('sends the token in its first message, and is open once the server answered after it', () => {
     const { result } = renderSocket(() => useSocket());
-    expect(result.current).toEqual({ status: 'connecting', error: null });
+    expect(result.current).toMatchObject({ status: 'connecting', error: null });
     const socket = FakeSocket.last();
     expect(socket.url).toBe(`ws://${window.location.host}/ws`);
     act(() => {
@@ -148,7 +148,7 @@ describe('the socket', () => {
     act(() => {
       socket.receive({ type: 'pong' });
     });
-    expect(result.current).toEqual({ status: 'open', error: null });
+    expect(result.current).toMatchObject({ status: 'open', error: null });
   });
 
   it('is not opened without a path or a token, and closed at a logout', () => {
@@ -223,30 +223,88 @@ describe('the socket', () => {
       FakeSocket.last().open();
       FakeSocket.last().receive({ type: 'error', code: 'expired_token', detail: 'Token expired' });
     });
-    expect(result.current).toEqual({ status: 'rejected', error: 'expired_token' });
+    expect(result.current).toMatchObject({ status: 'rejected', error: 'expired_token' });
     expect(FakeSocket.last().closed).toBe(1000);
     advance(RECONNECT_MAX * 2);
     expect(FakeSocket.sockets).toHaveLength(1);
   });
 
-  it('is unavailable when no socket answers at the path, until the token changes', () => {
+  it('is unavailable when no socket answers at the path, and keeps trying slowly', () => {
     vi.useFakeTimers();
     vi.spyOn(Math, 'random').mockReturnValue(1);
-    const { result, props, rerender } = renderSocket(() => useSocket());
-    // a 404 of the handshake: the socket closes without being opened
+    const { result } = renderSocket(() => useSocket());
+    // a 404 of the handshake, a server that restarts: the socket closes without being opened
     for (let attempt = 1; attempt < UNAVAILABLE_AFTER; attempt += 1) {
       drop(1006);
       expect(result.current.status).toBe('connecting');
       advance(RECONNECT_MAX);
     }
     drop(1006);
-    expect(result.current).toEqual({ status: 'unavailable', error: null });
-    advance(RECONNECT_MAX * 4);
+    expect(result.current).toMatchObject({ status: 'unavailable', error: null });
+    // the next attempt at the longest delay, still unavailable while it fails
+    advance(RECONNECT_MAX - 1);
     expect(FakeSocket.sockets).toHaveLength(UNAVAILABLE_AFTER);
-    props.token = 'next-jwt';
-    rerender();
-    expect(result.current.status).toBe('connecting');
+    advance(1);
     expect(FakeSocket.sockets).toHaveLength(UNAVAILABLE_AFTER + 1);
+    expect(result.current.status).toBe('unavailable');
+    // the server is back: the socket recovers
+    accept();
+    expect(result.current.status).toBe('open');
+  });
+
+  it('tries at once when the network comes back, the page is shown or the user retries', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(1);
+    const { result } = renderSocket(() => useSocket());
+    for (let attempt = 0; attempt < UNAVAILABLE_AFTER; attempt += 1) {
+      drop(1006);
+      if (attempt < UNAVAILABLE_AFTER - 1) advance(RECONNECT_MAX);
+    }
+    expect(result.current.status).toBe('unavailable');
+    const count = FakeSocket.sockets.length;
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(FakeSocket.sockets).toHaveLength(count + 1);
+    // an attempt runs: another event does not open a second socket
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(FakeSocket.sockets).toHaveLength(count + 1);
+    drop(1006);
+    // a page shown again
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(FakeSocket.sockets).toHaveLength(count + 2);
+    drop(1006);
+    // the retry of the user (LiveQuery)
+    act(() => {
+      result.current.retry();
+    });
+    expect(FakeSocket.sockets).toHaveLength(count + 3);
+    accept();
+    expect(result.current.status).toBe('open');
+    // a live socket is not replaced
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+      result.current.retry();
+    });
+    expect(FakeSocket.sockets).toHaveLength(count + 3);
+  });
+
+  it('does not retry a token that the server refused', () => {
+    vi.useFakeTimers();
+    const { result } = renderSocket(() => useSocket());
+    act(() => {
+      FakeSocket.last().open();
+      FakeSocket.last().receive({ type: 'error', code: 'invalid_token' });
+      window.dispatchEvent(new Event('online'));
+      result.current.retry();
+    });
+    expect(result.current.status).toBe('rejected');
+    expect(FakeSocket.sockets).toHaveLength(1);
   });
 
   it('pings, and reconnects when nothing answered', () => {

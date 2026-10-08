@@ -358,6 +358,12 @@ CASES = [
         {PRODUCT: lambda d: d['packages'].remove('ws')},
         [('P027', f'{PRODUCT}#/scenarios/6/steps/7/expect/notification')],
     ),
+    (
+        'P028',
+        # bazis-ws is installed, its socket is routed only in the main module of the project
+        {CONTRACT: lambda d: d['capabilities']['ws'].update(path=None)},
+        [('P028', f'{PRODUCT}#/packages/5')],
+    ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
     (

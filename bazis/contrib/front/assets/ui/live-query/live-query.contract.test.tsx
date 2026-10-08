@@ -13,10 +13,11 @@
 // limitations under the License.
 
 // The contract of the live queries: the state of the socket of bazis-ws as
-// `socket:<status>` (also `unavailable` when no socket answers at the path), and the queries of a resource refetched when a message says it changed.
+// `socket:<status>` (also `unavailable` when no socket answers at the path, with a retry
+// `action:reconnect`), and the queries of a resource refetched when a message says it changed.
 // Keep it passing when the component is changed.
 
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useList } from '@/bazis/react';
@@ -68,13 +69,21 @@ describe('LiveQuery', () => {
         </SocketProvider>,
         new Backend(),
       );
-      for (let attempt = 0; attempt < UNAVAILABLE_AFTER; attempt += 1) {
+      for (let attempt = 1; attempt <= UNAVAILABLE_AFTER; attempt += 1) {
         act(() => {
           FakeSocket.last().drop(1006);
-          vi.advanceTimersByTime(RECONNECT_MAX);
+          if (attempt < UNAVAILABLE_AFTER) vi.advanceTimersByTime(RECONNECT_MAX);
         });
       }
       expect(screen.getByTestId('socket:unavailable').textContent).toBe('Live updates unavailable');
+      // the retry tries at once, and the socket recovers
+      fireEvent.click(screen.getByTestId('action:reconnect'));
+      expect(FakeSocket.sockets).toHaveLength(UNAVAILABLE_AFTER + 1);
+      act(() => {
+        FakeSocket.last().accept();
+      });
+      expect(screen.getByTestId('socket:open')).toBeTruthy();
+      expect(screen.queryByTestId('action:reconnect')).toBeNull();
     } finally {
       vi.useRealTimers();
     }

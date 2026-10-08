@@ -195,7 +195,7 @@ With bazis-ws, `@/bazis/react/ws` (the socket: see below):
 | Hook | What |
 |---|---|
 | `SocketProvider({path, token})` | opens the socket at `CAPABILITIES.ws.path` with the token of the session, sent in its first message; none without a token; reconnects with a backoff, closed by a logout |
-| `useSocket()` | `{status: 'idle' \| 'connecting' \| 'open' \| 'rejected' \| 'unavailable', error}`: `open` once the server took the token; `rejected` with `expired_token`, `invalid_token`, `user_not_found` (no new attempt until the token changes); `unavailable` when no socket answers at the path (five failed handshakes) |
+| `useSocket()` | `{status: 'idle' \| 'connecting' \| 'open' \| 'rejected' \| 'unavailable', error}`: `open` once the server took the token; `rejected` with `expired_token`, `invalid_token`, `user_not_found` (no new attempt until the token changes); `unavailable` when no socket answers at the path (five failed handshakes; it keeps trying every 15–30 s and at once when the browser is online or the page shown again); `retry()` tries at once |
 | `useChannel(handler)` | every message of the channels of the session, the published JSON parsed |
 | `useLiveQueries(ROUTES)` | refetches the queries of a resource that a message says changed, a task of bazis-async-background, and every query after a reconnect; `LiveQuery` mounts it |
 | `useNotifications()` | `{items, unread, markRead, clear}`: the notifications received in the session, the newest first |
