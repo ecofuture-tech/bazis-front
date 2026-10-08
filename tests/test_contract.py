@@ -273,9 +273,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0006_workflow_ru')
+    unapply('tasks', '0007_assignee_verbose_name')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0006_workflow_ru.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0007_assignee_verbose_name.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -283,12 +283,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0006_workflow_ru' in messages[0].msg
+    assert 'tasks.0007_assignee_verbose_name' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0006_workflow_ru')
+    unapply('tasks', '0007_assignee_verbose_name')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )

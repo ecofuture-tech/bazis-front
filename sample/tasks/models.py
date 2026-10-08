@@ -30,7 +30,8 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     title = models.CharField(_('Title'), max_length=255, validators=[MinLengthValidator(1)])
     report = models.TextField(_('Report'), blank=True, default='')
     assignee = models.ForeignKey(
-        settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.SET_NULL
+        settings.AUTH_USER_MODEL, verbose_name=_('assignee'), blank=True, null=True,
+        on_delete=models.SET_NULL,
     )
     # an uploaded file of bazis-uploadable: the relationship to `uploadable.file_upload`
     attachment = models.ForeignKey(
