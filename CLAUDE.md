@@ -39,9 +39,10 @@ bazis-async-request (the `test` extra) with a project app `users` and a statusy 
 a reference sample never lets a user list, change or delete the files of the others); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
 sample is that of bazis-authing (the token endpoint of bazis-users stays); the roles, statuses and
-transits are defined once in `sample/tasks/workflow.py` and created by the data migration
-`tasks.0005_workflow` (as a product creates them; the fixture `workflow`,
-`tests/conftest.py`, creates them again after a test that flushed the tables), with
+transits are the data migration `sample/tasks/migrations/0005_workflow.py`, its data frozen
+there as in any migration (as a product creates them; the fixture `workflow`,
+`tests/conftest.py`, runs its function again after a test that flushed the tables, and
+`tests/test_e2e.py` checks the migrated data against `sample/spec/`), with
 field permissions (the viewer does not see the report, the manager may not change it) that
 the scenarios check with `field_absent` and `field_readonly`. `manage.py e2e_data` is the
 e2e data command that bazis-front recommends to products (the module AGENTS.md, "The

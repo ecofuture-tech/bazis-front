@@ -26,19 +26,19 @@ def sample_app():
 def workflow(db):
     """
     The data that the contract reads from the database: roles with their permission groups
-    and permissions, and the statuses and transits of the tasks. They are those of the specs
-    of the sample (`sample/spec/`): the permissions of the roles cover their `access`. The
-    migration `tasks.0005_workflow` creates them; a test with `transaction=True` flushes the
-    tables, so the fixture creates them again (data that exists is kept).
+    and permissions, and the statuses and transits of the tasks, those of the specs of the
+    sample (`sample/spec/`). The data migration `tasks.0005_workflow` creates them; a test
+    with `transaction=True` flushes the tables, so the fixture runs the function of the
+    migration again, with the models of the project (data that exists is kept).
     """
+    import importlib
+
     from django.apps import apps
     from django.contrib.contenttypes.models import ContentType
-
-    from tasks.workflow import create_workflow
 
     from bazis.contrib.statusy.models import StatusyContentType
 
     # the cached content types of a test before a flush would no longer exist
     ContentType.objects.clear_cache()
     StatusyContentType.objects.clear_cache()
-    create_workflow(apps)
+    importlib.import_module('tasks.migrations.0005_workflow').create_workflow(apps)

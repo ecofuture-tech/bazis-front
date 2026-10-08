@@ -388,22 +388,31 @@ def test_e2e_needs_a_frontend(tmp_path):
 
 
 @pytest.mark.django_db
-def test_the_migrations_of_the_sample_create_its_workflow():
-    from django.apps import apps
+def test_the_migrations_of_the_sample_create_the_data_of_its_specs(sample_app, tmp_path):
+    from bazis.contrib.front.contract.export import render
 
-    from tasks.workflow import ROLES, STATUSES, TRANSITS
+    # the contract of the migrated database, without the fixture `workflow`
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    text = render(sample_app)['contract.json']
+    (tmp_path / 'contract').mkdir()
+    (tmp_path / 'contract' / 'contract.json').write_text(text, encoding='utf-8')
+    contract = json.loads(text)['capabilities']
+    with override_settings(BASE_DIR=str(tmp_path)):
+        result = validate(tmp_path)
+    # the permit roles of the roles with the permissions that their `access` compiles to
+    # (P018, P019), the statuses and the transitions of the workflow (P015, P016)
+    assert [(it.code, it.location) for it in result.issues] == []
 
-    # the data of the product is in its migrations, not in the e2e data command
-    assert set(apps.get_model('permit.Role').objects.values_list('slug', flat=True)) == {
-        slug for slug, *_ in ROLES
+    # and nothing else of the workflow: the statuses and the transits are those of the specs
+    spec = yaml.safe_load((SAMPLE_SPEC / 'product.yaml').read_text(encoding='utf-8'))
+    workflow = next(it for it in spec['entities'] if it['resource'] == 'tasks.task')['workflow']
+    model = contract['statusy']['models']['tasks.task']
+    assert model['initial'] == workflow['initial']
+    assert {it['id'] for it in model['statuses']} == set(workflow['statuses'])
+    assert {(it['id'], it['src'], it['dst']) for it in model['transits']} == {
+        (it['id'], it['from'], it['to']) for it in workflow['transitions']
     }
-    assert set(apps.get_model('statusy.Status').objects.values_list('id', flat=True)) == {
-        pk for pk, _ in STATUSES
-    }
-    transits = apps.get_model('statusy.Transit').objects.all()
-    assert {(it.id, it.model.app_label, it.model.model) for it in transits} == {
-        (pk, 'tasks', 'task') for pk, *_ in TRANSITS
-    }
+    assert {it['permit'] for it in spec['roles']} <= {it['slug'] for it in contract['permit']['roles']}
 
 
 @pytest.mark.django_db

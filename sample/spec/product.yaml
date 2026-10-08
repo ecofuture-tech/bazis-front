@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../bazis/contrib/front/spec/schemas/product.schema.json
 # The product spec of the sample: the tasks of a team with a workflow. The roles,
-# statuses and transits that it references are created by the fixture `workflow` of the
-# tests (tests/conftest.py).
+# statuses and transits that it references are created by the data migration
+# tasks/migrations/0005_workflow.py.
 spec: bazis-product/1
 product:
   id: tasks
@@ -57,7 +57,7 @@ scenarios:
       - open: task-list
       - expect: {action_absent: create}
       - open_item: {where: {title: Review the plan}}   # created by `manage.py e2e_data`
-      # a field permission of the viewer (sample/tasks/workflow.py): the report is hidden
+      # a field permission of the viewer (tasks/migrations/0005_workflow.py): the report is hidden
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
   # the picker of the assignee searches the user by the label; the list shows the label
   - id: manager-assigns-a-task
