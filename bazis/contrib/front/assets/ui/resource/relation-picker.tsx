@@ -18,7 +18,16 @@
 // resource in the contract): the core answers a search of a route set without them with 400.
 
 import { Check, ChevronsUpDown, LoaderCircle, Search } from 'lucide-react';
-import { useEffect, useId, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ComponentProps,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 
 import { nextPage } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
@@ -81,6 +90,8 @@ interface OptionsProps {
   searchable: boolean;
   /** The name of the search (of the list without one) for assistive technologies. */
   searchLabel: string;
+  /** The list, which has the focus and the keys without a search. */
+  listRef: RefObject<HTMLUListElement | null>;
   onSelect: (item: ResourceObject | null) => void;
   /** Closes the picker (Tab): the focus goes back to its button. */
   onClose: () => void;
@@ -94,7 +105,7 @@ interface OptionsProps {
  * is, until the user moves, the selected item when the picker opens and the first item
  * after a search, never the option that clears the value.
  */
-function Options({ path, value, nullable, placeholder, searchable, searchLabel, onSelect, onClose }: OptionsProps) {
+function Options({ path, value, nullable, placeholder, searchable, searchLabel, listRef, onSelect, onClose }: OptionsProps) {
   const listId = useId();
   const { t } = useLanguage();
   const [text, setText] = useState('');
@@ -205,7 +216,9 @@ function Options({ path, value, nullable, placeholder, searchable, searchLabel, 
               'aria-activedescendant': current >= 0 ? optionId(current) : undefined,
               onKeyDown: keyDown,
             })}
-        className="max-h-72 overflow-y-auto p-1 outline-none empty:hidden"
+        ref={listRef}
+        // without a search the list stays shown while its first page loads: it has the focus
+        className={cn('max-h-72 overflow-y-auto p-1 outline-none', searchable ? 'empty:hidden' : 'empty:p-0')}
       >
         {entries.map((entry, index) => {
           const chosen = entry.kind === 'item' ? entry.item.id === value : entry.kind === 'clear' && value === null;
@@ -273,6 +286,7 @@ function Picker({
   searchable: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const listRef = useRef<HTMLUListElement>(null);
   const { t } = useLanguage();
   // the item chosen here: its label without another request
   const [chosen, setChosen] = useState<ResourceObject | null>(null);
@@ -303,13 +317,26 @@ function Picker({
           <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden="true" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-60 p-0">
+      <PopoverContent
+        align="start"
+        className="w-(--radix-popover-trigger-width) min-w-60 p-0"
+        // without a search the list takes the focus, also while it has no option yet
+        {...(searchable
+          ? {}
+          : {
+              onOpenAutoFocus: (event: Event) => {
+                event.preventDefault();
+                listRef.current?.focus();
+              },
+            })}
+      >
         <Options
           path={path}
           value={value}
           nullable={nullable}
           placeholder={placeholder}
           searchable={searchable}
+          listRef={listRef}
           searchLabel={t(searchable ? 'picker.search_label' : 'picker.choose_label', {
             name: name ?? control['aria-label'] ?? relation,
           })}

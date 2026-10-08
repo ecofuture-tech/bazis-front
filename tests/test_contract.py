@@ -555,6 +555,10 @@ def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch)
     # bazis-uploadable `2.6` is its minimum 2.6.0
     versions['bazis-uploadable'] = '2.6'
     assert [name for name, _, _ in capabilities.outdated(['uploadable', 'ws'])] == ['ws']
+    # bazis-permit: the selectors of the contract (2.6) and the query scope of its routes (2.7)
+    versions['bazis-permit'] = '2.6.0'
+    assert [name for name, _, _ in capabilities.outdated(['permit', 'statusy'])] == ['permit']
+    assert 'bazis-permit>=2.7.0' in check_packages(None)[0].msg
 
 
 def test_the_default_language_is_a_code_of_the_languages():

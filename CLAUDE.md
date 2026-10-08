@@ -360,7 +360,10 @@ npm test
   against the helpers and linted); `test/helpers.spec.ts` runs the helpers in Chromium
   against pages served by the test with the marks of the components and delays of a
   backend (also the negative cases: an expectation must not pass before the screen has
-  loaded); `test/types.typecheck.ts` has the type tests. The template declares
+  loaded); `test/picker.spec.ts` runs them against the real `RelationPicker`, the page
+  `assets/ui/test/browser/` served by Vite with the aliases of the components (where Radix
+  puts the focus, the display of an empty list: what jsdom does not have; only the rules of
+  the Tailwind utilities it relies on); `test/types.typecheck.ts` has the type tests. The template declares
   `@playwright/test` with the version of this workspace.
 
 ### The template (`assets/template`)

@@ -54,7 +54,11 @@ CAPABILITIES = {
         'bazis-authing', 'bazis.contrib.authing', minimum='2.6.0',
         needs='its logout endpoint, a store that gives its session once',
     ),
-    'permit': Capability('bazis-permit', 'bazis.contrib.permit', needs_db=True),
+    'permit': Capability(
+        'bazis-permit', 'bazis.contrib.permit', needs_db=True, minimum='2.7.0',
+        needs='the selectors of the contract (many-to-many and reverse relations, 2.6) and the '
+        'filter of a route restricted to the fields the user sees (2.7)',
+    ),
     'statusy': Capability('bazis-statusy', 'bazis.contrib.statusy', needs_db=True),
     'uploadable': Capability(
         'bazis-uploadable', 'bazis.contrib.uploadable', minimum='2.6.0',

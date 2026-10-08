@@ -170,9 +170,9 @@ export class App<P extends Product = Product> {
   /**
    * Chooses an item in a combobox: opens its popup (`aria-controls`), searches the label (in
    * the search of the popup; a popup without one, whose route set has no search fields:
-   * reads the next page, the option without `data-value`, until the item is listed) and
-   * clicks the option with exactly that text, or the option that clears the value
-   * (`data-value=""`); waits until the popup is closed.
+   * reads the next page, the option without `data-value`, until the item is listed, each
+   * page waited for on its own) and clicks the option with exactly that text, or the option
+   * that clears the value (`data-value=""`); waits until the popup is closed.
    */
   private async choose(control: Locator, value: string | number | boolean | null): Promise<void> {
     await control.click();
@@ -181,20 +181,21 @@ export class App<P extends Product = Product> {
       await popup.locator('[role="option"][data-value=""]').click();
     } else {
       const option = popup.getByRole('option', { name: exactly(value) });
-      // the search and the list are rendered together (an empty list is hidden)
+      // the search and the list are rendered together (an empty list may be hidden)
       await expect(popup.locator('[role="listbox"]')).toHaveCount(1);
       if (await popup.getByRole('combobox').count()) {
         await popup.getByRole('combobox').fill(String(value));
       } else {
+        const options = popup.getByRole('option');
         const more = popup.locator('[role="option"]:not([data-value])');
-        await expect
-          .poll(async () => {
-            if (await option.count()) return true;
-            // the next page; none while one loads
-            if (await more.count()) await more.click();
-            return false;
-          })
-          .toBe(true);
+        // the item, or the next page: the option of the next page is gone while it loads
+        await expect(option.or(more).first()).toBeVisible();
+        while (!(await option.count())) {
+          const listed = await options.count();
+          await more.click();
+          await expect.poll(() => options.count()).not.toBe(listed);
+          await expect(option.or(more).first()).toBeVisible();
+        }
       }
       await option.click();
     }

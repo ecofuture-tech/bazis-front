@@ -140,7 +140,8 @@ the WebSocket of the page in a test.
   for null). The search is there only when the route set has search fields (`searchable`;
   by default `search` of the resource in the contract, `hasSearch`): the core answers a
   search of a route set without `search_fields` with 400 `ERR_FILTER`, so such a picker
-  lists the items without a search box, the list taking the focus and the keys (and the
+  lists the items without a search box, the list taking the focus and the keys, also while
+  its first page loads (and the
   helpers of the end-to-end tests read its pages until the item is listed). The keyboard follows the
   combobox pattern of WAI-ARIA: Enter, Space or ArrowDown opens with the selected item
   active, typing searches with the first item found active (the option that clears is
