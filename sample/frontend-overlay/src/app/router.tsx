@@ -13,13 +13,17 @@
 // limitations under the License.
 
 import { House, ListChecks } from 'lucide-react';
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
 import { PRODUCT_NAME } from '@/app/product';
 import { LOGIN_ENABLED, logout, useToken } from '@/app/session';
+import { CAPABILITIES } from '@/bazis/generated/contract';
+import { SocketProvider, type Notification } from '@/bazis/react/ws';
 import { AppShell, ListCardLayout, type NavItem } from '@/bazis/ui/app-shell';
 import { FileFieldProvider } from '@/bazis/ui/file-field';
+import { LiveQuery } from '@/bazis/ui/live-query';
+import { NotificationCenter } from '@/bazis/ui/notification-center';
 import { HomeScreen } from '@/screens/home';
 import { LoginScreen } from '@/screens/login';
 import { TaskCardScreen } from '@/screens/task-card';
@@ -39,12 +43,28 @@ const NAVIGATION: readonly NavItem[] = [
 function RequireSession() {
   const token = useToken();
   const location = useLocation();
+  const navigate = useNavigate();
   if (LOGIN_ENABLED && !token) {
     const from = location.pathname + location.search;
     return <Navigate to="/login" replace state={{ from }} />;
   }
+  // a notification of a task opens its card
+  const open = (notification: Notification) => {
+    if (notification.resource === 'tasks.task' && notification.id !== null) void navigate(`/tasks/${notification.id}`);
+  };
   return (
-    <AppShell title={PRODUCT_NAME} items={NAVIGATION} session={LOGIN_ENABLED ? { onLogout: logout } : null}>
+    <AppShell
+      title={PRODUCT_NAME}
+      items={NAVIGATION}
+      session={LOGIN_ENABLED ? { onLogout: logout } : null}
+      // bazis-ws: the lists and the cards refetched when a task changes, the notifications
+      tools={
+        <>
+          <LiveQuery />
+          <NotificationCenter onOpen={open} />
+        </>
+      }
+    >
       <ErrorBoundary resetKey={location.pathname}>
         <Outlet />
       </ErrorBoundary>
@@ -53,22 +73,27 @@ function RequireSession() {
 }
 
 export function AppRouter() {
+  // the socket of bazis-ws with the token of the session: none before the login, closed by
+  // the logout
+  const token = useToken();
   return (
-    // the file fields of the forms upload their files (bazis-uploadable)
-    <FileFieldProvider>
-      <BrowserRouter>
-        <Routes>
-          {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
-          <Route element={<RequireSession />}>
-            <Route index element={<HomeScreen />} />
-            {/* the card next to the list or in its place (`composition.list_card` of the theme) */}
-            <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
-              <Route path=":id" element={<TaskCardScreen />} />
+    <SocketProvider path={CAPABILITIES.ws?.path ?? null} token={token}>
+      {/* the file fields of the forms upload their files (bazis-uploadable) */}
+      <FileFieldProvider>
+        <BrowserRouter>
+          <Routes>
+            {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
+            <Route element={<RequireSession />}>
+              <Route index element={<HomeScreen />} />
+              {/* the card next to the list or in its place (`composition.list_card` of the theme) */}
+              <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
+                <Route path=":id" element={<TaskCardScreen />} />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </FileFieldProvider>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </FileFieldProvider>
+    </SocketProvider>
   );
 }

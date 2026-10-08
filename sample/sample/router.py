@@ -22,3 +22,6 @@ router.register('bazis.contrib.users.router')
 # bazis-authing: GET /auth/ and the login by password (BAZIS_AUTH_KINDS)
 router.register('/authing', 'bazis.contrib.authing.router')
 router.register('/authing', 'bazis.contrib.authing.services.password.router')
+# the background tasks of the user (bazis-bg) and the results of bazis-async-background
+router.register('bazis.contrib.bg.router')
+router.register('bazis.contrib.async_background.router')

@@ -30,8 +30,9 @@ python -m pytest ../tests -o addopts="" -p no:cacheprovider
 
 Lint: `ruff check bazis tests sample scripts`.
 
-The sample (`sample/`) installs bazis-users, bazis-authing, bazis-permit, bazis-statusy and
-bazis-uploadable (the `test` extra) with a project app `users` and a statusy model
+The sample (`sample/`) installs bazis-users, bazis-authing, bazis-permit, bazis-statusy,
+bazis-uploadable, bazis-ws, bazis-author with bazis-bg, bazis-async-background and
+bazis-async-request (the `test` extra) with a project app `users` and a statusy model
 `tasks.Task`, whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through `tasks.routes.FileRouteSet`, a
 `FileUploadRouteSet` that requires a user, has no update and no delete and lists no file:
@@ -43,7 +44,18 @@ fixture `workflow` (`tests/conftest.py`) and outside pytest by `manage.py sample
 (with the test users of the roles, their password set to `E2E_PASSWORD` at every run, and
 the task that the scenario of the viewer opens: the data of the end-to-end tests), with
 field permissions (the viewer does not see the report, the manager may not change it) that
-the scenarios check with `field_absent` and `field_readonly`. The
+the scenarios check with `field_absent` and `field_readonly`. The user model has
+`UserWsMixin` and `sample/main.py` registers the socket of bazis-ws (`ws_route`, `/ws`) and
+`AsyncRequestMiddleware`; `sample/tasks/notify.py` publishes, after the commit, every save
+of a task to the common channel (`{"resource", "id"}`) and the notification of the
+assignee of a finished task (`{"action": "notification", ...}`), which the scenario
+`manager-is-notified-of-a-finished-task` expects (Redis only). The sample has no Kafka and
+no `bg_scheduler`: a request with `X-Async-Background` runs at once
+(`async_request.W001` is silenced in `sample/settings.py`), and the task of bazis-bg of the
+sample (`tasks.bg.count.CountTasks`) is run by the tests in their process; the 202, the
+result route and the statuses on the socket are captured with the publication to Kafka
+replaced (`tests/test_react_fixture.py`), the rest of the background work is covered by the
+tests of the hooks and the contract tests of the components. The
 title of a task is not empty (`MinLengthValidator`), for the scenario of a failing
 submit. `sample/spec/` is a complete valid spec of the sample: the permissions
 of the roles of `workflow` cover its `access`, and `tests/test_spec.py` checks it against
@@ -61,7 +73,11 @@ frontend made from the sample by the `e2e` job of CI.
   of the operation surface, `contract/resources.py` the resources read from the OpenAPI.
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
-  when the package is installed and its app is in `INSTALLED_APPS`.
+  when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the
+  package is not a Django app, bazis-ws, and its installed distribution is enough). The
+  export imports `bazis.core.app`, not the main module of the project: what the main
+  module adds (`ws_route`, a middleware) is not seen, so `ws.path` falls back to the path
+  of `ws_route` and `async_request` states its header only.
 - Bazis imports every subpackage of `bazis.contrib` while it configures the settings: the
   `__init__.py` of a subpackage must not import models, the database or `bazis.core`
   modules that do.
@@ -202,7 +218,8 @@ npm test
 ### The client (`assets/client`)
 
 - `src/`: `client.ts` (the operations, with the upload of bazis-uploadable over
-  XMLHttpRequest and the authorization store of bazis-authing), `types.ts` (types read from
+  XMLHttpRequest, the authorization store of bazis-authing and the background requests of
+  bazis-async-request with the results of bazis-async-background), `types.ts` (types read from
   the generated `paths`), `filter.ts` (the filter grammar of
   `bazis.core.utils.query_complex`), `errors.ts`, `pagination.ts`, `permit.ts`.
 - Unit tests (`test/*.test.ts`) assert the exact URLs, headers and bodies against a mocked
@@ -221,8 +238,13 @@ npm test
   asked for together read with one list filtered by `pk=<a>|pk=<b>`), `schema.ts` (the fields of a runtime schema),
   `form.ts` (`useResourceForm`), `types.ts`; `src/statusy/` is the separate asset
   `react-statusy` (`requires` the capability `statusy`), `src/uploadable/` the asset
-  `react-uploadable` (`useUpload`, the capability `uploadable`). `README.md` documents the API, the
-  keys and the protocol facts they rely on.
+  `react-uploadable` (`useUpload`, the capability `uploadable`), `src/ws/` the asset
+  `react-ws` (`SocketProvider`, `useSocket`, `useChannel`, `useLiveQueries`,
+  `useNotifications`, the capability `ws`), `src/bg/` the asset `react-bg` (`useBgTask`,
+  `bg`), `src/async/` the asset `react-async` (`useAsyncRequest`, `useAsyncTask`,
+  `async_background`). `README.md` documents the API, the keys and the protocol facts they
+  rely on. The tests of the socket use a fake WebSocket (`test/socket.ts`; the components
+  have theirs in `testing`).
 - They import `@/bazis/client` and `@/bazis/generated/schema` as a product does; in this
   repository `tsconfig.json` (`paths`) and `vitest.config.ts` (`alias`) point them to the
   client asset and to `test/fixtures/schema.d.ts` (the fixture of the client plus the
@@ -232,7 +254,9 @@ npm test
   of the client (`test/support.tsx`) and assert the requests, the exact query keys, the
   invalidations, the documents of the form and the transits; `test/types.typecheck.ts` has
   the type tests. `test/fixtures/sample.json` holds responses of the sample of this
-  repository (runtime schemas, retrieves with `state_actions`, a 422) reduced to what the
+  repository (runtime schemas, retrieves with `state_actions`, a 422, the messages of the
+  socket, the documents of a task of bazis-bg, the answers of a background request) reduced
+  to what the
   hooks read and normalized so that they do not depend on the versions of Python and
   Pydantic (the keywords of the schemas the hooks read, the titles of fields only, the
   definitions renamed, fixed ids, dates and error messages):
@@ -251,9 +275,10 @@ npm test
   field that `FilesProvider` gives it; `FieldValue`, `FileValue`, `RelationLabel`,
   `RelationPicker`, `permitted`, and `hooks.ts`, the hooks with plain paths: the only casts of the
   components, so that the lint of a product does not depend on its types; `file-field` casts
-  `useUpload` of its own, which `resource` cannot import); `ui/testing/`
+  `useUpload` of its own, and `task-progress` `useBgTask`); `AppShell` mounts its `tools`
+  (`notification-center`, `live-query`) once, in the place of the current width; `ui/testing/`
   the support of the contract tests (its `Backend` also answers the uploads of the client,
-  `xhr`); `ui/shadcn/` the shadcn/ui components they use (style
+  `xhr`; `FakeSocket` is the WebSocket of the tests of the socket); `ui/shadcn/` the shadcn/ui components they use (style
   new-york-v4 with the aliases of `components.json`, their MIT notice in the header of each
   file), each an asset copied to `src/components/ui/`. `README.md` documents them.
 - The contract tests are copied into products and run there by `npm test` (jsdom, set in

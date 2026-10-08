@@ -150,8 +150,9 @@ CASES = [
     # the sample has bazis-statusy and bazis-uploadable: a frontend made by `init` has their hooks
     (
         'C003',
+        # the hooks of the five packages of the sample that have their own
         {LOCK: lambda d: lock('client', 'react', 'template')},
-        [('C003', f'{LOCK}#/assets'), ('C003', f'{LOCK}#/assets')],
+        [('C003', f'{LOCK}#/assets')] * 5,
     ),
     ('P001', {PRODUCT: lambda d: 'spec: [\n'}, [('P001', PRODUCT)]),
     ('P002', {PRODUCT: lambda d: d.update(spec='bazis-product/2')}, [('P002', f'{PRODUCT}#/spec')]),
@@ -255,6 +256,8 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/0/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/0/steps/6/transit/payload/report'),
             ('P024', f'{PRODUCT}#/scenarios/4/steps/13/transit'),
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/5/transit'),
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/report'),
         ],
     ),
     (
@@ -348,6 +351,12 @@ CASES = [
         # bazis-authing without its service `password`: the test users cannot log in
         {CONTRACT: lambda d: d['capabilities']['authing'].update(actions=[])},
         [('P026', f'{PRODUCT}#/scenarios')],
+    ),
+    (
+        'P027',
+        # the notification of the last scenario comes over the socket of bazis-ws
+        {PRODUCT: lambda d: d['packages'].remove('ws')},
+        [('P027', f'{PRODUCT}#/scenarios/6/steps/7/expect/notification')],
     ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
@@ -469,11 +478,12 @@ def layer_of(file: str) -> str:
 @pytest.mark.django_db
 def test_the_assets_follow_the_capabilities(contract):
     root = contract.parent.parent
-    edit(root, LOCK, lambda d: lock('client', 'react', 'react-statusy', 'react-uploadable', 'template'))
+    hooks = ['react-statusy', 'react-uploadable', 'react-ws', 'react-bg', 'react-async']
+    edit(root, LOCK, lambda d: lock('client', 'react', *hooks, 'template'))
     assert issues(root) == []
     # the components of a package are added when the product needs them
     edit(root, LOCK, lambda d: lock(
-        'client', 'react', 'react-statusy', 'react-uploadable', 'status-badge', 'file-field', 'template'
+        'client', 'react', *hooks, 'status-badge', 'file-field', 'notification-center', 'template'
     ))
     assert issues(root) == []
 

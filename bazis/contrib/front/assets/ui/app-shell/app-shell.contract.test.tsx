@@ -14,7 +14,7 @@
 
 // The contract of the layout: `nav:<screen>` of the navigation (the current one
 // `aria-current="page"`), `screen:<id>`, the logout `action:logout` with a session only, the
-// color mode; and the list with its card (`ListCardLayout`), side by side or one at a time.
+// color mode, the tools of the product mounted once; and the list with its card (`ListCardLayout`), side by side or one at a time.
 // Keep it passing when the component is changed.
 
 import { fireEvent, screen } from '@testing-library/react';
@@ -63,6 +63,34 @@ describe('AppShell', () => {
     expect(screen.getByTestId('screen:home')).toBeTruthy();
     expect(screen.queryByTestId('action:logout')).toBeNull();
   });
+
+  for (const [navigation, wide] of [['sidebar', true], ['sidebar', false], ['topbar', true]] as const) {
+    it(`mounts the tools once (${navigation}, ${wide ? 'wide' : 'a phone'})`, () => {
+      // the sidebar is shown from the breakpoint `md`, its header on a phone
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('min-width') ? wide : false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }));
+      const mounted = vi.fn();
+      function Tool() {
+        useEffect(mounted, []);
+        return <button type="button" data-bz="action:tool" />;
+      }
+      try {
+        renderWithBazis(
+          <AppShell title="Product" navigation={navigation} items={items} tools={<Tool />}>
+            <Screen id="home">home</Screen>
+          </AppShell>,
+          new Backend(),
+        );
+        expect(screen.getAllByTestId('action:tool')).toHaveLength(1);
+        expect(mounted).toHaveBeenCalledOnce();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  }
 
   it('lays the header of a screen out in the screen, so that it sticks in it', () => {
     renderWithBazis(

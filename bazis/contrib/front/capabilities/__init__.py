@@ -15,9 +15,10 @@
 """
 The `capabilities` sections of the contract: what the Bazis packages of the project give
 the frontend. A section is made by the module `capabilities/<name>.py`, imported only when
-the package is installed and its app is in INSTALLED_APPS: the modules import the models
-of their packages. Bazis imports this package while it configures the settings: nothing
-here imports a model or the database at the module level.
+the package is installed and its app is in INSTALLED_APPS (bazis-ws, which is not a Django
+app: when it is installed): the modules import the models of their packages. Bazis imports
+this package while it configures the settings: nothing here imports a model or the
+database at the module level.
 """
 
 from dataclasses import dataclass
@@ -35,6 +36,9 @@ class Capability:
     module: str
     #: the section reads the database (roles, statuses, transits)
     needs_db: bool = False
+    #: the package is a Django app, which the project installs; else it is enough that the
+    #: distribution is installed (bazis-ws)
+    app: bool = True
 
 
 CAPABILITIES = {
@@ -43,6 +47,10 @@ CAPABILITIES = {
     'permit': Capability('bazis-permit', 'bazis.contrib.permit', needs_db=True),
     'statusy': Capability('bazis-statusy', 'bazis.contrib.statusy', needs_db=True),
     'uploadable': Capability('bazis-uploadable', 'bazis.contrib.uploadable'),
+    'ws': Capability('bazis-ws', 'bazis.contrib.ws', app=False),
+    'bg': Capability('bazis-bg', 'bazis.contrib.bg'),
+    'async_background': Capability('bazis-async-background', 'bazis.contrib.async_background'),
+    'async_request': Capability('bazis-async-request', 'bazis.contrib.async_request'),
 }
 
 
@@ -78,7 +86,7 @@ def enabled() -> list[str]:
             metadata.version(capability.distribution)
         except metadata.PackageNotFoundError:
             continue
-        if app_enabled(capability.module):
+        if not capability.app or app_enabled(capability.module):
             result.append(name)
     return result
 

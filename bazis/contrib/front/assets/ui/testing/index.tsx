@@ -15,8 +15,8 @@
 // The support of the contract tests of the components (`*.contract.test.tsx`): a backend
 // that answers the requests of the client (a mocked `fetch`, and the XMLHttpRequest of its
 // uploads), the documents and runtime
-// schemas of Bazis it answers with, and the render of a component inside the providers of
-// the hooks and a router. The tests find the elements by their `data-bz` (`getByTestId`).
+// schemas of Bazis it answers with, a socket of bazis-ws (`FakeSocket`), and the render of
+// a component inside the providers of the hooks and a router. The tests find the elements by their `data-bz` (`getByTestId`).
 // Only the tests import it.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -256,4 +256,54 @@ export function renderWithBazis(
     </MemoryRouter>,
   );
   return Object.assign(result, { queryClient });
+}
+
+/**
+ * The WebSocket of the page in a test (`vi.stubGlobal('WebSocket', FakeSocket)`): records the
+ * sockets created and what they send, and receives what the test sends as the server of
+ * bazis-ws.
+ */
+export class FakeSocket {
+  static readonly sockets: FakeSocket[] = [];
+  readonly sent: unknown[] = [];
+  closed: number | null = null;
+  onopen: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+
+  constructor(readonly url: string) {
+    FakeSocket.sockets.push(this);
+  }
+
+  /** The socket created last. */
+  static last(): FakeSocket {
+    const socket = FakeSocket.sockets.at(-1);
+    if (socket === undefined) throw new Error('No socket was created.');
+    return socket;
+  }
+
+  send(data: string): void {
+    this.sent.push(JSON.parse(data));
+  }
+
+  close(code?: number): void {
+    this.closed = code ?? 1005;
+  }
+
+  /** The server accepts the connection. */
+  open(): void {
+    this.onopen?.(new Event('open'));
+  }
+
+  /** A message published to a channel of the session, as the server sends it (its text). */
+  publish(published: unknown): void {
+    const data = typeof published === 'string' ? published : JSON.stringify(published);
+    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify({ type: 'data', data }) }));
+  }
+
+  /** The connection is lost. */
+  drop(code = 1011): void {
+    this.onclose?.(new CloseEvent('close', { code }));
+  }
 }

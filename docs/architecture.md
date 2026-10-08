@@ -43,12 +43,14 @@ each operation) and `contract.json` into `contract/` of the product root (`BASE_
 directory of `manage.py`): the resources with their actions and fields, read from
 `x-bazis` and the response schemas of the OpenAPI, and a section per installed capability
 package (users, the auth endpoint and login actions of authing, permit roles, statusy
-transits, the upload resources and size limit of uploadable, …). A section is made by a module
+transits, the upload resources and size limit of uploadable, the path of the socket of ws,
+the resource of the tasks of bg, the result path of async_background, the header of
+async_request). A section is made by a module
 `bazis/contrib/front/capabilities/<name>.py`, imported only when the package is installed
-and its app is in `INSTALLED_APPS`. Permit and statusy sections are read from the
-database, so the export needs a migrated database (`front.E002` otherwise). The files are
-canonical JSON (sorted keys, a trailing newline): the same backend gives the same bytes.
-`--check` compares without writing; the same comparison is the system check `front.W001`
+and its app is in `INSTALLED_APPS` (bazis-ws is not a Django app: when it is installed).
+Permit and statusy sections are read from the database, so the export needs a migrated
+database (`front.E002` otherwise). The files are canonical JSON (sorted keys, a trailing
+newline): the same backend gives the same bytes. `--check` compares without writing; the same comparison is the system check `front.W001`
 "contract is stale", run by `bazis_doctor` when `contract/` or the lock of the frontend
 exists. The format of
 `contract.json` is documented in `bazis/contrib/front/AGENTS.md`.
@@ -82,8 +84,10 @@ reimplement it:
   `route_filter_fields`;
 - the token endpoint of bazis-users, the authorization store of bazis-authing (a store
   token without `exp`, anonymous on HTTP, exchanged for the session token), the permission
-  meta of bazis-permit, the transits of bazis-statusy and the multipart uploads of
-  bazis-uploadable (with XMLHttpRequest for their progress).
+  meta of bazis-permit, the transits of bazis-statusy, the multipart uploads of
+  bazis-uploadable (with XMLHttpRequest for their progress) and the background requests of
+  bazis-async-request with the results of bazis-async-background (a 202 with a task, or the
+  response of a request run at once without Kafka).
 
 The client implements these once. It is generic over the generated `paths` type of a
 product. Its unit tests and type tests stay in this repository; only `src/` is copied.
@@ -102,7 +106,17 @@ product and contain no UI. The hooks of a package are a separate asset that `ini
 only when the product has its capability (`requires` in the registry): the transits of
 bazis-statusy (`useTransits` from `meta.state_actions`, `useTransit`) in
 `@/bazis/react/statusy`, the uploads of bazis-uploadable (`useUpload`, with its progress and
-abort) in `@/bazis/react/uploadable`; ws and async will follow.
+abort) in `@/bazis/react/uploadable`, the socket of bazis-ws in `@/bazis/react/ws`
+(`SocketProvider`: one connection a page with the token of the session, sent in its first
+message, reconnected with a backoff and closed by a logout; `useChannel`; `useLiveQueries`,
+which refetches the queries of what a message says changed, and every query after a
+reconnect, since pub/sub keeps nothing; `useNotifications`), the tasks of bazis-bg
+(`useBgTask`, the item of `bg.task` read until it is done) in `@/bazis/react/bg`, and the
+background requests in `@/bazis/react/async` (`useAsyncRequest`, `useAsyncTask`: the result
+read until the task is done, at once when its status comes on the socket). bazis-ws carries
+any JSON: the formats of a change (`{"resource", "id"}`) and of a notification
+(`{"action": "notification", "title", …}`) are those of bazis-front, which the backend of a
+product publishes.
 
 Runtime metadata (schemas, filter fields, permission meta, state actions) is never part of
 the contract: it is requested at run time and cached by TanStack Query. Every query key is
@@ -123,8 +137,12 @@ shared `resource`, which also shows the files of bazis-uploadable) and, with baz
 `status-badge`, `transit-bar` and `status-history` (the current status with its date and
 author: bazis-statusy has no endpoint for the earlier transits), with bazis-uploadable
 `file-field` (the upload of a file field, given to the input of the fields of the forms by
-`FileFieldProvider`). The login form takes the logins of bazis-authing: the password
-through its service `password`, and a button for a service whose page opens in a window.
+`FileFieldProvider`), with bazis-ws `notification-center` (a bell, the list of the
+notifications of the session, a toast for each new one) and `live-query` (the live
+refetches and the state of the socket), both in the `tools` of `AppShell`, with bazis-bg
+`task-progress` and with bazis-async-background `async-result`. The login form takes the
+logins of bazis-authing: the password through its service `password`, and a button for a
+service whose page opens in a window.
 They are listed
 in `assets/registry.json` with what they require (`requires.assets`: other components, the
 hooks, the shadcn/ui components; `requires.capabilities`), copied by
@@ -272,4 +290,6 @@ CI against the sample backend, and the update of the copies with a three-way mer
 into the theme of the frontend (`bazis_front design`, `front.W005`), and the field
 permissions of bazis-permit followed by the components, the picker of a relationship, the
 labels of related items read together and the status history of bazis-statusy, the logins
-of bazis-authing and the files of bazis-uploadable.
+of bazis-authing and the files of bazis-uploadable, and the socket of bazis-ws (the
+notifications and the live refetches), the tasks of bazis-bg and the background requests
+of bazis-async-request.

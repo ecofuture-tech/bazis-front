@@ -1486,5 +1486,139 @@
         }
       }
     ]
-  }
+  },
+  "ws_changed": {
+    "type": "data",
+    "data": {
+      "resource": "tasks.task",
+      "id": "00000000-0000-0000-0000-000000000000"
+    }
+  },
+  "ws_notification": {
+    "type": "data",
+    "data": {
+      "action": "notification",
+      "title": "Task finished",
+      "text": "Notify",
+      "resource": "tasks.task",
+      "id": "00000000-0000-0000-0000-000000000000"
+    }
+  },
+  "bg_task_waiting": {
+    "data": {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "type": "bg.task",
+      "attributes": {
+        "name": "Count the tasks",
+        "state": "waiting",
+        "phase": "waiting for start",
+        "expected": null,
+        "performed": null,
+        "result": null,
+        "error": null,
+        "interrupt": false,
+        "dt_start": null,
+        "dt_finish": null
+      }
+    }
+  },
+  "bg_task_running": {
+    "data": {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "type": "bg.task",
+      "attributes": {
+        "name": "Count the tasks",
+        "state": "running",
+        "phase": "Count the tasks",
+        "expected": 2,
+        "performed": 1,
+        "result": null,
+        "error": null,
+        "interrupt": false,
+        "dt_start": null,
+        "dt_finish": null
+      }
+    }
+  },
+  "bg_task_done": {
+    "data": {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "type": "bg.task",
+      "attributes": {
+        "name": "Count the tasks",
+        "state": "done",
+        "phase": "completed",
+        "expected": null,
+        "performed": null,
+        "result": {
+          "done": 1,
+          "in_progress": 1
+        },
+        "error": null,
+        "interrupt": false,
+        "dt_start": null,
+        "dt_finish": "2026-01-01T00:00:00Z"
+      }
+    }
+  },
+  "async_request_queued": {
+    "data": null,
+    "meta": {
+      "async_request_id": "00000000-0000-0000-0000-000000000000",
+      "async_background_id": "00000000-0000-0000-0000-000000000000"
+    }
+  },
+  "async_result_pending": {
+    "status": "pending",
+    "channel_name": "user_ws::00000000-0000-0000-0000-000000000000",
+    "response": null
+  },
+  "async_result_not_ready": {
+    "status": "not ready"
+  },
+  "async_result_completed": {
+    "status": "completed",
+    "channel_name": "user_ws::00000000-0000-0000-0000-000000000000",
+    "response": {
+      "task_id": "00000000-0000-0000-0000-000000000000",
+      "endpoint": "/api/v1/tasks/task/00000000-0000-0000-0000-000000000000/",
+      "status": 200,
+      "headers": [],
+      "response": {
+        "data": {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "type": "tasks.task",
+          "attributes": {
+            "title": "Later"
+          }
+        }
+      }
+    }
+  },
+  "ws_async_bg": [
+    {
+      "type": "data",
+      "data": {
+        "status": "pending",
+        "task_id": "00000000-0000-0000-0000-000000000000",
+        "action": "async_bg"
+      }
+    },
+    {
+      "type": "data",
+      "data": {
+        "status": "processing",
+        "task_id": "00000000-0000-0000-0000-000000000000",
+        "action": "async_bg"
+      }
+    },
+    {
+      "type": "data",
+      "data": {
+        "status": "completed",
+        "task_id": "00000000-0000-0000-0000-000000000000",
+        "action": "async_bg"
+      }
+    }
+  ]
 }

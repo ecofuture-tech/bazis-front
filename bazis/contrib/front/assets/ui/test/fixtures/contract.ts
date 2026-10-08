@@ -3,6 +3,7 @@
 
 /** The path of the route set of each resource, by its JSON:API type. */
 export const ROUTES = {
+  "bg.task": "/api/v1/bg/task/",
   "tasks.task": "/api/v1/tasks/task/",
   "uploadable.file_upload": "/api/v1/uploadable/file_upload/",
   "users.user": "/api/v1/users/user/",
@@ -13,6 +14,150 @@ export type ResourceType = keyof typeof ROUTES;
 
 /** The resources: model, route set, path, actions and fields (type, relation, filter and order labels). */
 export const RESOURCES = {
+  "bg.task": {
+    actions: {
+      action_list: "collection",
+      action_retrieve: "item",
+    },
+    fields: {
+      args: {
+        filter: "args",
+        order: "args",
+        type: "object",
+      },
+      author: {
+        filter: "author",
+        many: false,
+        order: "author",
+        relation: "users.user",
+      },
+      author_updated: {
+        filter: "author_updated",
+        many: false,
+        order: "author_updated",
+        relation: "users.user",
+      },
+      cls_path: {
+        filter: "cls_path",
+        order: "cls_path",
+        type: "string",
+      },
+      dt_created: {
+        filter: "dt_created",
+        format: "date-time",
+        order: "dt_created",
+        type: "string",
+      },
+      dt_finish: {
+        filter: "dt_finish",
+        format: "date-time",
+        order: "dt_finish",
+        type: "string",
+      },
+      dt_start: {
+        filter: "dt_start",
+        format: "date-time",
+        order: "dt_start",
+        type: "string",
+      },
+      dt_updated: {
+        filter: "dt_updated",
+        format: "date-time",
+        order: "dt_updated",
+        type: "string",
+      },
+      envs: {
+        filter: "envs",
+        order: "envs",
+        type: "object",
+      },
+      error: {
+        filter: "error",
+        order: "error",
+        type: "string",
+      },
+      expected: {
+        filter: "expected",
+        order: "expected",
+        type: "object",
+      },
+      file: {
+        filter: "file",
+        order: "file",
+        type: "string",
+      },
+      file_params: {
+        filter: "file_params",
+        order: "file_params",
+        type: "object",
+      },
+      handler: {
+        filter: "handler",
+        many: false,
+        order: "handler",
+        relation: "bg.task_handler",
+      },
+      interrupt: {
+        filter: "interrupt",
+        order: "interrupt",
+        type: "boolean",
+      },
+      kwargs: {
+        filter: "kwargs",
+        order: "kwargs",
+        type: "object",
+      },
+      log: {
+        filter: "log",
+        order: "log",
+        type: "string",
+      },
+      name: {
+        filter: "name",
+        order: "name",
+        type: "string",
+      },
+      performed: {
+        filter: "performed",
+        order: "performed",
+        type: "object",
+      },
+      phase: {
+        filter: "phase",
+        order: "phase",
+        type: "string",
+      },
+      phases_history: {
+        filter: "phases_history",
+        order: "phases_history",
+        type: "object",
+      },
+      pid: {
+        filter: "pid",
+        order: "pid",
+        type: "string",
+      },
+      result: {
+        filter: "result",
+        order: "result",
+        type: "object",
+      },
+      state: {
+        filter: "state",
+        order: "state",
+        type: "string",
+      },
+      task_cron: {
+        filter: "task_cron",
+        many: false,
+        order: "task_cron",
+        relation: "bg.task_cron",
+      },
+    },
+    model: "bg.Task",
+    path: "/api/v1/bg/task/",
+    route_set: "bazis.contrib.bg.routes.BgRoute",
+  },
   "tasks.task": {
     actions: {
       action_create: "create",
@@ -311,14 +456,24 @@ export const TRANSITS = {
 
 /** The sections of the capability packages, as in contract.json; null without the package. */
 export interface Capabilities {
+  readonly async_background: { readonly result_path: string | null } | null;
+  readonly async_request: { readonly header: string } | null;
   readonly authing: { readonly auth_url: string | null; readonly actions: readonly { readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; readonly token_param: string } | null;
+  readonly bg: { readonly resource: string | null } | null;
   readonly permit: { readonly roles: typeof ROLES } | null;
   readonly statusy: { readonly models: typeof TRANSITS } | null;
   readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;
   readonly users: { readonly token_url: string; readonly user_resource: string } | null;
+  readonly ws: { readonly path: string } | null;
 }
 
 export const CAPABILITIES: Capabilities = {
+  async_background: {
+    result_path: "/api/v1/async_background_response/{task_id}/",
+  },
+  async_request: {
+    header: "X-Async-Background",
+  },
   authing: {
     actions: [
       {
@@ -330,6 +485,9 @@ export const CAPABILITIES: Capabilities = {
     ],
     auth_url: "/api/v1/authing/auth/",
     token_param: "bazis_auth",
+  },
+  bg: {
+    resource: "bg.task",
   },
   permit: {
     roles: ROLES,
@@ -346,5 +504,8 @@ export const CAPABILITIES: Capabilities = {
   users: {
     token_url: "/api/openapi-token/",
     user_resource: "users.user",
+  },
+  ws: {
+    path: "/ws",
   },
 };

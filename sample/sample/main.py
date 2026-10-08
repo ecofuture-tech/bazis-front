@@ -17,5 +17,18 @@ import os
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sample.settings')
 
-from bazis.core.app import app  # noqa: F401
+# the application first: it sets Django up, which the modules below need (they read the
+# user model)
+from bazis.core.app import app
+
+
+# isort: split
+from bazis.contrib.async_request.middleware import AsyncRequestMiddleware
+from bazis.contrib.ws.ws import ws_route
+
+
+# the socket of bazis-ws (`/ws`, without the prefix of the API) and the requests of
+# bazis-async-request run in the background (`X-Async-Background`; at once without Kafka)
+app.router.routes.append(ws_route)
+app.add_middleware(AsyncRequestMiddleware)
 

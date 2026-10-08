@@ -28,7 +28,10 @@ import {
   useSchema,
   useUpdate,
 } from '../src/index.js';
+import { useAsyncRequest, useAsyncTask } from '../src/async/index.js';
+import { useBgTask } from '../src/bg/index.js';
 import { useTransit, useTransits } from '../src/statusy/index.js';
+import { useChannel, useSocket } from '../src/ws/index.js';
 
 const PARENT = '/api/v1/entity/parent_entity/';
 const CHILD = '/api/v1/entity/child_entity/';
@@ -82,4 +85,26 @@ export function useTypedTransits(): void {
   seen.push(useTransits(PARENT, '1').data?.[0]?.payload, useTransit(PARENT, '1'));
   // @ts-expect-error the route set of child_entity is not statusy
   seen.push(useTransits(CHILD, '1'));
+}
+
+export function useTypedBackground(): void {
+  const task = useBgTask(PARENT, '1');
+  const state: 'draft' | 'waiting' | 'starting' | 'running' | 'done' | undefined = task.data?.state;
+  // @ts-expect-error a path that is not of the API
+  seen.push(state, useBgTask('/api/v1/unknown/', '1'));
+  const request = useAsyncRequest();
+  request.mutate({ method: 'PATCH', path: `${PARENT}1/`, body: {} });
+  // @ts-expect-error a method that bazis-async-request does not take
+  request.mutate({ method: 'OPTIONS', path: PARENT });
+  const result = useAsyncTask('/api/v1/async_background_response/{task_id}/', null);
+  seen.push(result.status, request.data?.status === 'queued' ? request.data.taskId : null);
+}
+
+export function useTypedSocket(): void {
+  const { status } = useSocket();
+  // @ts-expect-error the statuses of the socket
+  const closed: typeof status = 'closed';
+  useChannel((message: unknown) => {
+    seen.push(message, status, closed);
+  });
 }

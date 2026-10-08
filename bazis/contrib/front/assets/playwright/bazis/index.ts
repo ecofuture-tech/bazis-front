@@ -318,6 +318,20 @@ export class App<P extends Product = Product> {
     await expect(this.page.locator(bz('error', field)).filter({ visible: true }).first()).toBeVisible();
   }
 
+  /**
+   * The user has a notification whose text contains this text: the bell
+   * (`action:notifications`) opens the list of the notifications (`list:notifications`),
+   * which waits for it (`notification:<key>`), and is closed again.
+   */
+  async expectNotification(text: string): Promise<void> {
+    const bell = this.page.locator(bz('action', 'notifications')).filter({ visible: true }).first();
+    await bell.click();
+    const list = this.page.locator(bz('list', 'notifications'));
+    await expect(list.locator('[data-bz^="notification:"]').filter({ hasText: text }).first()).toBeVisible();
+    await this.page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+  }
+
   private async expectReadonlyIn(form: Locator, field: string): Promise<void> {
     const control = form.locator(bz('field', field));
     if ((await control.count()) > 0) await expect(control).not.toBeEditable();

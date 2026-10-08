@@ -59,6 +59,7 @@ CODES: dict[str, tuple[str, str]] = {
     'P024': (ERROR, 'a scenario step references an unknown status or transition, or its payload differs'),
     'P025': (ERROR, 'the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`)'),
     'P026': (ERROR, 'the scenarios log in with a password, and the bazis-authing of the contract has no service `password`'),
+    'P027': (ERROR, 'a scenario expects a notification, and the product has no notifications (`packages` has no `ws`)'),
     'S001': (ERROR, 'a screen file is not valid YAML'),
     'S002': (ERROR, 'a screen does not follow screen.schema.json'),
     'S003': (ERROR, 'the id of a screen differs from its file name, or its route is taken'),

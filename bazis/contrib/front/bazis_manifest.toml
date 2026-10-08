@@ -12,7 +12,10 @@ solves = [
     "the product described as specs (roles, entities, access, scenarios, screens, design) and checked against the backend: missing resources, fields, transits and permissions of the roles",
 ]
 requires = ["bazis"]
-pairs_well = ["bazis-users", "bazis-authing", "bazis-permit", "bazis-statusy", "bazis-uploadable"]
+pairs_well = [
+    "bazis-users", "bazis-authing", "bazis-permit", "bazis-statusy", "bazis-uploadable", "bazis-ws",
+    "bazis-bg", "bazis-async-background", "bazis-async-request",
+]
 
 [[extension_points]]
 name = "manage.py bazis_front"
@@ -45,6 +48,12 @@ text = "the client in frontend/src/bazis/client/ is a copy kept pristine for the
 [[pitfalls]]
 text = "after `pip install -U bazis-front` the copies in frontend/ are of the old version until `bazis_front update` merges the new one with the changes of the product; it fails with conflict markers in the files that both changed (resolve them, then tsc and npm test), and `add` refuses until then; commit frontend/.bazis/ (the pristine copies the merge needs) and the lock"
 check = "front.W004"
+
+[[pitfalls]]
+text = "bazis-ws keeps nothing: a message published before the page subscribed is lost; publish after the commit, and the hooks refetch every query after a reconnect; the notifications are those of the session"
+
+[[pitfalls]]
+text = "without Kafka bazis-async-request runs a request with X-Async-Background at once and answers as usual: the frontend takes both the 202 with a task and the response"
 
 [[pitfalls]]
 text = "the frontend is not a security boundary: permissions are checked by the backend, the frontend only reads the permission meta and the runtime schemas"

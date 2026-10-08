@@ -53,7 +53,7 @@ sample (`tests/test_design.py` checks it; write it again with
 | Component | Props | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`; `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
+| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
@@ -62,6 +62,10 @@ sample (`tests/test_design.py` checks it; write it again with
 | `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 | `file-field` | `FileFieldProvider({accept?, maxSize?, resources?, children})`; `FileField(props)` (the control of a file field of `FieldInput`, with `maxSize?`, `accept?`, `path?`); `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
+| `live-query` | `LiveQuery({routes?})` (`ROUTES` by default); `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected>` | capability `ws` |
+| `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | capability `ws` |
+| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`, `TASK_LABELS` | `bg:<waiting\|running\|success\|error\|interrupted>`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
+| `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`, `RESULT_LABELS` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it), `FieldValue`,
@@ -76,7 +80,7 @@ id, path?, preview?})`, `FileView`, `isFile`, `formatSize`, `FILE_RESOURCES`: th
 of `uploadable` of the contract), and the hooks with plain paths for the bodies of the
 components. `testing` is the support of the contract tests: a backend for the mocked
 `fetch` of the client, the documents and runtime schemas of Bazis, `renderWithBazis`, and
-`getByTestId` reading `data-bz`.
+`getByTestId` reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 
 - **`state-panel`** is the only place where an error of the backend becomes a state: 401
   and 403 are `forbidden`, 404 `not_found`, 422 `invalid`, any other `error`.
@@ -159,6 +163,34 @@ components. `testing` is the support of the contract tests: a backend for the mo
   every transit (`<Model>StatusyTransit`: transit, status, date, author, `extra`) but has no
   endpoint that reads them, and does not store the payload of a transit: the earlier
   transits and their payloads are not shown until it has one.
+- **`app-shell`** renders the `tools` of the product (the notifications, the state of the
+  socket) next to the color mode once: in the top bar, at the foot of the sidebar, or in
+  the header of a phone (the sidebar is shown from the breakpoint `md`, read with
+  `matchMedia`), so that a component there mounts its hooks once.
+- **`live-query`** (bazis-ws): `LiveQuery` mounts `useLiveQueries` (the queries of a
+  resource refetched when a message of the socket says it changed, a task of
+  bazis-async-background when its status comes, every query after a reconnect) and shows the
+  state of the socket as a dot with its label for assistive technologies
+  (`socket:<status>`). Mount it once, under `SocketProvider` of `@/bazis/react/ws`.
+- **`notification-center`** (bazis-ws): a bell with the count of the unread notifications
+  (`action:notifications`, its label says the count) opens their list
+  (`list:notifications`, newest first, each `notification:<key>`: the title, the text, the
+  time), which marks them read, also those that come while it is open; `Clear` empties it.
+  A notification about an item is a button when `onOpen` is given. Each new notification
+  is a toast (`tone: 'info'`) once in the page, whatever the number of centers; those
+  received before the center was mounted are not. The notifications are those received in
+  the session: pub/sub keeps nothing.
+- **`task-progress`** (bazis-bg): a task by its id (the route set of `bg.task`, `BG_TASKS`),
+  read until it is done: its name, its state, the phase that runs with a progress bar per
+  counter (without a maximum when nothing is expected), then its outcome and, once it
+  succeeded, what `children` renders of it. The traceback of a failure is not shown.
+  `onDone` is called once.
+- **`async-result`** (bazis-async-background, bazis-async-request): the result of what
+  `useAsyncRequest` resolved to (`start`): a queued task read at `RESULT_PATH` until it is
+  done, a request run at once completed at once. The response given to `children` is that
+  of the endpoint for a replayed request, whose HTTP error is a failure with its message
+  (`errors[0].detail`), as is a `failed` task (`error` of its response). `onDone` is called
+  once for each `start`.
 - **`transit-bar`** shows the transits of `meta.state_actions` (disabled with the errors of
   their validators when restricted); a transit whose action takes a typed payload opens a
   dialog with its fields, and the errors of a 422 (`/payload/<name>`) are shown by field.

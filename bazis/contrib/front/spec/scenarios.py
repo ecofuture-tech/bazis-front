@@ -29,6 +29,9 @@ from .refs import Entity, Product
 #: the package whose users log in: the role of a scenario then needs a `test_user`
 LOGIN_PACKAGE = 'users'
 
+#: the package of the notifications of the users (bazis-ws)
+NOTIFY_PACKAGE = 'ws'
+
 
 @dataclass(frozen=True)
 class Step:
@@ -332,6 +335,13 @@ class _Scenario:
                 )
 
     def step_expect(self, path, value):
+        if 'notification' in value and NOTIFY_PACKAGE not in self.doc.data.get('packages', []):
+            self.add(
+                (*path, 'notification'), 'P027',
+                'A notification comes over the socket of bazis-ws: `packages` has no `ws`.',
+                'Add `ws` to `packages` (the backend installs bazis-ws and publishes the '
+                'notification to the user), or expect something else.',
+            )
         if 'screen' in value:
             self.go((*path, 'screen'), value['screen'])
         screen = self.state.screen

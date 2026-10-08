@@ -14,8 +14,9 @@
 
 // The layout of the application: the navigation (a sidebar, a drawer on a phone, or a top
 // bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>`, the session
-// (the user and the logout, `action:logout`), the color mode, the toasts, and the screens,
-// each wrapped in `Screen` (`screen:<id>`) with its title and its actions.
+// (the user and the logout, `action:logout`), the color mode, the tools of the product (the
+// notifications), the toasts, and the screens, each wrapped in `Screen` (`screen:<id>`) with
+// its title and its actions.
 
 import { LogOut, Menu } from 'lucide-react';
 import {
@@ -24,6 +25,7 @@ import {
   useContext,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ComponentType,
   type ReactNode,
 } from 'react';
@@ -64,7 +66,30 @@ export interface AppShellProps {
   navigation?: Navigation;
   items: readonly NavItem[];
   session?: ShellSession | null;
+  /**
+   * The tools of the product next to the color mode, such as the notifications
+   * (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at
+   * the foot of the sidebar or, on a phone, in its header. They are mounted once.
+   */
+  tools?: ReactNode;
   children: ReactNode;
+}
+
+/** The width from which the sidebar is shown: the breakpoint `md` of Tailwind. */
+const WIDE = '(min-width: 48rem)';
+
+function subscribeWide(listener: () => void) {
+  if (typeof window.matchMedia !== 'function') return () => undefined;
+  const query = window.matchMedia(WIDE);
+  query.addEventListener('change', listener);
+  return () => {
+    query.removeEventListener('change', listener);
+  };
+}
+
+/** Whether the sidebar is shown (wide when the browser cannot tell, as in jsdom). */
+function useWide(): boolean {
+  return useSyncExternalStore(subscribeWide, () => typeof window.matchMedia !== 'function' || window.matchMedia(WIDE).matches);
 }
 
 const ShellContext = createContext<Navigation | null>(null);
@@ -213,7 +238,8 @@ function Drawer({
 }
 
 /** The layout of the screens of a logged-in user. */
-export function AppShell({ title, navigation = THEME.navigation, items, session = null, children }: AppShellProps) {
+export function AppShell({ title, navigation = THEME.navigation, items, session = null, tools, children }: AppShellProps) {
+  const wide = useWide();
   if (navigation === 'topbar') {
     return (
       <ShellContext value={navigation}>
@@ -225,6 +251,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
                 <Navigation items={items} vertical={false} />
               </div>
               <div className="ml-auto flex items-center gap-1">
+                {tools}
                 <ColorModeToggle />
                 {session && (
                   <div className="hidden md:block">
@@ -257,6 +284,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
           </div>
           <div className="flex items-center gap-1 border-t border-sidebar-border p-3">
             <ColorModeToggle className="text-muted-foreground" />
+            {wide && tools}
             {session && (
               <div className="ml-auto min-w-0">
                 <Session session={session} compact />
@@ -268,7 +296,10 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
             <Drawer title={title} items={items} session={session} side="left" />
             <Brand title={title} />
-            <ColorModeToggle className="ml-auto" />
+            <div className="ml-auto flex items-center gap-1">
+              {!wide && tools}
+              <ColorModeToggle />
+            </div>
           </header>
           <main className="min-w-0 flex-1 px-(--bleed) pt-(--space-section) pb-(--space-page-y)">{children}</main>
         </div>

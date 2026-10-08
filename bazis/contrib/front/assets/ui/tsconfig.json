@@ -23,6 +23,15 @@
       "@/bazis/react/uploadable": [
         "../react/src/uploadable/index.ts"
       ],
+      "@/bazis/react/ws": [
+        "../react/src/ws/index.ts"
+      ],
+      "@/bazis/react/async": [
+        "../react/src/async/index.ts"
+      ],
+      "@/bazis/react/bg": [
+        "../react/src/bg/index.ts"
+      ],
       "@/bazis/generated/schema": [
         "../react/test/fixtures/schema.d.ts"
       ],

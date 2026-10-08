@@ -88,6 +88,8 @@ Every operation takes the path of a route set and, for an item, its id:
 | `auth(path, {store})` | `GET path` (bazis-authing), the store token as the bearer token, without cookies; the state of the store |
 | `authLogin(path, store, body)` | `POST path` of a login action, `application/json` in the store, its redirect to the auth endpoint followed; the state of the store |
 | `authWait(path, store, {interval})` | `GET path` every `interval` ms (`AUTH_POLL_INTERVAL`, 1.5 s) until the store is signed in, has an error or has expired |
+| `background(method, path, {body})` | `method path` with `X-Async-Background: true` (`BACKGROUND_HEADER`, bazis-async-request), a body as `application/vnd.api+json`; `{status: 'queued', taskId}` (202) or `{status: 'done', response}` |
+| `backgroundResult(path)` | `GET path?full_response=true` (bazis-async-background); `{status, response}` |
 
 All of them accept `signal` (an `AbortSignal`). `include` exists only on retrieve, create
 and update: Bazis ignores it on a list, and the types reject it. A meta field such as
@@ -120,6 +122,24 @@ thrown (`ApiError`, 401 for a store that expired before a login). The requests a
 without cookies: the endpoint sets the store token as a cookie, which would sign the next
 user in with the store of the previous one. The store token has no `exp`: bazis-users
 treats a request with it as anonymous; only the session token is a bearer token of the API.
+
+**Background requests** (bazis-async-request, bazis-async-background). A request with the
+header `X-Async-Background` (its presence is enough) and a bearer token that names a
+channel of bazis-ws (a session JWT, or an anonymous token of bazis-ws; else 401 with
+`{"detail"}`) is queued in Kafka: 202 `{"data": null, "meta": {"async_request_id": <id>,
+"async_background_id": <id>}}`, the same id. Without Kafka the middleware runs it at once
+and answers as the endpoint does, so `background` resolves to `{status: 'done', response}`
+for any other status (a 2xx; a 4xx is an `ApiError` as usual), and to the task only for a
+202 with `meta.async_request_id`. The result path of the contract
+(`async_background.result_path`, `{task_id}` replaced) with `full_response=true` answers
+`{status, channel_name, response}` with the token of the request (403 with another one, 404
+for an unknown task or after `KAFKA_RESPONSE_HOLD_SEC`); `backgroundResult` returns its
+`status` (`created`, `pending`, `processing`, `completed`, `failed`) and `response` (null
+until the task sets one). Without `full_response` the endpoint answers the response itself
+or `{"status": "not ready"}`, which cannot be told apart, so the client always asks for
+the full one. The response of a request replayed by bazis-async-request is
+`ReplayedResponse` (`{task_id, endpoint, status, headers, response}`): an HTTP error of the
+endpoint is a `completed` task with that status.
 
 `can(meta, action, id?)` reads the permission meta of bazis-permit: on a list
 `can(meta, 'change' | 'delete', id)` (`for_change`, `for_delete`) and `can(meta, 'add')`

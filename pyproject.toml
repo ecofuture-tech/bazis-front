@@ -68,12 +68,17 @@ dependencies = [
 test = [
     "bazis-test-utils>=2.3.0",
     # the sample project has the capabilities of the contract: users, authing, permit,
-    # statusy, uploadable
+    # statusy, uploadable, ws, bg (with bazis-author), async_background, async_request
     "bazis-users>=2.5.0",
     "bazis-authing>=2.5.0",
     "bazis-permit>=2.4.1",
     "bazis-statusy>=2.4.1",
     "bazis-uploadable>=2.4.0",
+    "bazis-ws>=2.4.0",
+    "bazis-author>=2.4.0",
+    "bazis-bg>=2.4.0",
+    "bazis-async-background>=2.4.0",
+    "bazis-async-request>=2.4.0",
 ]
 dev = [
     "ruff"

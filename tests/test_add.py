@@ -198,7 +198,7 @@ def test_add_copies_the_hooks_of_a_package_installed_after_init(tmp_path, monkey
 
 
 def test_add_rejects_what_it_does_not_copy(product):
-    with pytest.raises(CommandError, match='There is no asset nope. The components: app-shell, badge,'):
+    with pytest.raises(CommandError, match='There is no asset nope. The components: app-shell, async-result, badge,'):
         add('nope')
     with pytest.raises(CommandError, match='template is copied by `bazis_front init` only'):
         add('template')

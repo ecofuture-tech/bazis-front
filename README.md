@@ -15,12 +15,12 @@ copy and gets fixes through new versions of the package.
 | Part | What it is | State |
 |---|---|---|
 | [`assets/client`](bazis/contrib/front/assets/client) | The JSON:API protocol of Bazis in TypeScript, typed by the OpenAPI types generated from a product | available |
-| [`assets/react`](bazis/contrib/front/assets/react) | React hooks over the client and TanStack Query: lists, items, runtime schemas, mutations, forms bound to the runtime schema, the transits of bazis-statusy, the uploads of bazis-uploadable | available |
+| [`assets/react`](bazis/contrib/front/assets/react) | React hooks over the client and TanStack Query: lists, items, runtime schemas, mutations, forms bound to the runtime schema, the transits of bazis-statusy, the uploads of bazis-uploadable, the socket of bazis-ws, the tasks of bazis-bg, the background requests of bazis-async-request | available |
 | [`assets/template`](bazis/contrib/front/assets/template) | The frontend of a product: React, TypeScript, Vite, TanStack Query, Tailwind with shadcn/ui | available |
 | `manage.py bazis_front init` | Creates the frontend of a product from the template, with copies of the client and the hooks and a lock, and the starters of its specs | available |
 | `manage.py bazis_front contract` | Exports the contract of a product (`contract/openapi.json`, `contract/contract.json`), generates its TypeScript in the frontend and checks that both are up to date | available |
 | `manage.py bazis_front check` | Validates the specs of a product (`spec/`: product, screens, design) against their JSON Schemas, each other and the contract | available |
-| [`assets/ui`](bazis/contrib/front/assets/ui) | Components on shadcn/ui and Tailwind 4 over the hooks: layout, states, list, card, form, login (with the logins of bazis-authing), the status and the transits of bazis-statusy, the file field of bazis-uploadable, each with its contract test | available |
+| [`assets/ui`](bazis/contrib/front/assets/ui) | Components on shadcn/ui and Tailwind 4 over the hooks: layout, states, list, card, form, login (with the logins of bazis-authing), the status and the transits of bazis-statusy, the file field of bazis-uploadable, the notifications and the live queries of bazis-ws, the progress of a task of bazis-bg, the result of a background request, each with its contract test | available |
 | `manage.py bazis_front add` | Copies components into the frontend of a product, with the assets they require | available |
 | [`assets/playwright`](bazis/contrib/front/assets/playwright) | Playwright helpers that run the steps of the scenarios through the `data-bz` marks of the screens | available |
 | `manage.py bazis_front e2e` | Generates a Playwright test per scenario of the specs and checks that they are up to date | available |
