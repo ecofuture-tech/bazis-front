@@ -145,7 +145,8 @@ the components), and `Intl` for the plural forms, the dates and the numbers.
 - `createLanguageStore({languages, fallback, storage?, preferred?})`: the language, one of
   `LANGUAGES` of the contract, resolved from the choice kept in localStorage
   (`bazis.language`), else `navigator.languages` (the same code, else the same base code:
-  `ru-RU` is `ru`), else `fallback` (`LANGUAGE`, the default of the backend); `get()`,
+  `ru-RU` is `ru`), else `fallback` (`LANGUAGE`, the default of the backend; a code out of
+  `languages` is matched by its base code, else the first language: `defaultLanguage`); `get()`,
   `set(code)` (a language of `languages` only; kept in the storage), `subscribe(listener)`.
 - `LanguageProvider({store?, messages?, children})` and `useLanguage()`:
   `{language, languages, setLanguage, t}`; `messages` are the dictionaries of the product by

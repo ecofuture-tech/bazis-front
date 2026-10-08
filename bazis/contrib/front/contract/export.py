@@ -74,6 +74,22 @@ def base_language(code: str) -> str:
     return re.split(r'[-_]', code)[0].lower()
 
 
+def default_language() -> str:
+    """
+    The code of LANGUAGES that LANGUAGE_CODE names: the same code (whatever its case and
+    separator: `pt-br` for `pt-BR`), else the first one of the same base code (`en` for
+    `en-EN`); the base code of LANGUAGE_CODE when LANGUAGES has neither.
+    """
+    def normal(code: str) -> str:
+        return code.lower().replace('_', '-')
+
+    codes = [code for code, _name in settings.LANGUAGES]
+    wanted = normal(settings.LANGUAGE_CODE)
+    same = [code for code in codes if normal(code) == wanted]
+    base = [code for code in codes if base_language(code) == base_language(wanted)]
+    return (same or base or [base_language(wanted)])[0]
+
+
 def languages() -> list[dict]:
     """
     The languages of the project (LANGUAGES), in their order: the code and the name.
@@ -93,7 +109,7 @@ def build_contract(openapi: dict) -> dict:
             'generated_by': generated_by(),
             'openapi_hash': openapi_hash(openapi),
             'project': {
-                'language': base_language(settings.LANGUAGE_CODE),
+                'language': default_language(),
                 'languages': languages(),
                 'resources': resources(openapi),
             },

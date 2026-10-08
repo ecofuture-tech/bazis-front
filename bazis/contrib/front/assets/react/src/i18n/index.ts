@@ -16,6 +16,7 @@ export { formatDate, formatDateTime, formatNumber, formatTime } from './format.j
 export {
   baseLanguage,
   createLanguageStore,
+  defaultLanguage,
   ENGLISH,
   LANGUAGE_KEY,
   LanguageProvider,

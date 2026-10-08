@@ -13,7 +13,7 @@ export const LANGUAGES = [
   },
 ] as const;
 
-/** The default language of the backend: the base code of LANGUAGE_CODE. */
+/** The default language of the backend: the code of LANGUAGES that LANGUAGE_CODE names. */
 export const LANGUAGE: string = "en";
 
 /** The path of the route set of each resource, by its JSON:API type. */

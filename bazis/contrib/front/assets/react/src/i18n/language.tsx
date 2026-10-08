@@ -58,6 +58,14 @@ export function matchLanguage(languages: readonly Language[], code: string | nul
   return languages.find((it) => baseLanguage(it.code) === base)?.code ?? null;
 }
 
+/**
+ * The default language among `languages`: `fallback` (`LANGUAGE`) when it is one of them
+ * (or by its base code), else the first language; `fallback` without languages.
+ */
+export function defaultLanguage(languages: readonly Language[], fallback: string): string {
+  return matchLanguage(languages, fallback) ?? languages[0]?.code ?? fallback;
+}
+
 /** The first of the candidates that is a language of `languages`, else the default one. */
 export function resolveLanguage(
   languages: readonly Language[],
@@ -68,7 +76,7 @@ export function resolveLanguage(
     const code = matchLanguage(languages, candidate);
     if (code !== null) return code;
   }
-  return fallback;
+  return defaultLanguage(languages, fallback);
 }
 
 /** The current language and its changes, outside React too (the client sends it to the backend). */
@@ -123,7 +131,7 @@ export function createLanguageStore({
   const listeners = new Set<() => void>();
   return {
     languages,
-    fallback,
+    fallback: defaultLanguage(languages, fallback),
     get: () => current,
     set: (code) => {
       const next = matchLanguage(languages, code);

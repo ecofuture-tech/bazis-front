@@ -45,8 +45,8 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
     assert data['format'] == 2
-    # the languages of the project, in the order of LANGUAGES, and the base code of
-    # LANGUAGE_CODE
+    # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
+    # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
     assert data['project']['languages'] == [
         {'code': 'en', 'name': 'English'}, {'code': 'ru', 'name': 'Русский'},
@@ -468,3 +468,20 @@ def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch)
     assert 'bazis-uploadable 2.4.9 is installed' in errors[0].msg
     assert 'bazis-ws>=2.5.0' in errors[1].msg and 'subscribed' in errors[1].msg
     assert [name for name, _, _ in capabilities.outdated(['ws', 'statusy', 'unknown'])] == ['ws']
+
+
+def test_the_default_language_is_a_code_of_the_languages():
+    from bazis.contrib.front.contract.export import default_language
+
+    languages = [('en', 'English'), ('pt-br', 'Português'), ('pt', 'Português (Portugal)')]
+    cases = [
+        # the same code, whatever its case and separator; else the first of the same base code
+        ('pt-BR', 'pt-br'), ('pt_br', 'pt-br'), ('pt', 'pt'), ('en-EN', 'en'), ('EN', 'en'),
+        # a LANGUAGE_CODE out of LANGUAGES: its base code
+        ('de-DE', 'de'),
+    ]
+    for code, expected in cases:
+        with override_settings(LANGUAGES=languages, LANGUAGE_CODE=code):
+            assert default_language() == expected, code
+    with override_settings(LANGUAGES=[('pt-br', 'Português')], LANGUAGE_CODE='pt'):
+        assert default_language() == 'pt-br'

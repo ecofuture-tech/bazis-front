@@ -9,7 +9,7 @@ product:
   summary: The tasks of a team, started and finished with a report
 packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request]
 languages: [en, ru]            # LANGUAGES of the backend: the interface is in English and Russian
-language: en                   # the base code of LANGUAGE_CODE
+language: en                   # the code of LANGUAGES of LANGUAGE_CODE
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}

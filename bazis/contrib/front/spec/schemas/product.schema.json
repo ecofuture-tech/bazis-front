@@ -32,7 +32,7 @@
       "items": {"$ref": "#/$defs/language"}
     },
     "language": {
-      "description": "The default language of the interface: the base code of LANGUAGE_CODE of the backend, one of `languages`. Optional; `bazis_front check` compares it with `project.language` of the contract.",
+      "description": "The default language of the interface: the code of LANGUAGES of the backend that its LANGUAGE_CODE names, one of `languages`. Optional; `bazis_front check` compares it with `project.language` of the contract.",
       "$ref": "#/$defs/language"
     },
     "roles": {

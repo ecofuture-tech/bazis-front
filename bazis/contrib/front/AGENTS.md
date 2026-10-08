@@ -331,8 +331,8 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   depend on in the OpenAPI (parameters, bodies, responses, security, `x-bazis` of every
   operation, and the components), not of summaries and descriptions.
 - `project.languages` are the languages of the backend (`LANGUAGES`, in their order, with
-  their names) and `project.language` its default language (the base code of
-  `LANGUAGE_CODE`): those the interface may be in.
+  their names) and `project.language` its default language (the code of `LANGUAGES` that
+  `LANGUAGE_CODE` names: the same code, else the same base code): those the interface may be in.
 - `project.resources` is keyed by the JSON:API type. A resource is described by the route
   set that the core uses as the default route of its model; other route sets of the model
   are listed in `other_routes`. `actions` maps the name of each route to its `kind`.
@@ -403,7 +403,7 @@ spec: bazis-product/1
 product: {id: tasks, name: Tasks, summary: The tasks of a team}
 packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request]   # each needs its section in the contract
 languages: [en, ru]                  # optional: LANGUAGES of the backend (P029)
-language: en                         # optional: the base code of LANGUAGE_CODE (P029)
+language: en                         # optional: the code of LANGUAGES of LANGUAGE_CODE (P029)
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
@@ -630,7 +630,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has no `ws`) |
 | `P028` | error | `packages` has `ws`, and the contract has no path of the socket: `ws_route` is not routed where the export sees it |
-| `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the base code of LANGUAGE_CODE), or `language` is not one of `languages` |
+| `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages` |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |

@@ -56,7 +56,7 @@ exists. The format of
 `contract.json` is documented in `bazis/contrib/front/AGENTS.md`.
 
 The contract has the languages of the backend (`project.languages`, `LANGUAGES` of its
-settings, and `project.language`, the base code of `LANGUAGE_CODE`) and the names of the
+settings, and `project.language`, the code of `LANGUAGES` that `LANGUAGE_CODE` names) and the names of the
 roles, statuses and transits in each of them (`{language: name}`, their translated fields);
 its other texts and the OpenAPI are built in `LANGUAGE_CODE`, whatever the language of the
 process.

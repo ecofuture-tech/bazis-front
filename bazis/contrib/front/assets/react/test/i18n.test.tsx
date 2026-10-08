@@ -21,6 +21,7 @@ import type { paths } from '@/bazis/generated/schema';
 
 import {
   createLanguageStore,
+  defaultLanguage,
   followProfileLanguage,
   formatDate,
   formatDateTime,
@@ -101,6 +102,15 @@ describe('the language', () => {
     expect(matchLanguage(LANGUAGES, 'de')).toBeNull();
     expect(resolveLanguage(LANGUAGES, 'en', [null, 'de-DE', 'ru-RU', 'en'])).toBe('ru');
     expect(resolveLanguage(LANGUAGES, 'en', ['de'])).toBe('en');
+  });
+
+  it('falls back to a language of the backend only', () => {
+    // the default by its base code, else the first language
+    expect(resolveLanguage(LANGUAGES, 'ru-RU', [])).toBe('ru');
+    expect(resolveLanguage(LANGUAGES, 'de', ['fr'])).toBe('en');
+    expect(defaultLanguage([], 'de')).toBe('de');
+    const languages = createLanguageStore({ languages: LANGUAGES, fallback: 'de', storage: null, preferred: [] });
+    expect([languages.get(), languages.fallback]).toEqual(['en', 'en']);
   });
 
   it('is the choice kept in the browser, else that of the browser, else the default of the backend', () => {

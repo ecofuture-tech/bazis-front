@@ -7,8 +7,8 @@ spec: bazis-product/1
 product:
   id: product
   name: Product
-# The languages of the interface, as the backend has them (LANGUAGES and the base code of
-# LANGUAGE_CODE; `check` compares them with the contract):
+# The languages of the interface, as the backend has them (LANGUAGES, and the code of
+# LANGUAGES that LANGUAGE_CODE names; `check` compares them with the contract):
 # languages: [en, ru]
 # language: en
 roles: []
