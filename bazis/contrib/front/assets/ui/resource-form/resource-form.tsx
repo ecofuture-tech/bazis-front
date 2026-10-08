@@ -22,6 +22,7 @@ import { LoaderCircle } from 'lucide-react';
 import { useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { ApiError } from '@/bazis/client';
+import { useLanguage } from '@/bazis/i18n';
 import type { CreatePath, ResourceForm as Form, UpdatePath } from '@/bazis/react';
 import { FieldInput, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
@@ -90,6 +91,7 @@ export function ResourceFormBody({
   const form = useAnyResourceForm(path, id === undefined ? {} : { id });
   // the fields whose file uploads: the form waits for them
   const [uploading, setUploading] = useState<ReadonlySet<string>>(() => new Set());
+  const { t } = useLanguage();
 
   if (form.status !== 'ready') {
     const state = form.status === 'loading' ? 'loading' : errorState(form.error);
@@ -111,7 +113,7 @@ export function ResourceFormBody({
     if (uploading.size > 0) return;
     void form.submit().then((saved) => {
       if (!saved) return;
-      toast({ title: id === undefined ? 'Created' : 'Saved' });
+      toast({ title: t(id === undefined ? 'form.created' : 'form.saved') });
       onSaved?.(saved);
     });
   }
@@ -125,7 +127,7 @@ export function ResourceFormBody({
           error={form.submitError}
           message={
             failure === 'invalid' && form.submitError instanceof ApiError && Object.keys(form.errors).length
-              ? ['Check the values of the fields.', ...others].join(' ')
+              ? [t('form.check'), ...others].join(' ')
               : undefined
           }
         />
@@ -161,12 +163,12 @@ export function ResourceFormBody({
               onCancel();
             }}
           >
-            Cancel
+            {t('action.cancel')}
           </Button>
         )}
         <Button type="submit" data-bz="action:submit" disabled={busy}>
           {form.isSubmitting && <LoaderCircle className="animate-spin" aria-hidden="true" />}
-          {submitLabel ?? (id === undefined ? 'Create' : 'Save')}
+          {submitLabel ?? t(id === undefined ? 'form.create' : 'form.save')}
         </Button>
       </div>
     </form>

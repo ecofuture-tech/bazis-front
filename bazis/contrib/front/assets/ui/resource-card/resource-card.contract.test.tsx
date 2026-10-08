@@ -19,12 +19,12 @@
 // edit (`action:edit`, then the form, in a dialog or as a page). Keep it passing when the
 // component is changed.
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceCard } from '@/bazis/ui/resource-card';
-import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema, testLanguages } from '@/bazis/ui/testing';
 
 const ITEM = `${ITEMS}${ITEM_ID}/`;
 const schema = runtimeSchema({
@@ -73,6 +73,26 @@ describe('ResourceCard', () => {
     expect(screen.getByText('badge')).toBeTruthy();
     // the backend does not allow the change
     expect(screen.queryByTestId('action:edit')).toBeNull();
+  });
+
+  it('is in the language of the interface: the backend is asked in it, the values are formatted in it', async () => {
+    const languages = testLanguages('ru', 'en');
+    const server = backend({ crud_actions: ['view', 'change'] });
+    renderWithBazis(<ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} edit />, server, {
+      language: languages,
+    });
+    await screen.findByTestId('state:loaded');
+    expect(screen.getByTestId('action:edit').textContent).toBe('Изменить');
+    expect(new Set(server.calls.map((call) => call.language))).toEqual(new Set(['ru']));
+    // another language: the queries are read again in it (their texts are of the language)
+    const count = server.calls.length;
+    act(() => {
+      languages.set('en');
+    });
+    await waitFor(() => {
+      expect(server.calls.slice(count).filter((call) => call.language === 'en').length).toBeGreaterThan(0);
+    });
+    expect(screen.getByTestId('action:edit').textContent).toBe('Edit');
   });
 
   it('shows only the fields of the retrieve schema of the user, marks those the edit does not change', async () => {

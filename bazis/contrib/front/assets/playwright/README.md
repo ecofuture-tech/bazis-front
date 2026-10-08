@@ -53,6 +53,7 @@ marks of the states, never for a fixed time:
 | `expectRows(count)` | `expect: {rows}` | the number of `row:<id>` of the current screen |
 | `expectError(name)` | `expect: {error}` | `error:<name>` on the page |
 | `expectNotification(text)` | `expect: {notification}` | the visible bell `action:notifications` opens `list:notifications`, which shows a `notification:<key>` with the text (it waits for it to come over the socket); the list is closed with Escape |
+| `language(code)` | (the tests of `e2e/custom/`) | the visible `action:language` of the layout is clicked until its `data-value` is the code of the language |
 
 ## Checks in this repository
 

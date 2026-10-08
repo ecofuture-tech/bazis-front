@@ -24,6 +24,17 @@
       "uniqueItems": true,
       "items": {"enum": ["async_background", "async_request", "authing", "bg", "permit", "statusy", "uploadable", "users", "ws"]}
     },
+    "languages": {
+      "description": "The languages of the interface: the codes of LANGUAGES of the backend. Optional; `bazis_front check` compares them with `project.languages` of the contract.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/language"}
+    },
+    "language": {
+      "description": "The default language of the interface: the base code of LANGUAGE_CODE of the backend, one of `languages`. Optional; `bazis_front check` compares it with `project.language` of the contract.",
+      "$ref": "#/$defs/language"
+    },
     "roles": {
       "type": "array",
       "items": {"$ref": "#/$defs/role"}
@@ -42,6 +53,11 @@
       "description": "The id of a role, entity, screen, action or scenario.",
       "type": "string",
       "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "language": {
+      "description": "A language code of Django: `en`, `ru`, `pt-br`.",
+      "type": "string",
+      "pattern": "^[a-z]{2,3}([-_][A-Za-z0-9]{2,8})*$"
     },
     "field_id": {
       "description": "The name of a field of the resource in the API.",

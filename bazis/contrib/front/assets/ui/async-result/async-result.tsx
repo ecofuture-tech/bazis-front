@@ -23,6 +23,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 
 import type { BackgroundStart } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
+import { useLanguage } from '@/bazis/i18n';
 import { replayedResponse, useAsyncTask } from '@/bazis/react/async';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { cn } from '@/lib/utils';
@@ -32,12 +33,7 @@ export const RESULT_PATH: string | null = CAPABILITIES.async_background?.result_
 
 export type ResultView = 'pending' | 'processing' | 'completed' | 'failed';
 
-export const RESULT_LABELS: Readonly<Record<ResultView, string>> = {
-  pending: 'Queued',
-  processing: 'In progress',
-  completed: 'Done',
-  failed: 'Failed',
-};
+// the state of a result is the text `async.<view>` of the dictionaries (`@/bazis/i18n`)
 
 const TONES: Readonly<Record<ResultView, string>> = {
   pending: 'bg-muted text-muted-foreground',
@@ -79,7 +75,7 @@ export interface AsyncResultProps {
   start: BackgroundStart;
   /** The result path of the tasks: `RESULT_PATH` by default. */
   path?: string | null;
-  /** The title of the result. */
+  /** The title of the result (`async.title` of the dictionaries by default). */
   title?: ReactNode;
   /** Called once, when the task is done. */
   onDone?: (result: AsyncOutcome) => void;
@@ -88,7 +84,8 @@ export interface AsyncResultProps {
 }
 
 /** The result of a request run in the background, until it is done. */
-export function AsyncResult({ start, path = RESULT_PATH, title = 'Result', onDone, children }: AsyncResultProps) {
+export function AsyncResult({ start, path = RESULT_PATH, title, onDone, children }: AsyncResultProps) {
+  const { t } = useLanguage();
   const queued = start.status === 'queued' ? start.taskId : null;
   const task = useAsyncTask(path ?? '', path === null ? null : queued);
   const result =
@@ -113,8 +110,8 @@ export function AsyncResult({ start, path = RESULT_PATH, title = 'Result', onDon
   return (
     <section data-bz={`async:${view}`} aria-busy={result === null} className="grid gap-3 rounded-lg border bg-card p-(--space-card) text-card-foreground">
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate font-medium">{title}</p>
-        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', TONES[view])}>{RESULT_LABELS[view]}</span>
+        <p className="min-w-0 truncate font-medium">{title ?? t('async.title')}</p>
+        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', TONES[view])}>{t(`async.${view}`)}</span>
       </div>
       {result?.message != null && <p className="text-sm text-danger-ink">{result.message}</p>}
       {result?.view === 'completed' && children?.(result.response)}

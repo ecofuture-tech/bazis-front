@@ -14,9 +14,10 @@
 
 // The layout of the application: the navigation (a sidebar, a drawer on a phone, or a top
 // bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>`, the session
-// (the user and the logout, `action:logout`), the color mode, the tools of the product (the
-// notifications), the toasts, and the screens, each wrapped in `Screen` (`screen:<id>`) with
-// its title and its actions.
+// (the user and the logout, `action:logout`), the language (`action:language`, with more
+// than one language), the color mode, the tools of the product (the notifications), the
+// toasts, and the screens, each wrapped in `Screen` (`screen:<id>`) with its title and its
+// actions.
 
 import { LogOut, Menu } from 'lucide-react';
 import {
@@ -32,12 +33,14 @@ import {
 import { NavLink } from 'react-router';
 
 import { THEME } from '@/bazis/generated/theme';
+import { useLanguage } from '@/bazis/i18n';
 import { Toaster } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 import { ColorModeToggle } from './color-mode.js';
+import { LanguageToggle } from './language.js';
 
 /** A link of the navigation to a screen of the specs: `nav:<screen>`. */
 export interface NavItem {
@@ -113,8 +116,9 @@ function Brand({ title }: { title: ReactNode }) {
 }
 
 function Navigation({ items, vertical, onNavigate }: { items: readonly NavItem[]; vertical: boolean; onNavigate?: () => void }) {
+  const { t } = useLanguage();
   return (
-    <nav aria-label="Main">
+    <nav aria-label={t('shell.navigation')}>
       <ul className={cn('flex gap-1', vertical ? 'flex-col' : 'items-center')}>
         {items.map((item) => {
           const Icon = item.icon;
@@ -163,6 +167,7 @@ function initials(user: ReactNode): string | null {
 }
 
 function Session({ session, compact = false }: { session: ShellSession; compact?: boolean }) {
+  const { t } = useLanguage();
   const letters = initials(session.user);
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
@@ -188,7 +193,7 @@ function Session({ session, compact = false }: { session: ShellSession; compact?
         onClick={session.onLogout}
       >
         <LogOut />
-        Log out
+        {t('shell.logout')}
       </Button>
     </div>
   );
@@ -207,12 +212,13 @@ function Drawer({
   side: 'left' | 'right';
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
   const close = useCallback(() => {
     setOpen(false);
   }, []);
   return (
     <>
-      <Button type="button" variant="ghost" size="icon-sm" aria-label="Open the menu" onClick={() => { setOpen(true); }}>
+      <Button type="button" variant="ghost" size="icon-sm" aria-label={t('shell.menu')} onClick={() => { setOpen(true); }}>
         <Menu />
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
@@ -221,7 +227,7 @@ function Drawer({
             <SheetTitle>
               <Brand title={title} />
             </SheetTitle>
-            <SheetDescription className="sr-only">The navigation of the application</SheetDescription>
+            <SheetDescription className="sr-only">{t('shell.menu_description')}</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto p-3">
             <Navigation items={items} vertical onNavigate={close} />
@@ -252,6 +258,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
               </div>
               <div className="ml-auto flex items-center gap-1">
                 {tools}
+                <LanguageToggle />
                 <ColorModeToggle />
                 {session && (
                   <div className="hidden md:block">
@@ -284,6 +291,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
           </div>
           <div className="flex items-center gap-1 border-t border-sidebar-border p-3">
             <ColorModeToggle className="text-muted-foreground" />
+            <LanguageToggle className="text-muted-foreground" />
             {wide && tools}
             {session && (
               <div className="ml-auto min-w-0">
@@ -298,6 +306,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
             <Brand title={title} />
             <div className="ml-auto flex items-center gap-1">
               {!wide && tools}
+              <LanguageToggle />
               <ColorModeToggle />
             </div>
           </header>

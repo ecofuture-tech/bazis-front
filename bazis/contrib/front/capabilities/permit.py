@@ -15,10 +15,13 @@
 """
 bazis-permit: the roles with their permission groups and their effective permissions, from
 the database. A role has permissions only through its groups (Role.groups_permission ->
-GroupPermission.permissions), the same chain PermitService reads for the current role.
+GroupPermission.permissions), the same chain PermitService reads for the current role. The
+name of a role is in every language of the project (a translated field).
 """
 
 from django.apps import apps
+
+from . import translated
 
 
 def section() -> dict:
@@ -27,7 +30,7 @@ def section() -> dict:
         'roles': [
             {
                 'slug': role.slug,
-                'name': role.name,
+                'name': translated(lambda role=role: role.name),
                 'for_anonymous': role.for_anonymous,
                 'groups': sorted(group.slug for group in role.groups_permission.all()),
                 'permissions': sorted(

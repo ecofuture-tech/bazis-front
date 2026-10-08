@@ -25,6 +25,7 @@ import { RefreshCw, Upload, X } from 'lucide-react';
 import { createContext, use, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 
 import { ApiError } from '@/bazis/client';
+import { useLanguage, type Translate } from '@/bazis/i18n';
 import { CAPABILITIES } from '@/bazis/generated/contract';
 import { useUpload, type Upload as UploadState } from '@/bazis/react/uploadable';
 import {
@@ -74,9 +75,9 @@ export function accepts(file: File, accept: string | undefined): boolean {
 }
 
 /** The message of a failed upload. */
-function message(error: unknown): string {
+function message(error: unknown, t: Translate): string {
   if (error instanceof ApiError) return error.message;
-  return error instanceof Error ? error.message : 'The upload failed.';
+  return error instanceof Error ? error.message : t('upload.failed');
 }
 
 /** The file just chosen: its thumbnail while it uploads and once it is the value. */
@@ -88,6 +89,7 @@ interface Chosen {
 }
 
 function Progress({ loaded, total }: { loaded: number; total: number }) {
+  const { t } = useLanguage();
   const percent = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
   return (
     <div className="flex items-center gap-2">
@@ -96,7 +98,7 @@ function Progress({ loaded, total }: { loaded: number; total: number }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        aria-label="Upload progress"
+        aria-label={t('upload.progress')}
         className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
       >
         <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${String(percent)}%` }} />
@@ -128,6 +130,8 @@ export function FileField({
   const upload = useAnyUpload(path ?? '');
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [dragging, setDragging] = useState(false);
+  const language = useLanguage();
+  const { t } = language;
   const uploading = upload.status === 'uploading';
   const removable = field.nullable && !field.required;
   const { abort } = upload;
@@ -146,15 +150,15 @@ export function FileField({
     // one file at a time: another file waits until the upload ends or is cancelled
     if (!file || disabled || running.current) return;
     if (maxSize !== null && file.size > maxSize) {
-      onError(`The file is larger than ${formatSize(maxSize)}.`);
+      onError(t('upload.too_large', { size: formatSize(maxSize, language) }));
       return;
     }
     if (!accepts(file, accept)) {
-      onError(`The file is not of the type ${accept ?? ''}.`);
+      onError(t('upload.wrong_type', { accept: accept ?? '' }));
       return;
     }
     if (path === undefined) {
-      onError(`The files of ${field.relation} have no route in the contract.`);
+      onError(t('upload.no_route', { resource: field.relation }));
       return;
     }
     onError(null);
@@ -177,7 +181,7 @@ export function FileField({
       onChange(id);
     } catch (error) {
       forget();
-      onError(message(error));
+      onError(message(error, t));
     } finally {
       running.current = false;
       onBusy(false);
@@ -199,7 +203,7 @@ export function FileField({
           <FileView file={{ url: null, name: chosen.file.name, size: chosen.file.size }} preview={chosen.preview} />
           <Button type="button" variant="ghost" size="sm" onClick={abort}>
             <X />
-            Cancel
+            {t('action.cancel')}
           </Button>
         </div>
         <Progress loaded={upload.progress?.loaded ?? 0} total={upload.progress?.total ?? chosen.file.size} />
@@ -215,7 +219,7 @@ export function FileField({
           <span className="flex gap-1">
             <Button type="button" variant="ghost" size="sm" onClick={() => input.current?.click()}>
               <RefreshCw />
-              Replace
+              {t('upload.replace')}
             </Button>
             {removable && (
               <Button
@@ -229,7 +233,7 @@ export function FileField({
                 }}
               >
                 <X />
-                Remove
+                {t('upload.remove')}
               </Button>
             )}
           </span>
@@ -242,19 +246,19 @@ export function FileField({
         <Upload className="size-5 text-muted-foreground" aria-hidden="true" />
         <p className="text-sm">
           {disabled ? (
-            'No file'
+            t('upload.none')
           ) : (
             <>
-              Drop a file here or{' '}
+              {t('upload.drop')}{' '}
               <Button type="button" variant="link" className="h-auto p-0" onClick={() => input.current?.click()}>
-                choose one
+                {t('upload.choose')}
               </Button>
             </>
           )}
         </p>
         {!disabled && (maxSize !== null || accept) && (
           <p className="text-xs text-muted-foreground">
-            {[accept, maxSize !== null && `up to ${formatSize(maxSize)}`].filter(Boolean).join(', ')}
+            {[accept, maxSize !== null && t('upload.up_to', { size: formatSize(maxSize, language) })].filter(Boolean).join(', ')}
           </p>
         )}
       </div>

@@ -47,7 +47,10 @@ SECTION_TYPES = {
     'permit': '{ readonly roles: typeof ROLES }',
     'statusy': '{ readonly models: typeof TRANSITS }',
     'uploadable': '{ readonly max_size: number | null; readonly resources: readonly string[] }',
-    'users': '{ readonly token_url: string; readonly user_resource: string }',
+    'users': (
+        '{ readonly token_url: string; readonly user_resource: string; '
+        'readonly profile_language: boolean }'
+    ),
     'ws': '{ readonly path: string | null }',
 }
 
@@ -110,8 +113,16 @@ def render(contract: dict) -> str:
     capabilities_type = ''.join(
         f'  readonly {name}: {type_} | null;\n' for name, type_ in sorted(SECTION_TYPES.items())
     )
+    project = contract['project']
     return '\n'.join([
         HEADER,
+        constant(
+            'The languages of the backend (LANGUAGES), in its order: the code and the name.',
+            'LANGUAGES',
+            project['languages'],
+        ),
+        '/** The default language of the backend: the base code of LANGUAGE_CODE. */\n'
+        f'export const LANGUAGE: string = {literal(project["language"])};\n',
         constant(
             'The path of the route set of each resource, by its JSON:API type.',
             'ROUTES',

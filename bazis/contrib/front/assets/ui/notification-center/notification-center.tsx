@@ -22,6 +22,7 @@
 import { Bell } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { formatTime, useLanguage } from '@/bazis/i18n';
 import { useNotifications, type Notification } from '@/bazis/react/ws';
 import { toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -42,17 +43,14 @@ export interface NotificationCenterProps {
   toasts?: boolean;
 }
 
-function time(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-}
-
 function Item({ notification, onOpen }: { notification: Notification; onOpen: ((it: Notification) => void) | null }) {
+  const { language } = useLanguage();
   const content = (
     <>
       <span className="flex items-baseline justify-between gap-3">
         <span className="font-medium">{notification.title}</span>
         <time dateTime={notification.received.toISOString()} className="shrink-0 text-xs text-muted-foreground">
-          {time(notification.received)}
+          {formatTime(notification.received, language)}
         </time>
       </span>
       {notification.text !== null && <span className="text-muted-foreground">{notification.text}</span>}
@@ -82,6 +80,7 @@ function Item({ notification, onOpen }: { notification: Notification; onOpen: ((
 export function NotificationCenter({ onOpen, toasts = true }: NotificationCenterProps) {
   const { items, unread, markRead, clear } = useNotifications();
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
   // the notifications received before it was mounted are not toasted
   const [since] = useState(() => Math.max(toasted, items[0]?.key ?? 0));
 
@@ -99,7 +98,7 @@ export function NotificationCenter({ onOpen, toasts = true }: NotificationCenter
     if (open && unread > 0) markRead();
   }, [open, unread, markRead]);
 
-  const label = unread > 0 ? `Notifications, ${String(unread)} unread` : 'Notifications';
+  const label = unread > 0 ? t('notifications.unread', { count: unread }) : t('notifications.title');
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -117,15 +116,15 @@ export function NotificationCenter({ onOpen, toasts = true }: NotificationCenter
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex h-11 items-center justify-between border-b px-4">
-          <p className="text-sm font-semibold">Notifications</p>
+          <p className="text-sm font-semibold">{t('notifications.title')}</p>
           {items.length > 0 && (
             <Button type="button" variant="ghost" size="sm" data-bz="action:clear-notifications" onClick={clear}>
-              Clear
+              {t('notifications.clear')}
             </Button>
           )}
         </div>
-        <ul data-bz="list:notifications" aria-label="Notifications" className="max-h-96 divide-y overflow-y-auto">
-          {items.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">No notifications</li>}
+        <ul data-bz="list:notifications" aria-label={t('notifications.title')} className="max-h-96 divide-y overflow-y-auto">
+          {items.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">{t('notifications.empty')}</li>}
           {items.map((item) => (
             <Item
               key={item.key}

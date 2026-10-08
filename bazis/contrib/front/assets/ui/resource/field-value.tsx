@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { useLanguage } from '@/bazis/i18n';
 import type { FormField } from '@/bazis/react';
 
 import { formatValue } from './fields.js';
@@ -25,6 +26,7 @@ import { RelationLabel } from './relation.js';
  */
 export function FieldValue({ field, value }: { field: FormField | undefined; value: unknown }) {
   const { resources } = useFiles();
+  const language = useLanguage();
   if (isFile(field, resources) && value !== null && value !== undefined) {
     return <FileValue relation={field.relation} id={text(value)} />;
   }
@@ -42,5 +44,5 @@ export function FieldValue({ field, value }: { field: FormField | undefined; val
       </>
     );
   }
-  return <>{formatValue(field, value)}</>;
+  return <>{formatValue(field, value, language)}</>;
 }

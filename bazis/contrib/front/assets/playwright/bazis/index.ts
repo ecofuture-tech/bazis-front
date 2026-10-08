@@ -94,6 +94,9 @@ function exactly(value: string | number | boolean | null): RegExp {
  * (set by `open` and `expectScreen`) and on the open form, the `<form>` with
  * `action:submit` (a dialog, the edit of a card, a form screen).
  */
+/** The languages that `language` goes through before it gives up. */
+const MAX_LANGUAGES = 20;
+
 export class App<P extends Product = Product> {
   private current: ScreenId<P> | null = null;
 
@@ -330,6 +333,24 @@ export class App<P extends Product = Product> {
     await expect(list.locator('[data-bz^="notification:"]').filter({ hasText: text }).first()).toBeVisible();
     await this.page.keyboard.press('Escape');
     await expect(list).toHaveCount(0);
+  }
+
+  /**
+   * Switches the language of the interface to a language of the backend (`LANGUAGES` of the
+   * contract): the button of the layout, `action:language`, until its `data-value` is the
+   * code. Not a step of the scenarios: the tests of the product (`e2e/custom/`) use it.
+   */
+  async language(code: string): Promise<void> {
+    const toggle = this.page.locator(bz('action', 'language')).filter({ visible: true }).first();
+    await expect(toggle).toBeVisible();
+    // a button that goes through the languages: as many clicks as there are languages at most
+    for (let clicks = 0; clicks < MAX_LANGUAGES; clicks += 1) {
+      const current = await toggle.getAttribute('data-value');
+      if (current === code) return;
+      await toggle.click();
+      await expect(toggle).not.toHaveAttribute('data-value', current ?? '');
+    }
+    await expect(toggle).toHaveAttribute('data-value', code);
   }
 
   private async expectReadonlyIn(form: Locator, field: string): Promise<void> {

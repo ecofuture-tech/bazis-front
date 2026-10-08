@@ -59,6 +59,9 @@ text = "the common channel of bazis-ws reaches every user session (anonymous one
 text = "bazis-uploadable gives a user only his own files, and the core does not check yet that a relationship targets an item the user may see: the route set of a model with a foreign key to uploadable.FileUpload refuses a file the user did not upload (on create, update and the relationships endpoint), as TaskRouteSet of the sample of bazis-front does"
 
 [[pitfalls]]
+text = "the frontend is in the languages of the backend (LANGUAGES, LANGUAGE_CODE): every text of a screen goes through t() of @/bazis/i18n with a key of the dictionaries of the product (src/i18n/<language>.ts, merged over those of the components), dates and numbers through its Intl formatters; the backend translates with gettext (.po and .mo committed) and the translated fields of its data (the names of roles, statuses and transits in every language in the data migrations)"
+
+[[pitfalls]]
 text = "the contract knows the socket of bazis-ws only when ws_route is routed in the router module (router.routes.append(ws_route)) or on the application of BAZIS_APP_MODULE; registered only in the main module, CAPABILITIES.ws.path is null and the frontend opens no socket"
 
 [[pitfalls]]

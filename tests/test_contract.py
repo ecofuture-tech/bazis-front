@@ -16,8 +16,11 @@ import json
 from types import SimpleNamespace
 
 from django.core.management import CommandError, call_command
+from django.db import models
 from django.db.migrations.recorder import MigrationRecorder
 from django.test import override_settings
+from django.test.utils import isolate_apps
+from django.utils import translation
 
 import pytest
 
@@ -41,7 +44,13 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 1
+    assert data['format'] == 2
+    # the languages of the project, in the order of LANGUAGES, and the base code of
+    # LANGUAGE_CODE
+    assert data['project']['language'] == 'en'
+    assert data['project']['languages'] == [
+        {'code': 'en', 'name': 'English'}, {'code': 'ru', 'name': 'Русский'},
+    ]
     assert data['openapi_hash'] == openapi_hash(sample_app.openapi())
     assert {'bazis', 'bazis-front', 'bazis-permit', 'bazis-statusy', 'bazis-users'} <= set(
         data['generated_by']
@@ -54,6 +63,12 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
 def test_export_is_deterministic(sample_app, workflow, tmp_path):
     first, second = render(sample_app), render(sample_app)
     assert first == second
+    # the same bytes whatever the language of the process: the texts are in LANGUAGE_CODE,
+    # the names in every language
+    for language in ('ru', 'en'):
+        with translation.override(language):
+            assert render(sample_app) == first
+    assert '"title": "Title"' in first['openapi.json']
 
     export(tmp_path)
     call_command('bazis_front', 'contract', '--check', '--out', str(tmp_path))
@@ -137,7 +152,10 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
         'result_path': '/api/v1/async_background_response/{task_id}/'
     }
     assert sections['async_request'] == {'header': 'X-Async-Background'}
-    assert sections['users'] == {'token_url': '/api/openapi-token/', 'user_resource': 'users.user'}
+    # the user of bazis-users has no language of his own (yet)
+    assert sections['users'] == {
+        'token_url': '/api/openapi-token/', 'user_resource': 'users.user', 'profile_language': False,
+    }
     # the login actions of BAZIS_AUTH_KINDS (the password only by default), as GET /auth/
     # lists them
     assert sections['authing'] == {
@@ -152,10 +170,14 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
     # the resources of the route sets of FileUploadRouteSet; no size limit by default
     assert sections['uploadable'] == {'max_size': None, 'resources': ['uploadable.file_upload']}
     # the effective permissions of a role: the union of those of its groups, sorted
+    # the names in every language of the project (translated fields)
     assert sections['permit']['roles'] == [
-        {'slug': 'guest', 'name': 'Guest', 'for_anonymous': False, 'groups': [], 'permissions': []},
         {
-            'slug': 'manager', 'name': 'Manager', 'for_anonymous': False,
+            'slug': 'guest', 'name': {'en': 'Guest', 'ru': 'Гость'}, 'for_anonymous': False,
+            'groups': [], 'permissions': [],
+        },
+        {
+            'slug': 'manager', 'name': {'en': 'Manager', 'ru': 'Менеджер'}, 'for_anonymous': False,
             'groups': ['tasks_change', 'tasks_transit', 'tasks_view'],
             'permissions': [
                 'tasks.task.field.change.all.all.report.readonly',
@@ -167,7 +189,7 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
             ],
         },
         {
-            'slug': 'viewer', 'name': 'Viewer', 'for_anonymous': True,
+            'slug': 'viewer', 'name': {'en': 'Viewer', 'ru': 'Наблюдатель'}, 'for_anonymous': True,
             'groups': ['tasks_report_hidden', 'tasks_view'],
             'permissions': [
                 'tasks.task.field.view.all.all.report.disable', 'tasks.task.item.view.all.all',
@@ -178,13 +200,14 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
     task = sections['statusy']['models']['tasks.task']
     assert task['initial'] == 'draft'
     assert task['statuses'] == [
-        {'id': 'done', 'name': 'Done'},
-        {'id': 'draft', 'name': 'Draft'},
-        {'id': 'in_progress', 'name': 'In progress'},
+        {'id': 'done', 'name': {'en': 'Done', 'ru': 'Готово'}},
+        {'id': 'draft', 'name': {'en': 'Draft', 'ru': 'Черновик'}},
+        {'id': 'in_progress', 'name': {'en': 'In progress', 'ru': 'В работе'}},
     ]
     finish, start = task['transits']
     assert start == {
-        'id': 'start', 'name': 'Start', 'src': 'draft', 'dst': 'in_progress', 'payload': None
+        'id': 'start', 'name': {'en': 'Start', 'ru': 'Начать'}, 'src': 'draft', 'dst': 'in_progress',
+        'payload': None,
     }
     assert (finish['id'], finish['src'], finish['dst']) == ('finish', 'in_progress', 'done')
     assert finish['payload']['required'] is True
@@ -243,9 +266,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0005_workflow')
+    unapply('tasks', '0006_workflow_ru')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0005_workflow.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0006_workflow_ru.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -253,12 +276,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0005_workflow' in messages[0].msg
+    assert 'tasks.0006_workflow_ru' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0005_workflow')
+    unapply('tasks', '0006_workflow_ru')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )
@@ -395,3 +418,32 @@ def test_openapi_hash_covers_the_operation_surface():
 def test_the_subcommand_is_required():
     with pytest.raises(CommandError, match='subcommand'):
         call_command('bazis_front')
+
+
+@isolate_apps('users')
+def test_the_users_have_a_language_of_their_own_with_a_text_field_language():
+    from bazis.contrib.front.capabilities.users import profile_language
+    from bazis.core.models_abstract import JsonApiMixin
+
+    class Speaker(JsonApiMixin, models.Model):
+        language = models.CharField(max_length=15, blank=True)
+
+        class Meta:
+            app_label = 'users'
+
+    class Polyglot(JsonApiMixin, models.Model):
+        language = models.JSONField(default=list)
+
+        class Meta:
+            app_label = 'users'
+
+    class Plain(models.Model):
+        language = models.CharField(max_length=15)
+
+        class Meta:
+            app_label = 'users'
+
+    assert profile_language(Speaker) is True
+    # another field `language`, or a model that is no resource
+    assert profile_language(Polyglot) is False
+    assert profile_language(Plain) is False

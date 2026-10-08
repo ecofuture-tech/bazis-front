@@ -24,6 +24,7 @@ import { createContext, use, useMemo, type ComponentProps, type ComponentType, t
 
 import { ApiError } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
+import { ENGLISH, formatNumber, useLanguage, type LanguageContextValue } from '@/bazis/i18n';
 import type { FormField, RelationField } from '@/bazis/react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -98,17 +99,21 @@ export function isImage(name: string): boolean {
   return IMAGES.includes(name.split('.').pop()?.toLowerCase() ?? '');
 }
 
-/** A size in bytes, as `11 B`, `1.2 KB`, `3 MB`. */
-export function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${String(bytes)} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
+/**
+ * A size in bytes in the language of the interface (English by default): `11 B`, `1.2 KB`,
+ * `3 MB` (`1,2 КБ` in Russian).
+ */
+export function formatSize(bytes: number, { language, t }: Pick<LanguageContextValue, 'language' | 't'> = ENGLISH): string {
+  if (bytes < 1024) return t('size.bytes', { size: bytes });
+  const units = ['size.kb', 'size.mb', 'size.gb', 'size.tb'];
   let value = bytes / 1024;
   let unit = 0;
   while (value >= 1024 && unit < units.length - 1) {
     value /= 1024;
     unit += 1;
   }
-  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1).replace(/\.0$/, '')} ${units[unit] ?? ''}`;
+  const size = formatNumber(value, language, { maximumFractionDigits: value >= 10 ? 0 : 1 });
+  return t(units[unit] ?? 'size.tb', { size });
 }
 
 /** The attributes of an uploaded file. */
@@ -132,6 +137,7 @@ export function uploadedFile(item: ResourceObject): UploadedFile {
 
 /** A file: a thumbnail of an image (`preview`, else its URL) or an icon, its name as a link to it, its size. */
 export function FileView({ file, preview }: { file: UploadedFile; preview?: string | null | undefined }) {
+  const language = useLanguage();
   const image = isImage(file.name) ? (preview ?? file.url) : null;
   return (
     <span className="inline-flex max-w-full min-w-0 items-center gap-2 align-middle">
@@ -157,7 +163,7 @@ export function FileView({ file, preview }: { file: UploadedFile; preview?: stri
         <span className="truncate">{file.name}</span>
       )}
       {file.size !== null && (
-        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatSize(file.size)}</span>
+        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatSize(file.size, language)}</span>
       )}
     </span>
   );
@@ -186,6 +192,7 @@ export function FileValue({
 
 function StoredFile({ path, id, preview }: { path: string; id: string; preview: string | null | undefined }) {
   const item = useAnyItem(path, id);
+  const { t } = useLanguage();
   if (item.data) return <FileView file={uploadedFile(item.data.data)} preview={preview} />;
   if (item.isPending) return <Skeleton className="inline-block h-4 w-28 align-middle" />;
   // bazis-uploadable gives a user only his own files: the file of another user (the
@@ -195,10 +202,10 @@ function StoredFile({ path, id, preview }: { path: string; id: string; preview: 
     <span
       data-bz="file:unavailable"
       className="inline-flex items-center gap-1.5 text-muted-foreground"
-      title={hidden ? 'Only the user who uploaded the file can open it' : `The file #${id} could not be loaded`}
+      title={t(hidden ? 'file.unavailable_hint' : 'file.failed_hint', { id })}
     >
       <FileLock aria-hidden className="size-4 shrink-0" />
-      <span>{hidden ? 'File not available' : 'File not loaded'}</span>
+      <span>{t(hidden ? 'file.unavailable' : 'file.failed')}</span>
     </span>
   );
 }

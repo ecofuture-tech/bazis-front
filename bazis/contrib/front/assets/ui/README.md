@@ -20,8 +20,15 @@ the shadcn CLI. Their npm dependencies (`radix-ui`, `class-variance-authority`,
 `lucide-react`) and those of the contract tests (`@testing-library/react`, `jsdom`) are in
 the `package.json` of the template: `add` never changes the `package.json` of a product.
 
-Labels come from the backend (the titles of the runtime schemas, the names of the statuses
-and transits in `contract.ts`) and from the props; there are no translations.
+The labels of the data come from the backend (the titles of the runtime schemas, in the
+language it answers in; the names of the statuses and transits of `contract.ts`, in every
+language) and from the props. Every other text is a key of the dictionaries of `@/bazis/i18n`
+(`useLanguage().t`: `state.error.title`, `list.next`, `socket.open`, …,
+`src/bazis/i18n/messages/<language>.ts`), in the language of `LanguageProvider` (English
+without it), and the dates and numbers are formatted in that language with `Intl`. A
+product changes a text with its key in its own dictionary (`src/i18n/<language>.ts`), not in
+the copy. The contract tests never depend on a text: `renderWithBazis` of `testing` renders
+in English (`language: testLanguages('ru', 'en')` for a test of another language).
 
 ## The design
 
@@ -39,8 +46,8 @@ The components look as the design of the product says (`spec/design/`, compiled 
   `ResourceCard` (`mode`, `forms`); a prop overrides it, which the contract tests use to
   check both;
 - the loading states are skeletons of what loads, still marked `state:loading` with
-  `aria-busy`; the other states an icon, a title and a hint (`STATE_MESSAGES`,
-  `STATE_HINTS`); a change that succeeded shows a toast (`toast`, the `Toaster` of
+  `aria-busy`; the other states an icon, a title and a hint (the texts
+  `state.<state>.title` and `state.<state>.hint`); a change that succeeded shows a toast (`toast`, the `Toaster` of
   `AppShell`);
 - the tone of a status badge is `statuses` of the theme (`statusTone`), neutral by default.
 
@@ -53,22 +60,23 @@ sample (`tests/test_design.py` checks it; write it again with
 | Component | Props | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`; `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
+| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
-| `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | capability `statusy` |
+| `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | capability `statusy` |
 | `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 | `file-field` | `FileFieldProvider({accept?, maxSize?, resources?, children})`; `FileField(props)` (the control of a file field of `FieldInput`, with `maxSize?`, `accept?`, `path?`); `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
-| `live-query` | `LiveQuery({routes?})` (`ROUTES` by default); `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
+| `live-query` | `LiveQuery({routes?})` (`ROUTES` by default); the texts `socket.<status>` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | capability `ws` |
-| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`, `TASK_LABELS` | `bg:<waiting\|running\|success\|error\|interrupted>`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
-| `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`, `RESULT_LABELS` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
+| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
+| `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
-only one: the forms and the payloads of the transits use it), `FieldValue`,
+only one: the forms and the payloads of the transits use it), `FieldValue` (with
+`formatValue(field, value, {language, t}?)`: the value in the language of the interface),
 `RelationPicker({relation, value, onChange, label?, placeholder?, nullable?, disabled?, path?})` and
 `RelationLabel({relation, id, path?})` (the related resource by its route in `ROUTES`, or
 `path`), `useListFields`/`useItemFields` (the titles and types of the list, retrieve and
@@ -76,11 +84,13 @@ update schemas, `has(name)`: whether the schema of the user has the field),
 `permitted(meta, action, id?)` (the permission meta of bazis-permit; allowed when the
 backend does not report it), the files of bazis-uploadable (`FilesProvider({control,
 resources?})`, which gives `FieldInput` the control of the file fields; `FileValue({relation,
-id, path?, preview?})`, `FileView`, `isFile`, `formatSize`, `FILE_RESOURCES`: the resources
+id, path?, preview?})`, `FileView`, `isFile`, `formatSize(bytes, {language, t}?)`, `FILE_RESOURCES`: the resources
 of `uploadable` of the contract), and the hooks with plain paths for the bodies of the
 components. `testing` is the support of the contract tests: a backend for the mocked
-`fetch` of the client, the documents and runtime schemas of Bazis, `renderWithBazis`, and
-`getByTestId` reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
+`fetch` of the client (each request with the language it asked for, `calls[].language`),
+the documents and runtime schemas of Bazis, `renderWithBazis` (in English, or in the
+language of `testLanguages(...)`), and `getByTestId` reading `data-bz`, and `FakeSocket`,
+the WebSocket of the page in a test.
 
 - **`state-panel`** is the only place where an error of the backend becomes a state: 401
   and 403 are `forbidden`, 404 `not_found`, 422 `invalid`, any other `error`.

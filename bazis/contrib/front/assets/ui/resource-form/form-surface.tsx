@@ -22,6 +22,7 @@ import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import { THEME } from '@/bazis/generated/theme';
+import { useLanguage } from '@/bazis/i18n';
 import { useScreenPage } from '@/bazis/ui/app-shell';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -40,6 +41,7 @@ export interface FormSurfaceProps {
 
 function FormPage({ open, onClose, title, description, children }: Omit<FormSurfaceProps, 'mode'>) {
   const page = useScreenPage();
+  const { t } = useLanguage();
   const claim = page?.claim;
   useEffect(() => {
     if (!open || !claim) return;
@@ -52,7 +54,7 @@ function FormPage({ open, onClose, title, description, children }: Omit<FormSurf
   const content = (
     <div className="mx-auto grid w-full max-w-2xl gap-6">
       <div className="flex items-start gap-3">
-        <Button type="button" variant="ghost" size="icon-sm" className="mt-0.5" aria-label="Back" onClick={onClose}>
+        <Button type="button" variant="ghost" size="icon-sm" className="mt-0.5" aria-label={t('form.back')} onClick={onClose}>
           <ArrowLeft />
         </Button>
         <div className="grid gap-1">

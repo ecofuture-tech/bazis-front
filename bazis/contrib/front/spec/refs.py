@@ -144,6 +144,7 @@ def check_product(doc: Document, contract: dict | None, issues: Issues) -> Produ
         _check_entity(doc, entity, product, issues)
     index(doc, data.get('scenarios', []), ('scenarios',), 'scenario', issues)
 
+    _check_languages(doc, data, contract, issues)
     if contract is not None:
         _check_packages(doc, data, contract, issues)
         _check_login(doc, data, contract, issues)
@@ -257,6 +258,39 @@ def _check_packages(doc: Document, data: dict, contract: dict, issues: Issues) -
                 'Append `ws_route` to the routes of the router module (`router.routes.append(ws_route)` '
                 f'in the module of BS_BAZIS_ROUTER_MODULE), not in the main module, and {EXPORT_HINT}.',
             )
+
+
+def _check_languages(doc: Document, data: dict, contract: dict | None, issues: Issues) -> None:
+    """
+    The languages of the interface: `language` is one of `languages`, and both are those of
+    the backend (`project.languages` and `project.language` of the contract).
+    """
+    languages, language = data.get('languages'), data.get('language')
+    if languages is not None and language is not None and language not in languages:
+        issues.add(
+            doc, ('language',), 'P029', f'The language `{language}` is not one of `languages`.',
+            'Add it to `languages`, or set `language` to one of them.',
+        )
+    if contract is None:
+        return
+    project = contract['project']
+    hint = (
+        'Make the specs follow the backend, or change LANGUAGES and LANGUAGE_CODE of its '
+        f'settings (BS_LANGUAGES, BS_LANGUAGE_CODE), and {EXPORT_HINT}.'
+    )
+    codes = [it['code'] for it in project.get('languages', [])]
+    if languages is not None and sorted(languages) != sorted(codes):
+        issues.add(
+            doc, ('languages',), 'P029',
+            f'The languages {", ".join(languages)} differ from those of the backend: {", ".join(codes)}.',
+            hint,
+        )
+    if language is not None and language != project.get('language'):
+        issues.add(
+            doc, ('language',), 'P029',
+            f'The language `{language}` differs from that of the backend: `{project.get("language")}`.',
+            hint,
+        )
 
 
 def _check_login(doc: Document, data: dict, contract: dict, issues: Issues) -> None:

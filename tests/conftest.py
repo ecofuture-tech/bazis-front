@@ -27,9 +27,10 @@ def workflow(db):
     """
     The data that the contract reads from the database: roles with their permission groups
     and permissions, and the statuses and transits of the tasks, those of the specs of the
-    sample (`sample/spec/`). The data migration `tasks.0005_workflow` creates them; a test
-    with `transaction=True` flushes the tables, so the fixture runs the function of the
-    migration again, with the models of the project (data that exists is kept).
+    sample (`sample/spec/`), with their Russian names. The data migrations
+    `tasks.0005_workflow` and `tasks.0006_workflow_ru` create them; a test with
+    `transaction=True` flushes the tables, so the fixture runs the functions of the
+    migrations again, with the models of the project (data that exists is kept).
     """
     import importlib
 
@@ -42,3 +43,4 @@ def workflow(db):
     ContentType.objects.clear_cache()
     StatusyContentType.objects.clear_cache()
     importlib.import_module('tasks.migrations.0005_workflow').create_workflow(apps)
+    importlib.import_module('tasks.migrations.0006_workflow_ru').name_workflow(apps)

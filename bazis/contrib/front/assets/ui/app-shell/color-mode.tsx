@@ -22,6 +22,7 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
 
 import { THEME } from '@/bazis/generated/theme';
+import { useLanguage } from '@/bazis/i18n';
 import { Button } from '@/components/ui/button';
 
 export type ColorMode = 'light' | 'dark' | 'system';
@@ -85,22 +86,23 @@ export function useColorMode(): ColorMode {
 }
 
 const ICONS = { system: Monitor, light: Sun, dark: Moon } as const;
-const LABELS = { system: 'System', light: 'Light', dark: 'Dark' } as const;
 
 /** A button that switches the mode: system, light, dark; nothing without a dark mode. */
 export function ColorModeToggle({ className }: { className?: string }) {
   const current = useColorMode();
+  const { t } = useLanguage();
   if (!THEME.dark) return null;
   const Icon = ICONS[current];
   const following = MODES[(MODES.indexOf(current) + 1) % MODES.length] ?? 'system';
+  const mode = t(`color.${current}`);
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon-sm"
       className={className}
-      aria-label={`Color mode: ${LABELS[current]}. Switch to ${LABELS[following]}`}
-      title={`Color mode: ${LABELS[current]}`}
+      aria-label={t('color.switch', { mode, next: t(`color.${following}`) })}
+      title={t('color.current', { mode })}
       onClick={() => {
         setColorMode(following);
       }}

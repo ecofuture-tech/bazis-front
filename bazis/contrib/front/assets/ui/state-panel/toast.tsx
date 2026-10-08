@@ -20,6 +20,7 @@
 import { CircleAlert, CircleCheck, Info, X } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
+import { useLanguage } from '@/bazis/i18n';
 import { cn } from '@/lib/utils';
 
 export interface Toast {
@@ -69,6 +70,7 @@ const TONES = {
 
 /** A toast, dismissed after `DURATION` while neither the pointer nor the focus is on it. */
 function ToastItem({ item }: { item: Toast }) {
+  const { t } = useLanguage();
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const paused = hovered || focused;
@@ -107,7 +109,7 @@ function ToastItem({ item }: { item: Toast }) {
       <button
         type="button"
         className="rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        aria-label="Dismiss"
+        aria-label={t('toast.dismiss')}
         onClick={() => {
           dismissToast(item.id);
         }}
@@ -120,11 +122,12 @@ function ToastItem({ item }: { item: Toast }) {
 
 /** The toasts, at the bottom of the screen, in one polite live region. */
 export function Toaster() {
+  const { t } = useLanguage();
   const items = useSyncExternalStore(subscribe, () => toasts, () => toasts);
   return (
     <div
       role="region"
-      aria-label="Notifications"
+      aria-label={t('toast.region')}
       aria-live="polite"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4 sm:items-end"
     >

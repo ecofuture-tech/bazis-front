@@ -22,6 +22,7 @@ import { Lock, Pencil } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { THEME } from '@/bazis/generated/theme';
+import { useLanguage } from '@/bazis/i18n';
 import type { ItemPath } from '@/bazis/react';
 import {
   FieldValue,
@@ -115,6 +116,7 @@ interface SectionsProps {
  * are marked read-only.
  */
 function Sections({ sections, item, fields, values, editable }: SectionsProps) {
+  const { t } = useLanguage();
   return sections.map((section) => {
     const names = section.fields.filter((name) => fields.has(name));
     if (!names.length) return null;
@@ -136,9 +138,9 @@ function Sections({ sections, item, fields, values, editable }: SectionsProps) {
                 <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <span className="first-letter:uppercase">{fields.title(name)}</span>
                   {readOnly && (
-                    <span title="Read-only" className="inline-flex text-muted-foreground/70">
+                    <span title={t('card.readonly')} className="inline-flex text-muted-foreground/70">
                       <Lock className="size-3" aria-hidden="true" />
-                      <span className="sr-only">(read-only)</span>
+                      <span className="sr-only">({t('card.readonly')})</span>
                     </span>
                   )}
                 </dt>
@@ -181,6 +183,7 @@ export function ResourceCard({
   const item = useAnyItem(path, id, { meta: ['crud_actions'] });
   const fields = useItemFields(path, id);
   const [editing, setEditing] = useState(false);
+  const { t } = useLanguage();
   const document = item.data;
   // the sections wait for the titles of their fields
   if (!document || !fields.ready) {
@@ -223,7 +226,7 @@ export function ResourceCard({
               }}
             >
               <Pencil />
-              Edit
+              {t('card.edit')}
             </Button>
           )}
           {actions
@@ -251,7 +254,7 @@ export function ResourceCard({
         <FormSurface
           open={editing}
           {...(forms === undefined ? {} : { mode: forms })}
-          title={<>Edit {label}</>}
+          title={typeof label === 'string' ? t('card.edit_item', { item: label }) : <>{t('card.edit')} {label}</>}
           onClose={() => {
             setEditing(false);
           }}

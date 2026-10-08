@@ -13,15 +13,19 @@
 // limitations under the License.
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
+import { followSessionLanguage, getLanguage, languageStore } from '@/app/language';
 import { getToken, logout, onSessionChange, useSession } from '@/app/session';
 import { ApiError, createClient } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
+import { LanguageProvider } from '@/bazis/i18n';
 import { BazisProvider, type Api } from '@/bazis/react';
+import { MESSAGES } from '@/i18n';
 
-// The API is on the origin of the frontend: the dev server proxies /api (vite.config.ts).
-const api: Api = createClient<paths>({ token: getToken });
+// The API is on the origin of the frontend: the dev server proxies /api (vite.config.ts). The
+// client sends the language of the interface (`Accept-Language`).
+const api: Api = createClient<paths>({ token: getToken, language: getLanguage });
 
 // an expired or revoked token ends the session, whether a query or a mutation finds it out
 function endSessionOn401(error: Error): void {
@@ -54,20 +58,39 @@ export function clearOnSessionChange(queryClient: QueryClient): () => void {
 }
 
 /**
- * The query cache and the client of the backend for the hooks of `@/bazis/react` (`useApi()`
- * reads the client). The cached data belongs to the user who loaded it: the cache is cleared
- * when the user changes, and every query key of the hooks also ends with the session, so
- * that a request still running for the previous user never fills a query of the next one.
+ * Drops the queries and the mutations when the language changes: the texts of the backend
+ * (the titles of the schemas, the messages of the errors) are those of the language they
+ * were read in. Returns the unsubscribe function.
+ */
+export function clearOnLanguageChange(queryClient: QueryClient, store = languageStore): () => void {
+  return store.subscribe(() => {
+    queryClient.clear();
+  });
+}
+
+/**
+ * The language, the query cache and the client of the backend for the hooks of
+ * `@/bazis/react` (`useApi()` reads the client). The cached data belongs to the user who
+ * loaded it and is in the language it was read in: the cache is cleared when the user or the
+ * language changes, and every query key of the hooks also ends with the session and the
+ * language, so that a request still running for the previous user (or language) never fills
+ * a query of the next one.
  */
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
   useEffect(() => clearOnSessionChange(queryClient), [queryClient]);
+  useEffect(() => clearOnLanguageChange(queryClient), [queryClient]);
+  // the language of the profile of the user, when the users have one
+  useEffect(() => followSessionLanguage(api), []);
   const session = useSession();
+  const language = useSyncExternalStore(languageStore.subscribe, languageStore.get);
   return (
-    <QueryClientProvider client={queryClient}>
-      <BazisProvider client={api} session={session}>
-        {children}
-      </BazisProvider>
-    </QueryClientProvider>
+    <LanguageProvider store={languageStore} messages={MESSAGES}>
+      <QueryClientProvider client={queryClient}>
+        <BazisProvider client={api} session={session} language={language}>
+          {children}
+        </BazisProvider>
+      </QueryClientProvider>
+    </LanguageProvider>
   );
 }

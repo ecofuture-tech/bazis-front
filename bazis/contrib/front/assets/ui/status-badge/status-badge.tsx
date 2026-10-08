@@ -16,6 +16,7 @@
 // that `statuses` of spec/design/theme.yaml gives the status (neutral by default).
 
 import type { Tone } from '@/bazis/generated/theme';
+import { useLanguage } from '@/bazis/i18n';
 import type { ResourceObject } from '@/bazis/ui/resource';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,7 @@ const TONES: Readonly<Record<Tone, string>> = {
 
 /** The status of the item (a row of a list or the `data` of an item); nothing without one. */
 export function StatusBadge({ resource, className }: { resource: ResourceObject; className?: string }) {
+  const { language } = useLanguage();
   const status = statusOf(resource);
   if (status === null) return null;
   const tone = statusTone(status);
@@ -45,7 +47,7 @@ export function StatusBadge({ resource, className }: { resource: ResourceObject;
       className={cn('gap-1.5 border-transparent', TONES[tone], className)}
     >
       <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
-      {statusName(resource.type, status)}
+      {statusName(resource.type, status, language)}
     </Badge>
   );
 }

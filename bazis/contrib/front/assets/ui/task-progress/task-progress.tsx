@@ -22,6 +22,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
+import { formatNumber, useLanguage } from '@/bazis/i18n';
 import { useBgTask, type BgProgress, type BgTask } from '@/bazis/react/bg';
 import { errorState, SkeletonLines, StatePanel } from '@/bazis/ui/state-panel';
 import { cn } from '@/lib/utils';
@@ -34,13 +35,7 @@ export const BG_TASKS: string | null =
 
 export type TaskView = 'waiting' | 'running' | 'success' | 'error' | 'interrupted';
 
-export const TASK_LABELS: Readonly<Record<TaskView, string>> = {
-  waiting: 'Waiting',
-  running: 'Running',
-  success: 'Done',
-  error: 'Failed',
-  interrupted: 'Interrupted',
-};
+// the state of a task is the text `bg.<view>` of the dictionaries (`@/bazis/i18n`)
 
 const TONES: Readonly<Record<TaskView, string>> = {
   waiting: 'bg-muted text-muted-foreground',
@@ -74,16 +69,17 @@ export interface TaskProgressProps {
 
 function Bar({ progress }: { progress: BgProgress }) {
   const { key, performed, expected } = progress;
+  const { language, t } = useLanguage();
   const percent =
     expected !== null && expected > 0 ? Math.min(100, Math.round(((performed ?? 0) / expected) * 100)) : null;
-  const label = key === null ? 'Progress' : `Progress of ${key}`;
+  const label = key === null ? t('bg.progress') : t('bg.progress_of', { key });
   return (
     <div className="grid gap-1">
       <div className="flex justify-between gap-3 text-xs text-muted-foreground tabular-nums">
         <span>{key ?? ''}</span>
         <span>
-          {performed ?? 0}
-          {expected !== null && ` / ${String(expected)}`}
+          {formatNumber(performed ?? 0, language)}
+          {expected !== null && ` / ${formatNumber(expected, language)}`}
         </span>
       </div>
       <div
@@ -122,6 +118,7 @@ function Task({
   children,
 }: Omit<TaskProgressProps, 'path'> & { path: string }) {
   const query = useAnyBgTask(path, id);
+  const { t } = useLanguage();
   const task = query.data;
   const reported = useRef<string | null>(null);
   useEffect(() => {
@@ -154,7 +151,7 @@ function Task({
     >
       <div className="flex items-center justify-between gap-3">
         <p className="min-w-0 truncate font-medium">{name}</p>
-        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', TONES[view])}>{TASK_LABELS[view]}</span>
+        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', TONES[view])}>{t(`bg.${view}`)}</span>
       </div>
       {view === 'running' && (
         <>

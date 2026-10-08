@@ -16,17 +16,20 @@
 // that answers the requests of the client (a mocked `fetch`, and the XMLHttpRequest of its
 // uploads), the documents and runtime
 // schemas of Bazis it answers with, a socket of bazis-ws (`FakeSocket`), and the render of
-// a component inside the providers of the hooks and a router. The tests find the elements by their `data-bz` (`getByTestId`).
-// Only the tests import it.
+// a component inside the providers of the hooks and a router, in English (`LanguageProvider`
+// with the language `en` fixed, unless a test passes the store of another one: the tests of
+// the contract never depend on the texts). The tests find the elements by their `data-bz`
+// (`getByTestId`). Only the tests import it.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, configure, render, type RenderResult } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach } from 'vitest';
 
 import { createClient } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
+import { createLanguageStore, LanguageProvider, type LanguageStore } from '@/bazis/i18n';
 import { BazisProvider } from '@/bazis/react';
 
 // `getByTestId('state:loaded')` finds `data-bz="state:loaded"`, as the scenarios do
@@ -48,6 +51,8 @@ export interface Call {
   /** The path and the query, without the origin. */
   url: string;
   body: unknown;
+  /** The language the client asked for (`Accept-Language`), null for none. */
+  language: string | null;
 }
 
 interface Reply {
@@ -138,7 +143,13 @@ export class Backend {
     const url = href.slice(BASE.length);
     const method = init?.method ?? 'GET';
     const text = typeof init?.body === 'string' ? init.body : undefined;
-    this.calls.push({ method, url, body: text === undefined ? undefined : (JSON.parse(text) as unknown) });
+    const headers = new Headers(init?.headers);
+    this.calls.push({
+      method,
+      url,
+      body: text === undefined ? undefined : (JSON.parse(text) as unknown),
+      language: headers.get('Accept-Language'),
+    });
     const reply =
       this.replies.get(`${method} ${url}`) ?? this.replies.get(`${method} ${url.split('?')[0] ?? ''}`);
     if (!reply) return new Response('', { status: 404, statusText: `no reply to ${method} ${url}` });
@@ -238,21 +249,60 @@ export function createQueryClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-/** Renders the element inside the providers of the hooks and a router at `route`. */
+/** The languages of the tests, by code: the names are those of the sample. */
+const NAMES: Readonly<Record<string, string>> = { en: 'English', ru: 'Русский' };
+
+/**
+ * A store of the language of the tests: these languages (the first one is the default and
+ * the current one), nothing kept in the browser.
+ */
+export function testLanguages(...codes: string[]): LanguageStore {
+  const languages = codes.map((code) => ({ code, name: NAMES[code] ?? code }));
+  return createLanguageStore({ languages, fallback: codes[0] ?? 'en', storage: null, preferred: [] });
+}
+
+function Providers({
+  store,
+  backend,
+  queryClient,
+  children,
+}: {
+  store: LanguageStore;
+  backend: Backend;
+  queryClient: QueryClient;
+  children: ReactNode;
+}) {
+  const language = useSyncExternalStore(store.subscribe, store.get);
+  // the client sends the language of the store, as the template's does
+  const [api] = useState(() =>
+    createClient<paths>({ baseUrl: BASE, fetch: backend.fetch, xhr: backend.xhr, language: store.get }),
+  );
+  return (
+    <LanguageProvider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <BazisProvider client={api} session="test" language={language}>
+          {children}
+        </BazisProvider>
+      </QueryClientProvider>
+    </LanguageProvider>
+  );
+}
+
+/**
+ * Renders the element inside the providers of the hooks and a router at `route`, in English
+ * (`language`: the store of another language, `testLanguages('ru', 'en')`).
+ */
 export function renderWithBazis(
   element: ReactNode,
   backend: Backend,
-  { route = '/' }: { route?: string } = {},
+  { route = '/', language = testLanguages('en') }: { route?: string; language?: LanguageStore } = {},
 ): RenderResult & { queryClient: QueryClient } {
   const queryClient = createQueryClient();
-  const api = createClient<paths>({ baseUrl: BASE, fetch: backend.fetch, xhr: backend.xhr });
   const result = render(
     <MemoryRouter initialEntries={[route]}>
-      <QueryClientProvider client={queryClient}>
-        <BazisProvider client={api} session="test">
-          {element}
-        </BazisProvider>
-      </QueryClientProvider>
+      <Providers store={language} backend={backend} queryClient={queryClient}>
+        {element}
+      </Providers>
     </MemoryRouter>,
   );
   return Object.assign(result, { queryClient });

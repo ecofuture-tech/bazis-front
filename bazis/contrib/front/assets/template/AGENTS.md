@@ -135,8 +135,30 @@ written.
   `src/app/session.ts`, a number that changes at every login and logout), so that a
   request still running for the previous user never fills a query of the next one. A query
   of your own over data of the backend ends its key with `useSessionKey()` too.
-- No translations: the labels come from the backend (its schemas and names are already in
-  the language of the product) and from the screens.
+- **The language of the interface** (`src/app/language.ts`, the asset `@/bazis/i18n`): one
+  of `LANGUAGES` of the contract, chosen with `LanguageToggle` of `AppShell`
+  (`action:language`, shown with more than one language) and kept in the browser, else the
+  language of the browser, else `LANGUAGE` (the default of the backend); with
+  `CAPABILITIES.users.profile_language` (a field `language` of the user resource) the
+  language of the profile of the user wins at a login and every change is saved to it. The
+  client sends it (`Accept-Language`: the backend answers its titles and its errors in it),
+  every query key of the hooks ends with it, and a change clears the cache
+  (`src/app/providers.tsx`).
+- **Every text of a screen goes through `t()`**: `const { t, language } = useLanguage()` of
+  `@/bazis/i18n`, `t('tasks.title')`, `t('list.range_of', {from, to, count})`; plural forms
+  are `<key>.one`, `<key>.few`, `<key>.many`, `<key>.other` with the parameter `count`
+  (`Intl.PluralRules`). The texts of the product are in `src/i18n/<language>.ts`, one
+  dictionary per language of the backend, listed in `src/i18n/index.ts`; they are merged
+  over those of the components (`src/bazis/i18n/messages/`), so a text of a component is
+  changed with its key in the dictionary of the product, never in the copy. A language
+  without a dictionary of the product shows the English one. Never write a text of the
+  interface in the JSX.
+- Dates and numbers are formatted in the language of the interface, never in that of the
+  browser: `formatNumber`, `formatDate`, `formatDateTime`, `formatTime` of `@/bazis/i18n`
+  with `language` (`FieldValue` does it for the fields). The labels of the fields are the
+  titles of the runtime schemas, in the language the backend answers in; the names of the
+  statuses, the transits and the roles are in `contract.ts` in every language
+  (`statusName(type, id, language)` of `@/bazis/ui/status-badge`).
 
 ## Hooks (`@/bazis/react`)
 
@@ -178,7 +200,7 @@ const saved = await form.submit();                  // null when it failed: form
 | `useCreate(path)`, `useUpdate(path)`, `useDestroy(path)` | `mutate(document)`, `mutate({id, document})`, `mutate(id)` |
 | `useRelationship(path)` | `mutate({id, field, operation: 'add' \| 'replace' \| 'remove', data})`: the relationship endpoint, for to-many relationships |
 | `useResourceForm(path, {id?})` | a form bound to `schema_create`/`schema_update`: fields, values, dirty, submit of the changed attributes and to-one relationships, `errors` of a 422 by field |
-| `useApi()`, `useSessionKey()` | the client; the session, the last item of a query key of your own |
+| `useApi()`, `useSessionKey()` | the client; the scope (the session and the language), the last item of a query key of your own |
 
 With bazis-statusy, `@/bazis/react/statusy`:
 
@@ -500,5 +522,6 @@ test('a manager sees the drafts', async ({ page }) => {
   `loginAs`, `open`, `openItem`, `action`, `fill`, `upload` (a file of `e2e/fixtures/`),
   `submit`, `transit(id, payload?)`, `expectScreen`, `expectStatus`, `expectState`,
   `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectRows`,
-  `expectError`, `expectNotification`: the guide of
+  `expectError`, `expectNotification`, and `language(code)` (switches the language of the
+  interface, for a test of `e2e/custom/`): the guide of
   bazis-front lists what each one waits for.

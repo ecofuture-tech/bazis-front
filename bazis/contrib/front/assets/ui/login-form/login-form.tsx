@@ -23,6 +23,7 @@ import { useMutation } from '@tanstack/react-query';
 import { LoaderCircle, LogIn } from 'lucide-react';
 import { useId, useRef, useState, type ReactNode, type SubmitEvent } from 'react';
 
+import { useLanguage } from '@/bazis/i18n';
 import { StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,9 +66,10 @@ export function LoginForm({
   onLogin,
   methods = [],
   onSuccess,
-  title = 'Log in',
-  description = onLogin ? 'Enter your username and password to continue.' : 'Choose how to log in.',
+  title,
+  description,
 }: LoginFormProps) {
+  const { t } = useLanguage();
   const id = useId();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -120,7 +122,7 @@ export function LoginForm({
       })}
       {waiting && (
         <p className="flex items-center justify-between gap-2 text-sm text-muted-foreground" role="status">
-          Finish the login in its window. If you closed it, cancel.
+          {t('login.waiting')}
           <Button
             type="button"
             variant="ghost"
@@ -130,7 +132,7 @@ export function LoginForm({
               running.current = null;
             }}
           >
-            Cancel
+            {t('action.cancel')}
           </Button>
         </p>
       )}
@@ -141,15 +143,15 @@ export function LoginForm({
     <Card className="w-full max-w-sm gap-6 shadow-lg">
       <CardHeader className="gap-1.5">
         <CardTitle>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{title ?? t('login.title')}</h1>
         </CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription>{description ?? t(onLogin ? 'login.description' : 'login.choose')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {onLogin && (
           <form onSubmit={submit} className="grid gap-4" aria-busy={(mutation.isPending && !waiting) || undefined}>
             <div className="grid gap-2">
-              <Label htmlFor={`${id}-username`}>Username</Label>
+              <Label htmlFor={`${id}-username`}>{t('login.username')}</Label>
               <Input
                 id={`${id}-username`}
                 name="username"
@@ -163,7 +165,7 @@ export function LoginForm({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor={`${id}-password`}>Password</Label>
+              <Label htmlFor={`${id}-password`}>{t('login.password')}</Label>
               <Input
                 id={`${id}-password`}
                 name="password"
@@ -180,14 +182,14 @@ export function LoginForm({
             {failed && <StatePanel inline state="error" error={mutation.error} />}
             <Button type="submit" size="lg" className="mt-1 w-full" data-bz="action:submit" disabled={mutation.isPending}>
               {mutation.isPending && !waiting && <LoaderCircle className="animate-spin" aria-hidden="true" />}
-              Log in
+              {t('login.submit')}
             </Button>
           </form>
         )}
         {onLogin && buttons && (
           <div className="flex items-center gap-3 text-xs text-muted-foreground uppercase" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
-            or
+            {t('login.or')}
             <span className="h-px flex-1 bg-border" />
           </div>
         )}

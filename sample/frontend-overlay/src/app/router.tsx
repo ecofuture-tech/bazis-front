@@ -19,6 +19,7 @@ import { ErrorBoundary } from '@/app/errors';
 import { PRODUCT_NAME } from '@/app/product';
 import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { CAPABILITIES } from '@/bazis/generated/contract';
+import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
 import { SocketProvider, type Notification } from '@/bazis/react/ws';
 import { AppShell, ListCardLayout, type NavItem } from '@/bazis/ui/app-shell';
@@ -30,10 +31,13 @@ import { LoginScreen } from '@/screens/login';
 import { TaskCardScreen } from '@/screens/task-card';
 import { TaskListScreen } from '@/screens/task-list';
 
-/** The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon. */
-const NAVIGATION: readonly NavItem[] = [
-  { screen: 'home', label: 'Home', to: '/', end: true, icon: House },
-  { screen: 'task-list', label: 'Tasks', to: '/tasks', icon: ListChecks },
+/**
+ * The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon;
+ * the label is the key of its text in the dictionaries of the product (`src/i18n/`).
+ */
+const NAVIGATION: readonly (NavItem & { label: string })[] = [
+  { screen: 'home', label: 'nav.home', to: '/', end: true, icon: House },
+  { screen: 'task-list', label: 'nav.tasks', to: '/tasks', icon: ListChecks },
 ];
 
 /**
@@ -44,6 +48,7 @@ const NAVIGATION: readonly NavItem[] = [
 function RequireSession() {
   const token = useToken();
   const api = useApi();
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   if (LOGIN_ENABLED && !token) {
@@ -61,7 +66,7 @@ function RequireSession() {
   return (
     <AppShell
       title={PRODUCT_NAME}
-      items={NAVIGATION}
+      items={NAVIGATION.map((item) => ({ ...item, label: t(item.label) }))}
       session={LOGIN_ENABLED ? { onLogout } : null}
       // bazis-ws: the lists and the cards refetched when a task changes, the notifications
       tools={

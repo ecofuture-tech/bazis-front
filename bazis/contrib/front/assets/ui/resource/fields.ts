@@ -18,6 +18,7 @@
 
 import { can, type PermitMeta } from '@/bazis/client';
 import { ROUTES } from '@/bazis/generated/contract';
+import { ENGLISH, formatDate, formatDateTime, formatNumber, type LanguageContextValue } from '@/bazis/i18n';
 import { resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
 
 import { useAnySchema } from './hooks.js';
@@ -166,24 +167,23 @@ export function isLongText(field: FormField | undefined): boolean {
   );
 }
 
-/** A date-time of the backend in the language of the browser; the text when it is not one. */
-export function formatDateTime(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-/** The text of the value of an attribute, by its type and format; `—` for no value. */
-export function formatValue(field: FormField | undefined, value: unknown): string {
+/**
+ * The text of the value of an attribute, by its type and format, in the language of the
+ * interface (`useLanguage()`; English by default): the numbers and the dates with `Intl`;
+ * `—` for no value.
+ */
+export function formatValue(
+  field: FormField | undefined,
+  value: unknown,
+  { language, t }: Pick<LanguageContextValue, 'language' | 't'> = ENGLISH,
+): string {
   if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  if (typeof value === 'number') return value.toLocaleString();
+  if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
+  if (typeof value === 'number') return formatNumber(value, language);
   if (typeof value === 'string') {
     const format = field?.kind === 'attribute' ? field.format : null;
-    if (format === 'date-time') return formatDateTime(value);
-    if (format === 'date') {
-      const [year, month, day] = value.split('-').map(Number);
-      if (year && month && day) return new Date(year, month - 1, day).toLocaleDateString(undefined, { dateStyle: 'medium' });
-    }
+    if (format === 'date-time') return formatDateTime(value, language);
+    if (format === 'date') return formatDate(value, language);
     return value;
   }
   return JSON.stringify(value);

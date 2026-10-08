@@ -17,6 +17,7 @@ import { Database } from 'lucide-react';
 
 import { pagination, type PaginationMeta } from '@/bazis/client';
 import { RESOURCES } from '@/bazis/generated/contract';
+import { formatNumber, useLanguage } from '@/bazis/i18n';
 import { useList, type QueryOptions } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,21 +45,24 @@ const useAnyList = useList as unknown as (
 /** The number of the items that the user may view. */
 function Count({ path }: { path: string }) {
   const list = useAnyList(path, { page: { limit: 1 }, meta: ['pagination'] });
+  const { language, t } = useLanguage();
   if (list.isPending) return <Skeleton className="h-8 w-12" />;
   if (list.isError) {
     return (
       <span className="text-sm text-muted-foreground" title={list.error.message}>
-        Not available
+        {t('home.unavailable')}
       </span>
     );
   }
-  return <span className="text-3xl font-semibold tabular-nums">{pagination(list.data)?.count ?? '—'}</span>;
+  const count = pagination(list.data)?.count;
+  return <span className="text-3xl font-semibold tabular-nums">{count === undefined ? '—' : formatNumber(count, language)}</span>;
 }
 
 /** The resources of the backend, from the generated contract, with the number of their items. */
 export function HomeScreen() {
+  const { t } = useLanguage();
   return (
-    <Screen id="home" title="Overview" description="The resources of the backend and the items you can see.">
+    <Screen id="home" title={t('home.title')} description={t('home.description')}>
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {Object.entries(resources).map(([type, resource]) => (
           <li key={type} className="flex flex-col gap-4 rounded-xl border bg-card p-(--space-card) text-card-foreground shadow-xs">

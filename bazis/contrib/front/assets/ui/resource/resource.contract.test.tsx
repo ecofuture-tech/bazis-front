@@ -31,7 +31,7 @@ import {
   permitted,
   type FileControlProps,
 } from '@/bazis/ui/resource';
-import { Backend, errors, renderWithBazis, resource } from '@/bazis/ui/testing';
+import { Backend, errors, renderWithBazis, resource, testLanguages } from '@/bazis/ui/testing';
 
 const base = { required: false, readOnly: false, nullable: false };
 
@@ -192,6 +192,29 @@ describe('FieldValue', () => {
     expect(formatValue(attribute('dt', 'string', { format: 'date-time' }), 'oops')).toBe('oops');
     render(<FieldValue field={attribute('title', 'string')} value="Report" />);
     expect(screen.getByText('Report')).toBeTruthy();
+  });
+
+  it('formats the values in the language of the interface', () => {
+    const russian = testLanguages('ru');
+    renderWithBazis(
+      <>
+        <span data-bz="field:done">
+          <FieldValue field={attribute('done', 'boolean')} value={true} />
+        </span>
+        <span data-bz="field:count">
+          <FieldValue field={attribute('count', 'number')} value={1234.5} />
+        </span>
+        <span data-bz="field:day">
+          <FieldValue field={attribute('day', 'string', { format: 'date' })} value="2026-10-08" />
+        </span>
+      </>,
+      new Backend(),
+      { language: russian },
+    );
+    expect(screen.getByTestId('field:done').textContent).toBe('Да');
+    expect(screen.getByTestId('field:count').textContent).toMatch(/^1\s234,5$/);
+    expect(screen.getByTestId('field:day').textContent).toMatch(/^8 окт\. 2026\sг\.$/);
+    expect(formatSize(1536, { language: 'ru', t: (key, params) => `${key}:${String(params?.size)}` })).toBe('size.kb:1,5');
   });
 });
 

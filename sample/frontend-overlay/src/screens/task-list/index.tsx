@@ -22,11 +22,12 @@ import { useNavigate, useParams } from 'react-router';
 
 import { Filter, pagination } from '@/bazis/client';
 import { ROUTES, TRANSITS } from '@/bazis/generated/contract';
+import { formatNumber, useLanguage } from '@/bazis/i18n';
 import { useList } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { ResourceList } from '@/bazis/ui/resource-list';
-import { StatusBadge, statusOptions, statusTone } from '@/bazis/ui/status-badge';
+import { StatusBadge, statusName, statusOptions, statusTone } from '@/bazis/ui/status-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const TASKS = ROUTES['tasks.task'];
@@ -43,6 +44,7 @@ const DOTS = {
 
 /** The number of the tasks of a status that the user may view. */
 function StatusCount({ status, name }: { status: string; name: string }) {
+  const { language } = useLanguage();
   const list = useList(TASKS, { filter: Filter.where('status', status), page: { limit: 1 }, meta: ['pagination'] });
   return (
     <div className="grid min-w-0 gap-1 rounded-xl border bg-card px-3 py-2.5 shadow-xs sm:px-4 sm:py-3">
@@ -51,7 +53,7 @@ function StatusCount({ status, name }: { status: string; name: string }) {
         <span className="truncate">{name}</span>
       </span>
       {list.data ? (
-        <span className="text-2xl font-semibold tabular-nums">{pagination(list.data)?.count ?? '—'}</span>
+        <span className="text-2xl font-semibold tabular-nums">{formatNumber(pagination(list.data)?.count ?? 0, language)}</span>
       ) : (
         <Skeleton className="h-8 w-10" />
       )}
@@ -64,18 +66,19 @@ export function TaskListScreen() {
   // the task open next to the list
   const { id } = useParams();
   const [creating, setCreating] = useState(false);
+  const { language, t } = useLanguage();
   return (
-    <Screen id="task-list" title="Tasks" description="The tasks of the team, from the draft to the report.">
+    <Screen id="task-list" title={t('tasks.title')} description={t('tasks.description')}>
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {TRANSITS['tasks.task'].statuses.map((status) => (
-          <StatusCount key={status.id} status={status.id} name={status.name} />
+          <StatusCount key={status.id} status={status.id} name={statusName('tasks.task', status.id, language)} />
         ))}
       </div>
       <ResourceList
         path={TASKS}
         entity="task"
         columns={['title', 'status', 'assignee', 'dt_created']}
-        filters={[{ field: 'status', options: statusOptions('tasks.task') }, 'assignee']}
+        filters={[{ field: 'status', options: statusOptions('tasks.task', language) }, 'assignee']}
         sort={['-dt_created']}
         search
         selected={id}
@@ -83,7 +86,7 @@ export function TaskListScreen() {
         actions={[
           {
             id: 'create',
-            label: 'New task',
+            label: t('tasks.new'),
             icon: Plus,
             permission: 'add',
             onClick: () => {
@@ -92,12 +95,12 @@ export function TaskListScreen() {
           },
         ]}
         cells={{ status: (row) => <StatusBadge resource={row} /> }}
-        emptyMessage="No tasks yet."
+        emptyMessage={t('tasks.empty')}
       />
       <FormSurface
         open={creating}
-        title="New task"
-        description="The task is created as a draft."
+        title={t('tasks.new')}
+        description={t('tasks.new_description')}
         onClose={() => {
           setCreating(false);
         }}

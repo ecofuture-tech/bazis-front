@@ -24,6 +24,7 @@ import { useEffect, useState, type ComponentType, type KeyboardEvent, type React
 import { nextPage, pagination, prevPage, type Filter } from '@/bazis/client';
 import { RESOURCES } from '@/bazis/generated/contract';
 import { THEME } from '@/bazis/generated/theme';
+import { useLanguage } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
 import { useBesideCard } from '@/bazis/ui/app-shell';
 import {
@@ -182,6 +183,7 @@ function TableView(
   },
 ) {
   const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden } = props;
+  const { t } = useLanguage();
   return (
     <table data-slot="table" className="w-full caption-bottom text-sm">
       <TableHeader>
@@ -201,7 +203,7 @@ function TableView(
           ))}
           {actionsColumn && (
             <TableHead className="sticky top-0 z-10 bg-muted">
-              <span className="sr-only">Actions</span>
+              <span className="sr-only">{t('list.actions')}</span>
             </TableHead>
           )}
         </TableRow>
@@ -338,6 +340,7 @@ export function ResourceList({
   compactColumns = columns.slice(0, 2),
 }: ResourceListProps) {
   const besideCard = useBesideCard();
+  const { t } = useLanguage();
   const fields = useListFields(path);
   const order = orderLabels(path);
   const [filter, setFilter] = useState<Filter | undefined>();
@@ -429,8 +432,8 @@ export function ResourceList({
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 type="search"
-                aria-label="Search"
-                placeholder="Search"
+                aria-label={t('list.search')}
+                placeholder={t('list.search')}
                 data-bz="field:$search"
                 className="bg-card pl-9"
                 value={searchText}
@@ -455,17 +458,17 @@ export function ResourceList({
           {layout === 'cards' && sortable.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground" aria-hidden="true">
-                Sort
+                {t('list.sort')}
               </span>
               <NativeSelect
-                aria-label="Sort"
+                aria-label={t('list.sort')}
                 value={sort[0] ?? ''}
                 onChange={(event) => {
                   setSort(event.target.value ? [event.target.value] : []);
                   setOffset(0);
                 }}
               >
-                <NativeSelectOption value="">Default</NativeSelectOption>
+                <NativeSelectOption value="">{t('list.sort_default')}</NativeSelectOption>
                 {sortable.flatMap((name) => {
                   const label = order.get(name) ?? name;
                   return [
@@ -498,7 +501,7 @@ export function ResourceList({
         error={list.error}
         {...(state === 'empty'
           ? filtered
-            ? { message: 'Nothing matches the search and the filters.', description: 'Change or clear them to see more.' }
+            ? { message: t('list.no_match'), description: t('list.no_match_hint') }
             : { message: emptyMessage }
           : {})}
         onRetry={() => void list.refetch()}
@@ -539,10 +542,11 @@ export function ResourceList({
         </div>
       </StatePanel>
       {document && rows.length > 0 && (
-        <nav aria-label="Pages" className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+        <nav aria-label={t('list.pages')} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
           <span className="tabular-nums">
-            {offset + 1}–{offset + rows.length}
-            {count === undefined ? '' : ` of ${String(count)}`}
+            {count === undefined
+              ? t('list.range', { from: offset + 1, to: offset + rows.length })
+              : t('list.range_of', { from: offset + 1, to: offset + rows.length, count })}
           </span>
           <span className="flex gap-2">
             <Button
@@ -556,7 +560,7 @@ export function ResourceList({
               }}
             >
               <ChevronLeft />
-              Previous
+              {t('list.previous')}
             </Button>
             <Button
               type="button"
@@ -568,7 +572,7 @@ export function ResourceList({
                 setOffset(nextPage(document)?.offset ?? offset);
               }}
             >
-              Next
+              {t('list.next')}
               <ChevronRight />
             </Button>
           </span>

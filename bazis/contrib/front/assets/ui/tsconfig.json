@@ -32,6 +32,9 @@
       "@/bazis/react/bg": [
         "../react/src/bg/index.ts"
       ],
+      "@/bazis/i18n": [
+        "../react/src/i18n/index.ts"
+      ],
       "@/bazis/generated/schema": [
         "../react/test/fixtures/schema.d.ts"
       ],

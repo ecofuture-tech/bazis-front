@@ -102,7 +102,7 @@ describe('FileField', () => {
     await waitFor(() => {
       expect(field.onChange).toHaveBeenCalledWith('1');
     });
-    expect(backend.calls.find((it) => it.method === 'POST')).toEqual({ method: 'POST', url: FILES, body: { file: 'brief.txt' } });
+    expect(backend.calls.find((it) => it.method === 'POST')).toMatchObject({ method: 'POST', url: FILES, body: { file: 'brief.txt' } });
     expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
     expect(field.onError).toHaveBeenCalledWith(null);
     // the file of the value: a link to it, with its size

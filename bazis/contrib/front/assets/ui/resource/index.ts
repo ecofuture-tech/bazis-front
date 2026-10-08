@@ -17,7 +17,6 @@ export type { FieldInputProps } from './field-input.js';
 export { FieldValue } from './field-value.js';
 export {
   fieldValue,
-  formatDateTime,
   formatValue,
   fromLocalDateTime,
   isLongText,

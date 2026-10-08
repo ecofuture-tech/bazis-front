@@ -26,7 +26,7 @@ import yaml
 
 from bazis.contrib.front import capabilities
 from bazis.contrib.front.checks import check_spec
-from bazis.contrib.front.contract.export import render
+from bazis.contrib.front.contract.export import CONTRACT_FORMAT, render
 from bazis.contrib.front.spec import color, design
 from bazis.contrib.front.spec.access import Grant
 from bazis.contrib.front.spec.issues import CODES
@@ -146,7 +146,7 @@ def user_card(data, transitions=False):
 #: the specs has a case, each checked against the contract of the sample
 CASES = [
     ('C001', {CONTRACT: lambda d: '{'}, [('C001', CONTRACT)]),
-    ('C002', {CONTRACT: lambda d: {**d, 'format': 2}}, [('C002', f'{CONTRACT}#/format')]),
+    ('C002', {CONTRACT: lambda d: {**d, 'format': 1}}, [('C002', f'{CONTRACT}#/format')]),
     # the sample has bazis-statusy and bazis-uploadable: a frontend made by `init` has their hooks
     (
         'C003',
@@ -363,6 +363,12 @@ CASES = [
         # bazis-ws is installed, its socket is routed only in the main module of the project
         {CONTRACT: lambda d: d['capabilities']['ws'].update(path=None)},
         [('P028', f'{PRODUCT}#/packages/5')],
+    ),
+    (
+        'P029',
+        # a language that the backend does not have, and a default that is not one of them
+        {PRODUCT: lambda d: d.update(languages=['en', 'de'], language='ru')},
+        [('P029', f'{PRODUCT}#/language'), ('P029', f'{PRODUCT}#/languages'), ('P029', f'{PRODUCT}#/language')],
     ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
@@ -603,7 +609,7 @@ def test_the_system_check(root, tmp_path):
                                    task(d)['access']['manager'].update(view='owner')])
     (root / 'contract').mkdir()
     (root / 'contract' / 'contract.json').write_text(
-        json.dumps({'format': 1, 'capabilities': {'permit': {'roles': []}, 'statusy': {'models': {}}},
+        json.dumps({'format': CONTRACT_FORMAT, 'capabilities': {'permit': {'roles': []}, 'statusy': {'models': {}}},
                     'project': {'resources': {'users.user': {'fields': {}}}}}),
         encoding='utf-8',
     )

@@ -14,17 +14,18 @@
 
 // The contract of the layout: `nav:<screen>` of the navigation (the current one
 // `aria-current="page"`), `screen:<id>`, the logout `action:logout` with a session only, the
-// color mode, the tools of the product mounted once; and the list with its card (`ListCardLayout`), side by side or one at a time.
+// color mode, the language (`action:language`, with more than one language), the tools of the
+// product mounted once; and the list with its card (`ListCardLayout`), side by side or one at a time.
 // Keep it passing when the component is changed.
 
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { THEME } from '@/bazis/generated/theme';
 import { AppShell, ListCardLayout, Screen, setColorMode } from '@/bazis/ui/app-shell';
-import { Backend, renderWithBazis } from '@/bazis/ui/testing';
+import { Backend, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 const items = [
   { screen: 'home', label: 'Home', to: '/', end: true },
@@ -52,6 +53,40 @@ describe('AppShell', () => {
       expect(onLogout).toHaveBeenCalledOnce();
     });
   }
+
+  it('switches the language of the interface with more than one language', () => {
+    const { unmount } = renderWithBazis(
+      <AppShell title="Product" items={items} session={{ onLogout: vi.fn() }}>
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      new Backend(),
+    );
+    // one language: nothing to switch
+    expect(screen.queryByTestId('action:language')).toBeNull();
+    unmount();
+
+    const languages = testLanguages('en', 'ru');
+    renderWithBazis(
+      <AppShell title="Product" items={items} session={{ onLogout: vi.fn() }}>
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      new Backend(),
+      { language: languages },
+    );
+    const toggle = () => screen.getAllByTestId('action:language')[0];
+    expect(toggle()?.dataset.value).toBe('en');
+    expect(screen.getAllByTestId('action:logout')[0]?.textContent).toBe('Log out');
+    act(() => {
+      toggle()?.click();
+    });
+    expect([languages.get(), toggle()?.dataset.value]).toEqual(['ru', 'ru']);
+    // the texts of the components follow it
+    expect(screen.getAllByTestId('action:logout')[0]?.textContent).toBe('Выйти');
+    act(() => {
+      toggle()?.click();
+    });
+    expect(languages.get()).toBe('en');
+  });
 
   it('has no logout without a session', () => {
     renderWithBazis(

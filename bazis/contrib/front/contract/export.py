@@ -16,6 +16,7 @@
 The export of the contract: the files as text, their comparison and their writing.
 """
 
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -29,8 +30,9 @@ from .openapi import dumps, openapi_hash
 from .resources import resources
 
 
-#: the version of the format of contract.json; a change of it is a minor release
-CONTRACT_FORMAT = 1
+#: the version of the format of contract.json; a change of it is a minor release. 2: the
+#: languages of the project, the names of the roles, statuses and transits by language
+CONTRACT_FORMAT = 2
 
 #: the directory of the contract in the product root
 CONTRACT_DIR = 'contract'
@@ -47,28 +49,54 @@ def default_dir() -> Path:
 
 def render(app) -> dict[str, str]:
     """
-    The files of the contract of the application as text, by file name. Raises
-    `capabilities.DatabaseNotReadyError` when a section needs the database and it is not
-    migrated.
+    The files of the contract of the application as text, by file name, in LANGUAGE_CODE
+    whatever the language of the process: the OpenAPI is built again (its titles and
+    descriptions are translated). Raises `capabilities.DatabaseNotReadyError` when a
+    section needs the database and it is not migrated.
+
+    The core builds the schemas of the route sets once per process, in the language active
+    then: a process that answered a request in another language first exports its titles
+    (a limitation of the core, not worked around here).
     """
-    openapi = app.openapi()
-    return {
-        'openapi.json': dumps(openapi),
-        'contract.json': dumps(build_contract(openapi)),
-    }
+    with translation.override(settings.LANGUAGE_CODE):
+        app.openapi_schema = None
+        openapi = app.openapi()
+        return {
+            'openapi.json': dumps(openapi),
+            'contract.json': dumps(build_contract(openapi)),
+        }
+
+
+def base_language(code: str) -> str:
+    """
+    The base code of a language code: `en` of `en-US`, `pt` of `pt_BR`.
+    """
+    return re.split(r'[-_]', code)[0].lower()
+
+
+def languages() -> list[dict]:
+    """
+    The languages of the project (LANGUAGES), in their order: the code and the name.
+    """
+    return [{'code': code, 'name': str(name)} for code, name in settings.LANGUAGES]
 
 
 def build_contract(openapi: dict) -> dict:
     """
-    The content of contract.json. The names of the roles, statuses and transits are in
-    LANGUAGE_CODE, whatever the language of the process.
+    The content of contract.json. The texts are in LANGUAGE_CODE, whatever the language of
+    the process; the names of the roles, statuses and transits are in every language of
+    LANGUAGES (`translated`).
     """
     with translation.override(settings.LANGUAGE_CODE):
         return {
             'format': CONTRACT_FORMAT,
             'generated_by': generated_by(),
             'openapi_hash': openapi_hash(openapi),
-            'project': {'resources': resources(openapi)},
+            'project': {
+                'language': base_language(settings.LANGUAGE_CODE),
+                'languages': languages(),
+                'resources': resources(openapi),
+            },
             'capabilities': sections(),
         }
 

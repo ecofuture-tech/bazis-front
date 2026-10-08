@@ -15,8 +15,9 @@
 import { MutationObserver, QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 
-import { clearOnSessionChange } from '@/app/providers';
+import { clearOnLanguageChange, clearOnSessionChange } from '@/app/providers';
 import { login, logout, PASSWORD_LOGIN } from '@/app/session';
+import { createLanguageStore } from '@/bazis/i18n';
 import type { Api } from '@/bazis/react';
 
 // the token endpoint of bazis-users and the password service of bazis-authing
@@ -52,6 +53,29 @@ describe.skipIf(!PASSWORD_LOGIN)('clearOnSessionChange', () => {
     logout();
     expect(queryClient.getQueryCache().getAll()).toEqual([]);
     expect(queryClient.getMutationCache().getAll()).toEqual([]);
+    unsubscribe();
+  });
+});
+
+describe('clearOnLanguageChange', () => {
+  it('drops the queries when the language changes: the texts of the backend are in the language they were read in', () => {
+    const store = createLanguageStore({
+      languages: [
+        { code: 'en', name: 'English' },
+        { code: 'ru', name: 'Русский' },
+      ],
+      fallback: 'en',
+      storage: null,
+      preferred: [],
+    });
+    const queryClient = new QueryClient();
+    const unsubscribe = clearOnLanguageChange(queryClient, store);
+    queryClient.setQueryData(['schema'], { title: 'Title' });
+    // the same language: nothing is dropped
+    store.set('en');
+    expect(queryClient.getQueryData(['schema'])).toEqual({ title: 'Title' });
+    store.set('ru');
+    expect(queryClient.getQueryCache().getAll()).toEqual([]);
     unsubscribe();
   });
 });

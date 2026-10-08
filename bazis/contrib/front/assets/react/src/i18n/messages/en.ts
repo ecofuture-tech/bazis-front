@@ -116,6 +116,8 @@ export const en: Messages = {
   'state.not_found.hint': 'It may have been deleted, or the link is wrong.',
   'state.not_found.title': 'Not found.',
   'state.retry': 'Retry',
+  'toast.dismiss': 'Dismiss',
+  'toast.region': 'Notifications',
   'transit.done': 'The status is {status} now.',
   'transit.fill': 'Fill in the values of the transit.',
   'transit.group': 'Transits',

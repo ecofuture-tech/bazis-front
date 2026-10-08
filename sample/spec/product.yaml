@@ -1,13 +1,15 @@
 # yaml-language-server: $schema=../../bazis/contrib/front/spec/schemas/product.schema.json
 # The product spec of the sample: the tasks of a team with a workflow. The roles,
-# statuses and transits that it references are created by the data migration
-# tasks/migrations/0005_workflow.py.
+# statuses and transits that it references are created by the data migrations
+# tasks/migrations/0005_workflow.py and 0006_workflow_ru.py (their Russian names).
 spec: bazis-product/1
 product:
   id: tasks
   name: Tasks
   summary: The tasks of a team, started and finished with a report
 packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request]
+languages: [en, ru]            # LANGUAGES of the backend: the interface is in English and Russian
+language: en                   # the base code of LANGUAGE_CODE
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}

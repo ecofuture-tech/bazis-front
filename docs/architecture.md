@@ -55,9 +55,15 @@ newline): the same backend gives the same bytes. `--check` compares without writ
 exists. The format of
 `contract.json` is documented in `bazis/contrib/front/AGENTS.md`.
 
+The contract has the languages of the backend (`project.languages`, `LANGUAGES` of its
+settings, and `project.language`, the base code of `LANGUAGE_CODE`) and the names of the
+roles, statuses and transits in each of them (`{language: name}`, their translated fields);
+its other texts and the OpenAPI are built in `LANGUAGE_CODE`, whatever the language of the
+process.
+
 When the product has a frontend made by `init`, the command also generates
-`frontend/src/bazis/generated/`: typed constants (`contract.ts`: `ROUTES`, `RESOURCES`,
-`ROLES`, `TRANSITS`, `as const`, and `CAPABILITIES`, `null` for a package the product does
+`frontend/src/bazis/generated/`: typed constants (`contract.ts`: `LANGUAGES`, `LANGUAGE`,
+`ROUTES`, `RESOURCES`, `ROLES`, `TRANSITS`, `as const`, and `CAPABILITIES`, `null` for a package the product does
 not install), rendered from `contract.json` by Python,
 and, through the openapi-typescript of the frontend with `--default-non-nullable=false`,
 `schema.d.ts`. The lock of the frontend records the hashes of the contract they were made
@@ -126,6 +132,20 @@ is kept from the next one twice: the template clears the query and mutation cach
 user changes, and the session in the keys (a value of the application that changes at every
 login and logout) keeps a request still running for the previous user out of the queries of
 the next one.
+
+### The language of the interface
+
+The frontend is in the languages of its backend, without i18next (the asset `i18n`,
+`@/bazis/i18n`, copied like the hooks): flat dictionaries by language with stable keys (those
+of the components in the package, those of the product in `src/i18n/<language>.ts`, merged
+over them), `t(key, params)` with the plural forms of `Intl.PluralRules`, and the dates and
+the numbers formatted with `Intl` in the language of the interface. The language is that of
+the profile of the user when the user model has one (the capability
+`users.profile_language`: adopted at a login, saved at every change), else the choice kept
+in the browser, else the languages of the browser, else the default of the backend; a
+toggle of the layout changes it. The client sends it (`Accept-Language`), so the backend
+answers its schemas and errors in it; the query keys end with the session and the language,
+and a change of the language clears the cache.
 
 ### 3. Components
 

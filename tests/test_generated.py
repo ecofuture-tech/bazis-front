@@ -84,20 +84,35 @@ def read_lock(frontend):
 
 def test_contract_ts_is_rendered_from_the_contract():
     contract_json = {
-        'format': 1,
-        'project': {'resources': {
+        'format': 2,
+        'project': {'language': 'en', 'languages': [{'code': 'en', 'name': 'English'}, {'code': 'ru', 'name': 'Русский'}], 'resources': {
             'shop.order': {'path': '/api/v1/shop/order/', 'fields': {'total-sum': {'type': 'number'}}},
             'shop.item': {'path': '/api/v1/shop/item/', 'fields': {}},
         }},
         'capabilities': {
-            'users': {'user_resource': 'users.user', 'token_url': '/api/openapi-token/'},
-            'permit': {'roles': [{'slug': 'manager', 'for_anonymous': False}]},
+            'users': {'user_resource': 'users.user', 'token_url': '/api/openapi-token/', 'profile_language': False},
+            'permit': {'roles': [{'slug': 'manager', 'name': {'en': 'Manager', 'ru': 'Менеджер'}, 'for_anonymous': False}]},
         },
     }
     text = typescript.render(contract_json)
 
     assert text == '\n'.join([
         typescript.HEADER,
+        '/** The languages of the backend (LANGUAGES), in its order: the code and the name. */',
+        'export const LANGUAGES = [',
+        '  {',
+        '    code: "en",',
+        '    name: "English",',
+        '  },',
+        '  {',
+        '    code: "ru",',
+        '    name: "Русский",',
+        '  },',
+        '] as const;',
+        '',
+        '/** The default language of the backend: the base code of LANGUAGE_CODE. */',
+        'export const LANGUAGE: string = "en";',
+        '',
         '/** The path of the route set of each resource, by its JSON:API type. */',
         'export const ROUTES = {',
         '  "shop.item": "/api/v1/shop/item/",',
@@ -128,6 +143,10 @@ def test_contract_ts_is_rendered_from_the_contract():
         'export const ROLES = [',
         '  {',
         '    for_anonymous: false,',
+        '    name: {',
+        '      en: "Manager",',
+        '      ru: "Менеджер",',
+        '    },',
         '    slug: "manager",',
         '  },',
         '] as const;',
@@ -148,7 +167,8 @@ def test_contract_ts_is_rendered_from_the_contract():
         '  readonly permit: { readonly roles: typeof ROLES } | null;',
         '  readonly statusy: { readonly models: typeof TRANSITS } | null;',
         '  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;',
-        '  readonly users: { readonly token_url: string; readonly user_resource: string } | null;',
+        '  readonly users: { readonly token_url: string; readonly user_resource: string; '
+        'readonly profile_language: boolean } | null;',
         '  readonly ws: { readonly path: string | null } | null;',
         '}',
         '',
@@ -163,6 +183,7 @@ def test_contract_ts_is_rendered_from_the_contract():
         '  statusy: null,',
         '  uploadable: null,',
         '  users: {',
+        '    profile_language: false,',
         '    token_url: "/api/openapi-token/",',
         '    user_resource: "users.user",',
         '  },',
@@ -177,12 +198,18 @@ def test_contract_ts_is_rendered_from_the_contract():
 
 
 def test_a_capability_that_is_not_installed_is_null():
-    text = typescript.render({'project': {'resources': {}}, 'capabilities': {}})
+    text = typescript.render({
+        'project': {'language': 'en', 'languages': [{'code': 'en', 'name': 'English'}], 'resources': {}},
+        'capabilities': {},
+    })
 
     assert 'export const ROLES = [] as const;\n' in text
     assert 'export const TRANSITS = {} as const;\n' in text
     # the type keeps the section: the frontend compiles with and without the package
-    assert '  readonly users: { readonly token_url: string; readonly user_resource: string } | null;\n' in text
+    assert (
+        '  readonly users: { readonly token_url: string; readonly user_resource: string; '
+        'readonly profile_language: boolean } | null;\n'
+    ) in text
     assert (
         'export const CAPABILITIES: Capabilities = {\n'
         '  async_background: null,\n  async_request: null,\n  authing: null,\n  bg: null,\n'
@@ -193,7 +220,7 @@ def test_a_capability_that_is_not_installed_is_null():
 def test_every_capability_has_a_type():
     assert sorted(typescript.SECTION_TYPES) == sorted(capabilities.CAPABILITIES)
     with pytest.raises(ValueError, match=r"no type for the capabilities \['unknown'\]"):
-        typescript.render({'project': {'resources': {}}, 'capabilities': {'unknown': {}}})
+        typescript.render({'project': {'language': 'en', 'languages': [], 'resources': {}}, 'capabilities': {'unknown': {}}})
 
 
 def test_contract_generates_the_frontend(frontend):

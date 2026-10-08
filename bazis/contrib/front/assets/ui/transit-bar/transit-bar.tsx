@@ -22,6 +22,7 @@ import { ArrowRight, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { ApiError } from '@/bazis/client';
+import { useLanguage } from '@/bazis/i18n';
 import { objectFields } from '@/bazis/react';
 import { useTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
 import { FieldInput } from '@/bazis/ui/resource';
@@ -80,6 +81,7 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
   const mutation = useTransit(path, id);
   const [open, setOpen] = useState<Transit | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
+  const { language, t } = useLanguage();
 
   if (transits.isPending) {
     return (
@@ -106,8 +108,10 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
           setOpen(null);
           const target = transitTarget(transit.resource.type, transit.id);
           toast({
-            title: transitName(transit.resource.type, transit.id),
-            ...(target === null ? {} : { description: `The status is ${statusName(transit.resource.type, target)} now.` }),
+            title: transitName(transit.resource.type, transit.id, language),
+            ...(target === null
+              ? {}
+              : { description: t('transit.done', { status: statusName(transit.resource.type, target, language) }) }),
           });
           onDone?.(item);
         },
@@ -133,8 +137,8 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
   return (
     <div className="grid gap-3 rounded-xl border bg-card px-(--space-card) py-3 text-card-foreground shadow-xs">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="text-sm font-medium text-muted-foreground">Next step</span>
-        <div role="group" aria-label="Transits" className="flex flex-wrap items-start gap-2">
+        <span className="text-sm font-medium text-muted-foreground">{t('transit.next')}</span>
+        <div role="group" aria-label={t('transit.group')} className="flex flex-wrap items-start gap-2">
           {transits.data.map((transit, index) => {
             const target = transitTarget(transit.resource.type, transit.id);
             const danger = target !== null && statusTone(target) === 'danger';
@@ -155,7 +159,7 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
                   ) : (
                     <ArrowRight aria-hidden="true" />
                   )}
-                  {transitName(transit.resource.type, transit.id)}
+                  {transitName(transit.resource.type, transit.id, language)}
                 </Button>
                 {!transit.allowed && (
                   <p id={`restricts-${transit.id}`} className="max-w-56 text-xs text-muted-foreground">
@@ -187,8 +191,8 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
               }}
             >
               <DialogHeader>
-                <DialogTitle>{transitName(open.resource.type, open.id)}</DialogTitle>
-                <DialogDescription>{open.hint ?? 'Fill in the values of the transit.'}</DialogDescription>
+                <DialogTitle>{transitName(open.resource.type, open.id, language)}</DialogTitle>
+                <DialogDescription>{open.hint ?? t('transit.fill')}</DialogDescription>
               </DialogHeader>
               {mutation.isError && errors.others.length > 0 && (
                 <StatePanel
@@ -219,10 +223,10 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
                     setOpen(null);
                   }}
                 >
-                  Cancel
+                  {t('action.cancel')}
                 </Button>
                 <Button type="submit" data-bz="action:submit" disabled={mutation.isPending}>
-                  {transitName(open.resource.type, open.id)}
+                  {transitName(open.resource.type, open.id, language)}
                 </Button>
               </DialogFooter>
             </form>

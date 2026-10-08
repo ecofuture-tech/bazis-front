@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { AsyncResult, asyncResult, RESULT_LABELS, RESULT_PATH } from './async-result.js';
+export { AsyncResult, asyncResult, RESULT_PATH } from './async-result.js';
 export type { AsyncOutcome, AsyncResultProps, ResultView } from './async-result.js';

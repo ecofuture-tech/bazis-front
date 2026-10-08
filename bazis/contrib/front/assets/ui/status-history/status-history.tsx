@@ -21,7 +21,8 @@
 import { History } from 'lucide-react';
 
 import type { Tone } from '@/bazis/generated/theme';
-import { fieldValue, formatDateTime, RelationLabel, type ResourceObject } from '@/bazis/ui/resource';
+import { formatDateTime, useLanguage } from '@/bazis/i18n';
+import { fieldValue, RelationLabel, type ResourceObject } from '@/bazis/ui/resource';
 import { statusName, statusOf, statusTone } from '@/bazis/ui/status-badge';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +39,7 @@ const DOTS: Readonly<Record<Tone, string>> = {
 export interface StatusHistoryProps {
   /** The item (the `data` of a retrieve, a row of a list) with its fields of bazis-statusy. */
   resource: ResourceObject;
-  /** The name of the history for assistive technologies. */
+  /** The name of the history for assistive technologies (`history.label` of the dictionaries by default). */
   label?: string;
 }
 
@@ -54,26 +55,27 @@ function identifier(resource: ResourceObject, name: string): { type: string; id:
  * The status history of the item: its status since its date, by its author (each when the
  * user may see the field). Nothing without a status.
  */
-export function StatusHistory({ resource, label = 'Status history' }: StatusHistoryProps) {
+export function StatusHistory({ resource, label }: StatusHistoryProps) {
+  const { language, t } = useLanguage();
   const status = statusOf(resource);
   if (status === null) return null;
   const since = fieldValue(resource, 'status_dt');
   const author = identifier(resource, 'status_author');
   return (
-    <section aria-label={label} className="flex items-start gap-2 text-sm text-muted-foreground">
+    <section aria-label={label ?? t('history.label')} className="flex items-start gap-2 text-sm text-muted-foreground">
       <History className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <ol className="grid gap-1">
         <li className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
           <span aria-hidden="true" className={cn('size-2 shrink-0 rounded-full', DOTS[statusTone(status)])} />
-          <span className="font-medium text-foreground">{statusName(resource.type, status)}</span>
+          <span className="font-medium text-foreground">{statusName(resource.type, status, language)}</span>
           {typeof since === 'string' && (
             <span>
-              since <time dateTime={since}>{formatDateTime(since)}</time>
+              {t('history.since')} <time dateTime={since}>{formatDateTime(since, language)}</time>
             </span>
           )}
           {author && (
             <span>
-              by <RelationLabel relation={author.type} id={author.id} />
+              {t('history.by')} <RelationLabel relation={author.type} id={author.id} />
             </span>
           )}
         </li>

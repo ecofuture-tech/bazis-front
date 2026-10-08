@@ -19,6 +19,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { ROUTES } from '@/bazis/generated/contract';
+import { useLanguage } from '@/bazis/i18n';
 import { useDestroy } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceCard } from '@/bazis/ui/resource-card';
@@ -34,15 +35,16 @@ export function TaskCardScreen() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const destroy = useDestroy(TASKS);
+  const { language, t } = useLanguage();
   return (
     <Screen
       id="task-card"
-      title="Task"
+      title={t('task.title')}
       actions={
         <Button asChild variant="ghost" size="sm">
           <Link to="/tasks">
             <ArrowLeft />
-            All tasks
+            {t('task.all')}
           </Link>
         </Button>
       }
@@ -52,21 +54,21 @@ export function TaskCardScreen() {
         id={id}
         edit
         sections={[
-          { id: 'main', title: 'Details', fields: ['title', 'status', 'assignee', 'attachment'] },
-          { id: 'report', title: 'Report', fields: ['report'] },
+          { id: 'main', title: t('task.details'), fields: ['title', 'status', 'assignee', 'attachment'] },
+          { id: 'report', title: t('task.report'), fields: ['report'] },
         ]}
         badge={(item) => <StatusBadge resource={item} />}
-        values={{ status: (item) => statusName(item.type, statusOf(item) ?? '') }}
+        values={{ status: (item) => statusName(item.type, statusOf(item) ?? '', language) }}
         actions={[
           {
             id: 'delete',
-            label: 'Delete',
+            label: t('task.delete'),
             permission: 'delete',
             variant: 'destructive',
             onClick: () => {
               destroy.mutate(id, {
                 onSuccess: () => {
-                  toast({ title: 'Deleted' });
+                  toast({ title: t('task.deleted') });
                   void navigate('/tasks');
                 },
               });

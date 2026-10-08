@@ -20,6 +20,7 @@ import { Check, ChevronsUpDown, LoaderCircle, Search } from 'lucide-react';
 import { useEffect, useId, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from 'react';
 
 import { nextPage } from '@/bazis/client';
+import { useLanguage } from '@/bazis/i18n';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -85,6 +86,7 @@ interface OptionsProps {
  */
 function Options({ path, value, nullable, placeholder, searchLabel, onSelect, onClose }: OptionsProps) {
   const listId = useId();
+  const { t } = useLanguage();
   const [text, setText] = useState('');
   const [search, setSearch] = useState('');
   // the items of the pages before the last one, and the offset of the last one
@@ -153,9 +155,9 @@ function Options({ path, value, nullable, placeholder, searchLabel, onSelect, on
   }
 
   let note = '';
-  if (list.isPending || (list.isPlaceholderData && !earlier.length)) note = 'Loading…';
-  else if (list.isError) note = 'The items could not be loaded.';
-  else if (!items.length) note = search ? 'Nothing matches the search.' : 'There are no items.';
+  if (list.isPending || (list.isPlaceholderData && !earlier.length)) note = t('state.loading.title');
+  else if (list.isError) note = t('picker.failed');
+  else if (!items.length) note = t(search ? 'picker.no_match' : 'picker.empty');
 
   return (
     <div className="flex flex-col">
@@ -168,7 +170,7 @@ function Options({ path, value, nullable, placeholder, searchLabel, onSelect, on
           aria-autocomplete="list"
           aria-activedescendant={current >= 0 ? optionId(current) : undefined}
           aria-label={searchLabel}
-          placeholder="Search…"
+          placeholder={t('picker.search')}
           className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           value={text}
           onChange={(event) => {
@@ -212,7 +214,7 @@ function Options({ path, value, nullable, placeholder, searchLabel, onSelect, on
               }}
             >
               {entry.kind === 'more' ? (
-                <span className="pl-6">Load more</span>
+                <span className="pl-6">{t('picker.more')}</span>
               ) : (
                 <>
                   <Check className={cn('size-4 shrink-0', !chosen && 'invisible')} aria-hidden="true" />
@@ -245,6 +247,7 @@ function Picker({
   ...control
 }: Omit<RelationPickerProps, 'path' | 'placeholder' | 'nullable'> & { path: string; placeholder: string; nullable: boolean }) {
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
   // the item chosen here: its label without another request
   const [chosen, setChosen] = useState<ResourceObject | null>(null);
   let label: ReactNode = placeholder;
@@ -280,7 +283,7 @@ function Picker({
           value={value}
           nullable={nullable}
           placeholder={placeholder}
-          searchLabel={`Search ${name ?? control['aria-label'] ?? relation}`}
+          searchLabel={t('picker.search_label', { name: name ?? control['aria-label'] ?? relation })}
           onSelect={(item) => {
             setChosen(item);
             onChange(item === null ? null : item.id);

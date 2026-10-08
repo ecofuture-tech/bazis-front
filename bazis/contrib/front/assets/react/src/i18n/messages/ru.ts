@@ -116,6 +116,8 @@ export const ru: Messages = {
   'state.not_found.hint': 'Возможно, запись удалена или ссылка неверна.',
   'state.not_found.title': 'Не найдено.',
   'state.retry': 'Повторить',
+  'toast.dismiss': 'Закрыть',
+  'toast.region': 'Уведомления',
   'transit.done': 'Статус теперь: {status}.',
   'transit.fill': 'Заполните значения перехода.',
   'transit.group': 'Переходы',

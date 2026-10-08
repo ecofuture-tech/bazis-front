@@ -32,6 +32,7 @@ export default defineConfig({
       { find: '@/bazis/react/async', replacement: here('../react/src/async/index.ts') },
       { find: '@/bazis/react/bg', replacement: here('../react/src/bg/index.ts') },
       { find: '@/bazis/react', replacement: here('../react/src/index.ts') },
+      { find: '@/bazis/i18n', replacement: here('../react/src/i18n/index.ts') },
       { find: '@/bazis/generated/contract', replacement: here('./test/fixtures/contract.ts') },
       { find: '@/bazis/generated/theme', replacement: here('./test/fixtures/theme.ts') },
       { find: /^@\/bazis\/ui\/(.*)$/, replacement: here('./$1') },

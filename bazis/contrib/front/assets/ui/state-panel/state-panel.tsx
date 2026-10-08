@@ -29,6 +29,7 @@ import {
 import type { ReactNode } from 'react';
 
 import { ApiError } from '@/bazis/client';
+import { useLanguage } from '@/bazis/i18n';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -60,27 +61,9 @@ export function queryState(
   return empty ? 'empty' : 'loaded';
 }
 
-/** The default title of each state; `message` of `StatePanel` replaces it. */
-export const STATE_MESSAGES: Readonly<Record<ViewState, string>> = {
-  loading: 'Loading…',
-  empty: 'Nothing here yet.',
-  loaded: '',
-  error: 'Something went wrong.',
-  forbidden: 'You are not allowed to see this.',
-  not_found: 'Not found.',
-  invalid: 'Some values are not valid.',
-};
-
-/** What the user can do about each state, under its title; `description` replaces it. */
-export const STATE_HINTS: Readonly<Record<ViewState, string>> = {
-  loading: '',
-  empty: 'Items show up here once they are created.',
-  loaded: '',
-  error: 'The request failed. Try again in a moment.',
-  forbidden: 'Your role does not give access to this. Ask an administrator if you need it.',
-  not_found: 'It may have been deleted, or the link is wrong.',
-  invalid: 'Correct the highlighted values and try again.',
-};
+// The title and the hint of each state are the texts `state.<state>.title` and
+// `state.<state>.hint` of the dictionaries (`@/bazis/i18n`); `message` and `description`
+// of `StatePanel` replace them.
 
 const ICONS: Readonly<Record<Exclude<ViewState, 'loading' | 'loaded'>, LucideIcon>> = {
   empty: Inbox,
@@ -144,6 +127,7 @@ export function StatePanel({
   children,
   className,
 }: StatePanelProps) {
+  const { t } = useLanguage();
   if (state === 'loaded') {
     return (
       <div data-bz="state:loaded" className={className}>
@@ -157,11 +141,11 @@ export function StatePanel({
         {skeleton === undefined && inline ? (
           <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-            {message ?? STATE_MESSAGES.loading}
+            {message ?? t('state.loading.title')}
           </span>
         ) : (
           <>
-            <span className="sr-only">{message ?? STATE_MESSAGES.loading}</span>
+            <span className="sr-only">{message ?? t('state.loading.title')}</span>
             {skeleton ?? <SkeletonLines />}
           </>
         )}
@@ -184,7 +168,7 @@ export function StatePanel({
         )}
       >
         <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <p>{message ?? detail ?? STATE_MESSAGES[state]}</p>
+        <p>{message ?? detail ?? t(`state.${state}.title`)}</p>
       </div>
     );
   }
@@ -201,12 +185,12 @@ export function StatePanel({
         <Icon className="size-5" aria-hidden="true" />
       </span>
       <div className="grid max-w-md gap-1">
-        <p className="font-medium text-foreground">{message ?? STATE_MESSAGES[state]}</p>
-        <p className="text-sm text-muted-foreground">{description ?? detail ?? STATE_HINTS[state]}</p>
+        <p className="font-medium text-foreground">{message ?? t(`state.${state}.title`)}</p>
+        <p className="text-sm text-muted-foreground">{description ?? detail ?? t(`state.${state}.hint`)}</p>
       </div>
       {state === 'error' && onRetry && (
         <Button type="button" variant="outline" size="sm" data-bz="action:retry" onClick={onRetry}>
-          Retry
+          {t('state.retry')}
         </Button>
       )}
     </div>

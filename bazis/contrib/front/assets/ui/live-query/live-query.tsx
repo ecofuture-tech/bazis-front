@@ -20,17 +20,12 @@
 // `tools` of `AppShell`.
 
 import { ROUTES } from '@/bazis/generated/contract';
+import { useLanguage } from '@/bazis/i18n';
 import { useLiveQueries, useSocket, type SocketStatus } from '@/bazis/react/ws';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-export const SOCKET_LABELS: Readonly<Record<SocketStatus, string>> = {
-  idle: 'Live updates off',
-  connecting: 'Connecting for live updates',
-  open: 'Live updates on',
-  rejected: 'Live updates refused: log in again',
-  unavailable: 'Live updates unavailable',
-};
+// the state of the socket is the text `socket.<status>` of the dictionaries (`@/bazis/i18n`)
 
 const DOTS: Readonly<Record<SocketStatus, string>> = {
   idle: 'bg-neutral',
@@ -49,20 +44,22 @@ export interface LiveQueryProps {
 export function LiveQuery({ routes = ROUTES }: LiveQueryProps) {
   useLiveQueries(routes);
   const { status, retry } = useSocket();
+  const { t } = useLanguage();
+  const label = t(`socket.${status}`);
   return (
     <span className="inline-flex items-center">
       <span
         data-bz={`socket:${status}`}
         role="status"
-        title={SOCKET_LABELS[status]}
+        title={label}
         className="inline-flex size-8 items-center justify-center"
       >
         <span aria-hidden="true" className={cn('size-2 rounded-full', DOTS[status])} />
-        <span className="sr-only">{SOCKET_LABELS[status]}</span>
+        <span className="sr-only">{label}</span>
       </span>
       {status === 'unavailable' && (
         <Button type="button" variant="ghost" size="sm" data-bz="action:reconnect" onClick={retry}>
-          Retry
+          {t('state.retry')}
         </Button>
       )}
     </span>

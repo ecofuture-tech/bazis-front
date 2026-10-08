@@ -19,6 +19,7 @@ import { useState } from 'react';
 
 import { Filter } from '@/bazis/client';
 import { ROUTES } from '@/bazis/generated/contract';
+import { useLanguage } from '@/bazis/i18n';
 import { RelationPicker, useAnyFilterFields } from '@/bazis/ui/resource';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -110,6 +111,7 @@ export interface FilterControlProps {
 
 /** The control of a filter, marked `field:<field>` (the range of a date `field:<field>__gte`, `__lte`). */
 export function FilterControl({ filter, label, type, values, onChange }: FilterControlProps) {
+  const { t } = useLanguage();
   const id = `filter-${filter.field}`;
   const { field } = filter;
   if (type === 'date' || type === 'datetime') {
@@ -125,7 +127,7 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
               key={bound}
               type="date"
               className="h-9 w-36"
-              aria-label={`${label} ${bound === 'gte' ? 'from' : 'to'}`}
+              aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
               data-bz={`field:${field}__${bound}`}
               value={values[`${field}__${bound}`] ?? ''}
               onChange={(event) => {
@@ -143,8 +145,8 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
   let control;
   if (filter.options || type === 'boolean') {
     const options = filter.options ?? [
-      { value: 'true', label: 'Yes' },
-      { value: 'false', label: 'No' },
+      { value: 'true', label: t('value.yes') },
+      { value: 'false', label: t('value.no') },
     ];
     control = (
       <NativeSelect
@@ -155,7 +157,7 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
           onChange(field, event.target.value);
         }}
       >
-        <NativeSelectOption value="">All</NativeSelectOption>
+        <NativeSelectOption value="">{t('filter.all')}</NativeSelectOption>
         {options.map((option) => (
           <NativeSelectOption key={option.value} value={option.value}>
             {option.label}
@@ -172,7 +174,7 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
         label={label}
         relation={relationType}
         value={value || null}
-        placeholder="All"
+        placeholder={t('filter.all')}
         onChange={(next) => {
           onChange(field, next ?? '');
         }}

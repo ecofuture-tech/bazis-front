@@ -14,13 +14,17 @@
 
 """
 bazis-statusy: the statuses and the transits of every statusy model, from the database,
-with the JSON Schema of the payload a transit requires.
+with the JSON Schema of the payload a transit requires. The names are in every language of
+the project (translated fields; the name of the initial status of the settings, a lazy text
+until its row exists).
 """
 
 from django.apps import apps
 from django.conf import settings
 
 from bazis.contrib.statusy.models_abstract import StatusyMixin
+
+from . import translated
 
 
 def section() -> dict:
@@ -39,14 +43,16 @@ def section() -> dict:
                 {
                     'id': pk,
                     # the initial status has no row until the first object is created
-                    'name': statuses[pk].name if pk in statuses else initial_name,
+                    'name': translated(
+                        lambda status=statuses.get(pk): status.name if status else initial_name
+                    ),
                 }
                 for pk in sorted(ids)
             ],
             'transits': [
                 {
                     'id': transit.id,
-                    'name': transit.name,
+                    'name': translated(lambda transit=transit: transit.name),
                     'src': transit.status_src_id,
                     'dst': transit.status_dst_id,
                     'payload': _payload(model, transit),

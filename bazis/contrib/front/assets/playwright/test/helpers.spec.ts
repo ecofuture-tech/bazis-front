@@ -326,6 +326,38 @@ test.describe('expectNotification', () => {
   });
 });
 
+test.describe('language', () => {
+  // the button of the layout (and its hidden copy of a phone), which goes to the next language
+  // after a delay
+  const layout = html(
+    `<section data-bz="screen:home"><div data-bz="state:loaded">Home</div></section>
+     <button data-bz="action:language" data-value="en" style="display: none"></button>
+     <button data-bz="action:language" data-value="en" id="language">EN</button>`,
+    `const languages = ['en', 'ru', 'kk'];
+     const button = document.getElementById('language');
+     button.onclick = () => setTimeout(() => {
+       button.dataset.value = languages[(languages.indexOf(button.dataset.value) + 1) % languages.length];
+     }, 200);`,
+  );
+
+  test('goes through the languages to the one asked for', async ({ page }) => {
+    await show(page, '/', layout);
+    const app = new App(page, PRODUCT);
+    await app.language('kk');
+    await expect(page.locator('#language')).toHaveAttribute('data-value', 'kk');
+    await app.language('kk');
+    await app.language('ru');
+    await expect(page.locator('#language')).toHaveAttribute('data-value', 'ru');
+  });
+
+  test('fails for a language that the backend does not have', async ({ page }) => {
+    test.setTimeout(30_000);
+    await show(page, '/', layout);
+    const app = new App(page, PRODUCT);
+    await expect(app.language('de')).rejects.toThrow();
+  });
+});
+
 test('transit fills its payload and waits until it is done', async ({ page }) => {
   await show(page, '/tasks/1',
     html(

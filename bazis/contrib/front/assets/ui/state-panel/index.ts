@@ -16,8 +16,6 @@ export {
   errorState,
   queryState,
   SkeletonLines,
-  STATE_HINTS,
-  STATE_MESSAGES,
   StatePanel,
 } from './state-panel.js';
 export type { ErrorState, StatePanelProps, ViewState } from './state-panel.js';

@@ -40,7 +40,12 @@ bazis-uploadable, routed as it is: it requires a user and gives him only his own
 `ERR_ATTACHMENT_NOT_OWN`, as bazis-uploadable recommends until the core checks the targets
 of relationships); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
-sample is that of bazis-authing (the token endpoint of bazis-users stays); the roles, statuses and
+sample is that of bazis-authing (the token endpoint of bazis-users stays). The sample is in
+English and Russian (`BS_LANGUAGES` of `sample/project.env`, `LANGUAGE_CODE` `en`): the
+Russian texts of the tasks are `sample/tasks/locale/ru/LC_MESSAGES/django.po`, compiled to
+the `.mo` next to it (both committed, as in the other Bazis repositories; run
+`python manage.py compilemessages -l ru` in `sample/tasks/` after a change), and the Russian
+names of its roles, statuses and transits the data migration `0006_workflow_ru.py`. The roles, statuses and
 transits are the data migration `sample/tasks/migrations/0005_workflow.py`, its data frozen
 there as in any migration (as a product creates them; the fixture `workflow`,
 `tests/conftest.py`, runs its function again after a test that flushed the tables, and
@@ -79,6 +84,12 @@ frontend made from the sample by the `e2e` job of CI.
 - `contract/export.py` renders the files (`render`), compares them byte for byte
   (`stale_files`) and writes them; `contract/openapi.py` is the canonical JSON and the hash
   of the operation surface, `contract/resources.py` the resources read from the OpenAPI.
+- The export is in `LANGUAGE_CODE` whatever the language of the process: `render` builds the
+  OpenAPI again (`app.openapi_schema = None`) under `translation.override`, and the names of
+  the roles, statuses and transits are maps of every language of `LANGUAGES`
+  (`capabilities.translated`); `tests/test_contract.py` renders under two process languages
+  and expects the same bytes. `CONTRACT_FORMAT` changes with the shape of contract.json (2:
+  the languages).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the
@@ -242,7 +253,8 @@ npm test
 
 ### The hooks (`assets/react`)
 
-- `src/`: `context.tsx` (`BazisProvider`, `useApi`, `useSessionKey`), `keys.ts` (the query
+- `src/`: `context.tsx` (`BazisProvider` with the session and the language, `useApi`,
+  `useSessionKey`: the scope of the keys), `keys.ts` (the query
   keys), `queries.ts`, `mutations.ts`, `related.ts` (`useRelatedItem`: the related items
   asked for together read with one list filtered by `pk=<a>|pk=<b>`), `schema.ts` (the fields of a runtime schema),
   `form.ts` (`useResourceForm`), `types.ts`; `src/statusy/` is the separate asset
@@ -251,7 +263,10 @@ npm test
   `react-ws` (`SocketProvider`, `useSocket`, `useChannel`, `useLiveQueries`,
   `useNotifications`, the capability `ws`), `src/bg/` the asset `react-bg` (`useBgTask`,
   `bg`), `src/async/` the asset `react-async` (`useAsyncRequest`, `useAsyncTask`,
-  `async_background`). `README.md` documents the API, the keys and the protocol facts they
+  `async_background`), `src/i18n/` the asset `i18n` (copied to `src/bazis/i18n/` of every
+  product: `LanguageProvider`, `useLanguage`, `t`, the dictionaries `messages/en.ts` and
+  `messages/ru.ts`, the `Intl` formats, the language of the profile; the components import
+  it as `@/bazis/i18n`, aliased in the configs of `ui`). `README.md` documents the API, the keys and the protocol facts they
   rely on. The tests of the socket use a fake WebSocket (`test/socket.ts`; the components
   have theirs in `testing`).
 - They import `@/bazis/client` and `@/bazis/generated/schema` as a product does; in this
@@ -274,7 +289,13 @@ npm test
   (from `sample/`, as the other tests) and run the tests of the hooks.
 - Every query key ends with the session of `BazisProvider`, against the requests still
   running at a login or a logout; the template also clears the query and mutation caches
-  then (`clearOnSessionChange`, for what is not keyed by the session). Keep both.
+  then (`clearOnSessionChange`, for what is not keyed by the session). Keep both. The key
+  also ends with the language of the interface (`BazisProvider` `language`,
+  `<session>:<language>`), and the template clears the caches when it changes
+  (`clearOnLanguageChange`).
+- Every text of the components is a key of `src/i18n/messages/<language>.ts`
+  (`useLanguage().t`); a new text adds its key to every dictionary (`test/i18n.test.tsx`
+  checks that `ru` has every key of `en`). The contract tests never depend on a text.
 
 ### The components (`assets/ui`)
 

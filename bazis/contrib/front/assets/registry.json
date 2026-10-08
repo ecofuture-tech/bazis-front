@@ -166,6 +166,7 @@
       "target": "src/bazis/ui/state-panel",
       "requires": {
         "assets": [
+          "i18n",
           "client",
           "testing",
           "button",
@@ -187,6 +188,7 @@
       "target": "src/bazis/ui/app-shell",
       "requires": {
         "assets": [
+          "i18n",
           "testing",
           "button",
           "state-panel",
@@ -199,6 +201,7 @@
         "app-shell.tsx",
         "color-mode.tsx",
         "index.ts",
+        "language.tsx",
         "list-card.tsx"
       ]
     },
@@ -209,6 +212,7 @@
       "target": "src/bazis/ui/login-form",
       "requires": {
         "assets": [
+          "i18n",
           "state-panel",
           "testing",
           "button",
@@ -231,6 +235,7 @@
       "target": "src/bazis/ui/resource",
       "requires": {
         "assets": [
+          "i18n",
           "react",
           "testing",
           "input",
@@ -260,6 +265,7 @@
       "target": "src/bazis/ui/resource-form",
       "requires": {
         "assets": [
+          "i18n",
           "resource",
           "state-panel",
           "testing",
@@ -283,6 +289,7 @@
       "target": "src/bazis/ui/resource-list",
       "requires": {
         "assets": [
+          "i18n",
           "app-shell",
           "resource",
           "state-panel",
@@ -309,6 +316,7 @@
       "target": "src/bazis/ui/resource-card",
       "requires": {
         "assets": [
+          "i18n",
           "resource",
           "resource-form",
           "state-panel",
@@ -334,6 +342,7 @@
           "statusy"
         ],
         "assets": [
+          "i18n",
           "resource",
           "testing",
           "badge"
@@ -356,6 +365,7 @@
           "statusy"
         ],
         "assets": [
+          "i18n",
           "resource",
           "status-badge",
           "testing"
@@ -377,6 +387,7 @@
           "statusy"
         ],
         "assets": [
+          "i18n",
           "react-statusy",
           "resource",
           "status-badge",
@@ -403,6 +414,7 @@
           "uploadable"
         ],
         "assets": [
+          "i18n",
           "react-uploadable",
           "resource",
           "testing",
@@ -425,6 +437,7 @@
           "ws"
         ],
         "assets": [
+          "i18n",
           "react-ws",
           "testing",
           "button"
@@ -446,6 +459,7 @@
           "ws"
         ],
         "assets": [
+          "i18n",
           "react-ws",
           "state-panel",
           "testing",
@@ -469,6 +483,7 @@
           "bg"
         ],
         "assets": [
+          "i18n",
           "react-bg",
           "state-panel",
           "testing"
@@ -490,6 +505,7 @@
           "async_background"
         ],
         "assets": [
+          "i18n",
           "react-async",
           "state-panel",
           "testing"
@@ -508,6 +524,7 @@
       "target": "src/bazis/ui/testing",
       "requires": {
         "assets": [
+          "i18n",
           "react"
         ]
       },
@@ -635,12 +652,16 @@
         "playwright.config.ts",
         "src/app/errors.test.tsx",
         "src/app/errors.tsx",
+        "src/app/language.ts",
         "src/app/product.ts",
         "src/app/providers.test.ts",
         "src/app/providers.tsx",
         "src/app/router.tsx",
         "src/app/session.test.ts",
         "src/app/session.ts",
+        "src/i18n/en.ts",
+        "src/i18n/index.ts",
+        "src/i18n/ru.ts",
         "src/index.css",
         "src/lib/utils.ts",
         "src/main.tsx",

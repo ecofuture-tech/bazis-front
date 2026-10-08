@@ -13,16 +13,19 @@
 // limitations under the License.
 
 // The statuses and the transits of bazis-statusy by the JSON:API type of their model, from
-// `TRANSITS` of the contract: their names in the language of the backend; and the tone of a
-// status, from `statuses` of spec/design/theme.yaml (`THEME` of the generated theme).
+// `TRANSITS` of the contract: their names in every language of the backend (`{en, ru}`),
+// read in the language of the interface; and the tone of a status, from `statuses` of
+// spec/design/theme.yaml (`THEME` of the generated theme).
 
-import { TRANSITS } from '@/bazis/generated/contract';
+import { LANGUAGE, TRANSITS } from '@/bazis/generated/contract';
 import { THEME, type Tone } from '@/bazis/generated/theme';
+import { baseLanguage } from '@/bazis/i18n';
 import { fieldValue, type ResourceObject } from '@/bazis/ui/resource';
 
 interface Named {
   id: string;
-  name: string;
+  /** The name in each language of the backend. */
+  name: Readonly<Record<string, string>>;
 }
 
 interface StatusyModel {
@@ -34,25 +37,37 @@ function model(type: string): StatusyModel | undefined {
   return (TRANSITS as Readonly<Record<string, StatusyModel | undefined>>)[type];
 }
 
+/**
+ * A name in a language: that of the language, of its base language, of the default language
+ * of the backend; its id without any.
+ */
+function localized(item: Named | undefined, id: string, language: string): string {
+  const names = item?.name ?? {};
+  return names[language] ?? names[baseLanguage(language)] ?? names[LANGUAGE] ?? Object.values(names)[0] ?? id;
+}
+
 /** The status of an item of a statusy model: the id of its relationship `status`. */
 export function statusOf(resource: ResourceObject): string | null {
   const status = fieldValue(resource, 'status');
   return typeof status === 'string' ? status : null;
 }
 
-/** The name of a status of the model; its id when the contract does not have it. */
-export function statusName(type: string, status: string): string {
-  return model(type)?.statuses.find((it) => it.id === status)?.name ?? status;
+/**
+ * The name of a status of the model in a language (`useLanguage().language`; the default
+ * language of the backend without it); its id when the contract does not have it.
+ */
+export function statusName(type: string, status: string, language: string = LANGUAGE): string {
+  return localized(model(type)?.statuses.find((it) => it.id === status), status, language);
 }
 
-/** The name of a transit of the model; its id when the contract does not have it. */
-export function transitName(type: string, transit: string): string {
-  return model(type)?.transits.find((it) => it.id === transit)?.name ?? transit;
+/** The name of a transit of the model in a language; its id when the contract does not have it. */
+export function transitName(type: string, transit: string, language: string = LANGUAGE): string {
+  return localized(model(type)?.transits.find((it) => it.id === transit), transit, language);
 }
 
-/** The statuses of the model as the options of a filter (`filters` of resource-list). */
-export function statusOptions(type: string): { value: string; label: string }[] {
-  return (model(type)?.statuses ?? []).map((it) => ({ value: it.id, label: it.name }));
+/** The statuses of the model as the options of a filter (`filters` of resource-list), named in a language. */
+export function statusOptions(type: string, language: string = LANGUAGE): { value: string; label: string }[] {
+  return (model(type)?.statuses ?? []).map((it) => ({ value: it.id, label: localized(it, it.id, language) }));
 }
 
 /** The tone of a status: `statuses` of the theme, neutral for another. */

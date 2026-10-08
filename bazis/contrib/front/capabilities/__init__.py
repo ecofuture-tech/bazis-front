@@ -25,7 +25,9 @@ from dataclasses import dataclass
 from importlib import import_module, metadata
 
 from django.apps import apps
+from django.conf import settings
 from django.core.checks import Error
+from django.utils import translation
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,18 @@ CAPABILITIES = {
     'async_background': Capability('bazis-async-background', 'bazis.contrib.async_background'),
     'async_request': Capability('bazis-async-request', 'bazis.contrib.async_request'),
 }
+
+
+def translated(name) -> dict[str, str]:
+    """
+    A name in every language of the project, `{code: name}`: `name()` read under each
+    language (a translated field of the database, a lazy text).
+    """
+    result = {}
+    for code, _name in settings.LANGUAGES:
+        with translation.override(code):
+            result[code] = str(name())
+    return result
 
 
 class DatabaseNotReadyError(Exception):

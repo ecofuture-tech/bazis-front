@@ -56,6 +56,8 @@ screen that lists the resources of the contract. It never overwrites an existing
   `src/bazis/react/async/`. A package installed after `init` has
   no hooks in the frontend until `bazis_front add react-statusy` (or a component that
   requires them) copies them: `check` reports it (`C003`);
+- the translation of the interface in `src/bazis/i18n/` (the asset `i18n`, copied like the
+  hooks; see [The language](#the-language));
 - the components that the template uses, `state-panel`, `app-shell` and `login-form`, in
   the same way, with the shadcn/ui components they use (see [The components](#the-components));
 - the helpers of the end-to-end tests in `e2e/bazis/` (the asset `playwright`, copied like
@@ -118,8 +120,13 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
   scenarios of the specs rely on. Keep it passing when the component is changed.
 - There is no generator of screens: the screens are written in `src/screens/<id>/` from
   their specs, composed from the components; the template's `AGENTS.md` shows how.
-- No translations: the labels are the titles of the runtime schemas and the names of the
-  statuses and transits in the language of the backend, and the props.
+- **Their texts are translated** (see [The language](#the-language)): every text of a
+  component is a key of the dictionaries of `@/bazis/i18n` (`state.error.title`,
+  `list.next`, …) in the language of the interface, and a product changes one with the same
+  key in its own dictionary (`src/i18n/<language>.ts`), never in the copy; the dates and the
+  numbers are formatted in that language. The labels of the data are the titles of the
+  runtime schemas (in the language the backend answers in) and the names of the statuses
+  and transits of the contract (in every language), and the props.
 - They look as the design of the specs says (see [The design](#the-design)): the colors,
   radii and fonts are the tokens (Tailwind classes such as `bg-primary`, `text-muted-foreground`,
   `bg-success-soft text-success-ink`, never literal colors), the spacing is that of the
@@ -131,19 +138,19 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | Component | Props | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
+| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?, cells?, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?: 'dialog' \| 'page'})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
-| `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | `statusy` |
+| `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider({accept?: {field: types}, maxSize?, children})`: `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField(props)`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
-| `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket; `SOCKET_LABELS` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
+| `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list, a toast for each new one | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | `ws` |
-| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS`, `TASK_LABELS` | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
-| `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH`, `RESULT_LABELS` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
+| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS` (the texts `bg.<view>`) | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
+| `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -251,7 +258,8 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   gives the same bytes, so the files are compared byte for byte.
 - When the product has a frontend made by `init` (`frontend/bazis-front.lock.json`),
   `contract` also writes `frontend/src/bazis/generated/`:
-  - `contract.ts`, rendered from `contract.json` by Python: `ROUTES` (the path of each
+  - `contract.ts`, rendered from `contract.json` by Python: `LANGUAGES` (the languages of
+    the backend, `{code, name}`) and `LANGUAGE` (its default language), `ROUTES` (the path of each
     resource by its JSON:API type, with the type `ResourceType`), `RESOURCES` (the
     resources as in `contract.json`), `ROLES` (the permit roles, `[]` without
     bazis-permit), `TRANSITS` (the statusy models, `{}` without bazis-statusy), all
@@ -274,22 +282,26 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
 
 ```json
 {
-  "format": 1,
+  "format": 2,
   "generated_by": {"bazis": "2.5.0", "bazis-front": "0.1.0", "bazis-permit": "2.4.1"},
   "openapi_hash": "sha256:…",
-  "project": {"resources": {
-    "tasks.task": {
-      "model": "tasks.Task", "route_set": "tasks.routes.TaskRouteSet", "path": "/api/v1/tasks/task/",
-      "actions": {"action_list": "collection", "action_retrieve": "item", "action_transit": "other"},
-      "fields": {
-        "title": {"type": "string", "filter": "title", "order": "title"},
-        "dt_created": {"type": "string", "format": "date-time", "filter": "dt_created", "order": "dt_created"},
-        "assignee": {"relation": "users.user", "many": false, "filter": "assignee", "order": "assignee"}
+  "project": {
+    "language": "en",
+    "languages": [{"code": "en", "name": "English"}, {"code": "ru", "name": "Русский"}],
+    "resources": {
+      "tasks.task": {
+        "model": "tasks.Task", "route_set": "tasks.routes.TaskRouteSet", "path": "/api/v1/tasks/task/",
+        "actions": {"action_list": "collection", "action_retrieve": "item", "action_transit": "other"},
+        "fields": {
+          "title": {"type": "string", "filter": "title", "order": "title"},
+          "dt_created": {"type": "string", "format": "date-time", "filter": "dt_created", "order": "dt_created"},
+          "assignee": {"relation": "users.user", "many": false, "filter": "assignee", "order": "assignee"}
+        }
       }
     }
-  }},
+  },
   "capabilities": {
-    "users": {"token_url": "/api/openapi-token/", "user_resource": "users.user"},
+    "users": {"token_url": "/api/openapi-token/", "user_resource": "users.user", "profile_language": false},
     "authing": {"auth_url": "/api/v1/authing/auth/", "logout_url": "/api/v1/authing/logout/", "token_param": "bazis_auth",
                 "actions": [{"code": "password", "name": "Login/Password", "method": "POST",
                              "url": "/api/v1/authing/password/"}]},
@@ -298,12 +310,12 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
     "bg": {"resource": "bg.task"},
     "async_background": {"result_path": "/api/v1/async_background_response/{task_id}/"},
     "async_request": {"header": "X-Async-Background"},
-    "permit": {"roles": [{"slug": "manager", "name": "Manager", "for_anonymous": false,
+    "permit": {"roles": [{"slug": "manager", "name": {"en": "Manager", "ru": "Менеджер"}, "for_anonymous": false,
                           "groups": ["tasks_change"], "permissions": ["tasks.task.item.change.all.draft"]}]},
     "statusy": {"models": {"tasks.task": {
       "initial": "draft",
-      "statuses": [{"id": "draft", "name": "Draft"}, {"id": "done", "name": "Done"}],
-      "transits": [{"id": "finish", "name": "Finish", "src": "draft", "dst": "done",
+      "statuses": [{"id": "draft", "name": {"en": "Draft", "ru": "Черновик"}}, {"id": "done", "name": {"en": "Done", "ru": "Готово"}}],
+      "transits": [{"id": "finish", "name": {"en": "Finish", "ru": "Завершить"}, "src": "draft", "dst": "done",
                     "payload": {"required": true, "schema": {"type": "object", "properties": {…}}}}]
     }}}
   }
@@ -314,6 +326,9 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   distributions whose apps the project installs; `openapi_hash`: the hash of what clients
   depend on in the OpenAPI (parameters, bodies, responses, security, `x-bazis` of every
   operation, and the components), not of summaries and descriptions.
+- `project.languages` are the languages of the backend (`LANGUAGES`, in their order, with
+  their names) and `project.language` its default language (the base code of
+  `LANGUAGE_CODE`): those the interface may be in.
 - `project.resources` is keyed by the JSON:API type. A resource is described by the route
   set that the core uses as the default route of its model; other route sets of the model
   are listed in `other_routes`. `actions` maps the name of each route to its `kind`.
@@ -322,7 +337,9 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `filter` and `order` are the labels for `filter` and `sort`, absent when the field cannot
   be filtered or sorted.
 - `capabilities` has a section for each installed package whose app is in
-  `INSTALLED_APPS` (bazis-ws: its installed package): `users` (the token endpoint, the resource of the user model), `authing`
+  `INSTALLED_APPS` (bazis-ws: its installed package): `users` (the token endpoint, the resource of the user model,
+  `profile_language`: whether the user model has a text field `language`, the language of
+  the profile that the interface follows; see [The language](#the-language)), `authing`
   (the auth endpoint of bazis-authing, null when it is not routed; the login actions of
   the services of `BAZIS_AUTH_KINDS` as the endpoint lists them in `meta.actions`, in the
   order of the setting, without those whose route is not registered; the logout endpoint
@@ -340,8 +357,11 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   see [The socket](#the-socket)), `bg` (`resource`: the JSON:API type of the route set of `BgRoute`, null
   when it is not routed), `async_background` (`result_path`: the path of the result of a
   task with `{task_id}`, null when it is not routed), `async_request` (`header`: the header
-  that asks for the background execution, `X-Async-Background`). Names are in
-  `LANGUAGE_CODE`; lists are sorted.
+  that asks for the background execution, `X-Async-Background`). The names of the roles,
+  the statuses and the transits are maps `{language: name}` of every language of
+  `LANGUAGES` (their translated fields read in each); the other texts (the OpenAPI, the
+  names of the login actions, the payloads) are in `LANGUAGE_CODE`, whatever the language
+  of the process; lists are sorted.
 
 ## The specs
 
@@ -378,6 +398,8 @@ its data migration, `tasks.0005_workflow`):
 spec: bazis-product/1
 product: {id: tasks, name: Tasks, summary: The tasks of a team}
 packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request]   # each needs its section in the contract
+languages: [en, ru]                  # optional: LANGUAGES of the backend (P029)
+language: en                         # optional: the base code of LANGUAGE_CODE (P029)
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
@@ -603,6 +625,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has no `ws`) |
 | `P028` | error | `packages` has `ws`, and the contract has no path of the socket: `ws_route` is not routed where the export sees it |
+| `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the base code of LANGUAGE_CODE), or `language` is not one of `languages` |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -991,10 +1014,11 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   Kafka); `useAsyncTask(resultPath, taskId)` reads the task every 2 s until it is
   `completed` or `failed` (a status on the socket refetches it at once with
   `useLiveQueries`); `replayedResponse(response)` reads the response of a replayed request.
-- The template clears the query and mutation caches when the user changes, and every query
-  key ends with the session of `BazisProvider` (a number that changes at every login and
-  logout), so the data of one user is never shown to another, even from a request still
-  running.
+- The template clears the query and mutation caches when the user or the language changes,
+  and every query key ends with the scope of `BazisProvider`, the session (a number that
+  changes at every login and logout) and the language (`useSessionKey()`), so the data of
+  one user is never shown to another, nor the texts of one language in another, even from a
+  request still running.
 
 ## The socket
 

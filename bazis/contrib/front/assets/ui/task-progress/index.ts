@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { BG_TASKS, TASK_LABELS, TaskProgress, taskView } from './task-progress.js';
+export { BG_TASKS, TaskProgress, taskView } from './task-progress.js';
 export type { TaskProgressProps, TaskView } from './task-progress.js';
