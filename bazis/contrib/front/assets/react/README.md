@@ -31,16 +31,18 @@ import { createClient } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
 import { BazisProvider } from '@/bazis/react';
 
-const api = createClient<paths>({ token: getToken });
+const api = createClient<paths>({ token: getToken, language: getLanguage });
 
 <QueryClientProvider client={queryClient}>
-  <BazisProvider client={api} session={session}>…</BazisProvider>
+  <BazisProvider client={api} session={session} language={language}>…</BazisProvider>
 </QueryClientProvider>
 ```
 
 `session` is a string that changes whenever a user logs in or out (the template numbers its
-sessions in `src/app/session.ts`); never the token. The template does this in
-`src/app/providers.tsx`.
+sessions in `src/app/session.ts`); never the token. `language` is the language of the
+interface, which the client sends as `Accept-Language` (optional): the texts of the backend
+(the titles of the runtime schemas, the messages of the errors) are in it, so the keys end
+with it too. The template does this in `src/app/providers.tsx`.
 
 ## Hooks
 
@@ -88,6 +90,9 @@ string in the relationships.
 
 ### Query keys and the session
 
+The last item of a key is the scope of `BazisProvider`: the session, and `<session>:<language>`
+with a language (`useSessionKey()`).
+
 | Query | Key |
 |---|---|
 | list | `['bazis', path, 'list', options, session]` |
@@ -125,7 +130,41 @@ Two mechanisms keep the data of one user from the next one, and both are needed:
   same reason.
 
 A logout without a session (a 401 of an anonymous request) is no change of the session: it
-neither clears the cache nor changes the keys, so it does not refetch every query.
+neither clears the cache nor changes the keys, so it does not refetch every query. A change
+of the language is handled the same way: the template clears the caches
+(`clearOnLanguageChange`), and the keys of the hooks end with the language, so a request of
+the previous language never fills a query of the next one.
+
+## The language of the interface (`@/bazis/i18n`)
+
+`src/i18n/` of this workspace is the separate asset `i18n`, copied to `src/bazis/i18n/` of
+every product (it uses the hooks for the language of the profile). No i18next: flat
+dictionaries by language with stable keys, `src/i18n/messages/en.ts` and `ru.ts` (the texts of
+the components), and `Intl` for the plural forms, the dates and the numbers.
+
+- `createLanguageStore({languages, fallback, storage?, preferred?})`: the language, one of
+  `LANGUAGES` of the contract, resolved from the choice kept in localStorage
+  (`bazis.language`), else `navigator.languages` (the same code, else the same base code:
+  `ru-RU` is `ru`), else `fallback` (`LANGUAGE`, the default of the backend); `get()`,
+  `set(code)` (a language of `languages` only; kept in the storage), `subscribe(listener)`.
+- `LanguageProvider({store?, messages?, children})` and `useLanguage()`:
+  `{language, languages, setLanguage, t}`; `messages` are the dictionaries of the product by
+  language, merged over those of the package. Without a provider: English, fixed.
+- `t(key, params?)`: the text of the first dictionary that has the key (the product's and
+  the package's of the language, of its base language, of the default language, then
+  English), `{name}` replaced by `params.name` (a number formatted in the language); with a
+  number `count`, the plural form `<key>.<category>` of `Intl.PluralRules` first. A missing
+  text shows its key. `translate(dictionaries, locale, key, params)` is the same as a
+  function.
+- `formatNumber`, `formatDate` (a date of the backend, `2026-10-08`, is that day wherever
+  the user is), `formatDateTime`, `formatTime`: `Intl` in the language of the interface.
+- The language of the profile: with `profile_language` of the capability `users` (a text
+  field `language` of the user model), `followProfileLanguage(store, api, {path, type},
+  token)` finds the user of the session token (`sub` of its JWT, `filter=username=<sub>`),
+  adopts the language of his profile (or saves the current one when it has none) and saves
+  every change of the language (`PATCH` of the attribute `language`); the template calls it
+  at every login (`src/app/language.ts`). Without the field the language stays in the
+  browser.
 
 ### `useResourceForm`
 
@@ -244,4 +283,7 @@ its socket (a change, a notification, the statuses of a background request), the
 of a task of bazis-bg and the answers of a background request, as the backend returns them (reduced to what the hooks read and normalized
 across the versions of Python and Pydantic; `tests/test_react_fixture.py` of the
 repository checks it against the sample and writes it again with
-`BAZIS_FRONT_WRITE_FIXTURES=1`); `test/types.typecheck.ts` has the type tests.
+`BAZIS_FRONT_WRITE_FIXTURES=1`); `test/types.typecheck.ts` has the type tests;
+`test/i18n.test.tsx` the tests of `src/i18n/` (the dictionaries, the plural forms, the
+resolution of the language, the formats in English and Russian, the language of the
+profile).

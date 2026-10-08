@@ -37,7 +37,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { useSessionKey } from '../context.js';
+import { useBazis } from '../context.js';
 import { notificationOf, type Notification } from './messages.js';
 
 /**
@@ -129,7 +129,8 @@ function parse(data: string): unknown {
  * received in the session (`{"action": "notification"}`), dropped when the session changes.
  */
 export function SocketProvider({ path, token, children }: SocketProviderProps) {
-  const session = useSessionKey();
+  // the notifications are those of the session, whatever the language
+  const { session } = useBazis();
   // the state of the connection to a path with a token; another path or token is connecting
   const target = path !== null && token !== null ? `${path}\n${token}` : null;
   const [connection, setConnection] = useState<{ target: string | null; status: SocketStatus; error: string | null }>({

@@ -107,9 +107,9 @@ export function bgTask(document: { data: { id: string | number; attributes: unkn
  * the resource (a message of the socket, `useLiveQueries`) refetches it too.
  */
 export function useBgTask(path: ItemPath, id: string | null): UseQueryResult<BgTask> {
-  const { api, session } = useBazis();
+  const { api, scope } = useBazis();
   return useQuery({
-    ...retrieveQuery<{ data: { id: string | number; attributes: unknown } }>(api, path, id ?? '', {}, session),
+    ...retrieveQuery<{ data: { id: string | number; attributes: unknown } }>(api, path, id ?? '', {}, scope),
     enabled: id !== null,
     select: bgTask,
     refetchInterval: ({ state }) =>

@@ -85,7 +85,7 @@ def test_init_creates_the_frontend(product):
     # require
     vendored = [
         'client', 'react', 'react-statusy', 'react-uploadable', 'react-ws', 'react-bg', 'react-async',
-        'playwright', *INIT_COMPONENTS,
+        'i18n', 'playwright', *INIT_COMPONENTS,
     ]
     files = {name: lock['assets'][name].pop('files') for name in vendored}
     # the theme of the starters of the design
@@ -136,12 +136,12 @@ def test_init_copies_the_hooks_of_the_installed_packages(product, monkeypatch):
 
     frontend = product / 'frontend'
     lock = json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
-    assert sorted(lock['assets']) == sorted(['client', 'react', 'playwright', 'template', *INIT_COMPONENTS])
+    assert sorted(lock['assets']) == sorted(['client', 'react', 'i18n', 'playwright', 'template', *INIT_COMPONENTS])
     assert (frontend / 'src' / 'bazis' / 'react' / 'index.ts').is_file()
     assert not (frontend / 'src' / 'bazis' / 'react' / 'statusy').exists()
     assert not (frontend / 'src' / 'bazis' / 'react' / 'uploadable').exists()
     assert sorted(it.name for it in (frontend / '.bazis' / 'base').iterdir()) == sorted(
-        f'{name}@{__version__}' for name in ['client', 'react', 'playwright', *INIT_COMPONENTS]
+        f'{name}@{__version__}' for name in ['client', 'react', 'i18n', 'playwright', *INIT_COMPONENTS]
     )
 
 

@@ -280,6 +280,25 @@ describe('authentication', () => {
     expect(calls[0]?.init.headers).toEqual({ Accept: ACCEPT });
   });
 
+  it('sends the language of the interface as Accept-Language, the current one at each request', async () => {
+    let language: string | null = 'en';
+    const { api, calls } = setup([json(DOC), json(DOC), json(DOC)], { token: 'secret', language: () => language });
+    await api.retrieve(PARENT, '1');
+    language = 'ru';
+    await api.list(PARENT);
+    language = null;
+    await api.retrieve(PARENT, '1');
+    expect(calls.map((it) => it.init.headers)).toEqual([
+      { Accept: ACCEPT, 'Accept-Language': 'en', Authorization: 'Bearer secret' },
+      { Accept: ACCEPT, 'Accept-Language': 'ru', Authorization: 'Bearer secret' },
+      { Accept: ACCEPT, Authorization: 'Bearer secret' },
+    ]);
+    // a fixed language, also on a login
+    const fixed = setup([json({ access_token: 'jwt', token_type: 'bearer' }, 200, JSON_TYPE)], { language: 'ru' });
+    await fixed.api.login({ username: 'ann', password: 'p' });
+    expect(fixed.calls[0]?.init.headers).toMatchObject({ 'Accept-Language': 'ru' });
+  });
+
   it('logs in with the password form of bazis-users', async () => {
     const token = { access_token: 'jwt', token_type: 'bearer' };
     const { api, calls } = setup([json(token, 200, JSON_TYPE)], { token: 'stale' });

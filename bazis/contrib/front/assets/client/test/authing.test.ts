@@ -161,6 +161,19 @@ describe('authWait', () => {
   });
 });
 
+describe('the language', () => {
+  it('is sent to the auth endpoint too: the errors of a login are in it', async () => {
+    const calls: Call[] = [];
+    const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
+      return Promise.resolve(signedOut('store-1'));
+    });
+    const api = createClient<paths>({ baseUrl: BASE, fetch, language: 'ru' });
+    await api.auth(AUTH);
+    expect(calls[0]?.init.headers).toEqual({ Accept: ACCEPT, 'Accept-Language': 'ru' });
+  });
+});
+
 describe('authLogout', () => {
   const LOGOUT = '/api/v1/authing/logout/';
 

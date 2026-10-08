@@ -52,6 +52,12 @@ export interface ClientOptions {
   fetch?: typeof fetch;
   /** Creates the XMLHttpRequest of an upload (fetch reports no progress of a body); `new XMLHttpRequest()` by default. */
   xhr?: () => XMLHttpRequest;
+  /**
+   * The language of the interface, or a function that returns the current one: sent as
+   * `Accept-Language` on every request, so that the backend answers in it (the titles of
+   * the runtime schemas, the messages of the errors). None: the language of the backend.
+   */
+  language?: string | (() => string | null | undefined);
 }
 
 /** The header that asks bazis-async-request to run a request in the background (`async_request` of the contract). */
@@ -276,6 +282,13 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
     return typeof token === 'function' ? token() : token;
   }
 
+  /** `Accept-Language` with the current language of the interface, when it has one. */
+  function languageHeaders(): Record<string, string> {
+    const { language } = options;
+    const current = typeof language === 'function' ? language() : language;
+    return current ? { 'Accept-Language': current } : {};
+  }
+
   function abortError(signal: AbortSignal): Error {
     const reason: unknown = signal.reason;
     return reason instanceof Error ? reason : new DOMException('The request was aborted.', 'AbortError');
@@ -298,6 +311,7 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       };
       xhr.open('POST', `${baseUrl}${path}`);
       xhr.setRequestHeader('Accept', ACCEPT);
+      for (const [name, value] of Object.entries(languageHeaders())) xhr.setRequestHeader(name, value);
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.upload.onprogress = (event) => {
         onProgress?.({ loaded: event.loaded, total: event.lengthComputable ? event.total : file.size });
@@ -342,7 +356,7 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
     path: string,
     { store, body, signal }: { store?: string | undefined; body?: unknown; signal?: AbortSignal | undefined },
   ): Promise<AuthState> {
-    const headers: Record<string, string> = { Accept: ACCEPT };
+    const headers: Record<string, string> = { Accept: ACCEPT, ...languageHeaders() };
     if (store) headers.Authorization = `Bearer ${store}`;
     if (body !== undefined) headers['Content-Type'] = JSON_TYPE;
     const response = await fetcher(`${baseUrl}${path}`, {
@@ -388,7 +402,7 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
 
   /** A request: the status and the body of a successful response (undefined for 204). */
   async function request(method: string, path: string, init: Send = {}): Promise<{ status: number; body: unknown }> {
-    const headers: Record<string, string> = { Accept: ACCEPT, ...init.headers };
+    const headers: Record<string, string> = { Accept: ACCEPT, ...languageHeaders(), ...init.headers };
     if (!init.anonymous) {
       const token = await authorization();
       if (token) headers.Authorization = `Bearer ${token}`;

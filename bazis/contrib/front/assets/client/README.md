@@ -36,6 +36,8 @@ import type { paths } from '@/bazis/generated/schema';
 const api = createClient<paths>({
   baseUrl: 'https://api.example.com',
   token: () => localStorage.getItem('token'),
+  // the language of the interface, sent as Accept-Language: the backend answers in it
+  language: () => languageStore.get(),
 });
 
 const { access_token } = await api.login({ username, password });
@@ -99,6 +101,14 @@ and update: Bazis ignores it on a list, and the types reject it. A meta field su
 Errors are thrown as `ApiError` with the HTTP `status` and the JSON:API `errors`;
 `fieldErrors()` groups the messages by attribute or relationship name from
 `source.pointer` (`/attributes/<name>`, `/relationships/<name>`).
+
+**The language.** With the option `language` (a code, or a function that returns the
+current one) every request, the uploads and the requests of bazis-authing too, has
+`Accept-Language: <language>`: the `LanguageMiddleware` of the core activates it when it is
+one of `LANGUAGES` of the backend (else `LANGUAGE_CODE`), and the titles of the runtime
+schemas and the messages of the errors are in it. The schemas are built once per process of
+the backend, in the language of its first request (a limitation of the core): until the core
+translates them when it answers, their titles may stay in that language.
 
 **Uploads** (bazis-uploadable). A file is the multipart create of a route set of
 `FileUploadRouteSet`: fetch reports no progress of a body, so `upload` sends it with

@@ -103,16 +103,16 @@ export type ListItem<P extends ListPath> = ListResponse<P> extends { data: reado
  * A related item, to show its label: an item of the list of the resource (no meta, the
  * fields of the list), read in one request with the other items of the resource that the
  * page asks for at the same time; `null` when the user may not view it. Its key is under
- * the item (`['bazis', path, 'item', id, 'related', session]`): a mutation of the resource
+ * the item (`['bazis', path, 'item', id, 'related', scope]`): a mutation of the resource
  * refetches it, a destroy removes it.
  */
 export function useRelatedItem<P extends ListPath>(
   path: P,
   id: string,
 ): UseQueryResult<ListItem<P> | null> {
-  const { api, session } = useBazis();
+  const { api, scope } = useBazis();
   return useQuery({
-    queryKey: keys.related(path, id, session),
+    queryKey: keys.related(path, id, scope),
     // one request reads several items: the signal of one query does not cancel it
     queryFn: () => load(api, path, id) as Promise<ListItem<P> | null>,
   });

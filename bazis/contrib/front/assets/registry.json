@@ -131,6 +131,26 @@
       ]
     },
     {
+      "name": "i18n",
+      "kind": "vendored",
+      "source": "react/src/i18n",
+      "target": "src/bazis/i18n",
+      "requires": {
+        "assets": [
+          "react"
+        ]
+      },
+      "files": [
+        "format.ts",
+        "index.ts",
+        "language.tsx",
+        "messages/en.ts",
+        "messages/ru.ts",
+        "profile.ts",
+        "translate.ts"
+      ]
+    },
+    {
       "name": "playwright",
       "kind": "vendored",
       "source": "playwright/bazis",

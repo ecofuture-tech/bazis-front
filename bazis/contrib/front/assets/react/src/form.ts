@@ -134,11 +134,11 @@ export function useResourceForm<P extends UpdatePath>(
   options: { id: string },
 ): ResourceForm<UpdateResponse<P>>;
 export function useResourceForm(path: string, { id }: { id?: string } = {}): ResourceForm<unknown> {
-  const { api, session } = useBazis();
+  const { api, scope } = useBazis();
   const queryClient = useQueryClient();
-  const schema = useQuery(schemaQuery(api, path, id === undefined ? 'create' : 'update', id, session));
+  const schema = useQuery(schemaQuery(api, path, id === undefined ? 'create' : 'update', id, scope));
   const item = useQuery({
-    ...retrieveQuery<Item>(api, path, id ?? '', {}, session),
+    ...retrieveQuery<Item>(api, path, id ?? '', {}, scope),
     enabled: id !== undefined,
   });
   const mutation = useMutation({

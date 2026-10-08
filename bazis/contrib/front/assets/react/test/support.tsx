@@ -91,9 +91,10 @@ export function createQueryClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-/** The session of the provider: change `value`, then `rerender()`. */
+/** The session of the provider and its language: change them, then `rerender()`. */
 export interface Session {
   value: string;
+  language?: string | undefined;
 }
 
 /** Renders a hook inside the providers, with the session `s1`. */
@@ -112,7 +113,7 @@ export function render<Result, Props>(
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <BazisProvider client={api} session={session.value}>
+        <BazisProvider client={api} session={session.value} language={session.language}>
           {children}
         </BazisProvider>
       </QueryClientProvider>

@@ -42,23 +42,23 @@ export function useList<P extends ListPath>(
   path: P,
   query?: ListQuery<P>,
 ): UseQueryResult<ListResponse<P>> {
-  const { api, session } = useBazis();
+  const { api, scope } = useBazis();
   const options = (query ?? {}) as QueryOptions;
   return useQuery({
-    queryKey: keys.list(path, options, session),
+    queryKey: keys.list(path, options, scope),
     queryFn: ({ signal }) => loose(api).list(path, { ...options, signal }) as Promise<ListResponse<P>>,
-    // the previous page of this list in this session, never data of another list or user
+    // the previous page of this list in this scope, never data of another list, user or language
     placeholderData: (previous, previousQuery) => {
       const key = previousQuery?.queryKey;
-      return key?.[1] === path && key.at(-1) === session ? previous : undefined;
+      return key?.[1] === path && key.at(-1) === scope ? previous : undefined;
     },
   });
 }
 
 /** The query of an item, shared by `useItem` and the hooks that read its meta. */
-export function retrieveQuery<Data>(api: Api, path: string, id: string, query: QueryOptions, session: string) {
+export function retrieveQuery<Data>(api: Api, path: string, id: string, query: QueryOptions, scope: string) {
   return queryOptions({
-    queryKey: keys.retrieve(path, id, query, session),
+    queryKey: keys.retrieve(path, id, query, scope),
     queryFn: ({ signal }) => loose(api).retrieve(path, id, { ...query, signal }) as Promise<Data>,
   });
 }
@@ -69,9 +69,9 @@ export function useItem<P extends ItemPath>(
   id: string,
   query?: ItemQuery<P>,
 ): UseQueryResult<ItemResponse<P>> {
-  const { api, session } = useBazis();
+  const { api, scope } = useBazis();
   return useQuery(
-    retrieveQuery<ItemResponse<P>>(api, path, id, (query ?? {}) as QueryOptions, session),
+    retrieveQuery<ItemResponse<P>>(api, path, id, (query ?? {}) as QueryOptions, scope),
   );
 }
 
@@ -81,18 +81,18 @@ export function schemaQuery(
   path: string,
   kind: CollectionSchemaKind | ItemSchemaKind,
   id: string | undefined,
-  session: string,
+  scope: string,
 ) {
   return queryOptions({
     queryKey:
       id === undefined
-        ? keys.collectionSchema(path, kind, session)
-        : keys.itemSchema(path, id, kind, session),
+        ? keys.collectionSchema(path, kind, scope)
+        : keys.itemSchema(path, id, kind, scope),
     queryFn: ({ signal }) =>
       (id === undefined
         ? loose(api).schema(path, kind, { signal })
         : loose(api).schema(path, kind, id, { signal })) as Promise<JsonSchema>,
-    // a schema changes with the user (the session) or with the item (a mutation)
+    // a schema changes with the user (the session), the language (its titles) or the item (a mutation)
     staleTime: Infinity,
   });
 }
@@ -116,17 +116,17 @@ export function useSchema(
   kind: CollectionSchemaKind | ItemSchemaKind,
   id?: string,
 ): UseQueryResult<JsonSchema> {
-  const { api, session } = useBazis();
-  return useQuery(schemaQuery(api, path, kind, id, session));
+  const { api, scope } = useBazis();
+  return useQuery(schemaQuery(api, path, kind, id, scope));
 }
 
 /** The fields a list can be filtered by (`route_filter_fields/`), with their types. */
 export function useFilterFields<P extends FilterFieldsPath>(
   path: P,
 ): UseQueryResult<FilterFields<P>> {
-  const { api, session } = useBazis();
+  const { api, scope } = useBazis();
   return useQuery({
-    queryKey: keys.filterFields(path, session),
+    queryKey: keys.filterFields(path, scope),
     queryFn: ({ signal }) => loose(api).filterFields(path, { signal }) as Promise<FilterFields<P>>,
     staleTime: Infinity,
   });

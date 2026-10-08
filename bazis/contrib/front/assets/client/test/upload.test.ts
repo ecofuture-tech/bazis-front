@@ -68,7 +68,7 @@ class FakeXhr {
   }
 }
 
-function setup(token: string | null = 'jwt') {
+function setup(token: string | null = 'jwt', language?: string) {
   const xhr = new FakeXhr();
   const fetch = vi.fn();
   const api = createClient<paths>({
@@ -76,6 +76,7 @@ function setup(token: string | null = 'jwt') {
     token: () => token,
     fetch,
     xhr: () => xhr as unknown as XMLHttpRequest,
+    ...(language === undefined ? {} : { language }),
   });
   return { api, xhr, fetch };
 }
@@ -112,6 +113,15 @@ describe('upload', () => {
     xhr.respond(201, CREATED);
     await expect(uploading).resolves.toEqual(CREATED);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('sends the language of the interface', async () => {
+    const { api, xhr } = setup('jwt', 'ru');
+    const uploading = api.upload(FILES, FILE);
+    await opened();
+    expect(xhr.headers['Accept-Language']).toBe('ru');
+    xhr.respond(201, CREATED);
+    await uploading;
   });
 
   it('sends the name of the file and no token without a session', async () => {

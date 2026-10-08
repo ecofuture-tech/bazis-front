@@ -105,6 +105,31 @@ describe('useList', () => {
       ['bazis', PARENT, 'list', {}, 's2'],
     ]);
   });
+
+  it('keys the queries by the language too: the texts of another language are read again', async () => {
+    const backend = new Backend().on('GET', PARENT, page(['1']));
+    const { result, rerender, session, queryClient } = render(() => useList(PARENT), backend);
+    session.language = 'en';
+    rerender();
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    const release = backend.hold('GET', PARENT);
+    session.language = 'ru';
+    rerender();
+    // the list of another language is not a placeholder: its texts are of that language
+    expect(result.current.data).toBeUndefined();
+    release();
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(cachedKeys(queryClient)).toEqual([
+      ['bazis', PARENT, 'list', {}, 's1'],
+      ['bazis', PARENT, 'list', {}, 's1:en'],
+      ['bazis', PARENT, 'list', {}, 's1:ru'],
+    ]);
+  });
 });
 
 describe('useItem', () => {

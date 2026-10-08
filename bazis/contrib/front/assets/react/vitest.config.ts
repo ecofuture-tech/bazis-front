@@ -18,10 +18,13 @@ import { defineConfig } from 'vitest/config';
 
 // The hooks import the client and the generated types as a product does (`@/bazis/...`):
 // here the client is the asset next to them; the types are only checked (test/fixtures).
+// The asset i18n (`src/i18n`, copied to `src/bazis/i18n`) imports the hooks so.
 export default defineConfig({
   resolve: {
     alias: {
       '@/bazis/client': fileURLToPath(new URL('../client/src/index.ts', import.meta.url)),
+      // the asset i18n imports the hooks as a product does
+      '@/bazis/react': fileURLToPath(new URL('./src/index.ts', import.meta.url)),
     },
   },
   test: {

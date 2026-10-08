@@ -117,9 +117,9 @@ export function useTransits(
   path: TransitPath,
   id: string,
 ): UseQueryResult<readonly Transit[]> {
-  const { api, session } = useBazis();
+  const { api, scope } = useBazis();
   return useQuery({
-    ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id, { meta: ['state_actions'] }, session),
+    ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id, { meta: ['state_actions'] }, scope),
     select: transits,
   });
 }

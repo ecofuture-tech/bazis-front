@@ -23,6 +23,8 @@ export type Api = BazisClient<paths>;
 interface Bazis {
   api: Api;
   session: string;
+  /** The last item of the query keys: the session and the language. */
+  scope: string;
 }
 
 const BazisContext = createContext<Bazis | null>(null);
@@ -36,12 +38,22 @@ export interface BazisProviderProps {
    * that what one user loaded is never shown to another.
    */
   session: string;
+  /**
+   * The language of the interface, which the client sends to the backend
+   * (`Accept-Language`): every query key of the hooks ends with it too, so that the texts of
+   * the backend (the titles of the schemas, the names of the statuses) of one language are
+   * never shown in another. None: the keys end with the session only.
+   */
+  language?: string | undefined;
   children: ReactNode;
 }
 
-/** Gives the hooks the client and the session; inside the `QueryClientProvider`. */
-export function BazisProvider({ client, session, children }: BazisProviderProps) {
-  const value = useMemo(() => ({ api: client, session }), [client, session]);
+/** Gives the hooks the client, the session and the language; inside the `QueryClientProvider`. */
+export function BazisProvider({ client, session, language, children }: BazisProviderProps) {
+  const value = useMemo(
+    () => ({ api: client, session, scope: language === undefined ? session : `${session}:${language}` }),
+    [client, session, language],
+  );
   return <BazisContext value={value}>{children}</BazisContext>;
 }
 
@@ -57,9 +69,9 @@ export function useApi(): Api {
 }
 
 /**
- * The session of `BazisProvider`: the last item of the key of a query of the product's own
- * that reads data of the current user.
+ * The scope of `BazisProvider`, the session and the language: the last item of the key of a
+ * query of the product's own that reads data of the current user or texts of the backend.
  */
 export function useSessionKey(): string {
-  return useBazis().session;
+  return useBazis().scope;
 }

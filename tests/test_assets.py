@@ -70,8 +70,15 @@ def test_the_registry_lists_the_sources_of_the_hooks():
             registry.VENDORED, f'react/src/{directory}', f'src/bazis/react/{directory}', (capability,),
             ('react',),
         )
+    # the translation of the interface, `@/bazis/i18n`, in the workspace of the hooks (it
+    # imports them: the language of the profile), for every product
+    i18n = assets['i18n']
+    assert (i18n.kind, i18n.source, i18n.target, i18n.capabilities, i18n.assets) == (
+        registry.VENDORED, 'react/src/i18n', 'src/bazis/i18n', (), ('react',),
+    )
     listed = [
         *react.files,
+        *(f'i18n/{name}' for name in i18n.files),
         *(f'statusy/{name}' for name in statusy.files),
         *(f'uploadable/{name}' for name in uploadable.files),
         *(f'{directory}/{name}' for directory in packages for name in assets[f'react-{directory}'].files),

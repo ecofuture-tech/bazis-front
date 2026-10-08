@@ -14,6 +14,9 @@
       "@/bazis/client": [
         "../client/src/index.ts"
       ],
+      "@/bazis/react": [
+        "./src/index.ts"
+      ],
       "@/bazis/generated/schema": [
         "./test/fixtures/schema.d.ts"
       ]

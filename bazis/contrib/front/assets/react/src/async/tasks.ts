@@ -82,9 +82,9 @@ export function resultPath(path: string, taskId: string): string {
  * every `ASYNC_POLL_INTERVAL` until it is done or the reading fails.
  */
 export function useAsyncTask(path: string, taskId: string | null): AsyncTask {
-  const { api, session } = useBazis();
+  const { api, scope } = useBazis();
   const query = useQuery<BackgroundResult>({
-    queryKey: keys.asyncTask(taskId ?? '', session),
+    queryKey: keys.asyncTask(taskId ?? '', scope),
     queryFn: ({ signal }) => api.backgroundResult(resultPath(path, taskId ?? ''), { signal }),
     enabled: taskId !== null,
     refetchInterval: ({ state }) =>

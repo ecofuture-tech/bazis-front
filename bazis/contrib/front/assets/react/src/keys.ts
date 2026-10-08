@@ -13,8 +13,9 @@
 // limitations under the License.
 
 // The query keys of the hooks. A key starts with `['bazis', path]`, so that a change of a
-// resource invalidates all its queries, and ends with the session, so that the cached data
-// of a user is never read in the session of another one.
+// resource invalidates all its queries, and ends with the scope (the session and the
+// language of `BazisProvider`), so that the cached data of a user is never read in the
+// session of another one, nor the texts of the backend in another language.
 
 import type { Filter } from '@/bazis/client';
 
@@ -48,21 +49,21 @@ export const keys = {
   resource: (path: string) => ['bazis', path] as const,
   /** Every query of an item: its retrieves, its schemas. */
   item: (path: string, id: string) => ['bazis', path, 'item', id] as const,
-  list: (path: string, query: QueryOptions, session: string) =>
-    ['bazis', path, 'list', options(query), session] as const,
-  retrieve: (path: string, id: string, query: QueryOptions, session: string) =>
-    ['bazis', path, 'item', id, options(query), session] as const,
-  collectionSchema: (path: string, kind: string, session: string) =>
-    ['bazis', path, 'schema', kind, session] as const,
-  itemSchema: (path: string, id: string, kind: string, session: string) =>
-    ['bazis', path, 'item', id, 'schema', kind, session] as const,
+  list: (path: string, query: QueryOptions, scope: string) =>
+    ['bazis', path, 'list', options(query), scope] as const,
+  retrieve: (path: string, id: string, query: QueryOptions, scope: string) =>
+    ['bazis', path, 'item', id, options(query), scope] as const,
+  collectionSchema: (path: string, kind: string, scope: string) =>
+    ['bazis', path, 'schema', kind, scope] as const,
+  itemSchema: (path: string, id: string, kind: string, scope: string) =>
+    ['bazis', path, 'item', id, 'schema', kind, scope] as const,
   /** An item read with others of its resource (`useRelatedItem`). */
-  related: (path: string, id: string, session: string) =>
-    ['bazis', path, 'item', id, 'related', session] as const,
-  filterFields: (path: string, session: string) =>
-    ['bazis', path, 'filter-fields', session] as const,
+  related: (path: string, id: string, scope: string) =>
+    ['bazis', path, 'item', id, 'related', scope] as const,
+  filterFields: (path: string, scope: string) =>
+    ['bazis', path, 'filter-fields', scope] as const,
   /** The state of a task of bazis-async-background (`useAsyncTask`). */
-  asyncTask: (taskId: string, session: string) => ['bazis', ASYNC_TASKS, taskId, session] as const,
-  /** Every query of the state of a task, whatever the session. */
+  asyncTask: (taskId: string, scope: string) => ['bazis', ASYNC_TASKS, taskId, scope] as const,
+  /** Every query of the state of a task, whatever the scope. */
   asyncTasks: (taskId: string) => ['bazis', ASYNC_TASKS, taskId] as const,
 };
