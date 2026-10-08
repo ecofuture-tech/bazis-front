@@ -64,10 +64,11 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
 def test_export_is_deterministic(sample_app, workflow, tmp_path):
     first, second = render(sample_app), render(sample_app)
     assert first == second
-    # the same bytes whatever the language of the process: the texts are in LANGUAGE_CODE,
-    # the names in every language
+    # the same bytes whatever the language of the process, also after the OpenAPI was built
+    # in another language: the texts are in LANGUAGE_CODE, the names in every language
     for language in ('ru', 'en'):
         with translation.override(language):
+            sample_app.openapi()
             assert render(sample_app) == first
     assert '"title": "Title"' in first['openapi.json']
 

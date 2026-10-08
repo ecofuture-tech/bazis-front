@@ -106,8 +106,7 @@ Errors are thrown as `ApiError` with the HTTP `status` and the JSON:API `errors`
 current one) every request, the uploads and the requests of bazis-authing too, has
 `Accept-Language: <language>`: the `LanguageMiddleware` of the core activates it when it is
 one of `LANGUAGES` of the backend (else `LANGUAGE_CODE`), and the titles of the runtime
-schemas and the messages of the errors are in it (the titles of the schemas from bazis
-2.8.0: bazis 2.7 keeps those of the language of the first request of a process).
+schemas and the messages of the errors are in it.
 
 **Uploads** (bazis-uploadable). A file is the multipart create of a route set of
 `FileUploadRouteSet`: fetch reports no progress of a body, so `upload` sends it with

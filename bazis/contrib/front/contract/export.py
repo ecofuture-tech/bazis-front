@@ -53,14 +53,10 @@ def render(app) -> dict[str, str]:
     whatever the language of the process. Raises `capabilities.DatabaseNotReadyError` when
     a section needs the database and it is not migrated.
 
-    The core 2.8 builds the OpenAPI per language and translates the titles of the schemas
-    in the active language, so the override is enough; the core 2.7 keeps one OpenAPI and
-    the titles of the language of the first request of the process: the OpenAPI is built
-    again (the titles of schemas already built in another language stay so: upgrade the
-    core).
+    The core (2.8) builds the OpenAPI per language and translates the titles of the schemas
+    in the active language: the override is enough, whatever the process answered before.
     """
     with translation.override(settings.LANGUAGE_CODE):
-        app.openapi_schema = None
         openapi = app.openapi()
         return {
             'openapi.json': dumps(openapi),

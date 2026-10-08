@@ -344,6 +344,11 @@ export const RESOURCES = {
         order: "is_superuser",
         type: "boolean",
       },
+      language: {
+        filter: "language",
+        order: "language",
+        type: "string",
+      },
       last_login: {
         filter: "last_login",
         format: "date-time",
@@ -548,7 +553,7 @@ export const CAPABILITIES: Capabilities = {
     ],
   },
   users: {
-    profile_language: false,
+    profile_language: true,
     token_url: "/api/openapi-token/",
     user_resource: "users.user",
   },

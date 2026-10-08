@@ -17,7 +17,7 @@ version of bazis-front, merged with the changes of the product).
 
 ## Setup
 
-`pip install bazis-front` (needs bazis 2.7.0 or newer) and add `"bazis.contrib.front"` to
+`pip install bazis-front` (needs bazis 2.8.0 or newer) and add `"bazis.contrib.front"` to
 `BS_INSTALLED_APPS`. The assets follow the protocol of recent versions of the packages of
 the capabilities: bazis-ws 2.5.0 (the socket is open once the server sends `subscribed`),
 bazis-authing 2.6.0 (the logout endpoint), bazis-uploadable 2.6.0 (the files of their
@@ -1140,11 +1140,10 @@ bazis-statusy have a column per language: set them in the data migrations).
   a language is never written at a login; only codes of `LANGUAGES` are sent. Without the
   field (an older bazis-users, a user model without the mixin) the language is kept in the
   browser only. A user model of the product opts in with the mixin and `makemigrations`.
-- **The titles of the schemas** are in the language of each request with bazis 2.8.0 (it
-  translates them when it answers; `/openapi.json` is built per language). With bazis 2.7
-  the schemas are built once per process, with the titles of the language of its first
-  request, which they keep. The export of the contract is in `LANGUAGE_CODE` with both
-  (`translation.override`, the OpenAPI built again).
+- **The titles of the schemas** are in the language of each request (the core translates
+  them when it answers; `/openapi.json` is built per language and answers with
+  `Vary: Accept-Language`). The export of the contract is in `LANGUAGE_CODE`
+  (`translation.override`), whatever the process answered before.
 - **The tests**: the contract tests of the components never depend on a text (`data-bz`,
   roles): `renderWithBazis` of `testing` renders in English, `testLanguages('ru', 'en')` in
   another language. The end-to-end tests act through `data-bz`; a test of `e2e/custom/`

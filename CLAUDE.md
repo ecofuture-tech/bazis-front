@@ -45,13 +45,11 @@ English and Russian (`BS_LANGUAGES` of `sample/project.env`, `LANGUAGE_CODE` `en
 Russian texts of the tasks are `sample/tasks/locale/ru/LC_MESSAGES/django.po`, compiled to
 the `.mo` next to it (both committed, as in the other Bazis repositories; run
 `python manage.py compilemessages -l ru` in `sample/tasks/` after a change), and the Russian
-names of its roles, statuses and transits the data migration `0006_workflow_ru.py`. The language of the profile of the users (`users.profile_language`, the field `language`
-of `UserLanguageMixin` of bazis-users 2.7.0, not released yet) is tested by
-`tests/test_profile_language.py` and the end-to-end test
-`frontend-overlay/e2e/custom/profile-language.spec.ts`, both skipped while the user model of
-the sample has no such field; once it is released, bump the test extra, add the mixin to
-`sample/users/models.py` and its migration to `sample/users/migrations/` (`e2e_data` already
-clears the language of the test users). The roles, statuses and
+names of its roles, statuses and transits the data migration `0006_workflow_ru.py`. The user model of the sample has a language of its own
+(`UserLanguageMixin` of bazis-users, `users.profile_language`, the migration
+`sample/users/migrations/0002_user_language.py`), which `tests/test_profile_language.py`
+and the end-to-end test `frontend-overlay/e2e/custom/profile-language.spec.ts` check
+(`e2e_data` clears the language of the test users). The roles, statuses and
 transits are the data migration `sample/tasks/migrations/0005_workflow.py`, its data frozen
 there as in any migration (as a product creates them; the fixture `workflow`,
 `tests/conftest.py`, runs its function again after a test that flushed the tables, and
@@ -90,8 +88,8 @@ frontend made from the sample by the `e2e` job of CI.
 - `contract/export.py` renders the files (`render`), compares them byte for byte
   (`stale_files`) and writes them; `contract/openapi.py` is the canonical JSON and the hash
   of the operation surface, `contract/resources.py` the resources read from the OpenAPI.
-- The export is in `LANGUAGE_CODE` whatever the language of the process: `render` builds the
-  OpenAPI again (`app.openapi_schema = None`) under `translation.override`, and the names of
+- The export is in `LANGUAGE_CODE` whatever the language of the process: `render` reads the
+  OpenAPI under `translation.override` (the core builds it per language), and the names of
   the roles, statuses and transits are maps of every language of `LANGUAGES`
   (`capabilities.translated`); `tests/test_contract.py` renders under two process languages
   and expects the same bytes. `CONTRACT_FORMAT` changes with the shape of contract.json (2:
