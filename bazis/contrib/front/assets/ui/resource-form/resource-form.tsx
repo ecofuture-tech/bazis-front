@@ -15,14 +15,15 @@
 // A form of a resource over `useResourceForm`: the fields of the runtime schema of the create
 // or of the update for the current user, rendered by `FieldInput` (`field:<name>`,
 // `error:<name>`), submitted with `action:submit`, with a toast when it is saved. A 422 is
-// the state `invalid`. `FormSurface` shows a form in a dialog or as a page, as the theme
-// composes the forms.
+// the state `invalid`, with the errors of the fields at their fields and the others (of the
+// item as a whole, of an included item) in the form. `FormSurface` shows a form in a dialog or
+// as a page, as the theme composes the forms.
 
 import { LoaderCircle } from 'lucide-react';
 import { useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { ApiError } from '@/bazis/client';
-import { useLanguage } from '@/bazis/i18n';
+import { useLanguage, type Translate } from '@/bazis/i18n';
 import type { CreatePath, ResourceForm as Form, UpdatePath } from '@/bazis/react';
 import { FieldInput, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
@@ -45,11 +46,27 @@ export type ResourceFormProps = (
   submitLabel?: ReactNode;
 };
 
-/** The errors of the fields that the form does not show, with their names. */
-function otherErrors(form: Form<unknown>, shown: ReadonlySet<string>): string[] {
-  return Object.entries(form.errors)
-    .filter(([name]) => !shown.has(name))
-    .map(([name, messages]) => `${name}: ${messages.join(' ')}`);
+/**
+ * The messages of a failed submit that no field shows: the errors of the item as a whole
+ * (`/data`: an invariant of `validate_item`), of an included item (`/included/<index>`) and
+ * of the request, then those of the fields that the form does not show, with their names;
+ * after `form.check` when a field shows an error.
+ */
+function formMessages(form: Form<unknown>, shown: ReadonlySet<string>, t: Translate): string[] {
+  const error = form.submitError;
+  if (!(error instanceof ApiError)) return [];
+  const general = error.formErrors().map(({ message, included, field }) => {
+    if (included === null) return message;
+    const index = String(included + 1);
+    return field === null
+      ? t('form.included_error', { index, message })
+      : t('form.included_field_error', { index, field, message });
+  });
+  const names = Object.keys(form.errors);
+  const others = names
+    .filter((name) => !shown.has(name))
+    .map((name) => `${name}: ${(form.errors[name] ?? []).join(' ')}`);
+  return [...(names.some((name) => shown.has(name)) ? [t('form.check')] : []), ...general, ...others];
 }
 
 /** The skeleton of a form while its schema loads. */
@@ -104,7 +121,7 @@ export function ResourceFormBody({
     return field && !(field.kind === 'relation' && field.many) ? [field] : [];
   });
   const failure = form.submitError ? errorState(form.submitError) : null;
-  const others = otherErrors(form, new Set(shown.map((it) => it.name)));
+  const messages = formMessages(form, new Set(shown.map((it) => it.name)), t);
 
   const busy = form.isSubmitting || uploading.size > 0;
 
@@ -125,11 +142,7 @@ export function ResourceFormBody({
           inline
           state={failure}
           error={form.submitError}
-          message={
-            failure === 'invalid' && form.submitError instanceof ApiError && Object.keys(form.errors).length
-              ? [t('form.check'), ...others].join(' ')
-              : undefined
-          }
+          message={failure === 'invalid' && messages.length ? messages.join(' ') : undefined}
         />
       )}
       {shown.map((field) => (

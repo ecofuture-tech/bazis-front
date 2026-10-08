@@ -84,14 +84,17 @@ def read_lock(frontend):
 
 def test_contract_ts_is_rendered_from_the_contract():
     contract_json = {
-        'format': 2,
+        'format': 3,
         'project': {'language': 'en', 'languages': [{'code': 'en', 'name': 'English'}, {'code': 'ru', 'name': 'Русский'}], 'resources': {
-            'shop.order': {'path': '/api/v1/shop/order/', 'fields': {'total-sum': {'type': 'number'}}},
-            'shop.item': {'path': '/api/v1/shop/item/', 'fields': {}},
+            'shop.order': {'path': '/api/v1/shop/order/', 'fields': {'total-sum': {'type': 'number'}}, 'search': ['^number']},
+            'shop.item': {'path': '/api/v1/shop/item/', 'fields': {}, 'search': []},
         }},
         'capabilities': {
             'users': {'user_resource': 'users.user', 'token_url': '/api/openapi-token/', 'profile_language': False},
-            'permit': {'roles': [{'slug': 'manager', 'name': {'en': 'Manager', 'ru': 'Менеджер'}, 'for_anonymous': False}]},
+            'permit': {
+                'roles': [{'slug': 'manager', 'name': {'en': 'Manager', 'ru': 'Менеджер'}, 'for_anonymous': False}],
+                'selectors': {'shop.order': {'members': 'users.user'}},
+            },
         },
     }
     text = typescript.render(contract_json)
@@ -122,12 +125,13 @@ def test_contract_ts_is_rendered_from_the_contract():
         '/** The JSON:API type of a resource. */',
         'export type ResourceType = keyof typeof ROUTES;',
         '',
-        '/** The resources: model, route set, path, actions and fields (type, relation, '
-        'filter and order labels). */',
+        '/** The resources: model, route set, path, actions, fields (type, relation, '
+        'filter and order labels) and search fields (none: no search). */',
         'export const RESOURCES = {',
         '  "shop.item": {',
         '    fields: {},',
         '    path: "/api/v1/shop/item/",',
+        '    search: [],',
         '  },',
         '  "shop.order": {',
         '    fields: {',
@@ -136,6 +140,9 @@ def test_contract_ts_is_rendered_from_the_contract():
         '      },',
         '    },',
         '    path: "/api/v1/shop/order/",',
+        '    search: [',
+        '      "^number",',
+        '    ],',
         '  },',
         '} as const;',
         '',
@@ -164,7 +171,8 @@ def test_contract_ts_is_rendered_from_the_contract():
         '{ readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; '
         'readonly logout_url: string | null; readonly token_param: string } | null;',
         '  readonly bg: { readonly resource: string | null } | null;',
-        '  readonly permit: { readonly roles: typeof ROLES } | null;',
+        '  readonly permit: { readonly roles: typeof ROLES; readonly selectors: '
+        '{ readonly [resource: string]: { readonly [selector: string]: string } } } | null;',
         '  readonly statusy: { readonly models: typeof TRANSITS } | null;',
         '  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;',
         '  readonly users: { readonly token_url: string; readonly user_resource: string; '
@@ -179,6 +187,11 @@ def test_contract_ts_is_rendered_from_the_contract():
         '  bg: null,',
         '  permit: {',
         '    roles: ROLES,',
+        '    selectors: {',
+        '      "shop.order": {',
+        '        members: "users.user",',
+        '      },',
+        '    },',
         '  },',
         '  statusy: null,',
         '  uploadable: null,',

@@ -433,6 +433,21 @@ CASES = [
         [('S010', f'{LIST}#/actions/1'), ('S010', f'{LIST}#/actions/2')],
     ),
     ('S011', {'spec/screens/user-card.yaml': lambda d: user_card(d, transitions=True)}, [('S011', 'spec/screens/user-card.yaml#/card/transitions')]),
+    (
+        'S012',
+        # the users have no search: the pickers of the assignee (a filter, a form, the card)
+        {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=[])},
+        [
+            ('S012', f'{CARD}#/card/sections/0/fields/2'),
+            ('S012', f'{LIST}#/list/filters/1'),
+            ('S012', f'{LIST}#/actions/0/fields/1'),
+        ],
+    ),
+    (
+        'S013',
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task'].update(search=[])},
+        [('S013', f'{LIST}#/list/search')],
+    ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),
     (
@@ -669,13 +684,24 @@ def test_the_system_check(root, tmp_path):
 @pytest.mark.django_db
 def test_the_selectors_of_bazis_permit(contract):
     root = contract.parent.parent
+    # a reverse relation of the user, which the route set does not show: a selector all the same
+    edit(root, CONTRACT, lambda d: d['capabilities']['permit']['selectors']['tasks.task'].update(
+        members='users.user'))
     selectors = {
-        'self': None,
         'assignee': None,
-        # a path of relationships: tasks.task -> users.user -> permit.role
+        'status_author': None,
+        'members': None,
+        'self': '`self` is not a selector of `tasks.task`',
+        'watchers': '`watchers` is not a selector of `tasks.task`',
+        # a path of relations: tasks.task -> users.user -> permit.role, also through a
+        # selector the route set does not show; users.user is not a permission model of the
+        # contract, its last name is checked to be a relationship
         'assignee__roles': None,
+        'members__roles': None,
         'assignee__username': '`username` is not a relationship of `users.user`',
         'owner__author': '`owner` is not a relationship of `tasks.task`',
+        'title__author': '`title` is not a relationship of `tasks.task`',
+        'assignee__self': '`self` is the object itself',
         # statusy.status is not a resource of the contract: not checked further
         'status__author': None,
     }
@@ -685,8 +711,17 @@ def test_the_selectors_of_bazis_permit(contract):
         if problem is None:
             assert found == [], selector
         else:
-            assert [(it.code, it.path) for it in found] == [('P020', '/entities/0/access/manager/view')]
+            assert [(it.code, it.path) for it in found] == [('P020', '/entities/0/access/manager/view')], selector
             assert problem in found[0].message
+
+
+@pytest.mark.django_db
+def test_self_is_a_selector_of_a_selector_source(contract):
+    root = contract.parent.parent
+    edit(root, CONTRACT, lambda d: d['capabilities']['permit']['selectors']['tasks.task'].update(
+        self='tasks.task'))
+    edit(root, PRODUCT, lambda d: task(d)['access']['manager'].update(view='self'))
+    assert validate(root).issues == []
 
 
 @pytest.mark.django_db

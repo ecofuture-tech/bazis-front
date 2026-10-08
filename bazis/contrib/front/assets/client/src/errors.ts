@@ -28,7 +28,35 @@ export interface ErrorObject {
   traceback?: string | null;
 }
 
-const FIELD_POINTER = /^\/(?:attributes|relationships)\/([^/]+)/;
+/**
+ * The pointer of an attribute or a relationship of the item of the request: `/attributes/<name>`
+ * (the body that the schema refuses) or `/data/attributes/<name>`, `/data/relationships/<name>`
+ * (the checks of the backend: the model, a related item, `validate_item`).
+ */
+const FIELD_POINTER = /^(?:\/data)?\/(?:attributes|relationships)\/([^/]+)/;
+/** The pointer of an included item, `/included/<index>`, and of one of its fields. */
+const INCLUDED_POINTER = /^\/included\/(\d+)(?:\/(?:attributes|relationships)\/([^/]+))?/;
+
+/**
+ * An error of a request that is not of a field of its item: of the item as a whole
+ * (`/data`, an invariant of `validate_item`: `ERR_ITEM_INVALID`), of an included item
+ * (`/included/<index>`, of its field `field`), of a parameter or of the request.
+ */
+export interface FormError {
+  message: string;
+  /** The index of the included item in `included` of the document, null for the item itself. */
+  included: number | null;
+  /** The attribute or relationship of the included item, null for the whole item. */
+  field: string | null;
+}
+
+function messageOf(error: ErrorObject): string {
+  return error.detail ?? error.title ?? error.code ?? '';
+}
+
+function fieldOf(error: ErrorObject): string | undefined {
+  return FIELD_POINTER.exec(error.source?.pointer ?? '')?.[1];
+}
 
 /** A response with an error status: 400 (e.g. `ERR_FILTER`), 401, 403, 404, 422... */
 export class ApiError extends Error {
@@ -47,19 +75,37 @@ export class ApiError extends Error {
   }
 
   /**
-   * The messages of the errors of attributes and relationships, by their name
-   * (`source.pointer` `/attributes/<name>` or `/relationships/<name>`), for forms.
-   * Errors of nested values belong to the attribute that contains them.
+   * The messages of the errors of attributes and relationships of the item, by their name
+   * (`source.pointer` `/data/attributes/<name>`, `/data/relationships/<name>`,
+   * `/attributes/<name>` or `/relationships/<name>`), for forms. Errors of nested values
+   * belong to the attribute that contains them.
    */
   fieldErrors(): Record<string, string[]> {
     const fields: Record<string, string[]> = {};
     for (const error of this.errors) {
-      const name = FIELD_POINTER.exec(error.source?.pointer ?? '')?.[1];
+      const name = fieldOf(error);
       if (name !== undefined) {
-        (fields[name] ??= []).push(error.detail ?? error.title ?? error.code ?? '');
+        (fields[name] ??= []).push(messageOf(error));
       }
     }
     return fields;
+  }
+
+  /**
+   * The errors that `fieldErrors()` does not give, for the form as a whole: of the item
+   * (`/data`), of an included item (`/included/<index>`), of a parameter or of the request.
+   */
+  formErrors(): FormError[] {
+    return this.errors
+      .filter((error) => fieldOf(error) === undefined)
+      .map((error) => {
+        const included = INCLUDED_POINTER.exec(error.source?.pointer ?? '');
+        return {
+          message: messageOf(error),
+          included: included ? Number(included[1]) : null,
+          field: included?.[2] ?? null,
+        };
+      });
   }
 }
 

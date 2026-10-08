@@ -109,7 +109,10 @@ written.
 - **Filter with `Filter`** (`Filter.where/and/or/not`): one `filter` expression, never
   built by hand.
 - Show validation errors by field (`form.errors` of `useResourceForm`, or
-  `ApiError.fieldErrors()`, as `FieldInput` does), any other error and the state it puts a
+  `ApiError.fieldErrors()`, as `FieldInput` does), the errors of the item that are not of a
+  field (`ApiError.formErrors()`: the item as a whole, `/data`, such as an invariant of
+  `validate_item`, 422 `ERR_ITEM_INVALID`; an included item, `/included/<index>`) in the
+  form, as `ResourceForm` does, any other error and the state it puts a
   screen in with `StatePanel` of `@/bazis/ui/state-panel` (`errorState(error)`: 401 and 403
   `forbidden`, 404 `not_found`, 422 `invalid`, else `error`), the only mapping of the
   errors of the backend; the components and the `ErrorBoundary` of `src/app/errors.tsx`
@@ -248,7 +251,12 @@ change now), never from the roles; a field hidden from the user is also absent f
 documents, and the schema of a list has every field (the items leave out the hidden ones).
 Show a related item with `RelationLabel` (`useRelatedItem`: the items of a resource shown
 together are read with one request) and choose one with `RelationPicker` of
-`@/bazis/ui/resource`, never with a list of every item.
+`@/bazis/ui/resource`, never with a list of every item. **The route set of a resource that a
+picker lists declares `search_fields`** (fields of its LIST schema, such as `username`;
+`search` of the resource in the contract): the backend answers a search of a route set
+without them with 400, so the picker then lists the items without a search, page after
+page, and `bazis_front check` warns (S012); a list screen with `search` needs them too
+(S013).
 
 ## Screens from the components
 

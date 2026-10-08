@@ -13,8 +13,9 @@
 // limitations under the License.
 
 // The picker of the related item of a to-one relationship: a combobox over the list of the
-// related resource (its path from `ROUTES` of the contract), searched by the backend
-// (`search`) and read page after page.
+// related resource (its path from `ROUTES` of the contract), read page after page and
+// searched by the backend (`search`) when its route set has search fields (`search` of the
+// resource in the contract): the core answers a search of a route set without them with 400.
 
 import { Check, ChevronsUpDown, LoaderCircle, Search } from 'lucide-react';
 import { useEffect, useId, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from 'react';
@@ -25,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
-import { itemLabel, routeOf, type ResourceObject } from './fields.js';
+import { hasSearch, itemLabel, routeOf, type ResourceObject } from './fields.js';
 import { useAnyList } from './hooks.js';
 import { RelationLabel } from './relation.js';
 
@@ -42,6 +43,12 @@ export interface RelationPickerProps
   relation: string;
   /** The route set of the related resource, instead of its route in `ROUTES` of the contract. */
   path?: string | undefined;
+  /**
+   * Whether the route set searches (`search`): a search box over the items, else the items
+   * without a search. By default whether the related resource has search fields in the
+   * contract (`search` of `RESOURCES`).
+   */
+  searchable?: boolean | undefined;
   /** The id of the related item, null for none. */
   value: string | null;
   onChange: (value: string | null) => void;
@@ -70,7 +77,9 @@ interface OptionsProps {
   value: string | null;
   nullable: boolean;
   placeholder: string;
-  /** The name of the search for assistive technologies. */
+  /** Whether the items are searched: a search box, else the list takes the keys. */
+  searchable: boolean;
+  /** The name of the search (of the list without one) for assistive technologies. */
   searchLabel: string;
   onSelect: (item: ResourceObject | null) => void;
   /** Closes the picker (Tab): the focus goes back to its button. */
@@ -78,13 +87,14 @@ interface OptionsProps {
 }
 
 /**
- * The search and the options of an open picker. The items are read page after page
+ * The search and the options of an open picker; without a search, the list takes the focus
+ * and the keys (`aria-activedescendant` on the listbox). The items are read page after page
  * (`page[offset]`, `PICKER_PAGE` each: a larger `page[limit]` would pass the maximum of the
  * backend, `BAZIS_API_PAGINATION_PAGE_SIZE_MAX`). The active option (`aria-activedescendant`)
  * is, until the user moves, the selected item when the picker opens and the first item
  * after a search, never the option that clears the value.
  */
-function Options({ path, value, nullable, placeholder, searchLabel, onSelect, onClose }: OptionsProps) {
+function Options({ path, value, nullable, placeholder, searchable, searchLabel, onSelect, onClose }: OptionsProps) {
   const listId = useId();
   const { t } = useLanguage();
   const [text, setText] = useState('');
@@ -138,7 +148,7 @@ function Options({ path, value, nullable, placeholder, searchLabel, onSelect, on
     }
   }
 
-  function keyDown(event: KeyboardEvent<HTMLInputElement>) {
+  function keyDown(event: KeyboardEvent<HTMLElement>) {
     const count = entries.length;
     if (event.key === 'Tab') {
       event.preventDefault();
@@ -161,31 +171,41 @@ function Options({ path, value, nullable, placeholder, searchLabel, onSelect, on
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center gap-2 border-b px-3">
-        <Search className="size-4 shrink-0 opacity-50" aria-hidden="true" />
-        <input
-          role="combobox"
-          aria-expanded="true"
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={current >= 0 ? optionId(current) : undefined}
-          aria-label={searchLabel}
-          placeholder={t('picker.search')}
-          className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value);
-          }}
-          onKeyDown={keyDown}
-        />
-        {list.isFetching && <LoaderCircle className="size-4 shrink-0 animate-spin opacity-50" aria-hidden="true" />}
-      </div>
+      {searchable && (
+        <div className="flex items-center gap-2 border-b px-3">
+          <Search className="size-4 shrink-0 opacity-50" aria-hidden="true" />
+          <input
+            role="combobox"
+            aria-expanded="true"
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={current >= 0 ? optionId(current) : undefined}
+            aria-label={searchLabel}
+            placeholder={t('picker.search')}
+            className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+            }}
+            onKeyDown={keyDown}
+          />
+          {list.isFetching && <LoaderCircle className="size-4 shrink-0 animate-spin opacity-50" aria-hidden="true" />}
+        </div>
+      )}
       <ul
         role="listbox"
         id={listId}
         aria-label={searchLabel}
         aria-busy={list.isFetching || undefined}
-        className="max-h-72 overflow-y-auto p-1 empty:hidden"
+        // without a search the list has the focus (the first focusable of the popover) and the keys
+        {...(searchable
+          ? {}
+          : {
+              tabIndex: 0,
+              'aria-activedescendant': current >= 0 ? optionId(current) : undefined,
+              onKeyDown: keyDown,
+            })}
+        className="max-h-72 overflow-y-auto p-1 outline-none empty:hidden"
       >
         {entries.map((entry, index) => {
           const chosen = entry.kind === 'item' ? entry.item.id === value : entry.kind === 'clear' && value === null;
@@ -240,12 +260,18 @@ function Picker({
   onChange,
   placeholder,
   nullable,
+  searchable,
   disabled,
   required,
   className,
   label: name,
   ...control
-}: Omit<RelationPickerProps, 'path' | 'placeholder' | 'nullable'> & { path: string; placeholder: string; nullable: boolean }) {
+}: Omit<RelationPickerProps, 'path' | 'placeholder' | 'nullable' | 'searchable'> & {
+  path: string;
+  placeholder: string;
+  nullable: boolean;
+  searchable: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const { t } = useLanguage();
   // the item chosen here: its label without another request
@@ -283,7 +309,10 @@ function Picker({
           value={value}
           nullable={nullable}
           placeholder={placeholder}
-          searchLabel={t('picker.search_label', { name: name ?? control['aria-label'] ?? relation })}
+          searchable={searchable}
+          searchLabel={t(searchable ? 'picker.search_label' : 'picker.choose_label', {
+            name: name ?? control['aria-label'] ?? relation,
+          })}
           onSelect={(item) => {
             setChosen(item);
             onChange(item === null ? null : item.id);
@@ -300,17 +329,36 @@ function Picker({
 
 /**
  * The picker of the related item of a to-one relationship: a button with the label of the
- * item (`role="combobox"`, the marks given to it) that opens a search over the list of the
- * related resource, page after page, with an option that clears the value when it is
- * nullable (never the default option). Keyboard (the combobox pattern of WAI-ARIA): Enter,
- * Space or ArrowDown opens with the selected item active, typing searches with the first
- * item active, ArrowUp/ArrowDown move, Enter selects (not while the options are those of
- * another search), Escape and Tab close and give the focus back to the button. The id in a
- * text input when the contract has no route for the related resource.
+ * item (`role="combobox"`, the marks given to it) that opens the list of the related
+ * resource, page after page, with a search when its route set searches (`searchable`) and
+ * an option that clears the value when it is nullable (never the default option).
+ * Keyboard (the combobox pattern of WAI-ARIA): Enter, Space or ArrowDown opens with the
+ * selected item active, typing searches with the first item active, ArrowUp/ArrowDown
+ * move, Enter selects (not while the options are those of another search), Escape and Tab
+ * close and give the focus back to the button. The id in a text input when the contract
+ * has no route for the related resource.
  */
-export function RelationPicker({ placeholder = '—', nullable = true, path, relation, ...props }: RelationPickerProps) {
+export function RelationPicker({
+  placeholder = '—',
+  nullable = true,
+  path,
+  relation,
+  searchable,
+  ...props
+}: RelationPickerProps) {
   const route = path ?? routeOf(relation);
-  if (route) return <Picker {...props} relation={relation} path={route} placeholder={placeholder} nullable={nullable} />;
+  if (route) {
+    return (
+      <Picker
+        {...props}
+        relation={relation}
+        path={route}
+        placeholder={placeholder}
+        nullable={nullable}
+        searchable={searchable ?? hasSearch(relation)}
+      />
+    );
+  }
   const { value, onChange, required, 'aria-readonly': readOnly, label, ...control } = props;
   return (
     <Input

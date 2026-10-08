@@ -22,7 +22,8 @@ router = BazisRouter(prefix='/api/v1')
 router.routes.append(ws_route)
 
 router.register('tasks.router')
-router.register('bazis.contrib.users.router')
+# the users of bazis-users, with the search of the picker of the assignee
+router.register('users.router')
 # the uploaded files of the tasks (bazis-uploadable: a user lists and reads his own files)
 router.register('bazis.contrib.uploadable.router')
 # bazis-authing: GET /auth/ and the login by password (BAZIS_AUTH_KINDS)

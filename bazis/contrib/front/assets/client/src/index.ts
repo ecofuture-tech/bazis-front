@@ -22,7 +22,7 @@ export type {
   SchemaSuffix,
 } from './client.js';
 export { ApiError } from './errors.js';
-export type { ErrorObject } from './errors.js';
+export type { ErrorObject, FormError } from './errors.js';
 export { Filter } from './filter.js';
 export type { FilterValue } from './filter.js';
 export { nextPage, pagination, prevPage } from './pagination.js';

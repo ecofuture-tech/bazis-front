@@ -19,6 +19,7 @@ export {
   fieldValue,
   formatValue,
   fromLocalDateTime,
+  hasSearch,
   isLongText,
   isNumeric,
   itemLabel,

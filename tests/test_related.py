@@ -133,6 +133,8 @@ def test_a_task_takes_only_a_file_that_the_user_uploaded(sample_app, workflow):
     refused = client.post(TASKS, json_data=document(theirs))
     assert refused.status_code == 403, refused.text
     assert refused.json()['errors'][0]['code'] == 'ERR_RELATION_ACCESS'
+    # the error of the field: `ApiError.fieldErrors()` reads `/data/relationships/<field>`
+    assert refused.json()['errors'][0]['source']['pointer'] == '/data/relationships/attachment'
     assert not apps.get_model('tasks.Task').objects.filter(attachment_id=theirs).exists()
 
     created = client.post(TASKS, json_data=document(mine))
@@ -167,3 +169,33 @@ def test_a_task_takes_only_a_file_that_the_user_uploaded(sample_app, workflow):
         'type': 'tasks.task', 'id': task_id, 'relationships': {'attachment': {'data': None}},
     }})
     assert response.status_code == 200, response.text
+
+
+BG_TASKS = '/api/v1/bg/task/'
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_picker_searches_only_a_route_set_with_search_fields(sample_app, workflow):
+    """
+    The core (2.9) searches only the `search_fields` of a route set, and answers a search of
+    a route set without them with 400 `ERR_FILTER` (`/query/search`): the contract says which
+    resources search (`search`), and `RelationPicker` searches only them. The users of the
+    sample are searched by their username (the picker of the assignee).
+    """
+    from bazis.contrib.users import get_user_model
+
+    user, client = manager_client(sample_app)
+    user.is_staff = True
+    user.save()
+    get_user_model().objects.create_user('viewer', password='p')
+
+    response = client.get(USERS, params={'search': 'mana'})
+    assert [it['attributes']['username'] for it in response.json()['data']] == ['manager']
+    response = client.get(TASKS, params={'search': 'report'})
+    assert response.status_code == 200, response.text
+
+    response = client.get(BG_TASKS, params={'search': 'x'})
+    assert response.status_code == 400, response.text
+    error = response.json()['errors'][0]
+    assert (error['code'], error['source']['pointer']) == ('ERR_FILTER', '/query/search')
+

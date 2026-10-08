@@ -16,14 +16,18 @@
 The resources of the contract: the route sets of the OpenAPI grouped by the JSON:API type
 of their model. Everything is read from the OpenAPI (the `x-bazis` of the operations and
 the schemas of their responses), so that the contract describes exactly the API that the
-OpenAPI describes.
+OpenAPI describes; only the search, which the OpenAPI does not tell (every list has the
+parameter `search`), is read from the route set.
 """
 
 import os
+import pydoc
 
 from django.apps import apps
 
 from bazis.core.introspect import models_info
+from bazis.core.routes_abstract.jsonapi import JsonapiRouteBase
+from bazis.core.utils.query_complex import LOOKUP_PREFIXES, QueryScope
 
 
 #: the kinds of the operations whose response describes the fields of the resource, in the
@@ -33,8 +37,8 @@ FIELDS_KINDS = ('item', 'collection')
 
 def resources(openapi: dict) -> dict:
     """
-    `{type: {model, route_set, path, actions, fields[, other_routes]}}`. A resource is
-    described by the route set the core uses as the default route of its model (the last
+    `{type: {model, route_set, path, actions, fields, search[, other_routes]}}`. A resource
+    is described by the route set the core uses as the default route of its model (the last
     one declared); other route sets of the same model are listed in `other_routes`.
     """
     route_sets = _route_sets(openapi)
@@ -46,15 +50,18 @@ def resources(openapi: dict) -> dict:
 
     result = {}
     for resource, items in sorted(by_resource.items()):
-        default = _default_route(models.get(resource))
+        default_cls = _default_route(models.get(resource))
+        default = _qualified_name(default_cls) if default_cls else None
         items.sort(key=lambda it: (it['route_set'] != default, it['path'], it['route_set']))
         main, others = items[0], items[1:]
+        main_cls = default_cls if main['route_set'] == default else pydoc.locate(main['route_set'])
         entry = {
             'model': models.get(resource),
             'route_set': main['route_set'],
             'path': main['path'],
             'actions': main['actions'],
             'fields': _fields(openapi, main['operations']),
+            'search': _search(main_cls),
         }
         if others:
             entry['other_routes'] = [
@@ -105,12 +112,34 @@ def _collection_path(items: list[tuple[str, dict]]) -> str:
     return common[: common.rfind('/') + 1]
 
 
-def _default_route(model_label: str | None) -> str | None:
+def _default_route(model_label: str | None) -> type | None:
     """
-    The route set of the default route of a JSON:API model (as `x-bazis` names it).
+    The route set of the default route of a JSON:API model.
     """
-    route_cls = apps.get_model(model_label).get_default_route() if model_label else None
-    return f'{route_cls.__module__}.{route_cls.__qualname__}' if route_cls else None
+    return apps.get_model(model_label).get_default_route() if model_label else None
+
+
+def _qualified_name(route_cls: type) -> str:
+    """The name of a route set as `x-bazis` gives it."""
+    return f'{route_cls.__module__}.{route_cls.__qualname__}'
+
+
+def _search(route_cls) -> list[str]:
+    """
+    The search fields of a route set that its LIST schema reaches, as declared (with their
+    lookup prefix): those the core searches with `search` (bazis 2.9; `bazis.W007` reports
+    the others). Empty when the route set has none: a `search` is then 400 `ERR_FILTER`.
+    """
+    if not (isinstance(route_cls, type) and issubclass(route_cls, JsonapiRouteBase)):
+        return []
+    # the LIST schema of the route set itself, not the fields a package gives per user
+    scope = QueryScope.for_route(route_cls, schema=True)
+    names = [str(field) for field in route_cls.search_fields or ()]
+    return [
+        name
+        for name in names
+        if scope.reaches(route_cls.model, name[1:] if name[:1] in LOOKUP_PREFIXES else name)
+    ]
 
 
 def _fields(openapi: dict, operations: list[dict]) -> dict:

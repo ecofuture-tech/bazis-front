@@ -99,8 +99,14 @@ and update: Bazis ignores it on a list, and the types reject it. A meta field su
 `pagination` or the permission meta is returned only when it is requested with `meta`.
 
 Errors are thrown as `ApiError` with the HTTP `status` and the JSON:API `errors`;
-`fieldErrors()` groups the messages by attribute or relationship name from
-`source.pointer` (`/attributes/<name>`, `/relationships/<name>`).
+`fieldErrors()` groups the messages by attribute or relationship name of the item from
+`source.pointer` (`/attributes/<name>` of the body that the schema refuses,
+`/data/attributes/<name>` and `/data/relationships/<name>` of the checks of the backend:
+the model, a related item the user cannot see, `validate_item`), and `formErrors()` lists
+the other errors, `{message, included, field}`: of the item as a whole (`/data`, an
+invariant of `validate_item`: 422 `ERR_ITEM_INVALID`), of an included item
+(`/included/<index>`, its index in `included` and the name of its field), of a parameter or
+of the request.
 
 **The language.** With the option `language` (a code, or a function that returns the
 current one) every request, the uploads and the requests of bazis-authing too, has

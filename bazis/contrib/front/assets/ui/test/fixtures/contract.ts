@@ -27,7 +27,7 @@ export const ROUTES = {
 /** The JSON:API type of a resource. */
 export type ResourceType = keyof typeof ROUTES;
 
-/** The resources: model, route set, path, actions and fields (type, relation, filter and order labels). */
+/** The resources: model, route set, path, actions, fields (type, relation, filter and order labels) and search fields (none: no search). */
 export const RESOURCES = {
   "bg.task": {
     actions: {
@@ -172,6 +172,7 @@ export const RESOURCES = {
     model: "bg.Task",
     path: "/api/v1/bg/task/",
     route_set: "bazis.contrib.bg.routes.BgRoute",
+    search: [],
   },
   "tasks.task": {
     actions: {
@@ -250,6 +251,9 @@ export const RESOURCES = {
     model: "tasks.Task",
     path: "/api/v1/tasks/task/",
     route_set: "tasks.routes.TaskRouteSet",
+    search: [
+      "title",
+    ],
   },
   "uploadable.file_upload": {
     actions: {
@@ -286,6 +290,7 @@ export const RESOURCES = {
     model: "uploadable.FileUpload",
     path: "/api/v1/uploadable/file_upload/",
     route_set: "bazis.contrib.uploadable.routes.FileUploadRouteSet",
+    search: [],
   },
   "users.user": {
     actions: {
@@ -383,7 +388,10 @@ export const RESOURCES = {
     },
     model: "users.User",
     path: "/api/v1/users/user/",
-    route_set: "bazis.contrib.users.routes.UserRouteSet",
+    route_set: "users.routes.UserRouteSet",
+    search: [
+      "username",
+    ],
   },
 } as const;
 
@@ -510,7 +518,7 @@ export interface Capabilities {
   readonly async_request: { readonly header: string } | null;
   readonly authing: { readonly auth_url: string | null; readonly actions: readonly { readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; readonly logout_url: string | null; readonly token_param: string } | null;
   readonly bg: { readonly resource: string | null } | null;
-  readonly permit: { readonly roles: typeof ROLES } | null;
+  readonly permit: { readonly roles: typeof ROLES; readonly selectors: { readonly [resource: string]: { readonly [selector: string]: string } } } | null;
   readonly statusy: { readonly models: typeof TRANSITS } | null;
   readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;
   readonly users: { readonly token_url: string; readonly user_resource: string; readonly profile_language: boolean } | null;
@@ -542,6 +550,12 @@ export const CAPABILITIES: Capabilities = {
   },
   permit: {
     roles: ROLES,
+    selectors: {
+      "tasks.task": {
+        assignee: "users.user",
+        status_author: "users.user",
+      },
+    },
   },
   statusy: {
     models: TRANSITS,

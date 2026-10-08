@@ -31,8 +31,9 @@ from .resources import resources
 
 
 #: the version of the format of contract.json; a change of it is a minor release. 2: the
-#: languages of the project, the names of the roles, statuses and transits by language
-CONTRACT_FORMAT = 2
+#: languages of the project, the names of the roles, statuses and transits by language; 3:
+#: the search fields of the resources, the selectors of the permission models
+CONTRACT_FORMAT = 3
 
 #: the directory of the contract in the product root
 CONTRACT_DIR = 'contract'

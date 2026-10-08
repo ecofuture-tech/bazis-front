@@ -32,8 +32,10 @@ Lint: `ruff check bazis tests sample scripts`.
 
 The sample (`sample/`) installs bazis-users, bazis-authing, bazis-permit, bazis-statusy,
 bazis-uploadable, bazis-ws, bazis-author with bazis-bg, bazis-async-background and
-bazis-async-request (the `test` extra) with a project app `users` and a statusy model
-`tasks.Task`, whose `attachment` is a file of bazis-uploadable (a foreign key to
+bazis-async-request (the `test` extra) with a project app `users` (its route set of the users,
+`users.routes.UserRouteSet`, is that of bazis-users with `search_fields`, which the picker
+of the assignee searches: the core 2.9 answers a search of a route set without them with
+400) and a statusy model `tasks.Task` (searched by its title), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
 bazis-uploadable, routed as it is: it requires a user and gives him only his own files,
 also to the other routes, so the core refuses as the attachment of a task a file of another
@@ -93,7 +95,10 @@ frontend made from the sample by the `e2e` job of CI.
   the roles, statuses and transits are maps of every language of `LANGUAGES`
   (`capabilities.translated`); `tests/test_contract.py` renders under two process languages
   and expects the same bytes. `CONTRACT_FORMAT` changes with the shape of contract.json (2:
-  the languages).
+  the languages; 3: the search fields of the resources, `search`, read from the route set
+  because every list of the OpenAPI has the parameter, and the selectors of the permission
+  models, `permit.selectors`, those of `get_selector_fields` of bazis-permit, which P020
+  checks).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the

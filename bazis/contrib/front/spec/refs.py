@@ -569,6 +569,8 @@ def _check_screen(
                 )
     if contract is not None and primitive == 'list':
         _check_list_contract(doc, entity, contract, issues)
+    if contract is not None:
+        _check_search_contract(doc, entity, contract, issues)
 
 
 def _screen_fields(data: dict):
@@ -646,4 +648,71 @@ def _check_list_contract(doc: Document, entity: Entity, contract: dict, issues: 
                 f'The field `{name}` of `{entity.data["resource"]}` cannot be {verb} by: it has no '
                 f'`{label}` in the contract.',
                 f'Remove it, or make the field {verb} by in the route set of the backend.',
+            )
+
+
+def _picker_fields(data: dict, entity: Entity):
+    """
+    The fields that a screen edits or filters with the picker of a related item, with their
+    paths: the filters of a list, the fields of a form (of the form primitive, of a form
+    action; every field of the entity when it lists none) and of the sections of a card
+    with `edit`. Which of them are relationships is for the contract to say.
+    """
+    if data['primitive'] == 'list':
+        for i, name in enumerate(data['list'].get('filters', [])):
+            yield ('list', 'filters', i), name
+    elif data['primitive'] == 'card' and data['card'].get('edit'):
+        for i, section in enumerate(data['card']['sections']):
+            for j, name in enumerate(section['fields']):
+                yield ('card', 'sections', i, 'fields', j), name
+    forms = [(('form',), data['form'])] if data['primitive'] == 'form' else []
+    forms += [
+        (('actions', i), action)
+        for i, action in enumerate(data.get('actions', []))
+        if action['primitive'] == 'form'
+    ]
+    for path, form in forms:
+        if 'fields' in form:
+            for i, name in enumerate(form['fields']):
+                yield (*path, 'fields', i), name
+        else:
+            for name in entity.fields:
+                yield path, name
+
+
+def _check_search_contract(doc: Document, entity: Entity, contract: dict, issues: Issues) -> None:
+    """
+    The search of a screen against the search fields of the contract (bazis 2.9: a route
+    set without search fields answers a `search` with 400): the search of a list (S013),
+    and the pickers of the related items (S012), which list the items of a resource without
+    search fields without a search. In a form, a file is edited by the file field and a
+    to-many relationship is not edited: no picker.
+    """
+    resources = contract['project']['resources']
+    resource = resources.get(entity.data['resource'])
+    if resource is None:
+        return
+    data = doc.data
+    if data['primitive'] == 'list' and data['list'].get('search') and not resource['search']:
+        issues.add(
+            doc, ('list', 'search'), 'S013',
+            f'`{entity.data["resource"]}` has no search fields in the contract: its route set '
+            'answers a search with 400 `ERR_FILTER`.',
+            'List the fields to search in `search_fields` of the route set of the resource '
+            f'(fields of its LIST schema), and {EXPORT_HINT}; or remove `search`.',
+        )
+    for path, name in _picker_fields(data, entity):
+        schema = resource['fields'].get(name, {})
+        relation = schema.get('relation')
+        target = resources.get(relation) if isinstance(relation, str) else None
+        in_form = path[0] != 'list'
+        if target is None or (in_form and (schema['many'] or is_file(schema, contract))):
+            continue
+        if not target['search']:
+            issues.add(
+                doc, path, 'S012',
+                f'The picker of `{name}` lists `{relation}` without a search: the resource has '
+                'no search fields in the contract.',
+                f'List the fields to search in `search_fields` of the route set of `{relation}` '
+                f'(fields of its LIST schema), and {EXPORT_HINT}.',
             )

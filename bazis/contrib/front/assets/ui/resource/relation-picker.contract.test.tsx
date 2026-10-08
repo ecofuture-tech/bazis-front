@@ -14,7 +14,8 @@
 
 // The contract of the picker of a related item: a combobox marked as its field
 // (`field:<name>`) with the label of the item, that opens a search over the list of the
-// related resource (the backend searches, `Load more` reads the next page by its offset),
+// related resource (the backend searches, `Load more` reads the next page by its offset; a
+// route set without search fields: the list without a search box, never a `search`),
 // selects with the mouse or the keyboard (the selected item active when it opens, the first
 // item after a search, never the option that clears; Enter ignored while the options are
 // those of another search; Escape and Tab give the focus back), announces the state of the
@@ -52,12 +53,23 @@ const labels = (ids: readonly string[]) =>
 const page = (limit: number, search?: string) =>
   `GET ${ITEMS}?${search ? `search=${search}&` : ''}page%5Blimit%5D=${String(limit)}`;
 
-function Picker({ initial = null, onChange = vi.fn(), nullable }: { initial?: string | null; onChange?: (id: string | null) => void; nullable?: boolean }) {
+function Picker({
+  initial = null,
+  onChange = vi.fn(),
+  nullable,
+  searchable = true,
+}: {
+  initial?: string | null;
+  onChange?: (id: string | null) => void;
+  nullable?: boolean;
+  searchable?: boolean;
+}) {
   const [value, setValue] = useState(initial);
   return (
     <RelationPicker
       relation="test.item"
       path={ITEMS}
+      searchable={searchable}
       data-bz="field:owner"
       aria-label="Owner"
       value={value}
@@ -189,6 +201,49 @@ describe('RelationPicker', () => {
     await waitFor(() => {
       expect(trigger.textContent).toBe('—');
     });
+  });
+
+  it('lists the items without a search when the route set has no search fields', async () => {
+    const backend = new Backend()
+      .on('GET', ITEMS, listDocument([ann], { next: `${ITEMS}?page%5Boffset%5D=${String(PICKER_PAGE)}` }))
+      .on('GET', `${ITEMS}?page%5Blimit%5D=${String(PICKER_PAGE)}&page%5Boffset%5D=${String(PICKER_PAGE)}`, listDocument([bob]));
+    const onChange = vi.fn();
+    renderWithBazis(<Picker initial="a1" searchable={false} onChange={onChange} />, backend);
+    const trigger = screen.getByTestId('field:owner');
+
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const listbox = await screen.findByRole('listbox');
+    await within(listbox).findByText('Ann');
+    // no search box: the list has the focus and the keys, the selected item active
+    const popup = document.getElementById(trigger.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(popup.querySelector('[role="combobox"]')).toBeNull();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(listbox);
+    });
+    expect(listbox.getAttribute('aria-activedescendant')).toBe(within(listbox).getByText('Ann').closest('li')?.id);
+    // `Load more` (no `data-value`) reads the next page
+    const more = within(listbox).getAllByRole('option').find((it) => !it.hasAttribute('data-value'));
+    fireEvent.click(more as Element);
+    await within(listbox).findByText('Bob');
+    fireEvent.keyDown(listbox, { key: 'ArrowDown' });
+    fireEvent.keyDown(listbox, { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith('b2');
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).toBeNull();
+    });
+    expect(backend.requests().some((it) => it.includes('search='))).toBe(false);
+  });
+
+  it('searches as the contract says of its resource', async () => {
+    // `test.item` is not a resource of the contract: no search unless it is told
+    const backend = new Backend().on('GET', ITEMS, listDocument([ann]));
+    renderWithBazis(
+      <RelationPicker relation="test.item" path={ITEMS} data-bz="field:owner" aria-label="Owner" value={null} onChange={vi.fn()} />,
+      backend,
+    );
+    const listbox = await open();
+    await within(listbox).findByText('Ann');
+    expect(screen.queryByRole('combobox', { name: 'Search Owner' })).toBeNull();
   });
 
   it('is disabled when read-only, an input without a route for its resource', () => {

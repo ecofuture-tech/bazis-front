@@ -17,7 +17,7 @@ version of bazis-front, merged with the changes of the product).
 
 ## Setup
 
-`pip install bazis-front` (needs bazis 2.8.0 or newer) and add `"bazis.contrib.front"` to
+`pip install bazis-front` (needs bazis 2.10.0 or newer) and add `"bazis.contrib.front"` to
 `BS_INSTALLED_APPS`. The assets follow the protocol of recent versions of the packages of
 the capabilities: bazis-ws 2.5.0 (the socket is open once the server sends `subscribed`),
 bazis-authing 2.6.0 (the logout endpoint), bazis-uploadable 2.6.0 (the files of their
@@ -183,8 +183,14 @@ the package documents each component.
   member has every field). Check them in the scenarios with `expect: {field_readonly}` and
   `expect: {field_absent}`.
 - **Relationships**: `RelationPicker` (a to-one relationship in a form, a payload, a filter)
-  is a combobox that searches the related resource on the backend (`search`) page after
-  page (`Load more`) and clears a nullable value; `RelationLabel` shows a related item, the
+  is a combobox over the list of the related resource, read page after page (`Load more`),
+  that clears a nullable value. It searches the backend (`search`) only when the route set
+  of the related resource has search fields (`search` of the resource in the contract; the
+  prop `searchable` overrides it): the core answers a search of a route set without
+  `search_fields` with 400 `ERR_FILTER` (bazis 2.9), so without them the picker lists the
+  items without a search box, and `check` warns of such a picker (S012). **Give the route
+  sets that the pickers list `search_fields`** (fields of their LIST schema, such as
+  `username`); `RelationLabel` shows a related item, the
   items of a resource shown together (the rows of a page) read with one request
   (`useRelatedItem`, `filter=pk=<a>|pk=<b>|…`). Both need the route of the related resource
   in `ROUTES`; the user sees the items its list returns to them. To-many relationships are
@@ -293,7 +299,7 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
 
 ```json
 {
-  "format": 2,
+  "format": 3,
   "generated_by": {"bazis": "2.5.0", "bazis-front": "0.1.0", "bazis-permit": "2.4.1"},
   "openapi_hash": "sha256:…",
   "project": {
@@ -307,7 +313,8 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
           "title": {"type": "string", "filter": "title", "order": "title"},
           "dt_created": {"type": "string", "format": "date-time", "filter": "dt_created", "order": "dt_created"},
           "assignee": {"relation": "users.user", "many": false, "filter": "assignee", "order": "assignee"}
-        }
+        },
+        "search": ["title"]
       }
     }
   },
@@ -322,7 +329,8 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
     "async_background": {"result_path": "/api/v1/async_background_response/{task_id}/"},
     "async_request": {"header": "X-Async-Background"},
     "permit": {"roles": [{"slug": "manager", "name": {"en": "Manager", "ru": "Менеджер"}, "for_anonymous": false,
-                          "groups": ["tasks_change"], "permissions": ["tasks.task.item.change.all.draft"]}]},
+                          "groups": ["tasks_change"], "permissions": ["tasks.task.item.change.all.draft"]}],
+               "selectors": {"tasks.task": {"assignee": "users.user", "status_author": "users.user"}}},
     "statusy": {"models": {"tasks.task": {
       "initial": "draft",
       "statuses": [{"id": "draft", "name": {"en": "Draft", "ru": "Черновик"}}, {"id": "done", "name": {"en": "Done", "ru": "Готово"}}],
@@ -346,7 +354,9 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `fields` are the attributes and relationships of the item response: `type` (and
   `format`) of an attribute, `relation` (the JSON:API type) and `many` of a relationship;
   `filter` and `order` are the labels for `filter` and `sort`, absent when the field cannot
-  be filtered or sorted.
+  be filtered or sorted. `search` lists the search fields of the route set (`search_fields`,
+  as declared) that its LIST schema reaches, those the core searches with `search`; empty,
+  the route set has no search, and a `search` is 400 `ERR_FILTER` (bazis 2.9).
 - `capabilities` has a section for each installed package whose app is in
   `INSTALLED_APPS` (bazis-ws: its installed package): `users` (the token endpoint, the resource of the user model,
   `profile_language`: whether the user model has a text field `language`, the language of
@@ -361,7 +371,11 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   relationship to one of them is a file), `permit`
   (the roles with the slugs of their permission groups and their effective permissions:
   the union of the permissions of the groups, as bazis-permit checks them for the current
-  role of a user; a role has no permissions of its own), `statusy` (per statusy model: the
+  role of a user; a role has no permissions of its own; `selectors`, the selectors of every
+  permission model by its JSON:API type, with the type of their selector source: those of
+  `get_selector_fields`, its relations to a selector source, also a many-to-many field and a
+  reverse relation by its accessor, which the route set may not show, and `self` when the
+  model is a selector source itself), `statusy` (per statusy model: the
   initial status, the statuses of its transits, the transits with the JSON Schema of the
   payload they require, `null` without one), `ws` (`path`: the path of the socket, that of
   a route of `WsEndpoint` that the application of `bazis.core.app` has, null without one;
@@ -490,9 +504,12 @@ scenarios:
   A permission of the role with the selector `all` covers any selector, and the status
   `all` any status. Missing permissions are errors (P019); permissions the role has beyond
   the access are not reported (the absence of an operation is what the scenarios check,
-  with `expect: {action_absent: ...}`). A selector whose relationships are not in the
-  contract is a warning (P020; each hop is checked while the contract has the related
-  resource).
+  with `expect: {action_absent: ...}`). A selector that is not one of the resource is a
+  warning (P020): its last name must be one of the `selectors` of the section `permit` of
+  the resource it reaches (a reverse relation such as `members` or a many-to-many field,
+  bazis-permit 2.6.0, whether the route shows it or not; `self` only on a selector
+  source), and each relation of its path a relationship of the contract or a selector;
+  what the contract does not describe is not checked.
 - **Scenarios** are the end-to-end tests of the product: steps over the screens, each one
   key: `open: <screen>`, `open_item: {where: {field: value}}` (a row of the current list,
   which opens the screen of its `list.open`), `action: <action of the screen>`,
@@ -632,7 +649,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P017` | error | the payload of a transition differs from the contract |
 | `P018` | error | the permit role of a role is not in the contract |
 | `P019` | error | the permit role lacks a permission that `access` grants |
-| `P020` | warning | a selector of `access` is not a relationship (or a path of relationships) of the resource in the contract |
+| `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a relation of its path is not a relationship of the contract |
 | `P021` | error | a scenario step references an unknown screen |
 | `P022` | error | a scenario step is not possible on the current screen |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
@@ -653,6 +670,8 @@ warning there, never blocking `migrate` or `contract`.
 | `S009` | error | a state required by the primitive is missing |
 | `S010` | error | an action is not valid: a duplicate id, or not possible on the primitive |
 | `S011` | error | transitions or history on a card whose entity has no workflow |
+| `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
+| `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -964,8 +983,9 @@ for what they do not cover (the login, a custom endpoint).
 - Build filters with `Filter.where/and/or/not`; never concatenate the expression or encode
   values yourself. Only the lookups of Bazis work (see `assets/client/README.md`); an
   unknown field or lookup is a 400 `ERR_FILTER` error (silently ignored before bazis 2.5.0).
-- Show validation errors from `ApiError.fieldErrors()`; show other errors from
-  `ApiError.message`.
+- Show validation errors from `ApiError.fieldErrors()` at their fields, the errors of the
+  item that are not of a field (an invariant of `validate_item`, an included item) from
+  `ApiError.formErrors()` at the form, and other errors from `ApiError.message`.
 - Request the permission meta (`meta: ['for_change', 'for_delete', 'for_create']` on a
   list, `['crud_actions']` on an item) and read it with `can()`; read the editable fields
   of an item from its runtime schema `schema_update` (`useResourceForm`, `useSchema`).
@@ -1208,7 +1228,18 @@ tests cannot log in (P026).
 - Pagination is `page[limit]` and `page[offset]`; sorting is `sort` with `-` for
   descending; meta fields such as `pagination` are returned only when requested with
   `meta`.
-- Validation errors are 422 with `errors[].source.pointer` such as `/attributes/name`.
+- Validation errors are 422 with `errors[].source.pointer`: `/attributes/<name>` (the body
+  that the schema refuses) or `/data/attributes/<name>`, `/data/relationships/<name>` (a
+  check of the backend: the model, a related item the user cannot see, 403
+  `ERR_RELATION_ACCESS`); an item that fails `validate_item` of its model (its invariants)
+  is `ERR_ITEM_INVALID` with the pointer of the field, `/data` for the item as a whole, and
+  under `/included/<index>` for an included item (the parameter `/related_field_name` on
+  the relationships endpoints). `fieldErrors()` gives those of the fields of the item,
+  `formErrors()` the others.
+- `filter`, `sort` and `search` reach only the fields of the LIST schema of the route set
+  (bazis 2.9; through a relation, those of the default route of the related model, and
+  only the related items the user can see); `search` searches only its `search_fields`,
+  and a route set without them answers it with 400 `ERR_FILTER` (`/query/search`).
 - An uploaded file (bazis-uploadable) is the multipart create of its route set (`file`,
   optional `name`), not a JSON:API document; the response is the item with `file` (the URL
   of the file in the storage: the path of `MEDIA_URL` for the file system, which the API

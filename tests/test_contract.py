@@ -45,7 +45,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 2
+    assert data['format'] == 3
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -108,11 +108,18 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert not {'action_update', 'action_destroy'} & set(files['actions'])
     assert sorted(files['fields']) == ['extension', 'file', 'name', 'size']
     assert resources['users.user']['fields']['roles']['many'] is True
+    # the search fields of the route sets (the pickers search the users by their username);
+    # none: the route set answers a search with 400 (bazis 2.9)
+    assert task['search'] == ['title']
+    assert resources['users.user']['route_set'] == 'users.routes.UserRouteSet'
+    assert resources['users.user']['search'] == ['username']
+    assert files['search'] == []
+    assert resources['bg.task']['search'] == []
     # a write-only attribute can be neither filtered nor sorted
     assert resources['users.user']['fields']['raw_password'] == {'type': 'string'}
 
 
-def test_a_resource_is_described_by_the_default_route_of_its_model():
+def test_a_resource_is_described_by_the_default_route_of_its_model(sample_app):
     def operation(route_set, action, kind):
         meta = {'resource': 'tasks.task', 'route_set': route_set, 'action': action, 'kind': kind}
         return {'x-bazis': meta, 'responses': {}}
@@ -133,9 +140,27 @@ def test_a_resource_is_described_by_the_default_route_of_its_model():
             'path': '/api/v1/tasks/task/',
             'actions': {'action_retrieve': 'item'},
             'fields': {},
+            'search': ['title'],
             'other_routes': [{'path': '/api/v1/archive/task/', 'route_set': 'archive.TaskRouteSet'}],
         },
     }
+
+
+@pytest.mark.django_db
+def test_the_search_is_that_of_the_list_schema(sample_app, monkeypatch):
+    from tasks.routes import TaskRouteSet
+
+    # the search fields that the LIST schema of the route set reaches, as declared: with a
+    # lookup prefix, through a relation into the LIST schema of the default route of the
+    # related model; not a field the schema does not have (bazis.W007), the core leaves it out
+    monkeypatch.setattr(
+        TaskRouteSet, 'search_fields', ['^title', 'missing', 'assignee__username', 'assignee__password'],
+    )
+    task = resources(sample_app.openapi())['tasks.task']
+    assert task['search'] == ['^title', 'assignee__username']
+
+    monkeypatch.setattr(TaskRouteSet, 'search_fields', [])
+    assert resources(sample_app.openapi())['tasks.task']['search'] == []
 
 
 @pytest.mark.django_db
@@ -203,6 +228,11 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
             ],
         },
     ]
+    # the selectors of the permission models, as bazis-permit resolves them: the relations
+    # to a selector source (the user), also the status author that statusy keeps
+    assert sections['permit']['selectors'] == {
+        'tasks.task': {'assignee': 'users.user', 'status_author': 'users.user'},
+    }
 
     task = sections['statusy']['models']['tasks.task']
     assert task['initial'] == 'draft'
@@ -223,6 +253,30 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
     assert schema['required'] == ['report']
     # the combined payload type is named after the ids of its classes
     assert 'title' not in schema
+
+
+@pytest.mark.django_db
+def test_the_selectors_are_those_of_bazis_permit(sample_app, workflow, monkeypatch):
+    from django.apps import apps
+    from django.contrib.auth import get_user_model
+
+    from bazis.contrib.front.capabilities import permit
+    from bazis.contrib.permit.schemas import SelectorField
+
+    task = apps.get_model('tasks.Task')
+    user = get_user_model()
+    # a reverse relation of the user (by its accessor), which the route set does not show
+    fields = {
+        **task.get_selector_fields(),
+        'members': SelectorField(name='members', label='members', model=user),
+    }
+    monkeypatch.setattr(task, 'get_selector_fields', classmethod(lambda cls: fields))
+    assert permit.selectors()['tasks.task'] == {
+        'assignee': 'users.user', 'members': 'users.user', 'status_author': 'users.user',
+    }
+    # a permission model that is a selector source itself has `self`
+    monkeypatch.setattr(permit, 'PermitSelectorMixin', task)
+    assert permit.selectors()['tasks.task']['self'] == 'tasks.task'
 
 
 @pytest.mark.django_db

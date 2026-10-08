@@ -178,6 +178,44 @@ test('fill chooses the item of a combobox by its label, null by the option that 
   await expect(trigger).toHaveAttribute('data-value', '');
 });
 
+test('fill reads the pages of a combobox without a search until the item is listed', async ({ page }) => {
+  // a route set without search fields: the popup has no search, the next page is the option
+  // without `data-value`, and it loads after a delay
+  const option = (value: string, label: string) => `<li role="option" data-value="${value}">${label}</li>`;
+  await show(page, '/tasks',
+    html(
+      `<section data-bz="screen:task-list"><div data-bz="state:loaded">Tasks</div></section>
+       <form><button type="button" role="combobox" data-bz="field:assignee" aria-controls="popup" data-value="">—</button>
+       <button type="submit" data-bz="action:submit">Create</button></form>`,
+      `const trigger = document.querySelector('[role="combobox"]');
+       const more = '<li role="option">Load more</li>';
+       const pages = [${JSON.stringify(option('u3', 'viewer'))}, ${JSON.stringify(option('u2', 'manager 2'))}, ${JSON.stringify(option('u1', 'manager'))}];
+       trigger.addEventListener('click', () => setTimeout(() => {
+         document.body.insertAdjacentHTML('beforeend', '<div id="popup"><ul role="listbox" tabindex="0"></ul></div>');
+         const popup = document.getElementById('popup');
+         const list = popup.querySelector('ul');
+         list.insertAdjacentHTML('beforeend', pages.shift() + more);
+         popup.addEventListener('click', (event) => {
+           const chosen = event.target.closest('[role="option"]');
+           if (!chosen.hasAttribute('data-value')) {
+             chosen.remove();
+             setTimeout(() => list.insertAdjacentHTML('beforeend', pages.shift() + (pages.length ? more : '')), 300);
+             return;
+           }
+           trigger.dataset.value = chosen.dataset.value;
+           trigger.textContent = chosen.textContent;
+           popup.remove();
+         });
+       }, 200));`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-list');
+  await app.fill({ assignee: 'manager' });
+  await expect(page.locator(bz('field', 'assignee'))).toHaveAttribute('data-value', 'u1');
+  await expect(page.locator('#popup')).toHaveCount(0);
+});
+
 /** A list screen with a form whose submit runs `onSubmit` after a delay. */
 function formPage(onSubmit: string): string {
   return html(

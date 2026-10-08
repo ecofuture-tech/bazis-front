@@ -77,9 +77,10 @@ sample (`tests/test_design.py` checks it; write it again with
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it), `FieldValue` (with
 `formatValue(field, value, {language, t}?)`: the value in the language of the interface),
-`RelationPicker({relation, value, onChange, label?, placeholder?, nullable?, disabled?, path?})` and
+`RelationPicker({relation, value, onChange, label?, placeholder?, nullable?, disabled?, path?, searchable?})` and
 `RelationLabel({relation, id, path?})` (the related resource by its route in `ROUTES`, or
-`path`), `useListFields`/`useItemFields` (the titles and types of the list, retrieve and
+`path`; `hasSearch(type)`: whether the contract gives the resource search fields),
+`useListFields`/`useItemFields` (the titles and types of the list, retrieve and
 update schemas, `has(name)`: whether the schema of the user has the field),
 `permitted(meta, action, id?)` (the permission meta of bazis-permit; allowed when the
 backend does not report it), the files of bazis-uploadable (`FilesProvider({control,
@@ -131,23 +132,33 @@ the WebSocket of the page in a test.
 - **`RelationPicker`** (the input of a to-one relationship in a form and in the payload of a
   transit, and of the filter of a relationship) is a combobox: a button
   (`role="combobox"`, the marks of the field) with the label of the item opens a popover
-  with a search sent to the backend (`search`, every word in a text field of the related
-  resource) and the items of the list of the related resource, the next page of 20 with
-  `Load more` (by `page[offset]`: a larger `page[limit]` would pass the maximum of the
-  backend); a nullable relationship has an option that clears the value (`data-value=""`,
-  which the helpers of the end-to-end tests choose for null). The keyboard follows the
+  with a search sent to the backend (`search`, every word in a search field of the route set
+  of the related resource) and the items of the list of the related resource, the next page
+  of 20 with `Load more` (by `page[offset]`: a larger `page[limit]` would pass the maximum
+  of the backend; the option without `data-value`); a nullable relationship has an option
+  that clears the value (`data-value=""`, which the helpers of the end-to-end tests choose
+  for null). The search is there only when the route set has search fields (`searchable`;
+  by default `search` of the resource in the contract, `hasSearch`): the core answers a
+  search of a route set without `search_fields` with 400 `ERR_FILTER`, so such a picker
+  lists the items without a search box, the list taking the focus and the keys (and the
+  helpers of the end-to-end tests read its pages until the item is listed). The keyboard follows the
   combobox pattern of WAI-ARIA: Enter, Space or ArrowDown opens with the selected item
   active, typing searches with the first item found active (the option that clears is
   never the default one), ArrowUp/ArrowDown move, Enter selects (not while the options are
   still those of another search), Escape and Tab close and give the focus back to the
-  button. The search is named after the field (`label`: `Search <label>`) and the state of
+  button. The search is named after the field (`label`: `Search <label>`, the list without
+  a search `Choose <label>`) and the state of
   the search (loading, nothing found, an error) is announced (`role="status"`). The popover
   is modal, so that it scrolls and keeps the focus inside a dialog. A related resource
   without a route is an input of the id.
 - **`resource-form`** is `useResourceForm`: the fields of `schema_create/` or
   `schema_update/` of the current user, read-only ones disabled and never sent; a to-one
   relationship is a `RelationPicker` (a file field the control of `FilesProvider`); to-many
-  relationships are left out (`useRelationship`). It is not submitted while a file of a
+  relationships are left out (`useRelationship`). A 422 is `state:invalid`: the errors of
+  the fields at their fields (`error:<name>`), the others in the state (`ApiError.formErrors()`:
+  an error of the item as a whole, `/data`, such as an invariant of `validate_item`,
+  `ERR_ITEM_INVALID`; of an included item, `form.included_error`; of a field the form does
+  not show, with its name). It is not submitted while a file of a
   field uploads (`onBusy` of `FieldInput`).
 - **Files** (bazis-uploadable): a field is a file when it is a to-one relationship to a
   resource of `resources` of the capability `uploadable` (`uploadable.file_upload`, whose

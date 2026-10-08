@@ -44,7 +44,10 @@ SECTION_TYPES = {
         'readonly logout_url: string | null; readonly token_param: string }'
     ),
     'bg': '{ readonly resource: string | null }',
-    'permit': '{ readonly roles: typeof ROLES }',
+    'permit': (
+        '{ readonly roles: typeof ROLES; readonly selectors: '
+        '{ readonly [resource: string]: { readonly [selector: string]: string } } }'
+    ),
     'statusy': '{ readonly models: typeof TRANSITS }',
     'uploadable': '{ readonly max_size: number | null; readonly resources: readonly string[] }',
     'users': (
@@ -131,8 +134,8 @@ def render(contract: dict) -> str:
         '/** The JSON:API type of a resource. */\n'
         'export type ResourceType = keyof typeof ROUTES;\n',
         constant(
-            'The resources: model, route set, path, actions and fields (type, relation, '
-            'filter and order labels).',
+            'The resources: model, route set, path, actions, fields (type, relation, '
+            'filter and order labels) and search fields (none: no search).',
             'RESOURCES',
             resources,
         ),

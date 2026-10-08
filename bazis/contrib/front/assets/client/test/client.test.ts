@@ -368,6 +368,40 @@ describe('errors', () => {
     );
   });
 
+  it('maps the errors of the checks of the backend to the fields, the others to the form', async () => {
+    // validate_item of the core (`ERR_ITEM_INVALID`): a field of the item, the item as a
+    // whole, an included item and its field; a related item the user cannot see
+    const invalid = (detail: string, pointer: string) => ({
+      status: 422,
+      code: 'ERR_ITEM_INVALID',
+      title: 'Validation error',
+      detail,
+      source: { pointer },
+    });
+    const errors = [
+      invalid('The room is taken', '/data/relationships/room'),
+      invalid('Too many participants', '/data/attributes/participants'),
+      invalid('The booking overlaps another one', '/data'),
+      invalid('The start is after the end', '/included/1/attributes/start'),
+      invalid('The slot is invalid', '/included/0'),
+      { status: 422, code: 'ERR_ITEM_INVALID', detail: 'The relation is invalid', source: { parameter: '/related_field_name' } },
+    ];
+    const { api } = setup([json({ errors }, 422, JSON_TYPE)]);
+    const error = (await api
+      .update(PARENT, '1', { data: { type: 'entity.parent_entity', id: '1', attributes: {}, relationships: {} } })
+      .catch((e: unknown) => e)) as ApiError;
+    expect(error.fieldErrors()).toEqual({
+      room: ['The room is taken'],
+      participants: ['Too many participants'],
+    });
+    expect(error.formErrors()).toEqual([
+      { message: 'The booking overlaps another one', included: null, field: null },
+      { message: 'The start is after the end', included: 1, field: 'start' },
+      { message: 'The slot is invalid', included: 0, field: null },
+      { message: 'The relation is invalid', included: null, field: null },
+    ]);
+  });
+
   it('keeps 400 errors of the query out of the field errors', async () => {
     const body = {
       errors: [
@@ -384,6 +418,7 @@ describe('errors', () => {
     const error = (await api.list(PARENT).catch((e: unknown) => e)) as ApiError;
     expect(error).toMatchObject({ status: 400, errors: body.errors, message: 'Field not found' });
     expect(error.fieldErrors()).toEqual({});
+    expect(error.formErrors()).toEqual([{ message: 'Field not found', included: null, field: null }]);
   });
 
   it('builds an error from a response that is not JSON', async () => {

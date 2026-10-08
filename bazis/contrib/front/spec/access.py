@@ -145,21 +145,41 @@ def selectors(role_access: dict) -> list[tuple[tuple, str]]:
 def selector_problem(selector: str, resource: str, contract: dict) -> str | None:
     """
     Why a selector is not one of the resource in the contract, or None. A selector is
-    `self`, or a relationship of the resource that links the object to the user, or a path
-    of relationships to it (`parent__author`, as bazis-permit `parse_selector` follows it):
-    each hop is checked while the contract has the related resource.
+    `self` (on a selector source), a selector of the resource (a relation that links the
+    object to a selector source, such as the user), or such a selector at the end of a path
+    of relations
+    (`parent__author`), as bazis-permit resolves it (`parse_selector`,
+    `get_selector_model`). The selectors of a permission model are those of the section
+    `permit` of the contract, also the relations its route does not show (a reverse
+    relation, `members`); a hop is a relationship of the resource in the contract or one of
+    its selectors. What the contract does not describe is not checked: a resource that is
+    not in it, and of a resource that is not a permission model the last name is only
+    checked to be a relationship.
     """
-    if selector == SELF:
-        return None
     resources = contract['project']['resources']
+    known = contract['capabilities']['permit'].get('selectors', {})
+    *hops, last = selector.split(LOOKUP_SEP)
     current = resource
-    for part in selector.split(LOOKUP_SEP):
-        if current not in resources:
+    for part in hops:
+        if current not in resources and current not in known:
             return None
-        field = resources[current]['fields'].get(part)
-        if field is None or 'relation' not in field:
+        field = resources.get(current, {}).get('fields', {}).get(part, {})
+        target = field.get('relation', known.get(current, {}).get(part))
+        if target is None:
             return f'`{part}` is not a relationship of `{current}` in the contract'
-        current = field['relation'] if isinstance(field['relation'], str) else None
+        if not isinstance(target, str):
+            return None
+        current = target
+    if last == SELF and hops:
+        return '`self` is the object itself, never the end of a path of relations'
+    if current in known:
+        if last not in known[current]:
+            return f'`{last}` is not a selector of `{current}`'
+        return None
+    if last == SELF or current not in resources:
+        return None
+    if 'relation' not in resources[current]['fields'].get(last, {}):
+        return f'`{last}` is not a relationship of `{current}` in the contract'
     return None
 
 
@@ -189,9 +209,11 @@ def check(
                 issues.add(
                     doc, (*path, *selector_path), 'P020',
                     f'The selector `{selector}` is not a selector of `{data["resource"]}`: {problem}.',
-                    'A selector of bazis-permit is `all`, `self`, a relationship that links the '
-                    'object to the user (`author`) or a path of relationships to it '
-                    '(`parent__author`); check the names.',
+                    'A selector of bazis-permit is `all`, `self` (on a selector source, such as '
+                    'the user), a relation that links the object to the user (`author`, a '
+                    'many-to-many field, a reverse relation by its `related_name`) or such a '
+                    'relation at the end of a path of relations (`parent__author`); check the '
+                    f'names against the `selectors` of the section `permit`, and {EXPORT_HINT}.',
                 )
         role = product.roles.get(role_id)
         permit_role = roles.get(role['permit']) if role else None

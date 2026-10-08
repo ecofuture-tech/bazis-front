@@ -17,7 +17,7 @@
 // resources of the contract and the permission meta of bazis-permit.
 
 import { can, type PermitMeta } from '@/bazis/client';
-import { ROUTES } from '@/bazis/generated/contract';
+import { RESOURCES, ROUTES } from '@/bazis/generated/contract';
 import { ENGLISH, formatDate, formatDateTime, formatNumber, type LanguageContextValue } from '@/bazis/i18n';
 import { resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
 
@@ -96,6 +96,16 @@ export function fieldValue(resource: ResourceObject, name: string): unknown {
 /** The path of the route set of a JSON:API type (`ROUTES` of the contract), if it has one. */
 export function routeOf(type: string): string | undefined {
   return (ROUTES as Readonly<Record<string, string | undefined>>)[type];
+}
+
+/**
+ * Whether the route set of a JSON:API type searches (`search`): it has search fields in the
+ * contract (`search` of its resource). The core answers a search of a route set without
+ * them with 400 `ERR_FILTER`; a type the contract does not know has no search.
+ */
+export function hasSearch(type: string): boolean {
+  const resource = (RESOURCES as Readonly<Record<string, { readonly search?: readonly string[] } | undefined>>)[type];
+  return (resource?.search?.length ?? 0) > 0;
 }
 
 /** The attributes that name an item, in this order. */

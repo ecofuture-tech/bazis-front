@@ -27,3 +27,6 @@ class TaskRouteSet(StatusyRouteSetBase):
     """
 
     model = apps.get_model('tasks.Task')
+    # the search of the list of the tasks (the core 2.9 answers a search of a route set
+    # without search fields with 400)
+    search_fields = ['title']

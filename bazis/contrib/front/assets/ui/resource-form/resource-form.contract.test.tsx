@@ -75,6 +75,46 @@ describe('ResourceForm', () => {
     expect(screen.getByTestId('field:title').getAttribute('aria-invalid')).toBe('true');
   });
 
+  it('shows the errors of the item at its fields, the others in the form', async () => {
+    // the invariants of the item (`validate_item` of the core: 422 `ERR_ITEM_INVALID`): of a
+    // field, of the item as a whole, of an included item
+    const invalid = (detail: string, pointer: string) => ({ status: 422, code: 'ERR_ITEM_INVALID', detail, source: { pointer } });
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, schema)
+      .on(
+        'POST',
+        ITEMS,
+        {
+          errors: [
+            invalid('Taken', '/data/attributes/title'),
+            invalid('Overlaps another item', '/data'),
+            invalid('Ends before it starts', '/included/0/attributes/end'),
+          ],
+        },
+        422,
+      );
+    renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
+
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    const state = await screen.findByTestId('state:invalid');
+    expect(screen.getByTestId('error:title').textContent).toBe('Taken');
+    expect(screen.getByTestId('field:title').getAttribute('aria-invalid')).toBe('true');
+    expect(state.textContent).toContain('Overlaps another item');
+    expect(state.textContent).toContain('Ends before it starts');
+    expect(state.textContent).not.toContain('Taken');
+  });
+
+  it('shows an error of the item alone in the form', async () => {
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, schema)
+      .on('POST', ITEMS, { errors: [{ status: 422, code: 'ERR_ITEM_INVALID', detail: 'Overlaps another item', source: { pointer: '/data' } }] }, 422);
+    renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
+
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect((await screen.findByTestId('state:invalid')).textContent).toBe('Overlaps another item');
+    expect(screen.queryByTestId('error:title')).toBeNull();
+  });
+
   it('updates an item: read-only fields, cancel', async () => {
     const backend = new Backend()
       .on('GET', `${ITEMS}${ITEM_ID}/schema_update/`, schema)
