@@ -13,15 +13,19 @@
 # limitations under the License.
 
 """
-The data of the sample that its migrations do not create, from one place: the fixture
-`workflow` of the tests (tests/conftest.py) and the command `sample_data` (the end-to-end
-tests of CI) call these functions. The specs of the sample (`sample/spec/`) reference this
-data: the permissions of the roles cover their `access`, the test users are the `test_user`
-of their roles.
+The data of the sample that its models do not define, from one place. The roles, statuses
+and transits are created by the data migration `0005_workflow` (`create_workflow`, with the
+models of the migration), as a product creates them; the fixture `workflow` of the tests
+(tests/conftest.py) creates them again after a test that flushed the tables. The command
+`e2e_data`, the e2e data command of bazis-front, adds the test users of the roles and the
+task that a scenario opens (`create_test_data`). The specs of the sample (`sample/spec/`)
+reference this data: the permissions of the roles cover their `access`, the test users are
+the `test_user` of their roles.
 """
 
-from django.apps import apps
+from django.apps import apps as global_apps
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
 
 
 #: the permissions of the permission groups, by the slug of the group
@@ -72,17 +76,16 @@ TEST_USERS = {'manager': 'manager', 'viewer': 'viewer'}
 TASK = 'Review the plan'
 
 
-def create_workflow() -> None:
+def create_workflow(apps) -> None:
     """
     The roles with their permission groups and permissions, and the statuses and transits
-    of the tasks (the transits are created in an order other than the sorted one); data that
-    exists already is kept.
+    of the tasks (the transits are created in an order other than the sorted one), with the
+    models of `apps` (those of a migration, or `django.apps.apps`); data that exists already
+    is kept.
     """
-    from bazis.contrib.statusy.models import Status, StatusyContentType, Transit
-
-    group_model = apps.get_model('permit.GroupPermission')
-    role_model = apps.get_model('permit.Role')
-    permission_model = apps.get_model('permit.Permission')
+    group_model = apps.get_model('permit', 'GroupPermission')
+    role_model = apps.get_model('permit', 'Role')
+    permission_model = apps.get_model('permit', 'Permission')
     permissions = {
         slug: permission_model.objects.get_or_create(slug=slug)[0]
         for slug in [*dict.fromkeys(it for slugs in GROUPS.values() for it in slugs), *UNGRANTED]
@@ -97,17 +100,21 @@ def create_workflow() -> None:
         )[0]
         role.groups_permission.add(*(groups[it] for it in group_slugs))
 
+    status_model = apps.get_model('statusy', 'Status')
     statuses = {
         # the initial status may already exist: it is created with the first task
-        pk: Status.objects.update_or_create(id=pk, defaults={'name_en': name})[0]
+        pk: status_model.objects.update_or_create(id=pk, defaults={'name_en': name})[0]
         for pk, name in STATUSES
     }
-    model = StatusyContentType.objects.get_for_model(apps.get_model('tasks.Task'))
+    # the content type of the tasks (`StatusyContentType` is its proxy), which a migration
+    # runs before the content types are created
+    content_types = apps.get_model('contenttypes', 'ContentType').objects
+    model = content_types.get_or_create(app_label='tasks', model='task')[0]
     for pk, name, src, dst, actions_before in TRANSITS:
-        Transit.objects.update_or_create(
+        apps.get_model('statusy', 'Transit').objects.update_or_create(
             id=pk,
             defaults={
-                'name_en': name, 'model': model, 'status_src': statuses[src],
+                'name_en': name, 'model_id': model.pk, 'status_src': statuses[src],
                 'status_dst': statuses[dst], 'actions_before': actions_before,
             },
         )
@@ -115,18 +122,24 @@ def create_workflow() -> None:
 
 def create_test_data(password: str) -> None:
     """
-    The data of the end-to-end tests: the test user of each role, with the password (set
-    again when the user exists, so that the tests log in with the current E2E_PASSWORD), and
-    the task that the scenario of the viewer opens.
+    The data of the end-to-end tests on top of the migrations: the test user of each role,
+    with the password (set again when the user exists, so that the tests log in with the
+    current E2E_PASSWORD), and the task that the scenario of the viewer opens. A role that
+    the migrations did not create is an error: this data never creates one.
     """
-    role_model = apps.get_model('permit.Role')
+    role_model = global_apps.get_model('permit', 'Role')
     for username, slug in TEST_USERS.items():
+        try:
+            role = role_model.objects.get(slug=slug)
+        except ObjectDoesNotExist:
+            raise LookupError(
+                f'The role {slug!r} of the test user {username!r} does not exist: migrate.'
+            ) from None
         user = get_user_model().objects.get_or_create(username=username)[0]
         user.set_password(password)
-        role = role_model.objects.get(slug=slug)
         user.roles.add(role)
         user.role_current = role
         user.save()
-    task_model = apps.get_model('tasks.Task')
+    task_model = global_apps.get_model('tasks', 'Task')
     if not task_model.objects.filter(title=TASK).exists():
         task_model.objects.create(title=TASK)

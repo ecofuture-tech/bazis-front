@@ -14,8 +14,9 @@
 
 // The end-to-end tests: those that `manage.py bazis_front e2e` generates from the scenarios of
 // the specs (e2e/generated/, never edited) and those of the product (e2e/custom/), both with
-// the helpers of e2e/bazis/. They run against the backend with its test data (the test users
-// of the roles, with the password E2E_PASSWORD); see AGENTS.md.
+// the helpers of e2e/bazis/. They run against the migrated backend with the data of
+// `manage.py e2e_data` (the test users of the roles, with the password E2E_PASSWORD); see
+// AGENTS.md.
 
 import { defineConfig, devices } from '@playwright/test';
 

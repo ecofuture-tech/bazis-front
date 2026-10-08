@@ -56,7 +56,7 @@ scenarios:
     steps:
       - open: task-list
       - expect: {action_absent: create}
-      - open_item: {where: {title: Review the plan}}   # created by `manage.py sample_data`
+      - open_item: {where: {title: Review the plan}}   # created by `manage.py e2e_data`
       # a field permission of the viewer (sample/tasks/workflow.py): the report is hidden
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
   # the picker of the assignee searches the user by the label; the list shows the label
