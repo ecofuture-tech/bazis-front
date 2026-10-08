@@ -20,6 +20,9 @@
       "@/bazis/react/statusy": [
         "../react/src/statusy/index.ts"
       ],
+      "@/bazis/react/uploadable": [
+        "../react/src/uploadable/index.ts"
+      ],
       "@/bazis/generated/schema": [
         "../react/test/fixtures/schema.d.ts"
       ],

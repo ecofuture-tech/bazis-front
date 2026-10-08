@@ -16,12 +16,17 @@ import { MutationObserver, QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 
 import { clearOnSessionChange } from '@/app/providers';
-import { LOGIN_ENABLED, login, logout } from '@/app/session';
+import { login, logout, PASSWORD_LOGIN } from '@/app/session';
 import type { Api } from '@/bazis/react';
 
-const api = { login: () => Promise.resolve({ access_token: 't', token_type: 'bearer' }) } as unknown as Api;
+// the token endpoint of bazis-users and the password service of bazis-authing
+const api = {
+  login: () => Promise.resolve({ access_token: 't', token_type: 'bearer' }),
+  auth: () => Promise.resolve({ status: 'signed_out', store: 'store', errors: [] }),
+  authLogin: () => Promise.resolve({ status: 'signed_in', user: { token: 't' } }),
+} as unknown as Api;
 
-describe.skipIf(!LOGIN_ENABLED)('clearOnSessionChange', () => {
+describe.skipIf(!PASSWORD_LOGIN)('clearOnSessionChange', () => {
   it('drops the queries and the mutations when the user changes', async () => {
     const queryClient = new QueryClient();
     const unsubscribe = clearOnSessionChange(queryClient);

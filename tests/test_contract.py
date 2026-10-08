@@ -62,7 +62,7 @@ def test_export_is_deterministic(sample_app, workflow, tmp_path):
 def test_resources_come_from_x_bazis(sample_app, tmp_path):
     resources = export(tmp_path)['project']['resources']
 
-    assert sorted(resources) == ['tasks.task', 'users.user']
+    assert sorted(resources) == ['tasks.task', 'uploadable.file_upload', 'users.user']
     task = resources['tasks.task']
     assert task['model'] == 'tasks.Task'
     assert task['route_set'] == 'tasks.routes.TaskRouteSet'
@@ -79,6 +79,14 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
         'relation': 'users.user', 'many': False, 'filter': 'assignee', 'order': 'assignee'
     }
     assert fields['status']['relation'] == 'statusy.status'
+    # a file of bazis-uploadable: a relationship to its uploaded files
+    assert fields['attachment'] == {
+        'relation': 'uploadable.file_upload', 'many': False, 'filter': 'attachment', 'order': 'attachment'
+    }
+    files = resources['uploadable.file_upload']
+    assert files['route_set'] == 'tasks.routes.FileRouteSet'
+    assert files['actions']['action_create'] == 'create'
+    assert sorted(files['fields']) == ['extension', 'file', 'name', 'size']
     assert resources['users.user']['fields']['roles']['many'] is True
     # a write-only attribute can be neither filtered nor sorted
     assert resources['users.user']['fields']['raw_password'] == {'type': 'string'}
@@ -114,8 +122,19 @@ def test_a_resource_is_described_by_the_default_route_of_its_model():
 def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path):
     sections = export(tmp_path)['capabilities']
 
-    assert sorted(sections) == ['permit', 'statusy', 'users']
+    assert sorted(sections) == ['authing', 'permit', 'statusy', 'uploadable', 'users']
     assert sections['users'] == {'token_url': '/api/openapi-token/', 'user_resource': 'users.user'}
+    # the login actions of BAZIS_AUTH_KINDS (the password only by default), as GET /auth/
+    # lists them
+    assert sections['authing'] == {
+        'auth_url': '/api/v1/authing/auth/',
+        'actions': [
+            {'code': 'password', 'name': 'Login/Password', 'method': 'POST', 'url': '/api/v1/authing/password/'},
+        ],
+        'token_param': 'bazis_auth',
+    }
+    # the resources of the route sets of FileUploadRouteSet; no size limit by default
+    assert sections['uploadable'] == {'max_size': None, 'resources': ['uploadable.file_upload']}
     # the effective permissions of a role: the union of those of its groups, sorted
     assert sections['permit']['roles'] == [
         {'slug': 'guest', 'name': 'Guest', 'for_anonymous': False, 'groups': [], 'permissions': []},
@@ -208,9 +227,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0003_title_not_empty')
+    unapply('tasks', '0004_attachment')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0003_title_not_empty.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0004_attachment.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -218,12 +237,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0003_title_not_empty' in messages[0].msg
+    assert 'tasks.0004_attachment' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0003_title_not_empty')
+    unapply('tasks', '0004_attachment')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )
@@ -231,8 +250,10 @@ def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monke
         capabilities.CAPABILITIES, 'statusy', capabilities.Capability('bazis-not-installed', 'x')
     )
 
-    assert capabilities.enabled() == ['users']
-    assert list(capabilities.sections()) == ['users']
+    # the sections of bazis-users, bazis-authing and bazis-uploadable are read from the
+    # settings and the routes
+    assert capabilities.enabled() == ['authing', 'uploadable', 'users']
+    assert list(capabilities.sections()) == ['authing', 'uploadable', 'users']
 
 
 def test_capabilities_follow_the_installed_apps():
@@ -240,7 +261,23 @@ def test_capabilities_follow_the_installed_apps():
     assert capabilities.app_enabled('bazis.contrib.users')
     assert capabilities.app_enabled('bazis.contrib.permit')
     assert not capabilities.app_enabled('bazis.contrib.ws')
-    assert capabilities.enabled() == ['permit', 'statusy', 'users']
+    assert capabilities.enabled() == ['authing', 'permit', 'statusy', 'uploadable', 'users']
+
+
+@pytest.mark.django_db
+def test_the_sections_follow_the_routes_and_the_settings(sample_app, settings):
+    from bazis.contrib.front.capabilities import authing, uploadable
+
+    settings.BAZIS_FILE_UPLOAD_MAX_SIZE = 1024
+    assert uploadable.section()['max_size'] == 1024
+    # a service that does not import, one without a login action, and the password
+    settings.BAZIS_AUTH_KINDS = [
+        'not.a.service', 'bazis.contrib.authing.services', 'bazis.contrib.authing.services.password',
+    ]
+    assert [it['code'] for it in authing.section()['actions']] == ['password']
+    # the route of a service that is not registered (Google) is left out
+    settings.BAZIS_AUTH_KINDS = ['bazis.contrib.authing.services.google', 'bazis.contrib.authing.services.password']
+    assert [it['code'] for it in authing.section()['actions']] == ['password']
 
 
 def test_openapi_hash_covers_the_operation_surface():

@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // The support of the contract tests of the components (`*.contract.test.tsx`): a backend
-// that answers the requests of the client (a mocked `fetch`), the documents and runtime
+// that answers the requests of the client (a mocked `fetch`, and the XMLHttpRequest of its
+// uploads), the documents and runtime
 // schemas of Bazis it answers with, and the render of a component inside the providers of
 // the hooks and a router. The tests find the elements by their `data-bz` (`getByTestId`).
 // Only the tests import it.
@@ -56,8 +57,59 @@ interface Reply {
 }
 
 /**
+ * The XMLHttpRequest of an upload of the client: sent to the backend, which answers it as a
+ * fetch (with the reply of `POST <url>`), after the progress of half and of all the file.
+ */
+class UploadRequest {
+  private url = '';
+  status = 0;
+  statusText = '';
+  responseText = '';
+  upload: { onprogress: ((event: { loaded: number; total: number; lengthComputable: boolean }) => void) | null } = {
+    onprogress: null,
+  };
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  private aborted = false;
+
+  constructor(private readonly backend: Backend) {}
+
+  open(_method: string, url: string) {
+    this.url = url;
+  }
+
+  setRequestHeader() {
+    // the headers are those of the client, checked by its tests
+  }
+
+  send(body: FormData) {
+    const file = body.get('file');
+    const size = file instanceof Blob ? file.size : 0;
+    const fields = Object.fromEntries(
+      [...body.entries()].map(([name, value]) => [name, value instanceof File ? value.name : value]),
+    );
+    void this.backend.fetch(this.url, { method: 'POST', body: JSON.stringify(fields) }).then(async (response) => {
+      if (this.aborted) return;
+      this.upload.onprogress?.({ loaded: Math.floor(size / 2), total: size, lengthComputable: true });
+      this.upload.onprogress?.({ loaded: size, total: size, lengthComputable: true });
+      this.status = response.status;
+      this.statusText = response.statusText;
+      this.responseText = await response.text();
+      this.onload?.();
+    });
+  }
+
+  abort() {
+    this.aborted = true;
+    this.onabort?.();
+  }
+}
+
+/**
  * A backend: `on(method, url, body, status)` registers a reply; a url without `?` answers
- * the path with any query. `calls` are the requests, in their order.
+ * the path with any query. `calls` are the requests, in their order; an upload is a `POST`
+ * whose body has the name of its file (`{file: 'brief.txt'}`).
  */
 export class Backend {
   readonly calls: Call[] = [];
@@ -94,6 +146,9 @@ export class Backend {
     const body = reply.body === undefined ? null : JSON.stringify(reply.body);
     return new Response(reply.status === 204 ? null : body, { status: reply.status });
   };
+
+  /** The XMLHttpRequest of the uploads of the client. */
+  readonly xhr = (): XMLHttpRequest => new UploadRequest(this) as unknown as XMLHttpRequest;
 }
 
 /** A JSON:API error document with the errors of fields: `{title: 'Required'}`. */
@@ -190,7 +245,7 @@ export function renderWithBazis(
   { route = '/' }: { route?: string } = {},
 ): RenderResult & { queryClient: QueryClient } {
   const queryClient = createQueryClient();
-  const api = createClient<paths>({ baseUrl: BASE, fetch: backend.fetch });
+  const api = createClient<paths>({ baseUrl: BASE, fetch: backend.fetch, xhr: backend.xhr });
   const result = render(
     <MemoryRouter initialEntries={[route]}>
       <QueryClientProvider client={queryClient}>

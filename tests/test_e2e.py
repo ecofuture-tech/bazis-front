@@ -46,6 +46,7 @@ MANAGER = 'e2e/generated/manager-finishes-a-task.spec.ts'
 VIEWER = 'e2e/generated/viewer-only-reads.spec.ts'
 EMPTY_TITLE = 'e2e/generated/manager-cannot-save-an-empty-title.spec.ts'
 ASSIGNS = 'e2e/generated/manager-assigns-a-task.spec.ts'
+ATTACHES = 'e2e/generated/manager-attaches-a-brief.spec.ts'
 REPORT = 'e2e/generated/manager-cannot-change-the-report.spec.ts'
 
 
@@ -126,6 +127,23 @@ def test_the_text_of_a_scenario():
         '  });\n'
         '});\n'
     )
+
+
+def test_the_upload_of_a_file_and_the_values_of_a_card():
+    text = rendered(REPOSITORY / 'sample')[ATTACHES]
+    # the upload starts the edit of the card; its submit stays on the card
+    assert (
+        "  await test.step('upload: {field: attachment, file: brief.txt}', async () => {\n"
+        "    await app.action('edit');\n"
+        "    await app.upload('attachment', 'brief.txt');\n"
+        '  });\n'
+        "  await test.step('submit', async () => {\n"
+        '    await app.submit();\n'
+        '  });\n'
+        "  await test.step('expect: {values: {title: Attach the brief, attachment: brief.txt}}', async () => {\n"
+        "    await app.expectValues({ title: 'Attach the brief', attachment: 'brief.txt' });\n"
+        '  });\n'
+    ) in text
 
 
 def test_the_steps_follow_the_walk_of_the_scenario(tmp_path):
@@ -225,10 +243,10 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     out = generate()
     frontend = root / 'frontend'
     files = rendered(root)
-    assert sorted(files) == [ASSIGNS, REPORT, EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS, VIEWER]
+    assert sorted(files) == [ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS, VIEWER]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 5 end-to-end tests' in out
+    assert 'Generated 6 end-to-end tests' in out
     lock = lock_of(root)
     assert lock['e2e'] == {
         'spec': {
@@ -265,7 +283,7 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert not (frontend / VIEWER).exists()
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
-    assert sorted(lock_of(root)['e2e']['generated']) == [ASSIGNS, REPORT, EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS]
+    assert sorted(lock_of(root)['e2e']['generated']) == [ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS]
     generate('--check')
 
 
@@ -286,7 +304,7 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     generate()
     assert {path: (frontend / path).read_bytes() for path in others} == before
     assert sorted(lock_of(root)['e2e']['generated']) == [
-        ASSIGNS, REPORT, EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS, VIEWER,
+        ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, e2e.PRODUCT_TS, VIEWER,
     ]
 
 

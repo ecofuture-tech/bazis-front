@@ -15,7 +15,16 @@
 from django.apps import apps
 
 from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
+from bazis.contrib.uploadable.routes import FileUploadRouteSet
+from bazis.contrib.users.routes_abstract import UserRequiredRouteBase
 
 
 class TaskRouteSet(StatusyRouteSetBase):
     model = apps.get_model('tasks.Task')
+
+
+class FileRouteSet(FileUploadRouteSet, UserRequiredRouteBase):
+    """
+    The files attached to the tasks (bazis-uploadable): a user who is logged in uploads and
+    reads them. `FileUploadRouteSet` comes first: its create reads the multipart form.
+    """

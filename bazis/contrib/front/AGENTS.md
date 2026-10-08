@@ -49,7 +49,8 @@ screen that lists the resources of the contract. It never overwrites an existing
   and the same pristine copy in `.bazis/base/<asset>@<version>/` for the merge of later
   versions. The hooks of a package are copied only when the product has it at `init` (its
   app in `INSTALLED_APPS`, as the capabilities of the contract): with bazis-statusy the
-  asset `react-statusy` in `src/bazis/react/statusy/`. A package installed after `init` has
+  asset `react-statusy` in `src/bazis/react/statusy/`, with bazis-uploadable `react-uploadable`
+  in `src/bazis/react/uploadable/`. A package installed after `init` has
   no hooks in the frontend until `bazis_front add react-statusy` (or a component that
   requires them) copies them: `check` reports it (`C003`);
 - the components that the template uses, `state-panel`, `app-shell` and `login-form`, in
@@ -67,14 +68,18 @@ Commit `bazis-front.lock.json` and `.bazis/`: `update` merges a new version with
 changes of the product from the pristine copies, and the old version is no longer installed
 then. The files that `init` and `add` copy are
 listed in `assets/registry.json` of the package. The frontend compiles once `contract` has generated
-`src/bazis/generated/`. It has a login (the token endpoint of bazis-users) only when the
-backend has bazis-users; without it every screen is open and requests are anonymous.
+`src/bazis/generated/`. It has a login only when the backend has bazis-users; without it
+every screen is open and requests are anonymous. The login is the token endpoint of
+bazis-users, or with bazis-authing its services: the username and the password through the
+service `password`, and a button for each service whose page opens in a window (Google);
+see [Logins with bazis-authing](#logins-with-bazis-authing).
 
 ## The components
 
 ```bash
 python manage.py bazis_front add resource-list resource-card resource-form   # the core
 python manage.py bazis_front add status-badge status-history transit-bar     # with bazis-statusy
+python manage.py bazis_front add file-field                                  # with bazis-uploadable
 ```
 
 The components are the visual building blocks of the screens: React components on
@@ -90,7 +95,8 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 `@testing-library/react` with `jsdom` for their tests).
 
 - A component of a package needs its capability in `contract/contract.json` (export the
-  contract first): `transit-bar`, `status-badge` and `status-history` need `statusy`; `add` fails with the
+  contract first): `transit-bar`, `status-badge` and `status-history` need `statusy`,
+  `file-field` needs `uploadable`; `add` fails with the
   missing capability and copies nothing.
 - An asset already in the frontend is kept as it is; `add` of it again does nothing when
   it is unchanged. `add` never overwrites: a component named again that was changed in the
@@ -119,13 +125,14 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 |---|---|---|---|
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, children})`, `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
-| `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
+| `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?, cells?, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?: 'dialog' \| 'page'})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
+| `file-field` | `FileFieldProvider({accept?: {field: types}, maxSize?, children})`: `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField(props)`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -134,8 +141,9 @@ runtime schemas; an action with a `permission` (`add` on a list, `change` or `de
 row or an item) is shown when the permission meta of bazis-permit allows it, and always
 when the backend does not report the meta. The shared parts are the asset `resource`
 (`FieldInput`, the only input of a field: the forms and the payloads of the transits use
-it; `FieldValue`, `RelationLabel`, `RelationPicker`, `permitted`) and `testing` (the support
-of the contract tests). `assets/ui/README.md` of the package documents each component.
+it; `FieldValue`, `RelationLabel`, `RelationPicker`, `FileValue`, `FilesProvider`,
+`permitted`) and `testing` (the support of the contract tests). `assets/ui/README.md` of
+the package documents each component.
 
 - **Field permissions** (bazis-permit, `<app>.<model>.field.<operation>.<selector>[.<status>]
   .<field>.<restriction>`: `enable`, `readonly`, `disable`…) are read from what the backend
@@ -156,6 +164,20 @@ of the contract tests). `assets/ui/README.md` of the package documents each comp
   (`useRelatedItem`, `filter=pk=<a>|pk=<b>|…`). Both need the route of the related resource
   in `ROUTES`; the user sees the items its list returns to them. To-many relationships are
   shown, not edited, by the components: change them with `useRelationship`.
+- **Files** (bazis-uploadable): a model references an uploaded file with a foreign key to
+  `uploadable.FileUpload`; its field is a to-one relationship to `uploadable.file_upload`
+  (a resource of `resources` of the capability `uploadable`), `type: file` in the specs.
+  `FieldValue` shows it (`FileValue`: a link to the file with its size, a thumbnail of an
+  image, the files of a page read with one request) in the cards and the lists. In the
+  forms, with `FileFieldProvider` around the routes (`src/app/router.tsx`), `FieldInput`
+  edits it with `FileField`: a drop zone and a picker, the file uploaded at once with its
+  progress and a cancel, its id set as the value of the relationship, a replace and a
+  remove (when the relationship is nullable); a file larger than `max_size` of the
+  contract, or of a type that `accept` refuses, is not sent, and the 413
+  `ERR_FILE_TOO_LARGE` of the backend is the error of the field; `ResourceForm` is not
+  submitted while a file uploads. Without the provider the field is the picker of a
+  relationship. The payloads of the transits have no files (a payload has no
+  relationships).
 - **The status history** (`StatusHistory`) is what bazis-statusy exposes: the current
   status with `status_dt` and `status_author`. bazis-statusy records every transit
   (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
@@ -223,6 +245,10 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   }},
   "capabilities": {
     "users": {"token_url": "/api/openapi-token/", "user_resource": "users.user"},
+    "authing": {"auth_url": "/api/v1/authing/auth/", "token_param": "bazis_auth",
+                "actions": [{"code": "password", "name": "Login/Password", "method": "POST",
+                             "url": "/api/v1/authing/password/"}]},
+    "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"]},
     "permit": {"roles": [{"slug": "manager", "name": "Manager", "for_anonymous": false,
                           "groups": ["tasks_change"], "permissions": ["tasks.task.item.change.all.draft"]}]},
     "statusy": {"models": {"tasks.task": {
@@ -247,7 +273,14 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `filter` and `order` are the labels for `filter` and `sort`, absent when the field cannot
   be filtered or sorted.
 - `capabilities` has a section for each installed package whose app is in
-  `INSTALLED_APPS`: `users` (the token endpoint, the resource of the user model), `permit`
+  `INSTALLED_APPS`: `users` (the token endpoint, the resource of the user model), `authing`
+  (the auth endpoint of bazis-authing, null when it is not routed; the login actions of
+  the services of `BAZIS_AUTH_KINDS` as the endpoint lists them in `meta.actions`, in the
+  order of the setting, without those whose route is not registered; the query parameter
+  of the store token, `BAZIS_AUTH_COOKIE_NAME`), `uploadable` (`max_size`, the
+  `BAZIS_FILE_UPLOAD_MAX_SIZE` of an upload in bytes, null for no limit; `resources`, the
+  JSON:API types of the route sets of `FileUploadRouteSet` and its subclasses: a to-one
+  relationship to one of them is a file), `permit`
   (the roles with the slugs of their permission groups and their effective permissions:
   the union of the permissions of the groups, as bazis-permit checks them for the current
   role of a user; a role has no permissions of its own), `statusy` (per statusy model: the
@@ -289,7 +322,7 @@ its tests):
 # yaml-language-server: $schema=./schema/product.schema.json
 spec: bazis-product/1
 product: {id: tasks, name: Tasks, summary: The tasks of a team}
-packages: [users, permit, statusy]       # each needs its section in the contract
+packages: [users, authing, permit, statusy, uploadable]   # each needs its section in the contract
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
@@ -302,6 +335,7 @@ entities:
       - {id: report, type: text}
       - {id: dt_created, type: datetime}
       - {id: assignee, relation: user}   # many: false by default
+      - {id: attachment, type: file}     # bazis-uploadable: a relationship to its uploaded files
     workflow:                            # bazis-statusy; the entity gets the field `status`
       initial: draft
       statuses: [draft, in_progress, done]
@@ -334,7 +368,10 @@ scenarios:
 
 - **Fields** are those of the resource in the API (`fields` of contract.json), with `type`
   (`string`, `text`, `integer`, `number`, `boolean`, `date`, `datetime`, `time`, `json`,
-  `file`) or `relation` (the id of an entity) and `many`. What is required, writable or
+  `file`) or `relation` (the id of an entity) and `many`. A `file` is a to-one
+  relationship to a resource of the uploaded files of bazis-uploadable (`resources` of the
+  capability `uploadable`; P013 otherwise): declare such a relationship as a `file`, not as
+  a `relation`; it needs no entity. A payload of a transit has no `file`. What is required, writable or
   visible for the current user is not in the spec: the runtime schemas of the backend
   decide it.
 - **Workflow**: the statuses and the transits of bazis-statusy; a transit has one `from`
@@ -368,10 +405,13 @@ scenarios:
   key: `open: <screen>`, `open_item: {where: {field: value}}` (a row of the current list,
   which opens the screen of its `list.open`), `action: <action of the screen>`,
   `fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
-  `edit: true`), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
+  `edit: true`; a `file` field is uploaded, a file of `e2e/fixtures/` of the frontend,
+  never filled: P022), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
   `transitions: true`), `expect` with `screen`, `status`, `state`, `action_absent`,
   `field_readonly`, `field_absent` (a field the screen shows that the user may not see:
-  not on the screen once it is loaded), `rows`, `error`. The validator follows the steps from screen to screen
+  not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
+  current card, without an open form, show these texts; a file its name), `rows`,
+  `error`. The validator follows the steps from screen to screen
   and checks each against the screen it acts on: `open` takes a screen without an item in
   its route (an item is reached with `open_item` or the `then` of a form), a form with
   `fields` is filled only in them, `action_absent` names an action of the screen and
@@ -380,7 +420,8 @@ scenarios:
   (no `then`), and the next steps fix it and submit again. Only an `error` marks a failing
   submit: `expect: {state: invalid}` after a submit still follows the `then`. When the
   product logs in (`packages` has `users`), the role of a scenario has a `test_user`, the
-  user its end-to-end test logs in as (P025). `bazis_front e2e` turns each scenario into a
+  user its end-to-end test logs in as (P025) with its password: with bazis-authing, through
+  its service `password` (P026). `bazis_front e2e` turns each scenario into a
   Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
 
 ### `spec/screens/<id>.yaml` (`spec: bazis-screen/1`)
@@ -430,7 +471,9 @@ invalid`.
 **`data-bz`**: the screens mark their elements, and the scenarios act through them:
 `screen:<id>`, `state:<loading|empty|loaded|error|forbidden|not_found|invalid>`,
 `list:<entity>`, `row:<id>` (its cells `cell:<column>`), `field:<field>`,
-`error:<field>`, `action:<id>`, `transit:<id>`, `status:<id>`, `nav:<screen>`.
+`error:<field>`, `upload:<field>` (a file field, `aria-busy` while its file uploads; the
+input of the file is its `field:<field>`), `action:<id>`, `transit:<id>`, `status:<id>`,
+`nav:<screen>`.
 
 ### `spec/design/` (`spec: bazis-design/1`)
 
@@ -496,6 +539,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
 | `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
 | `P025` | error | the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`) |
+| `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -628,10 +672,10 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where}` | `openItem({where})`: the first `row:<id>` of the page whose cells `cell:<name>` have exactly these texts; then `expectScreen` of `list.open` |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/`) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
+  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` and `expectError` (visible ones), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectRows`, in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
@@ -798,7 +842,12 @@ for what they do not cover (the login, a custom endpoint).
   list, `['crud_actions']` on an item) and read it with `can()`; read the editable fields
   of an item from its runtime schema `schema_update` (`useResourceForm`, `useSchema`).
 - Log in with `api.login()` and keep the token in the application; the client reads it
-  through the `token` option on every request.
+  through the `token` option on every request. With bazis-authing the template logs in
+  with `api.auth()`, `api.authLogin()` and `api.authWait()` (see
+  [Logins with bazis-authing](#logins-with-bazis-authing)).
+- Upload a file with `api.upload(path, file, {name?, onProgress?, signal?})` (or
+  `useUpload`): a multipart `POST` to the route set of the uploaded files, with
+  XMLHttpRequest for its progress.
 
 ## The hooks
 
@@ -810,10 +859,12 @@ examples):
 import { ROUTES } from '@/bazis/generated/contract';
 import { useList, useResourceForm } from '@/bazis/react';
 import { useTransit, useTransits } from '@/bazis/react/statusy';   // with bazis-statusy
+import { useUpload } from '@/bazis/react/uploadable';             // with bazis-uploadable
 
 const list = useList(ROUTES['tasks.task'], { sort: ['-dt_created'], page: { limit: 20 }, meta: ['pagination'] });
 const form = useResourceForm(ROUTES['tasks.task'], { id });          // without id: a create
 const transits = useTransits(ROUTES['tasks.task'], id);               // [{id, allowed, restricts, payload}]
+const upload = useUpload(ROUTES['uploadable.file_upload']);           // upload(file) -> the item; progress, abort
 ```
 
 - `useList`, `useItem`, `useSchema`, `useFilterFields` read; `useCreate`, `useUpdate`,
@@ -831,10 +882,41 @@ const transits = useTransits(ROUTES['tasks.task'], id);               // [{id, a
 - `useTransits(path, id)` reads `meta.state_actions` of the item: the transits the user may
   run now, `allowed` unless a validator restricts them, with the JSON Schema of their
   payload. `useTransit(path, id)` runs one; null when the user can no longer view the item.
+- `useUpload(path)` uploads one file at a time to a route set of the uploaded files:
+  `upload(file, {name?})` resolves to the created item (null when aborted), with `status`
+  (`idle`, `uploading`, `success`, `error`), `progress` (`{loaded, total}` while it uploads),
+  `error`, `abort()` and `reset()`; it refetches the queries of the route set.
 - The template clears the query and mutation caches when the user changes, and every query
   key ends with the session of `BazisProvider` (a number that changes at every login and
   logout), so the data of one user is never shown to another, even from a request still
   running.
+
+## Logins with bazis-authing
+
+bazis-authing (its section `authing` in the contract) signs users in through an
+authorization store of its auth endpoint; the session token it gives is the JWT of
+bazis-users, sent as the bearer token like the token of `token_url`. The template
+(`src/app/session.ts`) logs in so when the contract has `authing.auth_url`:
+
+1. `GET <auth_url>` without a token: a 400 whose error `UNAUTHORIZED` has in `meta.token` the
+   token of a new store (and in `meta.actions` the login actions, also in the contract).
+   The store token has no `exp`: a request with it is anonymous, never a session.
+2. The password (the action `password`, `POST`): `POST <url>` with
+   `Authorization: Bearer <store>` and `{username, password}`; it answers 303 to the auth
+   endpoint, which answers 200 `{user_id, username, …, token}` (`token` is the session
+   token), or 400 with the error `USERNAME_PASSWORD_ERROR` (status 422) of the store.
+3. A service in its page (`GET`, Google): the template opens a window at
+   `<url>?<token_param>=<store>` (the service returns to the auth endpoint in that window)
+   and asks the auth endpoint with the store token every 1.5 s until it is signed in, has an
+   error (`GOOGLE_AUTH_ERROR`), or has expired (`BAZIS_AUTH_COOKIE_LIFETIME`: the endpoint
+   answers with another store); the login screen offers a cancel meanwhile. The services
+   with another body than the password (an own service) are not offered.
+
+The client sends these requests without cookies (`credentials: 'omit'`): the endpoint sets
+the store token as a cookie, and a store that is signed in would sign the next user in as
+the previous one until it expires. The store token is kept only during the login. Without
+the service `password` the login screen has no username and password, and the end-to-end
+tests cannot log in (P026).
 
 ## Protocol facts that are easy to get wrong
 
@@ -852,3 +934,14 @@ const transits = useTransits(ROUTES['tasks.task'], id);               // [{id, a
   descending; meta fields such as `pagination` are returned only when requested with
   `meta`.
 - Validation errors are 422 with `errors[].source.pointer` such as `/attributes/name`.
+- An uploaded file (bazis-uploadable) is the multipart create of its route set (`file`,
+  optional `name`), not a JSON:API document; the response is the item with `file` (the URL
+  of the file in the storage: the path of `MEDIA_URL` for the file system, which the API
+  redirects to `MEDIA_HOST_URL`), `name`, `extension`, `size`. A model references it by a
+  to-one relationship, set to its id in the document of a create or an update. A file larger
+  than `BAZIS_FILE_UPLOAD_MAX_SIZE` is a 413 `ERR_FILE_TOO_LARGE`, checked after the whole
+  body is received. bazis-uploadable does not restrict the types and never deletes a
+  replaced file from the storage.
+- The `id` of an item of a model with an integer primary key (`FileUpload`) is a JSON number
+  in its documents, a string in the relationships that reference it: compare them as
+  strings.

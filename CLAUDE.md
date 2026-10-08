@@ -30,8 +30,13 @@ python -m pytest ../tests -o addopts="" -p no:cacheprovider
 
 Lint: `ruff check bazis tests sample scripts`.
 
-The sample (`sample/`) installs bazis-users, bazis-permit and bazis-statusy (the `test`
-extra) with a project app `users` and a statusy model `tasks.Task`; the roles, statuses and
+The sample (`sample/`) installs bazis-users, bazis-authing, bazis-permit, bazis-statusy and
+bazis-uploadable (the `test` extra) with a project app `users` and a statusy model
+`tasks.Task`, whose `attachment` is a file of bazis-uploadable (a foreign key to
+`uploadable.FileUpload`, uploaded through `tasks.routes.FileRouteSet`, a
+`FileUploadRouteSet` that requires a user); the auth endpoint and the password service of
+bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
+sample is that of bazis-authing (the token endpoint of bazis-users stays); the roles, statuses and
 transits are defined once in `sample/tasks/workflow.py`, created for the tests by the
 fixture `workflow` (`tests/conftest.py`) and outside pytest by `manage.py sample_data`
 (with the test users of the roles, their password set to `E2E_PASSWORD` at every run, and
@@ -42,8 +47,9 @@ title of a task is not empty (`MinLengthValidator`), for the scenario of a faili
 submit. `sample/spec/` is a complete valid spec of the sample: the permissions
 of the roles of `workflow` cover its `access`, and `tests/test_spec.py` checks it against
 the contract. `sample/frontend-overlay/` holds the screens of the sample (product code, the
-reference of screens written from specs), copied over a frontend made from the sample by
-the `e2e` job of CI.
+reference of screens written from specs; `src/app/router.tsx` wraps the routes in
+`FileFieldProvider`) and `e2e/fixtures/` (the files that the scenarios upload), copied over a
+frontend made from the sample by the `e2e` job of CI.
 
 ### The contract export
 
@@ -194,11 +200,12 @@ npm test
 
 ### The client (`assets/client`)
 
-- `src/`: `client.ts` (the operations), `types.ts` (types read from the generated `paths`),
-  `filter.ts` (the filter grammar of `bazis.core.utils.query_complex`), `errors.ts`,
-  `pagination.ts`, `permit.ts`.
+- `src/`: `client.ts` (the operations, with the upload of bazis-uploadable over
+  XMLHttpRequest and the authorization store of bazis-authing), `types.ts` (types read from
+  the generated `paths`), `filter.ts` (the filter grammar of
+  `bazis.core.utils.query_complex`), `errors.ts`, `pagination.ts`, `permit.ts`.
 - Unit tests (`test/*.test.ts`) assert the exact URLs, headers and bodies against a mocked
-  `fetch`. Type tests (`test/types.typecheck.ts`) are checked by `npm run typecheck` with
+  `fetch` (the uploads against a fake XMLHttpRequest of the option `xhr`). Type tests (`test/types.typecheck.ts`) are checked by `npm run typecheck` with
   `@ts-expect-error` for what must not compile.
 - The types of the type tests come from the OpenAPI of the core `sample/`
   (`test/fixtures/`). Regenerate both files after a change of the core schemas:
@@ -212,7 +219,8 @@ npm test
   keys), `queries.ts`, `mutations.ts`, `related.ts` (`useRelatedItem`: the related items
   asked for together read with one list filtered by `pk=<a>|pk=<b>`), `schema.ts` (the fields of a runtime schema),
   `form.ts` (`useResourceForm`), `types.ts`; `src/statusy/` is the separate asset
-  `react-statusy` (`requires` the capability `statusy`). `README.md` documents the API, the
+  `react-statusy` (`requires` the capability `statusy`), `src/uploadable/` the asset
+  `react-uploadable` (`useUpload`, the capability `uploadable`). `README.md` documents the API, the
   keys and the protocol facts they rely on.
 - They import `@/bazis/client` and `@/bazis/generated/schema` as a product does; in this
   repository `tsconfig.json` (`paths`) and `vitest.config.ts` (`alias`) point them to the
@@ -238,17 +246,21 @@ npm test
 
 - A directory per component (`ui/<component>/`: its sources, `index.ts`, its contract test
   `<component>.contract.test.tsx`), copied to `src/bazis/ui/<component>/`; `ui/resource/`
-  is what they share (`FieldInput`, the only input of a field; `FieldValue`, `RelationLabel`,
+  is what they share (`FieldInput`, the only input of a field, with the control of a file
+  field that `FilesProvider` gives it; `FieldValue`, `FileValue`, `RelationLabel`,
   `RelationPicker`, `permitted`, and `hooks.ts`, the hooks with plain paths: the only casts of the
-  components, so that the lint of a product does not depend on its types); `ui/testing/`
-  the support of the contract tests; `ui/shadcn/` the shadcn/ui components they use (style
+  components, so that the lint of a product does not depend on its types; `file-field` casts
+  `useUpload` of its own, which `resource` cannot import); `ui/testing/`
+  the support of the contract tests (its `Backend` also answers the uploads of the client,
+  `xhr`); `ui/shadcn/` the shadcn/ui components they use (style
   new-york-v4 with the aliases of `components.json`, their MIT notice in the header of each
   file), each an asset copied to `src/components/ui/`. `README.md` documents them.
 - The contract tests are copied into products and run there by `npm test` (jsdom, set in
   `vite.config.ts` of the template): they are package data, and must pass against any
   product. They use the route set `ITEMS` of `testing` (of no product) and the documents
   and schemas of `testing`, never a resource of the sample (a related resource is given
-  by its `path`, as `RelationPicker` and `RelationLabel` take it). jsdom has no
+  by its `path`, as `RelationPicker` and `RelationLabel` take it, and the resources of the
+  uploaded files by `resources` of `FilesProvider`/`FileFieldProvider`). jsdom has no
   `ResizeObserver` and no `scrollIntoView`: a contract test that opens a popover stubs them.
 - In this repository `tsconfig.json` and `vitest.config.ts` alias the `@/` imports to the
   other assets, to `src/lib/utils.ts` of the template, to `test/fixtures/contract.ts`

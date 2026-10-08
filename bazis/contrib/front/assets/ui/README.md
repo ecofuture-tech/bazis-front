@@ -54,13 +54,14 @@ sample (`tests/test_design.py` checks it; write it again with
 |---|---|---|---|
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`; `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout` | |
-| `login-form` | `LoginForm({onLogin(credentials), onSuccess?, title?})` | `field:username`, `field:password`, `action:submit`, `state:error` | |
+| `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | capability `statusy` |
 | `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
+| `file-field` | `FileFieldProvider({accept?, maxSize?, resources?, children})`; `FileField(props)` (the control of a file field of `FieldInput`, with `maxSize?`, `accept?`, `path?`); `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it), `FieldValue`,
@@ -69,7 +70,10 @@ only one: the forms and the payloads of the transits use it), `FieldValue`,
 `path`), `useListFields`/`useItemFields` (the titles and types of the list, retrieve and
 update schemas, `has(name)`: whether the schema of the user has the field),
 `permitted(meta, action, id?)` (the permission meta of bazis-permit; allowed when the
-backend does not report it), and the hooks with plain paths for the bodies of the
+backend does not report it), the files of bazis-uploadable (`FilesProvider({control,
+resources?})`, which gives `FieldInput` the control of the file fields; `FileValue({relation,
+id, path?, preview?})`, `FileView`, `isFile`, `formatSize`, `FILE_RESOURCES`: the resources
+of `uploadable` of the contract), and the hooks with plain paths for the bodies of the
 components. `testing` is the support of the contract tests: a backend for the mocked
 `fetch` of the client, the documents and runtime schemas of Bazis, `renderWithBazis`, and
 `getByTestId` reading `data-bz`.
@@ -128,8 +132,25 @@ components. `testing` is the support of the contract tests: a backend for the mo
   without a route is an input of the id.
 - **`resource-form`** is `useResourceForm`: the fields of `schema_create/` or
   `schema_update/` of the current user, read-only ones disabled and never sent; a to-one
-  relationship is a `RelationPicker`; to-many relationships are left out
-  (`useRelationship`).
+  relationship is a `RelationPicker` (a file field the control of `FilesProvider`); to-many
+  relationships are left out (`useRelationship`). It is not submitted while a file of a
+  field uploads (`onBusy` of `FieldInput`).
+- **Files** (bazis-uploadable): a field is a file when it is a to-one relationship to a
+  resource of `resources` of the capability `uploadable` (`uploadable.file_upload`, whose
+  items have `file`, the URL in the storage, `name`, `extension`, `size`). `FieldValue`
+  shows it with `FileValue` in the cards and the lists: a link to the file (in a new tab)
+  with its size and a thumbnail of an image (by its extension), the files of a page read
+  with one request (`useRelatedItem`). **`file-field`**: `FileField` is a drop zone with a
+  picker (the input is hidden, `field:<name>`; the label of the field opens it), the file
+  uploaded at once with `useUpload` (its progress, a cancel), then the field set to the id
+  of the created item (a string); the file of the value with a replace and, for a nullable
+  relationship, a remove; a thumbnail of an image chosen is its local copy until it is
+  saved. A file larger than `maxSize` (`max_size` of the contract) or of a type that
+  `accept` refuses is not sent; these errors and those of the backend (413
+  `ERR_FILE_TOO_LARGE`, 401, 403) are the errors of the field. A form closed while its file
+  uploads aborts the upload; a replaced file stays in the storage (bazis-uploadable never
+  deletes one). `FileFieldProvider` makes it the control of every file field of the forms
+  below it, with `accept` by the name of a field.
 - **`status-history`** shows what bazis-statusy exposes of the history of an item: its
   status since `status_dt`, by `status_author` (the user of the transit that set it; none
   for the initial status), each when the user may see the field. bazis-statusy records

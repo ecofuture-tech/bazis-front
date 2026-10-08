@@ -45,8 +45,10 @@ async function readChunk(api: Api, path: string, batch: Batch, ids: readonly str
     const document = (await loose(api).list(path, {
       filter: Filter.or(...ids.map((id) => Filter.where('pk', id))),
       page: { limit: ids.length },
-    })) as { data: readonly { id: string }[] };
-    const items = new Map(document.data.map((item) => [item.id, item]));
+    })) as { data: readonly { id: string | number }[] };
+    // the id of an item of a model with an integer primary key is a number in the documents
+    // of the core (a string in the relationships that reference it)
+    const items = new Map(document.data.map((item) => [String(item.id), item]));
     for (const id of ids) {
       for (const waiter of batch.get(id) ?? []) waiter.resolve(items.get(id) ?? null);
     }

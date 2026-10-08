@@ -57,7 +57,16 @@ def test_the_registry_lists_the_sources_of_the_hooks():
     assert (statusy.kind, statusy.source, statusy.target, statusy.capabilities) == (
         registry.VENDORED, 'react/src/statusy', 'src/bazis/react/statusy', ('statusy',)
     )
-    listed = [*react.files, *(f'statusy/{name}' for name in statusy.files)]
+    # the hooks of bazis-uploadable, `@/bazis/react/uploadable`
+    uploadable = assets['react-uploadable']
+    assert (uploadable.kind, uploadable.source, uploadable.target, uploadable.capabilities) == (
+        registry.VENDORED, 'react/src/uploadable', 'src/bazis/react/uploadable', ('uploadable',)
+    )
+    listed = [
+        *react.files,
+        *(f'statusy/{name}' for name in statusy.files),
+        *(f'uploadable/{name}' for name in uploadable.files),
+    ]
     assert sorted(listed) == files_of(ASSETS / 'react' / 'src')
 
 

@@ -40,7 +40,7 @@ marks of the states, never for a fixed time:
 | `openItem({where})` | `open_item` | clicks the first `row:<id>` of the current screen whose cells `cell:<name>` have exactly these texts (on the page shown) |
 | `action(id)` | `action` | clicks `action:<id>` of the current screen (also `action:edit` of a card, before a `fill` of its edit) |
 | `fill(values)` | `fill` | fills `field:<name>` of the open form: the `<form>` with `action:submit`; a select (a choice) by the label of its option, a combobox (`role="combobox"`, the picker of a relationship) by the label of the item searched in its popup (`aria-controls`; null: its option `data-value=""`), a checkbox by true or false |
-| `upload(field, file)` | `upload` | sets a file of `e2e/fixtures/` in `field:<name>` of the open form |
+| `upload(field, file)` | `upload` | sets a file of `e2e/fixtures/` in the input `field:<name>` of a file field of the open form, and waits until its field `upload:<name>` is no longer busy (`aria-busy`) and shows the name of the file, or an error of this upload is shown |
 | `submit()` | `submit` | clicks `action:submit` of the open form and waits until it is closed or shows an error of this submit (`state:<error>`, `error:<name>`; those of a previous submit do not count) |
 | `transit(id, payload?)` | `transit` | clicks `transit:<id>`, fills and submits the dialog of its payload, and waits until the transit is no longer offered or an error is shown |
 | `expectScreen(id)` | `expect: {screen}`, and after a step that leads to another screen | `screen:<id>` is shown with a state rendered and nothing loading (`state:loading`); it is the current screen from then on |
@@ -49,6 +49,7 @@ marks of the states, never for a fixed time:
 | `expectActionAbsent(id)` | `expect: {action_absent}` | once the screen is loaded, it has no `action:<id>` |
 | `expectFieldReadonly(name)` | `expect: {field_readonly}` | the open form has `field:<name>` read-only or disabled (or not at all); on a card, it has no `action:edit`, or its edit has the field read-only (the edit is opened and cancelled) |
 | `expectFieldAbsent(name)` | `expect: {field_absent}` | once the screen is loaded, it has no `field:<name>` and no `cell:<name>`, nor the open form `field:<name>` (a field the user may not see) |
+| `expectValues(values)` | `expect: {values}` | once the screen is loaded, the text of each `field:<name>` of the current screen (a card) contains its value (a file: its name) |
 | `expectRows(count)` | `expect: {rows}` | the number of `row:<id>` of the current screen |
 | `expectError(name)` | `expect: {error}` | `error:<name>` on the page |
 
@@ -60,6 +61,7 @@ need the Chromium of Playwright: `npx playwright install chromium`) and are not 
 wheel. `generated/` is what `bazis_front e2e` renders from the specs of the sample of this
 repository (`tests/test_e2e.py` fails when it differs: write it again with
 `BAZIS_FRONT_WRITE_FIXTURES=1`); the helpers are type-checked against it, and the `@/`
-import of `contract.ts` points to the fixture of the components. `test/helpers.spec.ts`
+import of `contract.ts` points to the fixture of the components, and `fixtures/` holds the
+file that the tests of `upload` set (in a product, `e2e/fixtures/` of the frontend). `test/helpers.spec.ts`
 runs the helpers against pages with the marks of the components and the delays of a
 backend; the end-to-end tests of the sample run in the `e2e` job of CI.

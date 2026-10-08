@@ -181,9 +181,25 @@ export class App<P extends Product = Product> {
     await expect(popup).toHaveCount(0);
   }
 
-  /** Sets the file of a field of the open form: a path in `e2e/fixtures/`. */
+  /**
+   * Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input
+   * `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer
+   * busy and shows the name of the file) or shows an error of this upload.
+   */
   async upload(field: string, file: string): Promise<void> {
-    await this.form().locator(bz('field', field)).setInputFiles(path.join(FIXTURES, file));
+    const form = this.form();
+    await this.seen(form);
+    await form.locator(bz('field', field)).setInputFiles(path.join(FIXTURES, file));
+    const zone = form.locator(bz('upload', field));
+    const name = path.basename(file);
+    await expect
+      .poll(
+        async () =>
+          (await form.locator(NEW_FAILED).count()) > 0 ||
+          ((await zone.getAttribute('aria-busy')) === null && (await zone.innerText()).includes(name)),
+        { message: `the file ${name} is uploaded into ${field} or shows an error` },
+      )
+      .toBe(true);
   }
 
   /**
@@ -278,6 +294,17 @@ export class App<P extends Product = Product> {
     await this.settled();
     await expect(this.screen().locator(`${bz('field', field)}, ${bz('cell', field)}`)).toHaveCount(0);
     await expect(this.form().locator(bz('field', field))).toHaveCount(0);
+  }
+
+  /**
+   * The fields of the current card show these texts: the text of each `field:<name>` contains
+   * its text (a file: its name).
+   */
+  async expectValues(values: Readonly<Record<string, string>>): Promise<void> {
+    await this.settled();
+    for (const [name, value] of Object.entries(values)) {
+      await expect(this.screen().locator(bz('field', name)).first()).toContainText(value);
+    }
   }
 
   /** The list of the current screen has this number of rows, `row:<id>`. */

@@ -57,6 +57,24 @@
       ]
     },
     {
+      "name": "react-uploadable",
+      "kind": "vendored",
+      "source": "react/src/uploadable",
+      "target": "src/bazis/react/uploadable",
+      "requires": {
+        "capabilities": [
+          "uploadable"
+        ],
+        "assets": [
+          "react"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "upload.ts"
+      ]
+    },
+    {
       "name": "playwright",
       "kind": "vendored",
       "source": "playwright/bazis",
@@ -150,6 +168,7 @@
         "field-input.tsx",
         "field-value.tsx",
         "fields.ts",
+        "files.tsx",
         "hooks.ts",
         "index.ts",
         "relation-picker.contract.test.tsx",
@@ -296,6 +315,28 @@
         "index.ts",
         "transit-bar.contract.test.tsx",
         "transit-bar.tsx"
+      ]
+    },
+    {
+      "name": "file-field",
+      "kind": "ui",
+      "source": "ui/file-field",
+      "target": "src/bazis/ui/file-field",
+      "requires": {
+        "capabilities": [
+          "uploadable"
+        ],
+        "assets": [
+          "react-uploadable",
+          "resource",
+          "testing",
+          "button"
+        ]
+      },
+      "files": [
+        "file-field.contract.test.tsx",
+        "file-field.tsx",
+        "index.ts"
       ]
     },
     {

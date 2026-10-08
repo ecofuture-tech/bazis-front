@@ -15,14 +15,19 @@
 import type { FormField } from '@/bazis/react';
 
 import { formatValue } from './fields.js';
+import { FileValue, isFile, useFiles } from './files.js';
 import { text } from './hooks.js';
 import { RelationLabel } from './relation.js';
 
 /**
  * The value of a field for reading: an attribute formatted by its type and format, the
- * labels of the related items of a relationship.
+ * labels of the related items of a relationship, an uploaded file (`FileValue`).
  */
 export function FieldValue({ field, value }: { field: FormField | undefined; value: unknown }) {
+  const { resources } = useFiles();
+  if (isFile(field, resources) && value !== null && value !== undefined) {
+    return <FileValue relation={field.relation} id={text(value)} />;
+  }
   if (field?.kind === 'relation' && value !== null && value !== undefined) {
     const ids = Array.isArray(value) ? (value as unknown[]).map(text) : [text(value)];
     if (!ids.length) return <>—</>;

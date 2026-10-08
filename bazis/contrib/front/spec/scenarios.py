@@ -262,10 +262,30 @@ class _Scenario:
     def step_fill(self, path, values):
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
+            for name in values:
+                if self.file(name):
+                    self.add(
+                        (*path, name), 'P022', f'The field `{name}` is a file: it is not filled.',
+                        f'Upload its file: `upload: {{field: {name}, file: <a file of e2e/fixtures/>}}`.',
+                    )
 
     def step_upload(self, path, value):
         if self.editing(path):
-            self.fields([((*path, 'field'), value['field'])], self.state.form)
+            name = value['field']
+            self.fields([((*path, 'field'), name)], self.state.form)
+            entity = self.entity
+            if entity is not None and name in entity.fields and not self.file(name):
+                self.add(
+                    (*path, 'field'), 'P022', f'The field `{name}` is not a file (`type: file`).',
+                    'Upload into a field of the type `file`, or fill this one.',
+                )
+
+    def file(self, name) -> bool:
+        """
+        Whether the entity of the screen declares the field as a file.
+        """
+        entity = self.entity
+        return entity is not None and entity.fields.get(name, {}).get('type') == 'file'
 
     def step_submit(self, path, value):
         """
@@ -331,11 +351,25 @@ class _Scenario:
                 (*path, 'field_absent'), bool(screen) and (self.shown() is None or name in self.shown()),
                 f'The screen does not show the field `{name}`: it is always absent.',
             )
+        if 'values' in value:
+            card = bool(screen) and screen['primitive'] == 'card' and self.state.form is None
+            if self.require((*path, 'values'), card, 'Only a card without an open form shows values.'):
+                declared = self.entity.fields if self.entity is not None else {}
+                for name in value['values']:
+                    # an undeclared field is reported below (P023)
+                    if name in declared and name not in self.shown():
+                        self.add(
+                            (*path, 'values', name), 'P022',
+                            f'The card does not show the field `{name}`.',
+                            'Add the field to a section of the card, or expect another one.',
+                        )
         if not self.state.known:
             return
         self.fields(
             ((*path, key), value[key]) for key in ('field_readonly', 'field_absent', 'error') if key in value
         )
+        if 'values' in value:
+            self.fields(((*path, 'values', name), name) for name in value['values'])
         entity = self.entity
         if 'status' in value and entity is not None:
             statuses = (entity.workflow or {}).get('statuses', [])

@@ -27,6 +27,7 @@ export default defineConfig({
     alias: [
       { find: '@/bazis/client', replacement: here('../client/src/index.ts') },
       { find: '@/bazis/react/statusy', replacement: here('../react/src/statusy/index.ts') },
+      { find: '@/bazis/react/uploadable', replacement: here('../react/src/uploadable/index.ts') },
       { find: '@/bazis/react', replacement: here('../react/src/index.ts') },
       { find: '@/bazis/generated/contract', replacement: here('./test/fixtures/contract.ts') },
       { find: '@/bazis/generated/theme', replacement: here('./test/fixtures/theme.ts') },

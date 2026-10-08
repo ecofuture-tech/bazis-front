@@ -31,6 +31,11 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     assignee = models.ForeignKey(
         settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.SET_NULL
     )
+    # an uploaded file of bazis-uploadable: the relationship to `uploadable.file_upload`
+    attachment = models.ForeignKey(
+        'uploadable.FileUpload', verbose_name=_('Attachment'), blank=True, null=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
 
     class Meta:
         verbose_name = _('Task')

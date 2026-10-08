@@ -15,11 +15,15 @@
 import { useLocation, useNavigate } from 'react-router';
 
 import { PRODUCT_NAME } from '@/app/product';
-import { login } from '@/app/session';
+import { login, loginInWindow, PASSWORD_LOGIN, WINDOW_LOGINS } from '@/app/session';
 import { useApi } from '@/bazis/react';
 import { LoginForm } from '@/bazis/ui/login-form';
 
-/** The login of bazis-users; back to the screen the user came from. */
+/**
+ * The login: the username and the password (bazis-users, or the service `password` of
+ * bazis-authing) and a button for each login of bazis-authing in a window (Google); back to
+ * the screen the user came from.
+ */
 export function LoginScreen() {
   const api = useApi();
   const navigate = useNavigate();
@@ -40,7 +44,12 @@ export function LoginScreen() {
         <span className="font-display text-xl font-semibold tracking-tight">{PRODUCT_NAME}</span>
       </div>
       <LoginForm
-        onLogin={(credentials) => login(api, credentials)}
+        onLogin={PASSWORD_LOGIN ? (credentials) => login(api, credentials) : undefined}
+        methods={WINDOW_LOGINS.map((action) => ({
+          id: action.code,
+          label: action.name,
+          onLogin: (signal) => loginInWindow(api, action, signal),
+        }))}
         onSuccess={() => {
           void navigate(from, { replace: true });
         }}

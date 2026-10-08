@@ -27,6 +27,7 @@ include-package-data = true
 # the specs of the sample, for their type check and tests here
 "bazis.contrib.front.assets.playwright" = ["package.json", "tsconfig.json", "playwright.config.ts"]
 "bazis.contrib.front.assets.playwright.generated" = ["*"]
+"bazis.contrib.front.assets.playwright.fixtures" = ["*"]
 "bazis.contrib.front.assets.playwright.test" = ["*"]
 
 [tool.setuptools_scm]
@@ -66,10 +67,13 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "bazis-test-utils>=2.3.0",
-    # the sample project has the capabilities of the contract: users, permit, statusy
+    # the sample project has the capabilities of the contract: users, authing, permit,
+    # statusy, uploadable
     "bazis-users>=2.5.0",
+    "bazis-authing>=2.5.0",
     "bazis-permit>=2.4.1",
     "bazis-statusy>=2.4.1",
+    "bazis-uploadable>=2.4.0",
 ]
 dev = [
     "ruff"

@@ -19,3 +19,6 @@ router = BazisRouter(prefix='/api/v1')
 
 router.register('tasks.router')
 router.register('bazis.contrib.users.router')
+# bazis-authing: GET /auth/ and the login by password (BAZIS_AUTH_KINDS)
+router.register('/authing', 'bazis.contrib.authing.router')
+router.register('/authing', 'bazis.contrib.authing.services.password.router')

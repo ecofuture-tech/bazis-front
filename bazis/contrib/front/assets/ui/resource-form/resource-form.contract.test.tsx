@@ -14,12 +14,14 @@
 
 // The contract of the form of a resource: its states (`loading`, `forbidden`, `invalid`),
 // `field:<name>` and `error:<name>` of its fields, the read-only fields, `action:submit` and
-// `action:cancel`. Keep it passing when the component is changed.
+// `action:cancel`, no submit while a file uploads. Keep it passing when the component is
+// changed.
 
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Screen } from '@/bazis/ui/app-shell';
+import { FilesProvider, type FileControlProps } from '@/bazis/ui/resource';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
@@ -92,6 +94,62 @@ describe('ResourceForm', () => {
     expect(screen.getByTestId<HTMLInputElement>('field:title').value).toBe('Report');
     fireEvent.click(screen.getByTestId('action:cancel'));
     expect(onCancel).toHaveBeenCalledOnce();
+  });
+});
+
+describe('ResourceForm with a file', () => {
+  /** A control whose file uploads until it is told: the buttons start and end the upload. */
+  function Control({ control, onBusy, onChange }: FileControlProps) {
+    return (
+      <span data-bz={control['data-bz']}>
+        <button
+          type="button"
+          onClick={() => {
+            onBusy(true);
+          }}
+        >
+          upload
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onChange('9');
+            onBusy(false);
+          }}
+        >
+          uploaded
+        </button>
+      </span>
+    );
+  }
+
+  it('waits for the upload of a file, then sends its relationship', async () => {
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, runtimeSchema({ attachment: { relation: 'test.file' } }))
+      .on('POST', ITEMS, { data: resource(ITEM_ID) }, 201);
+    const onSaved = vi.fn();
+    renderWithBazis(
+      <FilesProvider control={Control} resources={['test.file']}>
+        <ResourceForm path={ITEMS as never} onSaved={onSaved} />
+      </FilesProvider>,
+      backend,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'upload' }));
+    const submit = screen.getByTestId('action:submit');
+    expect(submit).toHaveProperty('disabled', true);
+    expect(screen.getByTestId('state:loaded').getAttribute('aria-busy')).toBe('true');
+    fireEvent.submit(screen.getByTestId('state:loaded'));
+    expect(backend.requests('POST')).toEqual([]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'uploaded' }));
+    expect(submit).toHaveProperty('disabled', false);
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalled();
+    });
+    expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
+      data: { type: 'test.item', attributes: {}, relationships: { attachment: { data: { type: 'test.file', id: '9' } } } },
+    });
   });
 });
 

@@ -52,7 +52,7 @@ export function TaskCardScreen() {
         id={id}
         edit
         sections={[
-          { id: 'main', title: 'Details', fields: ['title', 'status', 'assignee'] },
+          { id: 'main', title: 'Details', fields: ['title', 'status', 'assignee', 'attachment'] },
           { id: 'report', title: 'Report', fields: ['report'] },
         ]}
         badge={(item) => <StatusBadge resource={item} />}

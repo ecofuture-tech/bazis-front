@@ -19,6 +19,7 @@ import { ErrorBoundary } from '@/app/errors';
 import { PRODUCT_NAME } from '@/app/product';
 import { LOGIN_ENABLED, logout, useToken } from '@/app/session';
 import { AppShell, ListCardLayout, type NavItem } from '@/bazis/ui/app-shell';
+import { FileFieldProvider } from '@/bazis/ui/file-field';
 import { HomeScreen } from '@/screens/home';
 import { LoginScreen } from '@/screens/login';
 import { TaskCardScreen } from '@/screens/task-card';
@@ -53,18 +54,21 @@ function RequireSession() {
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
-        <Route element={<RequireSession />}>
-          <Route index element={<HomeScreen />} />
-          {/* the card next to the list or in its place (`composition.list_card` of the theme) */}
-          <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
-            <Route path=":id" element={<TaskCardScreen />} />
+    // the file fields of the forms upload their files (bazis-uploadable)
+    <FileFieldProvider>
+      <BrowserRouter>
+        <Routes>
+          {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
+          <Route element={<RequireSession />}>
+            <Route index element={<HomeScreen />} />
+            {/* the card next to the list or in its place (`composition.list_card` of the theme) */}
+            <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
+              <Route path=":id" element={<TaskCardScreen />} />
+            </Route>
           </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </FileFieldProvider>
   );
 }
