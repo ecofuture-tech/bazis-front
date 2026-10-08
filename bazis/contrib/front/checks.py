@@ -69,6 +69,7 @@ def check_packages(app_configs, **kwargs):
     (the socket of bazis-ws before 2.5.0 is never open). A warning here, so that it never
     blocks `migrate` or `runserver` (the system checks run before every management
     command); `bazis_front check` fails on it (`C004`), which gates the generation and CI.
+    It is the only report of the system checks: `front.W002` leaves out `C004`.
     Runs without the database.
     """
     from .capabilities import outdated
@@ -84,6 +85,10 @@ def check_packages(app_configs, **kwargs):
     ]
 
 
+#: the issues of the specs that another system check reports: an outdated package (front.W006)
+PACKAGE_CODES = {'C004'}
+
+
 @register()
 def check_spec(app_configs, **kwargs):
     """
@@ -91,8 +96,8 @@ def check_spec(app_configs, **kwargs):
     accepts: one `front.W002` for each of its issues, with its code and its severity.
     Errors of the specs are warnings here: the system checks run before every management
     command, and an error would block `migrate` or `bazis_front contract`, which the
-    fixes of the specs may need; `bazis_front check` fails on them. Runs without the
-    database.
+    fixes of the specs may need; `bazis_front check` fails on them. `C004` (an outdated
+    package) is left out: `front.W006` reports it. Runs without the database.
     """
     from .spec import create, validate
 
@@ -106,6 +111,7 @@ def check_spec(app_configs, **kwargs):
             id='front.W002',
         )
         for issue in validate.validate(spec.parent).issues
+        if issue.code not in PACKAGE_CODES
     ]
 
 

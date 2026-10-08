@@ -463,6 +463,9 @@ def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch)
 
     assert capabilities.release('2.5.0.post1.dev3') == (2, 5, 0)
     assert capabilities.release('2.10.1') > capabilities.release('2.9')
+    # a version without its last numbers is that of zeros
+    assert capabilities.release('2.6') == capabilities.release('2.6.0') == (2, 6, 0)
+    assert capabilities.release('3') > capabilities.release('2.9.9')
     # the packages of the sample are recent enough
     assert check_packages(None) == []
 
@@ -476,6 +479,9 @@ def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch)
     assert 'bazis-uploadable 2.4.9 is installed' in warnings[0].msg
     assert 'bazis-ws>=2.5.0' in warnings[1].msg and 'subscribed' in warnings[1].msg
     assert [name for name, _, _ in capabilities.outdated(['ws', 'statusy', 'unknown'])] == ['ws']
+    # bazis-uploadable `2.6` is its minimum 2.6.0
+    versions['bazis-uploadable'] = '2.6'
+    assert [name for name, _, _ in capabilities.outdated(['uploadable', 'ws'])] == ['ws']
 
 
 def test_the_default_language_is_a_code_of_the_languages():

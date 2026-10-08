@@ -261,6 +261,32 @@ describe('the language of the profile', () => {
     });
   });
 
+  it('keeps the language chosen in the browser when the profile refuses it (422)', async () => {
+    const backend = new Backend()
+      .on('GET', `${USERS}?filter=username%3Dmanager&page%5Blimit%5D=1`, found(null))
+      .on(
+        'PATCH',
+        `${USERS}u1/`,
+        { errors: [{ status: 422, detail: 'The language must be one of: en', source: { pointer: '/data/attributes/language' } }] },
+        422,
+      );
+    const api = createClient<paths>({ baseUrl: BASE, fetch: backend.fetch });
+    const storage = memory();
+    const languages = createLanguageStore({ languages: LANGUAGES, fallback: 'en', storage, preferred: [] });
+    followProfileLanguage(languages, api, RESOURCE, token);
+    await vi.waitFor(() => {
+      expect(backend.requests('GET')).toHaveLength(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    languages.set('ru');
+    await vi.waitFor(() => {
+      expect(backend.requests('PATCH')).toEqual([`PATCH ${USERS}u1/`]);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // the refusal of the backend changes nothing in the page: the language stays, kept in the browser
+    expect([languages.get(), storage.values.get('bazis.language')]).toEqual(['ru', 'ru']);
+  });
+
   it('keeps a change of the user made while the profile loads, and saves it', async () => {
     const { backend, api } = setup('ru');
     const release = backend.hold('GET', `${USERS}?filter=username%3Dmanager&page%5Blimit%5D=1`);

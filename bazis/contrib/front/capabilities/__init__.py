@@ -119,12 +119,18 @@ def enabled() -> list[str]:
     return result
 
 
+#: the numbers of a release that `release` compares (`2.6` is `2.6.0`)
+RELEASE_PARTS = 3
+
+
 def release(version: str) -> tuple[int, ...]:
     """
-    The release numbers of a version (`2.5.0` of `2.5.0.post1.dev3`), for a comparison.
+    The release numbers of a version (`2.5.0` of `2.5.0.post1.dev3`), padded with zeros
+    (`2.6` is `2.6.0`), for a comparison.
     """
     match = re.match(r'\d+(?:\.\d+)*', version)
-    return tuple(int(it) for it in match.group().split('.')) if match else ()
+    numbers = tuple(int(it) for it in match.group().split('.')) if match else ()
+    return numbers + (0,) * (RELEASE_PARTS - len(numbers))
 
 
 def outdated(names: list[str] | None = None) -> list[tuple[str, Capability, str]]:

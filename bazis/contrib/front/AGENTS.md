@@ -21,8 +21,11 @@ version of bazis-front, merged with the changes of the product).
 `BS_INSTALLED_APPS`. The assets follow the protocol of recent versions of the packages of
 the capabilities: bazis-ws 2.5.0 (the socket is open once the server sends `subscribed`),
 bazis-authing 2.6.0 (the logout endpoint), bazis-uploadable 2.6.0 (the files of their
-author, for every route). An older one that the project installs is the warning `front.W006` of the system
-checks (it does not block `migrate`) and the error `C004` of `bazis_front check`: upgrade it.
+author, for every route). An older one that the project installs is the warning
+`front.W006` of the system checks (it does not block `migrate`; `front.W002` does not repeat
+it) and the error `C004` of `bazis_front check`: like any error of the specs, it also stops
+`bazis_front e2e` (no tests are generated) and the comparison of `front.W003` until the
+package is upgraded.
 
 ## The frontend
 
@@ -612,7 +615,7 @@ warning there, never blocking `migrate` or `contract`.
 | `C001` | error | contract/contract.json cannot be read |
 | `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
 | `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or assets of a package are there without it |
-| `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-uploadable 2.6.0); the system check `front.W006` (a warning) reports it too |
+| `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-uploadable 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |

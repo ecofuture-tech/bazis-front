@@ -627,6 +627,20 @@ def test_check_needs_the_specs(tmp_path):
 
 
 @pytest.mark.django_db
+def test_an_outdated_package_is_one_report_of_the_system_checks(contract, monkeypatch):
+    from bazis.contrib.front.checks import check_packages
+
+    installed(monkeypatch, lambda versions: versions.update({'bazis-ws': '2.4.0'}))
+    root = contract.parent.parent
+    # an error of `check`, which stops the generation of the end-to-end tests
+    assert ('C004', f'{CONTRACT}#/capabilities/ws') in issues(root)
+    assert validate(root).errors
+    # the system checks report it once: front.W006, not again as front.W002
+    assert [it.id for it in check_packages(None)] == ['front.W006']
+    assert check_spec(None) == []
+
+
+@pytest.mark.django_db
 def test_the_system_check(root, tmp_path):
     assert check_spec(None) == []
 

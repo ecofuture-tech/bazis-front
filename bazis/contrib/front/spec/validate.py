@@ -240,8 +240,10 @@ def check_assets(root: Path, contract: dict, issues: Issues) -> None:
 def check_packages(contract: dict, issues: Issues) -> None:
     """
     The installed packages of the capabilities of the contract are not older than the
-    versions whose protocol the assets follow (`minimum` of `capabilities.CAPABILITIES`);
-    the system check `front.W006` reports the same (as a warning).
+    versions whose protocol the assets follow (`minimum` of `capabilities.CAPABILITIES`).
+    An error of `check`, so that `bazis_front e2e` generates nothing and `front.W003`
+    compares nothing until it is upgraded; the system checks report it once, as the warning
+    `front.W006` (`front.W002` leaves it out).
     """
     doc = Document(CONTRACT, CONTRACT_FILE)
     for name, capability, version in outdated(sorted(contract.get('capabilities', {}))):
