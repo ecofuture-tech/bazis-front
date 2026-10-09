@@ -50,6 +50,7 @@ ATTACHES = 'e2e/generated/manager-attaches-a-brief.spec.ts'
 REPORT = 'e2e/generated/manager-cannot-change-the-report.spec.ts'
 NOTIFIED = 'e2e/generated/manager-is-notified-of-a-finished-task.spec.ts'
 DRAFTS = 'e2e/generated/viewer-reads-the-drafts.spec.ts'
+PLACES = 'e2e/generated/manager-places-a-task.spec.ts'
 PRIORITY = 'e2e/generated/manager-sets-the-priority.spec.ts'
 STEP = 'e2e/generated/manager-adds-a-step.spec.ts'
 
@@ -295,7 +296,7 @@ def test_a_refused_submit_leads_to_no_other_screen(tmp_path):
 
     edit_product(tmp_path, scenario)
     found = [(it.code, it.location) for it in validate(tmp_path).issues]
-    assert found == [('P022', 'spec/product.yaml#/scenarios/10/steps/4/expect/screen')]
+    assert found == [('P022', 'spec/product.yaml#/scenarios/11/steps/4/expect/screen')]
 
 
 def test_the_product_module():
@@ -310,10 +311,10 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     out = generate()
     frontend = root / 'frontend'
     files = rendered(root)
-    assert sorted(files) == [STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS]
+    assert sorted(files) == [STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PLACES, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 10 end-to-end tests' in out
+    assert 'Generated 11 end-to-end tests' in out
     lock = lock_of(root)
     assert lock['e2e'] == {
         'spec': {
@@ -354,7 +355,7 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
     assert sorted(lock_of(root)['e2e']['generated']) == [
-        STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PRIORITY, e2e.PRODUCT_TS, DRAFTS,
+        STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PLACES, PRIORITY, e2e.PRODUCT_TS, DRAFTS,
     ]
     generate('--check')
 
@@ -376,7 +377,7 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     generate()
     assert {path: (frontend / path).read_bytes() for path in others} == before
     assert sorted(lock_of(root)['e2e']['generated']) == [
-        STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS,
+        STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PLACES, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS,
     ]
 
 
@@ -500,8 +501,8 @@ def test_the_e2e_data_of_the_sample(monkeypatch):
         assert user.check_password('second-password-1')
         assert user.role_current.slug == role and list(user.roles.values_list('slug', flat=True)) == [role]
     assert list(task_model.objects.values_list('title', 'report', 'status_id')) == [(TASK, '', 'draft')]
-    # the point that the scenario of the viewer expects on the card
-    assert task_model.objects.get().location.coords == (37.6173, 55.7558)
+    # no point: the scenarios write the points through the API
+    assert task_model.objects.get().location is None
     assert not apps.get_model('tasks.Step').objects.exists()
     # the roles are those that `migrate` applied from the declarations
     assert set(apps.get_model('permit.Role').objects.values_list('pk', flat=True)) == roles

@@ -448,7 +448,7 @@ export const MAP_TILES: MapTiles = { url: 'https://tiles.example.com/{z}/{x}/{y}
 const geolocation = useGeolocation();   // locate() asks the browser
 const position = geolocation.position;
 const near = position ? nearFilter('location', position, 5000) : undefined;
-// the nearest first: bazis 2.15.0 (an older core answers the sort with 400: leave it out)
+// the nearest first, once the position is known
 const sort = position ? [nearSort('location', position)] : ['name'];
 <ResourceMap path={SITES} entity="site" field="location" filter={near} sort={sort} me={position} selected={id} onOpen={(site) => void navigate(`/sites/${site}`)} />
 <ResourceList path={SITES} entity="site" columns={['name', 'address']} filter={near} sort={sort} selected={id} onOpen={…} />
@@ -456,8 +456,7 @@ const sort = position ? [nearSort('location', position)] : ['name'];
 
 The point field is in the LIST schema of the route set (`geography=True` in the model, for
 the index of the distances); the responses carry no distance: show it from both points if
-the screen needs it. A form changes a point with bazis 2.15.0 (the core before it fails to
-write one).
+the screen needs it.
 
 A custom action of a route set (`@http_post('/export/')` in the backend, `action_export:
 "other"` in the contract) is called with `useAction`, never with a `fetch` of your own (the

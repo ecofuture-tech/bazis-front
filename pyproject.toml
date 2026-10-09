@@ -64,7 +64,7 @@ classifiers = [
     "Framework :: FastAPI",
 ]
 dependencies = [
-    "bazis>=2.13.0",
+    "bazis>=2.15.0",
     # the validation of the specs (`bazis_front check`): YAML files and JSON Schema 2020-12
     "PyYAML>=6.0.1",
     "jsonschema>=4.18",
@@ -72,17 +72,17 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "bazis-test-utils>=2.5.0",
+    "bazis-test-utils>=2.5.1",
     # the sample project has the capabilities of the contract: users, authing, permit,
     # statusy, uploadable, ws, bg (with bazis-author), async_background, async_request
     "bazis-users>=2.8.0",
     "bazis-authing>=2.6.0",
-    "bazis-permit>=2.9.1",
-    "bazis-statusy>=2.9.1",
-    "bazis-uploadable>=2.6.1",
+    "bazis-permit>=2.10.0",
+    "bazis-statusy>=2.11.0",
+    "bazis-uploadable>=2.6.3",
     "bazis-ws>=2.6.0",
-    "bazis-author>=2.4.0",
-    "bazis-bg>=2.5.0",
+    "bazis-author>=2.4.2",
+    "bazis-bg>=2.5.1",
     "bazis-async-background>=2.4.0",
     "bazis-async-request>=2.4.0",
 ]

@@ -38,9 +38,8 @@ of the assignee searches: the core 2.9 answers a search of a route set without t
 400) and a statusy model `tasks.Task` (searched by its title; its `priority` has choices, whose
 labels the runtime schemas give translated, `enumDict`, which the frontend shows, offers and
 filters by; its `location` is a geography `PointField`, GeoJSON in the API and `format: point`
-in the contract, on the map of the list of the tasks (`list.map`; the core before 2.15.0
-reads points but fails to write one, so no scenario writes it: `e2e_data` places the task of
-the viewer, whose card the scenario `viewer-only-reads` expects with its coordinates); its route set
+in the contract, on the map of the list of the tasks (`list.map`), written through the API by
+the scenario `manager-places-a-task` (`e2e_data` places no point); its route set
 has the custom action `count` (`TaskRouteSet.action_count`, `POST /api/v1/tasks/task/count/`,
 a JSON body `{priority}`, 403 without a user), which queues `tasks.bg.count.CountTasks` and
 answers with the id of its task, the reference of `client.action`/`useAction` captured by
@@ -55,10 +54,14 @@ has no check of its own); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
 sample is that of bazis-authing (the token endpoint of bazis-users stays). The sample is in
 English and Russian (`BS_LANGUAGES` of `sample/project.env`, `LANGUAGE_CODE` `en`): the
-Russian texts of the tasks are `sample/tasks/locale/ru/LC_MESSAGES/django.po`, compiled to
-the `.mo` next to it (both committed, as in the other Bazis repositories; run
-`python manage.py compilemessages -l ru` in `sample/tasks/` after a change), also the
-Russian names of its roles, statuses and transits. The user model of the sample has a language of its own
+Russian texts are the catalogs of the project, `sample/tasks/locale/ru/LC_MESSAGES/django.po`
+and `sample/locale/ru/LC_MESSAGES/django.po` (the tag of `users/router.py`), with their `.mo`
+(all committed, as in the other Bazis repositories), kept by `bazis_messages` of the core:
+after a change of the texts run `python manage.py bazis_messages make` in `sample/`, add the
+translations of what it lists as `untranslated` or `fuzzy` to `sample/locale/translations.json`
+and run `python manage.py bazis_messages apply locale/translations.json --check` (never edit
+the `.po` files with a script); also the Russian names of its roles, statuses and transits.
+The user model of the sample has a language of its own
 (`UserLanguageMixin` of bazis-users, `users.profile_language`, the migration
 `sample/users/migrations/0002_user_language.py`), which `tests/test_profile_language.py`
 and the end-to-end test `frontend-overlay/e2e/custom/profile-language.spec.ts` check

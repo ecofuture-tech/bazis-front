@@ -59,7 +59,10 @@ CAPABILITIES = {
         needs='the selectors of the contract (many-to-many and reverse relations, 2.6) and the '
         'filter of a route restricted to the fields the user sees (2.7)',
     ),
-    'statusy': Capability('bazis-statusy', 'bazis.contrib.statusy', needs_db=True),
+    'statusy': Capability(
+        'bazis-statusy', 'bazis.contrib.statusy', needs_db=True, minimum='2.8.0',
+        needs='the JSON Schemas of the transit payloads with their lazy titles as texts',
+    ),
     'uploadable': Capability(
         'bazis-uploadable', 'bazis.contrib.uploadable', minimum='2.6.0',
         needs='the files of their author for every route: no route links or includes the file of another user',

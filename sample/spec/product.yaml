@@ -75,8 +75,6 @@ scenarios:
       # a field permission of the viewer (tasks/roles.py): the report is hidden; he adds no step
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
       - expect: {action_absent: add-step}
-      # the point of the task (`e2e_data` places it) as its coordinates
-      - expect: {values: {location: '55.7558, 37.6173'}}
   # the picker of the assignee searches the user by the label; the list shows the label
   - id: manager-assigns-a-task
     role: manager
@@ -179,3 +177,15 @@ scenarios:
       # refuses them in the backend too)
       - transit: start
       - expect: {status: in_progress, action_absent: add-step}
+  # a point (GeoJSON in the API) is edited and shown as its coordinates, latitude first
+  - id: manager-places-a-task
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Inspect the site}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - fill: {location: '55.7558, 37.6173'}
+      - submit: {}
+      - expect: {values: {title: Inspect the site, location: '55.7558, 37.6173'}}

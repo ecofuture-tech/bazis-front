@@ -17,12 +17,13 @@ bazis-statusy: the statuses and the transits of every statusy model, from the da
 with the JSON Schema of the payload a transit requires. The names are in every language of
 the project (translated fields; the name of the initial status of the settings, a lazy text
 until its row exists); the translated titles of a payload (`Field(title=_('…'))`, which the
-runtime schemas give in the language of the request) are in the language of the export.
+runtime schemas give in the language of the request) are in the language of the export: the
+payload type of bazis-statusy generates its JSON Schema with them as texts of the active
+language (`TranslatedSchemaModel` of the core).
 """
 
 from django.apps import apps
 from django.conf import settings
-from django.utils.functional import Promise
 
 from bazis.contrib.statusy.models_abstract import StatusyMixin
 
@@ -75,23 +76,10 @@ def _payload(model, transit) -> dict | None:
     payload_type = model.transit_payload_type(model, transit)
     if payload_type is None:
         return None
-    schema = texts(payload_type.model_json_schema())
+    schema = payload_type.model_json_schema()
     # the combined type is named after the ids of its bases, which change in every process
     schema.pop('title', None)
     if 'required' in schema:
         schema['required'] = sorted(schema['required'])
     return {'required': True, 'schema': schema}
 
-
-def texts(value):
-    """
-    The value with its lazy texts (the titles of `Field(title=_('…'))`) in the active
-    language.
-    """
-    if isinstance(value, Promise):
-        return str(value)
-    if isinstance(value, dict):
-        return {key: texts(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [texts(item) for item in value]
-    return value

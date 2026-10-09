@@ -88,8 +88,7 @@ function degrees(value: number): string {
 
 /**
  * The filter of the items whose point field is within `meters` of a point (the lookup `near`
- * of the core: `<field>__near=<longitude>,<latitude>,<meters>`, in meters in every version),
- * for a list of what is near.
+ * of the core: `<field>__near=<longitude>,<latitude>,<meters>`), for a list of what is near.
  */
 export function nearFilter(field: string, { latitude, longitude }: LatLng, meters: number): Filter {
   return Filter.where(`${field}__near`, [degrees(longitude), degrees(latitude), Math.round(meters)]);
@@ -98,8 +97,8 @@ export function nearFilter(field: string, { latitude, longitude }: LatLng, meter
 /**
  * The sort term of the distance of the point field from a point, the nearest first (`farthest`:
  * the farthest first), the items without a point last: `<field>__distance(<lon>,<lat>)` of
- * bazis 2.15.0, for the `sort` of `ResourceList` and `ResourceMap`; an older core answers it
- * with 400 `ERR_FILTER`. Bound it with `nearFilter` on a large list.
+ * the core, for the `sort` of `ResourceList` and `ResourceMap`. Bound it with `nearFilter` on a
+ * large list.
  */
 export function nearSort(field: string, { latitude, longitude }: LatLng, { farthest = false } = {}): string {
   return `${farthest ? '-' : ''}${field}__distance(${degrees(longitude)},${degrees(latitude)})`;

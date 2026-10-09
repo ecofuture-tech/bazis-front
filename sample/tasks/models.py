@@ -51,7 +51,7 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     )
     # a point (GeoJSON in the API): the field `type: point` of the specs, on the map of the
     # list of the tasks (`list.map`) and on the card; a geography, whose GiST index the
-    # distances of the core use (`near`, and the sort by the distance of bazis 2.15.0)
+    # distances of the core use (`near`, and the sort by the distance)
     location = PointField(_('Location'), geography=True, blank=True, null=True)
 
     class Meta:

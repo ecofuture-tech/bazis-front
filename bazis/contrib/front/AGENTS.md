@@ -36,13 +36,14 @@ how to compose the screens:
 
 ## Setup
 
-`pip install bazis-front` (needs bazis 2.13.0 or newer) and add `"bazis.contrib.front"` to
+`pip install bazis-front` (needs bazis 2.15.0 or newer) and add `"bazis.contrib.front"` to
 `BS_INSTALLED_APPS`. The assets follow the protocol of recent versions of the packages of
 the capabilities: bazis-ws 2.5.0 (the socket is open once the server sends `subscribed`),
 bazis-authing 2.6.0 (the logout endpoint), bazis-permit 2.7.0 (the selectors of the
 contract, also many-to-many and reverse relations, and the filter of a route restricted to
-the fields the user sees), bazis-uploadable 2.6.0 (the files of their
-author, for every route). An older one that the project installs is the warning
+the fields the user sees), bazis-statusy 2.8.0 (the JSON Schemas of the transit payloads
+with their titles translated), bazis-uploadable 2.6.0 (the files of their author, for every
+route). An older one that the project installs is the warning
 `front.W006` of the system checks (it does not block `migrate`; `front.W002` does not repeat
 it) and the error `C004` of `bazis_front check`: like any error of the specs, it also stops
 `bazis_front e2e` (no tests are generated) and the comparison of `front.W003` until the
@@ -185,7 +186,7 @@ dependencies to the versions of the new release without a conflict in `package.j
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list, a toast for each new one | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | `ws` |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS` (the texts `bg.<view>`) | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
-| `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})` (`list.map`: the items with a point in `field`), `MapProvider({tiles?, children})` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})` (bazis 2.15.0), `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
+| `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})` (`list.map`: the items with a point in `field`), `MapProvider({tiles?, children})` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -339,10 +340,9 @@ the package documents each component.
   `img-src`). **What is near**: `useGeolocation()` asks the browser for its position (never
   saved in the profile: a field of the user that others may read leaks it),
   `nearFilter(field, position, meters)` is the filter of the items within that distance
-  (`<field>__near=<lon>,<lat>,<meters>`, every version of the core) and, with bazis 2.15.0,
-  `nearSort(field, position)` the order by the distance, the nearest first
-  (`<field>__distance(<lon>,<lat>)`; an older core answers it with 400 `ERR_FILTER`: leave
-  it out there), for `filter` and `sort` of `ResourceList` and `ResourceMap` (a new `sort`
+  (`<field>__near=<lon>,<lat>,<meters>`) and `nearSort(field, position)` the order by the
+  distance, the nearest first (`<field>__distance(<lon>,<lat>)`), for `filter` and `sort`
+  of `ResourceList` and `ResourceMap` (a new `sort`
   of the screen, once the position is known, replaces the order the user chose). The point
   field must be in the LIST schema of the route set; declare it `geography=True` (the GiST
   index of the distances). Never store a point as two numbers (no index, no lookup of the
@@ -827,7 +827,7 @@ warning there, never blocking `migrate` or `contract`.
 | `C001` | error | contract/contract.json cannot be read |
 | `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
 | `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or assets of a package are there without it |
-| `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-uploadable 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
+| `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.8.0, bazis-uploadable 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
@@ -1471,10 +1471,13 @@ settings (`BS_LANGUAGES='[["en", "English"], ["ru", "Русский"]]'`, `BS_LA
 which the contract exports (`project.languages`; `project.language`, the code of
 `LANGUAGES` that `LANGUAGE_CODE` names) and `contract.ts` exposes (`LANGUAGES`,
 `LANGUAGE`). The backend translates with gettext (`gettext_lazy` with English msgids in the
-models and the route sets, `.po` files compiled to `.mo` by `manage.py compilemessages` in
-`locale/<language>/LC_MESSAGES/` of each app, both committed) and with the translated fields
-of its data (the names of the roles of bazis-permit and of the statuses and transits of
-bazis-statusy have a column per language: the declarations fill them with the
+models and the route sets; the catalogs of the project, `locale/<language>/LC_MESSAGES/` of
+the project and of each app, `.po` and `.mo` both committed, are made, filled and compiled
+by `manage.py bazis_messages` of the core: `make`, the translations of what it lists as
+`untranslated` or `fuzzy` written to a JSON file kept in the project, `apply <file.json>`;
+never a script that edits the `.po` files) and with the translated fields of its data (the
+names of the roles of bazis-permit and of the statuses and transits of bazis-statusy have a
+column per language: the declarations fill them with the
 translations of their English names, `gettext_lazy`, from the catalogs of the project).
 
 - **The asset `i18n`** (`src/bazis/i18n/`, copied by `init` like the hooks, not edited):
@@ -1611,13 +1614,10 @@ tests cannot log in (P026).
 - A point (`PointField`) is GeoJSON, `{"type": "Point", "coordinates": [<longitude>,
   <latitude>]}`: the longitude first, as in `<field>__near=<lon>,<lat>[,<meters>]` (100 m
   by default; `<field>=<lon>,<lat>` is within 10 m) and `<field>__in_bbox=<lon1>,<lat1>,
-  <lon2>,<lat2>`; `route_filter_fields/` gives it as `object`. bazis 2.15.0 writes a
-  GeoJSON point (an invalid one is 422 at the field), takes the distance of `near` with a
-  unit (`500`, `500m`, `2.5km`) and sorts by the distance (`sort=<field>__distance(<lon>,
-  <lat>)`, `-` for the farthest first); before it the core reads points but fails to write
-  one (it sets the GeoJSON object on the model field, which raises: 500), so a form that
-  changes a point needs bazis 2.15.0 (set the points in the backend before it: a hook, an
-  action, `e2e_data`).
+  <lon2>,<lat2>`; `route_filter_fields/` gives it as `object`. A write takes the same
+  GeoJSON point (an invalid one is 422 at the field); the distance of `near` takes a unit
+  (`500`, `500m`, `2.5km`), and `sort=<field>__distance(<lon>,<lat>)` sorts by the distance
+  (`-` for the farthest first).
 - A custom action takes and returns plain JSON (`application/json`, not a JSON:API
   document); the core points the errors of its body to `/<field>` (`ApiError.bodyErrors()`),
   and a hook that raises `JsonApiBazisError` points to a field of it with `loc=('body',

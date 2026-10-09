@@ -42,7 +42,7 @@ export interface ResourceMapProps {
   filter?: Filter | undefined;
   /**
    * The order of the items read (`sort`), the first `pageSize` of them: the nearest first with
-   * `nearSort` (bazis 2.15.0).
+   * `nearSort`.
    */
   sort?: readonly string[] | undefined;
   pageSize?: number;

@@ -304,7 +304,8 @@ def test_the_lazy_titles_of_a_payload_are_in_the_language_of_the_export(sample_a
     """
     A payload whose fields have translated titles (`Field(title=_('…'))`, which `TransitBar`
     shows in the language of the request) is exported with the titles of LANGUAGE_CODE,
-    whatever the language of the process.
+    whatever the language of the process: the payload type that bazis-statusy builds gives
+    them as texts of the active language.
     """
     from django.apps import apps
     from django.utils.translation import gettext_lazy
@@ -315,8 +316,12 @@ def test_the_lazy_titles_of_a_payload_are_in_the_language_of_the_export(sample_a
         # translated in the sample: Отчёт
         report: str = Field(title=gettext_lazy('Report'))
 
+    def before_finish(self, statusy_transit, payload: Payload):
+        self.report = payload.report
+
     task = apps.get_model('tasks.Task')
-    monkeypatch.setattr(task, 'transit_payload_type', lambda model, transit: Payload)
+    # the action of the transit `finish` takes the payload: the type of bazis-statusy
+    monkeypatch.setattr(task, 'before_finish', before_finish)
     with translation.override('ru'):
         assert str(gettext_lazy('Report')) != 'Report'
         contract = json.loads(render(sample_app)['contract.json'])
@@ -638,6 +643,10 @@ def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch)
     versions['bazis-permit'] = '2.6.0'
     assert [name for name, _, _ in capabilities.outdated(['permit', 'statusy'])] == ['permit']
     assert 'bazis-permit>=2.7.0' in check_packages(None)[0].msg
+    # bazis-statusy: the JSON Schemas of the payloads with their titles translated (2.8)
+    versions['bazis-statusy'] = '2.7.9'
+    assert [name for name, _, _ in capabilities.outdated(['statusy'])] == ['statusy']
+    assert 'bazis-statusy>=2.8.0' in check_packages(None)[1].msg
 
 
 def test_the_default_language_is_a_code_of_the_languages():
