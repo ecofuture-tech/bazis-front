@@ -22,7 +22,8 @@ It holds the errors that the forms and `useRelationship` read (bazis 2.11: the p
 the request document, and into the body of the relationships endpoints). It also holds what
 the hooks of the packages read: the messages of the socket of bazis-ws
 (as the server sends them: the notification and the change of a task of the sample, the
-statuses of a background request), the documents of a task of bazis-bg (`bg.task`) and the
+statuses of a background request), the custom action of the sample that queues a task of
+bazis-bg and the documents of that task (`bg.task`), and the
 answers of bazis-async-request and bazis-async-background. The sample has no Kafka: the
 request is queued with the publication to Kafka replaced, and the consumer is the function
 of bazis-async-request that it runs (`execute_internal_request`), called here.
@@ -383,13 +384,24 @@ BG_ATTRIBUTES = [
 
 def bg_task(app, user) -> dict:
     """
-    A task of bazis-bg queued by the user, as they read it: waiting, running (its progress
-    set as `progress` saves it) and done (run in this process, as `manage.py bg_task` does).
+    A task of bazis-bg queued by the user with the custom action `count` of the route set of
+    the tasks (`client.action`: its JSON response, and the errors of its body, `/priority`,
+    and of an anonymous request), as they read it: waiting, running (its progress set as
+    `progress` saves it) and done (run in this process, as `manage.py bg_task` does).
     """
+    from django.apps import apps
+
     from tasks.bg.count import CountTasks
 
     client = get_api_client(app, user.jwt_build())
-    task = CountTasks.delay(author=user)
+    count = f'{TASKS}count/'
+    refused = client.post(count, json_data={'priority': 'urgent'})
+    assert refused.status_code == 422, refused.text
+    anonymous = get_api_client(app).post(count, json_data={})
+    assert anonymous.status_code == 403, anonymous.text
+    started = client.post(count, json_data={'priority': 'normal'})
+    assert started.status_code == 200, started.text
+    task = apps.get_model('bg.Task').objects.get(pk=started.json()['task'])
     item = f'/api/v1/bg/task/{task.pk}/'
 
     def read():
@@ -405,8 +417,15 @@ def bg_task(app, user) -> dict:
     running = read()
     task.state, task.phase, task.expected, task.performed = 'starting', 'starting', None, None
     task.save()
-    CountTasks.run(task)
-    return {'bg_task_waiting': waiting, 'bg_task_running': running, 'bg_task_done': read()}
+    CountTasks.run(task, *task.args, **task.kwargs)
+    return {
+        'action_count': started.json(),
+        'action_count_422': errors(refused.json()),
+        'action_count_403': errors(anonymous.json()),
+        'bg_task_waiting': waiting,
+        'bg_task_running': running,
+        'bg_task_done': read(),
+    }
 
 
 @pytest.mark.django_db(transaction=True)

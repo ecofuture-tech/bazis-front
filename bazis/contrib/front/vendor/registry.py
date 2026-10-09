@@ -18,12 +18,13 @@ the frontend of a product. It is the only list of them: `init` and `add` copy wh
 lists, and the wheel is checked against it (`scripts/check_wheel.py`). An asset `requires`
 the capabilities of the packages it is for (the hooks and the components of bazis-statusy):
 it is copied only into the frontend of a product that has them; and the other assets it
-imports, copied with it.
+imports, copied with it. An asset that brings an npm library of its own (the map: Leaflet)
+lists it in `npm`, which `add` sets in package.json of the frontend (`npm.py`).
 """
 
 import json
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.resources import files
 from importlib.resources.abc import Traversable
 
@@ -56,6 +57,9 @@ class Asset:
     assets: tuple[str, ...] = ()
     #: a component that `init` copies
     init: bool = False
+    #: the npm packages it imports that the template does not declare, `{section: {package:
+    #: version}}` (the versions of the workspace of this repository)
+    npm: dict[str, dict[str, str]] = field(default_factory=dict, hash=False)
 
     def read(self, name: str) -> bytes:
         return assets_dir().joinpath(*self.source.split('/'), *name.split('/')).read_bytes()
@@ -88,6 +92,7 @@ def load() -> dict[str, Asset]:
             tuple(it.get('requires', {}).get('capabilities', ())),
             tuple(it.get('requires', {}).get('assets', ())),
             it.get('init', False),
+            it.get('npm', {}),
         )
         for it in data['assets']
     }

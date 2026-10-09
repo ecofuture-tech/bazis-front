@@ -35,8 +35,9 @@ from bazis.contrib.front.contract.export import CONTRACT_FORMAT
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor import update as vendor_update
-from bazis.contrib.front.vendor.copy import base_dir, copied, restamp
+from bazis.contrib.front.vendor.copy import base_dir, copied, lock_entry, restamp
 from bazis.contrib.front.vendor.lock import digest
+from bazis.contrib.front.vendor.npm import with_dependencies
 
 
 OLD = '0.0.1'
@@ -151,12 +152,9 @@ def assert_updated(root, name):
     """
     frontend = root / 'frontend'
     asset = registry.load()[name]
-    assert read_lock(root)['assets'][name] == {
-        'version': __version__,
-        'files': {
-            asset.target_path(it): digest(copied(asset, it, __version__)) for it in asset.files
-        },
-    }
+    assert read_lock(root)['assets'][name] == lock_entry(
+        asset, __version__, {asset.target_path(it): digest(copied(asset, it, __version__)) for it in asset.files},
+    )
     for relative in asset.files:
         assert (base_dir(frontend, name, __version__) / relative).read_bytes() == copied(
             asset, relative, __version__,
@@ -216,7 +214,7 @@ def test_update_replaces_unchanged_copies(product):
     )
 
     out = update()
-    assert f'react: {OLD} -> {__version__} (9 files unchanged in the frontend replaced)\n' in out
+    assert f'react: {OLD} -> {__version__} (10 files unchanged in the frontend replaced)\n' in out
     assert f'Updated the copies to bazis-front {__version__}.' in out
     for name in ('client', 'react'):
         assert_updated(product, name)
@@ -570,6 +568,78 @@ def test_update_asks_for_npm_install_only_for_a_new_package_json(product):
     assert f'  {PACKAGE_JSON}: kept (changed in the frontend only)\n' in out
     assert 'npm install' not in out
     assert (frontend / PLAYWRIGHT_CONFIG).read_text(encoding='utf-8') == upstream(PLAYWRIGHT_CONFIG)
+
+
+#: the npm dependencies of the map in the version OLD
+OLD_MAP = {'dependencies': {'leaflet': '1.9.3'}, 'devDependencies': {'@types/leaflet': '1.9.20'}}
+
+
+def old_map(root):
+    """The map copied by the version OLD: its files, its lock entry and its npm dependencies."""
+    call_command('bazis_front', 'add', 'map', stdout=StringIO())
+    downgrade(root, 'map')
+    lock = read_lock(root)
+    lock['assets']['map']['npm'] = OLD_MAP
+    write_lock(root, lock)
+
+
+def test_update_merges_the_npm_dependencies_of_the_assets_with_the_template(product):
+    """
+    The npm dependencies that the map set in package.json are part of the base and of the
+    upstream of its merge: the new versions replace the old ones, without a conflict with the
+    changes of the product or with a change of the template on the next line.
+    """
+    frontend = product / 'frontend'
+    old_map(product)
+    downgrade(
+        product, 'template',
+        lambda path, text: upstream(PACKAGE_JSON).replace('"lucide-react": "', '"lucide-react": "0.') if path == PACKAGE_JSON else text,
+    )
+    base = (base_dir(frontend, 'template', OLD) / PACKAGE_JSON).read_text(encoding='utf-8')
+    assert 'leaflet' not in base
+    package = frontend / PACKAGE_JSON
+    # as the map of the version OLD set them, with a change of the product
+    package.write_text(
+        with_dependencies(base, OLD_MAP).replace('"private": true,', '"private": true,\n  "description": "mine",'),
+        encoding='utf-8',
+    )
+
+    out = update()
+    assert f'  {PACKAGE_JSON}: merged with the changes of the frontend\n' in out
+    assert 'Run `npm install` (its package.json changed)' in out
+    expected = with_dependencies(upstream(PACKAGE_JSON), registry.load()['map'].npm)
+    assert package.read_text(encoding='utf-8') == expected.replace('"private": true,', '"private": true,\n  "description": "mine",')
+    assert_updated(product, 'map')
+    assert_updated(product, 'template')
+    assert read_lock(product)['assets']['map']['npm'] == registry.load()['map'].npm
+    assert w004() == []
+
+
+def test_update_sets_the_npm_dependencies_of_an_asset_without_the_template(product):
+    frontend = product / 'frontend'
+    old_map(product)
+    package = frontend / PACKAGE_JSON
+    package.write_text(with_dependencies(upstream(PACKAGE_JSON), OLD_MAP), encoding='utf-8')
+    assert w004()[0].msg == f'The copies of map {OLD} in the frontend are not those of bazis-front {__version__}.'
+
+    out = update()
+    assert f'{PACKAGE_JSON}: the npm dependencies of the assets set\n' in out
+    assert 'Run `npm install` (its package.json changed)' in out
+    assert package.read_text(encoding='utf-8') == with_dependencies(upstream(PACKAGE_JSON), registry.load()['map'].npm)
+    assert_updated(product, 'map')
+    assert w004() == []
+    # the same dependencies: nothing to install
+    assert update().endswith(f'are those of bazis-front {__version__}.\n')
+
+
+def test_a_dependency_that_an_asset_no_longer_has_is_removed_unless_the_product_changed_it():
+    old = {'dependencies': {'leaflet': '1.9.3', 'gone': '1.0.0', 'kept': '2.0.0'}}
+    text = json.dumps({'name': 'frontend', 'dependencies': {'gone': '1.0.0', 'kept': '2.1.0', 'leaflet': '1.9.3', 'react': '19.3.0'}})
+    assert json.loads(with_dependencies(text, {'dependencies': {'leaflet': '1.9.4'}}, old)) == {
+        'name': 'frontend', 'dependencies': {'kept': '2.1.0', 'leaflet': '1.9.4', 'react': '19.3.0'},
+    }
+    with pytest.raises(ValueError):
+        with_dependencies('<<<<<<< frontend\n', {})
 
 
 def test_the_markers_left_in_a_file_that_tsc_does_not_read(product):

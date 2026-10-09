@@ -77,8 +77,8 @@
     },
     "scalar": {"type": ["string", "number", "boolean", "null"]},
     "type": {
-      "description": "The type of a field: string, text (a long string), integer, number, boolean, date, datetime, time, json (an object or an array), or file (a to-one relationship to the uploaded files of bazis-uploadable).",
-      "enum": ["string", "text", "integer", "number", "boolean", "date", "datetime", "time", "json", "file"]
+      "description": "The type of a field: string, text (a long string), integer, number, boolean, date, datetime, time, json (an object or an array), point (a PointField of the model: a GeoJSON point), or file (a to-one relationship to the uploaded files of bazis-uploadable).",
+      "enum": ["string", "text", "integer", "number", "boolean", "date", "datetime", "time", "json", "point", "file"]
     },
     "role": {
       "type": "object",

@@ -24,6 +24,7 @@ entities:
       - {id: assignee, relation: user}
       - {id: attachment, type: file}     # bazis-uploadable: a file uploaded with the task
       - {id: priority, type: string}     # choices: shown, filled and filtered by their labels
+      - {id: location, type: point}      # a PointField: on the map of the list, its coordinates on the card
     workflow:
       initial: draft
       statuses: [draft, in_progress, done]
@@ -74,6 +75,8 @@ scenarios:
       # a field permission of the viewer (tasks/roles.py): the report is hidden; he adds no step
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
       - expect: {action_absent: add-step}
+      # the point of the task (`e2e_data` places it) as its coordinates
+      - expect: {values: {location: '55.7558, 37.6173'}}
   # the picker of the assignee searches the user by the label; the list shows the label
   - id: manager-assigns-a-task
     role: manager

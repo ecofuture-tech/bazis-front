@@ -13,10 +13,11 @@
 # limitations under the License.
 
 """
-A background task of bazis-bg (run by `manage.py bg_scheduler`): the tasks counted by their
-status, with its progress, its result the counts. The frontend reads it as the resource
-`bg.task` (`@/bazis/react/bg`, the component `task-progress`); the tests of bazis-front
-read its documents from the sample.
+A background task of bazis-bg (run by `manage.py bg_scheduler`): the tasks (of a priority, or
+all) counted by their status, with its progress, its result the counts. The action `count` of
+the route set of the tasks queues it for the user (`TaskRouteSet.action_count`); the frontend
+reads it as the resource `bg.task` (`@/bazis/react/bg`, the component `task-progress`), and
+the tests of bazis-front read its documents from the sample.
 """
 
 from collections import Counter
@@ -29,8 +30,13 @@ from bazis.contrib.bg.basic.base import BgBase
 class CountTasks(BgBase):
     name = 'Count the tasks'
 
+    def __init__(self, priority: str | None = None):
+        self.priority = priority
+
     def handle(self) -> None:
         tasks = apps.get_model('tasks.Task').objects.order_by('pk')
+        if self.priority is not None:
+            tasks = tasks.filter(priority=self.priority)
         self.next_phase('Count the tasks', expected=tasks.count())
         counts = Counter()
         for task in tasks:

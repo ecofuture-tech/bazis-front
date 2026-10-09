@@ -12,22 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// spec/screens/task-list.yaml: the tasks with the number of each status, and the creation of
-// a task in a dialog or on a page (`composition.forms` of the theme); the open task is
-// selected, next to the list (`composition.list_card`).
+// spec/screens/task-list.yaml: the tasks with the number of each status, their count by a
+// background task (the custom action `count` of the route set, followed by `TaskProgress`),
+// the tasks with a location on a map (`list.map`), and the creation of a task in a dialog or
+// on a page (`composition.forms` of the theme); the open task is selected, next to the list
+// (`composition.list_card`).
 
-import { Plus } from 'lucide-react';
+import { Calculator, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { Filter, pagination } from '@/bazis/client';
 import { ROUTES, TRANSITS } from '@/bazis/generated/contract';
 import { formatNumber, useLanguage } from '@/bazis/i18n';
-import { useList } from '@/bazis/react';
+import { useAction, useList } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
+import { ResourceMap } from '@/bazis/ui/map';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { ResourceList } from '@/bazis/ui/resource-list';
+import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { StatusBadge, statusName, statusOptions, statusTone } from '@/bazis/ui/status-badge';
+import { TaskProgress } from '@/bazis/ui/task-progress';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const TASKS = ROUTES['tasks.task'];
@@ -61,6 +67,41 @@ function StatusCount({ status, name }: { status: string; name: string }) {
   );
 }
 
+/**
+ * The count of the tasks by their status in the background: the action `count` of the route
+ * set queues a task of bazis-bg (the backend refuses a user without a login: its error), whose
+ * progress and result `TaskProgress` shows. It changes no task: nothing to refetch.
+ */
+function TaskCount() {
+  const { t } = useLanguage();
+  const count = useAction(TASKS, 'count', { invalidate: false });
+  return (
+    <div className="grid gap-2">
+      <div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          data-bz="action:count"
+          disabled={count.isPending}
+          onClick={() => {
+            count.mutate({});
+          }}
+        >
+          <Calculator />
+          {t('tasks.count')}
+        </Button>
+      </div>
+      {count.isError && <StatePanel inline state={errorState(count.error)} error={count.error} />}
+      {count.data && (
+        <TaskProgress id={count.data.task} title={t('tasks.count')}>
+          {(task) => <pre className="text-xs">{JSON.stringify(task.result)}</pre>}
+        </TaskProgress>
+      )}
+    </div>
+  );
+}
+
 export function TaskListScreen() {
   const navigate = useNavigate();
   // the task open next to the list
@@ -74,6 +115,17 @@ export function TaskListScreen() {
           <StatusCount key={status.id} status={status.id} name={statusName('tasks.task', status.id, language)} />
         ))}
       </div>
+      <TaskCount />
+      {/* `list.map` of the screen: the tasks with a location, a marker opening each */}
+      <ResourceMap
+        path={TASKS}
+        entity="task"
+        field="location"
+        selected={id}
+        onOpen={(task) => void navigate(`/tasks/${task}`)}
+        emptyMessage={t('tasks.no_location')}
+        className="h-56 sm:h-64"
+      />
       <ResourceList
         path={TASKS}
         entity="task"

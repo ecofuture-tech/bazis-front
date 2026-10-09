@@ -22,6 +22,7 @@ import { ENGLISH, formatDate, formatDateTime, formatNumber, type LanguageContext
 import { choiceLabel, resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
 
 import { text, useAnySchema } from './hooks.js';
+import { formatPoint, pointOf } from './points.js';
 
 /** A resource object of JSON:API, an item of a list or the `data` of an item. */
 export interface ResourceObject {
@@ -193,8 +194,8 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
 /**
  * The text of the value of an attribute, in the language of the interface (`useLanguage()`;
  * English by default): a choice by its label (`enumDict` of the backend, the choices of an
- * array each), else by its type and format, the numbers and the dates with `Intl`; `—` for
- * no value.
+ * array each), else by its type and format, the numbers and the dates with `Intl`, a point
+ * (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
  */
 export function formatValue(
   field: FormField | undefined,
@@ -215,5 +216,7 @@ export function formatValue(
     if (format === 'date') return formatDate(value, language);
     return value;
   }
-  return JSON.stringify(value);
+  // a point (GeoJSON) as its coordinates
+  const point = pointOf(value);
+  return point ? formatPoint(point) : JSON.stringify(value);
 }

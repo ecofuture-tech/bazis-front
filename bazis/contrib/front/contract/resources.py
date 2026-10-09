@@ -19,13 +19,16 @@ the schemas of their responses), so that the contract describes exactly the API 
 OpenAPI describes; what `filter`, `sort` and `search` reach is read from the route set
 (`QueryScope` of the core, the LIST schema of the route set, and `route_search_fields`), which
 the OpenAPI does not tell (the schema of an item may have fields that the LIST schema does
-not, every list has the parameter `search`).
+not, every list has the parameter `search`), and the point fields from the model: the core
+gives every geometry as the same GeoJSON object.
 """
 
 import os
 import pydoc
 
 from django.apps import apps
+from django.contrib.gis.db.models import PointField
+from django.core.exceptions import FieldDoesNotExist
 
 from bazis.core.introspect import models_info
 from bazis.core.routes_abstract.jsonapi import JsonapiRouteBase
@@ -63,7 +66,7 @@ def resources(openapi: dict) -> dict:
             'route_set': main['route_set'],
             'path': main['path'],
             'actions': main['actions'],
-            'fields': _fields(openapi, main['operations'], scope),
+            'fields': _fields(openapi, main['operations'], scope, models.get(resource)),
             # the search fields that its LIST schema reaches, as declared: those the core
             # searches (`bazis.W007` reports the others); none, a `search` is 400
             'search': route_search_fields(main_cls) if scope is not None else [],
@@ -141,14 +144,15 @@ def _scope(route_cls) -> QueryScope | None:
     return QueryScope.for_route(route_cls, schema=True)
 
 
-def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None) -> dict:
+def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, model: str | None) -> dict:
     """
     The attributes and relationships of the resource in the response of the item route
     (else of the list route): `{name: {type[, format] | relation, many[, filter][, order]}}`.
     `filter` and `order` are the labels of the field in `filter` and `sort` (the
     `filterLabel` and `orderLabel` of the schema), absent when the scope of the route set
     does not take them (a field the LIST schema does not have, or cannot filter or order
-    by: 400 `ERR_FILTER`; any field without a scope).
+    by: 400 `ERR_FILTER`; any field without a scope). A `PointField` of the model is the
+    format `point` of its GeoJSON object (`{"type": "Point", "coordinates": [lon, lat]}`).
     """
     resource = None
     for kind in FIELDS_KINDS:
@@ -165,6 +169,8 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None) -> 
         fields[name] = {'type': schema.get('type', 'object')}
         if 'format' in schema:
             fields[name]['format'] = schema['format']
+        elif fields[name]['type'] == 'object' and _is_point(model, prop.get('filterLabel', name)):
+            fields[name]['format'] = 'point'
         fields[name].update(_labels(prop, scope))
     for name, prop in _resolve(openapi, props.get('relationships', {})).get('properties', {}).items():
         data = _not_null(openapi, _not_null(openapi, prop).get('properties', {}).get('data', {}))
@@ -174,6 +180,16 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None) -> 
         fields[name] = {'relation': types[0] if len(types) == 1 else types, 'many': many}
         fields[name].update(_labels(prop, scope))
     return fields
+
+
+def _is_point(model: str | None, name: str) -> bool:
+    """Whether the field of the model of an attribute (its source) is a `PointField`."""
+    if model is None:
+        return False
+    try:
+        return isinstance(apps.get_model(model)._meta.get_field(name), PointField)
+    except FieldDoesNotExist:
+        return False
 
 
 def _response_resource(openapi: dict, operation: dict) -> dict | None:

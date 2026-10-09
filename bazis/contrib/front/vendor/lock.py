@@ -30,7 +30,8 @@ hashes of what bazis-front wrote there.
 `contract` has the hashes of the contract files from which the files of `generated` were
 made; a generated file that could not be made is `"missing"`. The hashes of the files of
 an asset are those of its pristine copy in `.bazis/base/<asset>@<version>/`; the template
-copied by a version before its pristine copy has only its version. `e2e`
+copied by a version before its pristine copy has only its version. An asset that set npm
+dependencies in `package.json` (the map) has them in `npm`, `{section: {package: version}}`. `e2e`
 (written by `bazis_front e2e`, `spec/e2e.py`) has the hashes of the specs from which the
 end-to-end tests were generated and of the tests. `conflicts` (written by `bazis_front
 update`, absent without them) lists the files that its last run wrote with conflict markers.

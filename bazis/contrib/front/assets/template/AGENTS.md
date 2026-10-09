@@ -15,7 +15,7 @@ backend, its contract and the specs of the product are one directory up (`manage
 | `src/bazis/generated/` | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API); `theme.css` and `theme.ts` (the design: the tokens as CSS variables, `THEME`) | only `manage.py bazis_front contract`; the theme only `manage.py bazis_front design` |
 | `src/bazis/client/` | the client of the Bazis protocol | bazis-front; not edited, wrapped in `src/app/` |
 | `src/bazis/react/` | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy, `uploadable/` (`@/bazis/react/uploadable`) when it has bazis-uploadable, `ws/` with bazis-ws, `bg/` with bazis-bg, `async/` with bazis-async-background | bazis-front; not edited |
-| `src/bazis/ui/<component>/` | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies `state-panel`, `app-shell`, `login-form`, `manage.py bazis_front add` the others | the product, keeping the contract tests passing |
+| `src/bazis/ui/<component>/` | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies `state-panel`, `app-shell`, `login-form`, `manage.py bazis_front add` the others (`add map` also sets Leaflet in `package.json`: `npm install` then) | the product, keeping the contract tests passing |
 | `src/app/` | providers (query cache, `BazisProvider`), session, router (the layout and the navigation), errors | the product |
 | `src/screens/<screen>/` | the screens, composed from the components | the product |
 | `src/components/ui/`, `src/lib/` | shadcn/ui components: those of the components copied by bazis-front, others with `npx shadcn add <name>` | the product |
@@ -83,7 +83,7 @@ written.
 - Mark the elements with `data-bz` (`screen:<id>`, `state:<state>`, `list:<entity>`,
   `row:<id>` with its cells `cell:<column>`, `field:<field>`, `error:<field>`,
   `upload:<field>` (a file field), `action:<id>`, `transit:<id>`, `status:<id>`,
-  `nav:<screen>`; the components of the packages add `socket:<status>`,
+  `nav:<screen>`, `map:<entity>` with `marker:<id>` (`list.map`); the components of the packages add `socket:<status>`,
   `action:notifications`, `list:notifications`, `notification:<key>`, `bg:<state>`,
   `async:<status>`): the scenarios of the
   product spec act through them (see [End-to-end tests](#end-to-end-tests)).
@@ -213,6 +213,7 @@ const step = useResourceForm(ROUTES['tasks.step'], { fixed: { task: id } });
 | `useCreate(path)`, `useUpdate(path)`, `useDestroy(path)` | `mutate(document)`, `mutate({id, document})`, `mutate(id)` |
 | `useRelationship(path)` | `mutate({id, field, operation: 'add' \| 'replace' \| 'remove', data})`: the relationship endpoint, for to-many relationships |
 | `useResourceForm(path, {id?, fixed?})` | a form bound to `schema_create`/`schema_update`: fields, values, dirty, submit of the changed attributes and to-one relationships, `errors` of a 422 by field; `fixed` values of fields that the screen sets (the parent of an added item) |
+| `useAction(path, name, {method?, invalidate?})`, `useItemAction(path, name, …)` | a custom action of the route set (`<path><name>/`, `<path><id>/<name>/`): `mutate(body)`, `mutate({id, body})`, typed by its OpenAPI; `errors` of its body by field, `error` the `ApiError`; it refetches the resource unless `invalidate: false` |
 | `useApi()`, `useSessionKey()` | the client; the scope (the session and the language), the last item of a query key of your own |
 
 With bazis-statusy, `@/bazis/react/statusy`:
@@ -280,11 +281,13 @@ of the installed package, lists their props and their `data-bz`):
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control) |
 | `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
-| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card` in the `children` of the card: `path`, `entity`, `relation`, `item={id}`, `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`) |
+| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card` in the `children` of the card: `path`, `entity`, `relation`, `item={id}`, `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). The `children` are drawn under the heading, above the sections: related lists that follow the fields go after the card (below) |
 | a field with choices (a column, a field of a card or a form, a filter) | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
 | the notifications and the live updates (bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` (below) |
 | a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
 | a field `type: file` (bazis-uploadable) | shown by the components (a link to the file, a thumbnail of an image); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes (below) |
+| a field `type: point`, `list.map: {field}` | shown as its coordinates (`55.7558, 37.6173`) and edited as them in the forms, on a map too once `MapProvider` of `@/bazis/ui/map` wraps the routes; `ResourceMap` of `@/bazis/ui/map` beside the `ResourceList` of the screen, with its `filter` (below) |
+| an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | a button calling `useAction(path, '<name>')` of `@/bazis/react` (above), its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` (below) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | an action of the card (`permission: 'delete'`) calling `useDestroy` |
@@ -421,6 +424,44 @@ import { FileFieldProvider } from '@/bazis/ui/file-field';
 </FileFieldProvider>
 ```
 
+The points of the models (a field `type: point`) and the maps: `manage.py bazis_front add
+map`, then `npm install` (it sets Leaflet in `package.json`). Wrap the routes in
+`MapProvider` with the tiles of the product, a setting of `src/app/product.ts`: the default,
+`OSM_TILES` (OpenStreetMap with its attribution), is for development and light use; in
+production use the tiles of a provider and allow their host in the Content Security Policy
+(`img-src`). A screen with `list.map` shows `ResourceMap` beside its list; a list of what
+is near the user filters by the distance from the position of the browser (never saved in
+the profile):
+
+```tsx
+// src/app/product.ts
+export const MAP_TILES: MapTiles = { url: 'https://tiles.example.com/{z}/{x}/{y}.png', attribution: '&copy; Example' };
+
+// src/app/router.tsx: the maps draw these tiles, the point fields of the forms get a map
+<MapProvider tiles={MAP_TILES}>
+  <BrowserRouter>…</BrowserRouter>
+</MapProvider>
+
+// spec/screens/site-list.yaml (`list.map: {field: location}`)
+const geolocation = useGeolocation();   // locate() asks the browser
+const near = geolocation.position ? nearFilter('location', geolocation.position, 5000) : undefined;
+<ResourceMap path={SITES} entity="site" field="location" filter={near} me={geolocation.position} selected={id} onOpen={(site) => void navigate(`/sites/${site}`)} />
+<ResourceList path={SITES} entity="site" columns={['name', 'address']} filter={near} selected={id} onOpen={…} />
+```
+
+A custom action of a route set (`@http_post('/export/')` in the backend, `action_export:
+"other"` in the contract) is called with `useAction`, never with a `fetch` of your own (the
+client sends the token and the language, and its errors are `ApiError`); an action that
+queues a task of bazis-bg answers with its id, which `TaskProgress` follows:
+
+```tsx
+const exporting = useAction(ROUTES['service.work_order'], 'export', { invalidate: false });
+<Button data-bz="action:export" disabled={exporting.isPending} onClick={() => { exporting.mutate({ date_from, date_to }); }}>…</Button>
+{exporting.errors.date_to && <p data-bz="error:date_to">{exporting.errors.date_to.join(' ')}</p>}
+{exporting.isError && <StatePanel inline state={errorState(exporting.error)} error={exporting.error} />}
+{exporting.data && <TaskProgress id={exporting.data.task}>{(task) => <a href={…}>…</a>}</TaskProgress>}
+```
+
 With bazis-ws, `manage.py bazis_front add live-query notification-center`, wrap the routes
 in `SocketProvider` with the token of the session (none before the login; the logout
 closes it) and give the layout the tools. A notification is
@@ -458,7 +499,15 @@ shown, and `LiveQuery` refetches every query after a reconnect.
   guide of bazis-front, "The components", and in the `Props` types of `src/bazis/ui/`):
   - a section of your own in a card: `children` of `ResourceCard` is `(item, meta) => …`,
     the item and its permission meta (`permitted(meta, 'change')` of `@/bazis/ui/resource`,
-    from `crud_actions`), without a second `useItem`;
+    from `crud_actions`), without a second `useItem`; it is drawn under the heading, above
+    the sections of fields. Sections that follow the fields (the related lists of a long
+    card) go after `ResourceCard` in the `Screen`, with the meta of
+    `useItem(path, id, {meta: ['crud_actions']})`: the query of the card (the same key), not
+    a second request;
+  - the rows of `useList` are typed by `schema.d.ts` (`row.attributes.title`); the rows that
+    `ResourceList` gives `cells`, `rowTone` and `onOpen` are plain resource objects: read a
+    field there with `fieldValue(row, '<field>')` of `@/bazis/ui/resource` (an attribute, or
+    the id of a to-one relationship), never with a cast;
   - a to-many relationship (the participants of a booking): the card shows it read-only; a
     section of your own changes it with `useRelationship(path).mutate({id, field, operation:
     'add' | 'remove' | 'replace', data: [{type, id}]})`, the item chosen with

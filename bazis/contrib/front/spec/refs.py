@@ -38,6 +38,8 @@ REQUIRED_STATES = {
 
 #: the format of a string attribute of the contract by the type of the specs
 FORMATS = {'date': 'date', 'datetime': 'date-time', 'time': 'time'}
+#: the format of the GeoJSON object of a point field in the contract (the type `point`)
+POINT = 'point'
 
 
 @dataclass
@@ -94,8 +96,11 @@ def matches_type(spec_type: str, schema: dict) -> bool:
         return False
     if spec_type in FORMATS:
         return kind == 'string' and fmt == FORMATS[spec_type]
+    if spec_type == 'point':
+        # a PointField of the model, a GeoJSON point (the contract reads it from the model)
+        return kind == 'object' and fmt == POINT
     if spec_type == 'json':
-        return kind in ('object', 'array')
+        return kind in ('object', 'array') and fmt != POINT
     return kind == spec_type
 
 
@@ -574,7 +579,23 @@ def _check_screen(
                     doc, ('card', key), 'S011', f'The entity `{entity.data["id"]}` has no workflow.',
                     'Declare the workflow of the entity, or remove it from the card.',
                 )
-    highlight = data['list'].get('highlight') if primitive == 'list' else None
+    if primitive == 'list':
+        _check_list(doc, entity, issues)
+    if contract is not None and primitive == 'list':
+        _check_list_contract(doc, entity, contract, issues)
+    if contract is not None:
+        _check_search_contract(doc, entity, contract, issues)
+    _check_related_sections(doc, entity, product, screens, contract, issues)
+
+
+def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
+    """
+    A list without the contract: its highlight has a label; its map is by a point field of
+    the entity, and no point field is a filter of the user (a point is filtered by its
+    distance, `<field>__near`, which no control of the filters sends).
+    """
+    lst = doc.data['list']
+    highlight = lst.get('highlight')
     if highlight is not None and 'label' not in highlight:
         issues.add(
             doc, ('list', 'highlight'), 'S014',
@@ -583,11 +604,24 @@ def _check_screen(
             'Give it a `label` (a key of the dictionaries of the frontend, `tickets.overdue`, or a '
             'text), which the screen gives `ResourceList` as `rowToneLabel`.',
         )
-    if contract is not None and primitive == 'list':
-        _check_list_contract(doc, entity, contract, issues)
-    if contract is not None:
-        _check_search_contract(doc, entity, contract, issues)
-    _check_related_sections(doc, entity, product, screens, contract, issues)
+    places = [(('list', 'filters', i), name) for i, name in enumerate(lst.get('filters', []))]
+    for path, name in places:
+        if entity.fields.get(name, {}).get('type') == POINT:
+            issues.add(
+                doc, path, 'S016',
+                f'The field `{name}` is a point: no filter of a list takes it.',
+                'Remove it from `filters`; filter by the distance from a point in the screen '
+                '(`nearFilter` of the component map, `<field>__near=<lon>,<lat>,<meters>`).',
+            )
+    field = lst.get('map', {}).get('field')
+    declared = entity.fields.get(field) if field else None
+    if declared is not None and declared.get('type') != POINT:
+        issues.add(
+            doc, ('list', 'map', 'field'), 'S016',
+            f'The map of the list is by `{field}`, which the entity `{entity.data["id"]}` does not '
+            'declare as a point.',
+            'Map a field with `type: point` (a PointField of the model).',
+        )
 
 
 def related_sections(data: dict) -> list[dict]:
@@ -691,6 +725,8 @@ def _screen_fields(data: dict):
             yield ('list', 'filter', name), name
         if 'highlight' in data['list']:
             yield ('list', 'highlight', 'field'), data['list']['highlight']['field']
+        if 'map' in data['list']:
+            yield ('list', 'map', 'field'), data['list']['map']['field']
     elif data['primitive'] == 'card':
         for i, section in enumerate(data['card']['sections']):
             for j, name in enumerate(section['fields']):

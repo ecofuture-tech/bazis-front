@@ -30,6 +30,8 @@ export type { PaginationLinks, PaginationMeta } from './pagination.js';
 export { can } from './permit.js';
 export type { CrudAccessAction, PermitMeta } from './permit.js';
 export type {
+  ActionName,
+  ActionOptions,
   AuthAction,
   AuthState,
   AuthUser,
@@ -39,6 +41,7 @@ export type {
   BackgroundStatus,
   BodyOf,
   EndpointOf,
+  HttpMethod,
   ItemOptions,
   ListOptions,
   Page,

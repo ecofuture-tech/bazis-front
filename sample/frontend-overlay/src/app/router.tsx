@@ -16,7 +16,7 @@ import { FilePen, House, ListChecks } from 'lucide-react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
-import { PRODUCT_NAME } from '@/app/product';
+import { MAP_TILES, PRODUCT_NAME } from '@/app/product';
 import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
@@ -25,6 +25,7 @@ import { SocketProvider, type Notification } from '@/bazis/react/ws';
 import { AppShell, ListCardLayout, type NavItem } from '@/bazis/ui/app-shell';
 import { FileFieldProvider } from '@/bazis/ui/file-field';
 import { LiveQuery } from '@/bazis/ui/live-query';
+import { MapProvider } from '@/bazis/ui/map';
 import { NotificationCenter } from '@/bazis/ui/notification-center';
 import { DraftTasksScreen } from '@/screens/draft-tasks';
 import { HomeScreen } from '@/screens/home';
@@ -92,22 +93,25 @@ export function AppRouter() {
   const token = useToken();
   return (
     <SocketProvider path={CAPABILITIES.ws?.path ?? null} token={token}>
-      {/* the file fields of the forms upload their files (bazis-uploadable) */}
+      {/* the file fields of the forms upload their files (bazis-uploadable), the point fields
+          are placed on a map, and the maps draw the tiles of the product */}
       <FileFieldProvider>
-        <BrowserRouter>
-          <Routes>
-            {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
-            <Route element={<RequireSession />}>
-              <Route index element={<HomeScreen />} />
-              {/* the card next to the list or in its place (`composition.list_card` of the theme) */}
-              <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
-                <Route path=":id" element={<TaskCardScreen />} />
+        <MapProvider tiles={MAP_TILES}>
+          <BrowserRouter>
+            <Routes>
+              {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
+              <Route element={<RequireSession />}>
+                <Route index element={<HomeScreen />} />
+                {/* the card next to the list or in its place (`composition.list_card` of the theme) */}
+                <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
+                  <Route path=":id" element={<TaskCardScreen />} />
+                </Route>
+                <Route path="drafts" element={<DraftTasksScreen />} />
               </Route>
-              <Route path="drafts" element={<DraftTasksScreen />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </MapProvider>
       </FileFieldProvider>
     </SocketProvider>
   );

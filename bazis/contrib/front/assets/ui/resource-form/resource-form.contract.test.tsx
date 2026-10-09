@@ -21,7 +21,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Screen } from '@/bazis/ui/app-shell';
-import { FilesProvider, type FileControlProps } from '@/bazis/ui/resource';
+import { FilesProvider, PointsProvider, type FileControlProps } from '@/bazis/ui/resource';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
@@ -60,6 +60,29 @@ describe('ResourceForm', () => {
     });
     expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
       data: { type: 'test.item', attributes: { title: 'Report' }, relationships: {} },
+    });
+  });
+
+  it('edits a point field of its route set as coordinates and sends GeoJSON', async () => {
+    const located = runtimeSchema({
+      location: { attribute: { anyOf: [{ type: 'object' }, { type: 'null' }], nullable: true, title: 'Location' } },
+    });
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, located)
+      .on('POST', ITEMS, { data: resource(ITEM_ID) }, 201);
+    renderWithBazis(
+      <PointsProvider control={null} fields={{ [ITEMS]: ['location'] }}>
+        <ResourceForm path={ITEMS as never} />
+      </PointsProvider>,
+      backend,
+    );
+    fireEvent.change(await screen.findByTestId('field:location'), { target: { value: '55.75, 37.62' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEMS}`]);
+    });
+    expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
+      data: { type: 'test.item', attributes: { location: { type: 'Point', coordinates: [37.62, 55.75] } }, relationships: {} },
     });
   });
 

@@ -32,6 +32,8 @@ export const en: Messages = {
   'tasks.new': 'New task',
   'tasks.new_description': 'The task is created as a draft.',
   'tasks.empty': 'No tasks yet.',
+  'tasks.count': 'Count the tasks',
+  'tasks.no_location': 'No task has a location.',
   'task.title': 'Task',
   'task.all': 'All tasks',
   'task.details': 'Details',

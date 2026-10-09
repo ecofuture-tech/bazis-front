@@ -15,7 +15,8 @@
 // The types of the tests of the hooks, imported by them as `@/bazis/generated/schema` (the
 // `paths` of tsconfig.json), as the hooks import them in a product. They are those of the
 // core sample (the fixture of the client), whose route sets are not statusy: the endpoints
-// that bazis-statusy adds to its route sets are added to `parent_entity`.
+// that bazis-statusy adds to its route sets are added to `parent_entity`, with two custom
+// actions as a route set declares them (`@http_post('/count/')`, an item `summary/`).
 
 import type { paths as corePaths } from '../../../client/test/fixtures/schema.js';
 
@@ -30,5 +31,14 @@ export type paths = corePaths & {
   };
   '/api/v1/entity/parent_entity/{item_id}/schema_transit/': {
     get: corePaths['/api/v1/entity/parent_entity/{item_id}/schema_update/']['get'];
+  };
+  '/api/v1/entity/parent_entity/count/': {
+    post: {
+      requestBody: { content: { 'application/json': { priority?: 'low' | 'high' | null } } };
+      responses: { 200: { content: { 'application/json': { task: string } } } };
+    };
+  };
+  '/api/v1/entity/parent_entity/{item_id}/summary/': {
+    get: { responses: { 200: { content: { 'application/json': { total: number } } } } };
   };
 };

@@ -35,6 +35,8 @@ export interface ErrorObject {
  * `ERR_RELATION_ACCESS`).
  */
 const FIELD_POINTER = /^\/data\/(?:attributes|relationships)\/([^/]+)/;
+/** The pointer of a field of a JSON body that is not a document, `/<name>`. */
+const BODY_POINTER = /^\/([^/]+)/;
 /** The pointer of an included item, `/included/<index>`, and of one of its fields. */
 const INCLUDED_POINTER = /^\/included\/(\d+)(?:\/(?:attributes|relationships)\/([^/]+))?/;
 
@@ -87,6 +89,23 @@ export class ApiError extends Error {
     const fields: Record<string, string[]> = {};
     for (const error of this.errors) {
       const name = fieldOf(error);
+      if (name !== undefined) {
+        (fields[name] ??= []).push(messageOf(error));
+      }
+    }
+    return fields;
+  }
+
+  /**
+   * The messages of the errors of the fields of a JSON body that is not a JSON:API document
+   * (the body of a custom action, `client.action`), by their name: `source.pointer`
+   * `/<name>` (an error of a nested value belongs to its field, `/<name>/0`); the others
+   * (of the body as a whole, of a parameter, of the request) are not given.
+   */
+  bodyErrors(): Record<string, string[]> {
+    const fields: Record<string, string[]> = {};
+    for (const error of this.errors) {
+      const name = BODY_POINTER.exec(error.source?.pointer ?? '')?.[1];
       if (name !== undefined) {
         (fields[name] ??= []).push(messageOf(error));
       }

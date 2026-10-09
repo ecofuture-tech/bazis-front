@@ -500,6 +500,8 @@ def test_the_e2e_data_of_the_sample(monkeypatch):
         assert user.check_password('second-password-1')
         assert user.role_current.slug == role and list(user.roles.values_list('slug', flat=True)) == [role]
     assert list(task_model.objects.values_list('title', 'report', 'status_id')) == [(TASK, '', 'draft')]
+    # the point that the scenario of the viewer expects on the card
+    assert task_model.objects.get().location.coords == (37.6173, 55.7558)
     assert not apps.get_model('tasks.Step').objects.exists()
     # the roles are those that `migrate` applied from the declarations
     assert set(apps.get_model('permit.Role').objects.values_list('pk', flat=True)) == roles

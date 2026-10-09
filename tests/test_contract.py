@@ -88,6 +88,8 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert task['actions']['action_list'] == 'collection'
     assert task['actions']['action_retrieve'] == 'item'
     assert task['actions']['action_transit'] == 'other'
+    # a custom action of the route set (`client.action(path, 'count', body)`)
+    assert task['actions']['action_count'] == 'other'
     assert 'other_routes' not in task
 
     fields = task['fields']
@@ -99,6 +101,10 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
         'relation': 'users.user', 'many': False, 'filter': 'assignee', 'order': 'assignee'
     }
     assert fields['status']['relation'] == 'statusy.status'
+    # a PointField: the GeoJSON object of every geometry, a point by its model field
+    assert fields['location'] == {'type': 'object', 'format': 'point', 'filter': 'location', 'order': 'location'}
+    # another object (a JSONField) has no format
+    assert 'format' not in resources['bg.task']['fields']['kwargs']
     # a file of bazis-uploadable: a relationship to its uploaded files
     assert fields['attachment'] == {
         'relation': 'uploadable.file_upload', 'many': False, 'filter': 'attachment', 'order': 'attachment'
@@ -119,6 +125,17 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert resources['bg.task']['search'] == []
     # a write-only attribute can be neither filtered nor sorted
     assert resources['users.user']['fields']['raw_password'] == {'type': 'string'}
+
+
+def test_a_point_is_a_point_field_of_the_model():
+    from bazis.contrib.front.contract.resources import _is_point
+
+    assert _is_point('tasks.Task', 'location')
+    # another field, a calculated one (none of the model), a path, no model
+    assert not _is_point('tasks.Task', 'title')
+    assert not _is_point('tasks.Task', 'distance')
+    assert not _is_point('tasks.Task', 'assignee__username')
+    assert not _is_point(None, 'location')
 
 
 def test_a_resource_is_described_by_the_default_route_of_its_model(sample_app):
@@ -378,9 +395,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0008_priority_step')
+    unapply('tasks', '0009_location')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0008_priority_step.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0009_location.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -388,12 +405,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0008_priority_step' in messages[0].msg
+    assert 'tasks.0009_location' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0008_priority_step')
+    unapply('tasks', '0009_location')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )

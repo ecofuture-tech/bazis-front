@@ -161,7 +161,9 @@ author: bazis-statusy has no endpoint for the earlier transits), with bazis-uplo
 `FileFieldProvider`), with bazis-ws `notification-center` (a bell, the list of the
 notifications of the session, a toast for each new one) and `live-query` (the live
 refetches and the state of the socket), both in the `tools` of `AppShell`, with bazis-bg
-`task-progress` and with bazis-async-background `async-result`. The login form takes the
+`task-progress` and with bazis-async-background `async-result`, and `map` (the items with a
+point on a Leaflet map, and the map of a point field of the forms, given to the input of the
+fields by `MapProvider`, with the tiles of the product). The login form takes the
 logins of bazis-authing: the password through its service `password`, and a button for a
 service whose page opens in a window.
 They are listed
@@ -172,7 +174,9 @@ lock entries, like the hooks; the product owns and changes them. Each ships a co
 that checks its `data-bz` marks and states, run by `npm test` of the product, so that it
 keeps working after the product edits it. The shadcn/ui components they use are copied as
 assets too (into `src/components/ui/`), not through the shadcn CLI: `add` needs no network,
-and the template declares every npm dependency of the components. The components read
+and the template declares the npm dependencies of the components; the library of an
+optional one (Leaflet of `map`) is `npm` of its asset, set by `add` in the `package.json` of
+the product and kept by `update` at the version of each release. The components read
 the fields, their titles and what is read-only from the runtime schemas and the actions
 from the permission meta; they are small explicit APIs over the field ids of the specs,
 and the screens are written by the agent from them: there is no generator of screens.

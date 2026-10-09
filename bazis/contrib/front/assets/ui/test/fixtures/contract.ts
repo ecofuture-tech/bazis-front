@@ -224,6 +224,7 @@ export const RESOURCES = {
   },
   "tasks.task": {
     actions: {
+      action_count: "other",
       action_create: "create",
       action_delete_relationships: "relationship",
       action_destroy: "delete",
@@ -265,6 +266,12 @@ export const RESOURCES = {
         format: "date-time",
         order: "dt_updated",
         type: "string",
+      },
+      location: {
+        filter: "location",
+        format: "point",
+        order: "location",
+        type: "object",
       },
       priority: {
         filter: "priority",

@@ -13,9 +13,29 @@
 # limitations under the License.
 
 from django.apps import apps
+from django.utils.translation import gettext_lazy as _
+
+from pydantic import BaseModel
 
 from bazis.contrib.permit.routes_abstract import PermitRouteBase
 from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
+from bazis.core.errors import JsonApiBazisError, JsonApiBazisException
+from bazis.core.routes_abstract.initial import http_post
+from bazis.core.schemas.enums import RouteKind
+
+from .models import Task
+
+
+class CountRequest(BaseModel):
+    """The tasks to count: those of a priority, all without one."""
+
+    priority: Task.Priority | None = None
+
+
+class CountStarted(BaseModel):
+    """The task of bazis-bg that counts them (the resource `bg.task`)."""
+
+    task: str
 
 
 class TaskRouteSet(StatusyRouteSetBase):
@@ -31,6 +51,25 @@ class TaskRouteSet(StatusyRouteSetBase):
     # the search of the list of the tasks (the core 2.9 answers a search of a route set
     # without search fields with 400)
     search_fields = ['title']
+
+    @http_post('/count/', response_model=CountStarted, kind=RouteKind.OTHER)
+    def action_count(self, data: CountRequest, **kwargs):
+        """
+        A custom action of the route set (`client.action(path, 'count', body)` of the
+        frontend): queues the count of the tasks by their status, a task of bazis-bg that the
+        user reads at `/api/v1/bg/task/{id}/` (`TaskProgress`). A request without a user is
+        403; a priority that is not one of the choices is 422 at `/priority`.
+        """
+        from .bg.count import CountTasks
+
+        user = self.inject.user
+        if user.is_anonymous:
+            raise JsonApiBazisException(
+                [JsonApiBazisError(_('Log in to count the tasks'), code='ERR_FORBIDDEN', status=403)],
+                status=403,
+            )
+        task = CountTasks.delay(priority=data.priority, author=user)
+        return CountStarted(task=str(task.pk))
 
 
 class StepRouteSet(PermitRouteBase):

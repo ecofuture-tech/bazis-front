@@ -15,6 +15,8 @@
 import { ApiError, errorFromResponse } from './errors.js';
 import type { Filter } from './filter.js';
 import type {
+  ActionName,
+  ActionOptions,
   AuthState,
   AuthUser,
   BackgroundMethod,
@@ -22,12 +24,14 @@ import type {
   BackgroundStart,
   BodyOf,
   EndpointOf,
+  HttpMethod,
   IncludeOption,
   ItemOptions,
   ListOptions,
   RequestOptions,
   ResourceIdentifier,
   ResponseOf,
+  RouteSetPath,
   RouteSetWith,
   TokenResponse,
   UploadOptions,
@@ -161,6 +165,37 @@ export interface BazisClient<Paths> {
     payload?: unknown,
     options?: RequestOptions,
   ): Promise<ResponseOf<EndpointOf<Paths, P, '{item_id}/transit/', 'post'>> | null>;
+
+  /**
+   * Calls a custom action of a route set, `<path><name>/` (a route of the backend declared
+   * with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for
+   * `get`) and its JSON response, typed by the OpenAPI; resolves to undefined for 204. An
+   * error status is an `ApiError`; the errors of the body point to its fields
+   * (`/<field>`: `ApiError.bodyErrors()`).
+   */
+  action<
+    P extends RouteSetPath<Paths>,
+    N extends ActionName<Paths, P, M>,
+    M extends HttpMethod = 'post',
+  >(
+    path: P,
+    name: N,
+    body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>,
+    options?: ActionOptions<M>,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>>;
+
+  /** Calls a custom action of an item, `<path><id>/<name>/`, as `action` does. */
+  itemAction<
+    P extends RouteSetPath<Paths>,
+    N extends ActionName<Paths, P, M, Item>,
+    M extends HttpMethod = 'post',
+  >(
+    path: P,
+    id: string,
+    name: N,
+    body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>,
+    options?: ActionOptions<M>,
+  ): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>>;
 
   /**
    * Gets a token from the token endpoint of bazis-users (an OAuth2 password form). The
@@ -435,6 +470,9 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
   const item = (path: string, id: string): string => `${path}${encodeURIComponent(id)}/`;
   const jsonapi = (document: unknown) => ({ body: JSON.stringify(document), contentType: JSONAPI });
   const json = (body: unknown) => ({ body: JSON.stringify(body), contentType: JSON_TYPE });
+  /** A custom action: the JSON body, none for GET. */
+  const action = (method: HttpMethod, url: string, body: unknown, signal: AbortSignal | undefined) =>
+    send(method.toUpperCase(), url, { ...(body === undefined || method === 'get' ? {} : json(body)), signal });
   const methods: Record<RelationshipOperation, string> = {
     add: 'POST',
     replace: 'PATCH',
@@ -501,6 +539,17 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
         ...json(payload === undefined ? { transit } : { transit, payload }),
         signal,
       })) ?? null,
+
+    action: (path: string, name: string, body?: unknown, { method = 'post', signal }: ActionOptions<HttpMethod> = {}) =>
+      action(method, `${path}${name}/`, body, signal),
+
+    itemAction: (
+      path: string,
+      id: string,
+      name: string,
+      body?: unknown,
+      { method = 'post', signal }: ActionOptions<HttpMethod> = {},
+    ) => action(method, `${item(path, id)}${name}/`, body, signal),
 
     login: async (
       { username, password }: { username: string; password: string },

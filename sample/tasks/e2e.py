@@ -17,13 +17,15 @@ The data of the end-to-end tests of the sample, created by `manage.py e2e_data` 
 migrations (the roles, statuses and transits are declared in `tasks/roles.py` and
 `tasks/workflow.py`, which `migrate` applies):
 the test users of the roles, the `test_user` of the roles of `sample/spec/product.yaml`, and
-the task that a scenario opens. Every run starts the scenarios from the same data: the tasks
-of the previous runs (those the scenarios created, with their steps) are deleted, so that
-the lists do not grow from run to run and the task of the viewer is a draft again.
+the task that a scenario opens, with its location. Every run starts the scenarios from the
+same data: the tasks of the previous runs (those the scenarios created, with their steps) are
+deleted, so that the lists do not grow from run to run and the task of the viewer is a draft
+again.
 """
 
 from django.apps import apps as global_apps
 from django.contrib.auth import get_user_model
+from django.contrib.gis.geos import Point
 from django.core.exceptions import ObjectDoesNotExist
 
 
@@ -34,6 +36,8 @@ TEST_USERS = {'manager': 'manager', 'viewer': 'viewer'}
 #: the title of the task that the scenario of the viewer opens; no scenario creates a task
 #: with this title, so that the scenarios do not depend on their order
 TASK = 'Review the plan'
+#: its location (longitude, latitude), on the map of the list and on its card
+LOCATION = Point(37.6173, 55.7558, srid=4326)
 
 
 def create_test_data(password: str) -> None:
@@ -66,4 +70,4 @@ def create_test_data(password: str) -> None:
     # the tasks of the previous runs: those the scenarios created, and the task of the viewer,
     # which a run may have changed
     task_model.objects.all().delete()
-    task_model.objects.create(title=TASK)
+    task_model.objects.create(title=TASK, location=LOCATION)

@@ -57,7 +57,7 @@ export function TaskCardScreen() {
         id={id}
         edit
         sections={[
-          { id: 'main', title: t('task.details'), fields: ['title', 'status', 'assignee', 'attachment', 'priority'] },
+          { id: 'main', title: t('task.details'), fields: ['title', 'status', 'assignee', 'attachment', 'priority', 'location'] },
           { id: 'report', title: t('task.report'), fields: ['report'] },
         ]}
         badge={(item) => <StatusBadge resource={item} />}

@@ -42,6 +42,12 @@ describe('resourceSchema', () => {
           labels: { low: 'Low', normal: 'Normal', high: 'High' },
           schema: expect.objectContaining({ default: 'normal' }) as unknown,
         },
+        // a PointField: its GeoJSON object (the contract says that it is a point)
+        {
+          kind: 'attribute', name: 'location', title: 'Location', required: false, readOnly: false,
+          nullable: true, type: 'object', format: null, enum: null, labels: null,
+          schema: expect.objectContaining({ required: ['type', 'coordinates'] }) as unknown,
+        },
         // the initial status, which bazis-statusy accepts on a create
         {
           kind: 'relation', name: 'status', title: 'Current status', required: false,
@@ -67,6 +73,7 @@ describe('resourceSchema', () => {
       ['title', 'attribute', false],
       ['report', 'attribute', false],
       ['priority', 'attribute', false],
+      ['location', 'attribute', false],
       ['assignee', 'relation', false],
       ['attachment', 'relation', false],
     ]);
@@ -98,13 +105,14 @@ describe('resourceSchema', () => {
         ['title', 'Title', false],
         ['report', 'Report', false],
         ['priority', 'Priority', false],
+        ['location', 'Location', false],
         ['status', 'Current status', false],
         ['status_author', 'status author', false],
         ['assignee', 'assignee', false],
         ['attachment', 'Attachment', false],
       ]);
       expect(fields[0]).toMatchObject({ type: 'string', format: 'date-time' });
-      expect(fields[8]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });
+      expect(fields[9]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });
       expect(fields[5]).toMatchObject({ labels: { low: 'Low', normal: 'Normal', high: 'High' } });
     }
   });

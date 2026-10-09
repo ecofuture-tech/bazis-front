@@ -44,6 +44,12 @@ msgstr "Обычный"
 msgid "High"
 msgstr "Высокий"
 
+msgid "Location"
+msgstr "Местоположение"
+
+msgid "Log in to count the tasks"
+msgstr "Войдите, чтобы посчитать задачи"
+
 msgid "Step"
 msgstr "Шаг"
 

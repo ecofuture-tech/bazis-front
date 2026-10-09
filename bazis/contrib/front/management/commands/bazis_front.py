@@ -278,6 +278,12 @@ class Command(BaseCommand):
         for name in added.present:
             if name in assets:
                 self.stdout.write(f'{name} is already in the frontend.')
+        if added.dependencies:
+            packages = ', '.join(sorted(name for it in added.dependencies.values() for name in it))
+            self.stdout.write(
+                f'Set their npm dependencies ({packages}) in package.json: run `npm install` in '
+                'frontend/.'
+            )
         if added.copied:
             self.stdout.write(
                 'Run their contract tests with `npm test` in frontend/; the product owns the '
@@ -352,6 +358,8 @@ class Command(BaseCommand):
             for it in asset.files:
                 if it.status != update.REPLACED:
                     self.stdout.write(f'  {it.path}: {update.DESCRIPTIONS[it.status]}')
+        if plan.package is not None:
+            self.stdout.write(f'{plan.package.path}: {update.DESCRIPTIONS[plan.package.status]}')
         for path in plan.schemas:
             self.stdout.write(f'{path}: replaced by the copy of bazis-front {plan.version}.')
 

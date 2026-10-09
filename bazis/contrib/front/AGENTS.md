@@ -23,14 +23,14 @@ how to compose the screens:
 | Section | What it answers |
 |---|---|
 | [The frontend](#the-frontend) | `init`: what it creates, the lock, the pristine copies |
-| [The components](#the-components) | the components with their props and `data-bz`; the choices, the related items ("add here"), the filters, the permissions, the relationships, the files, the socket |
+| [The components](#the-components) | the components with their props and `data-bz`; the choices, the related items ("add here"), the filters, the permissions, the relationships, the files, the points and the maps, the custom actions, the socket |
 | [The contract](#the-contract) | `contract`, `contract.json`, `contract.ts`, `schema.d.ts` |
 | [The specs](#the-specs) | `product.yaml`, `screens/*.yaml` (`card.related`), the scenarios, the codes of `check` |
 | [The design](#the-design) | the preset, the tokens, the theme |
 | [The end-to-end tests](#the-end-to-end-tests) | `bazis_front e2e`, the helpers (`openItem`, `fill`...), `e2e_data` |
 | [The backend of a product](#the-backend-of-a-product) | the declared roles and workflows, the test data, the notifications |
 | [Updating the copies](#updating-the-copies) | `update`, the conflicts |
-| [The client](#the-client), [The hooks](#the-hooks) | the client, `useResourceForm`, `resourceSchema` |
+| [The client](#the-client), [The hooks](#the-hooks) | the client, `useResourceForm`, `resourceSchema`, the custom actions (`client.action`, `useAction`) |
 | [The socket](#the-socket), [The language](#the-language), [Logins with bazis-authing](#logins-with-bazis-authing) | bazis-ws, the translations and the formats, the logins |
 | [Protocol facts](#protocol-facts-that-are-easy-to-get-wrong) | what the backend does that is easy to get wrong |
 
@@ -117,6 +117,7 @@ python manage.py bazis_front add file-field                                  # w
 python manage.py bazis_front add live-query notification-center              # with bazis-ws
 python manage.py bazis_front add task-progress                               # with bazis-bg
 python manage.py bazis_front add async-result                                # with bazis-async-background
+python manage.py bazis_front add map                                         # the points on a map (Leaflet): then `npm install`
 ```
 
 The components are the visual building blocks of the screens: React components on
@@ -127,9 +128,12 @@ they require: the other components, the hooks, and the shadcn/ui components they
 (`button`, `input`, `label`, `native-select`, `table`, `badge`, `card`, `dialog`, `popover`,
 `sheet`, `skeleton`) in
 `src/components/ui/`, where `components.json` puts them. It needs neither the network nor
-the shadcn CLI, and never changes `package.json`: the template declares every npm
-dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-react`, and
-`@testing-library/react` with `jsdom` for their tests).
+the shadcn CLI. The template declares the npm dependencies of the components (`radix-ui`,
+`class-variance-authority`, `lucide-react`, and `@testing-library/react` with `jsdom` for
+their tests); an optional component that brings a library of its own, `map` (Leaflet),
+sets it in `package.json` when it is added (`leaflet`, `@types/leaflet`, recorded in its
+entry of the lock): run `npm install` then, as `add` says. `update` brings these
+dependencies to the versions of the new release without a conflict in `package.json`.
 
 - A component of a package needs its capability in `contract/contract.json` (export the
   contract first): `transit-bar`, `status-badge` and `status-history` need `statusy`,
@@ -169,7 +173,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once; `requires`: below), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource` (shared, copied with the components) | `FieldInput({field, value, onChange, errors?, disabled?, onBusy?})` (the only input of a field of a runtime schema), `FieldValue({field, value})`, `formatValue(field, value, {language, t})`, `choiceOptions(field)`, `fieldValue(item, name)`, `itemLabel(item)`, `permitted(meta, 'add' \| 'change' \| 'delete', id?)`, `RelationPicker({relation, value, onChange, nullable?, searchable?, label?})`, `RelationLabel({relation, id})`, `useListFields(path)`, `useItemFields(path, id, 'retrieve' \| 'update')` | `field:<name>`, `error:<name>` | |
+| `resource` (shared, copied with the components) | `FieldInput({field, value, onChange, errors?, disabled?, onBusy?, path?})` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue({field, value})`, `formatValue(field, value, {language, t})`, `choiceOptions(field)`, `fieldValue(item, name)`, `itemLabel(item)`, `permitted(meta, 'add' \| 'change' \| 'delete', id?)`, `RelationPicker({relation, value, onChange, nullable?, searchable?, label?})`, `RelationLabel({relation, id})`, `useListFields(path)`, `useItemFields(path, id, 'retrieve' \| 'update')`; the points: `pointOf(value)`, `geoJsonPoint(point)`, `formatPoint(point)`, `parsePoint(text)`, `PointsProvider({control, fields?})` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?: (field \| {field, label?, options?: [{value, label}]})[], filter?: Filter, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?: [{id, label, onClick(id), permission?}], cells?: {column: (row) => node}, rowTone?: (row) => Tone \| undefined, rowToneLabel?: (row) => string \| undefined, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})`, `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?: 'dialog' \| 'page'})` (`meta`: the permission meta of the item, `crud_actions`); `RelatedList({path, entity, relation, item, columns, title?, add?: {id, label, fields?, title?, icon?, onSaved?}, onOpen?, cells?, emptyMessage?, sort?, pageSize?, layout?, forms?})`: a related section (below) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, fixed?: {field: value}, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
@@ -181,6 +185,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list, a toast for each new one | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | `ws` |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS` (the texts `bg.<view>`) | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
+| `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})` (`list.map`: the items with a point in `field`), `MapProvider({tiles?, children})` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -308,6 +313,41 @@ the package documents each component.
   A product that shares the attachments of shared items widens `restrict_queryset` of a
   subclass of `FileUploadRouteSet` with `default_route = True` (the guide of
   bazis-uploadable). The section `uploadable` lists only the route sets with their create.
+- **Points and maps**: a `PointField` of a model is GeoJSON in the API, `{"type": "Point",
+  "coordinates": [<longitude>, <latitude>]}` (the core gives every geometry as the same
+  object; the contract tells a point by its model field: `format: point`, `type: point` in
+  the specs). `FieldValue` shows it as its coordinates, `55.7558, 37.6173` (latitude first,
+  a dot in every language, as maps write them); `FieldInput` of a form (`ResourceForm` gives
+  it its `path`) edits it as that text (sent as GeoJSON once it is a point, as the text
+  otherwise, which the backend refuses at the field), and with `MapProvider` around the
+  routes also on a map: a click places the point, `action:locate-<field>` places the
+  position of the browser. `bazis_front add map` copies the maps and sets Leaflet in
+  `package.json`; `ResourceMap` is `list.map` of a screen, beside its `ResourceList` with the
+  same `filter`: a marker per item with a point (`marker:<id>`, its label as the tooltip),
+  a click opens it (`onOpen`), the open item `selected`. **The tiles** are those of
+  `MapProvider tiles` (`{url, attribution, maxZoom?}`, a setting of the product such as
+  `MAP_TILES` in `src/app/product.ts`); the default, OpenStreetMap with its attribution, is
+  for development and light use under its tile usage policy: a product in production sets
+  the tiles of its provider (and allows their host in its Content Security Policy,
+  `img-src`). **What is near**: `useGeolocation()` asks the browser for its position (never
+  saved in the profile: a field of the user that others may read leaks it) and
+  `nearFilter(field, position, meters)` is the filter of the items within that distance
+  (`<field>__near=<lon>,<lat>,<meters>` of the core), for `ResourceList filter` and
+  `ResourceMap filter`; the order by the distance is the sort of the core (`sort` of both),
+  once it has one. Never store a point as two numbers (no index, no lookup of the core),
+  and never filter a list by a point with a control of the filters (S016).
+- **Custom actions** (a route of a route set declared with `@http_post('/<name>/')`, kind
+  `other` in `actions` of the contract: an export, a report, a recount): call them with
+  `useAction(path, '<name>')` of `@/bazis/react` (`mutate(body)`; `useItemAction` for
+  `<path><id>/<name>/`, `method` for another method than POST), typed by `schema.d.ts`:
+  a name or a body the backend does not have does not compile. The mutation refetches the
+  resource after it (`invalidate: false` for an action that changes nothing); its `error`
+  is the `ApiError` (`StatePanel` `errorState(error)`), and `errors` gives the errors of its
+  body by field (the core points them to `/<field>` of a JSON body: `ApiError.bodyErrors()`).
+  An action that queues a task of bazis-bg answers with its id: show it with `TaskProgress`
+  (`<TaskProgress id={action.data.task} />`). Never `fetch` an endpoint of the backend by
+  hand: the client sends the token and the language of the session, and turns the errors
+  into `ApiError`.
 - **The status history** (`StatusHistory`) is what bazis-statusy exposes: the current
   status with `status_dt` and `status_author`. bazis-statusy records every transit
   (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
@@ -429,9 +469,12 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `LANGUAGE_CODE` names: the same code, else the same base code): those the interface may be in.
 - `project.resources` is keyed by the JSON:API type. A resource is described by the route
   set that the core uses as the default route of its model; other route sets of the model
-  are listed in `other_routes`. `actions` maps the name of each route to its `kind`.
+  are listed in `other_routes`. `actions` maps the name of each route to its `kind` (a custom action of the route set is
+  `other`: `client.action`).
   `fields` are the attributes and relationships of the item response: `type` (and
-  `format`) of an attribute, `relation` (the JSON:API type) and `many` of a relationship;
+  `format`) of an attribute (`format: point` for a `PointField` of the model, whose GeoJSON
+  object is that of any geometry), `relation` (the JSON:API type) and `many` of a
+  relationship;
   `filter` and `order` are the labels for `filter` and `sort`, absent when the field cannot
   be filtered or sorted: they are those the core takes (bazis 2.9), the fields of the LIST
   schema of the route set that can filter or order (`query_fields`), so a field of the item
@@ -559,7 +602,8 @@ scenarios:
   that `LANGUAGE_CODE` names) of the contract (P029). See [The language](#the-language).
 - **Fields** are those of the resource in the API (`fields` of contract.json), with `type`
   (`string`, `text`, `integer`, `number`, `boolean`, `date`, `datetime`, `time`, `json`,
-  `file`) or `relation` (the id of an entity) and `many`. A `file` is a to-one
+  `point`, `file`) or `relation` (the id of an entity) and `many`. A `point` is a
+  `PointField` of the model (`format: point` of the contract; `json` is another object). A `file` is a to-one
   relationship to a resource of the uploaded files of bazis-uploadable (`resources` of the
   capability `uploadable`; P013 otherwise): declare such a relationship as a `file`, not as
   a `relation`; it needs no entity. A payload of a transit has no `file`. What is required, writable or
@@ -667,6 +711,12 @@ list:
   filter: {is_overdue: true}
   highlight: {field: is_overdue, tone: danger, label: tickets.overdue}
 ```
+
+`map` puts the items of a list with a point on a map beside it: `map: {field: location}`, a
+field of the entity with `type: point` (S016), in the screen `ResourceMap` of the component
+map with the `filter` of the list, its markers opening `open`. A point field is never one of
+the `filters` (S016): a list of what is near filters by the distance in the screen
+(`nearFilter`).
 
 ```yaml
 spec: bazis-screen/1
@@ -807,6 +857,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
 | `S014` | error | a value of the filter of a list does not fit the type of its field in the contract, or its highlight is not by a boolean field or has no label |
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
+| `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1248,6 +1299,11 @@ for what they do not cover (the login, a custom endpoint).
 - Upload a file with `api.upload(path, file, {name?, onProgress?, signal?})` (or
   `useUpload`): a multipart `POST` to the route set of the uploaded files, with
   XMLHttpRequest for its progress.
+- Call a custom action of a route set with `api.action(path, name, body?, {method?})`
+  (`<path><name>/`, POST by default; `api.itemAction(path, id, name, body?, {method?})` for
+  `<path><id>/<name>/`), or `useAction`: the JSON body and response of its OpenAPI; the
+  errors of the body by field are `ApiError.bodyErrors()` (`/<field>`), not
+  `fieldErrors()` (the pointers of a JSON:API document).
 - Run a request in the background with `api.background(method, path, {body?})` (or
   `useAsyncRequest`, bazis-async-request): `{status: 'queued', taskId}` or `{status:
   'done', response}`; read a task with `api.backgroundResult(resultPath)` (or
@@ -1320,6 +1376,10 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   `rejected`, `unavailable`), the `error` of a refused token and `retry()`;
   `useChannel(handler)` gets every message of the channels of the session, parsed; `useLiveQueries(ROUTES)` refetches what the
   messages say changed; `useNotifications()` is `{items, unread, markRead, clear}`.
+- `useAction(path, name, {method?, invalidate?})` calls a custom action of a route set
+  (`mutate(body)`, `useItemAction`: `mutate({id, body})`), typed by its OpenAPI, then
+  refetches the queries of the resource (not with `invalidate: false`); `errors` are those
+  of its body by field (`ApiError.bodyErrors()`), `error` the `ApiError`.
 - `useBgTask(path, id)` reads a task of bazis-bg (the query of `useItem`) every 2 s until it
   is `done`: `{state, phase, outcome, progress, result, …}` (`bgTask(document)`).
 - `useAsyncRequest()` sends a request with `X-Async-Background`: `{status: 'queued',
@@ -1536,6 +1596,17 @@ tests cannot log in (P026).
   than `BAZIS_FILE_UPLOAD_MAX_SIZE` is a 413 `ERR_FILE_TOO_LARGE`, checked after the whole
   body is received. bazis-uploadable does not restrict the types and never deletes a
   replaced file from the storage.
+- A point (`PointField`) is GeoJSON, `{"type": "Point", "coordinates": [<longitude>,
+  <latitude>]}`: the longitude first, as in `<field>__near=<lon>,<lat>[,<meters>]` (100 m
+  by default; `<field>=<lon>,<lat>` is within 10 m) and `<field>__in_bbox=<lon1>,<lat1>,
+  <lon2>,<lat2>`; `route_filter_fields/` gives it as `object`. bazis 2.13.2 reads points
+  but fails to write one: the core sets the GeoJSON object on the model field, which raises
+  (500), so a form that changes a point fails; until a version of the core converts it,
+  set the points in the backend (a hook, an action, `e2e_data`).
+- A custom action takes and returns plain JSON (`application/json`, not a JSON:API
+  document); the core points the errors of its body to `/<field>` (`ApiError.bodyErrors()`),
+  and a hook that raises `JsonApiBazisError` points to a field of it with `loc=('body',
+  '<field>')`.
 - The `id` of an item of a model with an integer primary key (`FileUpload`) is a JSON number
   in its documents, a string in the relationships that reference it: compare them as
   strings.

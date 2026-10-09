@@ -27,6 +27,7 @@
         ]
       },
       "files": [
+        "actions.ts",
         "context.tsx",
         "form.ts",
         "index.ts",
@@ -253,6 +254,7 @@
         "files.tsx",
         "hooks.ts",
         "index.ts",
+        "points.tsx",
         "relation-picker.contract.test.tsx",
         "relation-picker.tsx",
         "relation.tsx",
@@ -518,6 +520,36 @@
         "async-result.contract.test.tsx",
         "async-result.tsx",
         "index.ts"
+      ]
+    },
+    {
+      "name": "map",
+      "kind": "ui",
+      "source": "ui/map",
+      "target": "src/bazis/ui/map",
+      "requires": {
+        "assets": [
+          "i18n",
+          "resource",
+          "state-panel",
+          "testing",
+          "button",
+          "skeleton"
+        ]
+      },
+      "npm": {
+        "dependencies": {
+          "leaflet": "1.9.4"
+        },
+        "devDependencies": {
+          "@types/leaflet": "1.9.22"
+        }
+      },
+      "files": [
+        "index.ts",
+        "map.contract.test.tsx",
+        "map.tsx",
+        "resource-map.tsx"
       ]
     },
     {

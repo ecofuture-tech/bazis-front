@@ -44,6 +44,18 @@ export {
 } from './files.js';
 export type { ControlProps, FileControlProps, UploadedFile } from './files.js';
 export {
+  formatPoint,
+  geoJsonPoint,
+  isPoint,
+  parsePoint,
+  POINT_FIELDS,
+  PointInput,
+  pointOf,
+  PointsProvider,
+  usePoints,
+} from './points.js';
+export type { GeoJsonPoint, LatLng, PointControlProps } from './points.js';
+export {
   text,
   useAnyFilterFields,
   useAnyItem,

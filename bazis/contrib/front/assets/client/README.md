@@ -85,6 +85,8 @@ Every operation takes the path of a route set and, for an item, its id:
 | `schema(path, 'list' \| 'create')`, `schema(path, 'retrieve' \| 'update' \| 'transit', id)` | `GET path[{id}/]schema_<kind>/`: the JSON schema of the action for the current user |
 | `filterFields(path)` | `GET path route_filter_fields/` |
 | `transit(path, id, transit, payload?)` | `POST path{id}/transit/` (bazis-statusy); `null` on 204 |
+| `action(path, name, body?, {method})` | `POST path{name}/` (a custom action of the route set, `@http_post('/<name>/')`; another `method`, no body for `get`), `application/json`; its JSON response, undefined on 204 |
+| `itemAction(path, id, name, body?, {method})` | `POST path{id}/{name}/`, as `action` |
 | `login({username, password}, {path})` | `POST /api/openapi-token/` (bazis-users), a form |
 | `upload(path, file, {name, onProgress})` | `POST path`, `multipart/form-data` with `file` (and `name`), with XMLHttpRequest (bazis-uploadable); the created item |
 | `auth(path, {store})` | `GET path` (bazis-authing), the store token as the bearer token, without cookies; the state of the store |
@@ -93,6 +95,10 @@ Every operation takes the path of a route set and, for an item, its id:
 | `authLogout(path)` | `POST path` of the logout endpoint (bazis-authing), with the cookies of the browser, without the token; 204 |
 | `background(method, path, {body})` | `method path` with `X-Async-Background: true` (`BACKGROUND_HEADER`, bazis-async-request), a body as `application/vnd.api+json`; `{status: 'queued', taskId}` (202) or `{status: 'done', response}` |
 | `backgroundResult(path)` | `GET path?full_response=true` (bazis-async-background); `{status, response}` |
+
+The errors of the body of a custom action point to its fields (`/<field>`, plain JSON):
+`ApiError.bodyErrors()` gives them by field, as `fieldErrors()` gives those of a JSON:API
+document (`/data/attributes/<name>`).
 
 All of them accept `signal` (an `AbortSignal`). `include` exists only on retrieve, create
 and update: Bazis ignores it on a list, and the types reject it. A meta field such as

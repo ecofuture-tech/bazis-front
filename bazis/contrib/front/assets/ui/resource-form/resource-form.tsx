@@ -162,6 +162,7 @@ export function ResourceFormBody({
       {shown.map((field) => (
         <FieldInput
           key={field.name}
+          path={path}
           field={field}
           value={form.values[field.name]}
           errors={form.errors[field.name]}

@@ -31,6 +31,8 @@ export const ru: Messages = {
   'tasks.new': 'Новая задача',
   'tasks.new_description': 'Задача создаётся черновиком.',
   'tasks.empty': 'Задач пока нет.',
+  'tasks.count': 'Посчитать задачи',
+  'tasks.no_location': 'Ни у одной задачи нет местоположения.',
   'task.title': 'Задача',
   'task.all': 'Все задачи',
   'task.details': 'Подробности',

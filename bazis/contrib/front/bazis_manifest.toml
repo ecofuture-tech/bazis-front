@@ -86,3 +86,9 @@ text = "`manage.py e2e_data` runs before every run of the end-to-end tests and g
 
 [[pitfalls]]
 text = "the frontend is not a security boundary: permissions are checked by the backend, the frontend only reads the permission meta and the runtime schemas"
+
+[[pitfalls]]
+text = "a point of a model is a PointField (GeoJSON [lon, lat] in the API, `format: point` in the contract, `type: point` in the specs), never two float fields: the components show and edit it, `bazis_front add map` gives the maps (Leaflet, set in package.json: run npm install); the default tiles of MapProvider are OpenStreetMap for development: set the tiles of the product and its CSP in production; bazis 2.13.2 cannot write a point through the API (500), set it in the backend"
+
+[[pitfalls]]
+text = "a custom action of a route set (`@http_post('/export/')`, kind `other` in the contract) is called with useAction of @/bazis/react (client.action), never with fetch: the client sends the token and the language, its errors are ApiError (the errors of its body by field: bodyErrors()), and the id of a task of bazis-bg that it answers with is shown by TaskProgress"

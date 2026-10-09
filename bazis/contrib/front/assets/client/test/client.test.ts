@@ -263,6 +263,55 @@ describe('transit', () => {
   });
 });
 
+describe('action', () => {
+  it('posts the body of a custom action of the route set as application/json', async () => {
+    const { api, calls } = setup([json({ task: 'a1' }, 200, JSON_TYPE)]);
+    const loose = api as unknown as { action: (path: string, name: string, body?: unknown) => Promise<unknown> };
+    await expect(loose.action(PARENT, 'count', { priority: 'high' })).resolves.toEqual({ task: 'a1' });
+    expect(calls).toEqual([
+      {
+        url: `${BASE}${PARENT}count/`,
+        init: {
+          method: 'POST',
+          headers: { Accept: ACCEPT, 'Content-Type': 'application/json' },
+          body: '{"priority":"high"}',
+        },
+      },
+    ]);
+  });
+
+  it('calls an action of an item with another method, without a body for GET', async () => {
+    const { api, calls } = setup([json({ total: 3 }, 200, JSON_TYPE), new Response(null, { status: 204 })]);
+    const loose = api as unknown as {
+      itemAction: (path: string, id: string, name: string, body?: unknown, options?: { method?: string }) => Promise<unknown>;
+    };
+    await expect(loose.itemAction(PARENT, 'a/1', 'summary', { ignored: true }, { method: 'get' })).resolves.toEqual({
+      total: 3,
+    });
+    await expect(loose.itemAction(PARENT, '1', 'archive', undefined, { method: 'delete' })).resolves.toBeUndefined();
+    expect(calls).toEqual([
+      { url: `${BASE}${PARENT}a%2F1/summary/`, init: { method: 'GET', headers: { Accept: ACCEPT } } },
+      { url: `${BASE}${PARENT}1/archive/`, init: { method: 'DELETE', headers: { Accept: ACCEPT } } },
+    ]);
+  });
+
+  it('rejects with the errors of the body by its fields', async () => {
+    const errors = [
+      { status: 422, code: 'ERR_VALIDATE', detail: 'Input should be a valid date', source: { pointer: '/date_to' } },
+      { status: 422, code: 'ERR_VALIDATE', detail: 'Too many', source: { pointer: '/items/0' } },
+      { status: 422, code: 'ERR_VALIDATE', detail: 'The period ends before it starts' },
+    ];
+    const { api } = setup([json({ errors }, 422, JSON_TYPE)]);
+    const loose = api as unknown as { action: (path: string, name: string, body?: unknown) => Promise<unknown> };
+    const error = await loose.action(PARENT, 'export', {}).catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(ApiError);
+    const apiError = error as ApiError;
+    expect(apiError.status).toBe(422);
+    expect(apiError.bodyErrors()).toEqual({ date_to: ['Input should be a valid date'], items: ['Too many'] });
+    expect(apiError.fieldErrors()).toEqual({});
+  });
+});
+
 describe('authentication', () => {
   it.each([
     ['a string', 'secret'],

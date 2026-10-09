@@ -205,7 +205,7 @@ jobs:
           python manage.py bazis_front check
           # the theme that init compiled from the starters of the design
           python manage.py bazis_front design --check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress async-result
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress async-result map
 
       - name: Check and build the frontend
         if: ${{ !matrix.empty }}
@@ -223,6 +223,9 @@ jobs:
           test -f src/bazis/ui/notification-center/notification-center.contract.test.tsx
           test -f src/bazis/ui/task-progress/task-progress.contract.test.tsx
           test -f src/bazis/ui/async-result/async-result.contract.test.tsx
+          test -f src/bazis/ui/map/map.contract.test.tsx
+          # the npm dependency that `add map` set in package.json (Leaflet)
+          npm install
           npx tsc --noEmit
           npm run lint
           # the contract tests of the components with the tests of the template
@@ -251,12 +254,13 @@ jobs:
           python manage.py bazis_front check
           python manage.py bazis_front design --check
           # the components that need no capability
-          python manage.py bazis_front add resource-list resource-card resource-form
+          python manage.py bazis_front add resource-list resource-card resource-form map
 
       - name: Check and build the frontend of a product without resources
         if: ${{ matrix.empty }}
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
         run: |
+          npm install
           npx tsc --noEmit
           npm run lint
           npm test
@@ -340,7 +344,7 @@ jobs:
           python manage.py bazis_front init
           python manage.py bazis_front contract
           python manage.py bazis_front check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress map
           # the screens of the sample, product code, and the files that its scenarios upload
           cp -R frontend-overlay/src/. "$BS_BASE_DIR/frontend/src/"
           cp -R frontend-overlay/e2e/. "$BS_BASE_DIR/frontend/e2e/"
@@ -352,6 +356,8 @@ jobs:
       - name: Check and build the frontend
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
         run: |
+          # the npm dependency that `add map` set in package.json (Leaflet)
+          npm install
           npx tsc --noEmit
           npm run lint
           npm run build

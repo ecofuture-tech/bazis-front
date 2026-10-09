@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import re
 from importlib.resources import files
 from pathlib import Path
 
@@ -146,6 +148,36 @@ def test_the_components_of_init_need_no_capability():
     assert initial == ['state-panel', 'app-shell', 'login-form']
     for asset in registry.resolve(initial, assets):
         assert asset.kind in (registry.UI, registry.VENDORED) and not asset.capabilities, asset.name
+
+
+#: a bare import of the components: `from 'leaflet'`, `import 'leaflet/dist/leaflet.css'`
+IMPORT = re.compile(r"""(?:from|import) '((?:@[^/'.][^/']*/)?[^/'.@][^/']*)[^']*'""")
+
+
+def test_the_npm_dependencies_of_the_components_are_declared():
+    """
+    A package that a component imports is a dependency of the template, or of the asset
+    (`npm`, set by `add`: the map and Leaflet), with the version of the workspace of the
+    components; an optional one is never in the template.
+    """
+    template = json.loads((ASSETS / 'template' / 'package.json').read_text(encoding='utf-8'))
+    workspace = json.loads((ASSETS / 'ui' / 'package.json').read_text(encoding='utf-8'))['devDependencies']
+    declared = {**template['dependencies'], **template['devDependencies']}
+    for asset in registry.load().values():
+        if asset.kind != registry.UI:
+            continue
+        own = {name: version for section in asset.npm.values() for name, version in section.items()}
+        assert set(asset.npm) <= {'dependencies', 'devDependencies'}, asset.name
+        for name, version in own.items():
+            assert name not in declared, (asset.name, name)
+            assert workspace[name] == version, (asset.name, name)
+        for file in asset.files:
+            for package in IMPORT.findall(asset.read(file).decode('utf-8')):
+                if package in ('react', 'react-dom', 'vitest') or package in declared:
+                    continue
+                assert package in own or f'@types/{package}' in own, (asset.name, file, package)
+    map_asset = registry.load()['map']
+    assert map_asset.npm == {'dependencies': {'leaflet': '1.9.4'}, 'devDependencies': {'@types/leaflet': '1.9.22'}}
 
 
 def test_resolve_rejects_a_cycle():

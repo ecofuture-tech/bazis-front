@@ -18,11 +18,13 @@
 import { Filter } from '@/bazis/client';
 
 import {
+  useAction,
   useCan,
   useCreate,
   useDestroy,
   useFilterFields,
   useItem,
+  useItemAction,
   useList,
   useRelationship,
   useResourceForm,
@@ -114,4 +116,22 @@ export function useTypedSocket(): void {
   useChannel((message: unknown) => {
     seen.push(message, status, closed);
   });
+}
+
+export function useTypedActions(): void {
+  const count = useAction(PARENT, 'count');
+  count.mutate({ priority: 'high' });
+  // @ts-expect-error a body of another shape
+  count.mutate({ priority: 'urgent' });
+  const task: string | undefined = count.data?.task;
+  const errors: readonly string[] | undefined = count.errors.priority;
+  // @ts-expect-error the route set has no such action
+  seen.push(task, errors, useAction(PARENT, 'export'));
+  // @ts-expect-error the action is a POST
+  seen.push(useAction(PARENT, 'count', { method: 'get' }));
+  const summary = useItemAction(PARENT, 'summary', { method: 'get' });
+  summary.mutate({ id: '1' });
+  const total: number | undefined = summary.data?.total;
+  // @ts-expect-error summary is an action of an item
+  seen.push(total, useAction(PARENT, 'summary', { method: 'get' }));
 }

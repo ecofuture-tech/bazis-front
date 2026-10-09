@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { fromLocalDateTime, toLocalDateTime } from './fields.js';
 import { isFile, useFiles, type ControlProps } from './files.js';
 import { text } from './hooks.js';
+import { isPoint, PointInput, usePoints } from './points.js';
 import { RelationPicker } from './relation-picker.js';
 
 export interface FieldInputProps {
@@ -40,6 +41,8 @@ export interface FieldInputProps {
   disabled?: boolean;
   /** A file of the field starts or ends uploading: the form waits for it to be submitted. */
   onBusy?: (busy: boolean) => void;
+  /** The route set of the resource of the field: a point field of it (`PointsProvider`, the contract) is edited as a point. */
+  path?: string | undefined;
 }
 
 const TEXTAREA =
@@ -196,15 +199,25 @@ function noBusy(): void {
 
 /**
  * A field of a runtime schema with its label and its errors: the control by the type,
- * format and choices of an attribute (a select of the labels of the choices), the picker of
- * the related item of a to-one relationship (`RelationPicker`), the upload of a file field
- * (the control of `FilesProvider`, `FileField` of file-field); read-only when the user may
- * not change it.
+ * format and choices of an attribute (a select of the labels of the choices), the
+ * coordinates of a point field of the route set `path` (`PointInput`, with the map of
+ * `MapProvider`), the picker of the related item of a to-one relationship
+ * (`RelationPicker`), the upload of a file field (the control of `FilesProvider`, `FileField`
+ * of file-field); read-only when the user may not change it.
  * To-many relationships are not edited here (`useRelationship`): they are shown read-only.
  */
-export function FieldInput({ field, value, onChange, errors: fieldErrors = [], disabled = false, onBusy = noBusy }: FieldInputProps) {
+export function FieldInput({
+  field,
+  value,
+  onChange,
+  errors: fieldErrors = [],
+  disabled = false,
+  onBusy = noBusy,
+  path,
+}: FieldInputProps) {
   const id = useId();
   const files = useFiles();
+  const points = usePoints();
   // the error of the file of a file field, until it is replaced
   const [fileError, setFileError] = useState<string | null>(null);
   const errors = fileError === null ? fieldErrors : [...fieldErrors, fileError];
@@ -256,6 +269,8 @@ export function FieldInput({ field, value, onChange, errors: fieldErrors = [], d
             onChange={onChange}
           />
         )
+      ) : isPoint(field, path, points.fields) ? (
+        <PointInput field={field} value={value} onChange={onChange} disabled={disabled} control={control} />
       ) : (
         <AttributeControl field={field} value={value} onChange={onChange} disabled={disabled} control={control} />
       )}

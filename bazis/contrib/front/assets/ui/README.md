@@ -73,6 +73,7 @@ sample (`tests/test_design.py` checks it; write it again with
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | capability `ws` |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
+| `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})`; `MapProvider({tiles?, points?, children})`, `OSM_TILES`, `useMapTiles`; `LeafletMap({markers, selected?, onOpen?, onPick?, me?})`, `MapPointControl`; `nearFilter(field, point, meters)`, `useGeolocation()`; the texts `map.<text>` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; the map of a point field `map:<field>`, `action:locate-<field>` | npm `leaflet` (`add` sets it in package.json) |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it; the choices of a field are a
@@ -85,7 +86,10 @@ choice by its label; `choiceOptions(field)`: the choices as options of a filter)
 `useListFields`/`useItemFields` (the titles and types of the list, retrieve and
 update schemas, `has(name)`: whether the schema of the user has the field),
 `permitted(meta, action, id?)` (the permission meta of bazis-permit; allowed when the
-backend does not report it), the files of bazis-uploadable (`FilesProvider({control,
+backend does not report it), the points (`pointOf`, `geoJsonPoint`, `formatPoint`,
+`parsePoint`, `POINT_FIELDS`: the point fields of the contract by the path of their route
+set, and `PointsProvider({control, fields?})`, which gives `FieldInput` the control of the
+point fields: the map of `MapProvider`), the files of bazis-uploadable (`FilesProvider({control,
 resources?})`, which gives `FieldInput` the control of the file fields; `FileValue({relation,
 id, path?, preview?})`, `FileView`, `isFile`, `formatSize(bytes, {language, t}?)`, `FILE_RESOURCES`: the resources
 of `uploadable` of the contract), and the hooks with plain paths for the bodies of the
@@ -237,6 +241,15 @@ the WebSocket of the page in a test.
   of the endpoint for a replayed request, whose HTTP error is a failure with its message
   (`errors[0].detail`), as is a `failed` task (`error` of its response). `onDone` is called
   once for each `start`.
+- **`map`**: Leaflet (the npm dependency that `add map` sets in package.json) with the tiles
+  of `MapProvider` (`OSM_TILES`, OpenStreetMap with its attribution, by default: set those of
+  the product in production, with their host in its CSP), a circle marker per point in the
+  colors of the theme (`--primary`, `--background`, read when the map is drawn), the label
+  of the item as a text tooltip. `ResourceMap` reads the first `pageSize` (200) items of the
+  list with its `filter` and `sort`; the items without a point are left out, the list beside
+  it shows them. Its contract test replaces Leaflet with a fake (jsdom draws no map). A point
+  field of a form (`FieldInput` with the `path` of its route set) is the text `<latitude>,
+  <longitude>` and, under `MapProvider`, a map where a click places it.
 - **`transit-bar`** shows the transits of `meta.state_actions` (disabled with the errors of
   their validators when restricted); a transit whose action takes a typed payload opens a
   dialog with its fields, and the errors of a 422 (`/payload/<name>`) are shown by field.

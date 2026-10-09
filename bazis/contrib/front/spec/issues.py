@@ -87,6 +87,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S013': (ERROR, 'a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER`'),
     'S014': (ERROR, 'a value of the filter of a list does not fit the type of its field in the contract, or its highlight is not by a boolean field or has no label'),
     'S015': (ERROR, 'the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card'),
+    'S016': (ERROR, 'the map of a list is not by a point field of its entity, or a point field is a filter of a list'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

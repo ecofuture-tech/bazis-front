@@ -23,7 +23,7 @@
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/$defs/Def3",
+            "$ref": "#/$defs/Def4",
             "title": "Relationships"
           }
         },
@@ -88,14 +88,54 @@
             "nullable": false,
             "title": "Priority",
             "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def3"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Location"
           }
         },
         "type": "object"
       },
       "Def3": {
         "properties": {
+          "type": {
+            "enum": [
+              "Point",
+              "LineString",
+              "Polygon",
+              "MultiPoint",
+              "MultiLineString",
+              "MultiPolygon",
+              "GeometryCollection"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "coordinates": {
+            "items": {},
+            "title": "Coordinates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "type": "object"
+      },
+      "Def4": {
+        "properties": {
           "status": {
-            "$ref": "#/$defs/Def4",
+            "$ref": "#/$defs/Def5",
             "default": null,
             "nullable": false,
             "title": "Current status"
@@ -103,7 +143,7 @@
           "status_author": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def6"
+                "$ref": "#/$defs/Def7"
               },
               {
                 "type": "null"
@@ -116,7 +156,7 @@
           "assignee": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def8"
+                "$ref": "#/$defs/Def9"
               },
               {
                 "type": "null"
@@ -129,7 +169,7 @@
           "attachment": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def9"
+                "$ref": "#/$defs/Def10"
               },
               {
                 "type": "null"
@@ -142,12 +182,12 @@
         },
         "type": "object"
       },
-      "Def4": {
+      "Def5": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def5"
+                "$ref": "#/$defs/Def6"
               },
               {
                 "type": "null"
@@ -160,7 +200,7 @@
         },
         "type": "object"
       },
-      "Def5": {
+      "Def6": {
         "properties": {
           "id": {
             "default": null,
@@ -175,12 +215,12 @@
         },
         "type": "object"
       },
-      "Def6": {
+      "Def7": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def7"
+                "$ref": "#/$defs/Def8"
               },
               {
                 "type": "null"
@@ -193,7 +233,7 @@
         },
         "type": "object"
       },
-      "Def7": {
+      "Def8": {
         "properties": {
           "id": {
             "default": null,
@@ -208,30 +248,12 @@
         },
         "type": "object"
       },
-      "Def8": {
-        "properties": {
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Def7"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "nullable": true,
-            "title": "Data"
-          }
-        },
-        "type": "object"
-      },
       "Def9": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def10"
+                "$ref": "#/$defs/Def8"
               },
               {
                 "type": "null"
@@ -246,6 +268,24 @@
       },
       "Def10": {
         "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def11"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def11": {
+        "properties": {
           "id": {
             "default": null,
             "title": "Id",
@@ -259,7 +299,7 @@
         },
         "type": "object"
       },
-      "Def11": {
+      "Def12": {
         "properties": {
           "first": {
             "anyOf": [
@@ -312,7 +352,7 @@
         },
         "type": "object"
       },
-      "Def12": {
+      "Def13": {
         "properties": {
           "for_change": {
             "anyOf": [
@@ -386,7 +426,7 @@
           "pagination": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def13"
+                "$ref": "#/$defs/Def14"
               },
               {
                 "type": "null"
@@ -398,7 +438,7 @@
         },
         "type": "object"
       },
-      "Def13": {
+      "Def14": {
         "properties": {
           "count": {
             "title": "Count",
@@ -430,12 +470,12 @@
         "type": "array"
       },
       "links": {
-        "$ref": "#/$defs/Def11"
+        "$ref": "#/$defs/Def12"
       },
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def12"
+            "$ref": "#/$defs/Def13"
           },
           {
             "type": "null"
@@ -482,7 +522,7 @@
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/$defs/Def3",
+            "$ref": "#/$defs/Def4",
             "title": "Relationships"
           }
         },
@@ -521,6 +561,19 @@
             "nullable": false,
             "title": "Priority",
             "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def3"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Location"
           }
         },
         "required": [
@@ -530,8 +583,35 @@
       },
       "Def3": {
         "properties": {
+          "type": {
+            "enum": [
+              "Point",
+              "LineString",
+              "Polygon",
+              "MultiPoint",
+              "MultiLineString",
+              "MultiPolygon",
+              "GeometryCollection"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "coordinates": {
+            "items": {},
+            "title": "Coordinates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "type": "object"
+      },
+      "Def4": {
+        "properties": {
           "status": {
-            "$ref": "#/$defs/Def4",
+            "$ref": "#/$defs/Def5",
             "default": null,
             "nullable": false,
             "title": "Current status"
@@ -539,7 +619,7 @@
           "assignee": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def6"
+                "$ref": "#/$defs/Def7"
               },
               {
                 "type": "null"
@@ -552,7 +632,7 @@
           "attachment": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def8"
+                "$ref": "#/$defs/Def9"
               },
               {
                 "type": "null"
@@ -565,12 +645,12 @@
         },
         "type": "object"
       },
-      "Def4": {
+      "Def5": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def5"
+                "$ref": "#/$defs/Def6"
               },
               {
                 "type": "null"
@@ -583,7 +663,7 @@
         },
         "type": "object"
       },
-      "Def5": {
+      "Def6": {
         "properties": {
           "id": {
             "default": null,
@@ -598,12 +678,12 @@
         },
         "type": "object"
       },
-      "Def6": {
+      "Def7": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def7"
+                "$ref": "#/$defs/Def8"
               },
               {
                 "type": "null"
@@ -616,7 +696,7 @@
         },
         "type": "object"
       },
-      "Def7": {
+      "Def8": {
         "properties": {
           "id": {
             "default": null,
@@ -631,12 +711,12 @@
         },
         "type": "object"
       },
-      "Def8": {
+      "Def9": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def9"
+                "$ref": "#/$defs/Def10"
               },
               {
                 "type": "null"
@@ -649,7 +729,7 @@
         },
         "type": "object"
       },
-      "Def9": {
+      "Def10": {
         "properties": {
           "id": {
             "default": null,
@@ -664,7 +744,7 @@
         },
         "type": "object"
       },
-      "Def10": {
+      "Def11": {
         "properties": {},
         "type": "object"
       }
@@ -677,7 +757,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def10"
+            "$ref": "#/$defs/Def11"
           },
           {
             "type": "null"
@@ -715,7 +795,7 @@
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/$defs/Def3",
+            "$ref": "#/$defs/Def4",
             "title": "Relationships"
           }
         },
@@ -780,14 +860,54 @@
             "nullable": false,
             "title": "Priority",
             "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def3"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Location"
           }
         },
         "type": "object"
       },
       "Def3": {
         "properties": {
+          "type": {
+            "enum": [
+              "Point",
+              "LineString",
+              "Polygon",
+              "MultiPoint",
+              "MultiLineString",
+              "MultiPolygon",
+              "GeometryCollection"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "coordinates": {
+            "items": {},
+            "title": "Coordinates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "type": "object"
+      },
+      "Def4": {
+        "properties": {
           "status": {
-            "$ref": "#/$defs/Def4",
+            "$ref": "#/$defs/Def5",
             "default": null,
             "nullable": false,
             "title": "Current status"
@@ -795,7 +915,7 @@
           "status_author": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def6"
+                "$ref": "#/$defs/Def7"
               },
               {
                 "type": "null"
@@ -808,7 +928,7 @@
           "assignee": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def8"
+                "$ref": "#/$defs/Def9"
               },
               {
                 "type": "null"
@@ -821,7 +941,7 @@
           "attachment": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def9"
+                "$ref": "#/$defs/Def10"
               },
               {
                 "type": "null"
@@ -834,12 +954,12 @@
         },
         "type": "object"
       },
-      "Def4": {
+      "Def5": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def5"
+                "$ref": "#/$defs/Def6"
               },
               {
                 "type": "null"
@@ -852,7 +972,7 @@
         },
         "type": "object"
       },
-      "Def5": {
+      "Def6": {
         "properties": {
           "id": {
             "default": null,
@@ -867,12 +987,12 @@
         },
         "type": "object"
       },
-      "Def6": {
+      "Def7": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def7"
+                "$ref": "#/$defs/Def8"
               },
               {
                 "type": "null"
@@ -885,7 +1005,7 @@
         },
         "type": "object"
       },
-      "Def7": {
+      "Def8": {
         "properties": {
           "id": {
             "default": null,
@@ -900,30 +1020,12 @@
         },
         "type": "object"
       },
-      "Def8": {
-        "properties": {
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Def7"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "nullable": true,
-            "title": "Data"
-          }
-        },
-        "type": "object"
-      },
       "Def9": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def10"
+                "$ref": "#/$defs/Def8"
               },
               {
                 "type": "null"
@@ -938,6 +1040,24 @@
       },
       "Def10": {
         "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def11"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def11": {
+        "properties": {
           "id": {
             "default": null,
             "title": "Id",
@@ -951,7 +1071,7 @@
         },
         "type": "object"
       },
-      "Def11": {
+      "Def12": {
         "properties": {
           "crud_actions": {
             "anyOf": [
@@ -974,11 +1094,11 @@
                 "items": {
                   "anyOf": [
                     {
-                      "$ref": "#/$defs/Def12"
+                      "$ref": "#/$defs/Def13"
                     },
                     {
                       "items": {
-                        "$ref": "#/$defs/Def12"
+                        "$ref": "#/$defs/Def13"
                       },
                       "type": "array"
                     }
@@ -996,7 +1116,7 @@
         },
         "type": "object"
       },
-      "Def12": {
+      "Def13": {
         "properties": {
           "code": {
             "default": "ACTION_TRANSIT",
@@ -1004,13 +1124,13 @@
             "type": "string"
           },
           "endpoint": {
-            "$ref": "#/$defs/Def13"
+            "$ref": "#/$defs/Def14"
           },
           "restricts": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/$defs/Def14"
+                  "$ref": "#/$defs/Def15"
                 },
                 "type": "array"
               },
@@ -1058,7 +1178,7 @@
             "title": "Hint Action"
           },
           "resource": {
-            "$ref": "#/$defs/Def15"
+            "$ref": "#/$defs/Def16"
           }
         },
         "required": [
@@ -1067,7 +1187,7 @@
         ],
         "type": "object"
       },
-      "Def13": {
+      "Def14": {
         "properties": {
           "url": {
             "title": "Url",
@@ -1096,7 +1216,7 @@
         ],
         "type": "object"
       },
-      "Def14": {
+      "Def15": {
         "properties": {
           "title": {
             "title": "Title",
@@ -1137,7 +1257,7 @@
         ],
         "type": "object"
       },
-      "Def15": {
+      "Def16": {
         "properties": {
           "id": {
             "title": "Id"
@@ -1162,7 +1282,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def11"
+            "$ref": "#/$defs/Def12"
           },
           {
             "type": "null"
@@ -1200,7 +1320,7 @@
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/$defs/Def3",
+            "$ref": "#/$defs/Def4",
             "title": "Relationships"
           }
         },
@@ -1242,16 +1362,56 @@
             "nullable": false,
             "title": "Priority",
             "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def3"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Location"
           }
         },
         "type": "object"
       },
       "Def3": {
         "properties": {
+          "type": {
+            "enum": [
+              "Point",
+              "LineString",
+              "Polygon",
+              "MultiPoint",
+              "MultiLineString",
+              "MultiPolygon",
+              "GeometryCollection"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "coordinates": {
+            "items": {},
+            "title": "Coordinates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "type": "object"
+      },
+      "Def4": {
+        "properties": {
           "assignee": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def4"
+                "$ref": "#/$defs/Def5"
               },
               {
                 "type": "null"
@@ -1264,7 +1424,7 @@
           "attachment": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def6"
+                "$ref": "#/$defs/Def7"
               },
               {
                 "type": "null"
@@ -1277,12 +1437,12 @@
         },
         "type": "object"
       },
-      "Def4": {
+      "Def5": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def5"
+                "$ref": "#/$defs/Def6"
               },
               {
                 "type": "null"
@@ -1295,7 +1455,7 @@
         },
         "type": "object"
       },
-      "Def5": {
+      "Def6": {
         "properties": {
           "id": {
             "default": null,
@@ -1310,12 +1470,12 @@
         },
         "type": "object"
       },
-      "Def6": {
+      "Def7": {
         "properties": {
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def7"
+                "$ref": "#/$defs/Def8"
               },
               {
                 "type": "null"
@@ -1328,7 +1488,7 @@
         },
         "type": "object"
       },
-      "Def7": {
+      "Def8": {
         "properties": {
           "id": {
             "default": null,
@@ -1343,7 +1503,7 @@
         },
         "type": "object"
       },
-      "Def8": {
+      "Def9": {
         "properties": {},
         "type": "object"
       }
@@ -1356,7 +1516,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def8"
+            "$ref": "#/$defs/Def9"
           },
           {
             "type": "null"
@@ -1381,7 +1541,8 @@
         "status_dt": "2026-01-01T00:00:00Z",
         "title": "T",
         "report": "",
-        "priority": "normal"
+        "priority": "normal",
+        "location": null
       },
       "relationships": {
         "status": {
@@ -1464,7 +1625,8 @@
         "status_dt": "2026-01-01T00:00:00Z",
         "title": "T",
         "report": "",
-        "priority": "normal"
+        "priority": "normal",
+        "location": null
       },
       "relationships": {
         "status": {
@@ -1568,6 +1730,32 @@
       "resource": "tasks.task",
       "id": "00000000-0000-0000-0000-000000000000"
     }
+  },
+  "action_count": {
+    "task": "00000000-0000-0000-0000-000000000000"
+  },
+  "action_count_422": {
+    "errors": [
+      {
+        "status": 422,
+        "title": "enum",
+        "code": "ERR_VALIDATE",
+        "detail": "<detail>",
+        "source": {
+          "pointer": "/priority"
+        }
+      }
+    ]
+  },
+  "action_count_403": {
+    "errors": [
+      {
+        "status": 403,
+        "title": "Validation error",
+        "code": "ERR_FORBIDDEN",
+        "detail": "<detail>"
+      }
+    ]
   },
   "bg_task_waiting": {
     "data": {

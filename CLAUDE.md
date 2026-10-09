@@ -37,7 +37,14 @@ bazis-async-request (the `test` extra) with a project app `users` (its route set
 of the assignee searches: the core 2.9 answers a search of a route set without them with
 400) and a statusy model `tasks.Task` (searched by its title; its `priority` has choices, whose
 labels the runtime schemas give translated, `enumDict`, which the frontend shows, offers and
-filters by; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
+filters by; its `location` is a `PointField`, GeoJSON in the API and `format: point` in the
+contract, on the map of the list of the tasks (`list.map`; the core 2.13.2 reads points but
+fails to write one, so no scenario writes it: `e2e_data` places the task of the viewer,
+whose card the scenario `viewer-only-reads` expects with its coordinates); its route set
+has the custom action `count` (`TaskRouteSet.action_count`, `POST /api/v1/tasks/task/count/`,
+a JSON body `{priority}`, 403 without a user), which queues `tasks.bg.count.CountTasks` and
+answers with the id of its task, the reference of `client.action`/`useAction` captured by
+`tests/test_react_fixture.py`; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
 `card.related` of the card of a task, added there with the task fixed, to a draft only:
 `Step.validate_item`, `tests/test_steps.py`), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
@@ -100,7 +107,9 @@ frontend made from the sample by the `e2e` job of CI.
   (`management/commands/bazis_front.py`); a subcommand is a `handle_<name>` method.
 - `contract/export.py` renders the files (`render`), compares them byte for byte
   (`stale_files`) and writes them; `contract/openapi.py` is the canonical JSON and the hash
-  of the operation surface, `contract/resources.py` the resources read from the OpenAPI.
+  of the operation surface, `contract/resources.py` the resources read from the OpenAPI
+  (and, from the model, the `PointField`s: `format: point` of their GeoJSON object, which
+  the OpenAPI gives for every geometry alike).
 - The export is in `LANGUAGE_CODE` whatever the language of the process: `render` reads the
   OpenAPI under `translation.override` (the core builds it per language), and the names of
   the roles, statuses and transits are maps of every language of `LANGUAGES`
@@ -192,7 +201,11 @@ frontend made from the sample by the `e2e` job of CI.
   asset copies (`vendored`: stamped, kept pristine in `.bazis/base/`, hashed in the lock,
   copied by `init`; `ui`: the components and the shadcn/ui components they use, copied the
   same way by `add`, and by `init` with `init: true`; `template`: copied by `init` and
-  tracked as the vendored ones, but without the stamp, `copy.copied`). Add a file of an asset to the registry; `tests/test_assets.py`
+  tracked as the vendored ones, but without the stamp, `copy.copied`). `npm` of an asset
+  (`{section: {package: version}}`, the versions of the workspace of the components: the
+  map and Leaflet) is the npm dependency it brings that the template does not declare:
+  `add` sets it in `package.json` of the frontend and records it in the entry of the lock
+  (`vendor/npm.py`, `copy.lock_entry`). Add a file of an asset to the registry; `tests/test_assets.py`
   checks that the registry lists every file of the template, every source of the client
   and of the hooks and every file of `assets/ui` but its tooling.
 - `requires` of an asset: `capabilities` (the hooks and the components of a package, such
@@ -224,7 +237,9 @@ frontend made from the sample by the `e2e` job of CI.
   plan). Do not write a merge of our own: a diff3 that aligns the base with each side
   separately loses or duplicates lines in runs of the same line, and the merge libraries of
   PyPI are GPL. The template is updated the same way (`Plan.dependencies_changed` asks for
-  `npm install`); a lock entry of the template without files (a frontend of a version that
+  `npm install`); the npm dependencies of the assets are set in the base (those of the old
+  entries) and in the upstream (those of the new ones) of the merge of `package.json`, so
+  that they never conflict, and set alone when the template is not merged (`Plan.package`); a lock entry of the template without files (a frontend of a version that
   kept no pristine copy of it) is adopted without a merge (`untracked_files`: the files that
   differ are `DIFFERS`, those it lacks `MISSING`, reported for a review by hand). A file of the template removed
   upstream is never deleted (`ORPHANED`); a file that is not UTF-8 text is never merged
@@ -272,8 +287,9 @@ npm test
 
 ### The client (`assets/client`)
 
-- `src/`: `client.ts` (the operations, with the upload of bazis-uploadable over
-  XMLHttpRequest, the authorization store of bazis-authing and the background requests of
+- `src/`: `client.ts` (the operations, with the custom actions of the route sets
+  (`action`, `itemAction`: plain JSON, their errors by field `ApiError.bodyErrors()`), the
+  upload of bazis-uploadable over XMLHttpRequest, the authorization store of bazis-authing and the background requests of
   bazis-async-request with the results of bazis-async-background), `types.ts` (types read from
   the generated `paths`), `filter.ts` (the filter grammar of
   `bazis.core.utils.query_complex`), `errors.ts`, `pagination.ts`, `permit.ts`.
@@ -290,7 +306,8 @@ npm test
 
 - `src/`: `context.tsx` (`BazisProvider` with the session and the language, `useApi`,
   `useSessionKey`: the scope of the keys), `keys.ts` (the query
-  keys), `queries.ts`, `mutations.ts`, `related.ts` (`useRelatedItem`: the related items
+  keys), `queries.ts`, `mutations.ts`, `actions.ts` (`useAction`, `useItemAction`: the custom
+  actions of the route sets, `client.action`), `related.ts` (`useRelatedItem`: the related items
   asked for together read with one list filtered by `pk=<a>|pk=<b>`), `schema.ts` (the fields of a runtime schema),
   `form.ts` (`useResourceForm`), `types.ts`; `src/statusy/` is the separate asset
   `react-statusy` (`requires` the capability `statusy`), `src/uploadable/` the asset
@@ -337,7 +354,8 @@ npm test
 - A directory per component (`ui/<component>/`: its sources, `index.ts`, its contract test
   `<component>.contract.test.tsx`), copied to `src/bazis/ui/<component>/`; `ui/resource/`
   is what they share (`FieldInput`, the only input of a field, with the control of a file
-  field that `FilesProvider` gives it; `FieldValue`, `FileValue`, `RelationLabel`,
+  field that `FilesProvider` gives it, and the coordinates of a point field of the route
+  set of its `path`, `points.tsx`, with the map that `PointsProvider` gives it; `FieldValue`, `FileValue`, `RelationLabel`,
   `RelationPicker`, `permitted`, and `hooks.ts`, the hooks with plain paths: the only casts of the
   components, so that the lint of a product does not depend on its types; `file-field` casts
   `useUpload` of its own, and `task-progress` `useBgTask`); `AppShell` mounts its `tools`
@@ -362,7 +380,10 @@ npm test
   whatever the theme of the product. The root eslint applies the
   rules of the hooks of the template to them.
 - The npm dependencies of the components are in `package.json` of the template, with the
-  versions of the workspace; `add` never changes the `package.json` of a product.
+  versions of the workspace; an optional library of one component (Leaflet of `map`) is
+  `npm` of its asset instead, which `add` sets in the `package.json` of a product
+  (`tests/test_assets.py` checks every import of the components against both). The contract
+  test of `map` replaces Leaflet with a fake (`vi.mock`).
 - Colors, radii and fonts only through the tokens of the generated theme (Tailwind classes
   such as `bg-primary`, `bg-success-soft`), the spacing through the variables of the
   density (`p-(--space-card)`), no literal colors (the shadcn/ui files keep theirs); every
@@ -421,7 +442,7 @@ npm test
   change of the template or of a component.
 - The `e2e` job of CI runs the scenarios of the sample: the specs of the sample copied to
   the product root, `migrate`, `e2e_data`, `init`, `contract`, `check`, `add` of the
-  components, the screens of `sample/frontend-overlay/src/` copied over `src/`,
+  components (with `map`, then `npm install` for Leaflet), the screens of `sample/frontend-overlay/src/` copied over `src/`,
   `bazis_front e2e` and `--check`, `design --check`, the build, then the backend
   (`uvicorn sample.main:app`) and `vite preview` (its `/api` proxied to the backend) and
   `npm run e2e` with `E2E_BASE_URL`; the report of Playwright is uploaded on a failure. Run

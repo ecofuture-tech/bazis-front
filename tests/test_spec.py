@@ -184,7 +184,7 @@ CASES = [
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/6/id')],
+        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/7/id')],
     ),
     (
         'P004',
@@ -221,7 +221,7 @@ CASES = [
     (
         'P012',
         {PRODUCT: lambda d: task(d)['fields'].append({'id': 'due_date', 'type': 'date'})},
-        [('P012', f'{PRODUCT}#/entities/0/fields/6')],
+        [('P012', f'{PRODUCT}#/entities/0/fields/7')],
     ),
     (
         'P013',
@@ -421,7 +421,7 @@ CASES = [
     (
         'S007',
         {CARD: lambda d: d['card']['sections'][0]['fields'].append('rank')},
-        [('S007', f'{CARD}#/card/sections/0/fields/5')],
+        [('S007', f'{CARD}#/card/sections/0/fields/6')],
     ),
     (
         'S008',
@@ -480,6 +480,18 @@ CASES = [
         # a highlight without its label: told by its color alone
         {LIST: lambda d: d['list'].update(highlight={'field': 'title', 'tone': 'warning'})},
         [('S014', f'{LIST}#/list/highlight'), ('S014', f'{LIST}#/list/highlight/field')],
+    ),
+    (
+        'S016',
+        # a map by a text, a filter of the user by a point
+        {LIST: lambda d: d['list'].update(map={'field': 'title'}, filters=[*d['list']['filters'], 'location'])},
+        [('S016', f'{LIST}#/list/filters/3'), ('S016', f'{LIST}#/list/map/field')],
+    ),
+    (
+        'P013',
+        # a point is not any JSON: the contract reads it from the model
+        {PRODUCT: lambda d: task(d)['fields'][6].update(type='json')},
+        [('P013', f'{PRODUCT}#/entities/0/fields/6'), ('S016', f'{LIST}#/list/map/field')],
     ),
     (
         'S015',

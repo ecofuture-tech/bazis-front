@@ -87,6 +87,40 @@ def test_add_copies_a_component_with_what_it_requires(product):
     assert (frontend / 'src' / 'components' / 'ui' / 'table.tsx').is_file()
 
 
+def test_add_sets_the_npm_dependencies_of_an_asset(product):
+    frontend = product / 'frontend'
+    package = frontend / 'package.json'
+    template = package.read_text(encoding='utf-8')
+    assert 'leaflet' not in template
+
+    out = add('map')
+    assert 'Added map to src/bazis/ui/map/.' in out
+    assert 'Set their npm dependencies (@types/leaflet, leaflet) in package.json: run `npm install`' in out
+    data = json.loads(package.read_text(encoding='utf-8'))
+    expected = json.loads(template)
+    expected['dependencies']['leaflet'] = '1.9.4'
+    expected['devDependencies']['@types/leaflet'] = '1.9.22'
+    assert data == expected
+    # sorted by name in their section, written as npm writes package.json
+    assert list(data['dependencies']) == sorted(data['dependencies'])
+    assert list(data['devDependencies']) == sorted(data['devDependencies'])
+    assert package.read_text(encoding='utf-8') == json.dumps(data, indent=2, ensure_ascii=False) + '\n'
+    # the lock records them with the copy
+    assert read_lock(product)['assets']['map']['npm'] == registry.load()['map'].npm
+    # an asset without npm dependencies says nothing of them
+    assert 'npm install' not in add('resource-list')
+
+
+def test_add_refuses_an_asset_with_npm_dependencies_without_package_json(product):
+    package = product / 'frontend' / 'package.json'
+    package.write_text('<<<<<<< frontend\n', encoding='utf-8')
+    before = read_lock(product)
+    with pytest.raises(CommandError, match='map add npm dependencies to package.json of the frontend, which cannot be read'):
+        add('map')
+    assert read_lock(product) == before
+    assert not (product / 'frontend' / 'src' / 'bazis' / 'ui' / 'map').exists()
+
+
 def test_add_is_idempotent(product):
     add('resource-card')
     lock = read_lock(product)

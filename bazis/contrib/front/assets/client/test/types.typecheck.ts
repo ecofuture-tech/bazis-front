@@ -141,3 +141,40 @@ export async function permitTyped(id: string): Promise<void> {
   // @ts-expect-error a list meta checks an item by its id only for change and delete
   seen.push(can({ for_change: [] }, 'view', id));
 }
+
+// The custom actions of a route set (`@http_post('/count/')`), as openapi-typescript renders
+// them: the core sample has none.
+type ActionPaths = paths & {
+  '/api/v1/entity/parent_entity/count/': {
+    post: {
+      requestBody: { content: { 'application/json': { priority?: 'low' | 'high' | null } } };
+      responses: { 200: { content: { 'application/json': { task: string } } } };
+    };
+  };
+  '/api/v1/entity/parent_entity/{item_id}/summary/': {
+    get: { responses: { 200: { content: { 'application/json': { total: number } } } } };
+  };
+};
+
+export async function actionTyped(id: string): Promise<void> {
+  const actions = createClient<ActionPaths>();
+  const started = await actions.action(PARENT, 'count', { priority: 'high' });
+  const task: string = started.task;
+  // @ts-expect-error the response has no such field
+  seen.push(started.id);
+  // @ts-expect-error a body of another shape
+  await actions.action(PARENT, 'count', { priority: 'urgent' });
+  // @ts-expect-error the route set has no such action
+  await actions.action(PARENT, 'export', {});
+  // @ts-expect-error an action of an item is called with its id
+  await actions.action(PARENT, 'summary');
+  // @ts-expect-error the action is a POST
+  await actions.action(PARENT, 'count', undefined, { method: 'get' });
+  const summary = await actions.itemAction(PARENT, id, 'summary', undefined, { method: 'get' });
+  const total: number = summary.total;
+  // @ts-expect-error the action of an item is a GET
+  await actions.itemAction(PARENT, id, 'summary');
+  // @ts-expect-error schema_list is not an action of an item
+  await actions.itemAction(PARENT, id, 'schema_list', undefined, { method: 'get' });
+  seen.push(task, total);
+}

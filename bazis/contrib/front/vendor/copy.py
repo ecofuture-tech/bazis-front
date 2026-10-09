@@ -26,6 +26,7 @@ from pathlib import Path
 
 from .. import __version__
 from . import lock as frontend_lock
+from .npm import PACKAGE_JSON, merged, with_dependencies
 from .registry import TEMPLATE, UI, VENDORED, Asset, load, resolve
 
 
@@ -101,6 +102,17 @@ def write_base(asset: Asset, frontend: Path, version: str) -> dict[str, bytes]:
     return copies
 
 
+def lock_entry(asset: Asset, version: str, files: dict[str, str]) -> dict:
+    """
+    The entry of the lock of a copy of an asset: its version, the hashes of its files, and the
+    npm dependencies it set in package.json (`npm`, only for an asset that has some).
+    """
+    entry = {'version': version, 'files': files}
+    if asset.npm:
+        entry['npm'] = asset.npm
+    return entry
+
+
 def copy_asset(asset: Asset, frontend: Path, version: str) -> dict[str, str]:
     """
     Copies the files of an asset into the frontend as it copies them (`copied`), and the same
@@ -136,7 +148,7 @@ def create_frontend(frontend: Path, capabilities: Iterable[str]) -> None:
         assets = {}
         for asset in [registry['template'], *selected]:
             if asset.wanted(capabilities):
-                assets[asset.name] = {'version': version, 'files': copy_asset(asset, temporary, version)}
+                assets[asset.name] = lock_entry(asset, version, copy_asset(asset, temporary, version))
         lock = {
             'lock': frontend_lock.LOCK_FORMAT,
             'bazis_front': version,
@@ -198,6 +210,8 @@ class Added:
     copied: list[str] = field(default_factory=list)
     #: the assets already in the frontend, kept as they are
     present: list[str] = field(default_factory=list)
+    #: the npm dependencies that the copied assets set in package.json (`npm install`)
+    dependencies: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 def modified_files(frontend: Path, entry: dict) -> list[str]:
@@ -226,12 +240,13 @@ def add_assets(
     there is refused (`update` merges the next versions with the changes), and so is any
     asset of another version of bazis-front, named or required: the copies are of one
     version (`update` brings them to this one). `capabilities` returns those of the
-    contract, read only when an asset requires one. Everything is checked before anything
-    is written: on a `CopyError` nothing is.
+    contract, read only when an asset requires one. The npm dependencies of the copied
+    assets (`npm` of the registry) are set in package.json, for `npm install`. Everything is
+    checked before anything is written: on a `CopyError` nothing is.
     """
     version = __version__
     registry = load()
-    errors = []
+    errors: list[str] = []
     for name in names:
         if name not in registry:
             addable = ', '.join(sorted(it.name for it in registry.values() if it.kind == UI))
@@ -267,12 +282,27 @@ def add_assets(
             )
         else:
             result.present.append(asset.name)
+    result.dependencies = merged(it.npm for it in to_copy)
+    package = None
+    if result.dependencies:
+        try:
+            package = with_dependencies(
+                (frontend / PACKAGE_JSON).read_text(encoding='utf-8'), result.dependencies,
+            )
+        except (OSError, ValueError) as err:
+            errors.append(
+                f'{", ".join(it.name for it in to_copy if it.npm)} add npm dependencies to '
+                f'{PACKAGE_JSON} of the frontend, which cannot be read ({err}): restore it, '
+                'resolve the conflicts of the last update in it, and run the command again.'
+            )
     if errors:
         raise CopyError(errors)
 
     for asset in to_copy:
-        present[asset.name] = {'version': version, 'files': copy_asset(asset, frontend, version)}
+        present[asset.name] = lock_entry(asset, version, copy_asset(asset, frontend, version))
         result.copied.append(asset.name)
+    if package is not None:
+        (frontend / PACKAGE_JSON).write_text(package, encoding='utf-8', newline='\n')
     lock['assets'] = present
     frontend_lock.write(frontend, lock)
     return result

@@ -47,6 +47,13 @@ copies changed in the frontend (`changed`: a file of a vendored asset or a compo
 differs from the hash of the lock) are what the next update merges: `front.W007` reports
 them, before a conflict does.
 
+The npm dependencies that the assets set in `package.json` (`npm` of the registry, recorded in
+their entries of the lock) are added to its base and to its upstream before the merge, those
+of the old entries and those of the new ones (`npm.with_dependencies`): their lines conflict
+neither with the changes of the product nor with those of the template, and a new version of
+a dependency replaces the old one. When the template is not merged, `package.json` gets the
+new dependencies alone (`Plan.package`).
+
 The stamp lines are compared and merged at the new version, so that they never conflict;
 every written file of a vendored asset or a component has the new stamp. The assets that a
 new version requires and the frontend does not have are copied as `add` copies them, and
@@ -76,12 +83,14 @@ from .copy import (
     copy_asset,
     foreign_files,
     hashes,
+    lock_entry,
     missing_capabilities,
     modified_files,
     restamp,
     write_base,
     write_file,
 )
+from .npm import PACKAGE_JSON, Dependencies, merged, with_dependencies
 from .registry import TEMPLATE, Asset, load, resolve
 
 
@@ -107,6 +116,9 @@ BINARY = 'binary'
 DIFFERS = 'differs'
 #: of a template adopted without a pristine copy, not in the frontend: not added
 MISSING = 'missing'
+#: package.json of the frontend with the new npm dependencies of the assets, the template
+#: not merged
+DEPENDENCIES = 'dependencies'
 
 DESCRIPTIONS = {
     REPLACED: 'replaced (unchanged in the frontend)',
@@ -123,6 +135,7 @@ DESCRIPTIONS = {
     'copy in .bazis/base/',
     MISSING: 'missing: new in this version or removed by the product; add it from its pristine '
     'copy in .bazis/base/ if the product needs it',
+    DEPENDENCIES: 'the npm dependencies of the assets set',
 }
 
 #: the statuses that write a new version of a file of bazis-front
@@ -132,9 +145,6 @@ UPSTREAM = (REPLACED, MERGED, CONFLICT, ADDED)
 LOCAL_NAME = 'frontend'
 #: a line of the conflict markers that `update` writes (the first or the last of a conflict)
 MARKER = re.compile(rf'^(?:<<<<<<< {LOCAL_NAME}|>>>>>>> bazis-front \S+)$', re.MULTILINE)
-
-#: the npm manifest of the template: `npm install` after a change of it
-PACKAGE_JSON = 'package.json'
 
 #: `git merge-file` without the configuration of the system, of the user or of a repository
 #: (a hook or `git rebase -x` passes GIT_DIR): the same markers everywhere; the conflict style
@@ -171,9 +181,12 @@ class Plan:
     assets: list[AssetUpdate] = field(default_factory=list)
     #: the copies of the JSON Schemas to write, by their path in the product root
     schemas: dict[str, bytes] = field(default_factory=dict)
+    #: package.json with the new npm dependencies of the assets, when the template is not
+    #: merged (the merge of the template sets them)
+    package: FileUpdate | None = None
 
     def __bool__(self) -> bool:
-        return bool(self.assets or self.schemas)
+        return bool(self.assets or self.schemas or self.package)
 
     @property
     def conflicts(self) -> list[str]:
@@ -181,8 +194,11 @@ class Plan:
 
     @property
     def dependencies_changed(self) -> bool:
-        """Whether the update brings a new `package.json` of the template (not one kept)."""
-        return any(
+        """
+        Whether the update brings a new `package.json`: of the template (not one kept), or
+        with new npm dependencies of the assets.
+        """
+        return self.package is not None or any(
             it.path == PACKAGE_JSON and it.status in UPSTREAM
             for asset in self.assets if asset.asset is not None and asset.asset.kind == TEMPLATE
             for it in asset.files
@@ -201,10 +217,9 @@ def is_stale(entry: dict, asset: Asset, version: str) -> bool:
     """
     Whether the copy of the lock is not the one this version makes.
     """
-    return entry != {
-        'version': version,
-        'files': hashes({path: data for path, (_, data) in copies(asset, version).items()}),
-    }
+    return entry != lock_entry(
+        asset, version, hashes({path: data for path, (_, data) in copies(asset, version).items()}),
+    )
 
 
 def unresolved(frontend: Path, lock: dict) -> list[str]:
@@ -363,15 +378,26 @@ def pristine(frontend: Path, name: str, entry: dict, path: str, relative: str) -
     return data
 
 
-def update_files(frontend: Path, name: str, entry: dict, asset: Asset | None, version: str) -> list[FileUpdate]:
+def update_files(
+    frontend: Path, name: str, entry: dict, asset: Asset | None, version: str,
+    dependencies: tuple[Dependencies, Dependencies] = ({}, {}),
+) -> list[FileUpdate]:
     """
     The updates of the files of a copied asset; `asset` is None when it is no longer in
     bazis-front (all its files are removed upstream). A file of the template is never
-    deleted: removed upstream, it is the product's.
+    deleted: removed upstream, it is the product's. `dependencies` are the npm dependencies
+    of the assets before and after the update, set in the base and in the upstream of
+    `package.json` of the template.
     """
     template = asset is not None and asset.kind == TEMPLATE
     locked = entry.get('files', {})
     upstream = copies(asset, version) if asset else {}
+    old_dependencies, new_dependencies = dependencies
+    if template and PACKAGE_JSON in upstream and new_dependencies:
+        relative, data = upstream[PACKAGE_JSON]
+        upstream[PACKAGE_JSON] = (
+            relative, with_dependencies(data.decode('utf-8'), new_dependencies).encode('utf-8'),
+        )
     errors = []
     if asset:
         errors += foreign_files(
@@ -400,6 +426,8 @@ def update_files(frontend: Path, name: str, entry: dict, asset: Asset | None, ve
         else:
             try:
                 base = pristine(frontend, name, entry, path, relative)
+                if template and path == PACKAGE_JSON and old_dependencies:
+                    base = with_dependencies(base.decode('utf-8'), old_dependencies).encode('utf-8')
                 updates.append(merge(path, name, base, local, new, version))
             except CopyError as err:
                 errors += err.messages
@@ -456,7 +484,15 @@ def plan(
     selected = list(names) or list(present)
     order = resolve([it for it in selected if it in registry], registry)
     errors += missing_capabilities([it for it in order if it.name not in present], capabilities)
+    # the npm dependencies of the assets in the frontend, before and after the update
+    updated = {it.name: it for it in order}
+    old_dependencies = merged(entry.get('npm', {}) for entry in present.values())
+    new_dependencies = merged([
+        *(updated[name].npm if name in updated else entry.get('npm', {}) for name, entry in present.items()),
+        *(it.npm for it in order if it.name not in present),
+    ])
     result = Plan(version)
+    template_merged = False
     for asset in order:
         entry = present.get(asset.name)
         if entry is None:
@@ -464,10 +500,14 @@ def plan(
             result.assets.append(AssetUpdate(asset.name, None, asset))
         elif is_stale(entry, asset, version):
             untracked = 'files' not in entry
+            template_merged |= asset.kind == TEMPLATE and not untracked
             try:
                 files = (
                     untracked_files(frontend, asset, version) if untracked
-                    else update_files(frontend, asset.name, entry, asset, version)
+                    else update_files(
+                        frontend, asset.name, entry, asset, version,
+                        (old_dependencies, new_dependencies) if asset.kind == TEMPLATE else ({}, {}),
+                    )
                 )
             except CopyError as err:
                 errors += err.messages
@@ -480,6 +520,16 @@ def plan(
             entry = present[name]
             files = update_files(frontend, name, entry, None, version)
             result.assets.append(AssetUpdate(name, entry.get('version'), None, files))
+    if new_dependencies != old_dependencies and not template_merged:
+        try:
+            result.package = FileUpdate(PACKAGE_JSON, DEPENDENCIES, with_dependencies(
+                (frontend / PACKAGE_JSON).read_text(encoding='utf-8'), new_dependencies, old_dependencies,
+            ).encode('utf-8'))
+        except (OSError, ValueError) as err:
+            errors.append(
+                f'The npm dependencies of the assets cannot be set in {PACKAGE_JSON} of the '
+                f'frontend ({err}): restore it and update again.'
+            )
     if errors:
         raise CopyError(list(dict.fromkeys(errors)))
     result.schemas = {
@@ -510,9 +560,7 @@ def apply(root: Path, frontend: Path, lock: dict, plan: Plan) -> None:
     present = lock.setdefault('assets', {})
     for update in plan.assets:
         if update.old is None:
-            present[update.name] = {
-                'version': version, 'files': copy_asset(update.asset, frontend, version),
-            }
+            present[update.name] = lock_entry(update.asset, version, copy_asset(update.asset, frontend, version))
             continue
         for it in update.files:
             if it.status == REMOVED:
@@ -524,11 +572,13 @@ def apply(root: Path, frontend: Path, lock: dict, plan: Plan) -> None:
             del present[update.name]
         else:
             # replaces the pristine copy of this version when the old one is of it too
-            present[update.name] = {
-                'version': version, 'files': hashes(write_base(update.asset, frontend, version)),
-            }
+            present[update.name] = lock_entry(
+                update.asset, version, hashes(write_base(update.asset, frontend, version)),
+            )
         if (update.asset is None or update.old != version) and old.exists():
             shutil.rmtree(old)
+    if plan.package is not None:
+        write_file(frontend / plan.package.path, plan.package.data)
     for path, data in plan.schemas.items():
         write_file(root / path, data)
     # the files with markers, which `update --check` and front.W004 report until resolved

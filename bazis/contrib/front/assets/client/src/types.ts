@@ -50,6 +50,26 @@ type JsonContent<Content> = Content extends { 'application/vnd.api+json': infer 
     ? Json
     : never;
 
+/**
+ * The names of the custom actions of the route set `P` for the method `M`: the endpoints
+ * `<P><Prefix><name>/` that the backend declares (`@http_post('/<name>/')` of a route set),
+ * `Prefix` `{item_id}/` for those of an item. A name is one segment of the path.
+ */
+export type ActionName<Paths, P extends string, M extends HttpMethod, Prefix extends string = ''> = {
+  [K in keyof Paths & string]: K extends `${P}${Prefix}${infer Name}/`
+    ? Name extends '' | `${string}/${string}` | `{${string}`
+      ? never
+      : [OperationOf<Paths, K, M>] extends [never]
+        ? never
+        : Name
+    : never;
+}[keyof Paths & string];
+
+/** The options of a custom action: the method (`post` by default). */
+export interface ActionOptions<M extends HttpMethod> extends RequestOptions {
+  method?: M;
+}
+
 /** The JSON body of the successful (200 or 201) response of an operation. */
 export type ResponseOf<Operation> = Operation extends { responses: infer Responses }
   ? Responses[Extract<keyof Responses, 200 | 201 | '200' | '201'>] extends {

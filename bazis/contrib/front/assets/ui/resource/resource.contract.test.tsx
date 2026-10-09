@@ -14,10 +14,12 @@
 
 // The contract of the fields: the control of every field is `field:<name>`, its errors
 // `error:<name>`, a read-only field cannot be changed; a file field (a to-one relationship to
-// the uploaded files) is edited by the control of `FilesProvider` and shown as a file. Keep
-// it passing when the component is changed.
+// the uploaded files) is edited by the control of `FilesProvider` and shown as a file; a point
+// field (GeoJSON) is edited and shown as its coordinates. Keep it passing when the component
+// is changed.
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { FormField } from '@/bazis/react';
@@ -30,7 +32,9 @@ import {
   formatSize,
   formatValue,
   itemLabel,
+  parsePoint,
   permitted,
+  PointsProvider,
   RelationLabel,
   useAnyRelated,
   type FileControlProps,
@@ -221,6 +225,73 @@ describe('file fields', () => {
       '10 MB',
       '3 GB',
     ]);
+  });
+});
+
+describe('point fields', () => {
+  const location = attribute('location', 'object', { title: 'Location', nullable: true });
+  const point = (latitude: number, longitude: number) => ({ type: 'Point', coordinates: [longitude, latitude] });
+
+  // the value of the field, as a form keeps it
+  function Controlled({ initial, onChange, path }: { initial: unknown; onChange: (value: unknown) => void; path: string | undefined }) {
+    const [value, setValue] = useState(initial);
+    return (
+      <FieldInput
+        path={path}
+        field={location}
+        value={value}
+        onChange={(next) => {
+          setValue(next);
+          onChange(next);
+        }}
+      />
+    );
+  }
+
+  function field(value: unknown, onChange = vi.fn(), path: string | null = ITEMS) {
+    return renderWithBazis(
+      <PointsProvider control={null} fields={{ [ITEMS]: ['location'] }}>
+        <Controlled initial={value} onChange={onChange} path={path ?? undefined} />
+      </PointsProvider>,
+      new Backend(),
+    );
+  }
+
+  it('edits the coordinates of a point field and gives GeoJSON', () => {
+    const onChange = vi.fn();
+    field(point(55.7558, 37.6173), onChange);
+    const control = screen.getByTestId<HTMLInputElement>('field:location');
+    expect(control.value).toBe('55.7558, 37.6173');
+    expect(screen.getByLabelText('Location')).toBe(control);
+    fireEvent.change(control, { target: { value: '-33.86;151.21' } });
+    expect(onChange).toHaveBeenLastCalledWith(point(-33.86, 151.21));
+    // not a point yet: the text, which the backend refuses with the error of the field
+    fireEvent.change(control, { target: { value: '95, 10' } });
+    expect(onChange).toHaveBeenLastCalledWith('95, 10');
+    expect(control.value).toBe('95, 10');
+    // cleared: null for a nullable field
+    fireEvent.change(control, { target: { value: '' } });
+    expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('is the JSON of the object outside a route set of the point field', () => {
+    field(point(1, 2), vi.fn(), null);
+    expect(screen.getByTestId('field:location').tagName).toBe('TEXTAREA');
+  });
+
+  it('reads the coordinates', () => {
+    expect(parsePoint('55.7558, 37.6173')).toEqual({ latitude: 55.7558, longitude: 37.6173 });
+    expect(parsePoint(' -1 2 ')).toEqual({ latitude: -1, longitude: 2 });
+    expect([parsePoint('91, 0'), parsePoint('0, 181'), parsePoint('55,7 37,6'), parsePoint('north')]).toEqual([
+      null, null, null, null,
+    ]);
+  });
+
+  it('shows a point as its coordinates, in every language', () => {
+    expect(formatValue(location, point(55.75580001, 37.6173))).toBe('55.7558, 37.6173');
+    expect(formatValue(location, { type: 'Polygon', coordinates: [] })).toBe('{"type":"Polygon","coordinates":[]}');
+    render(<FieldValue field={location} value={point(-33.86, 151.21)} />);
+    expect(screen.getByText('-33.86, 151.21')).toBeTruthy();
   });
 });
 

@@ -59,6 +59,7 @@ with it too. The template does this in `src/app/providers.tsx`.
 | `useDestroy(path)` | `DELETE path{id}/` | `mutate(id)`; the queries of the item are removed |
 | `useRelationship(path)` | `POST`/`PATCH`/`DELETE path{id}/relationships/{field}` | `mutate({id, field, operation, data})` |
 | `useResourceForm(path, {id?, fixed?})` | the schema of the create (no id) or of the update of the item, the item, then `POST` or `PATCH` | a form, below |
+| `useAction(path, name, {method?, invalidate?})`, `useItemAction(path, name, …)` | `POST path{name}/`, `POST path{id}/{name}/` (`client.action`, `client.itemAction`) | `mutate(body)`, `mutate({id, body})`: the response of the custom action, typed by its OpenAPI; `errors`, those of its body by field (`ApiError.bodyErrors()`); the queries of the resource refetched unless `invalidate: false` |
 | `useApi()`, `useSessionKey()` | | the client; the session of the provider |
 | `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
 | `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
