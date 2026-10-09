@@ -209,8 +209,12 @@ frontend made from the sample by the `e2e` job of CI.
   separately loses or duplicates lines in runs of the same line, and the merge libraries of
   PyPI are GPL. The template is updated the same way (`Plan.dependencies_changed` asks for
   `npm install`); a lock entry of the template without files (a frontend of a version that
-  kept no pristine copy of it) has no base: `untracked_files` merges a file that differs as
-  added on both sides (an empty base) and leaves a missing one missing. `tests/test_update.py` simulates an
+  kept no pristine copy of it) is adopted without a merge (`untracked_files`: the files that
+  differ are `DIFFERS`, reported for a review by hand). A file of the template removed
+  upstream is never deleted (`ORPHANED`); a file that is not UTF-8 text is never merged
+  (`BINARY` when both changed it). `apply` records the files of the conflicts in the lock
+  (`conflicts`), and `unresolved` (`update --check`, `front.W004`, and a refusal of `plan`)
+  reports those that still have a marker line. `tests/test_update.py` simulates an
   older version by writing an asset again as that of the version `0.0.1` (its copies, its
   pristine copy and its lock entry). After a change of it, run the `frontend` job locally
   with an update cycle: a frontend of the sample made as there, its copies rewritten as

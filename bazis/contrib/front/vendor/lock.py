@@ -32,7 +32,8 @@ made; a generated file that could not be made is `"missing"`. The hashes of the 
 an asset are those of its pristine copy in `.bazis/base/<asset>@<version>/`; the template
 copied by a version before its pristine copy has only its version. `e2e`
 (written by `bazis_front e2e`, `spec/e2e.py`) has the hashes of the specs from which the
-end-to-end tests were generated and of the tests.
+end-to-end tests were generated and of the tests. `conflicts` (written by `bazis_front
+update`, absent without them) lists the files that its last run wrote with conflict markers.
 """
 
 import hashlib

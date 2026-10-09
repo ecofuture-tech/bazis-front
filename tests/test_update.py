@@ -22,6 +22,7 @@ installed package (`downgrade`).
 import json
 import shutil
 import subprocess
+from dataclasses import dataclass
 from io import StringIO
 
 from django.core.management import CommandError, call_command
@@ -267,7 +268,18 @@ def test_update_writes_the_conflicts_and_fails(product):
     assert path.read_text(encoding='utf-8') == change_line(new, late(new), conflict)
     # the update is done: the markers are resolved in the frontend
     assert_updated(product, 'client')
+    assert read_lock(product)['conflicts'] == [CLIENT]
+
+    # until then, the check and the system check report them, and no update runs
+    message = f'The conflicts of the last update are not resolved in {CLIENT}'
+    assert w004()[0].msg.startswith(message)
+    with pytest.raises(CommandError, match=message):
+        update('--check')
+    with pytest.raises(CommandError, match=message):
+        update()
+    path.write_text(change_line(new, late(new), '// mine\n'), encoding='utf-8')
     assert w004() == []
+    assert update('--check').endswith(f'are those of bazis-front {__version__}.\n')
 
 
 def test_update_adds_and_removes_files(product):
@@ -286,7 +298,7 @@ def test_update_adds_and_removes_files(product):
     out = update()
     assert '  src/bazis/client/pagination.ts: added\n' in out
     assert '  src/bazis/client/legacy.ts: removed (no longer in bazis-front)\n' in out
-    assert '  src/bazis/client/old/mine.ts: kept: no longer in bazis-front' in out
+    assert '  src/bazis/client/old/mine.ts: kept: no longer in bazis-front (the product\'s now)\n' in out
     assert '  src/bazis/client/filter.ts: not restored (deleted in the frontend)\n' in out
     assert (frontend / 'src/bazis/client/pagination.ts').read_text(encoding='utf-8') == upstream(
         'src/bazis/client/pagination.ts'
@@ -508,12 +520,63 @@ def test_update_merges_the_template(product):
     assert out.endswith(f'are those of bazis-front {__version__}.\n')
 
 
-def test_update_of_a_template_without_its_pristine_copy(product):
+def test_update_asks_for_npm_install_only_for_a_new_package_json(product):
+    frontend = product / 'frontend'
+    downgrade(
+        product, 'template',
+        lambda path, text: change_line(text, late(text), '// old\n') if path == PLAYWRIGHT_CONFIG else text,
+    )
+    # changed in the frontend only: kept, nothing new to install
+    package = frontend / PACKAGE_JSON
+    package.write_text(
+        package.read_text(encoding='utf-8').replace('"private": true,', '"private": true,\n  "description": "mine",'),
+        encoding='utf-8',
+    )
+    out = update()
+    assert f'  {PACKAGE_JSON}: kept (changed in the frontend only)\n' in out
+    assert 'npm install' not in out
+    assert (frontend / PLAYWRIGHT_CONFIG).read_text(encoding='utf-8') == upstream(PLAYWRIGHT_CONFIG)
+
+
+def test_the_markers_left_in_a_file_that_tsc_does_not_read(product):
+    # package.json: the compiler of the frontend never sees its markers
+    frontend = product / 'frontend'
+    downgrade(
+        product, 'template',
+        lambda path, text: text.replace('"private": true,', '"private": false,') if path == PACKAGE_JSON else text,
+    )
+    package = frontend / PACKAGE_JSON
+    package.write_text(package.read_text(encoding='utf-8').replace('"private": false,', '"private": null,'), encoding='utf-8')
+    with pytest.raises(CommandError, match=f'with conflicts in 1 files: {PACKAGE_JSON}'):
+        update()
+    assert MARKERS[0] in package.read_text(encoding='utf-8')
+    assert w004()[0].msg.startswith(f'The conflicts of the last update are not resolved in {PACKAGE_JSON}')
+    package.write_text(upstream(PACKAGE_JSON), encoding='utf-8')
+    assert w004() == []
+
+
+def test_update_never_deletes_a_file_of_the_template(product):
     """
-    A frontend made by a version that kept no pristine copy of the template (its lock has
-    only the version): a file that differs from the new version has no base and is merged as
-    added on both sides, the differences in conflict markers; a missing file is not
-    restored; the others are kept. The pristine copy and the hashes are recorded from then on.
+    A file of the template that bazis-front removed (or renamed) is the product's: kept and
+    reported, even unchanged; a file of a vendored asset is deleted then.
+    """
+    frontend = product / 'frontend'
+    downgrade(product, 'template')
+    add_old_file(product, 'template', 'src/app/legacy.ts', '// legacy\n')
+
+    out = update()
+    assert "  src/app/legacy.ts: kept: no longer in bazis-front (the product's now)\n" in out
+    assert (frontend / 'src/app/legacy.ts').read_text(encoding='utf-8') == '// legacy\n'
+    assert_updated(product, 'template')
+    assert 'src/app/legacy.ts' not in read_lock(product)['assets']['template']['files']
+
+
+def test_update_adopts_a_template_without_its_pristine_copy(product):
+    """
+    A frontend made by a development version that kept no pristine copy of the template
+    (its lock has only the version): adopted without a merge, nothing written; the template
+    of this version is its base from now on, and the files that differ from it (or are
+    missing) are listed for the developer to review.
     """
     frontend = product / 'frontend'
     shutil.rmtree(base_dir(frontend, 'template', __version__))
@@ -524,27 +587,66 @@ def test_update_of_a_template_without_its_pristine_copy(product):
     text = config.read_text(encoding='utf-8')
     config.write_text(change_line(text, late(text), '// old\n'), encoding='utf-8')
     (frontend / 'AGENTS.md').unlink()
-    before = (frontend / ROUTER).read_bytes()
+    before = files(frontend)
     assert w004()[0].msg == (
         f'The copies of template {OLD} in the frontend are not those of bazis-front {__version__}.'
     )
 
-    out = StringIO()
-    with pytest.raises(CommandError, match=f'with conflicts in 1 files: {PLAYWRIGHT_CONFIG}. Resolve the conflict markers'):
-        call_command('bazis_front', 'update', stdout=out)
-    out = out.getvalue()
-    assert f'template: {OLD} -> {__version__} ({OLD} kept no pristine copy of it' in out
-    assert f'  {PLAYWRIGHT_CONFIG}: CONFLICT' in out
+    out = update()
+    assert f'template: {OLD} -> {__version__} ({OLD} kept no pristine copy of it: adopted' in out
+    assert f'  {PLAYWRIGHT_CONFIG}: kept: differs from the template of bazis-front, review it' in out
     assert '  AGENTS.md: not restored (deleted in the frontend)\n' in out
     assert ROUTER not in out
-    new = upstream(PLAYWRIGHT_CONFIG)
-    theirs = new.splitlines(keepends=True)[late(new)]
-    conflict = f'{MARKERS[0]}// old\n{MARKERS[1]}{theirs}{MARKERS[2]}'
-    assert config.read_text(encoding='utf-8') == change_line(new, late(new), conflict)
-    assert not (frontend / 'AGENTS.md').exists()
-    assert (frontend / ROUTER).read_bytes() == before
+    assert 'npm install' not in out
+    # nothing of the frontend is written but its lock and the pristine copy
+    def product_files(found):
+        return {
+            path: data for path, data in found.items()
+            if '.bazis' not in path.parts and path.name != 'bazis-front.lock.json'
+        }
+
+    assert product_files(files(frontend)) == product_files(before)
     assert_updated(product, 'template')
     assert w004() == []
+    # the difference is a change of the product from now on
+    assert update('--check').endswith(f'are those of bazis-front {__version__}.\n')
+
+
+@dataclass(frozen=True)
+class Images(registry.Asset):
+    """An asset with a binary file, an image of the template."""
+
+    data: bytes = b''
+
+    def read(self, name: str) -> bytes:
+        return self.data
+
+
+def test_update_keeps_a_binary_file_changed_in_the_frontend(tmp_path):
+    """
+    A file that is not text (an image of the template) is never merged and never fails the
+    update: changed in the frontend, it is kept, and reported when bazis-front changed it too.
+    """
+    old, mine, new = b'\x89PNG\x00old', b'\x89PNG\x00mine\xff', b'\x89PNG\x00new\xfe'
+    frontend = tmp_path
+    (base_dir(frontend, 'images', OLD)).mkdir(parents=True)
+    (base_dir(frontend, 'images', OLD) / 'logo.png').write_bytes(old)
+    (frontend / 'logo.png').write_bytes(mine)
+    entry = {'version': OLD, 'files': {'logo.png': digest(old)}}
+
+    def updated(data):
+        asset = Images('images', registry.TEMPLATE, 'images', '', ('logo.png',), data=data)
+        return vendor_update.update_files(frontend, 'images', entry, asset, __version__)
+
+    [changed] = updated(new)
+    assert (changed.status, changed.data) == (vendor_update.BINARY, None)
+    assert vendor_update.DESCRIPTIONS[changed.status].startswith('KEPT: changed in the frontend and in bazis-front, not text')
+    [kept] = updated(old)
+    assert (kept.status, kept.data) == (vendor_update.KEPT, None)
+    # unchanged in the frontend: replaced, as any file
+    (frontend / 'logo.png').write_bytes(old)
+    [replaced] = updated(new)
+    assert (replaced.status, replaced.data) == (vendor_update.REPLACED, new)
 
 
 def test_add_after_an_update(product):

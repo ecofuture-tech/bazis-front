@@ -133,8 +133,10 @@ class Command(BaseCommand):
                 'file unchanged in the frontend is replaced, a file changed only there is kept, '
                 'a file changed in both is merged with its pristine copy in .bazis/base/ '
                 '(conflicts are written with markers and fail the command); files added to an '
-                'asset are added, files removed from it are deleted unless changed, files '
-                'deleted in the frontend stay deleted. The assets that a new version requires '
+                'asset are added, files removed from it are deleted unless changed (never a file '
+                'of the template), files deleted in the frontend stay deleted. Until the conflict '
+                'markers of the last update are resolved, --check reports them and an update is '
+                'refused. The assets that a new version requires '
                 'are copied, the pristine copies and the lock are updated, and so are the JSON '
                 'Schemas in spec/schema/. Nothing is written when an asset cannot be updated.'
             ),
@@ -337,9 +339,9 @@ class Command(BaseCommand):
             elif asset.untracked:
                 self.stdout.write(
                     f'{asset.name}: {asset.old} -> {plan.version} ({asset.old} kept no pristine copy '
-                    'of it: the files that differ are merged as added on both sides, with conflict '
-                    'markers, and the missing ones are not restored; the copy of '
-                    f'{plan.version} is in {frontend_lock.BASE_DIR}/{asset.name}@{plan.version}/)'
+                    f'of it: adopted, nothing is written; the template of {plan.version} is its base '
+                    f'from now on, in {frontend_lock.BASE_DIR}/{asset.name}@{plan.version}/: review '
+                    'the files listed against it, they are the changes of the product)'
                 )
             else:
                 replaced = sum(it.status == update.REPLACED for it in asset.files)

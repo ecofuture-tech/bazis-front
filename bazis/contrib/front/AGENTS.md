@@ -920,8 +920,9 @@ and the file of the frontend:
 | changed | changed | merges them with `git merge-file`; where both changed the same or adjacent lines, writes conflict markers |
 | deleted | still has it | leaves it deleted |
 | (none) | added it | adds it; a file of the product at its path fails the update |
-| unchanged | removed it | deletes it |
+| unchanged | removed it | deletes it; a file of the template is kept and reported |
 | changed | removed it | keeps it: the product's from now on |
+| changed, not text (an image) | changed | keeps it and reports it: merge it by hand |
 
 - The merge needs Git (`git merge-file`), only for the files changed on both sides;
   without it such an update fails before anything is written. `\r\n` line ends are not
@@ -944,14 +945,16 @@ and the file of the frontend:
   configs such as `playwright.config.ts` and `vite.config.ts`, `src/app/`, `src/screens/`,
   `src/i18n/`, `AGENTS.md`, …; without the stamp line): a file the product did not change
   is replaced by the new one, its changes are kept and merged with those of bazis-front
-  (conflicts as above), and a file it deleted (the home screen) stays deleted. When
-  `package.json` changed, run `npm install` (`update` says so). A frontend made by a
-  development version of bazis-front that kept no pristine copy of the template (its lock
-  entry `"template"` has only the version) has no base for it: `update` merges each file
-  that differs from the new template as added on both sides (conflict markers around every
-  difference: keep the lines of the product, take those of bazis-front), leaves the missing
-  ones missing (the new ones are in `.bazis/base/template@<version>/`) and records the
-  pristine copy from then on.
+  (conflicts as above), a file it deleted (the home screen) stays deleted, and a file that
+  bazis-front removed or renamed is never deleted: it is kept and reported, the product's
+  from now on. When `update` brings a new `package.json` (replaced, merged, added), run
+  `npm install` (`update` says so). A frontend made by a development version of bazis-front
+  that kept no pristine copy of the template (its lock entry `"template"` has only the
+  version) has no base for it: `update` adopts it without a merge, writes none of its files,
+  records the template of the new version as its base (`.bazis/base/template@<version>/`)
+  and lists the files that differ from it (or are missing): review each against that copy
+  and take what the product lacks (a fix of `playwright.config.ts`); from then on they are
+  changes of the product.
 - The theme is generated, not copied: run `bazis_front design` after `update` (`front.W005`
   reports a theme that the new version renders otherwise). A frontend made before the design
   layer has no theme: run `bazis_front design`, replace the variables of `:root` and `.dark`
@@ -974,8 +977,11 @@ the lines of bazis-front <version>
 
 Resolve every conflict in the listed files: keep the change of bazis-front (a fix of the
 protocol, a new prop) and apply the change of the product over it, delete the markers,
-then `npx tsc --noEmit` (it reports a marker left behind, `TS1185`), `npm run lint` and
-`npm test` (the contract tests of the components) in `frontend/`. Commit the frontend with
+then `npx tsc --noEmit`, `npm run lint` and `npm test` (the contract tests of the
+components) in `frontend/`. `tsc` reports a marker left in a `.ts`/`.tsx` file (`TS1185`),
+not in `package.json`, a config or `AGENTS.md`: the lock records the files of the conflicts
+(`conflicts`), and until none of them has a marker line left `update --check` and
+`front.W004` report them and `update` refuses to run. Commit the frontend with
 `.bazis/` and the lock. The client, the hooks and the helpers are never edited, so they
 are replaced without conflicts; wrap them in the product code instead.
 

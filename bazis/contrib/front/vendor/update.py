@@ -30,15 +30,19 @@ and the local file of the product:
   where the two change the same or adjacent lines;
 - added upstream: added (never over a file of the product: the update fails);
 - removed upstream: deleted when unchanged in the frontend, otherwise kept (the product's);
-- deleted in the frontend: not restored.
+- deleted in the frontend: not restored;
+- not text (an image) and changed on both sides: kept, reported, to be merged by hand.
 
 The template (the frontend itself: `package.json`, the configs, `src/app/`, its guide) is
 updated the same way: the product changes it, and the new version is merged with the
-changes. A template copied by a version that kept no pristine copy of it (its lock entry
-has no files) has no base: a file that differs from the new version is merged as added on
-both sides (`git merge-file` with an empty base: the differences are conflicts, resolved
-once), a missing one is not restored (it may have been deleted), and the pristine copy and
-the hashes are recorded from then on.
+changes; but a file of the template is never deleted: removed (or renamed) upstream, it is
+kept and reported, the product's from now on. A template copied by a version that kept no
+pristine copy of it (its lock entry has no files) is adopted: the template of this version
+is recorded as its base without a merge, and the files that differ from it are reported,
+for the developer to review against the pristine copy.
+
+The conflicts of an update are recorded in the lock (`conflicts`): until their markers are
+resolved, `update --check` and `front.W004` report them, and `update` refuses to run.
 
 The stamp lines are compared and merged at the new version, so that they never conflict;
 every written file of a vendored asset or a component has the new stamp. The assets that a
@@ -50,6 +54,7 @@ version replace the old ones and the lock records them (`apply`).
 """
 
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -92,6 +97,10 @@ REMOVED = 'removed'
 ORPHANED = 'orphaned'
 #: deleted in the frontend: not restored
 DELETED = 'deleted'
+#: not text, changed in the frontend and in bazis-front: kept, merged by hand
+BINARY = 'binary'
+#: of a template adopted without a pristine copy, different from this version: kept, reviewed by hand
+DIFFERS = 'differs'
 
 DESCRIPTIONS = {
     REPLACED: 'replaced (unchanged in the frontend)',
@@ -100,12 +109,21 @@ DESCRIPTIONS = {
     KEPT: 'kept (changed in the frontend only)',
     ADDED: 'added',
     REMOVED: 'removed (no longer in bazis-front)',
-    ORPHANED: 'kept: no longer in bazis-front, changed in the frontend (the product\'s now)',
+    ORPHANED: 'kept: no longer in bazis-front (the product\'s now)',
     DELETED: 'not restored (deleted in the frontend)',
+    BINARY: 'KEPT: changed in the frontend and in bazis-front, not text: merge it by hand '
+    'with its pristine copy in .bazis/base/',
+    DIFFERS: 'kept: differs from the template of bazis-front, review it against its pristine '
+    'copy in .bazis/base/',
 }
+
+#: the statuses that write a new version of a file of bazis-front
+UPSTREAM = (REPLACED, MERGED, CONFLICT, ADDED)
 
 #: the names of the two sides in the conflict markers
 LOCAL_NAME = 'frontend'
+#: a line of the conflict markers that `update` writes (the first or the last of a conflict)
+MARKER = re.compile(rf'^(?:<<<<<<< {LOCAL_NAME}|>>>>>>> bazis-front \S+)$', re.MULTILINE)
 
 #: the npm manifest of the template: `npm install` after a change of it
 PACKAGE_JSON = 'package.json'
@@ -134,7 +152,7 @@ class AssetUpdate:
     #: the asset of the registry; None when it is no longer in bazis-front
     asset: Asset | None
     files: list[FileUpdate] = field(default_factory=list)
-    #: copied by a version that kept no pristine copy of it (the template): no base
+    #: copied by a version that kept no pristine copy of it (the template): adopted, no merge
     untracked: bool = False
 
 
@@ -155,9 +173,9 @@ class Plan:
 
     @property
     def dependencies_changed(self) -> bool:
-        """Whether the update writes the `package.json` of the template."""
+        """Whether the update brings a new `package.json` of the template (not one kept)."""
         return any(
-            it.path == PACKAGE_JSON and it.data is not None
+            it.path == PACKAGE_JSON and it.status in UPSTREAM
             for asset in self.assets if asset.asset is not None and asset.asset.kind == TEMPLATE
             for it in asset.files
         )
@@ -181,6 +199,28 @@ def is_stale(entry: dict, asset: Asset, version: str) -> bool:
     }
 
 
+def unresolved(frontend: Path, lock: dict) -> list[str]:
+    """
+    The files of the conflicts of the last update (`conflicts` of the lock) that still have
+    its markers (`<<<<<<< frontend`, `>>>>>>> bazis-front <version>` lines): in any file,
+    whatever the compiler of its type checks.
+    """
+    result = []
+    for path in lock.get('conflicts', []):
+        target = frontend / path
+        text = target.read_bytes().decode('utf-8', 'replace') if target.is_file() else ''
+        if MARKER.search(text):
+            result.append(path)
+    return result
+
+
+def unresolved_message(paths: list[str]) -> str:
+    return (
+        f'The conflicts of the last update are not resolved in {", ".join(paths)}: resolve '
+        f'their markers (<<<<<<< {LOCAL_NAME}, =======, >>>>>>> bazis-front <version>).'
+    )
+
+
 def stale(root: Path, frontend: Path, lock: dict) -> list[str]:
     """
     What `update` would change, without reading the pristine copies or merging: the
@@ -201,6 +241,8 @@ def stale(root: Path, frontend: Path, lock: dict) -> list[str]:
     ]
     schemas = [f'{SPEC_DIR}/{SCHEMA_DIR}/{it}' for it in schema_updates(root / SPEC_DIR)]
     problems = []
+    if conflicts := unresolved(frontend, lock):
+        problems.append(unresolved_message(conflicts))
     if old:
         problems.append(
             f'The copies of {", ".join(old)} in the frontend are not those of bazis-front '
@@ -221,13 +263,14 @@ def stale(root: Path, frontend: Path, lock: dict) -> list[str]:
 def merge(path: str, asset: str, base: bytes, local: bytes, upstream: bytes, version: str) -> FileUpdate:
     """
     A file changed in the frontend, updated from its pristine copy of the old version (the
-    stamp lines of the three made those of the new version first).
+    stamp lines of the three made those of the new version first). A file that is not UTF-8
+    text (an image) is kept as it is: it is reported when bazis-front changed it too.
     """
     try:
-        base_text, local_text = (restamp(it.decode('utf-8'), asset, version) for it in (base, local))
-    except UnicodeDecodeError as err:
-        raise CopyError([f'{path} is not UTF-8 text: it cannot be merged ({err}).']) from err
-    upstream_text = upstream.decode('utf-8')
+        base_text, local_text, upstream_text = (it.decode('utf-8') for it in (base, local, upstream))
+    except UnicodeDecodeError:
+        return FileUpdate(path, KEPT if base == upstream else BINARY)
+    base_text, local_text = (restamp(it, asset, version) for it in (base_text, local_text))
     if base_text == upstream_text:
         return FileUpdate(path, KEPT, local_text.encode('utf-8'))
     merged, conflicts = merge_file(path, base_text, local_text, upstream_text, version)
@@ -296,8 +339,10 @@ def pristine(frontend: Path, name: str, entry: dict, path: str, relative: str) -
 def update_files(frontend: Path, name: str, entry: dict, asset: Asset | None, version: str) -> list[FileUpdate]:
     """
     The updates of the files of a copied asset; `asset` is None when it is no longer in
-    bazis-front (all its files are removed upstream).
+    bazis-front (all its files are removed upstream). A file of the template is never
+    deleted: removed upstream, it is the product's.
     """
+    template = asset is not None and asset.kind == TEMPLATE
     locked = entry.get('files', {})
     upstream = copies(asset, version) if asset else {}
     errors = []
@@ -317,7 +362,7 @@ def update_files(frontend: Path, name: str, entry: dict, asset: Asset | None, ve
                 updates.append(FileUpdate(path, DELETED))
         elif frontend_lock.digest(local) == locked[path]:
             if new is None:
-                updates.append(FileUpdate(path, REMOVED))
+                updates.append(FileUpdate(path, ORPHANED if template else REMOVED))
             elif new != local:
                 updates.append(FileUpdate(path, REPLACED, new))
         elif new is None:
@@ -335,18 +380,19 @@ def update_files(frontend: Path, name: str, entry: dict, asset: Asset | None, ve
 
 def untracked_files(frontend: Path, asset: Asset, version: str) -> list[FileUpdate]:
     """
-    The updates of the files of an asset copied without a pristine copy (the template of a
-    version that kept none, its lock entry without files): with no base, a file that differs
-    from the new version is merged as added on both sides (an empty base: the differences are
-    conflicts), and a missing one is not restored, as it may have been deleted.
+    The files of an asset copied without a pristine copy (the template of a development
+    version that kept none, its lock entry without files), adopted: nothing is written, the
+    files of this version become its base, and those that differ (or are missing) are
+    reported for the developer to review against it; they are the product's changes from
+    then on.
     """
     updates = []
     for path, (_, new) in copies(asset, version).items():
         target = frontend / path
         if not target.is_file():
             updates.append(FileUpdate(path, DELETED))
-        elif (local := target.read_bytes()) != new:
-            updates.append(merge(path, asset.name, b'', local, new, version))
+        elif target.read_bytes() != new:
+            updates.append(FileUpdate(path, DIFFERS))
     return updates
 
 
@@ -372,6 +418,8 @@ def plan(
                 f'{name} is not in the frontend: copy it with `manage.py bazis_front add {name}`.'
                 if name in registry else f'There is no asset {name} in the frontend.'
             )
+    if conflicts := unresolved(frontend, lock):
+        errors.append(unresolved_message(conflicts) + ' Then update again.')
     if errors:
         raise CopyError(errors)
 
@@ -453,5 +501,9 @@ def apply(root: Path, frontend: Path, lock: dict, plan: Plan) -> None:
             shutil.rmtree(old)
     for path, data in plan.schemas.items():
         write_file(root / path, data)
+    # the files with markers, which `update --check` and front.W004 report until resolved
+    lock.pop('conflicts', None)
+    if plan.conflicts:
+        lock['conflicts'] = sorted(plan.conflicts)
     frontend_lock.write(frontend, lock)
 

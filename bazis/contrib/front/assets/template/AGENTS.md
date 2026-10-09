@@ -449,8 +449,11 @@ shown, and `LiveQuery` refetches every query after a reconnect.
   (Git is needed then). Where both
   changed the same or adjacent lines it writes git conflict markers (`<<<<<<< frontend`,
   `=======`, `>>>>>>> bazis-front <version>`) and fails, listing the files: keep the change of bazis-front, apply the change of the product
-  over it, delete the markers, and run `npm run typecheck` (it reports a marker left
-  behind), `npm run lint` and `npm test`.
+  over it, delete the markers, and run `npm run typecheck` (it reports a marker left in a
+  `.ts`/`.tsx` file only), `npm run lint`, `npm test` and `manage.py bazis_front update
+  --check` (it reports the files of the conflicts that still have a marker, `package.json`
+  and the configs too). A file of the template that bazis-front removed is kept, the
+  product's; an image changed on both sides is kept and reported, to merge by hand.
 - The components decide nothing: the fields and their titles come from the runtime
   schemas, the actions from the permission meta (`permission`), the states from the errors
   of the backend (`StatePanel`). Pass the field ids of the specs and the paths of

@@ -280,9 +280,13 @@ JSON Schemas in `spec/` are refreshed. Everything is read and merged before anyt
 written. The template (the frontend itself: `package.json`, the configs, `src/app/`, its
 guide) is the product's and is updated the same way, without the stamp line: a fix of a
 config reaches the products made before it, merged with their changes, and a file the
-product deleted stays deleted. A template copied by a version that kept no pristine copy
-of it has no base: its files that differ are merged as added on both sides (conflict
-markers), the missing ones are not restored.
+product deleted stays deleted; a file of the template is never deleted by an update. A
+template copied by a development version that kept no pristine copy of it is adopted: the
+new template becomes its base without a merge, and the files that differ are listed for a
+review by hand. A file that is not text is never merged: changed on both sides, it is kept
+and reported. The files of the conflicts are recorded in the lock, and `update --check` and
+`front.W004` report them until no marker is left (the compiler sees only those of
+TypeScript files).
 `update --check` and the system check `front.W004` (run by `bazis_doctor`) report copies of
 another version without Node.
 

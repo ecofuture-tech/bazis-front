@@ -50,7 +50,7 @@ check = "front.W006"
 text = "the client in frontend/src/bazis/client/ is a copy kept pristine for the updates of bazis-front: wrap it in src/app/, do not edit it"
 
 [[pitfalls]]
-text = "after `pip install -U bazis-front` the copies in frontend/ are of the old version until `bazis_front update` merges the new one with the changes of the product; it fails with conflict markers in the files that both changed (resolve them, then tsc and npm test), and `add` refuses until then; commit frontend/.bazis/ (the pristine copies the merge needs) and the lock"
+text = "after `pip install -U bazis-front` the copies in frontend/ are of the old version until `bazis_front update` merges the new one with the changes of the product; it fails with conflict markers in the files that both changed (resolve them, then tsc and npm test: tsc finds the markers left in .ts/.tsx only, `update --check` and front.W004 in every file of the conflicts until they are gone), and `add` refuses until then; commit frontend/.bazis/ (the pristine copies the merge needs) and the lock"
 check = "front.W004"
 
 [[pitfalls]]
