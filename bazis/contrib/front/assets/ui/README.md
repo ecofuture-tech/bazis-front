@@ -62,7 +62,7 @@ sample (`tests/test_design.py` checks it; write it again with
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`; `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?, filter?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, rowTone?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>`, `row:<id>` (`data-tone` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-list` | `ResourceList({path, entity, columns, filters?, filter?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, rowTone?, rowToneLabel?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>`, `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | capability `statusy` |
@@ -99,11 +99,13 @@ the WebSocket of the page in a test.
   `for_change`, `for_delete`), the titles of the columns from `schema_list/`, the types of
   the filters from `route_filter_fields/` (a relation: the picker of the related resource; a
   date: a range; a string: `<field>__$search`; `options` for choices such as the statuses;
-  no control for a field that the backend does not list for the user), the sort labels from
+  no control for a field that the backend does not list for the user; the inline
+  `state:error` when they cannot be read), the sort labels from
   `RESOURCES` of the contract. An action with `permission` is shown only when the
   permission meta allows it. `filter` (the filter of the screen) is combined (AND) with
   those of the user; `rowTone(row)` highlights a row in a tone of the theme (`Tone` of the
-  generated theme: its soft color and a bar of the tone).
+  generated theme: its soft color and a bar of the tone) and `rowToneLabel(row)` is its
+  `aria-description`, the meaning in words.
 - **`app-shell`**: a link with `requires` is shown once the backend allows the user what it
   requires (`useCan` of the hooks: the runtime schema of the list or of the create of
   `path`; `filters`: those fields in `route_filter_fields/` of the user), never before.

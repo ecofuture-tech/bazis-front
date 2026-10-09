@@ -50,6 +50,7 @@ export const en: Messages = {
   'filter.all': 'All',
   'filter.from': '{label} from',
   'filter.to': '{label} to',
+  'filter.unavailable': 'The filters are not available now.',
   'form.back': 'Back',
   'form.check': 'Check the values of the fields.',
   'form.create': 'Create',

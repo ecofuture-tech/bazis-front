@@ -15,8 +15,8 @@
 // A list of a resource over `useList`: the columns of the screen with the titles of the list
 // schema, search, filters and the actions in a toolbar, sort, pages and the actions the
 // backend allows; a table or a grid of cards (`composition.list` of the theme). Marked
-// `list:<entity>`, its rows `row:<id>` (with `data-tone` when highlighted) with their cells
-// `cell:<column>`, its states `state:<state>` (the loading one is the skeleton of the rows).
+// `list:<entity>`, its rows `row:<id>` (with `data-tone` and the label of the tone as their
+// `aria-description` when highlighted) with their cells `cell:<column>`, its states `state:<state>` (the loading one is the skeleton of the rows).
 
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react';
 import { useEffect, useState, type ComponentType, type KeyboardEvent, type ReactNode } from 'react';
@@ -104,6 +104,11 @@ export interface ResourceListProps {
    * for none: its soft color and a bar of the tone, marked `data-tone`.
    */
   rowTone?: (row: ResourceObject) => Tone | undefined;
+  /**
+   * What the tone of a highlighted row means, in words (`label` of `list.highlight`): its
+   * `aria-description`, so that the highlight is not told by its color alone.
+   */
+  rowToneLabel?: (row: ResourceObject) => string | undefined;
   /** The message of the empty list. */
   emptyMessage?: ReactNode;
   /** A table or a grid of cards; `composition.list` of the theme by default. */
@@ -177,6 +182,7 @@ interface BodyProps {
   selected: string | undefined;
   rowActions: (row: ResourceObject) => ReactNode;
   rowTone: (row: ResourceObject) => Tone | undefined;
+  rowToneLabel: (row: ResourceObject) => string | undefined;
 }
 
 function cell(props: BodyProps, row: ResourceObject, name: string): ReactNode {
@@ -251,6 +257,7 @@ function TableView(
               data-bz={`row:${row.id}`}
               data-state={row.id === selected ? 'selected' : undefined}
               data-tone={tone}
+              aria-description={tone && props.rowToneLabel(row)}
               aria-selected={selected === undefined ? undefined : row.id === selected}
               className={cn(
                 'border-border/70',
@@ -301,6 +308,7 @@ function CardsView(props: BodyProps) {
               data-bz={`row:${row.id}`}
               data-state={row.id === selected ? 'selected' : undefined}
               data-tone={tone}
+              aria-description={tone && props.rowToneLabel(row)}
               className={cn(
                 'flex w-full flex-col gap-4 rounded-2xl border bg-card p-(--space-card) text-card-foreground shadow-xs transition-[box-shadow,border-color]',
                 tone && CARD_TONES[tone],
@@ -383,6 +391,7 @@ export function ResourceList({
   rowActions = [],
   cells = {},
   rowTone = () => undefined,
+  rowToneLabel = () => undefined,
   emptyMessage,
   layout = THEME.composition.list,
   compactColumns = columns.slice(0, 2),
@@ -455,6 +464,7 @@ export function ResourceList({
     onOpen,
     selected,
     rowTone,
+    rowToneLabel,
     rowActions: (row) =>
       rowActions
         .filter((action) => !action.permission || permitted(meta, action.permission, row.id))

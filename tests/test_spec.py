@@ -455,7 +455,7 @@ CASES = [
     (
         'S007',
         # the filter of the screen and its highlight by fields that the entity does not declare
-        {LIST: lambda d: d['list'].update(filter={'priority': 1}, highlight={'field': 'is_late', 'tone': 'danger'})},
+        {LIST: lambda d: d['list'].update(filter={'priority': 1}, highlight={'field': 'is_late', 'tone': 'danger', 'label': 'Late'})},
         [('S007', f'{LIST}#/list/filter/priority'), ('S007', f'{LIST}#/list/highlight/field')],
     ),
     (
@@ -469,9 +469,15 @@ CASES = [
         'S014',
         # a boolean for a text, a text for a relationship is an id; a highlight by a text
         {LIST: lambda d: d['list'].update(filter={'title': True, 'status': 'done', 'assignee': False},
-                                          highlight={'field': 'title', 'tone': 'warning'})},
+                                          highlight={'field': 'title', 'tone': 'warning', 'label': 'Titled'})},
         [('S014', f'{LIST}#/list/filter/title'), ('S014', f'{LIST}#/list/filter/assignee'),
          ('S014', f'{LIST}#/list/highlight/field')],
+    ),
+    (
+        'S014',
+        # a highlight without its label: told by its color alone
+        {LIST: lambda d: d['list'].update(highlight={'field': 'title', 'tone': 'warning'})},
+        [('S014', f'{LIST}#/list/highlight'), ('S014', f'{LIST}#/list/highlight/field')],
     ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),

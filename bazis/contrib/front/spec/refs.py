@@ -570,6 +570,15 @@ def _check_screen(
                     doc, ('card', key), 'S011', f'The entity `{entity.data["id"]}` has no workflow.',
                     'Declare the workflow of the entity, or remove it from the card.',
                 )
+    highlight = data['list'].get('highlight') if primitive == 'list' else None
+    if highlight is not None and 'label' not in highlight:
+        issues.add(
+            doc, ('list', 'highlight'), 'S014',
+            f'The highlight by `{highlight["field"]}` has no `label`: its rows would be told by '
+            'their color alone (WCAG 1.4.1).',
+            'Give it a `label` (a key of the dictionaries of the frontend, `tickets.overdue`, or a '
+            'text), which the screen gives `ResourceList` as `rowToneLabel`.',
+        )
     if contract is not None and primitive == 'list':
         _check_list_contract(doc, entity, contract, issues)
     if contract is not None:

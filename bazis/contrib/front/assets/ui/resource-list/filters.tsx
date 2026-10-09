@@ -23,6 +23,7 @@ import { Filter } from '@/bazis/client';
 import { ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
 import { RelationPicker, useAnyFilterFields } from '@/bazis/ui/resource';
+import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -52,11 +53,11 @@ type FieldType = string;
 /** The numeric types; a `Decimal` is sent as it is written, not as a float. */
 const NUMBERS = new Set(['integer', 'number', 'Decimal']);
 
-/** The types of the filter fields of the route set by name, and whether they are loaded. */
-export function useFilterTypes(path: string): { types: ReadonlyMap<string, FieldType>; pending: boolean } {
+/** The types of the filter fields of the route set by name, whether they are loaded, the error of their request. */
+export function useFilterTypes(path: string): { types: ReadonlyMap<string, FieldType>; pending: boolean; error: Error | null } {
   const query = useAnyFilterFields(path);
   const fields = query.data?.fields ?? [];
-  return { types: new Map(fields.map((it) => [it.name, it.py_type])), pending: query.isPending };
+  return { types: new Map(fields.map((it) => [it.name, it.py_type])), pending: query.isPending, error: query.error };
 }
 
 function relationOf(type: FieldType | undefined): string | null {
@@ -220,12 +221,15 @@ export interface FilterBarProps {
 
 /**
  * The controls of the filters of a list (their types from `route_filter_fields/`), but for
- * the fields that the backend does not offer the user to filter by.
+ * the fields that the backend does not offer the user to filter by; the state of the error
+ * when the filter fields cannot be read (not every filter hidden in silence).
  */
 export function FilterBar({ path, filters: wanted, ready = true, title, onFilter }: FilterBarProps) {
-  const { types, pending } = useFilterTypes(path);
+  const { t } = useLanguage();
+  const { types, pending, error } = useFilterTypes(path);
   const [values, setValues] = useState<FilterValues>({});
   const filters = wanted.filter((filter) => types.has(filter.field));
+  if (error) return <StatePanel inline state={errorState(error)} error={error} message={t('filter.unavailable')} />;
   if (pending || !ready) {
     return (
       <>

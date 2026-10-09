@@ -150,7 +150,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once; `requires`: below), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?: (field \| {field, label?, options?: [{value, label}]})[], filter?: Filter, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?: [{id, label, onClick(id), permission?}], cells?: {column: (row) => node}, rowTone?: (row) => Tone \| undefined, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})`, `filterOf` | `list:<entity>`, `row:<id>` (`data-tone` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-list` | `ResourceList({path, entity, columns, filters?: (field \| {field, label?, options?: [{value, label}]})[], filter?: Filter, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?: [{id, label, onClick(id), permission?}], cells?: {column: (row) => node}, rowTone?: (row) => Tone \| undefined, rowToneLabel?: (row) => string \| undefined, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})`, `filterOf` | `list:<entity>`, `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?: 'dialog' \| 'page'})` (`meta`: the permission meta of the item, `crud_actions`) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
@@ -179,12 +179,17 @@ the package documents each component.
   of dates (`<field>__gte`, `<field>__lte`) for a date or a date-time, a number, else a text
   whose every word must be in the field (`<field>__$search`); one `filter` expression
   (`filterOf`). A field that the backend does not list for the user (hidden by his field
-  permissions, whose filter it answers with 400) has no control. `filter` is the filter of
-  the screen itself (`list.filter` of the spec, a report): combined (AND) with those of the
-  user, and its empty list shows `emptyMessage` (the filters of the user: "nothing
-  matches"). `rowTone(row)` highlights a row in a tone of the theme (`list.highlight`:
-  `(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined`), never with
-  classes of the product.
+  permissions, whose filter it answers with 400) has no control; when the fields cannot be
+  read (5xx, no network) the bar shows its error (`state:error`), the rows stay. `filter`
+  is the filter of the screen itself (`list.filter` of the spec, a report): combined (AND)
+  with those of the user, and its empty list shows `emptyMessage` (the filters of the user:
+  "nothing matches"). **Its fields must be fields that every user who sees the screen may
+  filter by**: the backend answers the list of another user with 400 (a field hidden from
+  him), so guard the link of the screen with `requires: {path, filters: [<its fields>]}`.
+  `rowTone(row)` highlights a row in a tone of the theme (`list.highlight`: `(row) =>
+  fieldValue(row, '<field>') === true ? '<tone>' : undefined`), never with classes of the
+  product, and `rowToneLabel(row)` says it in words (its `label`, `t(label)`): the
+  `aria-description` of the row, never the color alone.
 - **The navigation follows the backend**: a link with `requires` is shown once the backend
   allows the user what it requires, never by his role in the frontend: `{path}` (the route
   set of the screen) that he may view its items, `can: 'add'` add one (`useCan(path,
@@ -604,16 +609,19 @@ states: [loading, empty, error, forbidden]
 A list of some of the items (a report) has `filter`, the fields (with `filter` in the
 contract) equal to their values, combined with the filters of the user; `highlight` marks
 the rows whose boolean field is true with a tone of the theme (`neutral`, `primary`,
-`info`, `success`, `warning`, `danger`). In the screen they are `filter` of `ResourceList`
-(`Filter.where('is_overdue', true)`; `Filter.and` of one for each field) and `rowTone`
-(above). S014 reports a value of another type than its field and a highlight by a field
-that is not a boolean:
+`info`, `success`, `warning`, `danger`) and its `label` (a key of the dictionaries of the
+frontend or a text, required: the color alone tells nothing to some users). In the screen
+they are `filter` of `ResourceList` (`Filter.where('is_overdue', true)`; `Filter.and` of
+one for each field), `rowTone` and `rowToneLabel` (above); the link of the screen requires
+the fields of its filter (`requires.filters`), which every role that sees it must be able
+to filter by. S014 reports a value of another type than its field and a highlight by a
+field that is not a boolean or without a label:
 
 ```yaml
 list:
   columns: [title, priority, response_due]
   filter: {is_overdue: true}
-  highlight: {field: is_overdue, tone: danger}
+  highlight: {field: is_overdue, tone: danger, label: tickets.overdue}
 ```
 
 ```yaml
@@ -731,7 +739,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
-| `S014` | error | a value of the filter of a list does not fit the type of its field in the contract, or the field of its highlight is not a boolean |
+| `S014` | error | a value of the filter of a list does not fit the type of its field in the contract, or its highlight is not by a boolean field or has no label |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |

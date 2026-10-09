@@ -50,6 +50,7 @@ export const ru: Messages = {
   'filter.all': 'Все',
   'filter.from': '{label} с',
   'filter.to': '{label} по',
+  'filter.unavailable': 'Фильтры сейчас недоступны.',
   'form.back': 'Назад',
   'form.check': 'Проверьте значения полей.',
   'form.create': 'Создать',

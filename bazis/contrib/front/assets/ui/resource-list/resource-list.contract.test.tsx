@@ -246,6 +246,19 @@ describe('ResourceList', () => {
     expect(screen.getByTestId('state:empty').textContent).toContain('Nothing matches');
   });
 
+  it('tells that the filters are not available when their fields cannot be read', async () => {
+    const server = backend(listDocument(rows)).on('GET', `${ITEMS}route_filter_fields/`, errors(500), 500);
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['title']} />,
+      server,
+    );
+    // the state of the error, not every filter hidden in silence; the rows are still shown
+    const failed = await screen.findByTestId('state:error');
+    expect(failed.textContent).toContain('The filters are not available now.');
+    expect(screen.queryByTestId('field:title')).toBeNull();
+    expect(screen.getByTestId('row:a')).toBeTruthy();
+  });
+
   it('has no control for a filter that the backend does not offer the user', async () => {
     // bazis-permit leaves the fields hidden from the user out of route_filter_fields/, and the
     // core answers a filter by them with 400
@@ -266,6 +279,7 @@ describe('ResourceList', () => {
           columns={['title', 'done']}
           layout={layout}
           rowTone={(row) => (row.attributes?.done === true ? 'danger' : undefined)}
+          rowToneLabel={() => 'Done'}
         />,
         backend(listDocument(rows)),
       );
@@ -273,7 +287,10 @@ describe('ResourceList', () => {
       expect(screen.getByTestId('row:a').getAttribute('data-tone')).toBe('danger');
       // the soft color of the tone of the theme, never a color of the product
       expect(screen.getByTestId('row:a').className).toContain('bg-danger-soft');
+      // not the color alone: the label of the tone describes the row, and only a highlighted one
+      expect(screen.getByTestId('row:a').getAttribute('aria-description')).toBe('Done');
       expect(screen.getByTestId('row:b').getAttribute('data-tone')).toBeNull();
+      expect(screen.getByTestId('row:b').getAttribute('aria-description')).toBeNull();
     });
   }
 

@@ -46,13 +46,14 @@
           "additionalProperties": {"type": ["string", "number", "boolean"]}
         },
         "highlight": {
-          "description": "The rows highlighted with a tone of the theme: those whose boolean field is true (`ResourceList` `rowTone`).",
+          "description": "The rows highlighted with a tone of the theme: those whose boolean field is true (`ResourceList` `rowTone`), with the label that says it in words (a key of the dictionaries of the frontend or a text: `rowToneLabel`, the description of the row), required (S014): never the color alone.",
           "type": "object",
           "additionalProperties": false,
           "required": ["field", "tone"],
           "properties": {
             "field": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
-            "tone": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]}
+            "tone": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]},
+            "label": {"type": "string", "minLength": 1}
           }
         }
       }
