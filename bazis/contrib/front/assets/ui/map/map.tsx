@@ -80,12 +80,28 @@ export function useMapTiles(): MapTiles {
   return use(TilesContext);
 }
 
+/** Degrees in the decimal notation the core parses (never an exponent), to a tenth of a meter. */
+function degrees(value: number): string {
+  return String(Number(value.toFixed(6)));
+}
+
 /**
  * The filter of the items whose point field is within `meters` of a point (the lookup `near`
- * of the core: `<field>__near=<longitude>,<latitude>,<meters>`), for a list of what is near.
+ * of the core: `<field>__near=<longitude>,<latitude>,<meters>`, in meters in every version),
+ * for a list of what is near.
  */
 export function nearFilter(field: string, { latitude, longitude }: LatLng, meters: number): Filter {
-  return Filter.where(`${field}__near`, [longitude, latitude, Math.round(meters)]);
+  return Filter.where(`${field}__near`, [degrees(longitude), degrees(latitude), Math.round(meters)]);
+}
+
+/**
+ * The sort term of the distance of the point field from a point, the nearest first (`farthest`:
+ * the farthest first), the items without a point last: `<field>__distance(<lon>,<lat>)` of
+ * bazis 2.15.0, for the `sort` of `ResourceList` and `ResourceMap`; an older core answers it
+ * with 400 `ERR_FILTER`. Bound it with `nearFilter` on a large list.
+ */
+export function nearSort(field: string, { latitude, longitude }: LatLng, { farthest = false } = {}): string {
+  return `${farthest ? '-' : ''}${field}__distance(${degrees(longitude)},${degrees(latitude)})`;
 }
 
 /** The position of the browser, asked for by `locate()`: never saved anywhere. */
@@ -100,7 +116,8 @@ export interface Geolocation {
 
 /**
  * The position of the user from the browser (`navigator.geolocation`), when `locate()` asks
- * for it: the point of a list of what is near (`nearFilter`), without a field of the profile.
+ * for it: the point of a list of what is near (`nearFilter`, `nearSort`), without a field of
+ * the profile.
  */
 export function useGeolocation(): Geolocation {
   const [state, setState] = useState<Omit<Geolocation, 'locate'>>({ position: null, locating: false, failed: false });

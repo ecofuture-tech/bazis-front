@@ -49,9 +49,10 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
         'uploadable.FileUpload', verbose_name=_('Attachment'), blank=True, null=True,
         on_delete=models.SET_NULL, related_name='+',
     )
-    # a point (GeoJSON in the API): the field `type: point` of the specs, shown on the map of
-    # the list of the tasks (`list.map`) and set with its coordinates (`manager-places-a-task`)
-    location = PointField(_('Location'), blank=True, null=True)
+    # a point (GeoJSON in the API): the field `type: point` of the specs, on the map of the
+    # list of the tasks (`list.map`) and on the card; a geography, whose GiST index the
+    # distances of the core use (`near`, and the sort by the distance of bazis 2.15.0)
+    location = PointField(_('Location'), geography=True, blank=True, null=True)
 
     class Meta:
         verbose_name = _('Task')

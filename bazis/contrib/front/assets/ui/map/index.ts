@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { LeafletMap, MapPointControl, MapProvider, nearFilter, OSM_TILES, useGeolocation, useMapTiles } from './map.js';
+export { LeafletMap, MapPointControl, MapProvider, nearFilter, nearSort, OSM_TILES, useGeolocation, useMapTiles } from './map.js';
 export type { Geolocation, LeafletMapProps, MapMarker, MapTiles } from './map.js';
 export { MAP_PAGE, ResourceMap } from './resource-map.js';
 export type { ResourceMapProps } from './resource-map.js';

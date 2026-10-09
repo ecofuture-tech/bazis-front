@@ -185,7 +185,7 @@ dependencies to the versions of the new release without a conflict in `package.j
 | `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list, a toast for each new one | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | `ws` |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS` (the texts `bg.<view>`) | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
-| `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})` (`list.map`: the items with a point in `field`), `MapProvider({tiles?, children})` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
+| `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})` (`list.map`: the items with a point in `field`), `MapProvider({tiles?, children})` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})` (bazis 2.15.0), `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -330,12 +330,16 @@ the package documents each component.
   for development and light use under its tile usage policy: a product in production sets
   the tiles of its provider (and allows their host in its Content Security Policy,
   `img-src`). **What is near**: `useGeolocation()` asks the browser for its position (never
-  saved in the profile: a field of the user that others may read leaks it) and
+  saved in the profile: a field of the user that others may read leaks it),
   `nearFilter(field, position, meters)` is the filter of the items within that distance
-  (`<field>__near=<lon>,<lat>,<meters>` of the core), for `ResourceList filter` and
-  `ResourceMap filter`; the order by the distance is the sort of the core (`sort` of both),
-  once it has one. Never store a point as two numbers (no index, no lookup of the core),
-  and never filter a list by a point with a control of the filters (S016).
+  (`<field>__near=<lon>,<lat>,<meters>`, every version of the core) and, with bazis 2.15.0,
+  `nearSort(field, position)` the order by the distance, the nearest first
+  (`<field>__distance(<lon>,<lat>)`; an older core answers it with 400 `ERR_FILTER`: leave
+  it out there), for `filter` and `sort` of `ResourceList` and `ResourceMap` (a new `sort`
+  of the screen, once the position is known, replaces the order the user chose). The point
+  field must be in the LIST schema of the route set; declare it `geography=True` (the GiST
+  index of the distances). Never store a point as two numbers (no index, no lookup of the
+  core), and never filter a list by a point with a control of the filters (S016).
 - **Custom actions** (a route of a route set declared with `@http_post('/<name>/')`, kind
   `other` in `actions` of the contract: an export, a report, a recount): call them with
   `useAction(path, '<name>')` of `@/bazis/react` (`mutate(body)`; `useItemAction` for
@@ -1599,10 +1603,13 @@ tests cannot log in (P026).
 - A point (`PointField`) is GeoJSON, `{"type": "Point", "coordinates": [<longitude>,
   <latitude>]}`: the longitude first, as in `<field>__near=<lon>,<lat>[,<meters>]` (100 m
   by default; `<field>=<lon>,<lat>` is within 10 m) and `<field>__in_bbox=<lon1>,<lat1>,
-  <lon2>,<lat2>`; `route_filter_fields/` gives it as `object`. bazis 2.13.2 reads points
-  but fails to write one: the core sets the GeoJSON object on the model field, which raises
-  (500), so a form that changes a point fails; until a version of the core converts it,
-  set the points in the backend (a hook, an action, `e2e_data`).
+  <lon2>,<lat2>`; `route_filter_fields/` gives it as `object`. bazis 2.15.0 writes a
+  GeoJSON point (an invalid one is 422 at the field), takes the distance of `near` with a
+  unit (`500`, `500m`, `2.5km`) and sorts by the distance (`sort=<field>__distance(<lon>,
+  <lat>)`, `-` for the farthest first); before it the core reads points but fails to write
+  one (it sets the GeoJSON object on the model field, which raises: 500), so a form that
+  changes a point needs bazis 2.15.0 (set the points in the backend before it: a hook, an
+  action, `e2e_data`).
 - A custom action takes and returns plain JSON (`application/json`, not a JSON:API
   document); the core points the errors of its body to `/<field>` (`ApiError.bodyErrors()`),
   and a hook that raises `JsonApiBazisError` points to a field of it with `loc=('body',

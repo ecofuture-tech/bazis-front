@@ -21,6 +21,7 @@
 // it passing when the component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -301,6 +302,27 @@ describe('ResourceList', () => {
       expect(requested(server, 'filter=done=true&title__$search=rep')).toBe(true);
     });
     expect(screen.getByTestId('state:empty').textContent).toContain('Nothing matches');
+  });
+
+  it('takes a new order of the screen, which replaces the order of the user', async () => {
+    const server = backend(listDocument(rows));
+    function Nearby() {
+      const [sort, setSort] = useState(['title']);
+      return (
+        <>
+          <button type="button" data-bz="action:locate" onClick={() => { setSort(['location__distance(37.62,55.75)']); }} />
+          <ResourceList path={ITEMS as never} entity="item" columns={['title']} sort={sort} />
+        </>
+      );
+    }
+    renderWithBazis(<Nearby />, server);
+    await screen.findByTestId('row:a');
+    expect(requested(server, 'sort=title')).toBe(true);
+    // the distance from a point known later (`nearSort` of map), any term of the core
+    fireEvent.click(screen.getByTestId('action:locate'));
+    await waitFor(() => {
+      expect(requested(server, 'sort=location__distance(37.62,55.75)')).toBe(true);
+    });
   });
 
   it('tells that the filters are not available when their fields cannot be read', async () => {

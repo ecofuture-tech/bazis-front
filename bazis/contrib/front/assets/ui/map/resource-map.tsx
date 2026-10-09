@@ -41,8 +41,8 @@ export interface ResourceMapProps {
   /** The filter of the screen (`list.filter`), or of what is near (`nearFilter`). */
   filter?: Filter | undefined;
   /**
-   * The order of the items read (`sort`), the first `pageSize` of them: the distance from a
-   * point once the core sorts by it.
+   * The order of the items read (`sort`), the first `pageSize` of them: the nearest first with
+   * `nearSort` (bazis 2.15.0).
    */
   sort?: readonly string[] | undefined;
   pageSize?: number;

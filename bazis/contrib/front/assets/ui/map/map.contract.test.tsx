@@ -24,7 +24,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 import type { FormField } from '@/bazis/react';
-import { MapProvider, nearFilter, OSM_TILES, ResourceMap } from '@/bazis/ui/map';
+import { MapProvider, nearFilter, nearSort, OSM_TILES, ResourceMap } from '@/bazis/ui/map';
 import { FieldInput } from '@/bazis/ui/resource';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
 
@@ -259,10 +259,21 @@ describe('the map of a point field', () => {
   });
 });
 
-describe('nearFilter', () => {
+describe('what is near', () => {
   it('is the lookup near of the core: longitude, latitude, meters', () => {
     expect(nearFilter('location', { latitude: 55.75, longitude: 37.62 }, 1500.4).toString()).toBe(
       'location__near=37.62,55.75,1500',
     );
+    expect(nearFilter('location', { latitude: 1e-7, longitude: -0.1234567 }, 10).toString()).toBe('location__near=-0.123457,0,10');
+  });
+
+  it('sorts by the distance from a point, the nearest or the farthest first', async () => {
+    const position = { latitude: 55.75, longitude: 37.62 };
+    expect(nearSort('location', position)).toBe('location__distance(37.62,55.75)');
+    expect(nearSort('location', position, { farthest: true })).toBe('-location__distance(37.62,55.75)');
+    const backend = new Backend().on('GET', ITEMS, items);
+    renderWithBazis(<ResourceMap path={ITEMS as never} entity="item" field="location" sort={[nearSort('location', position)]} />, backend);
+    expect(await screen.findByTestId('marker:a')).toBeTruthy();
+    expect(backend.requests('GET')).toEqual([`GET ${ITEMS}?sort=location__distance%2837.62%2C55.75%29&page%5Blimit%5D=200`]);
   });
 });

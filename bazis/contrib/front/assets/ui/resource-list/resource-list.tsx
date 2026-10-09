@@ -90,7 +90,11 @@ export interface ResourceListProps {
    * items), combined (AND) with the filters and the search of the user.
    */
   filter?: Filter | undefined;
-  /** The initial order: the sort labels of the contract, `-` for descending. */
+  /**
+   * The initial order: the sort labels of the contract, `-` for descending, or other terms of
+   * the core (`nearSort` of map: the distance from a point); a new one replaces the order the
+   * user chose.
+   */
   sort?: readonly string[];
   /** A search field (`field:$search`). */
   search?: boolean;
@@ -407,6 +411,14 @@ export function ResourceList({
   const [filter, setFilter] = useState<Filter | undefined>();
   const [sort, setSort] = useState<readonly string[]>(initialSort);
   const [offset, setOffset] = useState(0);
+  // a new order of the screen (the distance from the point of a nearby list, known later)
+  // replaces the one the user chose, from the first page
+  const [screenSort, setScreenSort] = useState(() => JSON.stringify(initialSort));
+  if (JSON.stringify(initialSort) !== screenSort) {
+    setScreenSort(JSON.stringify(initialSort));
+    setSort(initialSort);
+    setOffset(0);
+  }
   const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
   useEffect(() => {

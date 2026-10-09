@@ -37,10 +37,10 @@ bazis-async-request (the `test` extra) with a project app `users` (its route set
 of the assignee searches: the core 2.9 answers a search of a route set without them with
 400) and a statusy model `tasks.Task` (searched by its title; its `priority` has choices, whose
 labels the runtime schemas give translated, `enumDict`, which the frontend shows, offers and
-filters by; its `location` is a `PointField`, GeoJSON in the API and `format: point` in the
-contract, on the map of the list of the tasks (`list.map`; the core 2.13.2 reads points but
-fails to write one, so no scenario writes it: `e2e_data` places the task of the viewer,
-whose card the scenario `viewer-only-reads` expects with its coordinates); its route set
+filters by; its `location` is a geography `PointField`, GeoJSON in the API and `format: point`
+in the contract, on the map of the list of the tasks (`list.map`; the core before 2.15.0
+reads points but fails to write one, so no scenario writes it: `e2e_data` places the task of
+the viewer, whose card the scenario `viewer-only-reads` expects with its coordinates); its route set
 has the custom action `count` (`TaskRouteSet.action_count`, `POST /api/v1/tasks/task/count/`,
 a JSON body `{priority}`, 403 without a user), which queues `tasks.bg.count.CountTasks` and
 answers with the id of its task, the reference of `client.action`/`useAction` captured by
