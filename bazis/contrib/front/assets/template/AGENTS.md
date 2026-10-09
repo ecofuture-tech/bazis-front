@@ -578,8 +578,10 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   their initial state) and sets the passwords again, so that the lists do not grow from run
   to run and nothing they add up to (a budget, a count) drifts. The tests share that
   database and run one at a time; no scenario relies on what another one created.
-- A `submit` followed by `expect: {error: <field>}` is a failing submit: the test expects
-  the error of the backend in the open form, which stays open for the next steps. Any other
+- A `submit` followed by an expectation of a refusal (`expect: {error: <field>}`, or a
+  `state` of `invalid`, `error`, `forbidden`, `not_found`) is a refused submit: the test
+  expects the error of the backend in the open form, which stays open on its screen for the
+  next steps (no `then`). Any other
   submit must save (`submit({saved: true})`): when the form stays open with an error, the
   test fails with its text, also on a card where no `then` follows.
 - `npm run e2e` starts its own dev server on `E2E_PORT` (5173 by default), whose `/api` goes

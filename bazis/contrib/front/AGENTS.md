@@ -619,9 +619,10 @@ scenarios:
   its route (an item is reached with `open_item` or the `then` of a form), a form with
   `fields` is filled only in them, `action_absent` names an action of the screen and
   `field_absent` a field it shows (a column, a field of a section or of the open form). A
-  `submit` followed by an `expect` with `error` fails: its form stays open on its screen
-  (no `then`), and the next steps fix it and submit again. Only an `error` marks a failing
-  submit: `expect: {state: invalid}` after a submit still follows the `then`. When the
+  `submit` followed by an `expect` of a refusal, an `error` of a field or a `state` of a
+  failure (`invalid`, `error`, `forbidden`, `not_found`), is refused: its form stays open on
+  its screen (no `then`), the expectation names no other `screen` (P022), and the next steps
+  fix it and submit again; every other submit saves. When the
   product logs in (`packages` has `users`), the role of a scenario has a `test_user`, the
   user its end-to-end test logs in as (P025) with its password: with bazis-authing, through
   its service `password` (P026). `bazis_front e2e` turns each scenario into a
@@ -934,7 +935,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
-  | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects it to fail (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); then `expectScreen` of the `then` of the form, unless the next step expects an `error` (the form stays open) |
+  | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
 

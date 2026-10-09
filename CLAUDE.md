@@ -163,9 +163,11 @@ frontend made from the sample by the `e2e` job of CI.
   `contract`) through `SystemCheckError`.
 - `spec/scenarios.py` is the only reading of the steps of a scenario: its walk reports the
   issues and returns the steps (`Step`: the name, the value, whether it starts the edit of
-  a card, the screen it leads to, whether a `submit` is expected to fail; a `submit` followed
-  by an `expect` of an `error` fails and keeps its form open, any submit not expected to fail
-  is generated as `submit({saved: true})`, which fails the test when the form stays open) in `validate.Result.specs`, which `spec/e2e.py` turns into
+  a card, the screen it leads to, whether a `submit` is refused: `fails`, the next `expect`
+  has an `error` or a `state` of a failure, the one rule of the walk and of the generator; a
+  refused submit keeps its form open, without its `then` and with no other `screen`
+  expected, and every other submit is generated as `submit({saved: true})`, which fails the
+  test when the form stays open) in `validate.Result.specs`, which `spec/e2e.py` turns into
   calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the tables of the AGENTS.md files.
 - `spec/theme.py` (`bazis_front design`, also run by `init`) compiles the design into

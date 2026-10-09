@@ -249,7 +249,7 @@ def test_a_submit_followed_by_an_error_fails():
     assert text.count('await app.submit({ saved: true });') == 2
 
 
-def test_a_submit_followed_by_a_state_of_a_failure_does_not_need_to_save(tmp_path):
+def test_a_submit_followed_by_a_state_of_a_failure_is_refused(tmp_path):
     shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
 
     def scenario(data):
@@ -258,17 +258,44 @@ def test_a_submit_followed_by_a_state_of_a_failure_does_not_need_to_save(tmp_pat
             'role': 'manager',
             'steps': [
                 {'open': 'task-list'}, {'action': 'create'}, {'fill': {'title': 'Refused'}},
-                {'submit': {}}, {'expect': {'state': 'forbidden'}},
+                # the form stays open on its screen: fixed and submitted again
+                {'submit': {}}, {'expect': {'state': 'forbidden', 'screen': 'task-list'}},
+                {'fill': {'title': 'Accepted'}}, {'submit': {}},
+                {'expect': {'screen': 'task-card'}},
             ],
         })
 
     edit_product(tmp_path, scenario)
     result = validate(tmp_path)
-    [submit] = [it for it in result.specs.scenarios['manager-is-refused'] if it.name == 'submit']
-    # a state does not keep the form open in the walk: the `then` is still followed
-    assert (submit.failing, submit.then) == (True, 'task-card')
+    assert not result.errors, [it.as_dict() for it in result.errors]
+    submits = [(it.failing, it.then) for it in result.specs.scenarios['manager-is-refused'] if it.name == 'submit']
+    # the refused submit has no `then`, the next one saves and leads to it
+    assert submits == [(True, None), (False, 'task-card')]
     text = rendered(tmp_path)['e2e/generated/manager-is-refused.spec.ts']
-    assert '    await app.submit();\n' in text and 'saved' not in text
+    assert (
+        "  await test.step('submit', async () => {\n"
+        '    await app.submit();\n'
+        '  });\n'
+    ) in text
+    assert text.count('await app.submit({ saved: true });') == 1
+
+
+def test_a_refused_submit_leads_to_no_other_screen(tmp_path):
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+
+    def scenario(data):
+        data['scenarios'].append({
+            'id': 'manager-is-refused',
+            'role': 'manager',
+            'steps': [
+                {'open': 'task-list'}, {'action': 'create'}, {'fill': {'title': 'Refused'}},
+                {'submit': {}}, {'expect': {'state': 'invalid', 'screen': 'task-card'}},
+            ],
+        })
+
+    edit_product(tmp_path, scenario)
+    found = [(it.code, it.location) for it in validate(tmp_path).issues]
+    assert found == [('P022', 'spec/product.yaml#/scenarios/10/steps/4/expect/screen')]
 
 
 def test_the_product_module():

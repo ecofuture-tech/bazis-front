@@ -49,8 +49,9 @@ class Step:
     #: `open_item`, the `then` of a destroy action or of the submitted form; None when the
     #: screen stays (or is named by the step, `open`), as after a failing submit
     then: str | None = None
-    #: a `submit` that the next step expects to fail (`expected_to_fail`): its test waits for
-    #: the form only; any other submit must save, or its test fails with the error shown
+    #: a `submit` that the next step expects to be refused (`fails`): its form stays open on
+    #: its screen and its test waits for the form only; any other submit must save, or its
+    #: test fails with the error shown
     failing: bool = False
 
 
@@ -58,23 +59,15 @@ class Step:
 FAILED_STATES = {'invalid', 'error', 'forbidden', 'not_found'}
 
 
-def expected_to_fail(steps: list[dict], index: int) -> bool:
+def fails(steps: list[dict], index: int) -> bool:
     """
-    Whether the next step of the `submit` at the index expects it to fail: the `error` of a
-    field, or a state of a failure. Every other submit saves.
+    Whether the `submit` at the index is refused: the next step expects the `error` of a
+    field or a state of a failure (`FAILED_STATES`). The form stays open then, on its screen,
+    without its `then`; every other submit saves.
     """
     following = steps[index + 1] if index + 1 < len(steps) else {}
     expect = following.get('expect', {})
     return 'error' in expect or expect.get('state') in FAILED_STATES
-
-
-def fails(steps: list[dict], index: int) -> bool:
-    """
-    Whether the `submit` at the index fails: the next step expects the `error` of a field.
-    The form stays open then, on its screen.
-    """
-    following = steps[index + 1] if index + 1 < len(steps) else {}
-    return 'error' in following.get('expect', {})
 
 
 @dataclass
@@ -132,18 +125,18 @@ class _Scenario:
         self.role = scenario['role']
         self.scenario, self.path, self.issues = scenario, path, issues
         self.state = _State(known=True)
-        # what the current step implies (`Step`), and whether it is a failing submit
-        self.edit, self.then, self.failing = False, None, False
+        # what the current step implies (`Step`), whether it is a refused submit, and whether
+        # the step before was one
+        self.edit, self.then, self.failing, self.refused = False, None, False, False
 
     def run(self) -> list[Step]:
         steps = []
         for i, step in enumerate(self.scenario['steps']):
             (name, value), = step.items()
-            self.edit, self.then = False, None
+            self.edit, self.then, self.refused = False, None, self.failing
             self.failing = name == 'submit' and fails(self.scenario['steps'], i)
             getattr(self, f'step_{name}')((*self.path, 'steps', i, name), value)
-            failing = name == 'submit' and expected_to_fail(self.scenario['steps'], i)
-            steps.append(Step(name, value, self.edit, self.then, failing))
+            steps.append(Step(name, value, self.edit, self.then, self.failing))
         return steps
 
     def add(self, path, code, message, hint):
@@ -395,7 +388,16 @@ class _Scenario:
                 'Add `ws` to `packages` (the backend installs bazis-ws and publishes the '
                 'notification to the user), or expect something else.',
             )
-        if 'screen' in value:
+        current = (self.state.screen or {}).get('id')
+        if 'screen' in value and self.refused and self.state.known and value['screen'] != current:
+            self.add(
+                (*path, 'screen'), 'P022',
+                f'The submit before is refused: its form stays open on `{current}`, the screen is '
+                f'not `{value["screen"]}`.',
+                'Expect the screen of the form, or remove the expectation of the refusal.',
+            )
+        # the screen of a refused submit stays, with its open form
+        if 'screen' in value and not (self.refused and value['screen'] == current):
             self.go((*path, 'screen'), value['screen'])
         screen = self.state.screen
         if 'rows' in value:
