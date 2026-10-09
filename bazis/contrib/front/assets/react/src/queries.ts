@@ -14,7 +14,7 @@
 
 import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query';
 
-import type { CollectionSchemaKind, ItemSchemaKind } from '@/bazis/client';
+import { ApiError, type CollectionSchemaKind, type ItemSchemaKind } from '@/bazis/client';
 
 import { useBazis, type Api } from './context.js';
 import { keys, type QueryOptions } from './keys.js';
@@ -118,6 +118,26 @@ export function useSchema(
 ): UseQueryResult<JsonSchema> {
   const { api, scope } = useBazis();
   return useQuery(schemaQuery(api, path, kind, id, scope));
+}
+
+/** What a user may do on a route set: view its items (its list) or add one. */
+export type Can = 'view' | 'add';
+
+/**
+ * Whether the backend lets the current user view the items of a route set (`view`) or add
+ * one (`add`): the runtime schema of the list or of the create, which bazis-permit refuses
+ * with 403 without a permission of the model for the action (`<app>.<model>.item.view|add.*`
+ * of his role). It is the query of `useSchema`, so a screen that shows the list or the form
+ * of the resource makes no request of its own. Undefined until the backend answers, false
+ * when it refuses, true when it answers anything else (an error is shown by the screen).
+ */
+export function useCan(path: SchemaPath<'list'>, action: 'view'): boolean | undefined;
+export function useCan(path: SchemaPath<'create'>, action: 'add'): boolean | undefined;
+export function useCan(path: string, action: Can): boolean | undefined {
+  const { api, scope } = useBazis();
+  const schema = useQuery(schemaQuery(api, path, action === 'view' ? 'list' : 'create', undefined, scope));
+  if (schema.isPending) return undefined;
+  return !(schema.error instanceof ApiError && schema.error.status === 403);
 }
 
 /** The fields a list can be filtered by (`route_filter_fields/`), with their types. */

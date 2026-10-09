@@ -148,9 +148,9 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | Component | Props | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
+| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once; `requires`: below), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?, cells?, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-list` | `ResourceList({path, entity, columns, filters?: (field \| {field, label?, options?: [{value, label}]})[], filter?: Filter, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?: [{id, label, onClick(id), permission?}], cells?: {column: (row) => node}, rowTone?: (row) => Tone \| undefined, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})`, `filterOf` | `list:<entity>`, `row:<id>` (`data-tone` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?: 'dialog' \| 'page'})` (`meta`: the permission meta of the item, `crud_actions`) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
@@ -173,6 +173,26 @@ it; `FieldValue`, `RelationLabel`, `RelationPicker`, `FileValue`, `FilesProvider
 `permitted`) and `testing` (the support of the contract tests). `assets/ui/README.md` of
 the package documents each component.
 
+- **The filters of a list** (`filters`): a control per field, by its type in
+  `route_filter_fields/` (`py_type`): a select of `options` (the statuses:
+  `statusOptions(type)`) or of yes/no for a boolean, the picker of a relationship, a range
+  of dates (`<field>__gte`, `<field>__lte`) for a date or a date-time, a number, else a text
+  whose every word must be in the field (`<field>__$search`); one `filter` expression
+  (`filterOf`). A field that the backend does not list for the user (hidden by his field
+  permissions, whose filter it answers with 400) has no control. `filter` is the filter of
+  the screen itself (`list.filter` of the spec, a report): combined (AND) with those of the
+  user, and its empty list shows `emptyMessage` (the filters of the user: "nothing
+  matches"). `rowTone(row)` highlights a row in a tone of the theme (`list.highlight`:
+  `(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined`), never with
+  classes of the product.
+- **The navigation follows the backend**: a link with `requires` is shown once the backend
+  allows the user what it requires, never by his role in the frontend: `{path}` (the route
+  set of the screen) that he may view its items, `can: 'add'` add one (`useCan(path,
+  'view' | 'add')` of `@/bazis/react`: the runtime schema of the list or of the create,
+  which bazis-permit refuses with 403 without a permission of the model for the action;
+  the screens read the same queries, so no request is made for the links alone), `filters`
+  that the backend lets him filter its list by these fields (`route_filter_fields/`: a
+  report by a field hidden from him). A link without `requires` is always shown.
 - **Field permissions** (bazis-permit, `<app>.<model>.field.<operation>.<selector>[.<status>]
   .<field>.<restriction>`: `enable`, `readonly`, `disable`…) are read from what the backend
   returns for the current user and the item, never from the roles: a field the user may not
@@ -201,7 +221,9 @@ the package documents each component.
   `code` (`itemLabel` of `@/bazis/ui/resource`), else its id (the start of a long one): show
   such an attribute in the LIST schema of the related route set. The label as a text (a
   parameter of a message, `t('booking.of', {name})`) is `itemLabel` of the item of
-  `useRelatedItem(ROUTES[type], id)`. To-many relationships are shown, not edited, by the
+  `useRelatedItem(ROUTES[type], id)`. An item that the user may not view (the list leaves it
+  out: an agent for a client) is null there, and both show its id (the start of a long
+  one); never request it otherwise. To-many relationships are shown, not edited, by the
   components: change them with `useRelationship` (see the template's `AGENTS.md`).
 - **Files** (bazis-uploadable): a model references an uploaded file with a foreign key to
   `uploadable.FileUpload`; its field is a to-one relationship to `uploadable.file_upload`
@@ -566,7 +588,7 @@ id: task-list                    # the name of the file
 title: Tasks
 route: /tasks
 entity: task
-roles: [manager, viewer]         # the navigation and the scenarios; the backend decides access
+roles: [manager, viewer]         # the roles of the scenarios; the backend decides access (and the links: `requires`)
 primitive: list                  # list | card | form, with its section of the same name
 list:
   columns: [title, status, assignee, dt_created]
@@ -577,6 +599,21 @@ list:
 actions:
   - {id: create, primitive: form, mode: create, fields: [title, assignee], then: task-card}
 states: [loading, empty, error, forbidden]
+```
+
+A list of some of the items (a report) has `filter`, the fields (with `filter` in the
+contract) equal to their values, combined with the filters of the user; `highlight` marks
+the rows whose boolean field is true with a tone of the theme (`neutral`, `primary`,
+`info`, `success`, `warning`, `danger`). In the screen they are `filter` of `ResourceList`
+(`Filter.where('is_overdue', true)`; `Filter.and` of one for each field) and `rowTone`
+(above). S014 reports a value of another type than its field and a highlight by a field
+that is not a boolean:
+
+```yaml
+list:
+  columns: [title, priority, response_due]
+  filter: {is_overdue: true}
+  highlight: {field: is_overdue, tone: danger}
 ```
 
 ```yaml
@@ -694,6 +731,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
+| `S014` | error | a value of the filter of a list does not fit the type of its field in the contract, or the field of its highlight is not a boolean |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -865,7 +903,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
 ## The backend of a product
 
 What the frontend relies on in the backend, as the sample of the bazis-front repository
-(`sample/`, not in the package) does it:
+(`sample/`, not in the package) does it; the parts a product copies are below:
 
 - **The roles, the permissions, the statuses and the transits are one data migration**
   (`sample/tasks/migrations/0005_workflow.py`): its data frozen in it (the permissions of each
@@ -883,6 +921,18 @@ What the frontend relies on in the backend, as the sample of the bazis-front rep
   the migrations with `django.apps.apps`; the tests that need the data take the fixture. The
   rest of the setup of the tests (the triggers of `pgtrigger`) is in the guide of
   bazis-test-utils.
+
+  ```python
+  @pytest.fixture
+  def workflow(db):
+      from django.apps import apps
+      from django.contrib.contenttypes.models import ContentType
+      from bazis.contrib.statusy.models import StatusyContentType
+
+      ContentType.objects.clear_cache()
+      StatusyContentType.objects.clear_cache()
+      importlib.import_module('tasks.migrations.0005_workflow').create_workflow(apps)
+  ```
 - **The test data of the end-to-end tests** is `manage.py e2e_data` (see
   [The end-to-end tests](#the-end-to-end-tests); `sample/tasks/management/commands/e2e_data.py`
   and `sample/tasks/workflow.py`).
@@ -890,7 +940,28 @@ What the frontend relies on in the backend, as the sample of the bazis-front rep
   [The socket](#the-socket), published after the commit and robustly
   (`sample/tasks/notify.py`: the change of a task on the common channel without its id, the
   notification of the assignee on his channel, from `save()` and from an action of a
-  transit).
+  transit):
+
+  ```python
+  def _publish(channel: str, message: dict) -> None:
+      Redis.from_url(settings.CACHES['default']['LOCATION']).publish(channel, json.dumps(message))
+
+  def changed(task) -> None:          # every client refetches the resource: no id, no data
+      message = {'resource': task.get_resource_label()}
+      transaction.on_commit(lambda: _publish(COMMON_CHANNEL, message), robust=True)
+
+  def finished(task) -> None:         # only the user who may see it
+      message = {'action': 'notification', 'title': 'Task finished', 'text': task.title,
+                 'resource': task.get_resource_label(), 'id': str(task.pk)}
+      transaction.on_commit(lambda: _publish(task.assignee.user_channel, message), robust=True)
+  ```
+- **The labels of the payload of a transit** are the titles of the fields of its payload
+  model (`report: str = Field(title=_('Report'))`): the runtime schemas (`state_actions`)
+  give them in the language of the request, the contract in `LANGUAGE_CODE`.
+- **The navigation and the filters follow the permissions**: a route set whose list or
+  create the role may not use answers its runtime schema with 403 (bazis-permit), and a
+  field hidden from the user is not in its `route_filter_fields/` (the frontend hides the
+  link, `requires`, and the filter).
 - **The screens** are product code over the components (`sample/frontend-overlay/src/`, copied
   over a frontend made by `init`): the template's `AGENTS.md` shows how to compose them.
 
@@ -908,7 +979,10 @@ The copies in `frontend/` stay those of the version that copied them until `upda
 brings them to the installed bazis-front; the system check `front.W004` (run by
 `bazis_doctor`, without Node and the database) reports a copy whose lock entry is not that
 of the installed version, an asset that bazis-front no longer has or one that a new
-version requires, and copies of the JSON Schemas in `spec/schema/` that differ. For each
+version requires, and copies of the JSON Schemas in `spec/schema/` that differ;
+`front.W007` a copy changed in the frontend (a file of a vendored asset or a component
+whose hash differs from the lock; not the template), which every update merges and which
+conflicts when both change the same lines. For each
 file of a stale asset, from its pristine copy of the old version in
 `.bazis/base/<asset>@<old>/` (the base), the file of the installed package (the upstream)
 and the file of the frontend:
@@ -1097,7 +1171,16 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
 
 - `useList`, `useItem`, `useSchema`, `useFilterFields` read; `useCreate`, `useUpdate`,
   `useDestroy`, `useRelationship` change and then refetch every query of the resource
-  (`['bazis', path]`).
+  (`['bazis', path]`). `useCan(path, 'view' | 'add')` is whether the user may view the items
+  of a route set or add one (undefined until the backend answers; false on its 403), read
+  from the runtime schema of the list or of the create; what he may do on an item is its
+  meta (`crud_actions`, `for_change`, `for_delete`: `can()` of the client).
+- The errors (the template, `src/app/providers.tsx`): a query that the backend refused (4xx)
+  is not retried, a failure of the server or of the network at most three times; a 401
+  ends the session; the errors are not thrown but returned (`query.error`), and the
+  components show them with `StatePanel`. `useAnyList`, `useAnyItem`, `useAnySchema`,
+  `useAnyRelated` of `@/bazis/ui/resource` are the same hooks with plain paths, for the
+  generic code of the components: a screen uses the typed hooks.
 - `resourceSchema(schema)` reads the fields of a runtime schema (of a create, an update, a
   retrieve or a list: name, title, type, format, choices, read-only, the related resource)
   and `objectFields(schema)` those of the JSON Schema of an object, such as the payload of

@@ -123,6 +123,7 @@ def steps(data, scenario):
 
 
 PRODUCT, LIST, CARD = 'spec/product.yaml', 'spec/screens/task-list.yaml', 'spec/screens/task-card.yaml'
+DRAFTS = 'spec/screens/draft-tasks.yaml'
 THEME, TOKENS, CONTRACT = 'spec/design/theme.yaml', 'spec/design/tokens.json', 'contract/contract.json'
 LOCK = 'frontend/bazis-front.lock.json'
 
@@ -367,7 +368,7 @@ CASES = [
         # user; the guest of no scenario does not
         {PRODUCT: lambda d: [d['roles'][1].pop('test_user'),
                              d['roles'].append({'id': 'guest', 'permit': 'guest'})]},
-        [('P025', f'{PRODUCT}#/scenarios/1/role')],
+        [('P025', f'{PRODUCT}#/scenarios/1/role'), ('P025', f'{PRODUCT}#/scenarios/7/role')],
     ),
     (
         'P026',
@@ -423,7 +424,9 @@ CASES = [
     (
         'S008',
         {CONTRACT: remove_labels},
-        [('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0')],
+        # the filter of the drafts (a report) is by the status too
+        [('S008', f'{DRAFTS}#/list/filter/status'), ('S008', f'{DRAFTS}#/list/sort/0'),
+         ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0')],
     ),
     ('S009', {LIST: lambda d: d['states'].remove('empty')}, [('S009', f'{LIST}#/states')]),
     (
@@ -438,6 +441,7 @@ CASES = [
         # the users have no search: the pickers of the assignee (a filter, a form, the card)
         {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=[])},
         [
+            ('S012', f'{DRAFTS}#/list/filters/0'),
             ('S012', f'{CARD}#/card/sections/0/fields/2'),
             ('S012', f'{LIST}#/list/filters/1'),
             ('S012', f'{LIST}#/actions/0/fields/1'),
@@ -447,6 +451,27 @@ CASES = [
         'S013',
         {CONTRACT: lambda d: d['project']['resources']['tasks.task'].update(search=[])},
         [('S013', f'{LIST}#/list/search')],
+    ),
+    (
+        'S007',
+        # the filter of the screen and its highlight by fields that the entity does not declare
+        {LIST: lambda d: d['list'].update(filter={'priority': 1}, highlight={'field': 'is_late', 'tone': 'danger'})},
+        [('S007', f'{LIST}#/list/filter/priority'), ('S007', f'{LIST}#/list/highlight/field')],
+    ),
+    (
+        'S008',
+        # the filter of the screen by a field that the contract cannot filter by
+        {LIST: lambda d: d['list'].update(filter={'dt_created': '2026-01-01'}),
+         CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['dt_created'].pop('filter')]},
+        [('S008', f'{LIST}#/list/filter/dt_created')],
+    ),
+    (
+        'S014',
+        # a boolean for a text, a text for a relationship is an id; a highlight by a text
+        {LIST: lambda d: d['list'].update(filter={'title': True, 'status': 'done', 'assignee': False},
+                                          highlight={'field': 'title', 'tone': 'warning'})},
+        [('S014', f'{LIST}#/list/filter/title'), ('S014', f'{LIST}#/list/filter/assignee'),
+         ('S014', f'{LIST}#/list/highlight/field')],
     ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),

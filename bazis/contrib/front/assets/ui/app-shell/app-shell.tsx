@@ -13,12 +13,14 @@
 // limitations under the License.
 
 // The layout of the application: the navigation (a sidebar, a drawer on a phone, or a top
-// bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>`, the session
+// bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>` (those that
+// require a permission shown once the backend allows it), the session
 // (the user and the logout, `action:logout`), the language (`action:language`, with more
 // than one language), the color mode, the tools of the product (the notifications), the
 // toasts, and the screens, each wrapped in `Screen` (`screen:<id>`) with its title and its
 // actions.
 
+import type { UseQueryResult } from '@tanstack/react-query';
 import { LogOut, Menu } from 'lucide-react';
 import {
   createContext,
@@ -34,6 +36,7 @@ import { NavLink } from 'react-router';
 
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
+import { useCan, useFilterFields, type Can } from '@/bazis/react';
 import { Toaster } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -51,6 +54,25 @@ export interface NavItem {
   end?: boolean;
   /** Its icon, such as an icon of lucide-react. */
   icon?: ComponentType<{ className?: string }>;
+  /** What the backend must allow the user: the link is shown once it does (always without). */
+  requires?: NavRequirement;
+}
+
+/**
+ * What the backend must let the user do for a link to be shown, read from the runtime (the
+ * frontend never decides by his role; the backend checks every request anyway).
+ */
+export interface NavRequirement {
+  /** The route set of the screen (`ROUTES` of the contract). */
+  path: string;
+  /** View its items (its list), the default, or add one: `useCan` of `@/bazis/react`. */
+  can?: Can;
+  /**
+   * Fields that the user may filter its list by (`route_filter_fields/`): the link of a
+   * report filtered by a field that his field permissions hide, whose filter the backend
+   * answers with 400.
+   */
+  filters?: readonly string[];
 }
 
 /** The session of the user; null without a login (no bazis-users). */
@@ -115,6 +137,31 @@ function Brand({ title }: { title: ReactNode }) {
   );
 }
 
+// the hooks with the plain path of a link: the screens pass the typed paths of their contract
+const useAnyCan = useCan as unknown as (path: string, action: Can) => boolean | undefined;
+const useAnyFilterFields = useFilterFields as unknown as (
+  path: string,
+) => UseQueryResult<{ fields: readonly { name: string }[] }>;
+
+/** Its children once the backend allows the user what the link requires; nothing until then. */
+function Allowed({ requirement, children }: { requirement: NavRequirement; children: ReactNode }) {
+  const allowed = useAnyCan(requirement.path, requirement.can ?? 'view');
+  if (allowed !== true) return null;
+  const { filters = [] } = requirement;
+  return filters.length ? (
+    <Filterable path={requirement.path} filters={filters}>
+      {children}
+    </Filterable>
+  ) : (
+    children
+  );
+}
+
+function Filterable({ path, filters, children }: { path: string; filters: readonly string[]; children: ReactNode }) {
+  const fields = useAnyFilterFields(path).data?.fields;
+  return fields && filters.every((name) => fields.some((it) => it.name === name)) ? children : null;
+}
+
 function Navigation({ items, vertical, onNavigate }: { items: readonly NavItem[]; vertical: boolean; onNavigate?: () => void }) {
   const { t } = useLanguage();
   return (
@@ -122,7 +169,7 @@ function Navigation({ items, vertical, onNavigate }: { items: readonly NavItem[]
       <ul className={cn('flex gap-1', vertical ? 'flex-col' : 'items-center')}>
         {items.map((item) => {
           const Icon = item.icon;
-          return (
+          const link = (
             <li key={item.screen}>
               <NavLink
                 to={item.to}
@@ -148,6 +195,13 @@ function Navigation({ items, vertical, onNavigate }: { items: readonly NavItem[]
                 <span className="truncate">{item.label}</span>
               </NavLink>
             </li>
+          );
+          return item.requires ? (
+            <Allowed key={item.screen} requirement={item.requires}>
+              {link}
+            </Allowed>
+          ) : (
+            link
           );
         })}
       </ul>

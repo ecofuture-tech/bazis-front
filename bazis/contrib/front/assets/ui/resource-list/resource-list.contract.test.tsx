@@ -16,13 +16,15 @@
 // `error`, `forbidden`, `loaded`), `row:<id>` that opens the item with its cells
 // `cell:<column>` (the end-to-end tests find a row by them; a filter is `field:<name>`),
 // the titles of the list schema, the actions the backend allows (`action:<id>`), search,
-// filters and pages, its first columns only next to an open card. Keep it passing when the
-// component is changed.
+// filters (only those the backend offers the user) and pages, the filter of the screen, the
+// tone of a highlighted row (`data-tone`), its first columns only next to an open card. Keep
+// it passing when the component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
 import { ListCardLayout } from '@/bazis/ui/app-shell';
 import { filterOf, ResourceList } from '@/bazis/ui/resource-list';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
@@ -218,6 +220,60 @@ describe('ResourceList', () => {
       expect(screen.getByTestId('row:a').getAttribute('data-state')).toBeNull();
       fireEvent.click(screen.getByTestId('row:a'));
       expect(onOpen).toHaveBeenCalledWith('a');
+    });
+  }
+
+  it('combines the filter of the screen with those of the user', async () => {
+    const server = backend(listDocument([]));
+    renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title']}
+        filter={Filter.where('done', true)}
+        filters={['title']}
+        emptyMessage="No items done."
+      />,
+      server,
+    );
+    // the list of the screen is what it shows: its empty state is not a filter that matches nothing
+    expect((await screen.findByTestId('state:empty')).textContent).toContain('No items done.');
+    expect(requested(server, 'filter=done=true')).toBe(true);
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'rep' } });
+    await waitFor(() => {
+      expect(requested(server, 'filter=done=true&title__$search=rep')).toBe(true);
+    });
+    expect(screen.getByTestId('state:empty').textContent).toContain('Nothing matches');
+  });
+
+  it('has no control for a filter that the backend does not offer the user', async () => {
+    // bazis-permit leaves the fields hidden from the user out of route_filter_fields/, and the
+    // core answers a filter by them with 400
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['title', 'count']} />,
+      backend(listDocument(rows)),
+    );
+    expect(await screen.findByTestId('field:title')).toBeTruthy();
+    expect(screen.queryByTestId('field:count')).toBeNull();
+  });
+
+  for (const layout of ['table', 'cards'] as const) {
+    it(`highlights the rows of a tone as ${layout}`, async () => {
+      renderWithBazis(
+        <ResourceList
+          path={ITEMS as never}
+          entity="item"
+          columns={['title', 'done']}
+          layout={layout}
+          rowTone={(row) => (row.attributes?.done === true ? 'danger' : undefined)}
+        />,
+        backend(listDocument(rows)),
+      );
+      await screen.findByTestId('state:loaded');
+      expect(screen.getByTestId('row:a').getAttribute('data-tone')).toBe('danger');
+      // the soft color of the tone of the theme, never a color of the product
+      expect(screen.getByTestId('row:a').className).toContain('bg-danger-soft');
+      expect(screen.getByTestId('row:b').getAttribute('data-tone')).toBeNull();
     });
   }
 

@@ -26,7 +26,10 @@ import { LoginScreen } from '@/screens/login';
 
 /**
  * The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon;
- * the label is the key of its text in the dictionaries of the product (`src/i18n/`).
+ * the label is the key of its text in the dictionaries of the product (`src/i18n/`). The link
+ * of a screen of a resource names what the backend must allow the user (`requires`: `{path:
+ * ROUTES['<app>.<model>']}` to view its items, `can: 'add'` to add one, `filters` of a
+ * report), and the layout shows it once the backend does: never decide it by the role here.
  */
 const NAVIGATION: readonly (NavItem & { label: string })[] = [{ screen: 'home', label: 'nav.home', to: '/', end: true, icon: House }];
 

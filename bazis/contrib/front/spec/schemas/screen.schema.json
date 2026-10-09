@@ -17,7 +17,7 @@
     },
     "entity": {"description": "The id of an entity of spec/product.yaml.", "$ref": "#/$defs/id"},
     "roles": {
-      "description": "The roles that see the screen in the navigation and use it in the scenarios; the backend decides the access.",
+      "description": "The roles that use the screen in the scenarios; the backend decides the access (and the navigation shows the link of the screen to the users it allows: `NavItem.requires`).",
       "type": "array",
       "uniqueItems": true,
       "items": {"$ref": "#/$defs/id"}
@@ -37,7 +37,24 @@
           "items": {"type": "string", "pattern": "^-?[A-Za-z_][A-Za-z0-9_]*$"}
         },
         "search": {"description": "A full-text search field (`search`).", "type": "boolean"},
-        "open": {"description": "The card screen that a row opens.", "$ref": "#/$defs/id"}
+        "open": {"description": "The card screen that a row opens.", "$ref": "#/$defs/id"},
+        "filter": {
+          "description": "The filter of the screen itself, a report of some of the items: each field (that the contract can filter by) equal to its value, combined (AND) with the filters and the search of the user (`ResourceList` `filter`).",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+          "additionalProperties": {"type": ["string", "number", "boolean"]}
+        },
+        "highlight": {
+          "description": "The rows highlighted with a tone of the theme: those whose boolean field is true (`ResourceList` `rowTone`).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field", "tone"],
+          "properties": {
+            "field": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+            "tone": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]}
+          }
+        }
       }
     },
     "card": {

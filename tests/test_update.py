@@ -168,6 +168,33 @@ def w004():
     return [it for it in checks.check_update(None) if it.id == 'front.W004']
 
 
+def test_the_copies_changed_in_the_frontend_are_reported(product):
+    """
+    front.W007: a file of a vendored asset or of a component changed or deleted in the
+    frontend (it differs from the hash of the lock), before an update merges it; never the
+    template, which is the product's. The copies stay those of the installed version.
+    """
+    frontend = product / 'frontend'
+    assert checks.check_changed_copies(None) == []
+    router = frontend / 'src' / 'app' / 'router.tsx'
+    router.write_text(router.read_text(encoding='utf-8') + '// the screens of the product\n', encoding='utf-8')
+    assert checks.check_changed_copies(None) == []
+
+    client = frontend / CLIENT
+    client.write_text(client.read_text(encoding='utf-8') + '// a fix of the product\n', encoding='utf-8')
+    (frontend / 'src' / 'bazis' / 'ui' / 'app-shell' / 'list-card.tsx').unlink()
+    [warning] = checks.check_changed_copies(None)
+    assert warning.id == 'front.W007'
+    assert warning.msg == (
+        'Copies of bazis-front were changed in the frontend (they differ from '
+        'bazis-front.lock.json): app-shell: src/bazis/ui/app-shell/list-card.tsx; '
+        f'client: {CLIENT}.'
+    )
+    # not stale: the update has nothing to do, and the check of its versions is silent
+    assert w004() == []
+    assert update('--check').endswith(f'are those of bazis-front {__version__}.\n')
+
+
 def test_update_replaces_unchanged_copies(product):
     frontend = product / 'frontend'
     downgrade(product, 'client')

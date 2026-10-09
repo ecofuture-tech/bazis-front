@@ -13,19 +13,20 @@
 // limitations under the License.
 
 // The contract of the layout: `nav:<screen>` of the navigation (the current one
-// `aria-current="page"`), `screen:<id>`, the logout `action:logout` with a session only, the
+// `aria-current="page"`; a link that `requires` a permission only once the backend allows
+// it), `screen:<id>`, the logout `action:logout` with a session only, the
 // color mode, the language (`action:language`, with more than one language), the tools of the
 // product mounted once; and the list with its card (`ListCardLayout`), side by side or one at a time.
 // Keep it passing when the component is changed.
 
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { THEME } from '@/bazis/generated/theme';
 import { AppShell, ListCardLayout, Screen, setColorMode } from '@/bazis/ui/app-shell';
-import { Backend, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 const items = [
   { screen: 'home', label: 'Home', to: '/', end: true },
@@ -53,6 +54,66 @@ describe('AppShell', () => {
       expect(onLogout).toHaveBeenCalledOnce();
     });
   }
+
+  it('shows a link that requires a permission once the backend allows it', async () => {
+    const guarded = [
+      { screen: 'home', label: 'Home', to: '/', end: true },
+      { screen: 'item-list', label: 'Items', to: '/items', requires: { path: ITEMS } },
+      { screen: 'item-new', label: 'New item', to: '/items/new', requires: { path: ITEMS, can: 'add' as const } },
+      { screen: 'report', label: 'Report', to: '/report', requires: { path: ITEMS, filters: ['done'] } },
+      { screen: 'secret', label: 'Secret', to: '/secret', requires: { path: ITEMS, filters: ['secret'] } },
+    ];
+    const shell = (
+      <AppShell title="Product" navigation="sidebar" items={guarded}>
+        <Screen id="home">home</Screen>
+      </AppShell>
+    );
+    const pending = renderWithBazis(shell, new Backend().hold('GET', `${ITEMS}schema_list/`));
+    // never shown before the backend answers
+    expect(screen.getByTestId('nav:home')).toBeTruthy();
+    expect(screen.queryByTestId('nav:item-list')).toBeNull();
+    pending.unmount();
+
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, { title: 'list' })
+      .on('GET', `${ITEMS}schema_create/`, errors(403), 403)
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'done', py_type: 'boolean' }] });
+    renderWithBazis(shell, server);
+    expect(await screen.findByTestId('nav:item-list')).toBeTruthy();
+    // the user may not add one; a report needs the filter field that the backend offers him
+    expect(await screen.findByTestId('nav:report')).toBeTruthy();
+    await waitFor(() => {
+      expect(server.requests('GET')).toContain(`GET ${ITEMS}schema_create/`);
+    });
+    expect(screen.queryByTestId('nav:item-new')).toBeNull();
+    expect(screen.queryByTestId('nav:secret')).toBeNull();
+  });
+
+  it('hides the links of a resource that the backend does not let the user view', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, errors(403), 403)
+      .on('GET', `${ITEMS}schema_create/`, { title: 'create' });
+    const links = [
+      ...items,
+      { screen: 'item-list', label: 'Items', to: '/items', requires: { path: ITEMS } },
+      { screen: 'item-new', label: 'New item', to: '/items/new', requires: { path: ITEMS, can: 'add' as const } },
+    ];
+    renderWithBazis(
+      <AppShell title="Product" navigation="sidebar" items={links}>
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      server,
+    );
+    await waitFor(() => {
+      expect(server.requests('GET')).toContain(`GET ${ITEMS}schema_list/`);
+    });
+    // each action is asked for on its own
+    expect(await screen.findByTestId('nav:item-new')).toBeTruthy();
+    expect(screen.getByTestId('nav:task-list')).toBeTruthy();
+    expect(screen.queryByTestId('nav:item-list')).toBeNull();
+    // no filter fields are read for a link without `filters`
+    expect(server.requests('GET')).not.toContain(`GET ${ITEMS}route_filter_fields/`);
+  });
 
   it('switches the language of the interface with more than one language', () => {
     const { unmount } = renderWithBazis(

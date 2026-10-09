@@ -128,3 +128,9 @@ scenarios:
       - transit: start
       - transit: {id: finish, payload: {report: Done}}
       - expect: {status: done, notification: Notify the assignee}
+  - id: viewer-reads-the-drafts
+    role: viewer
+    steps:
+      - open: draft-tasks                                # a report: the tasks in `draft`
+      - open_item: {where: {title: Review the plan}}     # created by `manage.py e2e_data`
+      - expect: {screen: task-card, status: draft}

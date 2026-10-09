@@ -12,6 +12,9 @@ export const PRODUCT = {
     },
   },
   screens: {
+    "draft-tasks": {
+      route: "/drafts",
+    },
     "task-card": {
       route: "/tasks/:id",
     },

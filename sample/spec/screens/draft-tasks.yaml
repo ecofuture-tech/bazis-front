@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A report: the drafts, the filter of the screen combined with that of the user.
+spec: bazis-screen/1
+id: draft-tasks
+title: Drafts
+route: /drafts
+entity: task
+roles: [manager, viewer]
+primitive: list
+list:
+  columns: [title, assignee, dt_created]
+  filters: [assignee]
+  filter: {status: draft}
+  sort: [-dt_created]
+  open: task-card
+states: [loading, empty, error, forbidden]

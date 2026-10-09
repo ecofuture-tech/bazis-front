@@ -123,7 +123,8 @@ written.
 - **The backend decides the rights.** Do not encode roles or permissions here: request
   the permission meta (`for_change`, `for_delete`, `for_create` on a list, `crud_actions`
   on an item), read it with `can()`, and take the fields of a form from its runtime schema
-  (`useResourceForm`). Hide or disable what the backend does not allow.
+  (`useResourceForm`). Hide or disable what the backend does not allow; a link of the
+  navigation names what it `requires` (below), never a role.
 - Check for an optional package with `CAPABILITIES.<name> !== null` (`contract.ts`): the
   login exists only with bazis-users (`LOGIN_ENABLED` of `src/app/session.ts`).
 - **The login** (`src/app/session.ts`, `src/screens/login/`): the token endpoint of
@@ -202,7 +203,8 @@ const saved = await form.submit();                  // null when it failed: form
 | `useList(path, {filter, search, sort, page, fields, meta})` | a page of a list |
 | `useItem(path, id, {include, fields, meta})` | an item |
 | `useSchema(path, 'list' \| 'create')`, `useSchema(path, 'retrieve' \| 'update' \| 'transit', id)` | the runtime schema for the current user, kept for the session |
-| `useFilterFields(path)` | the fields a list can be filtered by, with their types |
+| `useFilterFields(path)` | the fields a list can be filtered by, with their types: those of the user |
+| `useCan(path, 'view' \| 'add')` | whether the user may view the items of the route set or add one: undefined until the backend answers, false when it refuses (403 of the runtime schema of the list or of the create) |
 | `useCreate(path)`, `useUpdate(path)`, `useDestroy(path)` | `mutate(document)`, `mutate({id, document})`, `mutate(id)` |
 | `useRelationship(path)` | `mutate({id, field, operation: 'add' \| 'replace' \| 'remove', data})`: the relationship endpoint, for to-many relationships |
 | `useResourceForm(path, {id?})` | a form bound to `schema_create`/`schema_update`: fields, values, dirty, submit of the changed attributes and to-one relationships, `errors` of a 422 by field |
@@ -270,7 +272,8 @@ of the installed package, lists their props and their `data-bz`):
 | Spec | Component |
 |---|---|
 | a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell`; the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
-| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` |
+| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control) |
+| `list.filter` (a report), `list.highlight: {field, tone}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user; `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
 | the notifications and the live updates (bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` (below) |
 | a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
@@ -363,7 +366,18 @@ export function TaskCardScreen() {
 ```
 
 Add the routes of the screens to `src/app/router.tsx` (inside `RequireSession`) and their
-links, with an icon of `lucide-react`, to `NAVIGATION` there. The card of a list is the
+links, with an icon of `lucide-react`, to `NAVIGATION` there. A link shown only to the users
+that the backend allows names what it `requires`, and `AppShell` shows it once the backend
+answers (the screens read the same queries: no request of its own):
+
+```tsx
+{ screen: 'task-list', label: 'nav.tasks', to: '/tasks', icon: ListChecks, requires: { path: TASKS } },   // may view
+{ screen: 'task-new', label: 'nav.new', to: '/tasks/new', icon: Plus, requires: { path: TASKS, can: 'add' } },
+{ screen: 'overdue', label: 'nav.overdue', to: '/overdue', icon: AlarmClock, requires: { path: TICKETS, filters: ['is_overdue'] } },
+```
+
+`useCan(path, 'view' | 'add')` of `@/bazis/react` gives the same answer to a screen of your
+own. The card of a list is the
 child route of the list in `ListCardLayout` of `@/bazis/ui/app-shell`, which shows it next to
 the list or in its place (`composition.list_card` of the theme):
 
@@ -436,7 +450,17 @@ shown, and `LiveQuery` refetches every query after a reconnect.
     (`t('booking.of', {name})`: `{name}` is the parameter `name`), `itemLabel` of
     `@/bazis/ui/resource` of `useRelatedItem(ROUTES[type], id).data`;
   - a status: `StatusBadge` in `cells` of a list and in `badge` of a card, the options of its
-    filter `statusOptions(type)`, as in the example above.
+    filter `statusOptions(type)`, as in the example above;
+  - a related item that the user may not view (the author of a message for a client) is
+    null in `useRelatedItem`, and `RelationLabel` shows its id: show something of your own
+    for null, never request it otherwise;
+  - the labels of the payload of a transit (`TransitBar`) are the `title` of its fields in
+    the runtime schema (`Field(title=_('…'))` of the payload in the backend, in the language
+    of the request), else their names;
+  - an error of a query is returned (`query.error`), never thrown: a refusal (4xx) is not
+    retried, a failure of the server or of the network up to three times
+    (`createQueryClient` of `src/app/providers.tsx`), a 401 ends the session; show it with
+    `StatePanel` (`errorState`).
 - **The components are the product's.** Change their look, texts and layout in
   `src/bazis/ui/` as the product needs; keep `npm test` passing: the contract test of a
   component (`<component>.contract.test.tsx`) checks the `data-bz` marks and the states
@@ -565,4 +589,8 @@ test('a manager sees the drafts', async ({ page }) => {
   `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectRows`,
   `expectError`, `expectNotification`, and `language(code)` (switches the language of the
   interface, for a test of `e2e/custom/`): the guide of
-  bazis-front lists what each one waits for.
+  bazis-front lists what each one waits for. For what they do not cover, `app.page`,
+  `app.screen()` (the current screen), `app.form()` (the open form) and `bz(kind, id)` of
+  `../bazis` (the selector of a mark): a transit that a validator restricts is disabled,
+  with the errors of the validators next to it,
+  `await expect(app.screen().locator(bz('transit', 'reopen'))).toBeDisabled()`.

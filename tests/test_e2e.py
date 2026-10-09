@@ -49,6 +49,7 @@ ASSIGNS = 'e2e/generated/manager-assigns-a-task.spec.ts'
 ATTACHES = 'e2e/generated/manager-attaches-a-brief.spec.ts'
 REPORT = 'e2e/generated/manager-cannot-change-the-report.spec.ts'
 NOTIFIED = 'e2e/generated/manager-is-notified-of-a-finished-task.spec.ts'
+DRAFTS = 'e2e/generated/viewer-reads-the-drafts.spec.ts'
 
 
 @pytest.fixture
@@ -255,15 +256,18 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     out = generate()
     frontend = root / 'frontend'
     files = rendered(root)
-    assert sorted(files) == [ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS, VIEWER]
+    assert sorted(files) == [ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS, VIEWER, DRAFTS]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 7 end-to-end tests' in out
+    assert 'Generated 8 end-to-end tests' in out
     lock = lock_of(root)
     assert lock['e2e'] == {
         'spec': {
             path: digest((root / path).read_bytes())
-            for path in ['spec/product.yaml', 'spec/screens/task-card.yaml', 'spec/screens/task-list.yaml']
+            for path in [
+                'spec/product.yaml', 'spec/screens/draft-tasks.yaml', 'spec/screens/task-card.yaml',
+                'spec/screens/task-list.yaml',
+            ]
         },
         'generated': {path: digest(text.encode('utf-8')) for path, text in files.items()},
     }
@@ -296,7 +300,7 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
     assert sorted(lock_of(root)['e2e']['generated']) == [
-        ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS,
+        ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS, DRAFTS,
     ]
     generate('--check')
 
@@ -318,7 +322,7 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     generate()
     assert {path: (frontend / path).read_bytes() for path in others} == before
     assert sorted(lock_of(root)['e2e']['generated']) == [
-        ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS, VIEWER,
+        ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS, VIEWER, DRAFTS,
     ]
 
 

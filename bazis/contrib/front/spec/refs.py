@@ -584,6 +584,10 @@ def _screen_fields(data: dict):
                 yield ('list', key, i), name
         for i, name in enumerate(data['list'].get('sort', [])):
             yield ('list', 'sort', i), name.removeprefix('-')
+        for name in data['list'].get('filter', {}):
+            yield ('list', 'filter', name), name
+        if 'highlight' in data['list']:
+            yield ('list', 'highlight', 'field'), data['list']['highlight']['field']
     elif data['primitive'] == 'card':
         for i, section in enumerate(data['card']['sections']):
             for j, name in enumerate(section['fields']):
@@ -639,6 +643,7 @@ def _check_list_contract(doc: Document, entity: Entity, contract: dict, issues: 
         return
     lst = doc.data['list']
     checks = [(('list', 'filters', i), name, 'filter') for i, name in enumerate(lst.get('filters', []))]
+    checks += [(('list', 'filter', name), name, 'filter') for name in lst.get('filter', {})]
     checks += [(('list', 'sort', i), name.removeprefix('-'), 'order') for i, name in enumerate(lst.get('sort', []))]
     for path, name, label in checks:
         actual = resource['fields'].get(name)
@@ -650,6 +655,42 @@ def _check_list_contract(doc: Document, entity: Entity, contract: dict, issues: 
                 f'`{label}` in the contract.',
                 f'Remove it, or make the field {verb} by in the route set of the backend.',
             )
+    for name, value in lst.get('filter', {}).items():
+        actual = resource['fields'].get(name)
+        if actual is not None and not filter_value_fits(value, actual):
+            issues.add(
+                doc, ('list', 'filter', name), 'S014',
+                f'The value {value!r} does not fit the field `{name}` of '
+                f'`{entity.data["resource"]}` ({_describe(actual)} in the contract).',
+                'Give the filter a value of the type of the field: a boolean, a number, a '
+                'text, the id of a related item.',
+            )
+    highlight = lst.get('highlight')
+    actual = resource['fields'].get(highlight['field']) if highlight else None
+    if actual is not None and actual.get('type') != 'boolean':
+        issues.add(
+            doc, ('list', 'highlight', 'field'), 'S014',
+            f'The field `{highlight["field"]}` of `{entity.data["resource"]}` is not a boolean '
+            f'({_describe(actual)} in the contract): a row is highlighted when its field is true.',
+            'Highlight by a boolean field of the resource (a calculated field of the route set '
+            'of the backend, such as `is_overdue`).',
+        )
+
+
+def filter_value_fits(value, field: dict) -> bool:
+    """
+    Whether a value of the filter of a list fits a field of the contract: a boolean for a
+    boolean, a number for a number, a text for a text, the id of a related item (a text or a
+    number) for a relationship; any value for the other types (an object, an array).
+    """
+    if 'relation' in field:
+        return isinstance(value, str | int) and not isinstance(value, bool)
+    expected = {
+        'boolean': (bool,), 'integer': (int,), 'number': (int, float), 'string': (str,),
+    }.get(field.get('type'))
+    if expected is None:
+        return True
+    return isinstance(value, expected) and (bool in expected or not isinstance(value, bool))
 
 
 def _picker_fields(data: dict, entity: Entity):

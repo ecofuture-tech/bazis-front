@@ -101,6 +101,16 @@ describe('TransitBar', () => {
     });
   });
 
+  it('labels a field of the payload with the title of its property, else its name', async () => {
+    // the runtime schema of the payload (`state_actions`), in the language of the request
+    const payload = { type: 'object', properties: { report: { type: 'string', title: 'Report' }, note: { type: 'string' } } };
+    const server = new Backend().on('GET', ITEM, { data: resource(ITEM_ID), meta: { state_actions: [action('finish', payload)] } });
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
+    fireEvent.click(await screen.findByTestId('transit:finish'));
+    expect((await screen.findByLabelText('Report')).getAttribute('data-bz')).toBe('field:report');
+    expect(screen.getByLabelText('note').getAttribute('data-bz')).toBe('field:note');
+  });
+
   it('shows the errors that are not of a field of the payload with those of the fields', async () => {
     const server = backend().on(
       'POST',

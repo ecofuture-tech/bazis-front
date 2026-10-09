@@ -189,6 +189,7 @@
       "requires": {
         "assets": [
           "i18n",
+          "react",
           "testing",
           "button",
           "state-panel",

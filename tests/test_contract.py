@@ -275,6 +275,31 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
 
 
 @pytest.mark.django_db
+@pytest.mark.django_db
+def test_the_lazy_titles_of_a_payload_are_in_the_language_of_the_export(sample_app, workflow, monkeypatch):
+    """
+    A payload whose fields have translated titles (`Field(title=_('…'))`, which `TransitBar`
+    shows in the language of the request) is exported with the titles of LANGUAGE_CODE,
+    whatever the language of the process.
+    """
+    from django.apps import apps
+    from django.utils.translation import gettext_lazy
+
+    from pydantic import BaseModel, Field
+
+    class Payload(BaseModel):
+        # translated in the sample: Отчёт
+        report: str = Field(title=gettext_lazy('Report'))
+
+    task = apps.get_model('tasks.Task')
+    monkeypatch.setattr(task, 'transit_payload_type', lambda model, transit: Payload)
+    with translation.override('ru'):
+        assert str(gettext_lazy('Report')) != 'Report'
+        contract = json.loads(render(sample_app)['contract.json'])
+    finish = contract['capabilities']['statusy']['models']['tasks.task']['transits'][0]
+    assert finish['payload']['schema']['properties']['report']['title'] == 'Report'
+
+
 def test_the_selectors_are_those_of_bazis_permit(sample_app, workflow, monkeypatch):
     from django.apps import apps
     from django.contrib.auth import get_user_model

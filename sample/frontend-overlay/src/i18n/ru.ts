@@ -19,9 +19,13 @@ import type { Messages } from '@/bazis/i18n';
 export const ru: Messages = {
   'nav.home': 'Главная',
   'nav.tasks': 'Задачи',
+  'nav.drafts': 'Черновики',
   'home.title': 'Обзор',
   'home.description': 'Ресурсы бэкенда и записи, которые вам доступны.',
   'home.unavailable': 'Недоступно',
+  'drafts.title': 'Черновики',
+  'drafts.description': 'Задачи, которые ещё не начаты.',
+  'drafts.empty': 'Черновиков нет.',
   'tasks.title': 'Задачи',
   'tasks.description': 'Задачи команды: от черновика до отчёта.',
   'tasks.new': 'Новая задача',

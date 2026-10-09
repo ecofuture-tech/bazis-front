@@ -188,6 +188,42 @@ def check_update(app_configs, **kwargs):
 
 
 @register()
+def check_changed_copies(app_configs, **kwargs):
+    """
+    The copies of the vendored assets and of the components in the frontend are those its
+    lock records: a copy changed in the frontend is merged with every new version by
+    `bazis_front update`, and a change of the same lines by both is a conflict. Reported
+    before the update, without Node and the database (the template is the product's).
+    """
+    from .vendor import lock as frontend_lock
+    from .vendor import update
+
+    frontend = frontend_lock.frontend_dir()
+    try:
+        lock = frontend_lock.read(frontend)
+    except frontend_lock.LockError:
+        # front.W001 reports it
+        return []
+    if lock is None:
+        return []
+    if copies := update.changed(frontend, lock):
+        files = '; '.join(f'{name}: {", ".join(paths)}' for name, paths in copies.items())
+        return [
+            Warning(
+                f'Copies of bazis-front were changed in the frontend (they differ from '
+                f'{frontend_lock.LOCK_FILE}): {files}.',
+                hint='The client, the hooks, the i18n and the helpers are never edited: wrap them '
+                'in the code of the product. A component is the product\'s, but `bazis_front '
+                'update` merges its changes with every new version (a change of the same lines '
+                'by both is a conflict): prefer its props, or a component of the product that '
+                'composes it, and propose the change to bazis-front.',
+                id='front.W007',
+            )
+        ]
+    return []
+
+
+@register()
 def check_design(app_configs, **kwargs):
     """
     The theme generated in the frontend (when its lock records it: `bazis_front init` and

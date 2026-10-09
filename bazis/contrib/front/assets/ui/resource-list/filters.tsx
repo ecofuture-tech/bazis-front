@@ -13,7 +13,9 @@
 // limitations under the License.
 
 // The filters of a list: a control per field by its type in `route_filter_fields/`, and the
-// one `filter` expression of Bazis that they make (`Filter` of the client).
+// one `filter` expression of Bazis that they make (`Filter` of the client). The fields are
+// those of the user: the core answers a filter by a field it does not list for him (hidden
+// by his field permissions, bazis-permit) with 400, so such a filter has no control.
 
 import { useState } from 'react';
 
@@ -216,14 +218,18 @@ export interface FilterBarProps {
   onFilter: (filter: Filter | undefined) => void;
 }
 
-/** The controls of the filters of a list (their types from `route_filter_fields/`). */
-export function FilterBar({ path, filters, ready = true, title, onFilter }: FilterBarProps) {
+/**
+ * The controls of the filters of a list (their types from `route_filter_fields/`), but for
+ * the fields that the backend does not offer the user to filter by.
+ */
+export function FilterBar({ path, filters: wanted, ready = true, title, onFilter }: FilterBarProps) {
   const { types, pending } = useFilterTypes(path);
   const [values, setValues] = useState<FilterValues>({});
+  const filters = wanted.filter((filter) => types.has(filter.field));
   if (pending || !ready) {
     return (
       <>
-        {filters.map((filter) => (
+        {wanted.map((filter) => (
           <Skeleton key={filter.field} data-filter-skeleton="" className="h-9 w-44" />
         ))}
       </>

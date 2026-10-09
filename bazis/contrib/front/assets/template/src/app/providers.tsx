@@ -32,7 +32,12 @@ function endSessionOn401(error: Error): void {
   if (error instanceof ApiError && error.status === 401) logout();
 }
 
-function createQueryClient(): QueryClient {
+/**
+ * The query cache of the application: a request that the backend refused (4xx) is not
+ * retried, a failure of the server or of the network (5xx, no answer) at most three times; a
+ * 401 ends the session. The errors are not thrown: the screens show them (`StatePanel`).
+ */
+export function createQueryClient(): QueryClient {
   return new QueryClient({
     queryCache: new QueryCache({ onError: endSessionOn401 }),
     mutationCache: new MutationCache({ onError: endSessionOn401 }),

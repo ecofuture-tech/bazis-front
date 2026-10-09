@@ -20,9 +20,13 @@ import type { Messages } from '@/bazis/i18n';
 export const en: Messages = {
   'nav.home': 'Home',
   'nav.tasks': 'Tasks',
+  'nav.drafts': 'Drafts',
   'home.title': 'Overview',
   'home.description': 'The resources of the backend and the items you can see.',
   'home.unavailable': 'Not available',
+  'drafts.title': 'Drafts',
+  'drafts.description': 'The tasks that are not started yet.',
+  'drafts.empty': 'No drafts.',
   'tasks.title': 'Tasks',
   'tasks.description': 'The tasks of the team, from the draft to the report.',
   'tasks.new': 'New task',

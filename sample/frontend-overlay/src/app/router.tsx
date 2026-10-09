@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { House, ListChecks } from 'lucide-react';
+import { FilePen, House, ListChecks } from 'lucide-react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
 import { PRODUCT_NAME } from '@/app/product';
 import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
-import { CAPABILITIES } from '@/bazis/generated/contract';
+import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
 import { SocketProvider, type Notification } from '@/bazis/react/ws';
@@ -26,6 +26,7 @@ import { AppShell, ListCardLayout, type NavItem } from '@/bazis/ui/app-shell';
 import { FileFieldProvider } from '@/bazis/ui/file-field';
 import { LiveQuery } from '@/bazis/ui/live-query';
 import { NotificationCenter } from '@/bazis/ui/notification-center';
+import { DraftTasksScreen } from '@/screens/draft-tasks';
 import { HomeScreen } from '@/screens/home';
 import { LoginScreen } from '@/screens/login';
 import { TaskCardScreen } from '@/screens/task-card';
@@ -33,11 +34,13 @@ import { TaskListScreen } from '@/screens/task-list';
 
 /**
  * The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon;
- * the label is the key of its text in the dictionaries of the product (`src/i18n/`).
+ * the label is the key of its text in the dictionaries of the product (`src/i18n/`). The
+ * tasks and their report are shown to the users that the backend lets view them (`requires`).
  */
 const NAVIGATION: readonly (NavItem & { label: string })[] = [
   { screen: 'home', label: 'nav.home', to: '/', end: true, icon: House },
-  { screen: 'task-list', label: 'nav.tasks', to: '/tasks', icon: ListChecks },
+  { screen: 'task-list', label: 'nav.tasks', to: '/tasks', icon: ListChecks, requires: { path: ROUTES['tasks.task'] } },
+  { screen: 'draft-tasks', label: 'nav.drafts', to: '/drafts', icon: FilePen, requires: { path: ROUTES['tasks.task'] } },
 ];
 
 /**
@@ -100,6 +103,7 @@ export function AppRouter() {
               <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
                 <Route path=":id" element={<TaskCardScreen />} />
               </Route>
+              <Route path="drafts" element={<DraftTasksScreen />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 
-import { useFilterFields, useItem, useList, useSchema } from '../src/index.js';
+import { useCan, useFilterFields, useItem, useList, useSchema } from '../src/index.js';
 import { Backend, cachedKeys, PARENT, render } from './support.js';
 
 const page = (ids: string[], offset = 0) => ({
@@ -184,6 +184,36 @@ describe('useSchema and useFilterFields', () => {
       `GET ${PARENT}7/schema_update/`,
       `GET ${PARENT}route_filter_fields/`,
     ]);
+  });
+});
+
+describe('useCan', () => {
+  it('reads what the user may do from the runtime schemas, refused with 403', async () => {
+    const forbidden = { errors: [{ status: 403, code: 'ERR_FORBIDDEN' }] };
+    const backend = new Backend()
+      .on('GET', `${PARENT}schema_list/`, { title: 'list' })
+      .on('GET', `${PARENT}schema_create/`, forbidden, 403);
+    const useHooks = () => ({ view: useCan(PARENT, 'view'), add: useCan(PARENT, 'add'), schema: useSchema(PARENT, 'list') });
+    const { result, queryClient } = render(useHooks, backend);
+    // unknown until the backend answers
+    expect([result.current.view, result.current.add]).toEqual([undefined, undefined]);
+    await waitFor(() => {
+      expect([result.current.view, result.current.add]).toEqual([true, false]);
+    });
+    // the queries of useSchema: one request each, shared with the screens
+    expect(backend.requests()).toEqual([`GET ${PARENT}schema_list/`, `GET ${PARENT}schema_create/`]);
+    expect(cachedKeys(queryClient)).toEqual([
+      ['bazis', PARENT, 'schema', 'list', 's1'],
+      ['bazis', PARENT, 'schema', 'create', 's1'],
+    ]);
+  });
+
+  it('is not a refusal when the backend fails otherwise', async () => {
+    const backend = new Backend().on('GET', `${PARENT}schema_list/`, { errors: [{ status: 500 }] }, 500);
+    const { result } = render(() => useCan(PARENT, 'view'), backend);
+    await waitFor(() => {
+      expect(result.current).toBe(true);
+    });
   });
 });
 

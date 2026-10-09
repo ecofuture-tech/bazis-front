@@ -18,6 +18,7 @@
 import { Filter } from '@/bazis/client';
 
 import {
+  useCan,
   useCreate,
   useDestroy,
   useFilterFields,
@@ -58,6 +59,12 @@ export function useTypedQueries(): void {
   seen.push(useSchema(PARENT, 'create', '1'));
   const fields = useFilterFields(CHILD).data?.fields;
   seen.push(fields?.[0]?.py_type);
+  const can: boolean | undefined = useCan(PARENT, 'view');
+  seen.push(can, useCan(PARENT, 'add'));
+  // @ts-expect-error an action of an item is read from its meta (`crud_actions`), not here
+  seen.push(useCan(PARENT, 'change'));
+  // @ts-expect-error an unknown path
+  seen.push(useCan('/api/v1/entity/no_such_entity/', 'view'));
 }
 
 export function useTypedMutations(): void {

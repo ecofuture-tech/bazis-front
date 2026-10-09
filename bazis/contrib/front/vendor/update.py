@@ -42,7 +42,10 @@ is recorded as its base without a merge, and the files that differ from it are r
 for the developer to review against the pristine copy.
 
 The conflicts of an update are recorded in the lock (`conflicts`): until their markers are
-resolved, `update --check` and `front.W004` report them, and `update` refuses to run.
+resolved, `update --check` and `front.W004` report them, and `update` refuses to run. The
+copies changed in the frontend (`changed`: a file of a vendored asset or a component that
+differs from the hash of the lock) are what the next update merges: `front.W007` reports
+them, before a conflict does.
 
 The stamp lines are compared and merged at the new version, so that they never conflict;
 every written file of a vendored asset or a component has the new stamp. The assets that a
@@ -74,6 +77,7 @@ from .copy import (
     foreign_files,
     hashes,
     missing_capabilities,
+    modified_files,
     restamp,
     write_base,
     write_file,
@@ -264,6 +268,23 @@ def stale(root: Path, frontend: Path, lock: dict) -> list[str]:
             f'{version}.'
         )
     return problems
+
+
+def changed(frontend: Path, lock: dict) -> dict[str, list[str]]:
+    """
+    The files of the copies of the vendored assets and of the components that differ from
+    the hash of the lock (changed or deleted in the frontend), by asset: what the next update
+    merges with the new version. The template is the product's (changed by design), and an
+    asset that bazis-front no longer has is reported by `stale`.
+    """
+    registry = load()
+    result = {}
+    for name, entry in sorted(lock.get('assets', {}).items()):
+        if name not in registry or registry[name].kind == TEMPLATE:
+            continue
+        if paths := modified_files(frontend, entry):
+            result[name] = paths
+    return result
 
 
 def merge(path: str, asset: str, base: bytes, local: bytes, upstream: bytes, version: str) -> FileUpdate:

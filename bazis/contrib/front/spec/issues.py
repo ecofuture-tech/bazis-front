@@ -76,6 +76,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S011': (ERROR, 'transitions or history on a card whose entity has no workflow'),
     'S012': (WARNING, 'a screen edits or filters a relationship with a picker, and the related resource has no search fields in the contract: its picker lists the items without a search'),
     'S013': (ERROR, 'a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER`'),
+    'S014': (ERROR, 'a value of the filter of a list does not fit the type of its field in the contract, or the field of its highlight is not a boolean'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

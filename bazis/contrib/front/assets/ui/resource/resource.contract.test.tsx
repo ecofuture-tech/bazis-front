@@ -282,4 +282,31 @@ describe('the label of a related item', () => {
     expect(screen.getByTestId('field:named').textContent).toBe('Plan');
     expect(backend.requests('GET')).toHaveLength(1);
   });
+
+  it('is the id of an item that the user may not view, which the hook gives as null', async () => {
+    // the list leaves out the items the user may not view: a related user of another role
+    const long = '0f5c8a9e-2b7d-4c1a-9e3f-5d6b7a8c9d0e';
+    function Named({ id }: { id: string }) {
+      const item = useAnyRelated(ITEMS, id);
+      return <span data-bz="field:named">{item.isPending ? '' : item.data === null ? 'null' : 'an item'}</span>;
+    }
+    renderWithBazis(
+      <>
+        <span data-bz="field:short">
+          <RelationLabel relation="test.item" id="7" path={ITEMS} />
+        </span>
+        <span data-bz="field:long">
+          <RelationLabel relation="test.item" id={long} path={ITEMS} />
+        </span>
+        <Named id="7" />
+      </>,
+      new Backend().on('GET', ITEMS, { data: [] }),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('field:named').textContent).toBe('null');
+    });
+    expect(screen.getByTestId('field:short').textContent).toBe('7');
+    // the start of a long id, the whole on hover
+    expect(screen.getByTestId('field:long').textContent).toBe('#0f5c8a9e');
+  });
 });

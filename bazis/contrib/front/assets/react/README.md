@@ -52,6 +52,7 @@ with it too. The template does this in `src/app/providers.tsx`.
 | `useItem(path, id, {include, fields, meta})` | `GET path{id}/` | the item |
 | `useSchema(path, 'list' \| 'create')`, `useSchema(path, 'retrieve' \| 'update' \| 'transit', id)` | `GET path[{id}/]schema_<kind>/` | the JSON Schema for the current user, not refetched in the session (`staleTime: Infinity`) but after a mutation of the resource |
 | `useFilterFields(path)` | `GET path route_filter_fields/` | `{fields: [{name, py_type}]}`, kept for the session |
+| `useCan(path, 'view' \| 'add')` | the query of `useSchema(path, 'list' \| 'create')` | whether the user may view the items of the route set or add one: undefined while it loads, false on a 403 (bazis-permit, without a permission of the model for the action), else true |
 | `useRelatedItem(path, id)` | `GET path?filter=pk=<id>\|pk=<id>…&page[limit]=<n>`, one for the items of the resource asked for together | the item of the list (to show its label), null when the user may not view it |
 | `useCreate(path)` | `POST path` | `mutate(document)` |
 | `useUpdate(path)` | `PATCH path{id}/` | `mutate({id, document})` |

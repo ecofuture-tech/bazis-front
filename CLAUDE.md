@@ -120,7 +120,9 @@ frontend made from the sample by the `e2e` job of CI.
   issue of the specs (see below). `front.W003`: stale end-to-end tests (`e2e --check`,
   without the database; only when the lock has `e2e` and the specs have no errors).
   `front.W004`: copies of another version (`update --check`: `update.stale`, without Node
-  and the database). `front.W005`: a stale theme (`design --check`, without the database;
+  and the database). `front.W007`: copies changed in the frontend (`update.changed`: a file
+  of a vendored asset or a component whose hash differs from the lock, not the template;
+  kept apart from W004 because a changed copy is not stale and may be silenced alone). `front.W005`: a stale theme (`design --check`, without the database;
   only when the lock has `design` and the design has no errors). A new check id gets its pitfall in `bazis_manifest.toml`
   (`tests/test_manifest.py` checks that the ids exist).
 

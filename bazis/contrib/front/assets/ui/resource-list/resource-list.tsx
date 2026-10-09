@@ -15,15 +15,15 @@
 // A list of a resource over `useList`: the columns of the screen with the titles of the list
 // schema, search, filters and the actions in a toolbar, sort, pages and the actions the
 // backend allows; a table or a grid of cards (`composition.list` of the theme). Marked
-// `list:<entity>`, its rows `row:<id>` with their cells `cell:<column>`, its states
-// `state:<state>` (the loading one is the skeleton of the rows).
+// `list:<entity>`, its rows `row:<id>` (with `data-tone` when highlighted) with their cells
+// `cell:<column>`, its states `state:<state>` (the loading one is the skeleton of the rows).
 
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react';
 import { useEffect, useState, type ComponentType, type KeyboardEvent, type ReactNode } from 'react';
 
-import { nextPage, pagination, prevPage, type Filter } from '@/bazis/client';
+import { Filter, nextPage, pagination, prevPage } from '@/bazis/client';
 import { RESOURCES } from '@/bazis/generated/contract';
-import { THEME } from '@/bazis/generated/theme';
+import { THEME, type Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
 import { useBesideCard } from '@/bazis/ui/app-shell';
@@ -76,8 +76,16 @@ export interface ResourceListProps {
    * permissions of the user) is left out.
    */
   columns: readonly string[];
-  /** The filter fields (`route_filter_fields/`), with their options. */
+  /**
+   * The filter fields (`route_filter_fields/`), with their options: a control each, but for
+   * a field the backend does not offer the user to filter by (its filter would be a 400).
+   */
   filters?: readonly (string | ListFilter)[];
+  /**
+   * The filter of the screen itself (`list.filter` of the spec: a report of some of the
+   * items), combined (AND) with the filters and the search of the user.
+   */
+  filter?: Filter | undefined;
   /** The initial order: the sort labels of the contract, `-` for descending. */
   sort?: readonly string[];
   /** A search field (`field:$search`). */
@@ -91,6 +99,11 @@ export interface ResourceListProps {
   rowActions?: readonly RowAction[];
   /** The content of the cells of a column, instead of the formatted value. */
   cells?: Readonly<Record<string, (row: ResourceObject) => ReactNode>>;
+  /**
+   * The tone of the theme that highlights a row (`list.highlight` of the spec), undefined
+   * for none: its soft color and a bar of the tone, marked `data-tone`.
+   */
+  rowTone?: (row: ResourceObject) => Tone | undefined;
   /** The message of the empty list. */
   emptyMessage?: ReactNode;
   /** A table or a grid of cards; `composition.list` of the theme by default. */
@@ -120,6 +133,26 @@ function orderLabels(path: string): ReadonlyMap<string, string> {
 const META = ['pagination', 'for_create', 'for_change', 'for_delete'];
 const SEARCH_DELAY = 300;
 
+/** The colors of a highlighted row of a table, by its tone: the soft colors of the theme. */
+const ROW_TONES: Readonly<Record<Tone, string>> = {
+  neutral: 'bg-neutral-soft shadow-[inset_3px_0_0_var(--color-neutral)]',
+  primary: 'bg-primary-soft shadow-[inset_3px_0_0_var(--color-primary)]',
+  info: 'bg-info-soft shadow-[inset_3px_0_0_var(--color-info)]',
+  success: 'bg-success-soft shadow-[inset_3px_0_0_var(--color-success)]',
+  warning: 'bg-warning-soft shadow-[inset_3px_0_0_var(--color-warning)]',
+  danger: 'bg-danger-soft shadow-[inset_3px_0_0_var(--color-danger)]',
+};
+
+/** The colors of a highlighted card of a grid, by its tone. */
+const CARD_TONES: Readonly<Record<Tone, string>> = {
+  neutral: 'border-neutral bg-neutral-soft',
+  primary: 'border-primary bg-primary-soft',
+  info: 'border-info bg-info-soft',
+  success: 'border-success bg-success-soft',
+  warning: 'border-warning bg-warning-soft',
+  danger: 'border-danger bg-danger-soft',
+};
+
 /** The props of a row that opens its item, by a click or Enter. */
 function opener(id: string, onOpen: ((id: string) => void) | undefined) {
   if (!onOpen) return {};
@@ -143,6 +176,7 @@ interface BodyProps {
   onOpen: ((id: string) => void) | undefined;
   selected: string | undefined;
   rowActions: (row: ResourceObject) => ReactNode;
+  rowTone: (row: ResourceObject) => Tone | undefined;
 }
 
 function cell(props: BodyProps, row: ResourceObject, name: string): ReactNode {
@@ -209,39 +243,45 @@ function TableView(
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((row) => (
-          <TableRow
-            key={row.id}
-            data-bz={`row:${row.id}`}
-            data-state={row.id === selected ? 'selected' : undefined}
-            aria-selected={selected === undefined ? undefined : row.id === selected}
-            className={cn(
-              'border-border/70 data-[state=selected]:bg-primary-soft data-[state=selected]:shadow-[inset_3px_0_0_var(--primary)]',
-              onOpen && cn('cursor-pointer', FOCUS),
-            )}
-            {...opener(row.id, onOpen)}
-          >
-            {columns.map((name, index) => {
-              const field = fields.fields.get(name);
-              return (
-                <TableCell
-                  key={name}
-                  data-bz={`cell:${name}`}
-                  className={cn(
-                    'px-(--space-cell-x) py-(--space-cell-y)',
-                    index === 0 ? 'min-w-48 font-medium whitespace-normal text-foreground' : 'text-muted-foreground',
-                    isNumeric(field) && 'text-right tabular-nums',
-                    field?.kind === 'attribute' && field.format === 'date-time' && 'tabular-nums',
-                    hidden(name) && 'hidden',
-                  )}
-                >
-                  {cell(props, row, name)}
-                </TableCell>
-              );
-            })}
-            {actionsColumn && <TableCell className="px-(--space-cell-x) py-1 text-right">{props.rowActions(row)}</TableCell>}
-          </TableRow>
-        ))}
+        {rows.map((row) => {
+          const tone = props.rowTone(row);
+          return (
+            <TableRow
+              key={row.id}
+              data-bz={`row:${row.id}`}
+              data-state={row.id === selected ? 'selected' : undefined}
+              data-tone={tone}
+              aria-selected={selected === undefined ? undefined : row.id === selected}
+              className={cn(
+                'border-border/70',
+                tone && ROW_TONES[tone],
+                'data-[state=selected]:bg-primary-soft data-[state=selected]:shadow-[inset_3px_0_0_var(--primary)]',
+                onOpen && cn('cursor-pointer', FOCUS),
+              )}
+              {...opener(row.id, onOpen)}
+            >
+              {columns.map((name, index) => {
+                const field = fields.fields.get(name);
+                return (
+                  <TableCell
+                    key={name}
+                    data-bz={`cell:${name}`}
+                    className={cn(
+                      'px-(--space-cell-x) py-(--space-cell-y)',
+                      index === 0 ? 'min-w-48 font-medium whitespace-normal text-foreground' : 'text-muted-foreground',
+                      isNumeric(field) && 'text-right tabular-nums',
+                      field?.kind === 'attribute' && field.format === 'date-time' && 'tabular-nums',
+                      hidden(name) && 'hidden',
+                    )}
+                  >
+                    {cell(props, row, name)}
+                  </TableCell>
+                );
+              })}
+              {actionsColumn && <TableCell className="px-(--space-cell-x) py-1 text-right">{props.rowActions(row)}</TableCell>}
+            </TableRow>
+          );
+        })}
       </TableBody>
     </table>
   );
@@ -253,41 +293,47 @@ function CardsView(props: BodyProps) {
   const [first, ...rest] = columns;
   return (
     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {rows.map((row) => (
-        <li key={row.id} className="flex">
-          <article
-            data-bz={`row:${row.id}`}
-            data-state={row.id === selected ? 'selected' : undefined}
-            className={cn(
-              'flex w-full flex-col gap-4 rounded-2xl border bg-card p-(--space-card) text-card-foreground shadow-xs transition-[box-shadow,border-color] data-[state=selected]:border-primary',
-              onOpen && cn('cursor-pointer hover:border-primary/40 hover:shadow-md', FOCUS, 'focus-visible:ring-offset-0'),
-            )}
-            {...opener(row.id, onOpen)}
-          >
-            {first !== undefined && (
-              <h3 data-bz={`cell:${first}`} className="font-display text-lg leading-snug font-semibold">
-                {cell(props, row, first)}
-              </h3>
-            )}
-            {rest.length > 0 && (
-              <dl className="grid gap-2 text-sm">
-                {rest.map((name) => (
-                  <div key={name} className="flex items-center justify-between gap-4">
-                    <dt className="text-muted-foreground first-letter:uppercase">{fields.title(name)}</dt>
-                    <dd
-                      data-bz={`cell:${name}`}
-                      className={cn('min-w-0 truncate text-right', isNumeric(fields.fields.get(name)) && 'tabular-nums')}
-                    >
-                      {cell(props, row, name)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-            <div className="mt-auto flex justify-end gap-1 empty:hidden">{props.rowActions(row)}</div>
-          </article>
-        </li>
-      ))}
+      {rows.map((row) => {
+        const tone = props.rowTone(row);
+        return (
+          <li key={row.id} className="flex">
+            <article
+              data-bz={`row:${row.id}`}
+              data-state={row.id === selected ? 'selected' : undefined}
+              data-tone={tone}
+              className={cn(
+                'flex w-full flex-col gap-4 rounded-2xl border bg-card p-(--space-card) text-card-foreground shadow-xs transition-[box-shadow,border-color]',
+                tone && CARD_TONES[tone],
+                'data-[state=selected]:border-primary',
+                onOpen && cn('cursor-pointer hover:border-primary/40 hover:shadow-md', FOCUS, 'focus-visible:ring-offset-0'),
+              )}
+              {...opener(row.id, onOpen)}
+            >
+              {first !== undefined && (
+                <h3 data-bz={`cell:${first}`} className="font-display text-lg leading-snug font-semibold">
+                  {cell(props, row, first)}
+                </h3>
+              )}
+              {rest.length > 0 && (
+                <dl className="grid gap-2 text-sm">
+                  {rest.map((name) => (
+                    <div key={name} className="flex items-center justify-between gap-4">
+                      <dt className="text-muted-foreground first-letter:uppercase">{fields.title(name)}</dt>
+                      <dd
+                        data-bz={`cell:${name}`}
+                        className={cn('min-w-0 truncate text-right', isNumeric(fields.fields.get(name)) && 'tabular-nums')}
+                      >
+                        {cell(props, row, name)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <div className="mt-auto flex justify-end gap-1 empty:hidden">{props.rowActions(row)}</div>
+            </article>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -327,6 +373,7 @@ export function ResourceList({
   entity,
   columns,
   filters = [],
+  filter: screenFilter,
   sort: initialSort = [],
   search: searchable = false,
   pageSize = 20,
@@ -335,6 +382,7 @@ export function ResourceList({
   actions = [],
   rowActions = [],
   cells = {},
+  rowTone = () => undefined,
   emptyMessage,
   layout = THEME.composition.list,
   compactColumns = columns.slice(0, 2),
@@ -358,8 +406,10 @@ export function ResourceList({
     };
   }, [searchText]);
 
+  // the filter of the screen and those of the user
+  const combined = screenFilter && filter ? Filter.and(screenFilter, filter) : (screenFilter ?? filter);
   const query = {
-    ...(filter ? { filter } : {}),
+    ...(combined ? { filter: combined } : {}),
     ...(search ? { search } : {}),
     ...(sort.length ? { sort } : {}),
     page: { limit: pageSize, offset },
@@ -375,6 +425,7 @@ export function ResourceList({
   // the rows wait for the titles of their columns
   const loaded = queryState(list, rows.length === 0);
   const state = loaded === 'loaded' && !fields.ready ? 'loading' : loaded;
+  // the user's own search or filters (the filter of the screen is what the list is)
   const filtered = Boolean(search || filter);
   // bazis-permit leaves out of the items the fields that the user may not see (the schema of
   // a list has them all): a column is shown when a row of the page has its field
@@ -403,6 +454,7 @@ export function ResourceList({
     cells,
     onOpen,
     selected,
+    rowTone,
     rowActions: (row) =>
       rowActions
         .filter((action) => !action.permission || permitted(meta, action.permission, row.id))
