@@ -63,7 +63,8 @@ end-to-end tests"): on top of the migrations it creates only the test users of t
 their password set to `E2E_PASSWORD` at every run, and the task that the scenario of the
 viewer opens; it never creates a role, a status or a transit. The user model has
 `UserWsMixin`, `sample/router.py` routes the socket of bazis-ws (`ws_route`, `/ws`, where the
-export sees it) and `sample/main.py` adds `AsyncRequestMiddleware`; `sample/tasks/notify.py`
+export sees it; the sample keeps the way of bazis-ws 2.5, the released one, while the
+contract also finds `router.register('bazis.contrib.ws.router')` of 2.6.0, tested) and `sample/main.py` adds `AsyncRequestMiddleware`; `sample/tasks/notify.py`
 publishes, after the commit and robustly (Redis down does not fail the change), every save
 of a task to the common channel (`{"resource"}` only: an invalidation hint, never data) and
 the notification of the assignee of a finished task (`{"action": "notification", ...}`, to

@@ -31,6 +31,11 @@ include-package-data = true
 "bazis.contrib.front.assets.playwright.fixtures" = ["*"]
 "bazis.contrib.front.assets.playwright.test" = ["*"]
 
+[tool.uv]
+# a path install (`uv pip install <checkout>`, bazis-cli) builds again after each commit:
+# the version of setuptools-scm changes with the commit, the files of the build with it
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+
 [tool.setuptools_scm]
 version_file = "bazis/contrib/front/_version.py"
 version_scheme = "no-guess-dev"

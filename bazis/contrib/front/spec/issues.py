@@ -61,7 +61,7 @@ CODES: dict[str, tuple[str, str]] = {
     'P025': (ERROR, 'the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`)'),
     'P026': (ERROR, 'the scenarios log in with a password, and the bazis-authing of the contract has no service `password`'),
     'P027': (ERROR, 'a scenario expects a notification, and the product has no notifications (`packages` has no `ws`)'),
-    'P028': (ERROR, '`packages` has `ws`, and the contract has no path of the socket: `ws_route` is not routed where the export sees it'),
+    'P028': (ERROR, '`packages` has `ws`, and the contract has no path of the socket: the socket of bazis-ws is not routed where the export sees it (the router module)'),
     'P029': (ERROR, 'the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages`'),
     'S001': (ERROR, 'a screen file is not valid YAML'),
     'S002': (ERROR, 'a screen does not follow screen.schema.json'),

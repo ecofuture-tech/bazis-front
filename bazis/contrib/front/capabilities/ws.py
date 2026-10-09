@@ -14,12 +14,14 @@
 
 """
 bazis-ws: the path of the socket, that of a route of `WsEndpoint` (or a subclass) that the
-application of `bazis.core.app` has: `ws_route` appended to the routes of the router module
-(`router.routes.append(ws_route)`, `/ws`: a route appended as it is keeps its path) or to the
-application of BAZIS_APP_MODULE. Null when it has none: bazis-ws is not a Django app, its
-capability is the installed package, which bazis-async-background installs too, and a socket
-registered only in the main module of the project (which the export does not import) is not
-known to the contract. The frontend opens no socket without a path. The messages are not in
+application of `bazis.core.app` has, read from its routes with the prefixes of the included
+routers: the router of bazis-ws registered in the router module
+(`router.register('bazis.contrib.ws.router')`, bazis-ws 2.6.0: under the prefix of the
+router, `/api/v1/ws`), `ws_route` appended to its routes (`router.routes.append(ws_route)`,
+`/ws`: a route appended as it is keeps its path) or to the application of BAZIS_APP_MODULE.
+Null when it has none: bazis-ws is not a Django app, its capability is the installed
+package, which bazis-async-background installs too, and a socket registered only in the main
+module of the project (which the export does not import) is not known to the contract. The frontend opens no socket without a path. The messages are not in
 the contract: the server sends `{"type": "data", "data": <the published JSON as a string>}`,
 and the frontend reads the formats of bazis-front (`@/bazis/react/ws`).
 """

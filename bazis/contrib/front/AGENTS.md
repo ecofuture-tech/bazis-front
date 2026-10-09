@@ -716,7 +716,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P025` | error | the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`) |
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has no `ws`) |
-| `P028` | error | `packages` has `ws`, and the contract has no path of the socket: `ws_route` is not routed where the export sees it |
+| `P028` | error | `packages` has `ws`, and the contract has no path of the socket: the socket of bazis-ws is not routed where the export sees it (the router module) |
 | `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages` |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
@@ -937,10 +937,19 @@ What the frontend relies on in the backend, as the sample of the bazis-front rep
   [The end-to-end tests](#the-end-to-end-tests); `sample/tasks/management/commands/e2e_data.py`
   and `sample/tasks/workflow.py`).
 - **The changes and the notifications** reach the frontend through bazis-ws in the formats of
-  [The socket](#the-socket), published after the commit and robustly
-  (`sample/tasks/notify.py`: the change of a task on the common channel without its id, the
-  notification of the assignee on his channel, from `save()` and from an action of a
-  transit):
+  [The socket](#the-socket), published after the commit and robustly, from `save()` and from
+  an action of a transit: the change of a task on the common channel without its id, the
+  notification of the assignee on his channel. With bazis-ws 2.6.0, its helpers (they also
+  translate a lazy title in the language of each user):
+
+  ```python
+  from bazis.contrib.ws.messages import notification, notify, publish_changed
+
+  publish_changed(task)
+  notify(task.assignee, lambda user: notification(_('Task finished'), task.title, task))
+  ```
+
+  With bazis-ws 2.5, as the sample does it (`sample/tasks/notify.py`):
 
   ```python
   def _publish(channel: str, message: dict) -> None:
@@ -1222,17 +1231,18 @@ bazis-ws delivers the messages that the backend publishes to the channel of a us
 token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every user session
 (`COMMON_CHANNEL`, `user_ws:common`). The facts that the hooks rely on:
 
-- **Route the socket where the contract sees it**: append `ws_route` to the routes of the
-  router module (`router.routes.append(ws_route)` in the module of
-  `BS_BAZIS_ROUTER_MODULE`: a route appended as it is keeps its path, `/ws`), or register it
-  on the application of `BAZIS_APP_MODULE`. The export imports `bazis.core.app`, never the
+- **Route the socket where the contract sees it**, in the module of
+  `BS_BAZIS_ROUTER_MODULE`: `router.register('bazis.contrib.ws.router')` (bazis-ws 2.6.0:
+  the socket under the prefix of the router, `/api/v1/ws`), or, with bazis-ws 2.5,
+  `router.routes.append(ws_route)` (a route appended as it is keeps its path, `/ws`); or on
+  the application of `BAZIS_APP_MODULE`. The export finds it either way. The export imports `bazis.core.app`, never the
   main module of the project: a socket registered only there (as the guide of bazis-ws
   shows) is not known, and `ws.path` is null (`check` reports it when `packages` has `ws`:
   P028). bazis-ws is not a Django app and bazis-async-background installs it: the section
   `ws` is there whenever the package is, with a null path when nothing routes the socket,
   and the frontend then opens none.
-- The socket is at `CAPABILITIES.ws.path` (`/ws`, without the prefix of the API; the dev
-  server of the template proxies it). The token is sent in the first message
+- The socket is at `CAPABILITIES.ws.path`, as it is routed (`/api/v1/ws` or `/ws`; the dev
+  server of the template proxies it, under `/api` too). The token is sent in the first message
   (`{"token": "<token>"}`), never in the URL: a session JWT of bazis-users (`exp` and `sub`
   required: a token without `exp` is refused) subscribes to the channel of its user and to
   the common channel, any other token of 16–128 characters `A-Z a-z 0-9 _ -` to its
@@ -1255,13 +1265,17 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every user s
 - Pub/sub keeps nothing: a message published while the page is not subscribed is lost. The
   hooks refetch every query after a reconnect that the server took; publish after the
   commit (`transaction.on_commit(..., robust=True)`: Redis down must not fail a change that
-  is committed), or a client refetches the old data.
+  is committed), or a client refetches the old data. bazis-ws 2.6.0 does it for the formats
+  below: `publish_changed(item)` (the hint of its resource on the common channel) and
+  `notify(users, lambda user: notification(title, text, item))` (to each user, after the
+  commit, in his language) of `bazis.contrib.ws.messages`.
 - **The common channel is not public data**: every user session receives it (an anonymous
   one only with `BS_BAZIS_WS_ANONYMOUS_COMMON_CHANNEL=true`, when anybody can open one).
   Publish there only the invalidation hint `{"resource": "<JSON:API type>"}`, never the id
   of an item, its data or a notification: an id tells who may not see the item that it
   exists and when it changes. A message about an item (its id, a notification) goes only
-  to the users who may see it, `user.ws_publish(...)` (the author, the assignee).
+  to the users who may see it, `user.ws_publish(...)` or `notify(...)` (the author, the
+  assignee).
 - The formats that the hooks read (bazis-ws carries any JSON):
   `{"resource": "<JSON:API type>", "id"?: "<id>"}` (the resource or the item changed:
   `useLiveQueries` refetches the queries of the resource, each client with its own

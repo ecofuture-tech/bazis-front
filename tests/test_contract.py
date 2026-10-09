@@ -493,6 +493,44 @@ def test_the_sections_of_the_background_and_the_socket_follow_the_application(sa
     assert bg.section() == {'resource': None}
 
 
+def test_the_socket_is_found_however_the_router_module_mounts_it(monkeypatch):
+    """
+    The path of the socket is read from the routes of the application, whichever way the
+    router module mounts it: `ws_route` appended as it is (`/ws`, bazis-ws 2.5) or the router
+    of bazis-ws registered under the prefix of the router module
+    (`router.register('bazis.contrib.ws.router')`, `/api/v1/ws`, bazis-ws 2.6).
+    """
+    import sys
+    from types import ModuleType
+
+    from fastapi import FastAPI
+
+    import bazis.core.app
+    from bazis.contrib.front.capabilities import ws
+    from bazis.contrib.ws.ws import ws_route
+    from bazis.core.routing import BazisRouter
+
+    def application(router):
+        app = FastAPI()
+        app.include_router(router)
+        return app
+
+    appended = BazisRouter(prefix='/api/v1')
+    appended.routes.append(ws_route)
+    monkeypatch.setattr(bazis.core.app, 'app', application(appended))
+    assert ws.section() == {'path': '/ws'}
+
+    # the router module of bazis-ws 2.6, `bazis.contrib.ws.router`
+    module = ModuleType('ws_router')
+    module.router = BazisRouter()
+    module.router.routes.append(ws_route)
+    monkeypatch.setitem(sys.modules, 'ws_router', module)
+    registered = BazisRouter(prefix='/api/v1')
+    registered.register('ws_router')
+    monkeypatch.setattr(bazis.core.app, 'app', application(registered))
+    assert ws.section() == {'path': '/api/v1/ws'}
+
+
 def test_openapi_hash_covers_the_operation_surface():
     openapi = {
         'info': {'title': 'API', 'version': '1'},

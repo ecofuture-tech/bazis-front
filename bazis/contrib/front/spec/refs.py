@@ -254,10 +254,12 @@ def _check_packages(doc: Document, data: dict, contract: dict, issues: Issues) -
             issues.add(
                 doc, ('packages', i), 'P028',
                 'The contract has no path of the socket of bazis-ws: the application does not '
-                'route `ws_route` where the export sees it, and the frontend opens no socket '
+                'route the socket where the export sees it, and the frontend opens no socket '
                 '(no notification, no live update).',
-                'Append `ws_route` to the routes of the router module (`router.routes.append(ws_route)` '
-                f'in the module of BS_BAZIS_ROUTER_MODULE), not in the main module, and {EXPORT_HINT}.',
+                'Route it in the module of BS_BAZIS_ROUTER_MODULE, not in the main module: '
+                "`router.register('bazis.contrib.ws.router')` (bazis-ws 2.6.0, under the prefix of "
+                'the router: `/api/v1/ws`), or `router.routes.append(ws_route)` (`/ws`); then '
+                f'{EXPORT_HINT}.',
             )
 
 
