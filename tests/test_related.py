@@ -49,7 +49,7 @@ def ids(response) -> list[str]:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_items_of_a_resource_by_their_primary_keys(sample_app, workflow):
+def test_the_items_of_a_resource_by_their_primary_keys(sample_app):
     from django.apps import apps
 
     from bazis.contrib.users import get_user_model
@@ -83,7 +83,7 @@ def upload(client, name: str) -> str:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_user_reads_only_the_files_he_uploaded(sample_app, workflow):
+def test_a_user_reads_only_the_files_he_uploaded(sample_app):
     """
     The route set of the uploaded files (bazis-uploadable 2.6.0, routed as it is): a user
     uploads a file, lists and reads his own files; the file of another user is a 404 (which
@@ -107,7 +107,7 @@ def test_a_user_reads_only_the_files_he_uploaded(sample_app, workflow):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_task_takes_only_a_file_that_the_user_uploaded(sample_app, workflow):
+def test_a_task_takes_only_a_file_that_the_user_uploaded(sample_app):
     """
     The core (2.7) links only the objects that the default route of the related model shows
     the user, and bazis-uploadable (2.6) shows a user only his own files: the file of
@@ -175,7 +175,7 @@ BG_TASKS = '/api/v1/bg/task/'
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_picker_searches_only_a_route_set_with_search_fields(sample_app, workflow):
+def test_the_picker_searches_only_a_route_set_with_search_fields(sample_app):
     """
     The core (2.9) searches only the `search_fields` of a route set, and answers a search of
     a route set without them with 400 `ERR_FILTER` (`/query/search`): the contract says which
@@ -202,7 +202,7 @@ def test_the_picker_searches_only_a_route_set_with_search_fields(sample_app, wor
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_item_the_user_cannot_view_is_not_found(sample_app, workflow):
+def test_an_item_the_user_cannot_view_is_not_found(sample_app):
     """
     bazis-permit 2.8.0: an item the user cannot view is the 404 of a missing item (its card
     shows `not_found`); 403 (`forbidden`) is the list of a model he has no permission on, or

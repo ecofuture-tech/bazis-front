@@ -22,8 +22,8 @@ from tasks.e2e import TEST_USERS, create_test_data
 
 class Command(BaseCommand):
     help = (
-        'Create the data of the end-to-end tests on top of the migrations (which create the '
-        'roles, statuses and transits): the test users of the roles of the specs, with the '
+        'Create the data of the end-to-end tests on top of the migrations (`migrate` applies the '
+        'declared roles, statuses and transits): the test users of the roles of the specs, with the '
         'password of E2E_PASSWORD, and the task that a scenario opens. It can run again: the '
         'data that exists is kept, the password of the test users is set again.'
     )

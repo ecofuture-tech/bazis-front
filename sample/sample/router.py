@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bazis.contrib.ws.ws import ws_route
 from bazis.core.routing import BazisRouter
 
 
 router = BazisRouter(prefix='/api/v1')
-# the socket of bazis-ws, `/ws` (a route appended as it is, without the prefix): routed here,
-# the contract export finds its path (`bazis_front contract` does not import sample.main);
-# with bazis-ws 2.6.0, `router.register('bazis.contrib.ws.router')` (`/api/v1/ws`)
-router.routes.append(ws_route)
+# the socket of bazis-ws, `/api/v1/ws`: routed here, the contract export finds its path
+# (`bazis_front contract` does not import sample.main)
+router.register('bazis.contrib.ws.router')
 
 router.register('tasks.router')
 # the users of bazis-users, with the search of the picker of the assignee

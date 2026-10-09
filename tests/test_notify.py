@@ -13,10 +13,11 @@
 # limitations under the License.
 
 """
-The messages of the sample on the socket of bazis-ws (`sample/tasks/notify.py`): the
-common channel, which every user session receives, carries only the resource that
-changed, never the id of an item; the notification of an item goes to the
-channel of its assignee; a publication that fails does not fail a change that is committed.
+The messages of the sample on the socket of bazis-ws (`publish_changed` and `notify` of
+`bazis.contrib.ws.messages`, called by `tasks.models.Task`): the common channel, which every
+user session receives, carries only the resource that changed, never the id of an item; the
+notification of an item goes to the channel of its assignee, in the language of his
+profile; a publication that fails does not fail a change that is committed.
 """
 
 import json
@@ -32,7 +33,7 @@ TASKS = '/api/v1/tasks/task/'
 
 class Published:
     """
-    Redis for the publications: records them, or fails them.
+    Redis of bazis-ws for the publications: records them, or fails them.
     """
 
     def __init__(self, fail: bool = False):
@@ -47,7 +48,7 @@ class Published:
 
 
 @pytest.fixture
-def manager(workflow):
+def manager(db):
     from django.apps import apps
 
     from bazis.contrib.users import get_user_model
@@ -61,15 +62,20 @@ def manager(workflow):
 
 
 def publications(monkeypatch, fail=False) -> Published:
-    from tasks import notify
+    from bazis.contrib.ws import models_abstract
 
     published = Published(fail)
-    monkeypatch.setattr(notify, '_redis', lambda: published)
+    monkeypatch.setattr(models_abstract, 'redis', published)
     return published
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_common_channel_has_no_id_and_the_notification_goes_to_the_assignee(sample_app, manager, monkeypatch):
+@pytest.mark.parametrize('language, title', [(None, 'Task finished'), ('ru', 'Задача завершена')])
+def test_the_common_channel_has_no_id_and_the_notification_goes_to_the_assignee(
+    sample_app, manager, monkeypatch, language, title,
+):
+    manager.language = language
+    manager.save()
     published = publications(monkeypatch)
     client = get_api_client(sample_app, manager.jwt_build())
     created = client.post(TASKS, json_data={'data': {
@@ -86,7 +92,7 @@ def test_the_common_channel_has_no_id_and_the_notification_goes_to_the_assignee(
     assert common and all(message == {'resource': 'tasks.task'} for message in common)
     personal = [(channel, message) for channel, message in published.messages if channel != COMMON_CHANNEL]
     assert personal == [(manager.user_channel, {
-        'action': 'notification', 'title': 'Task finished', 'text': 'Notify', 'resource': 'tasks.task',
+        'action': 'notification', 'title': title, 'text': 'Notify', 'resource': 'tasks.task',
         'id': created.json()['data']['id'],
     })]
 

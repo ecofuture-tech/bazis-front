@@ -14,7 +14,8 @@
 
 """
 The data of the end-to-end tests of the sample, created by `manage.py e2e_data` on top of the
-migrations (the roles, statuses and transits are the data migration `tasks.0005_workflow`):
+migrations (the roles, statuses and transits are declared in `tasks/roles.py` and
+`tasks/workflow.py`, which `migrate` applies):
 the test users of the roles, the `test_user` of the roles of `sample/spec/product.yaml`, and
 the task that a scenario opens.
 """
@@ -39,7 +40,7 @@ def create_test_data(password: str) -> None:
     with the password (set again when the user exists, so that the tests log in with the
     current E2E_PASSWORD, and the language of the profile cleared), and the task that the
     scenario of the viewer opens. A role that
-    the migrations did not create is an error: this data never creates one.
+    `migrate` did not apply is an error: this data never creates one.
     """
     role_model = global_apps.get_model('permit', 'Role')
     for username, slug in TEST_USERS.items():

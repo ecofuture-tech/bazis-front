@@ -37,7 +37,7 @@ SCHEMA = 'export interface paths {}\n'
 
 
 @pytest.fixture
-def frontend(sample_app, workflow, tmp_path):
+def frontend(sample_app, tmp_path):
     """
     A product with a frontend made by `init`.
     """

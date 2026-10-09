@@ -13,37 +13,13 @@
 # limitations under the License.
 
 """
-The Russian names of the roles, statuses and transits of the sample (LANGUAGES: en and ru):
-the names are translated fields of bazis-permit and bazis-statusy (a column per language),
-which the contract exports in every language. Data of the product, frozen here; the fixture
-`workflow` of the tests runs `name_workflow` again after `create_workflow`.
+The Russian names of the roles, the statuses and the transits of the sample were set here;
+the names of the declarations of `tasks/roles.py` and `tasks/workflow.py` are translated by
+the catalog of the app (`locale/ru/LC_MESSAGES/django.po`) now. Kept without effect as a
+node of the migration graph.
 """
 
 from django.db import migrations
-
-
-#: the Russian names by the slug of the role
-ROLES = {'guest': 'Гость', 'viewer': 'Наблюдатель', 'manager': 'Менеджер'}
-
-#: the Russian names by the id of the status
-STATUSES = {'draft': 'Черновик', 'in_progress': 'В работе', 'done': 'Готово'}
-
-#: the Russian names by the id of the transit
-TRANSITS = {'start': 'Начать', 'finish': 'Завершить'}
-
-
-def name_workflow(apps, schema_editor=None) -> None:
-    """
-    Sets the Russian names, with the models of `apps`: those of the migration, or
-    `django.apps.apps` for the fixture `workflow` of the tests.
-    """
-    for model, names, key in (
-        (apps.get_model('permit', 'Role'), ROLES, 'slug'),
-        (apps.get_model('statusy', 'Status'), STATUSES, 'id'),
-        (apps.get_model('statusy', 'Transit'), TRANSITS, 'id'),
-    ):
-        for value, name in names.items():
-            model.objects.filter(**{key: value}).update(name_ru=name)
 
 
 class Migration(migrations.Migration):
@@ -52,6 +28,4 @@ class Migration(migrations.Migration):
         ('tasks', '0005_workflow'),
     ]
 
-    operations = [
-        migrations.RunPython(name_workflow, migrations.RunPython.noop),
-    ]
+    operations = []

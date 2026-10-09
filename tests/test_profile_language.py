@@ -49,7 +49,7 @@ def user_client(app, username: str):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_user_reads_and_saves_the_language_of_his_profile(sample_app, workflow, profile, tmp_path):
+def test_the_user_reads_and_saves_the_language_of_his_profile(sample_app, profile, tmp_path):
     from django.core.management import call_command
 
     call_command('bazis_front', 'contract', '--out', str(tmp_path))

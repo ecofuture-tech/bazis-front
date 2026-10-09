@@ -17,7 +17,7 @@ version of bazis-front, merged with the changes of the product).
 
 ## Setup
 
-`pip install bazis-front` (needs bazis 2.11.0 or newer) and add `"bazis.contrib.front"` to
+`pip install bazis-front` (needs bazis 2.13.0 or newer) and add `"bazis.contrib.front"` to
 `BS_INSTALLED_APPS`. The assets follow the protocol of recent versions of the packages of
 the capabilities: bazis-ws 2.5.0 (the socket is open once the server sends `subscribed`),
 bazis-authing 2.6.0 (the logout endpoint), bazis-permit 2.7.0 (the selectors of the
@@ -302,12 +302,10 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   differ from the backend; `--check` does the same in CI.
 - The permit roles and the statusy transits are read from the database: export from a
   migrated database. The roles (with their permission groups and permissions), statuses
-  and transits are data of the product that `migrate` creates: declared in `roles.py` and
-  `workflow.py` of its apps (bazis-permit and bazis-statusy 2.9; see
-  [The backend of a product](#the-backend-of-a-product)), with older versions created by
-  its data migrations (`RunPython` with the models of the migration; a change is a new
-  migration); never by a command or a fixture of the tests only: then every migrated
-  database, the one of CI and the one of the end-to-end tests too, gives the same contract.
+  and transits are data of the product that `migrate` applies: declared in `roles.py` and
+  `workflow.py` of its apps (see [The backend of a product](#the-backend-of-a-product));
+  never created by a command or a fixture of the tests only: then every migrated database,
+  the one of CI and the one of the end-to-end tests too, gives the same contract.
   An unmigrated database fails the command with `front.E002`, and `front.W001` is skipped
   with the info `front.I001`.
 - The files are JSON with sorted keys, two spaces and a trailing newline; the same backend
@@ -363,7 +361,7 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
                 "actions": [{"code": "password", "name": "Login/Password", "method": "POST",
                              "url": "/api/v1/authing/password/"}]},
     "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"]},
-    "ws": {"path": "/ws"},
+    "ws": {"path": "/api/v1/ws"},
     "bg": {"resource": "bg.task"},
     "async_background": {"result_path": "/api/v1/async_background_response/{task_id}/"},
     "async_request": {"header": "X-Async-Background"},
@@ -460,8 +458,8 @@ compare it with the backend (that is `contract --check` and `front.W001`).
 
 ### `spec/product.yaml` (`spec: bazis-product/1`)
 
-The specs of the sample of this package (its roles, statuses and transits are created by
-its data migration, `tasks.0005_workflow`, the way before the declarations of 2.9):
+The specs of the sample of this package (its roles, statuses and transits are declared in
+`tasks/roles.py` and `tasks/workflow.py`):
 
 ```yaml
 # yaml-language-server: $schema=./schema/product.schema.json
@@ -878,7 +876,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   edit has the field read-only (it opens the edit and cancels it).
 - **The test data is the job of the backend: `manage.py e2e_data`.** Before `npm run e2e`
   the database of the backend is migrated (the roles, statuses and transits of the specs
-  come from the migration: the declarations, or the data migrations; see the contract) and
+  are the declarations that `migrate` applies; see the contract) and
   has the data of the e2e data
   command recommended by bazis-front: a management command of the product named
   `e2e_data` (the sample of this package has it,
@@ -918,14 +916,15 @@ What the frontend relies on in the backend, as the sample of the bazis-front rep
 (`sample/`, not in the package) does it; the parts a product copies are below:
 
 - **The roles, the permissions, the statuses and the transits are declared in the code**
-  (bazis-permit and bazis-statusy 2.9; their guides have the details): the permission
-  groups and the roles in `<app>/roles.py`, the workflow of each statusy model in
-  `<app>/workflow.py`, with English names (`gettext_lazy`) that the catalogs of the project
-  translate into the column of each language. `migrate` applies them after the last
-  migration, on every database (CI, the end-to-end tests), and keeps them as declared (the
-  declared rows are `managed`); a change is a change of the module and a `migrate`. The
-  database checks report a database that differs from them (`permit.W005`,
-  `statusy.W003`). `access` of the specs is what the permissions cover (P019).
+  (bazis-permit and bazis-statusy; their guides have the details): the permission groups
+  and the roles in `<app>/roles.py`, the workflow of each statusy model in
+  `<app>/workflow.py` (the sample: `tasks/roles.py`, `tasks/workflow.py`), with English
+  names (`gettext_lazy`) that the catalogs of the project translate into the column of each
+  language. `migrate` applies them after the last migration, on every database (CI, the
+  end-to-end tests), and keeps them as declared (the declared rows are `managed`); a change
+  is a change of the module and a `migrate`. The database checks of `bazis_doctor` report a
+  database that differs from them (`permit.W005`, `statusy.W003`). `access` of the specs is
+  what the permissions cover (P019).
 
   ```python
   # tasks/roles.py
@@ -944,69 +943,28 @@ What the frontend relies on in the backend, as the sample of the bazis-front rep
   WORKFLOWS = [Workflow('tasks.Task', [DRAFT, DONE], [Transit('finish', _('Finish'), DRAFT, DONE)])]
   ```
 
-  The tests need nothing more: the test database is migrated, so the declarations are
-  there, also after a `django_db(transaction=True)` test empties the tables (the flush
-  applies them again); a test that changes the declared rows takes the fixture
-  `bazis_declared` of bazis-test-utils 2.5. The rest of the setup of the tests (the
-  triggers of `pgtrigger`) is in the guide of bazis-test-utils.
-- **Before 2.9 they are one data migration**, as in the sample of this repository
-  (`sample/tasks/migrations/0005_workflow.py`): its data frozen in it (the permissions of
-  each permission group, the roles with their groups, the statuses, the transits with their
-  actions), a function `create_workflow(apps, schema_editor=None)` that creates them with
-  `apps.get_model` and `get_or_create`/`update_or_create` (data that exists is kept),
-  `name_en` (and `name_ru`, or another migration: `0006_workflow_ru.py`) for the names, the
-  content type of the model `get_or_create`d (the migration runs before the content types
-  are created), and `RunPython(create_workflow, RunPython.noop)`. A change is a new
-  migration. A test that calls the API is `django_db(transaction=True)` and empties the
-  tables after it, so a fixture `workflow` (`tests/conftest.py` of the repository) clears
-  the cached content types and calls the functions of the migrations again with
-  `django.apps.apps`; the tests that need the data take the fixture:
-
-  ```python
-  @pytest.fixture
-  def workflow(db):
-      from django.apps import apps
-      from django.contrib.contenttypes.models import ContentType
-      from bazis.contrib.statusy.models import StatusyContentType
-
-      ContentType.objects.clear_cache()
-      StatusyContentType.objects.clear_cache()
-      importlib.import_module('tasks.migrations.0005_workflow').create_workflow(apps)
-  ```
-
-  A product moving to the declarations keeps its data migrations as history: `migrate`
-  takes over the existing roles, groups and transits of the declared slugs and ids, and the
-  fixture `workflow` goes away.
+  The tests need nothing more than bazis-test-utils, whose pytest plugin installs the
+  triggers of `pgtrigger` in the test database: the test database is migrated, so the
+  declarations are there, also after a `django_db(transaction=True)` test empties the
+  tables (the flush applies them again). No fixture creates the roles, statuses or
+  transits; a test that changes the declared rows itself takes the fixture
+  `bazis_declared`. A product whose data migrations created these rows keeps them as
+  history without effect (`operations = []`, as `sample/tasks/migrations/0005_workflow.py`):
+  `migrate` takes over the existing rows of the declared slugs and ids.
 - **The test data of the end-to-end tests** is `manage.py e2e_data` (see
   [The end-to-end tests](#the-end-to-end-tests); `sample/tasks/management/commands/e2e_data.py`
   and `sample/tasks/e2e.py`; not `workflow.py`, the module of the declared workflows).
 - **The changes and the notifications** reach the frontend through bazis-ws in the formats of
-  [The socket](#the-socket), published after the commit and robustly, from `save()` and from
-  an action of a transit: the change of a task on the common channel without its id, the
-  notification of the assignee on his channel. With bazis-ws 2.6.0, its helpers (they also
-  translate a lazy title in the language of each user):
+  [The socket](#the-socket), from `save()` and from an action of a transit, with the helpers
+  of `bazis.contrib.ws.messages` (after the commit, robustly, a lazy title in the language
+  of each user), as `sample/tasks/models.py` does: the change of a task on the common
+  channel without its id, the notification of the assignee on his channel.
 
   ```python
   from bazis.contrib.ws.messages import notification, notify, publish_changed
 
   publish_changed(task)
   notify(task.assignee, lambda user: notification(_('Task finished'), task.title, task))
-  ```
-
-  With bazis-ws 2.5, as the sample does it (`sample/tasks/notify.py`):
-
-  ```python
-  def _publish(channel: str, message: dict) -> None:
-      Redis.from_url(settings.CACHES['default']['LOCATION']).publish(channel, json.dumps(message))
-
-  def changed(task) -> None:          # every client refetches the resource: no id, no data
-      message = {'resource': task.get_resource_label()}
-      transaction.on_commit(lambda: _publish(COMMON_CHANNEL, message), robust=True)
-
-  def finished(task) -> None:         # only the user who may see it
-      message = {'action': 'notification', 'title': 'Task finished', 'text': task.title,
-                 'resource': task.get_resource_label(), 'id': str(task.pk)}
-      transaction.on_commit(lambda: _publish(task.assignee.user_channel, message), robust=True)
   ```
 - **The labels of the payload of a transit** are the titles of the fields of its payload
   model (`report: str = Field(title=_('Report'))`): the runtime schemas (`state_actions`)
@@ -1134,9 +1092,9 @@ are replaced without conflicts; wrap them in the product code instead.
   edit the generated files and do not declare resource types by hand.
 - **Describe the product in `spec/` and keep `bazis_front check` green.** Build the
   backend to satisfy the specs (models, route sets, and the roles with their permissions,
-  the statuses and the transits declared in `roles.py` and `workflow.py`, data migrations
-  before bazis-permit and bazis-statusy 2.9), export the contract, and fix every issue that
-  `check` reports, in the spec or in the backend, as its hint says.
+  the statuses and the transits declared in `roles.py` and `workflow.py`), export the
+  contract, and fix every issue that `check` reports, in the spec or in the backend, as its
+  hint says.
 - **Use the hooks and the client, do not reimplement them.** Data of the backend is read
   and changed with the hooks (`@/bazis/react`); requests, filters, errors, pagination,
   authentication and permission checks go through the client. Do not edit the copies;
@@ -1277,11 +1235,9 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every user s
 (`COMMON_CHANNEL`, `user_ws:common`). The facts that the hooks rely on:
 
 - **Route the socket where the contract sees it**, in the module of
-  `BS_BAZIS_ROUTER_MODULE`: `router.register('bazis.contrib.ws.router')` (bazis-ws 2.6.0:
-  the socket under the prefix of the router, `/api/v1/ws`), or, with bazis-ws 2.5,
-  `router.routes.append(ws_route)` (a route appended as it is keeps its path, `/ws`); or on
-  the application of `BAZIS_APP_MODULE`. The export finds it either way. The export imports `bazis.core.app`, never the
-  main module of the project: a socket registered only there (as the guide of bazis-ws
+  `BS_BAZIS_ROUTER_MODULE`: `router.register('bazis.contrib.ws.router')` (the socket under
+  the prefix of the router, `/api/v1/ws`), or on the application of `BAZIS_APP_MODULE`. The
+  export imports `bazis.core.app`, never the main module of the project: a socket registered only there (as the guide of bazis-ws
   shows) is not known, and `ws.path` is null (`check` reports it when `packages` has `ws`:
   P028). bazis-ws is not a Django app and bazis-async-background installs it: the section
   `ws` is there whenever the package is, with a null path when nothing routes the socket,
@@ -1339,9 +1295,8 @@ which the contract exports (`project.languages`; `project.language`, the code of
 models and the route sets, `.po` files compiled to `.mo` by `manage.py compilemessages` in
 `locale/<language>/LC_MESSAGES/` of each app, both committed) and with the translated fields
 of its data (the names of the roles of bazis-permit and of the statuses and transits of
-bazis-statusy have a column per language: the declarations of 2.9 fill them with the
-translations of their English names, `gettext_lazy`, from the catalogs of the project; a
-data migration sets each one).
+bazis-statusy have a column per language: the declarations fill them with the
+translations of their English names, `gettext_lazy`, from the catalogs of the project).
 
 - **The asset `i18n`** (`src/bazis/i18n/`, copied by `init` like the hooks, not edited):
   `LanguageProvider`, `useLanguage()` (`{language, languages, setLanguage, t}`),

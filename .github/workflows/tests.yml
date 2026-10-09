@@ -333,7 +333,7 @@ jobs:
           export BS_BASE_DIR="$RUNNER_TEMP/product"
           mkdir -p "$BS_BASE_DIR"
           cp -R spec "$BS_BASE_DIR/spec"
-          # the roles, statuses and transits are data migrations of the sample
+          # `migrate` applies the declared roles, statuses and transits of the sample
           python manage.py migrate
           # the e2e data command: the test users of the roles and the task of a scenario
           python manage.py e2e_data
@@ -356,7 +356,7 @@ jobs:
           npm run lint
           npm run build
 
-      # the backend serves the socket of bazis-ws (`/ws`), which `vite preview` proxies: the
+      # the backend serves the socket of bazis-ws (`/api/v1/ws`), which `vite preview` proxies: the
       # notifications of the scenarios come over it (Redis pub/sub)
       - name: Start the backend and the frontend
         run: |

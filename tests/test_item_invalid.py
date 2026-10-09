@@ -28,7 +28,7 @@ from .test_related import TASKS, manager_client
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_pointers_of_an_invalid_item(sample_app, workflow, monkeypatch):
+def test_the_pointers_of_an_invalid_item(sample_app, monkeypatch):
     from django.apps import apps
 
     task = apps.get_model('tasks.Task')

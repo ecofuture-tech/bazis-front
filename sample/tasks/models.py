@@ -19,9 +19,9 @@ from django.utils.translation import gettext_lazy as _
 
 from bazis.contrib.statusy import transit_before
 from bazis.contrib.statusy.models_abstract import StatusyMixin, StatusyTransit
+from bazis.contrib.ws.messages import notification, notify, publish_changed
 from bazis.core.models_abstract import DtMixin, JsonApiMixin, UuidMixin
 
-from . import notify
 from .schemas import FinishPayload
 
 
@@ -45,10 +45,12 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        notify.changed(self)
+        # every client refetches the tasks: the resource on the common channel, never the id
+        publish_changed(self)
 
     @transit_before('Save the report')
     def before_finish(self, statusy_transit: StatusyTransit, payload: FinishPayload):
         self.report = payload.report
         self.save()
-        notify.finished(self)
+        # only the assignee, who may see the task, in the language of his profile
+        notify(self.assignee, lambda user: notification(_('Task finished'), self.title, self))

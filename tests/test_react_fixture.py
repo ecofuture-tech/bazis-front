@@ -290,7 +290,7 @@ def background(app, settings, monkeypatch, user) -> dict:
     # a task in draft, which the manager may change
     created = client.post(TASKS, json_data={'data': {'type': 'tasks.task', 'attributes': {'title': 'Draft'}}})
     item_id = created.json()['data']['id']
-    with get_api_client(app).client.websocket_connect('/ws') as socket:
+    with get_api_client(app).client.websocket_connect('/api/v1/ws') as socket:
         socket.send_json({'token': token})
         subscribed(socket)
         response = client.patch(
@@ -348,7 +348,7 @@ def notified(app, user, tasks_client) -> dict:
     user session receives it), and the notification of the assignee.
     """
     token = user.jwt_build()
-    with get_api_client(app).client.websocket_connect('/ws') as socket:
+    with get_api_client(app).client.websocket_connect('/api/v1/ws') as socket:
         socket.send_json({'token': token})
         subscribed(socket)
         created = tasks_client.post(TASKS, json_data={'data': {
@@ -407,7 +407,7 @@ def bg_task(app, user) -> dict:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_fixture_of_the_hooks_is_the_sample(sample_app, workflow, settings, monkeypatch):
+def test_the_fixture_of_the_hooks_is_the_sample(sample_app, settings, monkeypatch):
     captured = capture(sample_app, settings, monkeypatch)
     if os.environ.get('BAZIS_FRONT_WRITE_FIXTURES') == '1':
         FIXTURE.write_text(json.dumps(captured, indent=2) + '\n', encoding='utf-8')

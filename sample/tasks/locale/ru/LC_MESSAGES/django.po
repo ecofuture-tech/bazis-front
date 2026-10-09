@@ -31,3 +31,42 @@ msgstr "Задача"
 
 msgid "Tasks"
 msgstr "Задачи"
+
+msgid "Task finished"
+msgstr "Задача завершена"
+
+msgid "View the tasks"
+msgstr "Просмотр задач"
+
+msgid "Change the tasks"
+msgstr "Изменение задач"
+
+msgid "Start and finish the tasks"
+msgstr "Начало и завершение задач"
+
+msgid "The report of a task hidden"
+msgstr "Отчёт задачи скрыт"
+
+msgid "Guest"
+msgstr "Гость"
+
+msgid "Viewer"
+msgstr "Наблюдатель"
+
+msgid "Manager"
+msgstr "Менеджер"
+
+msgid "Draft"
+msgstr "Черновик"
+
+msgid "In progress"
+msgstr "В работе"
+
+msgid "Done"
+msgstr "Готово"
+
+msgid "Start"
+msgstr "Начать"
+
+msgid "Finish"
+msgstr "Завершить"

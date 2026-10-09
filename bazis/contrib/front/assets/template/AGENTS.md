@@ -407,12 +407,12 @@ With bazis-ws, `manage.py bazis_front add live-query notification-center`, wrap 
 in `SocketProvider` with the token of the session (none before the login; the logout
 closes it) and give the layout the tools. A notification is
 `{"action": "notification", "title", "text"?, "resource"?, "id"?}` published by the
-backend to the user (`notify(...)` of bazis-ws 2.6.0 or `user.ws_publish(...)`, after the
-commit); a change is `{"resource": "<type>"}` on `COMMON_CHANNEL` of bazis-ws
-(`publish_changed(item)`), which every session receives, anonymous ones too: never an id,
-data or a notification there. The backend routes the socket in its router module
-(`router.register('bazis.contrib.ws.router')`, or `router.routes.append(ws_route)` with
-bazis-ws 2.5), where the contract finds its path (null otherwise: no socket):
+backend to the user (`notify(...)` of bazis-ws, after the commit); a change is
+`{"resource": "<type>"}` on `COMMON_CHANNEL` of bazis-ws (`publish_changed(item)`), which
+every session receives, anonymous ones too: never an id, data or a notification there.
+The backend routes the socket in its router module
+(`router.register('bazis.contrib.ws.router')`), where the contract finds its path (null
+otherwise: no socket):
 
 ```tsx
 import { CAPABILITIES } from '@/bazis/generated/contract';
@@ -542,9 +542,8 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   `list:notifications`, which waits for a `notification:<key>` with the text). A screen that renders the marks of its spec (the components do) passes its
   scenarios; a screen without them fails them, even when it looks right.
 - **The test data is the backend's job**, never created by the tests: the tests run
-  against a migrated backend (`migrate` creates the roles, statuses and transits: the
-  declarations of `roles.py` and `workflow.py`, or the data migrations before bazis-permit
-  and bazis-statusy 2.9)
+  against a migrated backend (`migrate` applies the roles, statuses and transits declared
+  in `roles.py` and `workflow.py`)
   after `python manage.py e2e_data` (the e2e data command recommended by bazis-front; see
   its guide, "The end-to-end tests"), with the same
   `E2E_PASSWORD`. It creates only a user per `test_user` of the roles of the specs (with its

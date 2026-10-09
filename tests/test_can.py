@@ -49,7 +49,7 @@ def status(client, path: str) -> int:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_runtime_schemas_say_what_the_user_may_do(sample_app, workflow):
+def test_the_runtime_schemas_say_what_the_user_may_do(sample_app):
     # the guest has no permission, the viewer views the tasks, the manager adds them too
     allowed = {
         slug: (status(client, 'schema_list/'), status(client, 'schema_create/'))
@@ -59,7 +59,7 @@ def test_the_runtime_schemas_say_what_the_user_may_do(sample_app, workflow):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_filter_fields_are_those_of_the_user(sample_app, workflow):
+def test_the_filter_fields_are_those_of_the_user(sample_app):
     def fields(client):
         response = client.get(f'{TASKS}route_filter_fields/')
         assert response.status_code == 200, response.text

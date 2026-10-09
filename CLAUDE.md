@@ -46,33 +46,35 @@ sample is that of bazis-authing (the token endpoint of bazis-users stays). The s
 English and Russian (`BS_LANGUAGES` of `sample/project.env`, `LANGUAGE_CODE` `en`): the
 Russian texts of the tasks are `sample/tasks/locale/ru/LC_MESSAGES/django.po`, compiled to
 the `.mo` next to it (both committed, as in the other Bazis repositories; run
-`python manage.py compilemessages -l ru` in `sample/tasks/` after a change), and the Russian
-names of its roles, statuses and transits the data migration `0006_workflow_ru.py`. The user model of the sample has a language of its own
+`python manage.py compilemessages -l ru` in `sample/tasks/` after a change), also the
+Russian names of its roles, statuses and transits. The user model of the sample has a language of its own
 (`UserLanguageMixin` of bazis-users, `users.profile_language`, the migration
 `sample/users/migrations/0002_user_language.py`), which `tests/test_profile_language.py`
 and the end-to-end test `frontend-overlay/e2e/custom/profile-language.spec.ts` check
-(`e2e_data` clears the language of the test users). The roles, statuses and
-transits are the data migration `sample/tasks/migrations/0005_workflow.py`, its data frozen
-there as in any migration (the way before the declarations of bazis-permit and
-bazis-statusy 2.9, `roles.py` and `workflow.py`, which the guide teaches; the sample moves
-to them once both are on PyPI (then it requires them), and its e2e data module is `tasks/e2e.py`, not
-`workflow.py`, for that; the fixture `workflow`,
-`tests/conftest.py`, runs its function again after a test that flushed the tables, and
-`tests/test_e2e.py` checks the migrated data against `sample/spec/`), with
+(`e2e_data` clears the language of the test users). The roles (with their permission
+groups) are declared in `sample/tasks/roles.py`, the statuses and transits in
+`sample/tasks/workflow.py` (bazis-permit and bazis-statusy 2.9): `migrate` and the flush
+of a `transaction=True` test apply them, so no fixture of the tests creates them (the
+pytest plugin of bazis-test-utils 2.5 also installs the triggers of `pgtrigger`), and
+`tests/test_e2e.py` checks the contract of the migrated database against `sample/spec/`;
+the data migrations `0005_workflow` and `0006_workflow_ru` that created them before are
+kept as history without effect, and the e2e data module is `tasks/e2e.py`, not
+`workflow.py`. The roles have
 field permissions (the viewer does not see the report, the manager may not change it) that
 the scenarios check with `field_absent` and `field_readonly`. `manage.py e2e_data` is the
 e2e data command that bazis-front recommends to products (the module AGENTS.md, "The
 end-to-end tests"): on top of the migrations it creates only the test users of the roles,
 their password set to `E2E_PASSWORD` at every run, and the task that the scenario of the
 viewer opens; it never creates a role, a status or a transit. The user model has
-`UserWsMixin`, `sample/router.py` routes the socket of bazis-ws (`ws_route`, `/ws`, where the
-export sees it; the sample keeps the way of bazis-ws 2.5, the released one, while the
-contract also finds `router.register('bazis.contrib.ws.router')` of 2.6.0, tested) and `sample/main.py` adds `AsyncRequestMiddleware`; `sample/tasks/notify.py`
-publishes, after the commit and robustly (Redis down does not fail the change), every save
-of a task to the common channel (`{"resource"}` only: an invalidation hint, never data) and
-the notification of the assignee of a finished task (`{"action": "notification", ...}`, to
-the channel of the assignee), which the scenario
-`manager-is-notified-of-a-finished-task` expects (Redis only). The sample has no Kafka and
+`UserWsMixin`, `sample/router.py` routes the socket of bazis-ws
+(`router.register('bazis.contrib.ws.router')`, `/api/v1/ws`, where the export sees it) and
+`sample/main.py` adds `AsyncRequestMiddleware`; `tasks.models.Task` publishes with the
+helpers of bazis-ws 2.6 (after the commit and robustly: Redis down does not fail the
+change) every save of a task to the common channel (`publish_changed`, `{"resource"}` only:
+an invalidation hint, never data) and the notification of the assignee of a finished task
+(`notify` with `notification`, to the channel of the assignee, in the language of his
+profile), which the scenario `manager-is-notified-of-a-finished-task` expects (Redis
+only; `tests/test_notify.py` replaces the Redis of bazis-ws). The sample has no Kafka and
 no `bg_scheduler`: a request with `X-Async-Background` runs at once
 (`async_request.W001` is silenced in `sample/settings.py`), and the task of bazis-bg of the
 sample (`tasks.bg.count.CountTasks`) is run by the tests in their process; the 202, the
@@ -81,7 +83,7 @@ replaced (`tests/test_react_fixture.py`), the rest of the background work is cov
 tests of the hooks and the contract tests of the components. The
 title of a task is not empty (`MinLengthValidator`), for the scenario of a failing
 submit. `sample/spec/` is a complete valid spec of the sample: the permissions
-of the roles of `workflow` cover its `access`, and `tests/test_spec.py` checks it against
+of the declared roles cover its `access`, and `tests/test_spec.py` checks it against
 the contract. `sample/frontend-overlay/` holds the screens of the sample (product code, the
 reference of screens written from specs; `src/app/router.tsx` wraps the routes in
 `FileFieldProvider`) and `e2e/fixtures/` (the files that the scenarios upload), copied over a

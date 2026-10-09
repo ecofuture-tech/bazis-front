@@ -61,7 +61,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
 
 
 @pytest.mark.django_db
-def test_export_is_deterministic(sample_app, workflow, tmp_path):
+def test_export_is_deterministic(sample_app, tmp_path):
     first, second = render(sample_app), render(sample_app)
     assert first == second
     # the same bytes whatever the language of the process, also after the OpenAPI was built
@@ -183,7 +183,7 @@ def test_the_labels_are_those_of_the_list_schema(sample_app, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path):
+def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
     sections = export(tmp_path)['capabilities']
 
     assert sorted(sections) == [
@@ -192,7 +192,7 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
     ]
     # the socket of bazis-ws, the resource of the tasks of bazis-bg, the result of
     # bazis-async-background and the header of bazis-async-request
-    assert sections['ws'] == {'path': '/ws'}
+    assert sections['ws'] == {'path': '/api/v1/ws'}
     assert sections['bg'] == {'resource': 'bg.task'}
     assert sections['async_background'] == {
         'result_path': '/api/v1/async_background_response/{task_id}/'
@@ -276,7 +276,7 @@ def test_capabilities_are_read_from_the_database(sample_app, workflow, tmp_path)
 
 @pytest.mark.django_db
 @pytest.mark.django_db
-def test_the_lazy_titles_of_a_payload_are_in_the_language_of_the_export(sample_app, workflow, monkeypatch):
+def test_the_lazy_titles_of_a_payload_are_in_the_language_of_the_export(sample_app, monkeypatch):
     """
     A payload whose fields have translated titles (`Field(title=_('…'))`, which `TransitBar`
     shows in the language of the request) is exported with the titles of LANGUAGE_CODE,
@@ -300,7 +300,7 @@ def test_the_lazy_titles_of_a_payload_are_in_the_language_of_the_export(sample_a
     assert finish['payload']['schema']['properties']['report']['title'] == 'Report'
 
 
-def test_the_selectors_are_those_of_bazis_permit(sample_app, workflow, monkeypatch):
+def test_the_selectors_are_those_of_bazis_permit(sample_app, db, monkeypatch):
     from django.apps import apps
     from django.contrib.auth import get_user_model
 
@@ -324,7 +324,7 @@ def test_the_selectors_are_those_of_bazis_permit(sample_app, workflow, monkeypat
 
 
 @pytest.mark.django_db
-def test_check_detects_a_stale_contract(sample_app, workflow, tmp_path):
+def test_check_detects_a_stale_contract(sample_app, tmp_path):
     with pytest.raises(CommandError, match='openapi.json, contract.json differ'):
         call_command('bazis_front', 'contract', '--check', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
@@ -350,7 +350,7 @@ def test_check_detects_a_stale_contract(sample_app, workflow, tmp_path):
 
 
 @pytest.mark.django_db
-def test_system_check_reports_a_stale_contract(sample_app, workflow, tmp_path):
+def test_system_check_reports_a_stale_contract(sample_app, tmp_path):
     with override_settings(BASE_DIR=str(tmp_path)):
         # a product without a contract
         assert check_contract(None) == []
@@ -496,13 +496,10 @@ def test_the_sections_of_the_background_and_the_socket_follow_the_application(sa
 def test_the_socket_is_found_however_the_router_module_mounts_it(monkeypatch):
     """
     The path of the socket is read from the routes of the application, whichever way the
-    router module mounts it: `ws_route` appended as it is (`/ws`, bazis-ws 2.5) or the router
-    of bazis-ws registered under the prefix of the router module
-    (`router.register('bazis.contrib.ws.router')`, `/api/v1/ws`, bazis-ws 2.6).
+    router module mounts it: the router of bazis-ws registered under the prefix of the router
+    module (`router.register('bazis.contrib.ws.router')`, `/api/v1/ws`, as the sample does) or
+    `ws_route` appended as it is (`/ws`, the way before bazis-ws 2.6, which still works).
     """
-    import sys
-    from types import ModuleType
-
     from fastapi import FastAPI
 
     import bazis.core.app
@@ -520,13 +517,8 @@ def test_the_socket_is_found_however_the_router_module_mounts_it(monkeypatch):
     monkeypatch.setattr(bazis.core.app, 'app', application(appended))
     assert ws.section() == {'path': '/ws'}
 
-    # the router module of bazis-ws 2.6, `bazis.contrib.ws.router`
-    module = ModuleType('ws_router')
-    module.router = BazisRouter()
-    module.router.routes.append(ws_route)
-    monkeypatch.setitem(sys.modules, 'ws_router', module)
     registered = BazisRouter(prefix='/api/v1')
-    registered.register('ws_router')
+    registered.register('bazis.contrib.ws.router')
     monkeypatch.setattr(bazis.core.app, 'app', application(registered))
     assert ws.section() == {'path': '/api/v1/ws'}
 

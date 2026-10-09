@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../bazis/contrib/front/spec/schemas/product.schema.json
 # The product spec of the sample: the tasks of a team with a workflow. The roles,
-# statuses and transits that it references are created by the data migrations
-# tasks/migrations/0005_workflow.py and 0006_workflow_ru.py (their Russian names).
+# statuses and transits that it references are declared in tasks/roles.py and
+# tasks/workflow.py (their Russian names in tasks/locale/ru), which `migrate` applies.
 spec: bazis-product/1
 product:
   id: tasks
@@ -59,7 +59,7 @@ scenarios:
       - open: task-list
       - expect: {action_absent: create}
       - open_item: {where: {title: Review the plan}}   # created by `manage.py e2e_data`
-      # a field permission of the viewer (tasks/migrations/0005_workflow.py): the report is hidden
+      # a field permission of the viewer (tasks/roles.py): the report is hidden
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
   # the picker of the assignee searches the user by the label; the list shows the label
   - id: manager-assigns-a-task
@@ -115,7 +115,7 @@ scenarios:
       - upload: {field: attachment, file: brief.txt}
       - submit: {}
       - expect: {values: {title: Attach the brief, attachment: brief.txt}}
-  # bazis-ws: the assignee of a finished task is notified (sample/tasks/notify.py), over the
+  # bazis-ws: the assignee of a finished task is notified (sample/tasks/models.py), over the
   # socket that the frontend opens after the login
   - id: manager-is-notified-of-a-finished-task
     role: manager

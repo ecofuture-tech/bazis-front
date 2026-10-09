@@ -569,6 +569,6 @@ export const CAPABILITIES: Capabilities = {
     user_resource: "users.user",
   },
   ws: {
-    path: "/ws",
+    path: "/api/v1/ws",
   },
 };

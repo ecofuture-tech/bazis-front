@@ -48,10 +48,10 @@ def root(tmp_path):
 
 
 @pytest.fixture
-def contract(root, sample_app, workflow):
+def contract(root, sample_app, db):
     """
-    The contract of the sample, with the roles and the transits of the fixture `workflow`,
-    in the product root.
+    The contract of the sample, with the roles and the transits that `migrate` applied from
+    its declarations, in the product root.
     """
     (root / 'contract').mkdir()
     (root / 'contract' / 'contract.json').write_text(

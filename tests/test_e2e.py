@@ -392,10 +392,11 @@ def test_e2e_needs_a_frontend(tmp_path):
 
 
 @pytest.mark.django_db
-def test_the_migrations_of_the_sample_create_the_data_of_its_specs(sample_app, tmp_path):
+def test_the_declarations_of_the_sample_create_the_data_of_its_specs(sample_app, tmp_path):
     from bazis.contrib.front.contract.export import render
 
-    # the contract of the migrated database, without the fixture `workflow`
+    # the contract of the migrated database: the roles, statuses and transits that `migrate`
+    # applied from `tasks/roles.py` and `tasks/workflow.py`
     shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
     text = render(sample_app)['contract.json']
     (tmp_path / 'contract').mkdir()
@@ -439,12 +440,12 @@ def test_the_e2e_data_of_the_sample(monkeypatch):
         assert user.check_password('second-password-1')
         assert user.role_current.slug == role and list(user.roles.values_list('slug', flat=True)) == [role]
     assert apps.get_model('tasks.Task').objects.filter(title=TASK).count() == 1
-    # the roles are those of the migrations
+    # the roles are those that `migrate` applied from the declarations
     assert set(apps.get_model('permit.Role').objects.values_list('pk', flat=True)) == roles
 
 
 @pytest.mark.django_db
-def test_the_e2e_data_needs_the_roles_of_the_migrations(monkeypatch):
+def test_the_e2e_data_needs_the_declared_roles(monkeypatch):
     from django.apps import apps
     from django.contrib.auth import get_user_model
 
