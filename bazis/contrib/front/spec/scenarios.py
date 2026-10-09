@@ -338,8 +338,8 @@ class _Scenario:
 
     def step_submit(self, path, value):
         """
-        A submit closes the form and leads to its `then`; a failing one (the next step
-        expects the `error` of a field) keeps the form open.
+        A submit closes the form and leads to its `then`; a refused one (`fails`: the next
+        step expects the `error` of a field or a failed `state`) keeps the form open.
         """
         if not self.editing(path) or self.failing:
             return
