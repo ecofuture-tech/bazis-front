@@ -425,7 +425,9 @@ import { FileFieldProvider } from '@/bazis/ui/file-field';
 ```
 
 The points of the models (a field `type: point`) and the maps: `manage.py bazis_front add
-map`, then `npm install` (it sets Leaflet in `package.json`). Wrap the routes in
+map`, then `npm install` (it sets Leaflet in `package.json`; a version that the product set
+itself is kept and reported). The markers are buttons named by the labels of the items (the
+keyboard reaches them); the list beside the map is the way of every user to the items. Wrap the routes in
 `MapProvider` with the tiles of the product, a setting of `src/app/product.ts`: the default,
 `OSM_TILES` (OpenStreetMap with its attribution), is for development and light use; in
 production use the tiles of a provider and allow their host in the Content Security Policy
@@ -681,7 +683,9 @@ test('a manager sees the drafts', async ({ page }) => {
   `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectRows`,
   `expectError`, `expectNotification`, and `language(code)` (switches the language of the
   interface, for a test of `e2e/custom/`): the guide of
-  bazis-front lists what each one waits for. For what they do not cover, `app.page`,
+  bazis-front lists what each one waits for. `loginAs` answers the images of other origins
+  (the tiles of the maps) with a blank image (`stubForeignImages(page)`, for a test that does
+  not log in): the tests never depend on a tile server. For what they do not cover, `app.page`,
   `app.screen()` (the current screen), `app.form()` (the open form) and `bz(kind, id)` of
   `../bazis` (the selector of a mark): a transit that a validator restricts is disabled,
   with the errors of the validators next to it,

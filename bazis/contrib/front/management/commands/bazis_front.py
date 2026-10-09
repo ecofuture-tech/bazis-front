@@ -31,6 +31,7 @@ from bazis.contrib.front.spec import validate as spec_validate
 from bazis.contrib.front.spec.issues import Issues
 from bazis.contrib.front.vendor import copy, update
 from bazis.contrib.front.vendor import lock as frontend_lock
+from bazis.contrib.front.vendor.npm import kept_message
 from bazis.contrib.front.vendor.registry import load as load_registry
 
 
@@ -284,6 +285,8 @@ class Command(BaseCommand):
                 f'Set their npm dependencies ({packages}) in package.json: run `npm install` in '
                 'frontend/.'
             )
+        if added.kept:
+            self.stdout.write(kept_message(added.kept, added.dependencies))
         if added.copied:
             self.stdout.write(
                 'Run their contract tests with `npm test` in frontend/; the product owns the '
@@ -360,6 +363,8 @@ class Command(BaseCommand):
                     self.stdout.write(f'  {it.path}: {update.DESCRIPTIONS[it.status]}')
         if plan.package is not None:
             self.stdout.write(f'{plan.package.path}: {update.DESCRIPTIONS[plan.package.status]}')
+        if plan.kept:
+            self.stdout.write(kept_message(plan.kept, plan.dependencies))
         for path in plan.schemas:
             self.stdout.write(f'{path}: replaced by the copy of bazis-front {plan.version}.')
 

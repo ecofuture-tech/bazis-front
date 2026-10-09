@@ -19,7 +19,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { App, bz, loginAs, routePattern } from '../bazis';
+import { App, bz, loginAs, routePattern, stubForeignImages } from '../bazis';
 import { PRODUCT } from '../generated/product';
 
 /** Serves the pages by their path on the base URL of the config. */
@@ -668,6 +668,29 @@ test.describe('expectFieldAbsent', () => {
   });
 });
 
+test.describe('stubForeignImages', () => {
+  test('answers the images of another origin with a blank image, never those of the page', async ({ page }) => {
+    let reached = false;
+    await page.route('https://tiles.example.test/**', async (route) => {
+      reached = true;
+      await route.abort();
+    });
+    await stubForeignImages(page);
+    await show(
+      page,
+      '/map',
+      html('<img id="tile" src="https://tiles.example.test/1/0/0.png"><img id="own" src="/missing.png">'),
+    );
+    const loaded = (id: string) =>
+      page.locator(`#${id}`).evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0);
+    await expect.poll(() => loaded('tile')).toBe(true);
+    expect(reached).toBe(false);
+    // an image of the page itself is served by it (here: none, a 404)
+    await expect.poll(() => page.locator('#own').evaluate((image: HTMLImageElement) => image.complete)).toBe(true);
+    expect(await loaded('own')).toBe(false);
+  });
+});
+
 test.describe('loginAs', () => {
   const login = html(
     `<main data-bz="screen:login"><form id="login"><input data-bz="field:username"><input type="password" data-bz="field:password">
@@ -688,9 +711,18 @@ test.describe('loginAs', () => {
 
   test('logs in as the test user of the role', async ({ page }) => {
     await serve(page, { '/login': login });
+    // never reached: the stub of loginAs answers first
+    await page.route('https://tile.openstreetmap.org/**', (route) => route.abort());
     process.env.E2E_PASSWORD = 'secret';
     await loginAs(page, PRODUCT, 'manager');
     await expect(page.locator(bz('action', 'logout'))).toBeVisible();
+    // the images of other origins are stubbed for the test
+    await page.evaluate(() => {
+      document.body.insertAdjacentHTML('beforeend', '<img id="tile" src="https://tile.openstreetmap.org/1/0/0.png">');
+    });
+    await expect
+      .poll(() => page.locator('#tile').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0))
+      .toBe(true);
   });
 
   test('reports a failed login', async ({ page }) => {

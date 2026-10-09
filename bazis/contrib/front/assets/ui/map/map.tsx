@@ -15,7 +15,8 @@
 // The maps of the points (Leaflet, the npm dependency that `bazis_front add map` sets in
 // package.json): the tiles of `MapProvider` (OpenStreetMap by default, with its attribution:
 // set those of the product, its tile server and its terms, in production), a marker per point
-// in the colors of the theme, read when the map is drawn (the dark mode and the brand follow).
+// in the colors of the theme (the classes of its tokens: the dark mode and the brand follow),
+// a button that the keyboard reaches when it opens its item.
 // `MapProvider` also gives the forms the map of a point field (`MapPointControl`).
 
 import 'leaflet/dist/leaflet.css';
@@ -146,22 +147,31 @@ export function useGeolocation(): Geolocation {
 export interface MapMarker {
   id: string;
   point: LatLng;
-  /** Its tooltip: the label of the item (text). */
+  /** Its name for the screen readers and its tooltip: the label of the item (text). */
   label: string;
 }
 
 /** The view of a map without markers: the world. */
 const WORLD = { center: [20, 0] as L.LatLngTuple, zoom: 2 };
 
-function token(name: string, fallback: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+/** The icon of a marker: a dot in the colors of the theme, larger for the open item. */
+function markerIcon(kind: 'item' | 'selected' | 'me'): L.DivIcon {
+  const size = kind === 'selected' ? 22 : kind === 'me' ? 14 : 16;
+  return L.divIcon({
+    html: '',
+    iconSize: [size, size],
+    className: cn(
+      'rounded-full border-2 border-background shadow-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
+      kind === 'me' ? 'bg-info' : 'bg-primary',
+    ),
+  });
 }
 
 export interface LeafletMapProps {
   markers: readonly MapMarker[];
   /** The marker drawn larger (the open item). */
   selected?: string | null | undefined;
-  /** A click on a marker. */
+  /** A click on a marker, or Enter or Space on a marker focused with the keyboard. */
   onOpen?: ((id: string) => void) | undefined;
   /** A click on the map elsewhere: its point (the map of a point field). */
   onPick?: ((point: LatLng) => void) | undefined;
@@ -171,9 +181,15 @@ export interface LeafletMapProps {
   'data-bz'?: string | undefined;
 }
 
+/** What the view of a map is fitted to: the ids and the points of its markers, and the position of the user. */
+function placementOf(markers: readonly MapMarker[], me: LatLng | null | undefined): string {
+  return JSON.stringify([markers.map(({ id, point }) => [id, point.latitude, point.longitude]), me ? [me.latitude, me.longitude] : null]);
+}
+
 /**
- * A Leaflet map with a marker per point (`marker:<id>`, the label as its tooltip), fitted to
- * them; the tiles of `MapProvider`.
+ * A Leaflet map with a marker per point (`marker:<id>`, a button with the label as its name and
+ * its title when it opens the item: the keyboard reaches it), fitted to them when they change
+ * (not when another one is selected); the tiles of `MapProvider`.
  */
 export function LeafletMap({ markers, selected, onOpen, onPick, me, className, 'data-bz': mark }: LeafletMapProps) {
   const { t } = useLanguage();
@@ -185,6 +201,8 @@ export function LeafletMap({ markers, selected, onOpen, onPick, me, className, '
   useEffect(() => {
     handlers.current = { onOpen, onPick };
   }, [onOpen, onPick]);
+  const opens = onOpen !== undefined;
+  const placement = placementOf(markers, me);
 
   useEffect(() => {
     if (!element.current) return undefined;
@@ -202,46 +220,53 @@ export function LeafletMap({ markers, selected, onOpen, onPick, me, className, '
     };
   }, [tiles]);
 
+  // the markers, drawn again when one is selected
   useEffect(() => {
-    const current = map.current;
     const group = layer.current;
-    if (!current || !group) return;
+    if (!group) return;
     group.clearLayers();
-    const primary = token('--primary', 'currentColor');
-    const ring = token('--background', 'white');
-    const info = token('--info', primary);
-    const bounds: L.LatLngTuple[] = [];
     for (const { id, point, label } of markers) {
-      const position: L.LatLngTuple = [point.latitude, point.longitude];
-      bounds.push(position);
-      const marker = L.circleMarker(position, {
-        radius: id === selected ? 11 : 8,
-        color: ring,
-        weight: 2,
-        fillColor: primary,
-        fillOpacity: id === selected ? 1 : 0.85,
+      // a marker that opens nothing lets a click through to the map (the map of a point field)
+      const marker = L.marker([point.latitude, point.longitude], {
+        icon: markerIcon(id === selected ? 'selected' : 'item'),
+        interactive: opens,
+        keyboard: opens,
+        title: label,
+        riseOnHover: true,
       });
-      // the label as text, never as HTML
-      const tooltip = document.createElement('span');
-      tooltip.textContent = label;
-      marker.bindTooltip(tooltip);
       marker.on('click', () => {
         handlers.current.onOpen?.(id);
       });
       marker.addTo(group);
-      marker.getElement()?.setAttribute('data-bz', `marker:${id}`);
+      const icon = marker.getElement();
+      icon?.setAttribute('data-bz', `marker:${id}`);
+      icon?.setAttribute('aria-label', label);
+      icon?.addEventListener('keydown', (event) => {
+        if (opens && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          handlers.current.onOpen?.(id);
+        }
+      });
     }
     if (me) {
-      const position: L.LatLngTuple = [me.latitude, me.longitude];
-      bounds.push(position);
-      L.circleMarker(position, { radius: 7, color: ring, weight: 3, fillColor: info, fillOpacity: 1 })
-        .bindTooltip(t('map.locate'))
-        .addTo(group);
+      L.marker([me.latitude, me.longitude], { icon: markerIcon('me'), interactive: false, keyboard: false, title: t('map.locate') })
+        .addTo(group)
+        .getElement()
+        ?.setAttribute('aria-label', t('map.locate'));
     }
+  }, [markers, selected, me, opens, t, tiles]);
+
+  // the view: fitted to the points when they change, kept when one is selected or the screen
+  // renders again
+  useEffect(() => {
+    const current = map.current;
+    if (!current) return;
+    const [points, position] = JSON.parse(placement) as [[string, number, number][], [number, number] | null];
+    const bounds: L.LatLngTuple[] = [...points.map(([, latitude, longitude]): L.LatLngTuple => [latitude, longitude]), ...(position ? [position] : [])];
     const [first] = bounds;
     if (bounds.length === 1 && first) current.setView(first, Math.max(current.getZoom(), 13));
     else if (bounds.length > 1) current.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 });
-  }, [markers, selected, me, t]);
+  }, [placement, tiles]);
 
   return (
     <div
@@ -262,7 +287,13 @@ export function LeafletMap({ markers, selected, onOpen, onPick, me, className, '
 export function MapPointControl({ field, value, onChange, disabled }: PointControlProps) {
   const { t } = useLanguage();
   const geolocation = useGeolocation();
-  const markers = useMemo(() => (value ? [{ id: field.name, point: value, label: field.title }] : []), [value, field]);
+  // by its value: the point of the field is a new object at every render of the form
+  const latitude = value?.latitude;
+  const longitude = value?.longitude;
+  const markers = useMemo(
+    () => (latitude !== undefined && longitude !== undefined ? [{ id: field.name, point: { latitude, longitude }, label: field.title }] : []),
+    [latitude, longitude, field.name, field.title],
+  );
   return (
     <div className="grid gap-2" data-bz={`map:${field.name}`}>
       <LeafletMap

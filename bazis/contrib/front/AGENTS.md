@@ -318,13 +318,20 @@ the package documents each component.
   object; the contract tells a point by its model field: `format: point`, `type: point` in
   the specs). `FieldValue` shows it as its coordinates, `55.7558, 37.6173` (latitude first,
   a dot in every language, as maps write them); `FieldInput` of a form (`ResourceForm` gives
-  it its `path`) edits it as that text (sent as GeoJSON once it is a point, as the text
-  otherwise, which the backend refuses at the field), and with `MapProvider` around the
-  routes also on a map: a click places the point, `action:locate-<field>` places the
-  position of the browser. `bazis_front add map` copies the maps and sets Leaflet in
-  `package.json`; `ResourceMap` is `list.map` of a screen, beside its `ResourceList` with the
-  same `filter`: a marker per item with a point (`marker:<id>`, its label as the tooltip),
-  a click opens it (`onOpen`), the open item `selected`. **The tiles** are those of
+  it its `path`) edits it as that text (also `55,7558; 37,6173` or `55,7558 37,6173` with a
+  decimal comma; sent as GeoJSON once it is a point, as the text otherwise, which the backend
+  refuses at the field), and with `MapProvider` around the routes also on a map: a click
+  places the point, `action:locate-<field>` places the position of the browser. A point in
+  the payload of a transit (`TransitBar`: the payload is no resource, its fields have no
+  route set) is edited as its GeoJSON; give a transit a payload of numbers instead when the
+  user types it. `bazis_front add map` copies the maps and sets Leaflet in
+  `package.json` (a version of Leaflet that the product set itself is kept, by `add` and
+  `update`, and reported); `ResourceMap` is `list.map` of a screen, beside its `ResourceList` with the
+  same `filter`: a marker per item with a point (`marker:<id>`, a button named and titled
+  by its label, which the keyboard reaches: Enter or Space opens it like a click,
+  `onOpen`), the open item `selected` (drawn larger; the view is fitted to the points when
+  they change, never when another one is selected). The list beside it stays the way of the
+  items for every user: a map without a list is no screen of the specs. **The tiles** are those of
   `MapProvider tiles` (`{url, attribution, maxZoom?}`, a setting of the product such as
   `MAP_TILES` in `src/app/product.ts`); the default, OpenStreetMap with its attribution, is
   for development and light use under its tile usage policy: a product in production sets
@@ -607,7 +614,8 @@ scenarios:
 - **Fields** are those of the resource in the API (`fields` of contract.json), with `type`
   (`string`, `text`, `integer`, `number`, `boolean`, `date`, `datetime`, `time`, `json`,
   `point`, `file`) or `relation` (the id of an entity) and `many`. A `point` is a
-  `PointField` of the model (`format: point` of the contract; `json` is another object). A `file` is a to-one
+  `PointField` of the model (`format: point` of the contract; `json` is another object: a
+  point field declared `json` is P013, declare it `point`). A `file` is a to-one
   relationship to a resource of the uploaded files of bazis-uploadable (`resources` of the
   capability `uploadable`; P013 otherwise): declare such a relationship as a `file`, not as
   a `relation`; it needs no entity. A payload of a transit has no `file`. What is required, writable or
@@ -985,7 +993,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
 
   | Step | Calls |
   |---|---|
-  | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users |
+  | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users; the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |

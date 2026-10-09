@@ -632,6 +632,40 @@ def test_update_sets_the_npm_dependencies_of_an_asset_without_the_template(produ
     assert update().endswith(f'are those of bazis-front {__version__}.\n')
 
 
+def test_update_keeps_a_version_that_the_product_set(product):
+    """
+    A dependency of an asset that the product set to another version than the one the asset
+    set last is the product's: kept, in the merge of the template (without a conflict) and
+    without it, and reported.
+    """
+    frontend = product / 'frontend'
+    old_map(product)
+    pinned = {'dependencies': {'leaflet': '1.9.2'}, 'devDependencies': {'@types/leaflet': '1.9.20'}}
+    package = frontend / PACKAGE_JSON
+    package.write_text(with_dependencies(upstream(PACKAGE_JSON), pinned), encoding='utf-8')
+
+    out = update()
+    assert 'package.json keeps the versions of the product: leaflet 1.9.2 (bazis-front sets 1.9.4).' in out
+    data = json.loads(package.read_text(encoding='utf-8'))
+    assert (data['dependencies']['leaflet'], data['devDependencies']['@types/leaflet']) == ('1.9.2', '1.9.22')
+    assert_updated(product, 'map')
+
+    # in the merge of the template, with a change of the template on the next line
+    old_map(product)
+    downgrade(
+        product, 'template',
+        lambda path, text: upstream(PACKAGE_JSON).replace('"lucide-react": "', '"lucide-react": "0.') if path == PACKAGE_JSON else text,
+    )
+    base = (base_dir(frontend, 'template', OLD) / PACKAGE_JSON).read_text(encoding='utf-8')
+    package.write_text(with_dependencies(base, pinned), encoding='utf-8')
+    out = update()
+    assert f'  {PACKAGE_JSON}: merged with the changes of the frontend\n' in out
+    assert 'keeps the versions of the product: leaflet 1.9.2' in out
+    assert package.read_text(encoding='utf-8') == with_dependencies(
+        upstream(PACKAGE_JSON), {'dependencies': {'leaflet': '1.9.2'}, 'devDependencies': {'@types/leaflet': '1.9.22'}},
+    )
+
+
 def test_a_dependency_that_an_asset_no_longer_has_is_removed_unless_the_product_changed_it():
     old = {'dependencies': {'leaflet': '1.9.3', 'gone': '1.0.0', 'kept': '2.0.0'}}
     text = json.dumps({'name': 'frontend', 'dependencies': {'gone': '1.0.0', 'kept': '2.1.0', 'leaflet': '1.9.3', 'react': '19.3.0'}})

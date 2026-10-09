@@ -60,14 +60,22 @@ export function formatPoint({ latitude, longitude }: LatLng): string {
   return `${degrees(latitude)}, ${degrees(longitude)}`;
 }
 
+/** Two numbers with a decimal point, separated by a comma, a semicolon or a space. */
 const COORDINATES = /^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/;
+/** Two numbers with a decimal comma, separated by a semicolon or a space: `55,7558; 37,6173`. */
+const DECIMAL_COMMAS = /^\s*(-?\d+(?:,\d+)?)\s*(?:;|\s)\s*(-?\d+(?:,\d+)?)\s*$/;
 
-/** The point of the text `<latitude>, <longitude>` (or separated by a space or `;`); null when it is not one. */
+/**
+ * The point of the text `<latitude>, <longitude>`: the numbers with a decimal point separated by
+ * a comma, a semicolon or a space (`55.7558, 37.6173`), or with a decimal comma separated by a
+ * semicolon or a space (`55,7558; 37,6173`, as some languages write them); null when it is
+ * not one (`55,7,37,6` is ambiguous).
+ */
 export function parsePoint(text: string): LatLng | null {
-  const match = COORDINATES.exec(text);
+  const match = COORDINATES.exec(text) ?? DECIMAL_COMMAS.exec(text);
   if (!match) return null;
-  const latitude = Number(match[1]);
-  const longitude = Number(match[2]);
+  const latitude = Number((match[1] ?? '').replace(',', '.'));
+  const longitude = Number((match[2] ?? '').replace(',', '.'));
   return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? { latitude, longitude } : null;
 }
 
@@ -176,7 +184,8 @@ export function PointInput({
     <div className="grid gap-2">
       <Input
         {...control}
-        inputMode="decimal"
+        // a text: the keypads of the decimals have no comma, space or minus on some phones
+        inputMode="text"
         placeholder={t('point.placeholder')}
         value={text}
         readOnly={field.readOnly}

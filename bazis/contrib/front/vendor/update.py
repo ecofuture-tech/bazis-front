@@ -52,7 +52,8 @@ their entries of the lock) are added to its base and to its upstream before the 
 of the old entries and those of the new ones (`npm.with_dependencies`): their lines conflict
 neither with the changes of the product nor with those of the template, and a new version of
 a dependency replaces the old one. When the template is not merged, `package.json` gets the
-new dependencies alone (`Plan.package`).
+new dependencies alone (`Plan.package`). A version that the product set itself (another than
+the one the assets set last) is kept on every side of the merge, and reported (`Plan.kept`).
 
 The stamp lines are compared and merged at the new version, so that they never conflict;
 every written file of a vendored asset or a component has the new stamp. The assets that a
@@ -90,7 +91,7 @@ from .copy import (
     write_base,
     write_file,
 )
-from .npm import PACKAGE_JSON, Dependencies, merged, with_dependencies
+from .npm import PACKAGE_JSON, Dependencies, merged, pinned, with_dependencies
 from .registry import TEMPLATE, Asset, load, resolve
 
 
@@ -184,6 +185,11 @@ class Plan:
     #: package.json with the new npm dependencies of the assets, when the template is not
     #: merged (the merge of the template sets them)
     package: FileUpdate | None = None
+    #: the npm dependencies of the assets that package.json has in another version than the
+    #: one they set (the product's): kept
+    kept: dict[str, dict[str, str]] = field(default_factory=dict)
+    #: the npm dependencies of the assets in this version
+    dependencies: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def __bool__(self) -> bool:
         return bool(self.assets or self.schemas or self.package)
@@ -454,6 +460,49 @@ def untracked_files(frontend: Path, asset: Asset, version: str) -> list[FileUpda
     return updates
 
 
+@dataclass
+class Npm:
+    """The npm dependencies of the assets in package.json of the frontend, before and after the update."""
+
+    #: those that the assets set last (their entries of the lock)
+    old: Dependencies
+    #: those that the assets set after the update (the registry, for the assets it updates)
+    wanted: Dependencies
+    #: those of `wanted` that package.json has in another version than `old`: the product's
+    kept: dict[str, dict[str, str]]
+    #: package.json of the frontend
+    local: str
+
+    @classmethod
+    def of(cls, frontend: Path, present: dict, order: Sequence[Asset]) -> 'Npm':
+        updated = {it.name: it for it in order}
+        old = merged(entry.get('npm', {}) for entry in present.values())
+        wanted = merged([
+            *(updated[name].npm if name in updated else entry.get('npm', {}) for name, entry in present.items()),
+            *(it.npm for it in order if it.name not in present),
+        ])
+        path = frontend / PACKAGE_JSON
+        local = path.read_text(encoding='utf-8') if path.is_file() else ''
+        return cls(old, wanted, pinned(local, wanted, old), local)
+
+    @property
+    def base(self) -> Dependencies:
+        """In the base of the merge: those set last, the kept ones the product's lines (never a conflict)."""
+        return merged([self.old, self.kept])
+
+    @property
+    def new(self) -> Dependencies:
+        """In the upstream of the merge and in package.json: the new ones but those kept."""
+        return merged([self.wanted, self.kept])
+
+    def package(self) -> FileUpdate | None:
+        """package.json with the new dependencies when the template is not merged; None when it has them."""
+        if self.new == self.old:
+            return None
+        package = with_dependencies(self.local, self.new, self.old)
+        return None if package == self.local else FileUpdate(PACKAGE_JSON, DEPENDENCIES, package.encode('utf-8'))
+
+
 def plan(
     root: Path,
     frontend: Path,
@@ -484,14 +533,8 @@ def plan(
     selected = list(names) or list(present)
     order = resolve([it for it in selected if it in registry], registry)
     errors += missing_capabilities([it for it in order if it.name not in present], capabilities)
-    # the npm dependencies of the assets in the frontend, before and after the update
-    updated = {it.name: it for it in order}
-    old_dependencies = merged(entry.get('npm', {}) for entry in present.values())
-    new_dependencies = merged([
-        *(updated[name].npm if name in updated else entry.get('npm', {}) for name, entry in present.items()),
-        *(it.npm for it in order if it.name not in present),
-    ])
-    result = Plan(version)
+    npm = Npm.of(frontend, present, order)
+    result = Plan(version, kept=npm.kept, dependencies=npm.wanted)
     template_merged = False
     for asset in order:
         entry = present.get(asset.name)
@@ -506,7 +549,7 @@ def plan(
                     untracked_files(frontend, asset, version) if untracked
                     else update_files(
                         frontend, asset.name, entry, asset, version,
-                        (old_dependencies, new_dependencies) if asset.kind == TEMPLATE else ({}, {}),
+                        (npm.base, npm.new) if asset.kind == TEMPLATE else ({}, {}),
                     )
                 )
             except CopyError as err:
@@ -520,12 +563,10 @@ def plan(
             entry = present[name]
             files = update_files(frontend, name, entry, None, version)
             result.assets.append(AssetUpdate(name, entry.get('version'), None, files))
-    if new_dependencies != old_dependencies and not template_merged:
+    if not template_merged:
         try:
-            result.package = FileUpdate(PACKAGE_JSON, DEPENDENCIES, with_dependencies(
-                (frontend / PACKAGE_JSON).read_text(encoding='utf-8'), new_dependencies, old_dependencies,
-            ).encode('utf-8'))
-        except (OSError, ValueError) as err:
+            result.package = npm.package()
+        except ValueError as err:
             errors.append(
                 f'The npm dependencies of the assets cannot be set in {PACKAGE_JSON} of the '
                 f'frontend ({err}): restore it and update again.'

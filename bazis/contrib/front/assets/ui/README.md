@@ -18,7 +18,9 @@ The shadcn/ui components they use (`button`, `input`, `label`, `native-select`, 
 `components.json` of the template places them, so that `add` needs neither the network nor
 the shadcn CLI. Their npm dependencies (`radix-ui`, `class-variance-authority`,
 `lucide-react`) and those of the contract tests (`@testing-library/react`, `jsdom`) are in
-the `package.json` of the template: `add` never changes the `package.json` of a product.
+the `package.json` of the template. The library of an optional component (Leaflet of `map`)
+is `npm` of its asset in the registry: `add` sets it in the `package.json` of the product
+(keeping a version that the product set itself) and `update` brings it to each release.
 
 The labels of the data come from the backend (the titles of the runtime schemas, in the
 language it answers in; the names of the statuses and transits of `contract.ts`, in every
@@ -244,8 +246,9 @@ the WebSocket of the page in a test.
 - **`map`**: Leaflet (the npm dependency that `add map` sets in package.json) with the tiles
   of `MapProvider` (`OSM_TILES`, OpenStreetMap with its attribution, by default: set those of
   the product in production, with their host in its CSP), a circle marker per point in the
-  colors of the theme (`--primary`, `--background`, read when the map is drawn), the label
-  of the item as a text tooltip. `ResourceMap` reads the first `pageSize` (200) items of the
+  colors of the theme (the classes of its tokens, `bg-primary`, `border-background`), a
+  button named and titled by the label of the item that the keyboard reaches (Enter or Space
+  opens it); the view is fitted to the points when they change, not when one is selected. `ResourceMap` reads the first `pageSize` (200) items of the
   list with its `filter` and `sort`; the items without a point are left out, the list beside
   it shows them. Its contract test replaces Leaflet with a fake (jsdom draws no map). A point
   field of a form (`FieldInput` with the `path` of its route set) is the text `<latitude>,

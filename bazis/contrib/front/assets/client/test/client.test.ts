@@ -300,6 +300,10 @@ describe('action', () => {
       { status: 422, code: 'ERR_VALIDATE', detail: 'Input should be a valid date', source: { pointer: '/date_to' } },
       { status: 422, code: 'ERR_VALIDATE', detail: 'Too many', source: { pointer: '/items/0' } },
       { status: 422, code: 'ERR_VALIDATE', detail: 'The period ends before it starts' },
+      // the parameters of the request are no fields of the body
+      { status: 400, code: 'ERR_FILTER', detail: 'Unknown field', source: { pointer: '/query/filter' } },
+      { status: 422, code: 'ERR_VALIDATE', detail: 'Missing', source: { pointer: '/header/x-token' } },
+      { status: 422, code: 'ERR_VALIDATE', detail: 'Missing', source: { pointer: '/cookie' } },
     ];
     const { api } = setup([json({ errors }, 422, JSON_TYPE)]);
     const loose = api as unknown as { action: (path: string, name: string, body?: unknown) => Promise<unknown> };

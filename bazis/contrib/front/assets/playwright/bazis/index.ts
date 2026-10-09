@@ -463,12 +463,42 @@ export class App<P extends Product = Product> {
   }
 }
 
+/** A transparent image of one pixel (PNG). */
+const BLANK_IMAGE = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  'base64',
+);
+
+/** The paths of the images. */
+const IMAGE = /\.(?:png|jpe?g|gif|webp|avif|svg)$/i;
+
+/**
+ * Answers the images of another origin than the page (the tiles of the maps) with a blank
+ * image: the tests never depend on a server outside the product, which limits its use and
+ * may not be reachable. `loginAs` does it for every test.
+ */
+export async function stubForeignImages(page: Page): Promise<void> {
+  await page.route(
+    (url) => IMAGE.test(url.pathname),
+    async (route) => {
+      const origin = (url: string) => (URL.canParse(url) ? new URL(url).origin : null);
+      if (origin(route.request().url()) === origin(page.url())) {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: 'image/png', body: BLANK_IMAGE });
+    },
+  );
+}
+
 /**
  * Opens the application as the test user of the role (`test_user` of spec/product.yaml,
- * the password of the environment variable E2E_PASSWORD) through the login screen. Without
- * bazis-users there is no login: the application is open.
+ * the password of the environment variable E2E_PASSWORD) through the login screen, the images
+ * of other origins stubbed (`stubForeignImages`). Without bazis-users there is no login: the
+ * application is open.
  */
 export async function loginAs<P extends Product>(page: Page, product: P, role: Role<P>): Promise<App<P>> {
+  await stubForeignImages(page);
   const app = new App(page, product);
   if (CAPABILITIES.users === null) return app;
   const user = product.roles[role];

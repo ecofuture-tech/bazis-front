@@ -26,7 +26,7 @@ from pathlib import Path
 
 from .. import __version__
 from . import lock as frontend_lock
-from .npm import PACKAGE_JSON, merged, with_dependencies
+from .npm import PACKAGE_JSON, merged, pinned, with_dependencies
 from .registry import TEMPLATE, UI, VENDORED, Asset, load, resolve
 
 
@@ -212,6 +212,8 @@ class Added:
     present: list[str] = field(default_factory=list)
     #: the npm dependencies that the copied assets set in package.json (`npm install`)
     dependencies: dict[str, dict[str, str]] = field(default_factory=dict)
+    #: those of them that package.json has in another version, the product's: kept
+    kept: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 def modified_files(frontend: Path, entry: dict) -> list[str]:
@@ -241,7 +243,8 @@ def add_assets(
     asset of another version of bazis-front, named or required: the copies are of one
     version (`update` brings them to this one). `capabilities` returns those of the
     contract, read only when an asset requires one. The npm dependencies of the copied
-    assets (`npm` of the registry) are set in package.json, for `npm install`. Everything is
+    assets (`npm` of the registry) are set in package.json, for `npm install`, but those it
+    has in another version (the product's: `kept`). Everything is
     checked before anything is written: on a `CopyError` nothing is.
     """
     version = __version__
@@ -286,9 +289,10 @@ def add_assets(
     package = None
     if result.dependencies:
         try:
-            package = with_dependencies(
-                (frontend / PACKAGE_JSON).read_text(encoding='utf-8'), result.dependencies,
-            )
+            text = (frontend / PACKAGE_JSON).read_text(encoding='utf-8')
+            # a version that the product set itself is its own: kept
+            result.kept = pinned(text, result.dependencies)
+            package = with_dependencies(text, merged([result.dependencies, result.kept]))
         except (OSError, ValueError) as err:
             errors.append(
                 f'{", ".join(it.name for it in to_copy if it.npm)} add npm dependencies to '

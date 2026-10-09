@@ -53,15 +53,19 @@ const fake = vi.hoisted(() => {
   class FakeMap extends Events {
     removed = false;
     view: unknown = null;
+    /** How many times the view was fitted to the points. */
+    fits = 0;
     constructor(readonly element: HTMLElement) {
       super();
     }
     setView(center: unknown, zoom: number) {
       this.view = { center, zoom };
+      this.fits += 1;
       return this;
     }
     fitBounds(bounds: unknown) {
       this.view = { bounds };
+      this.fits += 1;
       return this;
     }
     getZoom() {
@@ -84,21 +88,24 @@ const fake = vi.hoisted(() => {
     }
   }
 
+  // as Leaflet draws a marker: its icon is a button that the keyboard reaches (`keyboard`),
+  // with its title; one that is not `interactive` takes no click
   class FakeMarker extends Events {
-    readonly element = document.createElement('span');
-    tooltip: unknown = null;
+    readonly element = document.createElement('div');
     constructor(
       readonly position: [number, number],
       readonly options: Record<string, unknown>,
     ) {
       super();
+      if (options.keyboard) {
+        this.element.tabIndex = 0;
+        this.element.setAttribute('role', 'button');
+      }
+      if (typeof options.title === 'string') this.element.title = options.title;
+      this.element.className = (options.icon as { options: { className: string } }).options.className;
       this.element.addEventListener('click', () => {
-        this.fire('click');
+        if (options.interactive !== false) this.fire('click');
       });
-    }
-    bindTooltip(content: unknown) {
-      this.tooltip = content;
-      return this;
     }
     addTo(group: FakeGroup) {
       group.markers.push(this);
@@ -122,7 +129,8 @@ const fake = vi.hoisted(() => {
       return { addTo: () => undefined };
     },
     layerGroup: () => new FakeGroup(),
-    circleMarker: (position: [number, number], options: Record<string, unknown>) => new FakeMarker(position, options),
+    marker: (position: [number, number], options: Record<string, unknown>) => new FakeMarker(position, options),
+    divIcon: (options: Record<string, unknown>) => ({ options }),
   };
   return { state, L };
 });
@@ -164,15 +172,41 @@ describe('ResourceMap', () => {
       [55.75, 37.62],
       [-33.86, 151.21],
     ]);
-    // the label of the item as the text of its tooltip; the open item drawn larger
-    expect(fake.state.markers.map((it) => (it.tooltip as HTMLElement).textContent)).toEqual(['North', 'South']);
-    expect((fake.state.markers[1]?.options.radius as number) > (fake.state.markers[0]?.options.radius as number)).toBe(true);
+    // a button named by the label of the item, which the keyboard reaches; the open item larger
+    const north = screen.getByRole('button', { name: 'North' });
+    expect(north).toBe(screen.getByTestId('marker:a'));
+    expect(north.getAttribute('tabindex')).toBe('0');
+    expect(north.title).toBe('North');
+    const size = (index: number) => (fake.state.markers[index]?.options.icon as { options: { iconSize: number[] } }).options.iconSize[0] ?? 0;
+    expect(size(1)).toBeGreaterThan(size(0));
+    // the colors of the theme, never literal ones
+    expect(north.className).toContain('bg-primary');
     expect(backend.requests('GET')).toEqual([`GET ${ITEMS}?filter=kind%3Dsite&page%5Blimit%5D=200`]);
     // the tiles of OpenStreetMap with their attribution, without a provider
     expect(fake.state.tiles).toEqual([{ url: OSM_TILES.url, options: expect.objectContaining({ attribution: OSM_TILES.attribution }) as unknown }]);
 
     fireEvent.click(screen.getByTestId('marker:c'));
     expect(onOpen).toHaveBeenCalledWith('c');
+    fireEvent.keyDown(north, { key: 'Enter' });
+    expect(onOpen).toHaveBeenLastCalledWith('a');
+    fireEvent.keyDown(north, { key: 'Tab' });
+    expect(onOpen).toHaveBeenCalledTimes(2);
+  });
+
+  it('fits the view to the points when they change, not when another item is selected', async () => {
+    const backend = new Backend().on('GET', ITEMS, items);
+    function Selecting() {
+      const [selected, setSelected] = useState<string | null>(null);
+      return <ResourceMap path={ITEMS as never} entity="item" field="location" selected={selected} onOpen={setSelected} />;
+    }
+    renderWithBazis(<Selecting />, backend);
+    fireEvent.click(await screen.findByTestId('marker:a'));
+    const map = fake.state.maps.at(-1);
+    // drawn again larger (a new marker), the view kept
+    await waitFor(() => {
+      expect(fake.state.markers.filter((it) => it.position[0] === 55.75)).toHaveLength(2);
+    });
+    expect(map?.fits).toBe(1);
   });
 
   it('says that no item has a point', async () => {

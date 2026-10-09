@@ -111,6 +111,21 @@ def test_add_sets_the_npm_dependencies_of_an_asset(product):
     assert 'npm install' not in add('resource-list')
 
 
+def test_add_keeps_a_version_that_the_product_set(product):
+    package = product / 'frontend' / 'package.json'
+    data = json.loads(package.read_text(encoding='utf-8'))
+    data['dependencies']['leaflet'] = '1.9.3'
+    package.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+
+    out = add('map')
+    assert 'package.json keeps the versions of the product: leaflet 1.9.3 (bazis-front sets 1.9.4).' in out
+    data = json.loads(package.read_text(encoding='utf-8'))
+    assert data['dependencies']['leaflet'] == '1.9.3'
+    assert data['devDependencies']['@types/leaflet'] == '1.9.22'
+    # the lock records what the asset sets
+    assert read_lock(product)['assets']['map']['npm'] == registry.load()['map'].npm
+
+
 def test_add_refuses_an_asset_with_npm_dependencies_without_package_json(product):
     package = product / 'frontend' / 'package.json'
     package.write_text('<<<<<<< frontend\n', encoding='utf-8')

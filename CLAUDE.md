@@ -205,7 +205,8 @@ frontend made from the sample by the `e2e` job of CI.
   (`{section: {package: version}}`, the versions of the workspace of the components: the
   map and Leaflet) is the npm dependency it brings that the template does not declare:
   `add` sets it in `package.json` of the frontend and records it in the entry of the lock
-  (`vendor/npm.py`, `copy.lock_entry`). Add a file of an asset to the registry; `tests/test_assets.py`
+  (`vendor/npm.py`, `copy.lock_entry`), keeping a version that the product set itself
+  (`npm.pinned`, reported by `add` and `update`). Add a file of an asset to the registry; `tests/test_assets.py`
   checks that the registry lists every file of the template, every source of the client
   and of the hooks and every file of `assets/ui` but its tooling.
 - `requires` of an asset: `capabilities` (the hooks and the components of a package, such
@@ -394,6 +395,8 @@ npm test
 
 - `bazis/index.ts`, the vendored asset `playwright` copied to `frontend/e2e/bazis/` (the
   directory is named as in a product, next to `generated/`): `loginAs(page, PRODUCT, role)`
+  (which first answers the images of other origins, the tiles of the maps, with a blank
+  image: `stubForeignImages`)
   and the class `App` with a method per step and per `expect` key. They act only through
   `data-bz` (and the `<form>` with `action:submit` as the open form), and wait with the
   auto-waiting of Playwright, `expect.poll` and the absence of `state:loading`, never for a

@@ -19,7 +19,7 @@ library of its own sets it in `package.json` of the frontend when it is copied (
 when it is updated, and records it in its entry of the lock. `package.json` stays a file of
 the template: `update` merges it with the dependencies of the assets on both sides
 (`with_dependencies`), so that they never conflict with the changes of the product or of the
-template.
+template. A version that the product set itself (`pinned`) is kept, and reported.
 """
 
 import json
@@ -55,6 +55,28 @@ def with_dependencies(text: str, dependencies: Dependencies, previous: Dependenc
     return json.dumps(data, indent=2, ensure_ascii=False) + '\n'
 
 
+def pinned(text: str, dependencies: Dependencies, previous: Dependencies | None = None) -> dict[str, dict[str, str]]:
+    """
+    The dependencies that the product pinned in its package.json: those of `dependencies`
+    that it has in another version than the one of `previous` (what the assets set last;
+    none for a new asset), by section, with the version of the product, which bazis-front
+    keeps; none when the text is not a JSON object.
+    """
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    result: dict[str, dict[str, str]] = {}
+    for section, packages in dependencies.items():
+        for name, version in packages.items():
+            local = (data.get(section) or {}).get(name)
+            if local is not None and local != version and local != (previous or {}).get(section, {}).get(name):
+                result.setdefault(section, {})[name] = local
+    return result
+
+
 def merged(entries: Iterable[Dependencies]) -> dict[str, dict[str, str]]:
     """
     The dependencies of several assets (their `npm` in the registry or in the lock), by
@@ -65,3 +87,12 @@ def merged(entries: Iterable[Dependencies]) -> dict[str, dict[str, str]]:
         for section, packages in dependencies.items():
             result.setdefault(section, {}).update(packages)
     return result
+
+
+def kept_message(kept: Dependencies, wanted: Dependencies) -> str:
+    """What `add` and `update` say of the versions of the product that they kept."""
+    packages = ', '.join(
+        f'{name} {version} (bazis-front sets {wanted[section][name]})'
+        for section, items in sorted(kept.items()) for name, version in sorted(items.items())
+    )
+    return f'{PACKAGE_JSON} keeps the versions of the product: {packages}.'

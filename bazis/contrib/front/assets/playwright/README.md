@@ -35,7 +35,8 @@ marks of the states, never for a fixed time:
 
 | Helper | Step of a scenario | What it does |
 |---|---|---|
-| `loginAs(page, PRODUCT, role)` | the `role` of the scenario | logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`, and waits for `action:logout`; without bazis-users (`CAPABILITIES.users` of `contract.ts` is null) there is no login |
+| `loginAs(page, PRODUCT, role)` | the `role` of the scenario | logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`, and waits for `action:logout`; without bazis-users (`CAPABILITIES.users` of `contract.ts` is null) there is no login. It first stubs the images of other origins (`stubForeignImages`) |
+| `stubForeignImages(page)` | | answers the images of another origin than the page (the tiles of the maps) with a blank image: no test reaches a server outside the product |
 | `open(screen)` | `open` | goes to the route of the screen (one without the id of an item), then `expectScreen` |
 | `openItem({where})` | `open_item` | clicks the first `row:<id>` of the list of the current screen whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn, waiting for `data-search` of `list:<entity>` to be the text and for its `aria-busy` to end), else on the next pages (`action:next-page`); it fails when no page has the row |
 | `action(id)` | `action` | clicks `action:<id>` of the current screen (also `action:edit` of a card, before a `fill` of its edit) |

@@ -262,6 +262,8 @@ describe('point fields', () => {
     field(point(55.7558, 37.6173), onChange);
     const control = screen.getByTestId<HTMLInputElement>('field:location');
     expect(control.value).toBe('55.7558, 37.6173');
+    // every keyboard has the separators and the minus
+    expect(control.inputMode).toBe('text');
     expect(screen.getByLabelText('Location')).toBe(control);
     fireEvent.change(control, { target: { value: '-33.86;151.21' } });
     expect(onChange).toHaveBeenLastCalledWith(point(-33.86, 151.21));
@@ -282,8 +284,14 @@ describe('point fields', () => {
   it('reads the coordinates', () => {
     expect(parsePoint('55.7558, 37.6173')).toEqual({ latitude: 55.7558, longitude: 37.6173 });
     expect(parsePoint(' -1 2 ')).toEqual({ latitude: -1, longitude: 2 });
-    expect([parsePoint('91, 0'), parsePoint('0, 181'), parsePoint('55,7 37,6'), parsePoint('north')]).toEqual([
-      null, null, null, null,
+    // a decimal comma, separated by a semicolon or a space
+    expect(parsePoint('55,7558; 37,6173')).toEqual({ latitude: 55.7558, longitude: 37.6173 });
+    expect(parsePoint('-33,86 151,21')).toEqual({ latitude: -33.86, longitude: 151.21 });
+    expect(parsePoint('55,75;37')).toEqual({ latitude: 55.75, longitude: 37 });
+    // integers separated by a comma; an ambiguous or an out of range text is no point
+    expect(parsePoint('55,37')).toEqual({ latitude: 55, longitude: 37 });
+    expect([parsePoint('91, 0'), parsePoint('0, 181'), parsePoint('55,7,37,6'), parsePoint('55,7, 37,6'), parsePoint('north')]).toEqual([
+      null, null, null, null, null,
     ]);
   });
 
