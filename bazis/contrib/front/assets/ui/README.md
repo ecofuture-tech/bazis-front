@@ -63,7 +63,7 @@ sample (`tests/test_design.py` checks it; write it again with
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | capability `statusy` |
 | `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
@@ -109,7 +109,8 @@ the WebSocket of the page in a test.
 - **`resource-card`** reads the item with `crud_actions` and its fields from
   `schema_retrieve/` of the item; with `edit`, an edit button (when the backend allows the
   change) opens the form of the update of their fields in a dialog or as a page
-  (`FormSurface`). `children` may be a function of the item (`StatusHistory` takes it).
+  (`FormSurface`). `children` may be a function of the item and its permission meta
+  (`StatusHistory` takes the item; `permitted(meta, 'change')` for a section of the product).
 - **The field permissions of bazis-permit** (`<app>.<model>.field.<operation>.<selector>…
   .<field>.<restriction>`, restrictions `enable`, `readonly`, `disable`, …) are read from
   what the backend returns, never from the roles: a field that the user may not see is left
@@ -128,7 +129,9 @@ the WebSocket of the page in a test.
   with one list of the related resource filtered by their primary keys
   (`filter=pk=<a>|pk=<b>|…`, at most 50 ids a request), cached by item and shared with every
   other place that shows it; an item the user may not view (the list leaves it out) shows
-  its id. Bazis ignores `include` on a list, and the core has no `pk__in` lookup.
+  its id. Bazis ignores `include` on a list, and the core has no `pk__in` lookup. The label
+  of an item (here and in `RelationPicker`) is `itemLabel`: its first non-empty attribute of
+  `name`, `title`, `username`, `email`, `slug`, `code`, else its id.
 - **`RelationPicker`** (the input of a to-one relationship in a form and in the payload of a
   transit, and of the filter of a relationship) is a combobox: a button
   (`role="combobox"`, the marks of the field) with the label of the item opens a popover

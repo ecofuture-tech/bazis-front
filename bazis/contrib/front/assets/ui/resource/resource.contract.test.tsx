@@ -17,7 +17,7 @@
 // the uploaded files) is edited by the control of `FilesProvider` and shown as a file. Keep
 // it passing when the component is changed.
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { FormField } from '@/bazis/react';
@@ -28,10 +28,13 @@ import {
   FileValue,
   formatSize,
   formatValue,
+  itemLabel,
   permitted,
+  RelationLabel,
+  useAnyRelated,
   type FileControlProps,
 } from '@/bazis/ui/resource';
-import { Backend, errors, renderWithBazis, resource, testLanguages } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, renderWithBazis, resource, testLanguages } from '@/bazis/ui/testing';
 
 const base = { required: false, readOnly: false, nullable: false };
 
@@ -49,6 +52,23 @@ describe('FieldInput', () => {
     expect(screen.getByTestId('error:title').textContent).toBe('Required');
     fireEvent.change(control, { target: { value: 'B' } });
     expect(onChange).toHaveBeenCalledWith('B');
+  });
+
+  it('edits a date-time in the time zone of the browser and gives it in UTC', () => {
+    // the end-to-end tests fill `2030-03-04T10:00` in a browser in UTC (`timezoneId`)
+    const onChange = vi.fn();
+    render(
+      <FieldInput field={attribute('dt_start', 'string', { format: 'date-time' })} value="2030-03-04T10:00:00Z" onChange={onChange} />,
+    );
+    const control = screen.getByTestId<HTMLInputElement>('field:dt_start');
+    expect(control.type).toBe('datetime-local');
+    const local = new Date('2030-03-04T10:00:00Z');
+    const pad = (value: number) => String(value).padStart(2, '0');
+    expect(control.value).toBe(
+      `${String(local.getFullYear())}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`,
+    );
+    fireEvent.change(control, { target: { value: '2030-03-05T11:30' } });
+    expect(onChange).toHaveBeenCalledWith(new Date('2030-03-05T11:30').toISOString());
   });
 
   it('renders the controls by type and keeps read-only fields', () => {
@@ -226,5 +246,40 @@ describe('permitted', () => {
     expect(permitted({ crud_actions: ['view'] }, 'change')).toBe(false);
     expect(permitted({}, 'delete', 'a')).toBe(true);
     expect(permitted(undefined, 'add')).toBe(true);
+  });
+});
+
+describe('the label of a related item', () => {
+  it('is its first attribute of name, title, username, email, slug and code, else its id', () => {
+    expect(itemLabel(resource('1', { code: 'C', email: 'ann@example.com', username: 'ann' }))).toBe('ann');
+    expect(itemLabel(resource('1', { name: '', title: 'Plan', username: 'ann' }))).toBe('Plan');
+    expect(itemLabel(resource('1', { slug: 's', code: 'C' }))).toBe('s');
+    expect(itemLabel(resource('7', { size: 3 }))).toBe('7');
+  });
+
+  it('is read with the other items of the resource on the screen, also as a text', async () => {
+    // a text of the product with the label (`t('booking.of', {name})`): the hook of
+    // `RelationLabel` and `itemLabel`
+    function Named({ id }: { id: string }) {
+      const item = useAnyRelated(ITEMS, id);
+      return <span data-bz="field:named">{item.data ? itemLabel(item.data) : id}</span>;
+    }
+    const backend = new Backend().on('GET', ITEMS, {
+      data: [resource('1', { username: 'ann' }), resource('2', { title: 'Plan' })],
+    });
+    renderWithBazis(
+      <>
+        <span data-bz="field:label">
+          <RelationLabel relation="test.item" id="1" path={ITEMS} />
+        </span>
+        <Named id="2" />
+      </>,
+      backend,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('field:label').textContent).toBe('ann');
+    });
+    expect(screen.getByTestId('field:named').textContent).toBe('Plan');
+    expect(backend.requests('GET')).toHaveLength(1);
   });
 });

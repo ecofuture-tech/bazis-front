@@ -21,6 +21,7 @@
 import { Lock, Pencil } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
+import type { PermitMeta } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ItemPath } from '@/bazis/react';
@@ -74,9 +75,11 @@ export interface ResourceCardProps {
   values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>;
   /**
    * Under the heading: the transits of the item (`TransitBar` of transit-bar), its status
-   * history (`StatusHistory` of status-history, which takes the item).
+   * history (`StatusHistory` of status-history, which takes the item), a section of the
+   * product, given the permission meta of the item (`crud_actions`: `permitted(meta,
+   * 'change')`) without a request of its own.
    */
-  children?: ReactNode | ((item: ResourceObject) => ReactNode);
+  children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode);
   /** The edit in a dialog or as a page; `composition.forms` of the theme by default. */
   forms?: 'dialog' | 'page';
 }
@@ -244,7 +247,7 @@ export function ResourceCard({
             ))}
         </div>
       </header>
-      {typeof children === 'function' ? children(data) : children}
+      {typeof children === 'function' ? children(data, meta) : children}
       {changeable ? (
         <EditableSections path={path} id={id} sections={sections} item={data} fields={fields} values={values} />
       ) : (

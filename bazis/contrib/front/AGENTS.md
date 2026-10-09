@@ -151,7 +151,7 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?, cells?, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})` | `list:<entity>`, `row:<id>` with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item) => node, forms?: 'dialog' \| 'page'})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?: 'dialog' \| 'page'})` (`meta`: the permission meta of the item, `crud_actions`) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
@@ -196,8 +196,13 @@ the package documents each component.
   `username`); `RelationLabel` shows a related item, the
   items of a resource shown together (the rows of a page) read with one request
   (`useRelatedItem`, `filter=pk=<a>|pk=<b>|…`). Both need the route of the related resource
-  in `ROUTES`; the user sees the items its list returns to them. To-many relationships are
-  shown, not edited, by the components: change them with `useRelationship`.
+  in `ROUTES`; the user sees the items its list returns to them. **The label of an item** in
+  both is its first non-empty attribute of `name`, `title`, `username`, `email`, `slug`,
+  `code` (`itemLabel` of `@/bazis/ui/resource`), else its id (the start of a long one): show
+  such an attribute in the LIST schema of the related route set. The label as a text (a
+  parameter of a message, `t('booking.of', {name})`) is `itemLabel` of the item of
+  `useRelatedItem(ROUTES[type], id)`. To-many relationships are shown, not edited, by the
+  components: change them with `useRelationship` (see the template's `AGENTS.md`).
 - **Files** (bazis-uploadable): a model references an uploaded file with a foreign key to
   `uploadable.FileUpload`; its field is a to-one relationship to `uploadable.file_upload`
   (a resource of `resources` of the capability `uploadable`), `type: file` in the specs.
@@ -812,7 +817,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where}` | `openItem({where})`: the first `row:<id>` of the page whose cells `cell:<name>` have exactly these texts; then `expectScreen` of `list.open` |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
+  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
@@ -856,6 +861,38 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   of the backend (`timezoneId`, `locale`): the times that the scenarios fill and the dates
   they read are in UTC, like the data of `e2e_data`. In CI, an HTML report is written to
   `frontend/playwright-report/`.
+
+## The backend of a product
+
+What the frontend relies on in the backend, as the sample of the bazis-front repository
+(`sample/`, not in the package) does it:
+
+- **The roles, the permissions, the statuses and the transits are one data migration**
+  (`sample/tasks/migrations/0005_workflow.py`): its data frozen in it (the permissions of each
+  permission group, the roles with their groups, the statuses, the transits with their
+  actions), a function `create_workflow(apps, schema_editor=None)` that creates them with
+  `apps.get_model` and `get_or_create`/`update_or_create` (data that exists is kept),
+  `name_en` (and `name_ru`, or another migration: `0006_workflow_ru.py`) for the names, the
+  content type of the model `get_or_create`d (the migration runs before the content types
+  are created), and `RunPython(create_workflow, RunPython.noop)`. A change is a new migration.
+  `access` of the specs is what its permissions cover (P019).
+- **The tests run it again**: a test that calls the API is `django_db(transaction=True)` and
+  empties the tables after it, so a fixture `workflow` (`tests/conftest.py`
+  of the repository) clears the cached content types (`ContentType.objects.clear_cache()`,
+  `StatusyContentType.objects.clear_cache()` with bazis-statusy) and calls the functions of
+  the migrations with `django.apps.apps`; the tests that need the data take the fixture. The
+  rest of the setup of the tests (the triggers of `pgtrigger`) is in the guide of
+  bazis-test-utils.
+- **The test data of the end-to-end tests** is `manage.py e2e_data` (see
+  [The end-to-end tests](#the-end-to-end-tests); `sample/tasks/management/commands/e2e_data.py`
+  and `sample/tasks/workflow.py`).
+- **The changes and the notifications** reach the frontend through bazis-ws in the formats of
+  [The socket](#the-socket), published after the commit and robustly
+  (`sample/tasks/notify.py`: the change of a task on the common channel without its id, the
+  notification of the assignee on his channel, from `save()` and from an action of a
+  transit).
+- **The screens** are product code over the components (`sample/frontend-overlay/src/`, copied
+  over a frontend made by `init`): the template's `AGENTS.md` shows how to compose them.
 
 ## Updating the copies
 

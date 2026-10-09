@@ -23,6 +23,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest';
 
 import { Screen } from '@/bazis/ui/app-shell';
+import { permitted } from '@/bazis/ui/resource';
 import { ResourceCard } from '@/bazis/ui/resource-card';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema, testLanguages } from '@/bazis/ui/testing';
 
@@ -59,6 +60,22 @@ describe('ResourceCard', () => {
       expect(await screen.findByTestId(`state:${state}`)).toBeTruthy();
       card.unmount();
     }
+  });
+
+  it('gives a section of the product the item and its permission meta', async () => {
+    // what the user may do on the item (`crud_actions` of the card), without another request
+    const server = backend({ crud_actions: ['view', 'change'] });
+    renderWithBazis(
+      <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections}>
+        {(item, meta) => (
+          <span data-bz="field:mine">{`${String(item.attributes?.title)} ${permitted(meta, 'change') ? 'change' : 'view'}`}</span>
+        )}
+      </ResourceCard>,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.getByTestId('field:mine').textContent).toBe('Report change');
+    expect(server.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`))).toHaveLength(1);
   });
 
   it('shows the fields of its sections', async () => {

@@ -139,6 +139,27 @@ test('fill fills the open form only, waiting for the options of a select', async
   await expect(dialog.locator(bz('field', 'urgent'))).not.toBeChecked();
 });
 
+test.describe('fill of a date-time', () => {
+  // as the browser of the end-to-end tests of a product (`timezoneId` of its config)
+  test.use({ timezoneId: 'UTC' });
+
+  test('takes the local date-time of the input, sent in UTC', async ({ page }) => {
+    // `FieldInput`: an `<input type="datetime-local">`, its value sent as
+    // `new Date(value).toISOString()` (`fromLocalDateTime`)
+    const form = `<form><input type="datetime-local" data-bz="field:dt_start">
+      <button type="submit" data-bz="action:submit">Save</button></form>`;
+    await show(page, '/tasks', html(`<section data-bz="screen:task-list"><div data-bz="state:loaded">${form}</div></section>`));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    await app.fill({ dt_start: '2030-03-04T10:00' });
+    const input = page.locator(bz('field', 'dt_start'));
+    await expect(input).toHaveValue('2030-03-04T10:00');
+    expect(await input.evaluate((element: HTMLInputElement) => new Date(element.value).toISOString())).toBe(
+      '2030-03-04T10:00:00.000Z',
+    );
+  });
+});
+
 test('fill chooses the item of a combobox by its label, null by the option that clears it', async ({ page }) => {
   // the picker of a relationship: its popup (`aria-controls`) opens after a delay, and the
   // backend answers the search after another one

@@ -421,6 +421,22 @@ The dev server proxies the socket (`vite.config.ts` reads its path from the cont
 Pub/sub keeps nothing: the notifications published while the page was closed are not
 shown, and `LiveQuery` refetches every query after a reconnect.
 
+- **Composing beyond the specs** (the props of every component are in the table of the
+  guide of bazis-front, "The components", and in the `Props` types of `src/bazis/ui/`):
+  - a section of your own in a card: `children` of `ResourceCard` is `(item, meta) => …`,
+    the item and its permission meta (`permitted(meta, 'change')` of `@/bazis/ui/resource`,
+    from `crud_actions`), without a second `useItem`;
+  - a to-many relationship (the participants of a booking): the card shows it read-only; a
+    section of your own changes it with `useRelationship(path).mutate({id, field, operation:
+    'add' | 'remove' | 'replace', data: [{type, id}]})`, the item chosen with
+    `RelationPicker({relation, value: null, onChange})` of `@/bazis/ui/resource`; its errors
+    are all in `formErrors()`;
+  - the label of a related item (`RelationPicker`, `RelationLabel`) is its first non-empty
+    attribute of `name`, `title`, `username`, `email`, `slug`, `code`, else its id; as a text
+    (`t('booking.of', {name})`: `{name}` is the parameter `name`), `itemLabel` of
+    `@/bazis/ui/resource` of `useRelatedItem(ROUTES[type], id).data`;
+  - a status: `StatusBadge` in `cells` of a list and in `badge` of a card, the options of its
+    filter `statusOptions(type)`, as in the example above.
 - **The components are the product's.** Change their look, texts and layout in
   `src/bazis/ui/` as the product needs; keep `npm test` passing: the contract test of a
   component (`<component>.contract.test.tsx`) checks the `data-bz` marks and the states
