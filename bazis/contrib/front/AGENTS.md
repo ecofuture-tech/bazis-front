@@ -952,9 +952,10 @@ and the file of the frontend:
   that kept no pristine copy of the template (its lock entry `"template"` has only the
   version) has no base for it: `update` adopts it without a merge, writes none of its files,
   records the template of the new version as its base (`.bazis/base/template@<version>/`)
-  and lists the files that differ from it (or are missing): review each against that copy
-  and take what the product lacks (a fix of `playwright.config.ts`); from then on they are
-  changes of the product.
+  and lists the files that differ from it: review each against that copy and take what the
+  product lacks (a fix of `playwright.config.ts`); from then on they are changes of the
+  product. A file of the new template that the frontend lacks is listed as missing (new in
+  that version, or removed by the product): copy it from there if the product needs it.
 - The theme is generated, not copied: run `bazis_front design` after `update` (`front.W005`
   reports a theme that the new version renders otherwise). A frontend made before the design
   layer has no theme: run `bazis_front design`, replace the variables of `:root` and `.dark`
@@ -981,7 +982,9 @@ then `npx tsc --noEmit`, `npm run lint` and `npm test` (the contract tests of th
 components) in `frontend/`. `tsc` reports a marker left in a `.ts`/`.tsx` file (`TS1185`),
 not in `package.json`, a config or `AGENTS.md`: the lock records the files of the conflicts
 (`conflicts`), and until none of them has a marker line left `update --check` and
-`front.W004` report them and `update` refuses to run. Commit the frontend with
+`front.W004` report them and `update` refuses to run. A file whose own content has such a
+line (a marker on purpose, in a test or a document) is released by removing its path from
+`conflicts` of the lock. Commit the frontend with
 `.bazis/` and the lock. The client, the hooks and the helpers are never edited, so they
 are replaced without conflicts; wrap them in the product code instead.
 

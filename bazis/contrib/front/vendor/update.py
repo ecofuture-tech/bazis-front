@@ -101,6 +101,8 @@ DELETED = 'deleted'
 BINARY = 'binary'
 #: of a template adopted without a pristine copy, different from this version: kept, reviewed by hand
 DIFFERS = 'differs'
+#: of a template adopted without a pristine copy, not in the frontend: not added
+MISSING = 'missing'
 
 DESCRIPTIONS = {
     REPLACED: 'replaced (unchanged in the frontend)',
@@ -115,6 +117,8 @@ DESCRIPTIONS = {
     'with its pristine copy in .bazis/base/',
     DIFFERS: 'kept: differs from the template of bazis-front, review it against its pristine '
     'copy in .bazis/base/',
+    MISSING: 'missing: new in this version or removed by the product; add it from its pristine '
+    'copy in .bazis/base/ if the product needs it',
 }
 
 #: the statuses that write a new version of a file of bazis-front
@@ -217,7 +221,9 @@ def unresolved(frontend: Path, lock: dict) -> list[str]:
 def unresolved_message(paths: list[str]) -> str:
     return (
         f'The conflicts of the last update are not resolved in {", ".join(paths)}: resolve '
-        f'their markers (<<<<<<< {LOCAL_NAME}, =======, >>>>>>> bazis-front <version>).'
+        f'their markers (<<<<<<< {LOCAL_NAME}, =======, >>>>>>> bazis-front <version>). A line '
+        'of the file that only looks like a marker: remove its path from `conflicts` of '
+        f'{frontend_lock.LOCK_FILE}.'
     )
 
 
@@ -367,6 +373,9 @@ def update_files(frontend: Path, name: str, entry: dict, asset: Asset | None, ve
                 updates.append(FileUpdate(path, REPLACED, new))
         elif new is None:
             updates.append(FileUpdate(path, ORPHANED))
+        elif new == local:
+            # the frontend has the new version already (a binary file too): nothing to do
+            continue
         else:
             try:
                 base = pristine(frontend, name, entry, path, relative)
@@ -382,15 +391,15 @@ def untracked_files(frontend: Path, asset: Asset, version: str) -> list[FileUpda
     """
     The files of an asset copied without a pristine copy (the template of a development
     version that kept none, its lock entry without files), adopted: nothing is written, the
-    files of this version become its base, and those that differ (or are missing) are
-    reported for the developer to review against it; they are the product's changes from
-    then on.
+    files of this version become its base, and those that differ are reported for the
+    developer to review against it (they are the product's changes from then on), those
+    that are missing too (new in this version, or removed by the product: not added).
     """
     updates = []
     for path, (_, new) in copies(asset, version).items():
         target = frontend / path
         if not target.is_file():
-            updates.append(FileUpdate(path, DELETED))
+            updates.append(FileUpdate(path, MISSING))
         elif target.read_bytes() != new:
             updates.append(FileUpdate(path, DIFFERS))
     return updates

@@ -178,7 +178,9 @@ def check_update(app_configs, **kwargs):
             Warning(
                 ' '.join(problems),
                 hint='Update them with `manage.py bazis_front update` (`--check` lists the '
-                'changes), resolve the conflicts it reports and run the checks of the frontend.',
+                'changes), resolve the conflicts it reports and run the checks of the frontend. '
+                'A line that only looks like a conflict marker: remove the path of its file from '
+                '`conflicts` of frontend/bazis-front.lock.json.',
                 id='front.W004',
             )
         ]

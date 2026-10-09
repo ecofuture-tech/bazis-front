@@ -273,10 +273,17 @@ def test_update_writes_the_conflicts_and_fails(product):
     # until then, the check and the system check report them, and no update runs
     message = f'The conflicts of the last update are not resolved in {CLIENT}'
     assert w004()[0].msg.startswith(message)
+    assert 'remove its path from `conflicts` of bazis-front.lock.json' in w004()[0].msg
+    assert '`conflicts` of frontend/bazis-front.lock.json' in w004()[0].hint
     with pytest.raises(CommandError, match=message):
         update('--check')
     with pytest.raises(CommandError, match=message):
         update()
+    # a marker on purpose: released by removing the file from the conflicts of the lock
+    lock = read_lock(product)
+    write_lock(product, {**lock, 'conflicts': []})
+    assert w004() == []
+    write_lock(product, lock)
     path.write_text(change_line(new, late(new), '// mine\n'), encoding='utf-8')
     assert w004() == []
     assert update('--check').endswith(f'are those of bazis-front {__version__}.\n')
@@ -595,7 +602,9 @@ def test_update_adopts_a_template_without_its_pristine_copy(product):
     out = update()
     assert f'template: {OLD} -> {__version__} ({OLD} kept no pristine copy of it: adopted' in out
     assert f'  {PLAYWRIGHT_CONFIG}: kept: differs from the template of bazis-front, review it' in out
-    assert '  AGENTS.md: not restored (deleted in the frontend)\n' in out
+    # new in this version or removed by the product: not added, never "deleted"
+    assert '  AGENTS.md: missing: new in this version or removed by the product; add it' in out
+    assert 'deleted in the frontend' not in out
     assert ROUTER not in out
     assert 'npm install' not in out
     # nothing of the frontend is written but its lock and the pristine copy
@@ -643,6 +652,10 @@ def test_update_keeps_a_binary_file_changed_in_the_frontend(tmp_path):
     assert vendor_update.DESCRIPTIONS[changed.status].startswith('KEPT: changed in the frontend and in bazis-front, not text')
     [kept] = updated(old)
     assert (kept.status, kept.data) == (vendor_update.KEPT, None)
+    # the frontend has the new version already: nothing to merge or report
+    (frontend / 'logo.png').write_bytes(new)
+    assert updated(new) == []
+    (frontend / 'logo.png').write_bytes(mine)
     # unchanged in the frontend: replaced, as any file
     (frontend / 'logo.png').write_bytes(old)
     [replaced] = updated(new)
