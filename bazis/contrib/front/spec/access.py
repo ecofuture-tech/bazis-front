@@ -40,7 +40,7 @@ fields, `check`), and the absence of an operation is checked by the scenarios
 
 from dataclasses import dataclass
 
-from .issues import EXPORT_HINT, Document, Issues
+from .issues import DECLARE_ROLES, EXPORT_HINT, Document, Issues
 
 
 CRUD = ('view', 'add', 'change', 'delete')
@@ -244,5 +244,5 @@ def check(
                     f'The permit role `{permit_role["slug"]}` has no permission `{grant.slug}`, '
                     f'which the access of `{role_id}` to `{data["id"]}` grants.',
                     f'Add `{grant.slug}` to a permission group of the role `{permit_role["slug"]}` '
-                    f'(in a data migration), and {EXPORT_HINT}; or change the access.',
+                    f'({DECLARE_ROLES}), migrate, and {EXPORT_HINT}; or change the access.',
                 )

@@ -53,7 +53,10 @@ names of its roles, statuses and transits the data migration `0006_workflow_ru.p
 and the end-to-end test `frontend-overlay/e2e/custom/profile-language.spec.ts` check
 (`e2e_data` clears the language of the test users). The roles, statuses and
 transits are the data migration `sample/tasks/migrations/0005_workflow.py`, its data frozen
-there as in any migration (as a product creates them; the fixture `workflow`,
+there as in any migration (the way before the declarations of bazis-permit and
+bazis-statusy 2.9, `roles.py` and `workflow.py`, which the guide teaches; the sample moves
+to them once both are on PyPI (then it requires them), and its e2e data module is `tasks/e2e.py`, not
+`workflow.py`, for that; the fixture `workflow`,
 `tests/conftest.py`, runs its function again after a test that flushed the tables, and
 `tests/test_e2e.py` checks the migrated data against `sample/spec/`), with
 field permissions (the viewer does not see the report, the manager may not change it) that

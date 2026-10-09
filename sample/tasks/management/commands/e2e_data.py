@@ -17,7 +17,7 @@ import os
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from tasks.workflow import TEST_USERS, create_test_data
+from tasks.e2e import TEST_USERS, create_test_data
 
 
 class Command(BaseCommand):

@@ -424,7 +424,7 @@ def test_the_e2e_data_of_the_sample(monkeypatch):
     from django.apps import apps
     from django.contrib.auth import get_user_model
 
-    from tasks.workflow import TASK
+    from tasks.e2e import TASK
 
     roles = set(apps.get_model('permit.Role').objects.values_list('pk', flat=True))
     monkeypatch.delenv('E2E_PASSWORD', raising=False)

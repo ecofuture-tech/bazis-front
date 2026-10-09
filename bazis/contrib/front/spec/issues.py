@@ -27,6 +27,13 @@ WARNING = 'warning'
 
 #: the end of the hints of the issues fixed in the backend
 EXPORT_HINT = 'export the contract again with `manage.py bazis_front contract`'
+#: where the backend declares its roles and its workflows, which `migrate` applies (the
+#: declarations of bazis-permit and bazis-statusy 2.9; the data migrations before them)
+DECLARE_ROLES = 'in `roles.py` of an app with bazis-permit 2.9, in a data migration before it'
+DECLARE_WORKFLOWS = (
+    'a Workflow in `workflow.py` of an app with bazis-statusy 2.9, the Status and Transit rows '
+    'in a data migration before it'
+)
 
 #: the layer of the issues of contract/contract.json, reported whatever layers are checked
 CONTRACT = 'contract'

@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import access
-from .issues import EXPORT_HINT, Document, Issues
+from .issues import DECLARE_ROLES, DECLARE_WORKFLOWS, EXPORT_HINT, Document, Issues
 
 
 #: the field of an entity with a workflow: its status (bazis-statusy)
@@ -331,7 +331,8 @@ def _check_roles(doc: Document, product: Product, contract: dict, issues: Issues
             issues.add(
                 doc, ('roles', i, 'permit'), 'P018',
                 f'The permit role `{role["permit"]}` of the role `{role["id"]}` is not in the contract.',
-                f'Create the Role `{role["permit"]}` of bazis-permit (in a data migration), and {EXPORT_HINT}.',
+                f'Create the Role `{role["permit"]}` of bazis-permit ({DECLARE_ROLES}), migrate, '
+                f'and {EXPORT_HINT}.',
             )
 
 
@@ -415,7 +416,10 @@ def _check_workflow(doc: Document, entity: Entity, contract: dict, issues: Issue
             f'or remove the workflow; then {EXPORT_HINT}.',
         )
         return
-    hint = f'Create the Status and Transit rows of `{data["resource"]}` (in a data migration), and {EXPORT_HINT}.'
+    hint = (
+        f'Create the statuses and transits of `{data["resource"]}` ({DECLARE_WORKFLOWS}), '
+        f'migrate, and {EXPORT_HINT}.'
+    )
     if workflow['initial'] != model['initial']:
         issues.add(
             doc, (*path, 'workflow', 'initial'), 'P015',

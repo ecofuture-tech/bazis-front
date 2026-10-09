@@ -542,7 +542,9 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   `list:notifications`, which waits for a `notification:<key>` with the text). A screen that renders the marks of its spec (the components do) passes its
   scenarios; a screen without them fails them, even when it looks right.
 - **The test data is the backend's job**, never created by the tests: the tests run
-  against a migrated backend (its data migrations create the roles, statuses and transits)
+  against a migrated backend (`migrate` creates the roles, statuses and transits: the
+  declarations of `roles.py` and `workflow.py`, or the data migrations before bazis-permit
+  and bazis-statusy 2.9)
   after `python manage.py e2e_data` (the e2e data command recommended by bazis-front; see
   its guide, "The end-to-end tests"), with the same
   `E2E_PASSWORD`. It creates only a user per `test_user` of the roles of the specs (with its
