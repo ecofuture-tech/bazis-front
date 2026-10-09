@@ -19,7 +19,7 @@ test('manager-cannot-change-the-report', async ({ page }) => {
     await app.fill({ title: 'Draft the report' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: draft, field_readonly: report}', async () => {

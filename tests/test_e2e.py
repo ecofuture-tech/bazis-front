@@ -117,10 +117,10 @@ def test_the_text_of_a_scenario():
         "    await app.fill({ title: 'Write the report' });\n"
         '  });\n'
     ) in text
-    # the form of `create` leads to its `then`, the card
+    # the form of `create` must save, and leads to its `then`, the card
     assert (
         "  await test.step('submit', async () => {\n"
-        '    await app.submit();\n'
+        '    await app.submit({ saved: true });\n'
         "    await app.expectScreen('task-card');\n"
         '  });\n'
     ) in text
@@ -135,14 +135,14 @@ def test_the_text_of_a_scenario():
 
 def test_the_upload_of_a_file_and_the_values_of_a_card():
     text = rendered(REPOSITORY / 'sample')[ATTACHES]
-    # the upload starts the edit of the card; its submit stays on the card
+    # the upload starts the edit of the card; its submit must save, and stays on the card
     assert (
         "  await test.step('upload: {field: attachment, file: brief.txt}', async () => {\n"
         "    await app.action('edit');\n"
         "    await app.upload('attachment', 'brief.txt');\n"
         '  });\n'
         "  await test.step('submit', async () => {\n"
-        '    await app.submit();\n'
+        '    await app.submit({ saved: true });\n'
         '  });\n'
         "  await test.step('expect: {values: {title: Attach the brief, attachment: brief.txt}}', async () => {\n"
         "    await app.expectValues({ title: 'Attach the brief', attachment: 'brief.txt' });\n"
@@ -220,30 +220,55 @@ def test_the_steps_follow_the_walk_of_the_scenario(tmp_path):
 
 def test_a_submit_followed_by_an_error_fails():
     result = validate(REPOSITORY / 'sample')
-    steps = [(it.name, it.edit, it.then) for it in result.specs.scenarios['manager-cannot-save-an-empty-title']]
+    steps = [(it.name, it.edit, it.then, it.failing) for it in result.specs.scenarios['manager-cannot-save-an-empty-title']]
     assert steps == [
-        ('open', False, None),
-        ('action', False, None),
-        ('fill', False, None),
+        ('open', False, None, False),
+        ('action', False, None, False),
+        ('fill', False, None, False),
         # the next step expects an error: the form of `create` stays open, no `then`
-        ('submit', False, None),
-        ('expect', False, None),
-        ('fill', False, None),
-        ('submit', False, 'task-card'),
-        ('expect', False, None),
+        ('submit', False, None, True),
+        ('expect', False, None, False),
+        ('fill', False, None, False),
+        ('submit', False, 'task-card', False),
+        ('expect', False, None, False),
         # the edit of the card starts with its first change
-        ('fill', True, None),
-        ('submit', False, None),
-        ('expect', False, None),
+        ('fill', True, None, False),
+        ('submit', False, None, True),
+        ('expect', False, None, False),
         # the edit is still open after the failing submit
-        ('fill', False, None),
-        ('submit', False, None),
-        ('transit', False, None),
-        ('expect', False, None),
+        ('fill', False, None, False),
+        ('submit', False, None, False),
+        ('transit', False, None, False),
+        ('expect', False, None, False),
     ]
     text = rendered(REPOSITORY / 'sample')[EMPTY_TITLE]
     assert text.count("await app.action('edit');") == 1
     assert text.count("await app.expectScreen('task-card');") == 2
+    # the failing submits only wait for the form; the others must save
+    assert text.count('await app.submit();') == 2
+    assert text.count('await app.submit({ saved: true });') == 2
+
+
+def test_a_submit_followed_by_a_state_of_a_failure_does_not_need_to_save(tmp_path):
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+
+    def scenario(data):
+        data['scenarios'].append({
+            'id': 'manager-is-refused',
+            'role': 'manager',
+            'steps': [
+                {'open': 'task-list'}, {'action': 'create'}, {'fill': {'title': 'Refused'}},
+                {'submit': {}}, {'expect': {'state': 'forbidden'}},
+            ],
+        })
+
+    edit_product(tmp_path, scenario)
+    result = validate(tmp_path)
+    [submit] = [it for it in result.specs.scenarios['manager-is-refused'] if it.name == 'submit']
+    # a state does not keep the form open in the walk: the `then` is still followed
+    assert (submit.failing, submit.then) == (True, 'task-card')
+    text = rendered(tmp_path)['e2e/generated/manager-is-refused.spec.ts']
+    assert '    await app.submit();\n' in text and 'saved' not in text
 
 
 def test_the_product_module():

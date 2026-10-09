@@ -19,7 +19,7 @@ test('manager-assigns-a-task', async ({ page }) => {
     await app.fill({ title: 'Assign the review', assignee: 'manager' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: draft}', async () => {

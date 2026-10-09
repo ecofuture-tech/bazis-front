@@ -213,7 +213,7 @@ the package documents each component.
   left out of the form, or shown read-only when `fields` names it). `add` is shown when the
   backend allows the create (`for_create` of the list); leave it out while the item takes no
   more related items (`add={permitted(meta, 'change') ? {...} : undefined}`, the `meta` of
-  the card): the backend still checks the create. A form of your own uses
+  the card), and refuse them in the backend too (below). A form of your own uses
   `useResourceForm(path, {fixed})` the same way; never set the value with an effect.
 - **The filters of a list** (`filters`): a control per field, by its type in
   `route_filter_fields/` (`py_type`): a select of `options` (the statuses:
@@ -934,7 +934,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
-  | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
+  | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects it to fail (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); then `expectScreen` of the `then` of the form, unless the next step expects an `error` (the form stays open) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
 
@@ -1043,6 +1043,19 @@ What the frontend relies on in the backend, as the sample of the bazis-front rep
 
   publish_changed(task)
   notify(task.assignee, lambda user: notification(_('Task finished'), task.title, task))
+  ```
+- **Every rule that the frontend follows to hide an action is a rule of the backend too**:
+  the frontend is not a security boundary, and a hidden button stops nobody who sends the
+  request. A permission is a permission of bazis-permit (the frontend reads its meta); an
+  invariant of the data (a step is added to a draft task only, an approval within the
+  budget) is `validate_item` of the model (the core: 422 `ERR_ITEM_INVALID` pointing at the
+  field, which the forms show), as `tasks.models.Step` of the sample does, with a test of
+  the API that the request is refused:
+
+  ```python
+  def validate_item(self, changes):
+      if (changes.is_new or 'task' in changes.fields) and self.task.status_id != 'draft':
+          raise ValidationError({'task': _('A step is added to a draft task only')})
   ```
 - **The labels of the choices** of a model field are those of its `choices` (`TextChoices`
   with English labels in `gettext_lazy`, translated by the catalogs of the project): the

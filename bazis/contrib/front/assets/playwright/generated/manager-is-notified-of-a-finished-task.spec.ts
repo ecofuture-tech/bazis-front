@@ -19,7 +19,7 @@ test('manager-is-notified-of-a-finished-task', async ({ page }) => {
     await app.fill({ title: 'Notify the assignee', assignee: 'manager' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: draft}', async () => {

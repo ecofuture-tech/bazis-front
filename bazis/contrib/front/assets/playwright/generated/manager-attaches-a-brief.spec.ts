@@ -19,7 +19,7 @@ test('manager-attaches-a-brief', async ({ page }) => {
     await app.fill({ title: 'Attach the brief' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: draft}', async () => {
@@ -31,7 +31,7 @@ test('manager-attaches-a-brief', async ({ page }) => {
     await app.upload('attachment', 'brief.txt');
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
   });
   await test.step('expect: {values: {title: Attach the brief, attachment: brief.txt}}', async () => {
     await app.expectValues({ title: 'Attach the brief', attachment: 'brief.txt' });

@@ -19,7 +19,7 @@ test('manager-sets-the-priority', async ({ page }) => {
     await app.fill({ title: 'Ship the release', priority: 'High' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, values: {priority: High}}', async () => {

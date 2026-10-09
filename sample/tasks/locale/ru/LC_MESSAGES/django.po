@@ -50,6 +50,9 @@ msgstr "Шаг"
 msgid "Steps"
 msgstr "Шаги"
 
+msgid "A step is added to a draft task only"
+msgstr "Шаг добавляется только к черновику задачи"
+
 msgid "Task finished"
 msgstr "Задача завершена"
 

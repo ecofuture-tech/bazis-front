@@ -172,3 +172,7 @@ scenarios:
       - fill: {title: Book the room}
       - submit: {}
       - expect: {screen: task-card, status: draft}
+      # a started task takes no more steps: the card no longer offers it (Step.validate_item
+      # refuses them in the backend too)
+      - transit: start
+      - expect: {status: in_progress, action_absent: add-step}

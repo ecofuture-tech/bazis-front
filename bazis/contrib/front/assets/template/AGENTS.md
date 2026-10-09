@@ -124,7 +124,9 @@ written.
   the permission meta (`for_change`, `for_delete`, `for_create` on a list, `crud_actions`
   on an item), read it with `can()`, and take the fields of a form from its runtime schema
   (`useResourceForm`). Hide or disable what the backend does not allow; a link of the
-  navigation names what it `requires` (below), never a role.
+  navigation names what it `requires` (below), never a role. A rule by which a screen hides
+  an action (no "add here" once the item is no longer a draft) is also a rule of the
+  backend: a permission, or `validate_item` of the model for an invariant of the data.
 - Check for an optional package with `CAPABILITIES.<name> !== null` (`contract.ts`): the
   login exists only with bazis-users (`LOGIN_ENABLED` of `src/app/session.ts`).
 - **The login** (`src/app/session.ts`, `src/screens/login/`): the token endpoint of
@@ -577,7 +579,9 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   to run and nothing they add up to (a budget, a count) drifts. The tests share that
   database and run one at a time; no scenario relies on what another one created.
 - A `submit` followed by `expect: {error: <field>}` is a failing submit: the test expects
-  the error of the backend in the open form, which stays open for the next steps.
+  the error of the backend in the open form, which stays open for the next steps. Any other
+  submit must save (`submit({saved: true})`): when the form stays open with an error, the
+  test fails with its text, also on a card where no `then` follows.
 - `npm run e2e` starts its own dev server on `E2E_PORT` (5173 by default), whose `/api` goes
   to `BAZIS_API_URL` (`http://localhost:8000` by default, also read from `.env.local`, as
   for `npm run dev`), and starts the tests once the backend answers its health check

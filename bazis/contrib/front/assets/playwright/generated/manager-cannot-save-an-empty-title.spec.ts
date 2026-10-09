@@ -28,7 +28,7 @@ test('manager-cannot-save-an-empty-title', async ({ page }) => {
     await app.fill({ title: 'Plan the week' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: draft}', async () => {
@@ -49,7 +49,7 @@ test('manager-cannot-save-an-empty-title', async ({ page }) => {
     await app.fill({ title: 'Plan the next week' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
   });
   await test.step('transit: start', async () => {
     await app.transit('start');

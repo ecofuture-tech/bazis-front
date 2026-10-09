@@ -38,7 +38,8 @@ of the assignee searches: the core 2.9 answers a search of a route set without t
 400) and a statusy model `tasks.Task` (searched by its title; its `priority` has choices, whose
 labels the runtime schemas give translated, `enumDict`, which the frontend shows, offers and
 filters by; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
-`card.related` of the card of a task, added there with the task fixed), whose `attachment` is a file of bazis-uploadable (a foreign key to
+`card.related` of the card of a task, added there with the task fixed, to a draft only:
+`Step.validate_item`, `tests/test_steps.py`), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
 bazis-uploadable, routed as it is: it requires a user and gives him only his own files,
 also to the other routes, so the core refuses as the attachment of a task a file of another
@@ -162,8 +163,9 @@ frontend made from the sample by the `e2e` job of CI.
   `contract`) through `SystemCheckError`.
 - `spec/scenarios.py` is the only reading of the steps of a scenario: its walk reports the
   issues and returns the steps (`Step`: the name, the value, whether it starts the edit of
-  a card, the screen it leads to; a `submit` followed by an `expect` of an `error` fails and
-  keeps its form open) in `validate.Result.specs`, which `spec/e2e.py` turns into
+  a card, the screen it leads to, whether a `submit` is expected to fail; a `submit` followed
+  by an `expect` of an `error` fails and keeps its form open, any submit not expected to fail
+  is generated as `submit({saved: true})`, which fails the test when the form stays open) in `validate.Result.specs`, which `spec/e2e.py` turns into
   calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the tables of the AGENTS.md files.
 - `spec/theme.py` (`bazis_front design`, also run by `init`) compiles the design into

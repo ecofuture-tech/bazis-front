@@ -49,6 +49,23 @@ class Step:
     #: `open_item`, the `then` of a destroy action or of the submitted form; None when the
     #: screen stays (or is named by the step, `open`), as after a failing submit
     then: str | None = None
+    #: a `submit` that the next step expects to fail (`expected_to_fail`): its test waits for
+    #: the form only; any other submit must save, or its test fails with the error shown
+    failing: bool = False
+
+
+#: the states of a screen that a submit which does not save shows
+FAILED_STATES = {'invalid', 'error', 'forbidden', 'not_found'}
+
+
+def expected_to_fail(steps: list[dict], index: int) -> bool:
+    """
+    Whether the next step of the `submit` at the index expects it to fail: the `error` of a
+    field, or a state of a failure. Every other submit saves.
+    """
+    following = steps[index + 1] if index + 1 < len(steps) else {}
+    expect = following.get('expect', {})
+    return 'error' in expect or expect.get('state') in FAILED_STATES
 
 
 def fails(steps: list[dict], index: int) -> bool:
@@ -125,7 +142,8 @@ class _Scenario:
             self.edit, self.then = False, None
             self.failing = name == 'submit' and fails(self.scenario['steps'], i)
             getattr(self, f'step_{name}')((*self.path, 'steps', i, name), value)
-            steps.append(Step(name, value, self.edit, self.then))
+            failing = name == 'submit' and expected_to_fail(self.scenario['steps'], i)
+            steps.append(Step(name, value, self.edit, self.then, failing))
         return steps
 
     def add(self, path, code, message, hint):

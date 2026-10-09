@@ -242,13 +242,17 @@ export class App<P extends Product = Product> {
   /**
    * Submits the open form and waits until it is closed (saved) or shows an error of this
    * submit (not one of a previous submit), which the next step expects (`expectError`,
-   * `expectState`).
+   * `expectState`). With `saved`, a submit that must save: it fails with the errors shown
+   * when the form stays open.
    */
-  async submit(): Promise<void> {
+  async submit({ saved = false }: { saved?: boolean } = {}): Promise<void> {
     const form = this.form();
     await this.seen(form);
     await form.locator(bz('action', 'submit')).click();
     await this.until(form, form.locator(NEW_FAILED), 'the form is closed or shows an error');
+    if (!saved || (await form.count()) === 0) return;
+    const shown = (await form.locator(NEW_FAILED).allInnerTexts()).join(' ').replace(/\s+/g, ' ').trim();
+    throw new Error(`The form was not saved: ${shown || 'it is still open'}.`);
   }
 
   /**

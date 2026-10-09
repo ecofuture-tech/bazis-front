@@ -376,6 +376,21 @@ test.describe('submit', () => {
     await app.expectError('title');
     expect(await page.locator('form').count()).toBe(1);
   });
+
+  test('passes a submit that must save once the form is closed', async ({ page }) => {
+    await show(page, '/tasks', formPage('form.remove();'));
+    await new App(page, PRODUCT).submit({ saved: true });
+    expect(await page.locator('form').count()).toBe(0);
+  });
+
+  test('fails a submit that must save with the error that the form shows', async ({ page }) => {
+    // the state of a 422 with the error of the item, as `ResourceForm` shows it
+    await show(page, '/tasks',
+      formPage(`form.insertAdjacentHTML('afterbegin', '<div data-bz="state:invalid">Add a step to a draft task only.</div>');`),
+    );
+    const app = new App(page, PRODUCT);
+    await expect(app.submit({ saved: true })).rejects.toThrow('The form was not saved: Add a step to a draft task only.');
+  });
 });
 
 /** A card with an open form and its file field, whose upload ends after a delay with `onUpload`. */

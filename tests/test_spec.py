@@ -283,6 +283,7 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/4/steps/13/transit'),
             ('P024', f'{PRODUCT}#/scenarios/6/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/report'),
+            ('P024', f'{PRODUCT}#/scenarios/9/steps/9/transit'),
         ],
     ),
     (
@@ -661,6 +662,7 @@ def test_the_related_sections_of_a_card(contract):
         # the scenarios run `add-step` or expect it absent, and the card no longer has it
         ('P022', f'{PRODUCT}#/scenarios/1/steps/4/expect/action_absent'),
         ('P022', f'{PRODUCT}#/scenarios/9/steps/5/action'),
+        ('P022', f'{PRODUCT}#/scenarios/9/steps/10/expect/action_absent'),
     ])
 
     # a row opens the card of another entity

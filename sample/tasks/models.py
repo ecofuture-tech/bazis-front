@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -77,3 +78,9 @@ class Step(PermitModelMixin, DtMixin, UuidMixin, JsonApiMixin):
     class Meta:
         verbose_name = _('Step')
         verbose_name_plural = _('Steps')
+
+    def validate_item(self, changes):
+        # the card offers "add here" only while the task may be changed (a draft): the
+        # backend refuses the others itself, 422 at the relationship to the task
+        if (changes.is_new or 'task' in changes.fields) and self.task.status_id != 'draft':
+            raise ValidationError({'task': _('A step is added to a draft task only')})

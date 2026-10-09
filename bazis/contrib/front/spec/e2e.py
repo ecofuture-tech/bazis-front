@@ -112,7 +112,8 @@ def calls(step: Step) -> list[str]:
     elif name == 'upload':
         result.append(f'app.upload({string(value["field"])}, {string(value["file"])})')
     elif name == 'submit':
-        result.append('app.submit()')
+        # a submit that the next step does not expect to fail must save
+        result.append('app.submit()' if step.failing else 'app.submit({ saved: true })')
     elif name == 'transit':
         transit = {'id': value} if isinstance(value, str) else value
         payload = f', {literal(transit["payload"])}' if 'payload' in transit else ''

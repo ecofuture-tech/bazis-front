@@ -19,7 +19,7 @@ test('manager-adds-a-step', async ({ page }) => {
     await app.fill({ title: 'Plan the launch' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: draft}', async () => {
@@ -33,10 +33,17 @@ test('manager-adds-a-step', async ({ page }) => {
     await app.fill({ title: 'Book the room' });
   });
   await test.step('submit', async () => {
-    await app.submit();
+    await app.submit({ saved: true });
   });
   await test.step('expect: {screen: task-card, status: draft}', async () => {
     await app.expectScreen('task-card');
     await app.expectStatus('draft');
+  });
+  await test.step('transit: start', async () => {
+    await app.transit('start');
+  });
+  await test.step('expect: {status: in_progress, action_absent: add-step}', async () => {
+    await app.expectStatus('in_progress');
+    await app.expectActionAbsent('add-step');
   });
 });
