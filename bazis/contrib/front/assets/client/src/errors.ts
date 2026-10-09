@@ -37,9 +37,10 @@ export interface ErrorObject {
 const FIELD_POINTER = /^\/data\/(?:attributes|relationships)\/([^/]+)/;
 /**
  * The pointer of a field of a JSON body that is not a document, `/<name>`: not those of the
- * parameters of a request (`/query/…`, `/header/…`, `/cookie/…`, as the core points them).
+ * parameters of a request (`/query/<name>`, `/header/<name>`, `/cookie/<name>`, as the core
+ * points them), while a field of the body may be named `query`, `header` or `cookie`.
  */
-const BODY_POINTER = /^\/(?!(?:query|header|cookie)(?:\/|$))([^/]+)/;
+const BODY_POINTER = /^\/(?!(?:query|header|cookie)\/)([^/]+)/;
 /** The pointer of an included item, `/included/<index>`, and of one of its fields. */
 const INCLUDED_POINTER = /^\/included\/(\d+)(?:\/(?:attributes|relationships)\/([^/]+))?/;
 

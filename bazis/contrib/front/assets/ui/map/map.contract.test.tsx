@@ -116,6 +116,12 @@ const fake = vi.hoisted(() => {
     getElement() {
       return this.element;
     }
+    // as Leaflet does with a `DivIcon`: the element is kept, its classes are those of the icon
+    setIcon(icon: { options: { className: string } }) {
+      this.options.icon = icon;
+      this.element.className = icon.options.className;
+      return this;
+    }
   }
 
   const L = {
@@ -200,13 +206,25 @@ describe('ResourceMap', () => {
       return <ResourceMap path={ITEMS as never} entity="item" field="location" selected={selected} onOpen={setSelected} />;
     }
     renderWithBazis(<Selecting />, backend);
-    fireEvent.click(await screen.findByTestId('marker:a'));
-    const map = fake.state.maps.at(-1);
-    // drawn again larger (a new marker), the view kept
+    const north = await screen.findByTestId('marker:a');
+    const size = () => (fake.state.markers[0]?.options.icon as { options: { iconSize: number[] } }).options.iconSize[0] ?? 0;
+    const before = size();
+    // opened with the keyboard: the same marker drawn larger keeps the focus, the view kept
+    north.focus();
+    fireEvent.keyDown(north, { key: 'Enter' });
     await waitFor(() => {
-      expect(fake.state.markers.filter((it) => it.position[0] === 55.75)).toHaveLength(2);
+      expect(size()).toBeGreaterThan(before);
     });
-    expect(map?.fits).toBe(1);
+    expect(fake.state.markers).toHaveLength(2);
+    expect(screen.getByTestId('marker:a')).toBe(north);
+    expect(document.activeElement).toBe(north);
+    expect(fake.state.maps.at(-1)?.fits).toBe(1);
+    // another one selected: the first drawn again as the others
+    fireEvent.click(screen.getByTestId('marker:c'));
+    await waitFor(() => {
+      expect(size()).toBe(before);
+    });
+    expect(fake.state.markers).toHaveLength(2);
   });
 
   it('says that no item has a point', async () => {
@@ -274,6 +292,10 @@ describe('the map of a point field', () => {
     });
     expect(onChange).toHaveBeenLastCalledWith(point(10.5, 20));
     expect(fake.state.markers.at(-1)?.position).toEqual([10.5, 20]);
+    // the marker of the point opens nothing: an image named by the field, not a button
+    expect(fake.state.markers.at(-1)?.element.getAttribute('role')).toBe('img');
+    expect(fake.state.markers.at(-1)?.element.getAttribute('aria-label')).toBe('Location');
+    expect(fake.state.markers.at(-1)?.element.getAttribute('tabindex')).toBeNull();
     fireEvent.change(input, { target: { value: '-33.86 151.21' } });
     expect(onChange).toHaveBeenLastCalledWith(point(-33.86, 151.21));
     expect(fake.state.markers.at(-1)?.position).toEqual([-33.86, 151.21]);

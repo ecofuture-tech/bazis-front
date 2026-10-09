@@ -303,7 +303,9 @@ describe('action', () => {
       // the parameters of the request are no fields of the body
       { status: 400, code: 'ERR_FILTER', detail: 'Unknown field', source: { pointer: '/query/filter' } },
       { status: 422, code: 'ERR_VALIDATE', detail: 'Missing', source: { pointer: '/header/x-token' } },
-      { status: 422, code: 'ERR_VALIDATE', detail: 'Missing', source: { pointer: '/cookie' } },
+      { status: 422, code: 'ERR_VALIDATE', detail: 'Missing', source: { pointer: '/cookie/session' } },
+      // a field of the body named as a kind of parameter
+      { status: 422, code: 'ERR_VALIDATE', detail: 'Too short', source: { pointer: '/query' } },
     ];
     const { api } = setup([json({ errors }, 422, JSON_TYPE)]);
     const loose = api as unknown as { action: (path: string, name: string, body?: unknown) => Promise<unknown> };
@@ -311,7 +313,7 @@ describe('action', () => {
     expect(error).toBeInstanceOf(ApiError);
     const apiError = error as ApiError;
     expect(apiError.status).toBe(422);
-    expect(apiError.bodyErrors()).toEqual({ date_to: ['Input should be a valid date'], items: ['Too many'] });
+    expect(apiError.bodyErrors()).toEqual({ date_to: ['Input should be a valid date'], items: ['Too many'], query: ['Too short'] });
     expect(apiError.fieldErrors()).toEqual({});
   });
 });

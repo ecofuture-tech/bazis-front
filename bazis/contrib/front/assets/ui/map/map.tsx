@@ -219,15 +219,22 @@ export function LeafletMap({ markers, selected, onOpen, onPick, me, className, '
     };
   }, [tiles]);
 
-  // the markers, drawn again when one is selected
+  // the markers, drawn again when the points, their labels or the position change: a
+  // selection only changes their icons (below), so that the focus of the keyboard stays
+  const markerLayers = useRef(new Map<string, { marker: L.Marker; selected: boolean }>());
+  const drawn = JSON.stringify([placement, markers.map(({ label }) => label)]);
   useEffect(() => {
     const group = layer.current;
     if (!group) return;
     group.clearLayers();
-    for (const { id, point, label } of markers) {
+    markerLayers.current.clear();
+    const [points, labels] = JSON.parse(drawn) as [string, string[]];
+    const [placed, position] = JSON.parse(points) as [[string, number, number][], [number, number] | null];
+    placed.forEach(([id, latitude, longitude], index) => {
+      const label = labels[index] ?? '';
       // a marker that opens nothing lets a click through to the map (the map of a point field)
-      const marker = L.marker([point.latitude, point.longitude], {
-        icon: markerIcon(id === selected ? 'selected' : 'item'),
+      const marker = L.marker([latitude, longitude], {
+        icon: markerIcon('item'),
         interactive: opens,
         keyboard: opens,
         title: label,
@@ -237,23 +244,39 @@ export function LeafletMap({ markers, selected, onOpen, onPick, me, className, '
         handlers.current.onOpen?.(id);
       });
       marker.addTo(group);
+      markerLayers.current.set(id, { marker, selected: false });
       const icon = marker.getElement();
       icon?.setAttribute('data-bz', `marker:${id}`);
       icon?.setAttribute('aria-label', label);
+      // a marker that opens nothing is an image named by its label (Leaflet makes the
+      // others buttons)
+      if (!opens) icon?.setAttribute('role', 'img');
       icon?.addEventListener('keydown', (event) => {
         if (opens && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
           handlers.current.onOpen?.(id);
         }
       });
-    }
-    if (me) {
-      L.marker([me.latitude, me.longitude], { icon: markerIcon('me'), interactive: false, keyboard: false, title: t('map.locate') })
+    });
+    if (position) {
+      const icon = L.marker(position, { icon: markerIcon('me'), interactive: false, keyboard: false, title: t('map.locate') })
         .addTo(group)
-        .getElement()
-        ?.setAttribute('aria-label', t('map.locate'));
+        .getElement();
+      icon?.setAttribute('role', 'img');
+      icon?.setAttribute('aria-label', t('map.locate'));
     }
-  }, [markers, selected, me, opens, t, tiles]);
+  }, [drawn, opens, t, tiles]);
+
+  // the open item larger: `setIcon` of Leaflet keeps the element of a `DivIcon` (and its focus)
+  useEffect(() => {
+    const drawnMarkers = markerLayers.current;
+    for (const [id, { marker, selected: was }] of drawnMarkers) {
+      const isSelected = id === selected;
+      if (was === isSelected) continue;
+      marker.setIcon(markerIcon(isSelected ? 'selected' : 'item'));
+      drawnMarkers.set(id, { marker, selected: isSelected });
+    }
+  }, [selected, drawn, opens, t, tiles]);
 
   // the view: fitted to the points when they change, kept when one is selected or the screen
   // renders again
