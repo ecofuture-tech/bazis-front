@@ -1230,9 +1230,12 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
 ## The socket
 
 bazis-ws delivers the messages that the backend publishes to the channel of a user
-(`user.ws_publish({...})` of `UserWsMixin`, `user_ws::<pk>`), to the channel of an anonymous
-token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every user session
-(`COMMON_CHANNEL`, `user_ws:common`). The facts that the hooks rely on:
+(`user_ws::<pk>`), to the channel of an anonymous token (`user_ws:anon:<token>`, from
+`get_anonymous_channel`) and to every user session (`COMMON_CHANNEL`, `user_ws:common`).
+The backend publishes the formats below with the helpers of `bazis.contrib.ws.messages`:
+`notify(users, lambda user: notification(title, text, item))` (to each user, in his
+language) and `publish_changed(item)` (the hint of its resource on the common channel),
+both after the commit and robustly. The facts that the hooks rely on:
 
 - **Route the socket where the contract sees it**, in the module of
   `BS_BAZIS_ROUTER_MODULE`: `router.register('bazis.contrib.ws.router')` (the socket under
@@ -1264,19 +1267,17 @@ token (`user_ws:anon:<token>`, from `get_anonymous_channel`) and to every user s
   parse `data`. `{"type": "ping"}` is answered `{"type": "pong"}`: the hooks ping every 25 s
   and reconnect when nothing answered.
 - Pub/sub keeps nothing: a message published while the page is not subscribed is lost. The
-  hooks refetch every query after a reconnect that the server took; publish after the
-  commit (`transaction.on_commit(..., robust=True)`: Redis down must not fail a change that
-  is committed), or a client refetches the old data. bazis-ws 2.6.0 does it for the formats
-  below: `publish_changed(item)` (the hint of its resource on the common channel) and
-  `notify(users, lambda user: notification(title, text, item))` (to each user, after the
-  commit, in his language) of `bazis.contrib.ws.messages`.
+  hooks refetch every query after a reconnect that the server took. A message is published
+  after the commit, or a client refetches the old data, and robustly: Redis down must not
+  fail a change that is committed. `notify` and `publish_changed` do both; the low-level
+  `user.ws_publish({...})` of `UserWsMixin` publishes at once, so a write wraps it in
+  `transaction.on_commit(partial(...), robust=True)` (the guide of bazis-ws).
 - **The common channel is not public data**: every user session receives it (an anonymous
   one only with `BS_BAZIS_WS_ANONYMOUS_COMMON_CHANNEL=true`, when anybody can open one).
   Publish there only the invalidation hint `{"resource": "<JSON:API type>"}`, never the id
   of an item, its data or a notification: an id tells who may not see the item that it
   exists and when it changes. A message about an item (its id, a notification) goes only
-  to the users who may see it, `user.ws_publish(...)` or `notify(...)` (the author, the
-  assignee).
+  to the users who may see it, with `notify(...)` (the author, the assignee).
 - The formats that the hooks read (bazis-ws carries any JSON):
   `{"resource": "<JSON:API type>", "id"?: "<id>"}` (the resource or the item changed:
   `useLiveQueries` refetches the queries of the resource, each client with its own
