@@ -876,3 +876,57 @@ def test_the_colors_of_css():
 def test_every_code_is_documented():
     documented = dict(re.findall(r'^\| `([CPSD]\d{3})` \| (error|warning) \|', AGENTS_MD.read_text(encoding='utf-8'), re.M))
     assert documented == {code: severity for code, (severity, _) in CODES.items()}
+
+
+@pytest.mark.django_db
+def test_several_grants_of_one_operation(contract):
+    """
+    An operation with a list of grants (`view: [assignee, status_author]`): the role may do
+    it on the objects of any of them, as bazis-permit unites the permissions of a role; each
+    is a permission of its own, checked (P019) and its selector too (P020) at its index.
+    """
+    root = contract.parent.parent
+
+    def viewer_permissions(*slugs):
+        def change(data):
+            role = next(it for it in data['capabilities']['permit']['roles'] if it['slug'] == 'viewer')
+            role['permissions'] = list(slugs)
+        edit(root, CONTRACT, change)
+
+    def found():
+        return [(it.code, it.path) for it in validate(root).issues]
+
+    grants = ['assignee', {'selector': 'status_author', 'statuses': ['done']}]
+    edit(root, PRODUCT, lambda d: task(d)['access']['viewer'].update(view=grants))
+    # the viewer views all the tasks: `view.all.all` covers both
+    assert found() == []
+    viewer_permissions('tasks.task.item.view.assignee.all', 'tasks.task.item.view.status_author.done')
+    assert found() == []
+    viewer_permissions('tasks.task.item.view.assignee.all')
+    [issue] = validate(root).issues
+    assert (issue.code, issue.path) == ('P019', '/entities/0/access/viewer/view/1')
+    assert '`tasks.task.item.view.status_author.done`' in issue.message
+
+    edit(root, PRODUCT, lambda d: task(d)['access']['viewer'].update(view=['assignee', 'watchers']))
+    assert sorted(found()) == [
+        ('P019', '/entities/0/access/viewer/view/1'), ('P020', '/entities/0/access/viewer/view/1'),
+    ]
+
+    # a transit by several selectors, a status unknown to the workflow in a list
+    edit(root, PRODUCT, lambda d: task(d)['access']['viewer'].update(
+        view='assignee', transit={'start': ['assignee', 'owner']},
+        change=['assignee', {'selector': 'assignee', 'statuses': ['archived']}],
+    ))
+    assert sorted(found()) == [
+        ('P006', '/entities/0/access/viewer/change/1/statuses/0'),
+        ('P019', '/entities/0/access/viewer/change/0'),
+        ('P019', '/entities/0/access/viewer/change/1'),
+        ('P019', '/entities/0/access/viewer/transit/start/0'),
+        ('P019', '/entities/0/access/viewer/transit/start/1'),
+        ('P020', '/entities/0/access/viewer/transit/start/1'),
+    ]
+
+    # `none` grants nothing: it is no grant of a list
+    for value in (['assignee', 'none'], [{'selector': 'none', 'statuses': ['done']}], []):
+        edit(root, PRODUCT, lambda d, it=value: task(d)['access']['viewer'].update(view=it, change='none', transit=[]))
+        assert [code for code, _ in found()] == ['P002'], value

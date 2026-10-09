@@ -501,14 +501,18 @@ scenarios:
   absent operation), `self` (the object is the selector source itself, such as the user),
   a relationship that links the object to the user (`author`, `org_owner`) or a path of
   relationships to it (`parent__author`); on a statusy model also `{selector, statuses}` to grant it only in these statuses.
-  `transit` is a list of transits (selector `all`) or `{transit: selector}`. The
-  permissions, as bazis-permit and bazis-statusy name them:
+  Several of them are a list (`view: [author, participants]`, not `none`): the role may do
+  the operation on the objects of any of them, as bazis-permit unites the permissions of a
+  role, and each is a permission of its own. `transit` is a list of transits (selector
+  `all`) or `{transit: selector}` (or a list of selectors, `{finish: [author, assignee]}`).
+  The permissions, as bazis-permit and bazis-statusy name them:
 
   | Access | Model without statuses | Statusy model |
   |---|---|---|
   | `view: all` | `app.model.item.view.all` | `app.model.item.view.all.all` |
   | `change: author` | `app.model.item.change.author` | `app.model.item.change.author.all` |
   | `change: {selector: all, statuses: [draft]}` | | `app.model.item.change.all.draft` |
+  | `view: [author, participants]` | `app.model.item.view.author`, `app.model.item.view.participants` | `app.model.item.view.author.all`, `app.model.item.view.participants.all` |
   | `transit: [finish]` | | `app.model.item.transit.all.in_progress.finish` (the source status of the transit) |
 
   A permission of the role with the selector `all` covers any selector, and the status

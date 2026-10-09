@@ -27,11 +27,15 @@ tasks.task.item.change.author.draft             # change, if the author, in `dra
 tasks.task.item.transit.all.in_progress.finish  # the transit `finish` (from `in_progress`)
 ```
 
-A grant of the spec is covered by a permission of the role with the same operation whose
-selector is the same or `all` and, on a statusy model, whose status is the same or `all`
-(for a transit: its source status or `all`). Only what `access` grants is checked: a role
-may have more permissions (of other models, of fields, `check`), and the absence of an
-operation is checked by the scenarios (`expect: {action_absent: ...}`).
+An operation may have several grants, a list (`view: [author, participants]`): bazis-permit
+unites the permissions of a role, so the role may do it on the objects of any of them, and
+each is a permission of its own (`tasks.task.item.view.author.all`,
+`tasks.task.item.view.participants.all`). A grant of the spec is covered by a permission of
+the role with the same operation whose selector is the same or `all` and, on a statusy
+model, whose status is the same or `all` (for a transit: its source status or `all`). Only
+what `access` grants is checked: a role may have more permissions (of other models, of
+fields, `check`), and the absence of an operation is checked by the scenarios
+(`expect: {action_absent: ...}`).
 """
 
 from dataclasses import dataclass
@@ -89,6 +93,14 @@ class Grant:
         return self.transit is None or rest[2:] == [self.transit]
 
 
+def listed(value) -> list[tuple[tuple, object]]:
+    """
+    The grants of an operation (or the selectors of a transit) with their paths relative to
+    the operation: those of a list, else the value itself.
+    """
+    return [((i,), it) for i, it in enumerate(value)] if isinstance(value, list) else [((), value)]
+
+
 def grants(resource: str, role_access: dict, statusy: dict | None) -> list[tuple[tuple, Grant]]:
     """
     The grants of the access of a role to a resource with their paths (relative to the
@@ -97,34 +109,38 @@ def grants(resource: str, role_access: dict, statusy: dict | None) -> list[tuple
     """
     result = []
     for operation in CRUD:
-        value = role_access.get(operation)
-        if value is None:
-            continue
-        selector, statuses = (value, None) if isinstance(value, str) else (value['selector'], value['statuses'])
-        if selector == NONE:
-            continue
-        if statusy is None:
-            result.append(((operation,), Grant(resource, operation, selector)))
-        else:
-            for status in statuses or [ALL]:
-                result.append(((operation,), Grant(resource, operation, selector, status)))
+        for key, value in listed(role_access.get(operation, [])):
+            selector, statuses = (value, None) if isinstance(value, str) else (value['selector'], value['statuses'])
+            if selector == NONE:
+                continue
+            path = (operation, *key)
+            if statusy is None:
+                result.append((path, Grant(resource, operation, selector)))
+            else:
+                for status in statuses or [ALL]:
+                    result.append((path, Grant(resource, operation, selector, status)))
     if statusy is not None:
         sources = {it['id']: it['src'] for it in statusy['transits']}
-        for key, transit, selector in transits(role_access.get(TRANSIT, [])):
+        for path, transit, selector in transits(role_access.get(TRANSIT, [])):
             if selector != NONE and transit in sources:
                 result.append(
-                    ((TRANSIT, key), Grant(resource, TRANSIT, selector, sources[transit], transit))
+                    ((TRANSIT, *path), Grant(resource, TRANSIT, selector, sources[transit], transit))
                 )
     return result
 
 
 def transits(value: list | dict) -> list[tuple]:
     """
-    `(key, transit, selector)` of the transits of an access: a list grants each to all.
+    `(path, transit, selector)` of the transits of an access, the path relative to `transit`:
+    a list grants each to all, a map each to its selector or to each of its selectors.
     """
     if isinstance(value, list):
-        return [(i, it, ALL) for i, it in enumerate(value)]
-    return [(it, it, selector) for it, selector in value.items()]
+        return [((i,), it, ALL) for i, it in enumerate(value)]
+    return [
+        ((transit, *key), transit, selector)
+        for transit, selectors_of in value.items()
+        for key, selector in listed(selectors_of)
+    ]
 
 
 def selectors(role_access: dict) -> list[tuple[tuple, str]]:
@@ -133,12 +149,12 @@ def selectors(role_access: dict) -> list[tuple[tuple, str]]:
     """
     result = []
     for operation in CRUD:
-        value = role_access.get(operation)
-        if isinstance(value, dict):
-            result.append(((operation, 'selector'), value['selector']))
-        elif value is not None:
-            result.append(((operation,), value))
-    result += [((TRANSIT, key), selector) for key, _, selector in transits(role_access.get(TRANSIT, []))]
+        for key, value in listed(role_access.get(operation, [])):
+            if isinstance(value, dict):
+                result.append(((operation, *key, 'selector'), value['selector']))
+            else:
+                result.append(((operation, *key), value))
+    result += [((TRANSIT, *path), selector) for path, _, selector in transits(role_access.get(TRANSIT, []))]
     return [(path, it) for path, it in result if it not in (ALL, NONE)]
 
 

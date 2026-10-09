@@ -181,6 +181,28 @@
         }
       }
     },
+    "granted": {
+      "description": "A grant other than `none`: an item of a list of grants.",
+      "allOf": [{"$ref": "#/$defs/grant"}],
+      "not": {
+        "anyOf": [
+          {"const": "none"},
+          {"type": "object", "required": ["selector"], "properties": {"selector": {"const": "none"}}}
+        ]
+      }
+    },
+    "grants": {
+      "description": "A grant, or a list of grants: the role may do the operation on the objects of any of them, as bazis-permit unites the permissions of a role (`view: [author, participants]`); each is a permission of its own.",
+      "if": {"type": "array"},
+      "then": {"minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/granted"}},
+      "else": {"$ref": "#/$defs/grant"}
+    },
+    "transit_selectors": {
+      "description": "The selector of a transit, or a list of selectors (any of them).",
+      "if": {"type": "array"},
+      "then": {"minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/selector", "not": {"const": "none"}}},
+      "else": {"$ref": "#/$defs/selector"}
+    },
     "access": {
       "description": "What each role may do with the entity; compiled to the permissions of bazis-permit that the role must have. Unlisted operations are not granted.",
       "type": "object",
@@ -189,18 +211,18 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "view": {"$ref": "#/$defs/grant"},
-          "add": {"$ref": "#/$defs/grant"},
-          "change": {"$ref": "#/$defs/grant"},
-          "delete": {"$ref": "#/$defs/grant"},
+          "view": {"$ref": "#/$defs/grants"},
+          "add": {"$ref": "#/$defs/grants"},
+          "change": {"$ref": "#/$defs/grants"},
+          "delete": {"$ref": "#/$defs/grants"},
           "transit": {
-            "description": "The transits the role may run: a list (selector `all`) or a selector by transit.",
+            "description": "The transits the role may run: a list (selector `all`) or a selector (or a list of selectors) by transit.",
             "if": {"type": "array"},
             "then": {"uniqueItems": true, "items": {"$ref": "#/$defs/status_id"}},
             "else": {
               "type": "object",
               "propertyNames": {"$ref": "#/$defs/status_id"},
-              "additionalProperties": {"$ref": "#/$defs/selector"}
+              "additionalProperties": {"$ref": "#/$defs/transit_selectors"}
             }
           }
         }

@@ -231,14 +231,15 @@ def _check_grant(doc: Document, entity: Entity, path: tuple, operation: str, gra
                     'Declare it in `workflow.transitions` or remove it from the access.',
                 )
         return
-    if isinstance(grant, str):
-        return
-    for i, status in enumerate(grant['statuses']):
-        if workflow is None:
-            issues.add(doc, (*path, 'statuses'), 'P006', 'The entity has no workflow: it has no statuses.', hint)
-            return
-        if status not in workflow['statuses']:
-            _unknown_status(doc, (*path, 'statuses', i), status, issues)
+    for key, value in access.listed(grant):
+        if isinstance(value, str):
+            continue
+        for i, status in enumerate(value['statuses']):
+            if workflow is None:
+                issues.add(doc, (*path, *key, 'statuses'), 'P006', 'The entity has no workflow: it has no statuses.', hint)
+                break
+            if status not in workflow['statuses']:
+                _unknown_status(doc, (*path, *key, 'statuses', i), status, issues)
 
 
 def _check_packages(doc: Document, data: dict, contract: dict, issues: Issues) -> None:
