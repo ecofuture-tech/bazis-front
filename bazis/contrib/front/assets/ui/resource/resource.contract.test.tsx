@@ -22,6 +22,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { FormField } from '@/bazis/react';
 import {
+  choiceOptions,
   FieldInput,
   FieldValue,
   FilesProvider,
@@ -39,7 +40,7 @@ import { Backend, errors, ITEMS, renderWithBazis, resource, testLanguages } from
 const base = { required: false, readOnly: false, nullable: false };
 
 function attribute(name: string, type: string, extra: Partial<FormField> = {}): FormField {
-  return { ...base, kind: 'attribute', name, title: name, type, format: null, enum: null, schema: {}, ...extra } as FormField;
+  return { ...base, kind: 'attribute', name, title: name, type, format: null, enum: null, labels: null, schema: {}, ...extra } as FormField;
 }
 
 describe('FieldInput', () => {
@@ -88,6 +89,24 @@ describe('FieldInput', () => {
     fireEvent.change(screen.getByTestId('field:state'), { target: { value: 'done' } });
     expect(onChange).toHaveBeenLastCalledWith('done');
     expect(screen.getByTestId('field:code').hasAttribute('readonly')).toBe(true);
+  });
+
+  it('offers the choices of a field by their labels and gives their values', () => {
+    // the labels are `enumDict` of the runtime schema, in the language of the backend
+    const onChange = vi.fn();
+    const level = attribute('level', 'integer', { enum: [1, 2], labels: { '1': 'Low', '2': 'High' }, nullable: true });
+    render(<FieldInput field={level} value={1} onChange={onChange} />);
+    const control = screen.getByTestId<HTMLSelectElement>('field:level');
+    expect([...control.options].map((it) => [it.value, it.textContent])).toEqual([
+      ['', '—'],
+      ['1', 'Low'],
+      ['2', 'High'],
+    ]);
+    expect(control.value).toBe('1');
+    fireEvent.change(control, { target: { value: '2' } });
+    expect(onChange).toHaveBeenLastCalledWith(2);
+    fireEvent.change(control, { target: { value: '' } });
+    expect(onChange).toHaveBeenLastCalledWith(null);
   });
 
   it('renders a to-one relationship', () => {
@@ -206,6 +225,23 @@ describe('file fields', () => {
 });
 
 describe('FieldValue', () => {
+  it('shows a choice by its label, the choices of an array each', () => {
+    const kind = attribute('kind', 'string', { enum: ['offer', 'invoice'], labels: { offer: 'Commercial offer', invoice: 'Invoice' } });
+    const kinds = attribute('kinds', 'array', { enum: ['offer', 'invoice'], labels: { offer: 'Offer', invoice: 'Invoice' } });
+    expect(formatValue(kind, 'offer')).toBe('Commercial offer');
+    // a value the labels do not have (the backend changed its choices) is shown as it is
+    expect(formatValue(kind, 'other')).toBe('other');
+    expect(formatValue(kinds, ['invoice', 'offer'])).toBe('Invoice, Offer');
+    expect(formatValue(kinds, [])).toBe('—');
+    expect(choiceOptions(kind)).toEqual([
+      { value: 'offer', label: 'Commercial offer' },
+      { value: 'invoice', label: 'Invoice' },
+    ]);
+    expect(choiceOptions(attribute('title', 'string'))).toBeNull();
+    render(<FieldValue field={kind} value="invoice" />);
+    expect(screen.getByText('Invoice')).toBeTruthy();
+  });
+
   it('formats the values', () => {
     expect(formatValue(undefined, null)).toBe('—');
     expect(formatValue(undefined, true)).toBe('Yes');

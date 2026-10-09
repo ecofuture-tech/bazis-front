@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { objectFields, resourceSchema } from '../src/schema.js';
+import { choiceLabel, objectFields, resourceSchema } from '../src/schema.js';
 import { transits } from '../src/statusy/transits.js';
 import { parentSchema } from './fixtures/parent.js';
 // the runtime schemas of `tasks.task` of the sample of bazis-front, as the backend returns them
@@ -27,13 +27,20 @@ describe('resourceSchema', () => {
       fields: [
         {
           kind: 'attribute', name: 'title', title: 'Title', required: true, readOnly: false,
-          nullable: false, type: 'string', format: null, enum: null,
+          nullable: false, type: 'string', format: null, enum: null, labels: null,
           schema: expect.objectContaining({ maxLength: 255 }) as unknown,
         },
         {
           kind: 'attribute', name: 'report', title: 'Report', required: false, readOnly: false,
-          nullable: false, type: 'string', format: null, enum: null,
+          nullable: false, type: 'string', format: null, enum: null, labels: null,
           schema: expect.objectContaining({ default: '' }) as unknown,
+        },
+        // choices, with their labels in the language of the request (`enumDict`)
+        {
+          kind: 'attribute', name: 'priority', title: 'Priority', required: false, readOnly: false,
+          nullable: false, type: 'string', format: null, enum: ['low', 'normal', 'high'],
+          labels: { low: 'Low', normal: 'Normal', high: 'High' },
+          schema: expect.objectContaining({ default: 'normal' }) as unknown,
         },
         // the initial status, which bazis-statusy accepts on a create
         {
@@ -59,6 +66,7 @@ describe('resourceSchema', () => {
     expect(fields.map((it) => [it.name, it.kind, it.required])).toEqual([
       ['title', 'attribute', false],
       ['report', 'attribute', false],
+      ['priority', 'attribute', false],
       ['assignee', 'relation', false],
       ['attachment', 'relation', false],
     ]);
@@ -69,7 +77,10 @@ describe('resourceSchema', () => {
       resourceSchema(parentSchema('create')).fields.map((it) => [it.name, it]),
     );
     expect(fields.price).toMatchObject({ type: 'number', nullable: true, required: false });
-    expect(fields.state).toMatchObject({ type: 'string', enum: ['new', 'done'], title: 'State' });
+    expect(fields.state).toMatchObject({
+      type: 'string', enum: ['new', 'done'], labels: { new: 'New', done: 'Done' }, title: 'State',
+    });
+    expect(fields.name).toMatchObject({ enum: null, labels: null });
     expect(fields.is_active).toMatchObject({ type: 'boolean', nullable: false });
     expect(fields.dt_created).toMatchObject({ readOnly: true, format: 'date-time' });
     expect(fields.parent).toMatchObject({ relation: 'entity.parent_entity', many: false, nullable: true });
@@ -86,14 +97,45 @@ describe('resourceSchema', () => {
         ['status_dt', 'Status timestamp', true],
         ['title', 'Title', false],
         ['report', 'Report', false],
+        ['priority', 'Priority', false],
         ['status', 'Current status', false],
         ['status_author', 'status author', false],
         ['assignee', 'assignee', false],
         ['attachment', 'Attachment', false],
       ]);
       expect(fields[0]).toMatchObject({ type: 'string', format: 'date-time' });
-      expect(fields[7]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });
+      expect(fields[8]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });
+      expect(fields[5]).toMatchObject({ labels: { low: 'Low', normal: 'Normal', high: 'High' } });
     }
+  });
+
+  it('reads the labels of the choices of a nullable field, and gives them by value', () => {
+    // `enumDict` next to `anyOf` and `enum`, as the core writes a nullable field with choices
+    const { fields } = resourceSchema({
+      properties: {
+        data: {
+          properties: {
+            attributes: {
+              properties: {
+                level: {
+                  anyOf: [{ type: 'integer' }, { type: 'null' }],
+                  enum: [1, 2],
+                  enumDict: { '1': 'Low', '2': 'High', '3': 7 },
+                  nullable: true,
+                  title: 'Level',
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const [level] = fields;
+    expect(level).toMatchObject({ type: 'integer', enum: [1, 2], labels: { '1': 'Low', '2': 'High' }, nullable: true });
+    expect([choiceLabel(level, 1), choiceLabel(level, '2'), choiceLabel(level, 3), choiceLabel(level, null)]).toEqual([
+      'Low', 'High', null, null,
+    ]);
+    expect(choiceLabel(undefined, 1)).toBeNull();
   });
 
   it('reads no fields from what is not a resource schema', () => {
@@ -107,7 +149,7 @@ describe('objectFields', () => {
     expect(objectFields(payload)).toEqual([
       {
         kind: 'attribute', name: 'report', title: 'Report', required: true, readOnly: false,
-        nullable: false, type: 'string', format: null, enum: null,
+        nullable: false, type: 'string', format: null, enum: null, labels: null,
         schema: { title: 'Report', type: 'string' },
       },
     ]);

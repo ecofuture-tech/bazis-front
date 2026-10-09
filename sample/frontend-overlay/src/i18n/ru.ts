@@ -37,4 +37,7 @@ export const ru: Messages = {
   'task.report': 'Отчёт',
   'task.delete': 'Удалить',
   'task.deleted': 'Удалено',
+  'task.steps': 'Шаги',
+  'task.add_step': 'Добавить шаг',
+  'task.no_steps': 'Шагов пока нет.',
 };

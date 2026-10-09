@@ -72,6 +72,22 @@
             "nullable": false,
             "title": "Report",
             "type": "string"
+          },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ],
+            "enumDict": {
+              "high": "High",
+              "low": "Low",
+              "normal": "Normal"
+            },
+            "nullable": false,
+            "title": "Priority",
+            "type": "string"
           }
         },
         "type": "object"
@@ -489,6 +505,22 @@
             "nullable": false,
             "title": "Report",
             "type": "string"
+          },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ],
+            "enumDict": {
+              "high": "High",
+              "low": "Low",
+              "normal": "Normal"
+            },
+            "nullable": false,
+            "title": "Priority",
+            "type": "string"
           }
         },
         "required": [
@@ -731,6 +763,22 @@
             "default": "",
             "nullable": false,
             "title": "Report",
+            "type": "string"
+          },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ],
+            "enumDict": {
+              "high": "High",
+              "low": "Low",
+              "normal": "Normal"
+            },
+            "nullable": false,
+            "title": "Priority",
             "type": "string"
           }
         },
@@ -1178,6 +1226,22 @@
             "readOnly": true,
             "title": "Report",
             "type": "string"
+          },
+          "priority": {
+            "default": "normal",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ],
+            "enumDict": {
+              "high": "High",
+              "low": "Low",
+              "normal": "Normal"
+            },
+            "nullable": false,
+            "title": "Priority",
+            "type": "string"
           }
         },
         "type": "object"
@@ -1316,7 +1380,8 @@
         "dt_updated": "2026-01-01T00:00:00Z",
         "status_dt": "2026-01-01T00:00:00Z",
         "title": "T",
-        "report": ""
+        "report": "",
+        "priority": "normal"
       },
       "relationships": {
         "status": {
@@ -1398,7 +1463,8 @@
         "dt_updated": "2026-01-01T00:00:00Z",
         "status_dt": "2026-01-01T00:00:00Z",
         "title": "T",
-        "report": ""
+        "report": "",
+        "priority": "normal"
       },
       "relationships": {
         "status": {

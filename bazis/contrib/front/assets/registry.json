@@ -320,6 +320,7 @@
           "i18n",
           "resource",
           "resource-form",
+          "resource-list",
           "state-panel",
           "testing",
           "button",
@@ -329,6 +330,7 @@
       },
       "files": [
         "index.ts",
+        "related-list.tsx",
         "resource-card.contract.test.tsx",
         "resource-card.tsx"
       ]

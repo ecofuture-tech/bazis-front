@@ -19,9 +19,9 @@
 import { can, type PermitMeta } from '@/bazis/client';
 import { RESOURCES, ROUTES } from '@/bazis/generated/contract';
 import { ENGLISH, formatDate, formatDateTime, formatNumber, type LanguageContextValue } from '@/bazis/i18n';
-import { resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
+import { choiceLabel, resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
 
-import { useAnySchema } from './hooks.js';
+import { text, useAnySchema } from './hooks.js';
 
 /** A resource object of JSON:API, an item of a list or the `data` of an item. */
 export interface ResourceObject {
@@ -178,9 +178,23 @@ export function isLongText(field: FormField | undefined): boolean {
 }
 
 /**
- * The text of the value of an attribute, by its type and format, in the language of the
- * interface (`useLanguage()`; English by default): the numbers and the dates with `Intl`;
- * `—` for no value.
+ * The choices of an attribute with choices as options (the value as text, the label of
+ * `enumDict`, else the value), in their order; null for another field. A list offers them
+ * as the select of its filter.
+ */
+export function choiceOptions(field: FormField | undefined): { value: string; label: string }[] | null {
+  if (field?.kind !== 'attribute' || field.enum === null) return null;
+  return field.enum.map((choice) => {
+    const value = text(choice);
+    return { value, label: choiceLabel(field, choice) ?? value };
+  });
+}
+
+/**
+ * The text of the value of an attribute, in the language of the interface (`useLanguage()`;
+ * English by default): a choice by its label (`enumDict` of the backend, the choices of an
+ * array each), else by its type and format, the numbers and the dates with `Intl`; `—` for
+ * no value.
  */
 export function formatValue(
   field: FormField | undefined,
@@ -188,6 +202,11 @@ export function formatValue(
   { language, t }: Pick<LanguageContextValue, 'language' | 't'> = ENGLISH,
 ): string {
   if (value === null || value === undefined || value === '') return '—';
+  const label = choiceLabel(field, value);
+  if (label !== null) return label;
+  if (Array.isArray(value) && field?.kind === 'attribute' && field.labels !== null) {
+    return value.length ? value.map((it) => choiceLabel(field, it) ?? text(it)).join(', ') : '—';
+  }
   if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
   if (typeof value === 'number') return formatNumber(value, language);
   if (typeof value === 'string') {

@@ -79,7 +79,38 @@
         },
         "edit": {"description": "The item is edited on the card, by the update form of its runtime schema.", "type": "boolean"},
         "transitions": {"description": "The transits of the item (its workflow).", "type": "boolean"},
-        "history": {"description": "The status history of the item (its workflow).", "type": "boolean"}
+        "history": {"description": "The status history of the item (its workflow).", "type": "boolean"},
+        "related": {
+          "description": "The items of other entities that reference the item of the card (`RelatedList` of resource-card): a list of the related entity filtered by its to-one relationship to the item, and \"add here\", the create form of the related entity with that relationship fixed to the item (its action `add.id`).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "entity", "relation", "columns"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "title": {"type": "string"},
+              "entity": {"description": "The id of the related entity of spec/product.yaml.", "$ref": "#/$defs/id"},
+              "relation": {
+                "description": "The to-one relationship (`relation`) of the related entity to the entity of the card, which the contract can filter by.",
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              },
+              "columns": {"$ref": "#/$defs/fields", "minItems": 1},
+              "open": {"description": "The card screen of the related entity that a row opens.", "$ref": "#/$defs/id"},
+              "add": {
+                "description": "\"Add here\": the action `id` of the card opens the create form of the related entity, its `fields` (all the writable fields but the relationship when omitted), with the relationship to the item fixed.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id"],
+                "properties": {
+                  "id": {"$ref": "#/$defs/id"},
+                  "fields": {"$ref": "#/$defs/fields"}
+                }
+              }
+            }
+          }
+        }
       }
     },
     "form": {

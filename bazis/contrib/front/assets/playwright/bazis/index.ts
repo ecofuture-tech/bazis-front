@@ -128,14 +128,30 @@ export class App<P extends Product = Product> {
     await this.expectScreen(screen);
   }
 
-  /** Opens the first row of the list of the current screen whose cells have these texts. */
+  /**
+   * Opens the first row of the list of the current screen whose cells `cell:<name>` have
+   * exactly these texts: on the page shown, else searched with the search of the list
+   * (`field:$search`), each text of `where` in turn, else on the next pages
+   * (`action:next-page`) of the list without a search; fails when no page has it. A list
+   * that grows with every run (the items that the scenarios create) is searched, never read
+   * on its first page only.
+   */
   async openItem({ where }: { where: Values }): Promise<void> {
     await this.settled();
-    let rows = this.screen().locator('[data-bz^="row:"]');
-    for (const [name, value] of Object.entries(where)) {
-      rows = rows.filter({ has: this.page.locator(bz('cell', name)).filter({ hasText: exactly(value) }) });
+    const lists = this.screen().locator('[data-bz^="list:"]');
+    const list = (await lists.count()) > 0 ? lists.first() : this.screen();
+    if (await this.openRow(list, where)) return;
+    const search = list.locator(bz('field', '$search'));
+    if ((await search.count()) > 0) {
+      const texts = Object.values(where).flatMap((it) => (typeof it === 'string' || typeof it === 'number' ? [String(it).trim()] : []));
+      for (const text of new Set(texts.filter(Boolean))) {
+        await this.searchList(list, search, text);
+        if (await this.openRowOnPages(list, where)) return;
+      }
+      await this.searchList(list, search, '');
     }
-    await rows.first().click();
+    if (await this.openRowOnPages(list, where)) return;
+    throw new Error(`No row of the list of the screen ${String(this.current)} has the texts ${JSON.stringify(where)}.`);
   }
 
   /** Runs an action of the current screen, `action:<id>`. */
@@ -374,6 +390,49 @@ export class App<P extends Product = Product> {
   private async expectReadonlyIn(form: Locator, field: string): Promise<void> {
     const control = form.locator(bz('field', field));
     if ((await control.count()) > 0) await expect(control).not.toBeEditable();
+  }
+
+  /** Clicks the first row of the list on its page whose cells have the texts; whether there is one. */
+  private async openRow(list: Locator, where: Values): Promise<boolean> {
+    let rows = list.locator('[data-bz^="row:"]');
+    for (const [name, value] of Object.entries(where)) {
+      rows = rows.filter({ has: this.page.locator(bz('cell', name)).filter({ hasText: exactly(value) }) });
+    }
+    if ((await rows.count()) === 0) return false;
+    await rows.first().click();
+    return true;
+  }
+
+  /** The row on the page of the list or on its next pages; whether there is one. */
+  private async openRowOnPages(list: Locator, where: Values): Promise<boolean> {
+    const first = list.locator('[data-bz^="row:"]').first();
+    const next = list.locator(bz('action', 'next-page'));
+    while (!(await this.openRow(list, where))) {
+      if ((await next.count()) === 0 || (await next.isDisabled())) return false;
+      const shown = await first.getAttribute('data-bz');
+      await next.click();
+      // the rows of the next page, loaded
+      await expect.poll(() => first.getAttribute('data-bz'), { message: 'the next page of the list' }).not.toBe(shown);
+      await this.listSettled(list);
+    }
+    return true;
+  }
+
+  /**
+   * Searches the list and waits for the rows of the search: the list marks the search of
+   * its rows (`data-search`) and is busy until they are loaded.
+   */
+  private async searchList(list: Locator, input: Locator, text: string): Promise<void> {
+    await input.fill(text);
+    if (text) await expect(list).toHaveAttribute('data-search', text);
+    else await expect(list).not.toHaveAttribute('data-search');
+    await this.listSettled(list);
+  }
+
+  /** Waits until the list is no longer busy and nothing on the page loads. */
+  private async listSettled(list: Locator): Promise<void> {
+    await expect(list).not.toHaveAttribute('aria-busy', 'true');
+    await expect(this.page.locator(bz('state', 'loading'))).toHaveCount(0);
   }
 
   /** Waits until the current screen has rendered a state and nothing on the page loads. */

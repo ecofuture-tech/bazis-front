@@ -23,7 +23,7 @@ Playwright helpers.
 from dataclasses import dataclass
 
 from .issues import Document, Issues
-from .refs import Entity, Product
+from .refs import Entity, Product, related_fields, related_sections
 
 
 #: the package whose users log in: the role of a scenario then needs a `test_user`
@@ -133,7 +133,13 @@ class _Scenario:
 
     @property
     def entity(self) -> Entity | None:
-        screen = self.state.screen
+        """
+        The entity that the step acts on: that of the open form of "add here" of a related
+        section of a card, else that of the screen.
+        """
+        screen, form = self.state.screen, self.state.form
+        if form is not None and 'entity' in form:
+            return self.product.entities.get(form['entity'])
         return self.product.entities.get(screen['entity']) if screen else None
 
     def go(self, path, screen_id) -> None:
@@ -221,9 +227,26 @@ class _Scenario:
         self.fields(((*path, 'where', name), name) for name in value['where'])
         self.lead(path, screen['list']['open'])
 
+    def actions(self) -> dict[str, dict]:
+        """
+        The actions of the current screen by id, and the forms of "add here" of its related
+        sections: a create form of the related entity, its relationship to the item fixed,
+        that keeps the card open.
+        """
+        screen = self.state.screen or {}
+        actions = {it['id']: it for it in screen.get('actions', [])}
+        for section in related_sections(screen) if screen else []:
+            if 'add' in section:
+                # an unknown entity is reported with its screen (S004): its fields are not checked
+                related = self.product.entities.get(section['entity'])
+                actions[section['add']['id']] = {
+                    'primitive': 'form', 'entity': section['entity'], 'fixed': section['relation'],
+                    **({'fields': related_fields(section, related)} if related is not None else {}),
+                }
+        return actions
+
     def step_action(self, path, action_id):
-        screen = self.state.screen
-        actions = {it['id']: it for it in (screen or {}).get('actions', [])}
+        actions = self.actions()
         if not self.require(path, action_id in actions, f'The screen has no action `{action_id}`.'):
             self.state.known = False
             return
@@ -262,10 +285,22 @@ class _Scenario:
             self.state.editing = self.edit = True
         return True
 
+    def fixed(self, path, name) -> None:
+        """
+        Reports a field that the open form of "add here" fixes: the user never changes it.
+        """
+        form = self.state.form or {}
+        if name == form.get('fixed'):
+            self.add(
+                path, 'P022', f'The field `{name}` is fixed to the item of the card: it is not filled.',
+                'Fill the other fields of the related item.',
+            )
+
     def step_fill(self, path, values):
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
             for name in values:
+                self.fixed((*path, name), name)
                 if self.file(name):
                     self.add(
                         (*path, name), 'P022', f'The field `{name}` is a file: it is not filled.',
@@ -350,7 +385,7 @@ class _Scenario:
                 (*path, 'rows'), bool(screen) and screen['primitive'] == 'list', 'Only a list has rows.'
             )
         if 'action_absent' in value:
-            actions = {it['id'] for it in (screen or {}).get('actions', [])}
+            actions = self.actions()
             self.require(
                 (*path, 'action_absent'), value['action_absent'] in actions,
                 f'The screen has no action `{value["action_absent"]}`: it is always absent.',

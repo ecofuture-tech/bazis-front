@@ -32,6 +32,24 @@ msgstr "Задача"
 msgid "Tasks"
 msgstr "Задачи"
 
+msgid "Priority"
+msgstr "Приоритет"
+
+msgid "Low"
+msgstr "Низкий"
+
+msgid "Normal"
+msgstr "Обычный"
+
+msgid "High"
+msgstr "Высокий"
+
+msgid "Step"
+msgstr "Шаг"
+
+msgid "Steps"
+msgstr "Шаги"
+
 msgid "Task finished"
 msgstr "Задача завершена"
 

@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // spec/screens/task-card.yaml: a task with its status, its transits, its edit and its
-// deletion.
+// deletion, and its steps (`card.related`), added here with the task fixed while the user may
+// change the task.
 
 import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -22,7 +23,8 @@ import { ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
 import { useDestroy } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
-import { ResourceCard } from '@/bazis/ui/resource-card';
+import { permitted } from '@/bazis/ui/resource';
+import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
 import { toast } from '@/bazis/ui/state-panel';
 import { StatusBadge, statusName, statusOf } from '@/bazis/ui/status-badge';
 import { StatusHistory } from '@/bazis/ui/status-history';
@@ -30,6 +32,7 @@ import { TransitBar } from '@/bazis/ui/transit-bar';
 import { Button } from '@/components/ui/button';
 
 const TASKS = ROUTES['tasks.task'];
+const STEPS = ROUTES['tasks.step'];
 
 export function TaskCardScreen() {
   const { id = '' } = useParams();
@@ -54,7 +57,7 @@ export function TaskCardScreen() {
         id={id}
         edit
         sections={[
-          { id: 'main', title: t('task.details'), fields: ['title', 'status', 'assignee', 'attachment'] },
+          { id: 'main', title: t('task.details'), fields: ['title', 'status', 'assignee', 'attachment', 'priority'] },
           { id: 'report', title: t('task.report'), fields: ['report'] },
         ]}
         badge={(item) => <StatusBadge resource={item} />}
@@ -76,7 +79,7 @@ export function TaskCardScreen() {
           },
         ]}
       >
-        {(item) => (
+        {(item, meta) => (
           <>
             {/* null: the user can no longer view the task */}
             <TransitBar
@@ -88,6 +91,17 @@ export function TaskCardScreen() {
             />
             {/* `history: true` of the screen */}
             <StatusHistory resource={item} />
+            {/* `card.related` of the screen: a step is added while the task may be changed */}
+            <RelatedList
+              path={STEPS}
+              entity="step"
+              relation="task"
+              item={id}
+              title={t('task.steps')}
+              columns={['title', 'dt_created']}
+              add={permitted(meta, 'change') ? { id: 'add-step', label: t('task.add_step'), fields: ['title'] } : undefined}
+              emptyMessage={t('task.no_steps')}
+            />
           </>
         )}
       </ResourceCard>

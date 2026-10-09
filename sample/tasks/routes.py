@@ -14,6 +14,7 @@
 
 from django.apps import apps
 
+from bazis.contrib.permit.routes_abstract import PermitRouteBase
 from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
 
 
@@ -30,3 +31,12 @@ class TaskRouteSet(StatusyRouteSetBase):
     # the search of the list of the tasks (the core 2.9 answers a search of a route set
     # without search fields with 400)
     search_fields = ['title']
+
+
+class StepRouteSet(PermitRouteBase):
+    """
+    The steps of the tasks: the card of a task lists those of its task (`filter=task=<id>`)
+    and creates one with its task fixed.
+    """
+
+    model = apps.get_model('tasks.Step')

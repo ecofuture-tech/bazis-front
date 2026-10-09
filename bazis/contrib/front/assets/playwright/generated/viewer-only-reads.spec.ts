@@ -24,4 +24,7 @@ test('viewer-only-reads', async ({ page }) => {
     await app.expectActionAbsent('delete');
     await app.expectFieldAbsent('report');
   });
+  await test.step('expect: {action_absent: add-step}', async () => {
+    await app.expectActionAbsent('add-step');
+  });
 });

@@ -184,7 +184,7 @@ CASES = [
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/5/id')],
+        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/6/id')],
     ),
     (
         'P004',
@@ -215,12 +215,13 @@ CASES = [
     (
         'P011',
         {PRODUCT: lambda d: task(d).update(resource='tasks.job')},
-        [('P011', f'{PRODUCT}#/entities/0/resource')],
+        # and the relationship of the steps to the tasks references another resource
+        [('P011', f'{PRODUCT}#/entities/0/resource'), ('P013', f'{PRODUCT}#/entities/2/fields/1')],
     ),
     (
         'P012',
         {PRODUCT: lambda d: task(d)['fields'].append({'id': 'due_date', 'type': 'date'})},
-        [('P012', f'{PRODUCT}#/entities/0/fields/5')],
+        [('P012', f'{PRODUCT}#/entities/0/fields/6')],
     ),
     (
         'P013',
@@ -418,8 +419,8 @@ CASES = [
     ),
     (
         'S007',
-        {CARD: lambda d: d['card']['sections'][0]['fields'].append('priority')},
-        [('S007', f'{CARD}#/card/sections/0/fields/4')],
+        {CARD: lambda d: d['card']['sections'][0]['fields'].append('rank')},
+        [('S007', f'{CARD}#/card/sections/0/fields/5')],
     ),
     (
         'S008',
@@ -455,8 +456,8 @@ CASES = [
     (
         'S007',
         # the filter of the screen and its highlight by fields that the entity does not declare
-        {LIST: lambda d: d['list'].update(filter={'priority': 1}, highlight={'field': 'is_late', 'tone': 'danger', 'label': 'Late'})},
-        [('S007', f'{LIST}#/list/filter/priority'), ('S007', f'{LIST}#/list/highlight/field')],
+        {LIST: lambda d: d['list'].update(filter={'rank': 1}, highlight={'field': 'is_late', 'tone': 'danger', 'label': 'Late'})},
+        [('S007', f'{LIST}#/list/filter/rank'), ('S007', f'{LIST}#/list/highlight/field')],
     ),
     (
         'S008',
@@ -478,6 +479,12 @@ CASES = [
         # a highlight without its label: told by its color alone
         {LIST: lambda d: d['list'].update(highlight={'field': 'title', 'tone': 'warning'})},
         [('S014', f'{LIST}#/list/highlight'), ('S014', f'{LIST}#/list/highlight/field')],
+    ),
+    (
+        'S015',
+        # the steps of the card by their date, not by their relationship to the task
+        {CARD: lambda d: d['card']['related'][0].update(relation='dt_created')},
+        [('S015', f'{CARD}#/card/related/0/relation')],
     ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),
@@ -619,14 +626,58 @@ def test_without_a_contract_only_the_specs_are_checked(root):
     assert validate(root).contract is False
 
     # an error of the specs themselves is found
-    edit(root, LIST, lambda d: d['list']['filters'].append('priority'))
-    assert issues(root) == [('S007', f'{LIST}#/list/filters/3')]
+    edit(root, LIST, lambda d: d['list']['filters'].append('rank'))
+    assert issues(root) == [('S007', f'{LIST}#/list/filters/4')]
 
     out = StringIO()
     with pytest.raises(CommandError, match='The specs have 1 errors'):
         call_command('bazis_front', 'check', stdout=out)
     assert 'not checked against the backend' in out.getvalue()
-    assert f'{LIST}#/list/filters/3: S007 error: ' in out.getvalue()
+    assert f'{LIST}#/list/filters/4: S007 error: ' in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_the_related_sections_of_a_card(contract):
+    """
+    A related section of a card (`card.related`): its entity, its fields, the card that a
+    row opens and the action of "add here", against the specs; the relationship that its list
+    is filtered by, against the contract; the steps of a scenario in its form.
+    """
+    root = contract.parent.parent
+
+    def related(**change):
+        edit(root, CARD, lambda d: d['card']['related'][0].update(change))
+
+    related(entity='part')
+    assert issues(root) == [('S004', f'{CARD}#/card/related/0/entity')]
+
+    # the action of "add here" takes the id of the deletion; a row opens a list
+    related(entity='step', columns=['title', 'rank'], add={'id': 'delete', 'fields': ['title', 'note']}, open='task-list')
+    assert sorted(issues(root)) == sorted([
+        ('S010', f'{CARD}#/card/related/0/add/id'),
+        ('S006', f'{CARD}#/card/related/0/open'),
+        ('S007', f'{CARD}#/card/related/0/columns/1'),
+        ('S007', f'{CARD}#/card/related/0/add/fields/1'),
+        # the scenarios run `add-step` or expect it absent, and the card no longer has it
+        ('P022', f'{PRODUCT}#/scenarios/1/steps/4/expect/action_absent'),
+        ('P022', f'{PRODUCT}#/scenarios/9/steps/5/action'),
+    ])
+
+    # a row opens the card of another entity
+    section = {'id': 'steps', 'entity': 'step', 'relation': 'task', 'columns': ['title'], 'open': 'task-card'}
+    edit(root, CARD, lambda d: d['card']['related'].__setitem__(0, section))
+    assert ('S006', f'{CARD}#/card/related/0/open') in issues(root)
+
+    # the relationship to the task named in the form: shown read-only, never filled
+    section = {**section, 'add': {'id': 'add-step', 'fields': ['title', 'task']}}
+    del section['open']
+    edit(root, CARD, lambda d: d['card']['related'].__setitem__(0, section))
+    edit(root, PRODUCT, lambda d: steps(d, 9)[6].update(fill={'title': 'Book the room', 'task': 'Plan the launch'}))
+    assert issues(root) == [('P022', f'{PRODUCT}#/scenarios/9/steps/6/fill/task')]
+
+    # the list of the steps is filtered by their task: a field that the contract filters by
+    edit(root, CONTRACT, lambda d: [d['project']['resources']['tasks.step']['fields']['task'].pop('filter')])
+    assert ('S008', f'{CARD}#/card/related/0/relation') in issues(root)
 
 
 @pytest.mark.django_db
@@ -933,7 +984,8 @@ def test_several_grants_of_one_operation(contract):
     def viewer_permissions(*slugs):
         def change(data):
             role = next(it for it in data['capabilities']['permit']['roles'] if it['slug'] == 'viewer')
-            role['permissions'] = list(slugs)
+            # and the steps of the tasks, which the viewer views
+            role['permissions'] = [*slugs, 'tasks.step.item.view.all']
         edit(root, CONTRACT, change)
 
     def found():

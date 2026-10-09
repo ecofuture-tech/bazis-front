@@ -50,6 +50,8 @@ ATTACHES = 'e2e/generated/manager-attaches-a-brief.spec.ts'
 REPORT = 'e2e/generated/manager-cannot-change-the-report.spec.ts'
 NOTIFIED = 'e2e/generated/manager-is-notified-of-a-finished-task.spec.ts'
 DRAFTS = 'e2e/generated/viewer-reads-the-drafts.spec.ts'
+PRIORITY = 'e2e/generated/manager-sets-the-priority.spec.ts'
+STEP = 'e2e/generated/manager-adds-a-step.spec.ts'
 
 
 @pytest.fixture
@@ -256,10 +258,10 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     out = generate()
     frontend = root / 'frontend'
     files = rendered(root)
-    assert sorted(files) == [ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS, VIEWER, DRAFTS]
+    assert sorted(files) == [STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 8 end-to-end tests' in out
+    assert 'Generated 10 end-to-end tests' in out
     lock = lock_of(root)
     assert lock['e2e'] == {
         'spec': {
@@ -300,7 +302,7 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
     assert sorted(lock_of(root)['e2e']['generated']) == [
-        ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS, DRAFTS,
+        STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PRIORITY, e2e.PRODUCT_TS, DRAFTS,
     ]
     generate('--check')
 
@@ -322,7 +324,7 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     generate()
     assert {path: (frontend / path).read_bytes() for path in others} == before
     assert sorted(lock_of(root)['e2e']['generated']) == [
-        ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, e2e.PRODUCT_TS, VIEWER, DRAFTS,
+        STEP, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS,
     ]
 
 
@@ -431,15 +433,22 @@ def test_the_e2e_data_of_the_sample(monkeypatch):
     monkeypatch.delenv('E2E_PASSWORD', raising=False)
     with pytest.raises(CommandError, match='E2E_PASSWORD'):
         call_command('e2e_data', stdout=StringIO())
-    for password in ('first-password-0', 'second-password-1'):
-        monkeypatch.setenv('E2E_PASSWORD', password)
-        call_command('e2e_data', stdout=StringIO())
-    # a second run keeps the data and sets the password of the test users again
+    task_model = apps.get_model('tasks.Task')
+    monkeypatch.setenv('E2E_PASSWORD', 'first-password-0')
+    call_command('e2e_data', stdout=StringIO())
+    # a run of the scenarios: a task of a scenario with its step, the task of the viewer changed
+    created = task_model.objects.create(title='Write the report')
+    apps.get_model('tasks.Step').objects.create(task=created, title='Book the room')
+    task_model.objects.filter(title=TASK).update(report='Done')
+    monkeypatch.setenv('E2E_PASSWORD', 'second-password-1')
+    call_command('e2e_data', stdout=StringIO())
+    # the next run starts from the same data, and sets the password of the test users again
     for username, role in (('manager', 'manager'), ('viewer', 'viewer')):
         user = get_user_model().objects.get(username=username)
         assert user.check_password('second-password-1')
         assert user.role_current.slug == role and list(user.roles.values_list('slug', flat=True)) == [role]
-    assert apps.get_model('tasks.Task').objects.filter(title=TASK).count() == 1
+    assert list(task_model.objects.values_list('title', 'report', 'status_id')) == [(TASK, '', 'draft')]
+    assert not apps.get_model('tasks.Step').objects.exists()
     # the roles are those that `migrate` applied from the declarations
     assert set(apps.get_model('permit.Role').objects.values_list('pk', flat=True)) == roles
 

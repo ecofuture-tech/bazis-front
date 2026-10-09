@@ -7,11 +7,11 @@ entity: task
 roles: [manager, viewer]
 primitive: list
 list:
-  columns: [title, status, assignee, dt_created]
-  filters: [status, assignee]
+  columns: [title, status, priority, assignee, dt_created]
+  filters: [status, assignee, priority]
   sort: [-dt_created]
   search: true
   open: task-card
 actions:
-  - {id: create, primitive: form, mode: create, fields: [title, assignee], then: task-card}
+  - {id: create, primitive: form, mode: create, fields: [title, assignee, priority], then: task-card}
 states: [loading, empty, error, forbidden]

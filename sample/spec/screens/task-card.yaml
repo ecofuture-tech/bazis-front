@@ -8,11 +8,19 @@ roles: [manager, viewer]
 primitive: card
 card:
   sections:
-    - {id: main, fields: [title, status, assignee, attachment]}
+    - {id: main, fields: [title, status, assignee, attachment, priority]}
     - {id: report, title: Report, fields: [report]}
   edit: true
   transitions: true
   history: true
+  # the steps of the task, added here with the task fixed
+  related:
+    - id: steps
+      title: Steps
+      entity: step
+      relation: task
+      columns: [title, dt_created]
+      add: {id: add-step, fields: [title]}
 actions:
   - {id: delete, primitive: destroy, then: task-list}
 states: [loading, error, forbidden, not_found]

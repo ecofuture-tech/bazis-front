@@ -119,21 +119,36 @@ export function formDocument(
 }
 
 /**
+ * The values of fields that the screen sets and the user does not change, by name: the
+ * attribute value, or the id of the related item of a to-one relationship (the parent of
+ * an item added from its card, `{request: id}`).
+ */
+export type FixedValues = Readonly<Record<string, unknown>>;
+
+const NO_FIXED: FixedValues = {};
+
+/**
  * A form of a resource bound to its runtime schema: `schema_create/` without an id,
  * `schema_update/` of the item with one, so that the fields are those the current user may
  * set. Submit sends the changed attributes and to-one relationships as one JSON:API
  * document; a 422 gives the `errors` by field. To-many relationships are in `fields`
- * (`many: true`) but not in `values`: change them with `useRelationship`.
+ * (`many: true`) but not in `values`: change them with `useRelationship`. `fixed` values
+ * are those of their fields whatever `setValue` sets, and are sent like a change when they
+ * differ from the initial values (the backend still decides: a read-only field is never
+ * sent).
  */
 export function useResourceForm<P extends CreatePath>(
   path: P,
-  options?: { id?: undefined },
+  options?: { id?: undefined; fixed?: FixedValues },
 ): ResourceForm<CreateResponse<P>>;
 export function useResourceForm<P extends UpdatePath>(
   path: P,
-  options: { id: string },
+  options: { id: string; fixed?: FixedValues },
 ): ResourceForm<UpdateResponse<P>>;
-export function useResourceForm(path: string, { id }: { id?: string } = {}): ResourceForm<unknown> {
+export function useResourceForm(
+  path: string,
+  { id, fixed = NO_FIXED }: { id?: string; fixed?: FixedValues } = {},
+): ResourceForm<unknown> {
   const { api, scope } = useBazis();
   const queryClient = useQueryClient();
   const schema = useQuery(schemaQuery(api, path, id === undefined ? 'create' : 'update', id, scope));
@@ -164,10 +179,16 @@ export function useResourceForm(path: string, { id }: { id?: string } = {}): Res
     () => initialValues(fields, id === undefined ? undefined : item.data),
     [fields, id, item.data],
   );
-  const values = useMemo(() => ({ ...initial, ...edits }), [initial, edits]);
+  // the fixed values by their content: a screen may pass a new object at every render
+  const fixedKey = JSON.stringify(fixed);
+  const changed = useMemo(
+    () => ({ ...edits, ...(JSON.parse(fixedKey) as Record<string, unknown>) }),
+    [edits, fixedKey],
+  );
+  const values = useMemo(() => ({ ...initial, ...changed }), [initial, changed]);
   const dirty = useMemo(
-    () => Object.keys(edits).filter((name) => !same(edits[name], initial[name])),
-    [edits, initial],
+    () => Object.keys(changed).filter((name) => !same(changed[name], initial[name])),
+    [changed, initial],
   );
 
   const loading = schema.isPending || (id !== undefined && item.isPending);

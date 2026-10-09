@@ -160,6 +160,42 @@ describe('ResourceList', () => {
     expect(filterOf(filters, {}, types)).toBeUndefined();
   });
 
+  it('shows and filters a field with choices by their labels', async () => {
+    // the labels of the choices are `enumDict` of the list schema; the filter sends the value
+    const server = new Backend()
+      .on(
+        'GET',
+        `${ITEMS}schema_list/`,
+        runtimeSchema(
+          {
+            title: { attribute: { type: 'string', title: 'Title' } },
+            state: { attribute: { type: 'string', title: 'State', enum: ['new', 'done'], enumDict: { new: 'New', done: 'Finished' } } },
+          },
+          { list: true },
+        ),
+      )
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'state', py_type: 'string' }] })
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'First', state: 'done' })]));
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'state']} filters={['state']} />,
+      server,
+    );
+    await waitFor(() => {
+      expect(within(screen.getByTestId('row:a')).getByTestId('cell:state').textContent).toBe('Finished');
+    });
+    const control = await screen.findByTestId<HTMLSelectElement>('field:state');
+    // the first option is every item
+    expect([...control.options].map((it) => [it.value, it.value ? it.textContent : ''])).toEqual([
+      ['', ''],
+      ['new', 'New'],
+      ['done', 'Finished'],
+    ]);
+    fireEvent.change(control, { target: { value: 'done' } });
+    await waitFor(() => {
+      expect(requested(server, 'filter=state=done')).toBe(true);
+    });
+  });
+
   it('renders the numeric filters as numbers', async () => {
     const server = backend(listDocument(rows)).on('GET', `${ITEMS}route_filter_fields/`, {
       fields: [{ name: 'price', py_type: 'Decimal' }, { name: 'rate', py_type: 'number' }],
@@ -196,6 +232,27 @@ describe('ResourceList', () => {
     fireEvent.change(screen.getByTestId('field:$search'), { target: { value: 'word' } });
     await waitFor(() => {
       expect(requested(server, 'search=word')).toBe(true);
+    });
+  });
+
+  it('is busy until its rows are those of the search typed, which it marks', async () => {
+    // the end-to-end tests search a row (`openItem`) and wait for the rows of their search
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} search />,
+      backend(listDocument(rows)),
+    );
+    const list = screen.getByTestId('list:item');
+    await screen.findByTestId('state:loaded');
+    expect(list.getAttribute('aria-busy')).toBeNull();
+    expect(list.getAttribute('data-search')).toBeNull();
+    fireEvent.change(screen.getByTestId('field:$search'), { target: { value: ' word ' } });
+    // at once, while the search waits for the end of the typing
+    expect(list.getAttribute('aria-busy')).toBe('true');
+    await waitFor(() => {
+      expect(list.getAttribute('data-search')).toBe('word');
+    });
+    await waitFor(() => {
+      expect(list.getAttribute('aria-busy')).toBeNull();
     });
   });
 

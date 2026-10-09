@@ -62,9 +62,9 @@ sample (`tests/test_design.py` checks it; write it again with
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`; `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?, filter?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, rowTone?, rowToneLabel?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>`, `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
-| `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
+| `resource-list` | `ResourceList({path, entity, columns, filters?, filter?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, rowTone?, rowToneLabel?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?})`; `RelatedList({path, entity, relation, item, columns, title?, add?: {id, label, fields?, title?, icon?, onSaved?}, onOpen?, cells?, emptyMessage?, sort?, pageSize?, layout?, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>`, `action:<add.id>` | |
+| `resource-form` | `ResourceForm({path, id?, fields?, fixed?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | capability `statusy` |
 | `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
@@ -75,8 +75,10 @@ sample (`tests/test_design.py` checks it; write it again with
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
-only one: the forms and the payloads of the transits use it), `FieldValue` (with
-`formatValue(field, value, {language, t}?)`: the value in the language of the interface),
+only one: the forms and the payloads of the transits use it; the choices of a field are a
+select of their labels), `FieldValue` (with
+`formatValue(field, value, {language, t}?)`: the value in the language of the interface, a
+choice by its label; `choiceOptions(field)`: the choices as options of a filter),
 `RelationPicker({relation, value, onChange, label?, placeholder?, nullable?, disabled?, path?, searchable?})` and
 `RelationLabel({relation, id, path?})` (the related resource by its route in `ROUTES`, or
 `path`; `hasSearch(type)`: whether the contract gives the resource search fields),
@@ -98,7 +100,8 @@ the WebSocket of the page in a test.
 - **`resource-list`** reads the list with `useList` (`meta`: `pagination`, `for_create`,
   `for_change`, `for_delete`), the titles of the columns from `schema_list/`, the types of
   the filters from `route_filter_fields/` (a relation: the picker of the related resource; a
-  date: a range; a string: `<field>__$search`; `options` for choices such as the statuses;
+  date: a range; a string: `<field>__$search`; `options` for choices such as the statuses,
+  those of the list schema by their labels for a field with choices;
   no control for a field that the backend does not list for the user; the inline
   `state:error` when they cannot be read), the sort labels from
   `RESOURCES` of the contract. An action with `permission` is shown only when the
@@ -117,7 +120,11 @@ the WebSocket of the page in a test.
 - **`resource-card`** reads the item with `crud_actions` and its fields from
   `schema_retrieve/` of the item; with `edit`, an edit button (when the backend allows the
   change) opens the form of the update of their fields in a dialog or as a page
-  (`FormSurface`). `children` may be a function of the item and its permission meta
+  (`FormSurface`). `RelatedList` is a related section of a card: the list of a related
+  resource filtered by its to-one relationship to the item (`Filter.where(relation, item)`)
+  and `add`, its create form (`ResourceFormBody` in `FormSurface`) with the relationship
+  fixed to the item, shown when the backend allows the create (`for_create`).
+  `children` may be a function of the item and its permission meta
   (`StatusHistory` takes the item; `permitted(meta, 'change')` for a section of the product).
 - **The field permissions of bazis-permit** (`<app>.<model>.field.<operation>.<selector>…
   .<field>.<restriction>`, restrictions `enable`, `readonly`, `disable`, …) are read from
@@ -164,7 +171,9 @@ the WebSocket of the page in a test.
   is modal, so that it scrolls and keeps the focus inside a dialog. A related resource
   without a route is an input of the id.
 - **`resource-form`** is `useResourceForm`: the fields of `schema_create/` or
-  `schema_update/` of the current user, read-only ones disabled and never sent; a to-one
+  `schema_update/` of the current user, read-only ones disabled and never sent; `fixed`
+  values (the parent of an added item) are sent and never changed by the user, their fields
+  left out or, named in `fields`, read-only; a to-one
   relationship is a `RelationPicker` (a file field the control of `FilesProvider`); to-many
   relationships are left out (`useRelationship`). A 422 is `state:invalid`: the errors of
   the fields at their fields (`error:<name>`), the others in the state (`ApiError.formErrors()`:

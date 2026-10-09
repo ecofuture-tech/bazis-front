@@ -104,6 +104,63 @@ describe('useResourceForm without an id: a create', () => {
   });
 });
 
+describe('useResourceForm with fixed values', () => {
+  it('creates the item with the fixed relationship, whatever is set', async () => {
+    // an item added from the card of its parent: the screen fixes the parent
+    const backend = new Backend()
+      .on('GET', `${PARENT}schema_create/`, parentSchema('create'))
+      .on('POST', PARENT, { data: { ...item('Bike', 'p1').data, id: '8' } }, 201);
+    const { result, rerender } = render(
+      ({ parent }: { parent: string }) => useResourceForm(PARENT, { fixed: { parent } }),
+      backend,
+      undefined,
+      { parent: 'p1' },
+    );
+    await ready(result);
+    expect(result.current.values.parent).toBe('p1');
+    expect(result.current.dirty).toEqual(['parent']);
+    act(() => {
+      result.current.setValue('name', 'Bike');
+      result.current.setValue('parent', 'p9');
+    });
+    // a new object of the same values at every render keeps the form as it is
+    rerender({ parent: 'p1' });
+    expect(result.current.values).toMatchObject({ name: 'Bike', parent: 'p1' });
+    await act(async () => {
+      await result.current.submit();
+    });
+    expect(backend.calls.find((it) => it.method === 'POST')?.body).toEqual({
+      data: {
+        type: 'entity.parent_entity',
+        attributes: { name: 'Bike' },
+        relationships: { parent: { data: { type: 'entity.parent_entity', id: 'p1' } } },
+      },
+    });
+  });
+
+  it('does not send a fixed value that the item already has, nor a read-only field', async () => {
+    const backend = new Backend()
+      .on('GET', `${PARENT}7/schema_update/`, parentSchema('update'))
+      .on('GET', `${PARENT}7/`, item('Bike', 'p1'))
+      .on('PATCH', `${PARENT}7/`, item('Car', 'p1'));
+    const { result } = render(
+      () => useResourceForm(PARENT, { id: '7', fixed: { parent: 'p1', dt_created: '2000-01-01T00:00:00Z' } }),
+      backend,
+    );
+    await ready(result);
+    act(() => {
+      result.current.setValue('name', 'Car');
+    });
+    expect(result.current.dirty).toEqual(['name', 'dt_created']);
+    await act(async () => {
+      await result.current.submit();
+    });
+    expect(backend.calls.find((it) => it.method === 'PATCH')?.body).toEqual({
+      data: { type: 'entity.parent_entity', id: '7', attributes: { name: 'Car' }, relationships: {} },
+    });
+  });
+});
+
 describe('useResourceForm with an id: an update', () => {
   function backend() {
     return new Backend()

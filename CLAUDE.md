@@ -35,7 +35,10 @@ bazis-uploadable, bazis-ws, bazis-author with bazis-bg, bazis-async-background a
 bazis-async-request (the `test` extra) with a project app `users` (its route set of the users,
 `users.routes.UserRouteSet`, is that of bazis-users with `search_fields`, which the picker
 of the assignee searches: the core 2.9 answers a search of a route set without them with
-400) and a statusy model `tasks.Task` (searched by its title), whose `attachment` is a file of bazis-uploadable (a foreign key to
+400) and a statusy model `tasks.Task` (searched by its title; its `priority` has choices, whose
+labels the runtime schemas give translated, `enumDict`, which the frontend shows, offers and
+filters by; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
+`card.related` of the card of a task, added there with the task fixed), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
 bazis-uploadable, routed as it is: it requires a user and gives him only his own files,
 also to the other routes, so the core refuses as the attachment of a task a file of another
@@ -65,7 +68,8 @@ the scenarios check with `field_absent` and `field_readonly`. `manage.py e2e_dat
 e2e data command that bazis-front recommends to products (the module AGENTS.md, "The
 end-to-end tests"): on top of the migrations it creates only the test users of the roles,
 their password set to `E2E_PASSWORD` at every run, and the task that the scenario of the
-viewer opens; it never creates a role, a status or a transit. The user model has
+viewer opens, after it deleted the tasks of the previous runs (every run starts from the
+same data); it never creates a role, a status or a transit. The user model has
 `UserWsMixin`, `sample/router.py` routes the socket of bazis-ws
 (`router.register('bazis.contrib.ws.router')`, `/api/v1/ws`, where the export sees it) and
 `sample/main.py` adds `AsyncRequestMiddleware`; `tasks.models.Task` publishes with the

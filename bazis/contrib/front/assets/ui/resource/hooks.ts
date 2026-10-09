@@ -27,6 +27,7 @@ import {
   useRelatedItem,
   useResourceForm,
   useSchema,
+  type FixedValues,
   type JsonSchema,
   type QueryOptions,
   type ResourceForm,
@@ -88,10 +89,10 @@ export const useAnyFilterFields = useFilterFields as unknown as (
   path: string,
 ) => UseQueryResult<FilterFieldsDocument>;
 
-/** `useResourceForm(path, {id})`: a create without an id. */
+/** `useResourceForm(path, {id, fixed})`: a create without an id. */
 export const useAnyResourceForm = useResourceForm as unknown as (
   path: string,
-  options: { id?: string },
+  options: { id?: string; fixed?: FixedValues },
 ) => ResourceForm<SavedDocument>;
 
 /** A value as text: a JSON value that is not a string, a number or a boolean as JSON. */

@@ -17,7 +17,9 @@ The data of the end-to-end tests of the sample, created by `manage.py e2e_data` 
 migrations (the roles, statuses and transits are declared in `tasks/roles.py` and
 `tasks/workflow.py`, which `migrate` applies):
 the test users of the roles, the `test_user` of the roles of `sample/spec/product.yaml`, and
-the task that a scenario opens.
+the task that a scenario opens. Every run starts the scenarios from the same data: the tasks
+of the previous runs (those the scenarios created, with their steps) are deleted, so that
+the lists do not grow from run to run and the task of the viewer is a draft again.
 """
 
 from django.apps import apps as global_apps
@@ -39,8 +41,9 @@ def create_test_data(password: str) -> None:
     The data of the end-to-end tests on top of the migrations: the test user of each role,
     with the password (set again when the user exists, so that the tests log in with the
     current E2E_PASSWORD, and the language of the profile cleared), and the task that the
-    scenario of the viewer opens. A role that
-    `migrate` did not apply is an error: this data never creates one.
+    scenario of the viewer opens, created again after the tasks of the previous runs are
+    deleted (the database of the end-to-end tests is theirs). A role that `migrate` did not
+    apply is an error: this data never creates one.
     """
     role_model = global_apps.get_model('permit', 'Role')
     for username, slug in TEST_USERS.items():
@@ -60,5 +63,7 @@ def create_test_data(password: str) -> None:
             user.language = None
         user.save()
     task_model = global_apps.get_model('tasks', 'Task')
-    if not task_model.objects.filter(title=TASK).exists():
-        task_model.objects.create(title=TASK)
+    # the tasks of the previous runs: those the scenarios created, and the task of the viewer,
+    # which a run may have changed
+    task_model.objects.all().delete()
+    task_model.objects.create(title=TASK)

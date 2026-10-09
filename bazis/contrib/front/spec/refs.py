@@ -587,6 +587,94 @@ def _check_screen(
         _check_list_contract(doc, entity, contract, issues)
     if contract is not None:
         _check_search_contract(doc, entity, contract, issues)
+    _check_related_sections(doc, entity, product, screens, contract, issues)
+
+
+def related_sections(data: dict) -> list[dict]:
+    """
+    The related sections of a screen (`card.related`): none on a list or a form.
+    """
+    return data['card'].get('related', []) if data['primitive'] == 'card' else []
+
+
+def related_fields(section: dict, related: Entity) -> list[str]:
+    """
+    The fields of the form of "add here" of a related section: its `fields`, or every field
+    of the related entity but the relationship, which is fixed.
+    """
+    add = section.get('add', {})
+    return add['fields'] if 'fields' in add else [it for it in related.fields if it != section['relation']]
+
+
+def _check_related_sections(
+    doc: Document, entity: Entity, product: Product, screens: dict, contract: dict | None, issues: Issues
+) -> None:
+    """
+    The related sections of a card (`card.related`), each checked by `_check_related`.
+    """
+    for i, section in enumerate(related_sections(doc.data)):
+        _check_related(doc, ('card', 'related', i), section, entity, product, screens, contract, issues)
+
+
+def _check_related(
+    doc: Document, path: tuple, section: dict, entity: Entity, product: Product, screens: dict,
+    contract: dict | None, issues: Issues,
+) -> None:
+    """
+    A related section of a card: its entity and the fields of it that it uses, its
+    relationship to the entity of the card (S015), the card that a row opens; against the
+    contract, the relationship that the list is filtered by (S008) and the pickers of the
+    form of "add here" (S012).
+    """
+    related = product.entities.get(section['entity'])
+    if related is None:
+        issues.add(
+            doc, (*path, 'entity'), 'S004', f'The entity `{section["entity"]}` is not in spec/product.yaml.',
+            'Use the id of an entity of `entities`.',
+        )
+        return
+    names = [((*path, 'relation'), section['relation'])]
+    names += [((*path, 'columns', i), name) for i, name in enumerate(section['columns'])]
+    names += [((*path, 'add', 'fields', i), name) for i, name in enumerate(section.get('add', {}).get('fields', []))]
+    for field_path, name in names:
+        if name not in related.fields:
+            issues.add(
+                doc, field_path, 'S007', f'The entity `{related.data["id"]}` has no field `{name}`.',
+                'Declare the field in the entity, or use one of its fields.',
+            )
+    relation = related.fields.get(section['relation'])
+    if relation is not None and (relation.get('relation') != entity.data['id'] or relation.get('many', False)):
+        issues.add(
+            doc, (*path, 'relation'), 'S015',
+            f'The field `{section["relation"]}` of `{related.data["id"]}` is not a to-one '
+            f'relationship to `{entity.data["id"]}`, the entity of the card.',
+            f'Name the relationship of `{related.data["id"]}` that references the item of the card '
+            f'(`relation: {entity.data["id"]}`, not many).',
+        )
+    target = screens.get(section.get('open'))
+    if target is not None and target['primitive'] == 'card' and target['entity'] != related.data['id']:
+        issues.add(
+            doc, (*path, 'open'), 'S006',
+            f'The card `{section["open"]}` is a card of `{target["entity"]}`, not of `{related.data["id"]}`.',
+            'Open a card of the related entity.',
+        )
+    resource = contract['project']['resources'].get(related.data['resource']) if contract else None
+    if resource is None:
+        return
+    actual = resource['fields'].get(section['relation'])
+    if actual is not None and 'filter' not in actual:
+        issues.add(
+            doc, (*path, 'relation'), 'S008',
+            f'The field `{section["relation"]}` of `{related.data["resource"]}` cannot be filtered by: '
+            'it has no `filter` in the contract, and the list of the related items is filtered by it.',
+            'Make the field filtered by in the route set of the backend (a field of its LIST schema).',
+        )
+    if 'add' in section:
+        listed = 'fields' in section['add']
+        _check_pickers(doc, resource, [
+            ((*path, 'add', 'fields', i) if listed else (*path, 'add'), name)
+            for i, name in enumerate(related_fields(section, related))
+        ], contract, issues)
 
 
 def _screen_fields(data: dict):
@@ -639,6 +727,7 @@ def _check_screen_refs(doc: Document, screens: dict, issues: Issues) -> None:
         seen.add(action['id'])
         if problem:
             issues.add(doc, ('actions', i), 'S010', problem, 'Fix or remove the action.')
+    targets += _related_refs(doc, seen, issues)
     for path, target, primitive in targets:
         if target not in screens:
             issues.add(
@@ -650,6 +739,27 @@ def _check_screen_refs(doc: Document, screens: dict, issues: Issues) -> None:
                 doc, path, 'S006', f'The screen `{target}` is not a {primitive}.',
                 f'Use a {primitive} screen of the entity.',
             )
+
+
+def _related_refs(doc: Document, actions: set[str], issues: Issues) -> list[tuple]:
+    """
+    The related sections of a card: the action of "add here" of each, among the actions of
+    the screen (`actions`, their ids); returns the cards that their rows open.
+    """
+    targets = []
+    for i, section in enumerate(related_sections(doc.data)):
+        if 'open' in section:
+            targets.append((('card', 'related', i, 'open'), section['open'], 'card'))
+        if 'add' not in section:
+            continue
+        if section['add']['id'] in actions:
+            issues.add(
+                doc, ('card', 'related', i, 'add', 'id'), 'S010',
+                f'The action `{section["add"]["id"]}` is declared twice.',
+                'Give the action of the related section an id of its own.',
+            )
+        actions.add(section['add']['id'])
+    return targets
 
 
 def _check_list_contract(doc: Document, entity: Entity, contract: dict, issues: Issues) -> None:
@@ -745,8 +855,7 @@ def _check_search_contract(doc: Document, entity: Entity, contract: dict, issues
     search fields without a search. In a form, a file is edited by the file field and a
     to-many relationship is not edited: no picker.
     """
-    resources = contract['project']['resources']
-    resource = resources.get(entity.data['resource'])
+    resource = contract['project']['resources'].get(entity.data['resource'])
     if resource is None:
         return
     data = doc.data
@@ -758,7 +867,18 @@ def _check_search_contract(doc: Document, entity: Entity, contract: dict, issues
             'List the fields to search in `search_fields` of the route set of the resource '
             f'(fields of its LIST schema), and {EXPORT_HINT}; or remove `search`.',
         )
-    for path, name in _picker_fields(data, entity):
+    _check_pickers(doc, resource, _picker_fields(data, entity), contract, issues)
+
+
+def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues: Issues) -> None:
+    """
+    The pickers of the related items of the fields `(path, name)` of a resource of the
+    contract, in a filter of a list (a path in `list`) or in a form (where a file is edited by
+    the file field and a to-many relationship is not edited): S012 when the related resource
+    has no search fields.
+    """
+    resources = contract['project']['resources']
+    for path, name in items:
         schema = resource['fields'].get(name, {})
         relation = schema.get('relation')
         target = resources.get(relation) if isinstance(relation, str) else None

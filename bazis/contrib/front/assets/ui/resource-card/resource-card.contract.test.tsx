@@ -16,16 +16,27 @@
 // `not_found`, `error`, `loaded`), `field:<name>` of its values with the titles of the
 // retrieve schema (only the fields it has: the field permissions of the user), the fields
 // that its edit does not change marked read-only, the actions the backend allows and the
-// edit (`action:edit`, then the form, in a dialog or as a page). Keep it passing when the
-// component is changed.
+// edit (`action:edit`, then the form, in a dialog or as a page); a related section
+// (`RelatedList`): the related items of the item, `action:<id>` that adds one with the
+// relationship fixed to the item. Keep it passing when the component is changed.
 
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
-import { ResourceCard } from '@/bazis/ui/resource-card';
-import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema, testLanguages } from '@/bazis/ui/testing';
+import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
+import {
+  Backend,
+  errors,
+  ITEM_ID,
+  ITEMS,
+  listDocument,
+  renderWithBazis,
+  resource,
+  runtimeSchema,
+  testLanguages,
+} from '@/bazis/ui/testing';
 
 const ITEM = `${ITEMS}${ITEM_ID}/`;
 const schema = runtimeSchema({
@@ -203,5 +214,87 @@ describe('ResourceCard', () => {
     // the screen keeps its mark, the form is in it, the content of the card is hidden
     expect(screen.getByTestId('screen:item-card').contains(form())).toBe(true);
     expect(screen.getByTestId('action:edit').closest('.hidden')).not.toBeNull();
+  });
+});
+
+describe('RelatedList', () => {
+  // the parts of an item: a resource whose relationship `item` references it
+  const PARTS = '/api/test/part/';
+  const partSchema = (list: boolean) =>
+    runtimeSchema(
+      { name: { attribute: { type: 'string', maxLength: 50, title: 'Name' } }, item: { relation: 'test.item', nullable: false } },
+      { list, type: 'test.part' },
+    );
+
+  function parts(meta: object) {
+    return new Backend()
+      .on('GET', `${PARTS}schema_list/`, partSchema(true))
+      .on('GET', `${PARTS}schema_create/`, partSchema(false))
+      .on('GET', PARTS, listDocument([resource('p1', { name: 'Wheel' }, {}, 'test.part')], { meta }))
+      .on('POST', PARTS, { data: resource('p2', { name: 'Seat' }, {}, 'test.part') }, 201);
+  }
+
+  it('lists the related items of the item and adds one with the relationship fixed', async () => {
+    const server = parts({ for_create: true });
+    const onSaved = vi.fn();
+    renderWithBazis(
+      <RelatedList
+        path={PARTS as never}
+        entity="part"
+        relation="item"
+        item={ITEM_ID}
+        columns={['name']}
+        title="Parts"
+        forms="dialog"
+        add={{ id: 'add-part', label: 'Add a part', fields: ['name'], onSaved }}
+      />,
+      server,
+    );
+    const list = await screen.findByTestId('list:part');
+    expect(await within(list).findByTestId('row:p1')).toBeTruthy();
+    // the list of the related items of this item only
+    expect(server.requests('GET').some((it) => decodeURIComponent(it).includes(`filter=item=${ITEM_ID}`))).toBe(true);
+
+    fireEvent.click(screen.getByTestId('action:add-part'));
+    const name = await screen.findByTestId('field:name');
+    // the relationship is not chosen again
+    expect(screen.queryByTestId('field:item')).toBeNull();
+    fireEvent.change(name, { target: { value: 'Seat' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalled();
+    });
+    expect(server.calls.find((call) => call.method === 'POST')?.body).toEqual({
+      data: {
+        type: 'test.part',
+        attributes: { name: 'Seat' },
+        relationships: { item: { data: { type: 'test.item', id: ITEM_ID } } },
+      },
+    });
+    // the form is closed
+    expect(screen.queryByTestId('action:submit')).toBeNull();
+  });
+
+  it('adds nothing when the backend does not allow the create, or without add', async () => {
+    const { unmount } = renderWithBazis(
+      <RelatedList
+        path={PARTS as never}
+        entity="part"
+        relation="item"
+        item={ITEM_ID}
+        columns={['name']}
+        add={{ id: 'add-part', label: 'Add a part' }}
+      />,
+      parts({ for_create: false }),
+    );
+    expect(await within(await screen.findByTestId('list:part')).findByTestId('row:p1')).toBeTruthy();
+    expect(screen.queryByTestId('action:add-part')).toBeNull();
+    unmount();
+    renderWithBazis(
+      <RelatedList path={PARTS as never} entity="part" relation="item" item={ITEM_ID} columns={['name']} />,
+      parts({ for_create: true }),
+    );
+    expect(await within(await screen.findByTestId('list:part')).findByTestId('row:p1')).toBeTruthy();
+    expect(screen.queryByTestId('action:add-part')).toBeNull();
   });
 });

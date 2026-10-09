@@ -57,10 +57,11 @@ NORMAL = [
 ]
 
 
-#: the keywords of a JSON Schema that the hooks read (`src/schema.ts`, `src/statusy/`)
+#: the keywords of a JSON Schema that the hooks read (`src/schema.ts`, `src/statusy/`):
+#: `enumDict` (the labels of the choices, by value) is kept as it is
 SCHEMA_KEYWORDS = {
-    '$defs', '$ref', 'anyOf', 'default', 'enum', 'format', 'items', 'maxLength', 'nullable',
-    'properties', 'readOnly', 'required', 'title', 'type',
+    '$defs', '$ref', 'anyOf', 'default', 'enum', 'enumDict', 'format', 'items', 'maxLength',
+    'nullable', 'properties', 'readOnly', 'required', 'title', 'type',
 }
 DEFS = '#/$defs/'
 DETAIL = '<detail>'
@@ -82,6 +83,8 @@ def keywords(node, field=False):
             result[key] = {name: keywords(it, field=True) for name, it in value.items()}
         elif key == '$defs':
             result[key] = {name: keywords(it) for name, it in value.items()}
+        elif key == 'enumDict':
+            result[key] = value
         else:
             result[key] = keywords(value)
     return result
@@ -412,3 +415,32 @@ def test_the_fixture_of_the_hooks_is_the_sample(sample_app, settings, monkeypatc
     if os.environ.get('BAZIS_FRONT_WRITE_FIXTURES') == '1':
         FIXTURE.write_text(json.dumps(captured, indent=2) + '\n', encoding='utf-8')
     assert json.loads(FIXTURE.read_text(encoding='utf-8')) == captured
+
+
+def labels_of(node, name: str):
+    """
+    The labels of the choices (`enumDict`) of the property of a runtime schema, wherever the
+    schema defines it.
+    """
+    if isinstance(node, list):
+        return next((it for it in (labels_of(child, name) for child in node) if it is not None), None)
+    if not isinstance(node, dict):
+        return None
+    found = node.get('properties', {}).get(name, {}).get('enumDict')
+    if found is not None:
+        return found
+    return next((it for it in (labels_of(child, name) for child in node.values()) if it is not None), None)
+
+
+@pytest.mark.django_db
+def test_the_labels_of_the_choices_are_in_the_language_of_the_request(sample_app):
+    # the hooks show a choice by its label (`labels` of a field): the backend gives them in
+    # the language of the request, the language of the interface
+    client = get_api_client(sample_app)
+    for language, expected in (
+        ('en', {'low': 'Low', 'normal': 'Normal', 'high': 'High'}),
+        ('ru', {'low': 'Низкий', 'normal': 'Обычный', 'high': 'Высокий'}),
+    ):
+        response = client.get(f'{TASKS}schema_list/', headers={'Accept-Language': language})
+        assert response.status_code == 200, response.text
+        assert labels_of(response.json(), 'priority') == expected

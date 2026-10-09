@@ -77,8 +77,9 @@ export function TaskListScreen() {
       <ResourceList
         path={TASKS}
         entity="task"
-        columns={['title', 'status', 'assignee', 'dt_created']}
-        filters={[{ field: 'status', options: statusOptions('tasks.task', language) }, 'assignee']}
+        columns={['title', 'status', 'priority', 'assignee', 'dt_created']}
+        // the priority is filtered by the labels of its choices (the list schema)
+        filters={[{ field: 'status', options: statusOptions('tasks.task', language) }, 'assignee', 'priority']}
         sort={['-dt_created']}
         search
         selected={id}
@@ -107,7 +108,7 @@ export function TaskListScreen() {
       >
         <ResourceForm
           path={TASKS}
-          fields={['title', 'assignee']}
+          fields={['title', 'assignee', 'priority']}
           onSaved={(saved) => {
             setCreating(false);
             void navigate(`/tasks/${saved.data.id}`);

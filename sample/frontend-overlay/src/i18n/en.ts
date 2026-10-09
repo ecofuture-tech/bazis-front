@@ -38,4 +38,7 @@ export const en: Messages = {
   'task.report': 'Report',
   'task.delete': 'Delete',
   'task.deleted': 'Deleted',
+  'task.steps': 'Steps',
+  'task.add_step': 'Add a step',
+  'task.no_steps': 'No steps yet.',
 };

@@ -1,7 +1,8 @@
 # The screens of the sample
 
 The product code of the frontend of the sample: its screens (`src/screens/task-list/`,
-`src/screens/task-card/`, the report `src/screens/draft-tasks/`), composed from the components as the specs of the sample
+`src/screens/task-card/` with the steps of the task, its related section `RelatedList`, the
+report `src/screens/draft-tasks/`), composed from the components as the specs of the sample
 (`sample/spec/screens/`) describe them, the router of the template with their routes
 (`src/app/router.tsx`, inside `SocketProvider`, the socket of bazis-ws with the token of the
 session, and `FileFieldProvider`: the forms upload the files of bazis-uploadable; the

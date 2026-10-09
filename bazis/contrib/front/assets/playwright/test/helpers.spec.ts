@@ -113,6 +113,97 @@ test('openItem finds a row by a cell of a hidden column', async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-opened', '2');
 });
 
+/**
+ * The list of the tasks as `ResourceList` renders it, over items `[title, assignee]`: pages of
+ * two rows (`action:next-page`), a search of the titles (`field:$search`) applied after the
+ * typing, busy (`aria-busy`) until its rows are loaded, the search of its rows in
+ * `data-search`. The page records the searches and the pages read in the dataset of the body.
+ */
+function pagedList(items: readonly (readonly [string, string])[], { search = true } = {}): string {
+  return html(
+    `<section data-bz="screen:task-list"><div data-bz="list:task" id="list">
+      ${search ? '<input type="search" data-bz="field:$search" id="search">' : ''}
+      <div data-bz="state:loaded"><table><tbody id="rows"></tbody></table></div>
+      <button data-bz="action:next-page" id="next">Next</button>
+    </div></section>`,
+    `const items = ${JSON.stringify(items)};
+     const list = document.getElementById('list');
+     const next = document.getElementById('next');
+     const input = document.getElementById('search');
+     const body = document.body.dataset;
+     let offset = 0;
+     let query = '';
+     function render() {
+       const found = items.map(([title, assignee], id) => ({ id, title, assignee })).filter((it) => it.title.includes(query));
+       document.getElementById('rows').innerHTML = found.slice(offset, offset + 2).map((it) =>
+         '<tr data-bz="row:' + it.id + '"><td data-bz="cell:title">' + it.title + '</td><td data-bz="cell:assignee">' + it.assignee + '</td></tr>').join('');
+       next.disabled = offset + 2 >= found.length;
+       list.removeAttribute('aria-busy');
+     }
+     function load(change) {
+       list.setAttribute('aria-busy', 'true');
+       setTimeout(() => { change(); render(); }, 200);
+     }
+     document.getElementById('rows').onclick = (event) => { body.opened = event.target.closest('tr').dataset.bz.slice(4); };
+     next.onclick = () => { body.pages = String(Number(body.pages || 0) + 1); load(() => { offset += 2; }); };
+     if (input) input.oninput = () => {
+       list.setAttribute('aria-busy', 'true');
+       clearTimeout(window.typing);
+       window.typing = setTimeout(() => {
+         const text = input.value.trim();
+         body.searches = (body.searches || '') + '|' + text;
+         if (text) list.dataset.search = text; else delete list.dataset.search;
+         load(() => { offset = 0; query = text; });
+       }, 300);
+     };
+     render();`,
+  );
+}
+
+test.describe('openItem in a list of several pages', () => {
+  const others = [['A', 'viewer'], ['B', 'viewer'], ['C', 'viewer'], ['D', 'viewer']] as const;
+
+  test('reads the next pages of a list without a search', async ({ page }) => {
+    await show(page, '/tasks', pagedList([...others, ['Target', 'manager']], { search: false }));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    await app.openItem({ where: { title: 'Target' } });
+    await expect(page.locator('body')).toHaveAttribute('data-opened', '4');
+    await expect(page.locator('body')).toHaveAttribute('data-pages', '2');
+  });
+
+  test('searches a list with a search, with each text in turn, and reads no page', async ({ page }) => {
+    // the search has the titles only: the assignee finds nothing, the title the two rows
+    await show(page, '/tasks', pagedList([...others, ['Target', 'viewer'], ['Target', 'manager']]));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    await app.openItem({ where: { assignee: 'manager', title: 'Target' } });
+    await expect(page.locator('body')).toHaveAttribute('data-opened', '5');
+    await expect(page.locator('body')).toHaveAttribute('data-searches', '|manager|Target');
+    await expect(page.locator('body')).not.toHaveAttribute('data-pages');
+  });
+
+  test('opens a row of the page shown without a search', async ({ page }) => {
+    await show(page, '/tasks', pagedList([['Target', 'manager'], ...others]));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    await app.openItem({ where: { title: 'Target' } });
+    await expect(page.locator('body')).toHaveAttribute('data-opened', '0');
+    await expect(page.locator('body')).not.toHaveAttribute('data-searches');
+  });
+
+  test('fails when no page has the row, after the searches and the pages', async ({ page }) => {
+    await show(page, '/tasks', pagedList(others));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    await expect(app.openItem({ where: { title: 'Missing' } })).rejects.toThrow('No row of the list');
+    // the search, then the list without it, page after page
+    await expect(page.locator('body')).toHaveAttribute('data-searches', '|Missing|');
+    await expect(page.locator('body')).toHaveAttribute('data-pages', '1');
+    await expect(page.locator('body')).not.toHaveAttribute('data-opened');
+  });
+});
+
 test('fill fills the open form only, waiting for the options of a select', async ({ page }) => {
   const form = `<form><input data-bz="field:title"><textarea data-bz="field:report"></textarea>
     <select data-bz="field:assignee" id="assignee"><option value="">—</option></select>

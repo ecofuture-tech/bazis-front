@@ -18,7 +18,7 @@
 
 import { useId, useState } from 'react';
 
-import type { AttributeField, FormField } from '@/bazis/react';
+import { choiceLabel, type AttributeField, type FormField } from '@/bazis/react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -101,9 +101,10 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
         }}
       >
         <NativeSelectOption value="">—</NativeSelectOption>
+        {/* offered by its label (`enumDict` of the backend), sent as its value */}
         {field.enum.map((choice) => (
           <NativeSelectOption key={text(choice)} value={text(choice)}>
-            {text(choice)}
+            {choiceLabel(field, choice) ?? text(choice)}
           </NativeSelectOption>
         ))}
       </NativeSelect>
@@ -195,9 +196,10 @@ function noBusy(): void {
 
 /**
  * A field of a runtime schema with its label and its errors: the control by the type,
- * format and choices of an attribute, the picker of the related item of a to-one
- * relationship (`RelationPicker`), the upload of a file field (the control of
- * `FilesProvider`, `FileField` of file-field); read-only when the user may not change it.
+ * format and choices of an attribute (a select of the labels of the choices), the picker of
+ * the related item of a to-one relationship (`RelationPicker`), the upload of a file field
+ * (the control of `FilesProvider`, `FileField` of file-field); read-only when the user may
+ * not change it.
  * To-many relationships are not edited here (`useRelationship`): they are shown read-only.
  */
 export function FieldInput({ field, value, onChange, errors: fieldErrors = [], disabled = false, onBusy = noBusy }: FieldInputProps) {

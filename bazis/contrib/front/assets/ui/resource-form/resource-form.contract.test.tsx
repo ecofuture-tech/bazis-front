@@ -115,6 +115,40 @@ describe('ResourceForm', () => {
     expect(screen.queryByTestId('error:title')).toBeNull();
   });
 
+  it('creates an item with fixed values: hidden, or read-only when the fields name them', async () => {
+    // an item added from the card of its parent: the screen fixes the relationship
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, schema)
+      .on('POST', ITEMS, { data: resource(ITEM_ID, { title: 'Report' }) }, 201);
+    const onSaved = vi.fn();
+    const { unmount } = renderWithBazis(
+      <ResourceForm path={ITEMS as never} fixed={{ owner: 'u1' }} onSaved={onSaved} />,
+      backend,
+    );
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    // every field of the schema but the fixed one
+    expect(screen.queryByTestId('field:owner')).toBeNull();
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalled();
+    });
+    expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
+      data: {
+        type: 'test.item',
+        attributes: { title: 'Report' },
+        relationships: { owner: { data: { type: 'test.unknown', id: 'u1' } } },
+      },
+    });
+    unmount();
+
+    renderWithBazis(<ResourceForm path={ITEMS as never} fields={['owner', 'title']} fixed={{ owner: 'u1' }} />, backend);
+    const owner = await screen.findByTestId<HTMLInputElement>('field:owner');
+    // the picker of the relationship, with the fixed item, that the user cannot change
+    expect(owner.value).toBe('u1');
+    expect(owner.readOnly).toBe(true);
+    expect(owner.disabled).toBe(true);
+  });
+
   it('updates an item: read-only fields, cancel', async () => {
     const backend = new Backend()
       .on('GET', `${ITEMS}${ITEM_ID}/schema_update/`, schema)

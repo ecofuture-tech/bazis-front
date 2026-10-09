@@ -58,7 +58,7 @@ with it too. The template does this in `src/app/providers.tsx`.
 | `useUpdate(path)` | `PATCH path{id}/` | `mutate({id, document})` |
 | `useDestroy(path)` | `DELETE path{id}/` | `mutate(id)`; the queries of the item are removed |
 | `useRelationship(path)` | `POST`/`PATCH`/`DELETE path{id}/relationships/{field}` | `mutate({id, field, operation, data})` |
-| `useResourceForm(path, {id?})` | the schema of the create (no id) or of the update of the item, the item, then `POST` or `PATCH` | a form, below |
+| `useResourceForm(path, {id?, fixed?})` | the schema of the create (no id) or of the update of the item, the item, then `POST` or `PATCH` | a form, below |
 | `useApi()`, `useSessionKey()` | | the client; the session of the provider |
 | `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
 | `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
@@ -177,13 +177,19 @@ that permissions disable and marks `readOnly` those the user may see but not cha
 (the form never sends them). `fields` are in schema order, each with `name`, `title`,
 `required`, `readOnly`, `nullable` and
 
-- an attribute: `kind: 'attribute'`, `type`, `format`, `enum`, `schema` (its JSON Schema);
+- an attribute: `kind: 'attribute'`, `type`, `format`, `enum` (the values of its choices),
+  `labels` (their labels by the value as text: `enumDict` of Bazis, in the language of the
+  request; `choiceLabel(field, value)` reads one, null without it), `schema` (its JSON
+  Schema);
 - a relationship: `kind: 'relation'`, `relation` (the JSON:API type of the related
   resource, as `relation` of the field in the contract), `many`.
 
 `values` start from the defaults of the schema (a create) or from the item (an update): an
 attribute's value, the id of the related item of a to-one relationship (null for none);
-`undefined` is no value. `setValue(name, value)` changes one; `dirty` are the fields that
+`undefined` is no value. `fixed` (`useResourceForm(path, {fixed: {request: id}})`) are values
+that the screen sets, such as the parent of an item added from its card: they are the values
+of their fields whatever `setValue` sets, and are sent as changes when they differ from the
+initial values (a read-only field is never sent). `setValue(name, value)` changes one; `dirty` are the fields that
 differ from the initial values. `submit()` sends one JSON:API document with the dirty
 attributes and to-one relationships (never the read-only ones) and resolves to the saved
 item: the changes are dropped, so a create form is back at the defaults of the schema and

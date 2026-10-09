@@ -80,7 +80,7 @@ def test_export_is_deterministic(sample_app, tmp_path):
 def test_resources_come_from_x_bazis(sample_app, tmp_path):
     resources = export(tmp_path)['project']['resources']
 
-    assert sorted(resources) == ['bg.task', 'tasks.task', 'uploadable.file_upload', 'users.user']
+    assert sorted(resources) == ['bg.task', 'tasks.step', 'tasks.task', 'uploadable.file_upload', 'users.user']
     task = resources['tasks.task']
     assert task['model'] == 'tasks.Task'
     assert task['route_set'] == 'tasks.routes.TaskRouteSet'
@@ -92,6 +92,8 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
 
     fields = task['fields']
     assert fields['title'] == {'type': 'string', 'filter': 'title', 'order': 'title'}
+    # a field with choices is an attribute: its labels are in the runtime schemas
+    assert fields['priority'] == {'type': 'string', 'filter': 'priority', 'order': 'priority'}
     assert fields['dt_created']['format'] == 'date-time'
     assert fields['assignee'] == {
         'relation': 'users.user', 'many': False, 'filter': 'assignee', 'order': 'assignee'
@@ -231,6 +233,8 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
             'slug': 'manager', 'name': {'en': 'Manager', 'ru': 'Менеджер'}, 'for_anonymous': False,
             'groups': ['tasks_change', 'tasks_transit', 'tasks_view'],
             'permissions': [
+                'tasks.step.item.add.all',
+                'tasks.step.item.view.all',
                 'tasks.task.field.change.all.all.report.readonly',
                 'tasks.task.item.add.all.all',
                 'tasks.task.item.change.all.draft',
@@ -243,13 +247,16 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
             'slug': 'viewer', 'name': {'en': 'Viewer', 'ru': 'Наблюдатель'}, 'for_anonymous': True,
             'groups': ['tasks_report_hidden', 'tasks_view'],
             'permissions': [
-                'tasks.task.field.view.all.all.report.disable', 'tasks.task.item.view.all.all',
+                'tasks.step.item.view.all', 'tasks.task.field.view.all.all.report.disable',
+                'tasks.task.item.view.all.all',
             ],
         },
     ]
     # the selectors of the permission models, as bazis-permit resolves them: the relations
-    # to a selector source (the user), also the status author that statusy keeps
+    # to a selector source (the user), also the status author that statusy keeps; none of
+    # the steps
     assert sections['permit']['selectors'] == {
+        'tasks.step': {},
         'tasks.task': {'assignee': 'users.user', 'status_author': 'users.user'},
     }
 
@@ -371,9 +378,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0007_assignee_verbose_name')
+    unapply('tasks', '0008_priority_step')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0007_assignee_verbose_name.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0008_priority_step.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -381,12 +388,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0007_assignee_verbose_name' in messages[0].msg
+    assert 'tasks.0008_priority_step' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0007_assignee_verbose_name')
+    unapply('tasks', '0008_priority_step')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )

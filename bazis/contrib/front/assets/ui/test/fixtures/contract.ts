@@ -19,6 +19,7 @@ export const LANGUAGE: string = "en";
 /** The path of the route set of each resource, by its JSON:API type. */
 export const ROUTES = {
   "bg.task": "/api/v1/bg/task/",
+  "tasks.step": "/api/v1/tasks/step/",
   "tasks.task": "/api/v1/tasks/task/",
   "uploadable.file_upload": "/api/v1/uploadable/file_upload/",
   "users.user": "/api/v1/users/user/",
@@ -174,6 +175,53 @@ export const RESOURCES = {
     route_set: "bazis.contrib.bg.routes.BgRoute",
     search: [],
   },
+  "tasks.step": {
+    actions: {
+      action_create: "create",
+      action_delete_relationships: "relationship",
+      action_destroy: "delete",
+      action_list: "collection",
+      action_list_id: "other",
+      action_post_relationships: "relationship",
+      action_retrieve: "item",
+      action_schema_create: "schema",
+      action_schema_list: "schema",
+      action_schema_retrieve: "schema",
+      action_schema_update: "schema",
+      action_update: "update",
+      action_update_relationships: "relationship",
+      get_route_filter_fields: "schema",
+    },
+    fields: {
+      dt_created: {
+        filter: "dt_created",
+        format: "date-time",
+        order: "dt_created",
+        type: "string",
+      },
+      dt_updated: {
+        filter: "dt_updated",
+        format: "date-time",
+        order: "dt_updated",
+        type: "string",
+      },
+      task: {
+        filter: "task",
+        many: false,
+        order: "task",
+        relation: "tasks.task",
+      },
+      title: {
+        filter: "title",
+        order: "title",
+        type: "string",
+      },
+    },
+    model: "tasks.Step",
+    path: "/api/v1/tasks/step/",
+    route_set: "tasks.routes.StepRouteSet",
+    search: [],
+  },
   "tasks.task": {
     actions: {
       action_create: "create",
@@ -216,6 +264,11 @@ export const RESOURCES = {
         filter: "dt_updated",
         format: "date-time",
         order: "dt_updated",
+        type: "string",
+      },
+      priority: {
+        filter: "priority",
+        order: "priority",
         type: "string",
       },
       report: {
@@ -416,6 +469,8 @@ export const ROLES = [
       ru: "Менеджер",
     },
     permissions: [
+      "tasks.step.item.add.all",
+      "tasks.step.item.view.all",
       "tasks.task.field.change.all.all.report.readonly",
       "tasks.task.item.add.all.all",
       "tasks.task.item.change.all.draft",
@@ -436,6 +491,7 @@ export const ROLES = [
       ru: "Наблюдатель",
     },
     permissions: [
+      "tasks.step.item.view.all",
       "tasks.task.field.view.all.all.report.disable",
       "tasks.task.item.view.all.all",
     ],
@@ -548,6 +604,7 @@ export const CAPABILITIES: Capabilities = {
   permit: {
     roles: ROLES,
     selectors: {
+      "tasks.step": {},
       "tasks.task": {
         assignee: "users.user",
         status_author: "users.user",

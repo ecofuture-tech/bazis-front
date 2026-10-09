@@ -15,8 +15,10 @@
 // A list of a resource over `useList`: the columns of the screen with the titles of the list
 // schema, search, filters and the actions in a toolbar, sort, pages and the actions the
 // backend allows; a table or a grid of cards (`composition.list` of the theme). Marked
-// `list:<entity>`, its rows `row:<id>` (with `data-tone` and the label of the tone as their
-// `aria-description` when highlighted) with their cells `cell:<column>`, its states `state:<state>` (the loading one is the skeleton of the rows).
+// `list:<entity>` (`aria-busy` until its rows are those of its search and its page, their
+// search in `data-search`), its rows `row:<id>` (with `data-tone` and the label of the tone
+// as their `aria-description` when highlighted) with their cells `cell:<column>`, its states
+// `state:<state>` (the loading one is the skeleton of the rows).
 
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react';
 import { useEffect, useState, type ComponentType, type KeyboardEvent, type ReactNode } from 'react';
@@ -28,6 +30,7 @@ import { useLanguage } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
 import { useBesideCard } from '@/bazis/ui/app-shell';
 import {
+  choiceOptions,
   FieldValue,
   fieldValue,
   isNumeric,
@@ -78,7 +81,8 @@ export interface ResourceListProps {
   columns: readonly string[];
   /**
    * The filter fields (`route_filter_fields/`), with their options: a control each, but for
-   * a field the backend does not offer the user to filter by (its filter would be a 400).
+   * a field the backend does not offer the user to filter by (its filter would be a 400). A
+   * field with choices has the select of its choices, by their labels (the list schema).
    */
   filters?: readonly (string | ListFilter)[];
   /**
@@ -430,7 +434,12 @@ export function ResourceList({
   const meta = document?.meta;
   const count = document ? pagination(document)?.count : undefined;
   const toolbar = actions.filter((action) => document && (!action.permission || permitted(meta, action.permission)));
-  const filterList = filters.map((it) => (typeof it === 'string' ? { field: it } : it));
+  // a field with choices is filtered by a select of its choices, by their labels
+  const filterList = filters.map((it): ListFilter => {
+    const filter = typeof it === 'string' ? { field: it } : it;
+    const options = filter.options ?? choiceOptions(fields.fields.get(filter.field));
+    return options ? { ...filter, options } : filter;
+  });
   // the rows wait for the titles of their columns
   const loaded = queryState(list, rows.length === 0);
   const state = loaded === 'loaded' && !fields.ready ? 'loading' : loaded;
@@ -486,7 +495,14 @@ export function ResourceList({
   };
 
   return (
-    <div data-bz={`list:${entity}`} className="grid grid-cols-[minmax(0,1fr)] gap-4">
+    // busy until the rows are those of the search typed and of the page asked for; the
+    // search they are of in `data-search` (the end-to-end tests wait for both)
+    <div
+      data-bz={`list:${entity}`}
+      data-search={search || undefined}
+      aria-busy={list.isPlaceholderData || searchText.trim() !== search || undefined}
+      className="grid grid-cols-[minmax(0,1fr)] gap-4"
+    >
       {(searchable || filterList.length > 0 || actions.length > 0 || (layout === 'cards' && sortable.length > 0)) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           {searchable && (
@@ -569,10 +585,7 @@ export function ResourceList({
         onRetry={() => void list.refetch()}
         skeleton={<ListSkeleton layout={layout} columns={columns.length} />}
       >
-        <div
-          aria-busy={list.isPlaceholderData || undefined}
-          className={cn('transition-opacity', list.isPlaceholderData && 'opacity-60')}
-        >
+        <div className={cn('transition-opacity', list.isPlaceholderData && 'opacity-60')}>
           {layout === 'cards' ? (
             <CardsView {...body} />
           ) : (

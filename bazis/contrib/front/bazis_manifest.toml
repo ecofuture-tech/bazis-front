@@ -76,4 +76,13 @@ text = "the contract knows the socket of bazis-ws only when it is routed in the 
 text = "without Kafka bazis-async-request runs a request with X-Async-Background at once and answers as usual: the frontend takes both the 202 with a task and the response"
 
 [[pitfalls]]
+text = "a choice is shown, offered and filtered by its label: the runtime schemas give the labels of the choices of a model field (enumDict, translated with gettext_lazy) and the components use them; never make a model of the choices for their labels, nor map the values to texts in the frontend; the scenarios fill and expect the label"
+
+[[pitfalls]]
+text = "an item added from the card of its parent fixes the relationship: RelatedList of resource-card (card.related of the spec) or ResourceForm fixed={{<relation>: id}} (useResourceForm(path, {fixed})), never a form of the product that sets the value in an effect"
+
+[[pitfalls]]
+text = "`manage.py e2e_data` runs before every run of the end-to-end tests and gives the same data every time: it deletes the items of the previous runs (those the scenarios created, and its own, created again), never keeps them; else the lists grow and their sums (a budget) drift from run to run"
+
+[[pitfalls]]
 text = "the frontend is not a security boundary: permissions are checked by the backend, the frontend only reads the permission meta and the runtime schemas"

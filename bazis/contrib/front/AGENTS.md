@@ -15,6 +15,25 @@ compiled from the design of the specs), `manage.py bazis_front e2e` (the Playwri
 the scenarios of the specs) and `manage.py bazis_front update` (the copies brought to a new
 version of bazis-front, merged with the changes of the product).
 
+## Contents
+
+Read the section of the question; the template's `AGENTS.md` (`frontend/AGENTS.md`) shows
+how to compose the screens:
+
+| Section | What it answers |
+|---|---|
+| [The frontend](#the-frontend) | `init`: what it creates, the lock, the pristine copies |
+| [The components](#the-components) | the components with their props and `data-bz`; the choices, the related items ("add here"), the filters, the permissions, the relationships, the files, the socket |
+| [The contract](#the-contract) | `contract`, `contract.json`, `contract.ts`, `schema.d.ts` |
+| [The specs](#the-specs) | `product.yaml`, `screens/*.yaml` (`card.related`), the scenarios, the codes of `check` |
+| [The design](#the-design) | the preset, the tokens, the theme |
+| [The end-to-end tests](#the-end-to-end-tests) | `bazis_front e2e`, the helpers (`openItem`, `fill`...), `e2e_data` |
+| [The backend of a product](#the-backend-of-a-product) | the declared roles and workflows, the test data, the notifications |
+| [Updating the copies](#updating-the-copies) | `update`, the conflicts |
+| [The client](#the-client), [The hooks](#the-hooks) | the client, `useResourceForm`, `resourceSchema` |
+| [The socket](#the-socket), [The language](#the-language), [Logins with bazis-authing](#logins-with-bazis-authing) | bazis-ws, the translations and the formats, the logins |
+| [Protocol facts](#protocol-facts-that-are-easy-to-get-wrong) | what the backend does that is easy to get wrong |
+
 ## Setup
 
 `pip install bazis-front` (needs bazis 2.13.0 or newer) and add `"bazis.contrib.front"` to
@@ -135,8 +154,8 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
   `list.next`, …) in the language of the interface, and a product changes one with the same
   key in its own dictionary (`src/i18n/<language>.ts`), never in the copy; the dates and the
   numbers are formatted in that language. The labels of the data are the titles of the
-  runtime schemas (in the language the backend answers in) and the names of the statuses
-  and transits of the contract (in every language), and the props.
+  runtime schemas and the labels of the choices (in the language the backend answers in),
+  the names of the statuses and transits of the contract (in every language), and the props.
 - They look as the design of the specs says (see [The design](#the-design)): the colors,
   radii and fonts are the tokens (Tailwind classes such as `bg-primary`, `text-muted-foreground`,
   `bg-success-soft text-success-ink`, never literal colors), the spacing is that of the
@@ -150,9 +169,10 @@ dependency of the components (`radix-ui`, `class-variance-authority`, `lucide-re
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once; `requires`: below), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?: (field \| {field, label?, options?: [{value, label}]})[], filter?: Filter, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?: [{id, label, onClick(id), permission?}], cells?: {column: (row) => node}, rowTone?: (row) => Tone \| undefined, rowToneLabel?: (row) => string \| undefined, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})`, `filterOf` | `list:<entity>`, `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?: 'dialog' \| 'page'})` (`meta`: the permission meta of the item, `crud_actions`) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>` | |
-| `resource-form` | `ResourceForm({path, id?, fields?, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
+| `resource` (shared, copied with the components) | `FieldInput({field, value, onChange, errors?, disabled?, onBusy?})` (the only input of a field of a runtime schema), `FieldValue({field, value})`, `formatValue(field, value, {language, t})`, `choiceOptions(field)`, `fieldValue(item, name)`, `itemLabel(item)`, `permitted(meta, 'add' \| 'change' \| 'delete', id?)`, `RelationPicker({relation, value, onChange, nullable?, searchable?, label?})`, `RelationLabel({relation, id})`, `useListFields(path)`, `useItemFields(path, id, 'retrieve' \| 'update')` | `field:<name>`, `error:<name>` | |
+| `resource-list` | `ResourceList({path, entity, columns, filters?: (field \| {field, label?, options?: [{value, label}]})[], filter?: Filter, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?: [{id, label, onClick(id), permission?}], cells?: {column: (row) => node}, rowTone?: (row) => Tone \| undefined, rowToneLabel?: (row) => string \| undefined, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})`, `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?: 'dialog' \| 'page'})` (`meta`: the permission meta of the item, `crud_actions`); `RelatedList({path, entity, relation, item, columns, title?, add?: {id, label, fields?, title?, icon?, onSaved?}, onOpen?, cells?, emptyMessage?, sort?, pageSize?, layout?, forms?})`: a related section (below) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
+| `resource-form` | `ResourceForm({path, id?, fields?, fixed?: {field: value}, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
@@ -173,9 +193,31 @@ it; `FieldValue`, `RelationLabel`, `RelationPicker`, `FileValue`, `FilesProvider
 `permitted`) and `testing` (the support of the contract tests). `assets/ui/README.md` of
 the package documents each component.
 
+- **Choices are shown by their labels.** A model field with `choices` is an attribute with
+  `enum` (the values) and `enumDict` (their labels, translated into the language of the
+  request) in the runtime schemas; `resourceSchema` reads them as `enum` and `labels` of the
+  field (`choiceLabel(field, value)` of `@/bazis/react`). `FieldInput` offers them as a select
+  of the labels (it sends the value), `FieldValue` (the cells of the lists, the values of the
+  cards) shows the label, and the filter of such a field is a select of its labels
+  (`choiceOptions`, from the list schema) that filters by the value. Translate the labels in
+  the backend (`TextChoices` with `gettext_lazy`, the catalogs of the project); never make a
+  model of the choices for their labels, nor map the values to texts in the frontend. The
+  scenarios fill, find (`open_item`) and expect a choice by its label in the default language
+  of the backend (`fill: {priority: High}`).
+- **Related items, "add here"**: the items of another resource that reference the item of a
+  card by a to-one relationship (the items of a request, the steps of a task) are a related
+  section of the card, `RelatedList` in its `children` (`card.related` of the spec): their
+  list filtered by the relationship, and `add`, the button `action:<add.id>` that opens the
+  create form of the related resource with the relationship fixed to the item
+  (`ResourceForm` `fixed={{request: id}}`: the value is sent, never chosen; a fixed field is
+  left out of the form, or shown read-only when `fields` names it). `add` is shown when the
+  backend allows the create (`for_create` of the list); leave it out while the item takes no
+  more related items (`add={permitted(meta, 'change') ? {...} : undefined}`, the `meta` of
+  the card): the backend still checks the create. A form of your own uses
+  `useResourceForm(path, {fixed})` the same way; never set the value with an effect.
 - **The filters of a list** (`filters`): a control per field, by its type in
   `route_filter_fields/` (`py_type`): a select of `options` (the statuses:
-  `statusOptions(type)`) or of yes/no for a boolean, the picker of a relationship, a range
+  `statusOptions(type)`; the choices of a field with choices by default) or of yes/no for a boolean, the picker of a relationship, a range
   of dates (`<field>__gte`, `<field>__lte`) for a date or a date-time, a number, else a text
   whose every word must be in the field (`<field>__$search`); one `filter` expression
   (`filterOf`). A field that the backend does not list for the user (hidden by his field
@@ -641,6 +683,28 @@ actions: [{id: delete, primitive: destroy, then: task-list}]
 states: [loading, error, forbidden, not_found]
 ```
 
+A card shows the items that reference its item in `related` sections: a list of the related
+entity filtered by its to-one relationship to the entity of the card (`relation`, a field of
+the related entity with `relation: <entity of the card>`, S015; one the contract filters by,
+S008), its `columns`, the card a row opens (`open`), and `add`, "add here": the action
+`add.id` of the card opens the create form of the related entity (`add.fields`, all its
+fields but the relationship when omitted) with the relationship fixed to the item. A scenario
+runs it as an action of the card (`action: add-step`), fills the form (never the fixed
+relationship: P022) and submits it; the card stays. In the screen it is `RelatedList`
+(above):
+
+```yaml
+card:
+  sections: [{id: main, fields: [title, status]}]
+  related:
+    - id: steps
+      title: Steps
+      entity: step                 # the related entity
+      relation: task               # its relationship to the entity of the card
+      columns: [title, dt_created]
+      add: {id: add-step, fields: [title]}
+```
+
 A `form` screen has `form: {mode: create | update, fields, then}`. Actions are `form`
 (`mode: create` on a list or a card, `mode: update` on a card) and `destroy` (on a card).
 The states that a primitive must render are required: list `loading, empty, error,
@@ -741,6 +805,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
 | `S014` | error | a value of the filter of a list does not fit the type of its field in the contract, or its highlight is not by a boolean field or has no label |
+| `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -852,7 +917,11 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   byte, and say which specs changed or which test was edited.
 - **The generated tests are never edited**: change the scenario and generate again. Tests
   of your own go to `frontend/e2e/custom/`, with the same helpers (and `language(code)`,
-  which switches the language of the interface: not a step of the scenarios).
+  which switches the language of the interface: not a step of the scenarios). `../bazis`
+  exports `loginAs(page, PRODUCT, role)` (the `App` of the user), the class `App` (its
+  methods below, and `page`, `screen()`, the current screen, `form()`, the open form),
+  `bz(kind, id)` (the selector of a mark), `routePattern(route)` and the types `Product`,
+  `Role`, `ScreenId`, `Values`, `State`.
 - The helpers, `frontend/e2e/bazis/` (the asset `playwright`, copied by `init` like the
   hooks, not edited), act only through the `data-bz` marks of the screens and wait on their
   states (until no `state:loading` is left), never for a fixed time. Each step of a
@@ -862,7 +931,7 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
   |---|---|
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
-  | `open_item: {where}` | `openItem({where})`: the first `row:<id>` of the page whose cells `cell:<name>` have exactly these texts; then `expectScreen` of `list.open` |
+  | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit()`: waits until the form is closed or shows an error of this submit; then `expectScreen` of the `then` of the form, unless the next step expects an `error` (a failing submit: the form stays open) |
@@ -893,9 +962,18 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
     (`open_item`) and need;
   - it never creates a role, a permission, a status or a transit: a role of a `test_user`
     that the migrations did not create is an error of the command;
-  - it can run again (idempotent): the data that exists is kept, the password of the test
-    users is set again, so that the tests log in with the current `E2E_PASSWORD`; it runs
-    in one transaction.
+  - **it runs before every run of the tests and gives the same data every time**: it
+    deletes what the previous runs left, the items that the scenarios created (in a
+    database of the end-to-end tests of their own: every item of the models they create; in
+    a shared one, those of the test users or of a marker such as a prefix of the titles,
+    never the data of others) and the items it creates itself, then creates them again in
+    their initial state (a scenario may have run a transit on one), and sets the password of
+    the test users again, so that the tests log in with the current `E2E_PASSWORD`; it runs
+    in one transaction. Never "create it when it is missing": the items of the runs pile up,
+    the lists grow (a row leaves the first page), and what they add up to changes (an
+    approved request of a previous run spends the budget of a department, and a scenario
+    that approves fails one day). The sample resets every task
+    (`sample/tasks/e2e.py`).
 
   The scenarios share the database and run one at a time (`playwright.config.ts`); none
   should depend on another: a scenario opens an item that `e2e_data` creates, or one it
@@ -966,6 +1044,11 @@ What the frontend relies on in the backend, as the sample of the bazis-front rep
   publish_changed(task)
   notify(task.assignee, lambda user: notification(_('Task finished'), task.title, task))
   ```
+- **The labels of the choices** of a model field are those of its `choices` (`TextChoices`
+  with English labels in `gettext_lazy`, translated by the catalogs of the project): the
+  runtime schemas give them (`enumDict`) in the language of the request, and the frontend
+  shows, offers and filters a choice by them. A field that only names a few values needs no
+  model of its own for its labels.
 - **The labels of the payload of a transit** are the titles of the fields of its payload
   model (`report: str = Field(title=_('Report'))`): the runtime schemas (`state_actions`)
   give them in the language of the request, the contract in `LANGUAGE_CODE`.
@@ -1194,14 +1277,23 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   `useAnyRelated` of `@/bazis/ui/resource` are the same hooks with plain paths, for the
   generic code of the components: a screen uses the typed hooks.
 - `resourceSchema(schema)` reads the fields of a runtime schema (of a create, an update, a
-  retrieve or a list: name, title, type, format, choices, read-only, the related resource)
-  and `objectFields(schema)` those of the JSON Schema of an object, such as the payload of
-  a transit; the components render them.
-- `useResourceForm(path, {id?})` takes its fields from `schema_create`/`schema_update`
+  retrieve or a list): `{kind, name, title, required, readOnly, nullable}`, and of an
+  attribute `type`, `format`, `enum` (the values of the choices), `labels` (their labels by
+  value, `enumDict`: `choiceLabel(field, value)`) and `schema`, of a relationship
+  `relation` and `many`; `objectFields(schema)` those of the JSON Schema of an object, such
+  as the payload of a transit; the components render them.
+- `useResourceForm(path, {id?, fixed?})` takes its fields from `schema_create`/`schema_update`
   (those of the current user: type, required, read-only, nullable, choices, the
   related resource of a relationship), its values from the defaults or the item, and
   submits the changed attributes and to-one relationships as one document; a 422 gives
-  `errors` by field. To-many relationships go through `useRelationship`.
+  `errors` by field. It is `{status: 'loading' | 'error' | 'ready', error, fields, values,
+  setValue(name, value), dirty, errors, submitError, isSubmitting, submit(), reset()}`
+  (`submit` resolves to the saved document, null when it failed). `fixed` values (the
+  parent of an item added from its card, `{request: id}`) are those of their fields whatever
+  `setValue` sets, and are sent when they differ from the initial ones. To-many
+  relationships go through `useRelationship`. A form of your own renders each field with
+  `FieldInput` of `@/bazis/ui/resource` (the control by the type, the choices by their
+  labels, the picker of a relationship, its errors), as `ResourceForm` does.
 - `useTransits(path, id)` reads `meta.state_actions` of the item: the transits the user may
   run now, `allowed` unless a validator restricts them, with the JSON Schema of their
   payload. `useTransit(path, id)` runs one; null when the user can no longer view the item.
@@ -1305,8 +1397,10 @@ translations of their English names, `gettext_lazy`, from the catalogs of the pr
   components in `src/bazis/i18n/messages/<language>.ts`, English and Russian), the plural
   forms of `Intl.PluralRules` (`<key>.one`, `<key>.few`, `<key>.many`, `<key>.other`, with
   the parameter `count`), `translator(store, messages)` (`t` outside the components), and
-  `formatNumber`, `formatDate`, `formatDateTime`, `formatTime` (`Intl`, in the language of
-  the interface). No i18next.
+  `formatNumber(value, language, options?)` (the options of `Intl.NumberFormat`: a sum,
+  `{style: 'currency', currency: 'RUB'}`), `formatDate(value, language)`,
+  `formatDateTime(value, language)`, `formatTime(date, language)` (`Intl`, in the language
+  of the interface: `const { language } = useLanguage()`). No i18next.
 - **The dictionaries of the product** are `src/i18n/<language>.ts` of the frontend (the
   template has `en` and `ru`, listed in `src/i18n/index.ts`): the texts of its screens, and
   the texts of the components it words otherwise (the same key). They are merged over those

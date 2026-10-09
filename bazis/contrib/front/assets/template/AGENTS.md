@@ -193,9 +193,12 @@ const editable = can(item.data?.meta, 'change');
 
 const form = useResourceForm(TASKS, { id });        // without `id`: a create
 // form.status: loading | error | ready; form.fields: name, title, kind, required,
-// readOnly, nullable; attributes: type, format, enum; relations: relation, many
+// readOnly, nullable; attributes: type, format, enum, labels (of the choices: choiceLabel);
+// relations: relation, many
 form.setValue('title', 'Report');                   // a to-one relation takes the id or null
 const saved = await form.submit();                  // null when it failed: form.errors.title
+// an item added from the card of its parent: the relationship fixed, never chosen
+const step = useResourceForm(ROUTES['tasks.step'], { fixed: { task: id } });
 ```
 
 | Hook | What |
@@ -207,7 +210,7 @@ const saved = await form.submit();                  // null when it failed: form
 | `useCan(path, 'view' \| 'add')` | whether the user may view the items of the route set or add one: undefined until the backend answers, false when it refuses (403 of the runtime schema of the list or of the create) |
 | `useCreate(path)`, `useUpdate(path)`, `useDestroy(path)` | `mutate(document)`, `mutate({id, document})`, `mutate(id)` |
 | `useRelationship(path)` | `mutate({id, field, operation: 'add' \| 'replace' \| 'remove', data})`: the relationship endpoint, for to-many relationships |
-| `useResourceForm(path, {id?})` | a form bound to `schema_create`/`schema_update`: fields, values, dirty, submit of the changed attributes and to-one relationships, `errors` of a 422 by field |
+| `useResourceForm(path, {id?, fixed?})` | a form bound to `schema_create`/`schema_update`: fields, values, dirty, submit of the changed attributes and to-one relationships, `errors` of a 422 by field; `fixed` values of fields that the screen sets (the parent of an added item) |
 | `useApi()`, `useSessionKey()` | the client; the scope (the session and the language), the last item of a query key of your own |
 
 With bazis-statusy, `@/bazis/react/statusy`:
@@ -275,6 +278,8 @@ of the installed package, lists their props and their `data-bz`):
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control) |
 | `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
+| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card` in the `children` of the card: `path`, `entity`, `relation`, `item={id}`, `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`) |
+| a field with choices (a column, a field of a card or a form, a filter) | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
 | the notifications and the live updates (bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` (below) |
 | a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
 | a field `type: file` (bazis-uploadable) | shown by the components (a link to the file, a thumbnail of an image); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes (below) |
@@ -291,7 +296,8 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ROUTES } from '@/bazis/generated/contract';
 import { useDestroy } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
-import { ResourceCard } from '@/bazis/ui/resource-card';
+import { permitted } from '@/bazis/ui/resource';
+import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { ResourceList } from '@/bazis/ui/resource-list';
 import { toast } from '@/bazis/ui/state-panel';
@@ -352,11 +358,21 @@ export function TaskCardScreen() {
           onClick: () => { destroy.mutate(id, { onSuccess: () => { toast({ title: 'Deleted' }); void navigate('/tasks'); } }); },
         }]}
       >
-        {(item) => (
+        {(item, meta) => (
           <>
             {/* null: the user can no longer view the item */}
             <TransitBar path={TASKS} id={id} onDone={(done) => { if (done === null) void navigate('/tasks'); }} />
             <StatusHistory resource={item} />
+            {/* `card.related`: the steps of the task, added here with the task fixed */}
+            <RelatedList
+              path={ROUTES['tasks.step']}
+              entity="step"
+              relation="task"
+              item={id}
+              title="Steps"
+              columns={['title', 'dt_created']}
+              add={permitted(meta, 'change') ? { id: 'add-step', label: 'Add a step', fields: ['title'] } : undefined}
+            />
           </>
         )}
       </ResourceCard>
@@ -452,6 +468,13 @@ shown, and `LiveQuery` refetches every query after a reconnect.
     `@/bazis/ui/resource` of `useRelatedItem(ROUTES[type], id).data`;
   - a status: `StatusBadge` in `cells` of a list and in `badge` of a card, the options of its
     filter `statusOptions(type)`, as in the example above;
+  - a form of your own (a step of the form of a wizard): `useResourceForm(path, {id?, fixed?})`
+    with a `FieldInput` of `@/bazis/ui/resource` per field (`field`, `value`, `onChange`,
+    `errors`: the control by the type, the choices by their labels, the picker of a
+    relationship), as `ResourceForm` does; a value the screen sets is `fixed`, never set by
+    an effect;
+  - numbers and dates in a text of your own: `formatNumber(value, language, options?)`
+    (`{style: 'currency', currency: 'RUB'}`), `formatDate`, `formatDateTime` of `@/bazis/i18n`;
   - a related item that the user may not view (the author of a message for a client) is
     null in `useRelatedItem`, and `RelationLabel` shows its id: show something of your own
     for null, never request it otherwise;
@@ -548,7 +571,10 @@ commit both; `bazis_front e2e --check` and `front.W003` report stale ones), and
   its guide, "The end-to-end tests"), with the same
   `E2E_PASSWORD`. It creates only a user per `test_user` of the roles of the specs (with its
   role and that password) and the items that the scenarios open, never a role, a status or
-  a transit, and can run again (it sets the passwords again). The tests share that
+  a transit. It runs before every run and gives the same data every time: it deletes what
+  the previous runs left (the items the scenarios created, and its own, created again in
+  their initial state) and sets the passwords again, so that the lists do not grow from run
+  to run and nothing they add up to (a budget, a count) drifts. The tests share that
   database and run one at a time; no scenario relies on what another one created.
 - A `submit` followed by `expect: {error: <field>}` is a failing submit: the test expects
   the error of the backend in the open form, which stays open for the next steps.
@@ -586,7 +612,8 @@ test('a manager sees the drafts', async ({ page }) => {
 });
 ```
 
-  `loginAs`, `open`, `openItem`, `action`, `fill`, `upload` (a file of `e2e/fixtures/`),
+  `loginAs`, `open`, `openItem` (on the page shown, else with the search of the list, else
+  page after page), `action`, `fill` (a choice by its label), `upload` (a file of `e2e/fixtures/`),
   `submit`, `transit(id, payload?)`, `expectScreen`, `expectStatus`, `expectState`,
   `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectRows`,
   `expectError`, `expectNotification`, and `language(code)` (switches the language of the

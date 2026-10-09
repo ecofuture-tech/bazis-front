@@ -27,13 +27,16 @@ from django.utils.translation import gettext_lazy as _
 from bazis.contrib.permit.declare import Group, Role
 
 
-VIEW = Group('tasks_view', _('View the tasks'), ['tasks.task.item.view.all.all'])
+VIEW = Group('tasks_view', _('View the tasks'), ['tasks.task.item.view.all.all', 'tasks.step.item.view.all'])
 
 # shares a permission with VIEW: the role has it once; the report is written by the transit
 # `finish`, never in the form of a change (a field permission: read-only in `schema_update`)
 CHANGE = Group('tasks_change', _('Change the tasks'), [
     'tasks.task.item.view.all.all',
     'tasks.task.item.add.all.all',
+    # the steps of the tasks, added from the card of a task
+    'tasks.step.item.view.all',
+    'tasks.step.item.add.all',
     'tasks.task.item.change.all.draft',
     'tasks.task.field.change.all.all.report.readonly',
 ])

@@ -34,7 +34,10 @@ export interface ListFilter {
   field: string;
   /** The label; the title of the field in the list schema by default. */
   label?: string;
-  /** The choices (value, label), as the statuses of `statusOptions()` of status-badge. */
+  /**
+   * The choices (value, label), as the statuses of `statusOptions()` of status-badge; those
+   * of a field with choices in the list schema (`choiceOptions`) by default in `ResourceList`.
+   */
   options?: readonly { value: string; label: string }[];
 }
 

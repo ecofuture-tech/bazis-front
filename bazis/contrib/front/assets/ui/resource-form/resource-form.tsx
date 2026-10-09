@@ -24,7 +24,7 @@ import { useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { ApiError } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
-import type { CreatePath, ResourceForm as Form, UpdatePath } from '@/bazis/react';
+import type { CreatePath, FixedValues, ResourceForm as Form, UpdatePath } from '@/bazis/react';
 import { FieldInput, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -36,9 +36,15 @@ export type ResourceFormProps = (
 ) & {
   /**
    * The fields, in this order (those the runtime schema does not have are left out); by
-   * default every field of the schema but the to-many relationships.
+   * default every field of the schema but the to-many relationships and the `fixed` ones.
    */
   fields?: readonly string[];
+  /**
+   * The values of fields that the screen sets and the user does not change (`useResourceForm`
+   * `fixed`): the item of a card that a related item is added to, `{request: id}`. They are
+   * sent with the form; a fixed field is shown read-only when `fields` names it, else not.
+   */
+  fixed?: FixedValues;
   /** Called with the saved document. */
   onSaved?: (saved: SavedDocument) => void;
   /** Shows a cancel button (`action:cancel`); the changes are dropped. */
@@ -101,11 +107,15 @@ export function ResourceFormBody({
   path,
   id,
   fields,
+  fixed,
   onSaved,
   onCancel,
   submitLabel,
 }: Omit<ResourceFormProps, 'path' | 'id'> & { path: string; id?: string | undefined }) {
-  const form = useAnyResourceForm(path, id === undefined ? {} : { id });
+  const form = useAnyResourceForm(path, {
+    ...(id === undefined ? {} : { id }),
+    ...(fixed === undefined ? {} : { fixed }),
+  });
   // the fields whose file uploads: the form waits for them
   const [uploading, setUploading] = useState<ReadonlySet<string>>(() => new Set());
   const { t } = useLanguage();
@@ -116,9 +126,13 @@ export function ResourceFormBody({
   }
 
   const byName = new Map(form.fields.map((it) => [it.name, it]));
-  const shown = (fields ?? form.fields.map((it) => it.name)).flatMap((name) => {
+  const isFixed = (name: string) => fixed !== undefined && name in fixed;
+  const names = fields ?? form.fields.map((it) => it.name).filter((name) => !isFixed(name));
+  const shown = names.flatMap((name) => {
     const field = byName.get(name);
-    return field && !(field.kind === 'relation' && field.many) ? [field] : [];
+    if (!field || (field.kind === 'relation' && field.many)) return [];
+    // the user sees a fixed value, never changes it
+    return [isFixed(name) ? { ...field, readOnly: true } : field];
   });
   const failure = form.submitError ? errorState(form.submitError) : null;
   const messages = formMessages(form, new Set(shown.map((it) => it.name)), t);

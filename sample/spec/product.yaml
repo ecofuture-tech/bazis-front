@@ -23,6 +23,7 @@ entities:
       - {id: dt_created, type: datetime}
       - {id: assignee, relation: user}
       - {id: attachment, type: file}     # bazis-uploadable: a file uploaded with the task
+      - {id: priority, type: string}     # choices: shown, filled and filtered by their labels
     workflow:
       initial: draft
       statuses: [draft, in_progress, done]
@@ -41,6 +42,17 @@ entities:
     title: User
     fields:
       - {id: username, type: string}
+  # the steps of a task: a related section of its card, added there with the task fixed
+  - id: step
+    resource: tasks.step
+    title: Step
+    fields:
+      - {id: title, type: string}
+      - {id: task, relation: task}
+      - {id: dt_created, type: datetime}
+    access:
+      manager: {view: all, add: all}
+      viewer: {view: all}
 scenarios:
   - id: manager-finishes-a-task
     role: manager
@@ -59,8 +71,9 @@ scenarios:
       - open: task-list
       - expect: {action_absent: create}
       - open_item: {where: {title: Review the plan}}   # created by `manage.py e2e_data`
-      # a field permission of the viewer (tasks/roles.py): the report is hidden
+      # a field permission of the viewer (tasks/roles.py): the report is hidden; he adds no step
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
+      - expect: {action_absent: add-step}
   # the picker of the assignee searches the user by the label; the list shows the label
   - id: manager-assigns-a-task
     role: manager
@@ -133,4 +146,29 @@ scenarios:
     steps:
       - open: draft-tasks                                # a report: the tasks in `draft`
       - open_item: {where: {title: Review the plan}}     # created by `manage.py e2e_data`
+      - expect: {screen: task-card, status: draft}
+  # a choice is filled, shown and found in the list by its label (`enumDict` of the backend)
+  - id: manager-sets-the-priority
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Ship the release, priority: High}
+      - submit: {}
+      - expect: {screen: task-card, values: {priority: High}}
+      - open: task-list
+      - open_item: {where: {title: Ship the release, priority: High}}
+      - expect: {screen: task-card, status: draft}
+  # "add here": a step added from the card of its task, the task fixed
+  - id: manager-adds-a-step
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Plan the launch}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - action: add-step
+      - fill: {title: Book the room}
+      - submit: {}
       - expect: {screen: task-card, status: draft}

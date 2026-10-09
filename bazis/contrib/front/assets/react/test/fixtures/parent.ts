@@ -14,7 +14,7 @@
 
 // A runtime schema of `parent_entity` in the shape of those of Bazis (Pydantic, with
 // `$defs`; see the real ones of the sample in fixtures/sample.json): attributes with a
-// nullable number, a default, choices and a read-only field; a to-one and a to-many
+// nullable number, a default, choices with their labels and a read-only field; a to-one and a to-many
 // relationship.
 
 const identifier = (type: string) => ({
@@ -38,7 +38,8 @@ export function parentSchema(action: 'create' | 'update') {
             title: 'Price',
           },
           is_active: { default: true, nullable: false, title: 'Active', type: 'boolean' },
-          state: { $ref: '#/$defs/State', default: 'new', title: 'State' },
+          // the labels of the choices are next to the reference, as the core writes them
+          state: { $ref: '#/$defs/State', default: 'new', enumDict: { new: 'New', done: 'Done' }, title: 'State' },
           dt_created: { format: 'date-time', readOnly: true, title: 'Created', type: 'string' },
         },
         ...(action === 'create' ? { required: ['name'] } : {}),

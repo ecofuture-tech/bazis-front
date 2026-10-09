@@ -12,5 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export { RelatedList } from './related-list.js';
+export type { RelatedAdd, RelatedListProps } from './related-list.js';
 export { ResourceCard } from './resource-card.js';
 export type { CardAction, CardSection, ResourceCardProps } from './resource-card.js';
