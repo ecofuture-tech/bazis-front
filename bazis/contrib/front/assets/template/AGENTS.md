@@ -43,10 +43,11 @@ python manage.py bazis_front update            # after `pip install -U bazis-fro
 python manage.py bazis_front update --check    # write nothing; exit 1 if a copy is of another version
 ```
 
-The files of the template (`package.json`, the configs, `src/app/`, `src/screens/`, this
-file) are the product's: `update` never changes them. It prints the npm dependencies of
-the new template whose versions differ from this `package.json`; bump those that the new
-copies need and run `npm install`.
+The files of the template (`package.json`, the configs, `src/app/`, `src/screens/`,
+`src/i18n/`, this file) are the product's, and `update` brings them to the new version like
+the copies: an unchanged file is replaced, the changes of the product are merged with
+those of bazis-front (conflict markers where both changed the same lines, see below), a
+deleted file stays deleted. Run `npm install` when it says that `package.json` changed.
 
 From `frontend/`:
 
@@ -427,8 +428,9 @@ shown, and `LiveQuery` refetches every query after a reconnect.
 - Add a component with `manage.py bazis_front add <component>` rather than by hand: it
   copies what it requires and records the pristine copy for the updates. It never
   overwrites a copy that was changed here. `manage.py bazis_front update` brings the
-  copies to a new version of bazis-front: a file changed only here is kept, a file changed
-  here and in bazis-front is merged by `git merge-file` (Git is needed then). Where both
+  copies (and the files of the template) to a new version of bazis-front: a file changed
+  only here is kept, a file changed here and in bazis-front is merged by `git merge-file`
+  (Git is needed then). Where both
   changed the same or adjacent lines it writes git conflict markers (`<<<<<<< frontend`,
   `=======`, `>>>>>>> bazis-front <version>`) and fails, listing the files: keep the change of bazis-front, apply the change of the product
   over it, delete the markers, and run `npm run typecheck` (it reports a marker left

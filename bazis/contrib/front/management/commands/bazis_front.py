@@ -127,17 +127,16 @@ class Command(BaseCommand):
             'update',
             help='Update the copied assets to the installed bazis-front, merging the changes.',
             description=(
-                'Bring the copies of the assets in frontend/ (the client, the hooks, the '
-                'components, the helpers of the end-to-end tests) to the installed version of '
-                'bazis-front: a file unchanged in the frontend is replaced, a file changed only '
-                'there is kept, a file changed in both is merged with its pristine copy in '
-                '.bazis/base/ (conflicts are written with markers and fail the command); files '
-                'added to an asset are added, files removed from it are deleted unless changed. '
-                'The assets that a new version requires are copied, the pristine copies and the '
-                'lock are updated, and so are the JSON Schemas in spec/schema/. The template '
-                'is the product\'s and never updated: the versions of the npm dependencies of '
-                'its package.json are reported. Nothing is written when an asset cannot be '
-                'updated.'
+                'Bring the copies of the assets in frontend/ (the template: package.json, the '
+                'configs, src/app/, AGENTS.md; the client, the hooks, the components, the '
+                'helpers of the end-to-end tests) to the installed version of bazis-front: a '
+                'file unchanged in the frontend is replaced, a file changed only there is kept, '
+                'a file changed in both is merged with its pristine copy in .bazis/base/ '
+                '(conflicts are written with markers and fail the command); files added to an '
+                'asset are added, files removed from it are deleted unless changed, files '
+                'deleted in the frontend stay deleted. The assets that a new version requires '
+                'are copied, the pristine copies and the lock are updated, and so are the JSON '
+                'Schemas in spec/schema/. Nothing is written when an asset cannot be updated.'
             ),
         )
         update_parser.add_argument(
@@ -303,14 +302,6 @@ class Command(BaseCommand):
             raise CommandError('\n'.join(err.messages)) from err
 
         self.write_plan(plan)
-        if changes := update.dependency_changes(frontend):
-            self.stdout.write(
-                f'The package.json of the template of bazis-front {plan.version} has other '
-                'versions of npm dependencies than frontend/package.json. `update` never changes '
-                'it: bump those that the copies need and run `npm install`.'
-            )
-            for line in changes:
-                self.stdout.write(f'  {line}')
         if not plan:
             self.stdout.write(f'The copies in {frontend} are those of bazis-front {plan.version}.')
             return
@@ -320,15 +311,18 @@ class Command(BaseCommand):
                 '`manage.py bazis_front update`.'
             )
         update.apply(root, frontend, lock, plan)
+        install = (
+            f'`npm install` (its {update.PACKAGE_JSON} changed), ' if plan.dependencies_changed else ''
+        )
         if plan.conflicts:
             raise CommandError(
                 f'Updated to bazis-front {plan.version} with conflicts in {len(plan.conflicts)} '
                 f'files: {", ".join(plan.conflicts)}. Resolve the conflict markers (<<<<<<< '
                 f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them, '
-                'then run `npx tsc --noEmit` and `npm test` in frontend/.'
+                f'then run {install}`npx tsc --noEmit` and `npm test` in frontend/.'
             )
         self.stdout.write(
-            f'Updated the copies to bazis-front {plan.version}. Run `npx tsc --noEmit`, '
+            f'Updated the copies to bazis-front {plan.version}. Run {install}`npx tsc --noEmit`, '
             '`npm run lint` and `npm test` in frontend/, and commit the frontend with '
             f'{frontend_lock.BASE_DIR}/ and the lock.'
         )
@@ -340,6 +334,13 @@ class Command(BaseCommand):
                 continue
             if asset.asset is None:
                 self.stdout.write(f'{asset.name} {asset.old}: no longer in bazis-front {plan.version}.')
+            elif asset.untracked:
+                self.stdout.write(
+                    f'{asset.name}: {asset.old} -> {plan.version} ({asset.old} kept no pristine copy '
+                    'of it: the files that differ are merged as added on both sides, with conflict '
+                    'markers, and the missing ones are not restored; the copy of '
+                    f'{plan.version} is in {frontend_lock.BASE_DIR}/{asset.name}@{plan.version}/)'
+                )
             else:
                 replaced = sum(it.status == update.REPLACED for it in asset.files)
                 self.stdout.write(

@@ -277,8 +277,12 @@ deleted unless the product changed them. The stamp lines are compared at the new
 so they never conflict. The assets that a new version requires are copied, the pristine
 copies of the new version replace the old ones, the lock is updated, and the copies of the
 JSON Schemas in `spec/` are refreshed. Everything is read and merged before anything is
-written. The template is the product's and never updated; `update` reports the npm
-dependency versions of the new template that differ from the product's `package.json`.
+written. The template (the frontend itself: `package.json`, the configs, `src/app/`, its
+guide) is the product's and is updated the same way, without the stamp line: a fix of a
+config reaches the products made before it, merged with their changes, and a file the
+product deleted stays deleted. A template copied by a version that kept no pristine copy
+of it has no base: its files that differ are merged as added on both sides (conflict
+markers), the missing ones are not restored.
 `update --check` and the system check `front.W004` (run by `bazis_doctor`) report copies of
 another version without Node.
 

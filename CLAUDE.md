@@ -175,8 +175,8 @@ frontend made from the sample by the `e2e` job of CI.
 - `vendor/registry.py` reads `assets/registry.json`, the only list of the files that an
   asset copies (`vendored`: stamped, kept pristine in `.bazis/base/`, hashed in the lock,
   copied by `init`; `ui`: the components and the shadcn/ui components they use, copied the
-  same way by `add`, and by `init` with `init: true`; `template`: copied once, only its
-  version in the lock). Add a file of an asset to the registry; `tests/test_assets.py`
+  same way by `add`, and by `init` with `init: true`; `template`: copied by `init` and
+  tracked as the vendored ones, but without the stamp, `copy.copied`). Add a file of an asset to the registry; `tests/test_assets.py`
   checks that the registry lists every file of the template, every source of the client
   and of the hooks and every file of `assets/ui` but its tooling.
 - `requires` of an asset: `capabilities` (the hooks and the components of a package, such
@@ -207,8 +207,10 @@ frontend made from the sample by the `e2e` job of CI.
   the user; Git is looked for only when a file needs a merge, and its absence fails the
   plan). Do not write a merge of our own: a diff3 that aligns the base with each side
   separately loses or duplicates lines in runs of the same line, and the merge libraries of
-  PyPI are GPL. The template is never updated: `dependency_changes` reports the npm
-  versions of its `package.json` that differ from the product's. `tests/test_update.py` simulates an
+  PyPI are GPL. The template is updated the same way (`Plan.dependencies_changed` asks for
+  `npm install`); a lock entry of the template without files (a frontend of a version that
+  kept no pristine copy of it) has no base: `untracked_files` merges a file that differs as
+  added on both sides (an empty base) and leaves a missing one missing. `tests/test_update.py` simulates an
   older version by writing an asset again as that of the version `0.0.1` (its copies, its
   pristine copy and its lock entry). After a change of it, run the `frontend` job locally
   with an update cycle: a frontend of the sample made as there, its copies rewritten as
@@ -369,7 +371,7 @@ npm test
 
 ### The template (`assets/template`)
 
-- The frontend of a product, copied once by `init`: `package.json` with pinned versions,
+- The frontend of a product, copied by `init` and merged by `update`: `package.json` with pinned versions,
   `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`, the jsdom of the
   tests), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,

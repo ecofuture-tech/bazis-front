@@ -34,7 +34,7 @@ from bazis.contrib.front.contract.export import CONTRACT_FORMAT
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor import update as vendor_update
-from bazis.contrib.front.vendor.copy import base_dir, restamp, stamped
+from bazis.contrib.front.vendor.copy import base_dir, copied, restamp
 from bazis.contrib.front.vendor.lock import digest
 
 
@@ -138,9 +138,10 @@ def late(text):
 
 
 def upstream(path):
-    asset = next(it for it in registry.load().values() if path.startswith(f'{it.target}/') and
-                 path[len(it.target) + 1:] in it.files)
-    return stamped(asset, path[len(asset.target) + 1:], __version__).decode('utf-8')
+    asset, relative = next(
+        (it, name) for it in registry.load().values() for name in it.files if it.target_path(name) == path
+    )
+    return copied(asset, relative, __version__).decode('utf-8')
 
 
 def assert_updated(root, name):
@@ -152,11 +153,11 @@ def assert_updated(root, name):
     assert read_lock(root)['assets'][name] == {
         'version': __version__,
         'files': {
-            asset.target_path(it): digest(stamped(asset, it, __version__)) for it in asset.files
+            asset.target_path(it): digest(copied(asset, it, __version__)) for it in asset.files
         },
     }
     for relative in asset.files:
-        assert (base_dir(frontend, name, __version__) / relative).read_bytes() == stamped(
+        assert (base_dir(frontend, name, __version__) / relative).read_bytes() == copied(
             asset, relative, __version__,
         )
     assert not base_dir(frontend, name, OLD).exists()
@@ -193,7 +194,7 @@ def test_update_replaces_unchanged_copies(product):
         assert_updated(product, name)
         asset = registry.load()[name]
         for relative in asset.files:
-            assert (frontend / asset.target_path(relative)).read_bytes() == stamped(
+            assert (frontend / asset.target_path(relative)).read_bytes() == copied(
                 asset, relative, __version__,
             )
     assert w004() == []
@@ -358,7 +359,7 @@ def test_update_copies_what_a_new_version_requires(product):
     assert_updated(product, 'state-panel')
     testing = registry.load()['testing']
     for relative in testing.files:
-        assert (frontend / testing.target_path(relative)).read_bytes() == stamped(
+        assert (frontend / testing.target_path(relative)).read_bytes() == copied(
             testing, relative, __version__,
         )
 
@@ -444,8 +445,6 @@ def test_update_of_named_assets(product):
     assert read_lock(product)['assets']['state-panel']['version'] == OLD
     assert_updated(product, 'react')
 
-    with pytest.raises(CommandError, match="template is the product's: `update` does not change it"):
-        update('template')
     with pytest.raises(CommandError, match='There is no asset nope in the frontend'):
         update('nope')
     with pytest.raises(CommandError, match='resource-list is not in the frontend: copy it with `manage.py bazis_front add resource-list`'):
@@ -454,22 +453,98 @@ def test_update_of_named_assets(product):
         update('react', '--all')
 
 
-def test_update_reports_the_npm_dependencies_of_the_template(product):
-    package = product / 'frontend' / 'package.json'
-    data = json.loads(package.read_text(encoding='utf-8'))
-    template = data['dependencies']['react']
-    data['dependencies']['react'] = '19.0.0'
-    del data['dependencies']['clsx']
-    package.write_text(json.dumps(data), encoding='utf-8')
-    before = package.read_bytes()
+PLAYWRIGHT_CONFIG = 'playwright.config.ts'
+PACKAGE_JSON = 'package.json'
+ROUTER = 'src/app/router.tsx'
+
+
+def test_update_merges_the_template(product):
+    """
+    The template is the product's and updated like the copies, from its pristine copy: a
+    file that the product did not change is replaced (a fix of playwright.config.ts reaches
+    the frontends made before it), a change of the product is kept, both are merged, a file
+    deleted in the frontend stays deleted; a new package.json asks for `npm install`.
+    """
+    frontend = product / 'frontend'
+
+    def old(path, text):
+        if path == PLAYWRIGHT_CONFIG:
+            return change_line(text, late(text), '// old\n')
+        if path == PACKAGE_JSON:
+            return text.replace('"react": "', '"react": "0.0.')
+        if path == 'AGENTS.md':
+            return change_line(text, 0, '# old\n')
+        return text
+
+    downgrade(product, 'template', old)
+    package = frontend / PACKAGE_JSON
+    package.write_text(
+        package.read_text(encoding='utf-8').replace('"private": true,', '"private": true,\n  "description": "mine",'),
+        encoding='utf-8',
+    )
+    router = frontend / ROUTER
+    router.write_text(router.read_text(encoding='utf-8') + '// mine\n', encoding='utf-8')
+    (frontend / 'AGENTS.md').unlink()
+    assert w004()[0].msg == (
+        f'The copies of template {OLD} in the frontend are not those of bazis-front {__version__}.'
+    )
 
     out = update()
-    assert 'has other versions of npm dependencies than frontend/package.json' in out
-    assert f'  dependencies react: 19.0.0 -> {template}\n' in out
-    assert '  dependencies clsx: (none) -> ' in out
-    # the template is the product's
-    assert package.read_bytes() == before
-    assert read_lock(product)['assets']['template'] == {'version': __version__}
+    assert f'template: {OLD} -> {__version__} (1 files unchanged in the frontend replaced)\n' in out
+    assert f'  {PACKAGE_JSON}: merged with the changes of the frontend\n' in out
+    assert f'  {ROUTER}: kept (changed in the frontend only)\n' in out
+    assert '  AGENTS.md: not restored (deleted in the frontend)\n' in out
+    assert 'Run `npm install` (its package.json changed), `npx tsc --noEmit`' in out
+    assert (frontend / PLAYWRIGHT_CONFIG).read_text(encoding='utf-8') == upstream(PLAYWRIGHT_CONFIG)
+    assert package.read_text(encoding='utf-8') == upstream(PACKAGE_JSON).replace(
+        '"private": true,', '"private": true,\n  "description": "mine",'
+    )
+    assert router.read_text(encoding='utf-8') == upstream(ROUTER) + '// mine\n'
+    assert not (frontend / 'AGENTS.md').exists()
+    assert_updated(product, 'template')
+    assert w004() == []
+    # the deleted file stays deleted, and nothing asks for npm install
+    out = update('template')
+    assert out.endswith(f'are those of bazis-front {__version__}.\n')
+
+
+def test_update_of_a_template_without_its_pristine_copy(product):
+    """
+    A frontend made by a version that kept no pristine copy of the template (its lock has
+    only the version): a file that differs from the new version has no base and is merged as
+    added on both sides, the differences in conflict markers; a missing file is not
+    restored; the others are kept. The pristine copy and the hashes are recorded from then on.
+    """
+    frontend = product / 'frontend'
+    shutil.rmtree(base_dir(frontend, 'template', __version__))
+    lock = read_lock(product)
+    lock['assets']['template'] = {'version': OLD}
+    write_lock(product, lock)
+    config = frontend / PLAYWRIGHT_CONFIG
+    text = config.read_text(encoding='utf-8')
+    config.write_text(change_line(text, late(text), '// old\n'), encoding='utf-8')
+    (frontend / 'AGENTS.md').unlink()
+    before = (frontend / ROUTER).read_bytes()
+    assert w004()[0].msg == (
+        f'The copies of template {OLD} in the frontend are not those of bazis-front {__version__}.'
+    )
+
+    out = StringIO()
+    with pytest.raises(CommandError, match=f'with conflicts in 1 files: {PLAYWRIGHT_CONFIG}. Resolve the conflict markers'):
+        call_command('bazis_front', 'update', stdout=out)
+    out = out.getvalue()
+    assert f'template: {OLD} -> {__version__} ({OLD} kept no pristine copy of it' in out
+    assert f'  {PLAYWRIGHT_CONFIG}: CONFLICT' in out
+    assert '  AGENTS.md: not restored (deleted in the frontend)\n' in out
+    assert ROUTER not in out
+    new = upstream(PLAYWRIGHT_CONFIG)
+    theirs = new.splitlines(keepends=True)[late(new)]
+    conflict = f'{MARKERS[0]}// old\n{MARKERS[1]}{theirs}{MARKERS[2]}'
+    assert config.read_text(encoding='utf-8') == change_line(new, late(new), conflict)
+    assert not (frontend / 'AGENTS.md').exists()
+    assert (frontend / ROUTER).read_bytes() == before
+    assert_updated(product, 'template')
+    assert w004() == []
 
 
 def test_add_after_an_update(product):

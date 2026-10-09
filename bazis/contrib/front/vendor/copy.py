@@ -60,10 +60,13 @@ def write_file(path: Path, data: bytes) -> None:
     path.write_bytes(data)
 
 
-def stamped(asset: Asset, name: str, version: str) -> bytes:
+def copied(asset: Asset, name: str, version: str) -> bytes:
     """
-    A file of a vendored asset or of a component as it is copied: with the version stamp.
+    A file of an asset as it is copied: a file of a vendored asset or of a component with the
+    version stamp, a file of the template (JSON, HTML, CSS, configs, its guide) as it is.
     """
+    if asset.kind == TEMPLATE:
+        return asset.read(name)
     return stamp(asset.read(name).decode('utf-8'), asset.name, version).encode('utf-8')
 
 
@@ -83,7 +86,7 @@ def hashes(copies: dict[str, bytes]) -> dict[str, str]:
 
 def write_base(asset: Asset, frontend: Path, version: str) -> dict[str, bytes]:
     """
-    Writes the pristine copy of a vendored asset or of a component, stamped, in
+    Writes the pristine copy of an asset, as it is copied (`copied`), in
     `.bazis/base/<asset>@<version>/` (replacing one that is there), and returns its files by
     their path in the frontend.
     """
@@ -92,17 +95,17 @@ def write_base(asset: Asset, frontend: Path, version: str) -> dict[str, bytes]:
         shutil.rmtree(base)
     copies = {}
     for name in asset.files:
-        data = stamped(asset, name, version)
+        data = copied(asset, name, version)
         write_file(base / name, data)
         copies[asset.target_path(name)] = data
     return copies
 
 
-def copy_vendored(asset: Asset, frontend: Path, version: str) -> dict[str, str]:
+def copy_asset(asset: Asset, frontend: Path, version: str) -> dict[str, str]:
     """
-    Copies the files of a vendored asset or of a component into the frontend with the
-    version stamp, and the same pristine copies into `.bazis/base/<asset>@<version>/`.
-    Returns their hashes by their path in the frontend.
+    Copies the files of an asset into the frontend as it copies them (`copied`), and the same
+    pristine copies into `.bazis/base/<asset>@<version>/`, from which `update` merges a new
+    version. Returns their hashes by their path in the frontend.
     """
     copies = write_base(asset, frontend, version)
     for path, data in copies.items():
@@ -114,29 +117,26 @@ def create_frontend(frontend: Path, capabilities: Iterable[str]) -> None:
     """
     Creates the frontend from the template, the vendored assets of the registry that the
     capabilities of the product allow and the components marked `init` (with the assets they
-    require), with its lock. The frontend must not exist: it is built in a temporary
-    directory next to it and renamed, so that a failure leaves nothing behind.
+    require), each with its pristine copy, and its lock. The frontend must not exist: it is
+    built in a temporary directory next to it and renamed, so that a failure leaves nothing
+    behind.
     """
     version = __version__
     capabilities = set(capabilities)
     registry = load()
     if unknown := [it.name for it in registry.values() if it.kind not in (TEMPLATE, VENDORED, UI)]:
         raise ValueError(f'unknown kind of the assets {unknown}')
-    copied = resolve(
+    selected = resolve(
         [it.name for it in registry.values() if it.kind == VENDORED or (it.kind == UI and it.init)],
         registry,
     )
     temporary = frontend.with_name(f'.{frontend.name}.init-{os.getpid()}')
     temporary.mkdir()
     try:
-        template = registry['template']
-        for name in template.files:
-            write_file(temporary / template.target_path(name), template.read(name))
-        assets = {template.name: {'version': version}}
-        for asset in copied:
+        assets = {}
+        for asset in [registry['template'], *selected]:
             if asset.wanted(capabilities):
-                files = copy_vendored(asset, temporary, version)
-                assets[asset.name] = {'version': version, 'files': files}
+                assets[asset.name] = {'version': version, 'files': copy_asset(asset, temporary, version)}
         lock = {
             'lock': frontend_lock.LOCK_FORMAT,
             'bazis_front': version,
@@ -188,7 +188,7 @@ def foreign_files(frontend: Path, asset: Asset, names: Iterable[str], version: s
         'does not overwrite it. Move it away and run the command again.'
         for name in names
         if (frontend / asset.target_path(name)).is_file()
-        and (frontend / asset.target_path(name)).read_bytes() != stamped(asset, name, version)
+        and (frontend / asset.target_path(name)).read_bytes() != copied(asset, name, version)
     ]
 
 
@@ -271,7 +271,7 @@ def add_assets(
         raise CopyError(errors)
 
     for asset in to_copy:
-        present[asset.name] = {'version': version, 'files': copy_vendored(asset, frontend, version)}
+        present[asset.name] = {'version': version, 'files': copy_asset(asset, frontend, version)}
         result.copied.append(asset.name)
     lock['assets'] = present
     frontend_lock.write(frontend, lock)

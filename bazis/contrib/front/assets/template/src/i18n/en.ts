@@ -15,7 +15,7 @@
 // The texts of the product in English: those of its screens, and those of the components
 // (the keys of `@/bazis/i18n`, `src/bazis/i18n/messages/en.ts`) that the product words
 // otherwise. They are merged over the dictionaries of the package, and this file is the
-// product's: `bazis_front update` never changes it.
+// product's: `bazis_front update` merges the texts of a new template with its changes.
 
 import type { Messages } from '@/bazis/i18n';
 

@@ -87,7 +87,7 @@ def test_init_creates_the_frontend(product):
         'client', 'react', 'react-statusy', 'react-uploadable', 'react-ws', 'react-bg', 'react-async',
         'i18n', 'playwright', *INIT_COMPONENTS,
     ]
-    files = {name: lock['assets'][name].pop('files') for name in vendored}
+    files = {name: lock['assets'][name].pop('files') for name in [*vendored, 'template']}
     # the theme of the starters of the design
     design = lock.pop('design')
     assert lock == {
@@ -101,6 +101,13 @@ def test_init_creates_the_frontend(product):
     assert sorted(design['generated']) == [theme.THEME_CSS, theme.THEME_TS]
     for path, value in design['generated'].items():
         assert digest((frontend / path).read_bytes()) == value
+    # the template as it is, without the stamp, with its pristine copy for the merge of the
+    # next version, hashed in the lock
+    assert sorted(files['template']) == sorted(template.files)
+    for name in template.files:
+        base = frontend / '.bazis' / 'base' / f'template@{__version__}' / name
+        assert base.read_bytes() == template.read(name), name
+        assert files['template'][name] == digest(template.read(name))
     for asset in (assets[name] for name in vendored):
         assert sorted(files[asset.name]) == sorted(asset.target_path(it) for it in asset.files)
         for name in asset.files:
@@ -141,7 +148,7 @@ def test_init_copies_the_hooks_of_the_installed_packages(product, monkeypatch):
     assert not (frontend / 'src' / 'bazis' / 'react' / 'statusy').exists()
     assert not (frontend / 'src' / 'bazis' / 'react' / 'uploadable').exists()
     assert sorted(it.name for it in (frontend / '.bazis' / 'base').iterdir()) == sorted(
-        f'{name}@{__version__}' for name in ['client', 'react', 'i18n', 'playwright', *INIT_COMPONENTS]
+        f'{name}@{__version__}' for name in ['client', 'react', 'i18n', 'playwright', 'template', *INIT_COMPONENTS]
     )
 
 
@@ -212,7 +219,7 @@ def test_a_failed_init_leaves_nothing(product, monkeypatch):
     def fail(*args):
         raise OSError('disk full')
 
-    monkeypatch.setattr(copy, 'copy_vendored', fail)
+    monkeypatch.setattr(copy, 'copy_asset', fail)
     with pytest.raises(OSError, match='disk full'):
         init('--no-node')
     # the specs are created first: init runs again and keeps them

@@ -34,7 +34,9 @@ VENDORED = 'vendored'
 #: a component: copied as a vendored asset, but by `add` (by `init` with `init: true`), and
 #: owned and changed by the product; its contract test comes with it
 UI = 'ui'
-#: copied once by `init`; the product owns it, the lock keeps only its version
+#: the frontend itself, copied by `init` as it is (without the stamp: JSON, HTML, CSS,
+#: configs), kept pristine in `.bazis/base/`, hashed in the lock and updated from the package
+#: like the vendored assets; the product owns and changes it, `update` merges the new version
 TEMPLATE = 'template'
 
 

@@ -21,7 +21,8 @@ would have (another version, other files or other contents), when its asset is n
 the registry, or when an asset it requires is not in the frontend. Each file of a stale
 copy is updated from three versions: the base (the pristine copy of the old version in
 `.bazis/base/<asset>@<old>/`, whose hash is in the lock), the upstream (the file of the
-installed package, stamped with its version) and the local file of the product:
+installed package as it is copied: stamped with its version, but a file of the template)
+and the local file of the product:
 
 - unchanged in the frontend: replaced by the upstream;
 - changed in the frontend only: kept;
@@ -31,17 +32,23 @@ installed package, stamped with its version) and the local file of the product:
 - removed upstream: deleted when unchanged in the frontend, otherwise kept (the product's);
 - deleted in the frontend: not restored.
 
+The template (the frontend itself: `package.json`, the configs, `src/app/`, its guide) is
+updated the same way: the product changes it, and the new version is merged with the
+changes. A template copied by a version that kept no pristine copy of it (its lock entry
+has no files) has no base: a file that differs from the new version is merged as added on
+both sides (`git merge-file` with an empty base: the differences are conflicts, resolved
+once), a missing one is not restored (it may have been deleted), and the pristine copy and
+the hashes are recorded from then on.
+
 The stamp lines are compared and merged at the new version, so that they never conflict;
-every written file has the new stamp. The assets that a new version requires and the
-frontend does not have are copied as `add` copies them, and the copies of the JSON Schemas
-in `spec/schema/` are made those of the package. Everything is read and merged before
-anything is written (`plan`): on a `CopyError` nothing is written; the conflicts are
-written, and reported. Then the pristine copies of the new version replace the old ones and
-the lock records them (`apply`). The template is the product's and never updated: the
-versions of the npm dependencies of its `package.json` are reported (`dependency_changes`).
+every written file of a vendored asset or a component has the new stamp. The assets that a
+new version requires and the frontend does not have are copied as `add` copies them, and
+the copies of the JSON Schemas in `spec/schema/` are made those of the package. Everything
+is read and merged before anything is written (`plan`): on a `CopyError` nothing is
+written; the conflicts are written, and reported. Then the pristine copies of the new
+version replace the old ones and the lock records them (`apply`).
 """
 
-import json
 import os
 import shutil
 import subprocess
@@ -57,12 +64,12 @@ from . import lock as frontend_lock
 from .copy import (
     CopyError,
     base_dir,
-    copy_vendored,
+    copied,
+    copy_asset,
     foreign_files,
     hashes,
     missing_capabilities,
     restamp,
-    stamped,
     write_base,
     write_file,
 )
@@ -100,6 +107,9 @@ DESCRIPTIONS = {
 #: the names of the two sides in the conflict markers
 LOCAL_NAME = 'frontend'
 
+#: the npm manifest of the template: `npm install` after a change of it
+PACKAGE_JSON = 'package.json'
+
 #: `git merge-file` without the configuration of the system, of the user or of a repository
 #: (a hook or `git rebase -x` passes GIT_DIR): the same markers everywhere; the conflict style
 #: is also set on the command line, which wins over any configuration
@@ -124,6 +134,8 @@ class AssetUpdate:
     #: the asset of the registry; None when it is no longer in bazis-front
     asset: Asset | None
     files: list[FileUpdate] = field(default_factory=list)
+    #: copied by a version that kept no pristine copy of it (the template): no base
+    untracked: bool = False
 
 
 @dataclass
@@ -141,13 +153,22 @@ class Plan:
     def conflicts(self) -> list[str]:
         return [it.path for asset in self.assets for it in asset.files if it.status == CONFLICT]
 
+    @property
+    def dependencies_changed(self) -> bool:
+        """Whether the update writes the `package.json` of the template."""
+        return any(
+            it.path == PACKAGE_JSON and it.data is not None
+            for asset in self.assets if asset.asset is not None and asset.asset.kind == TEMPLATE
+            for it in asset.files
+        )
+
 
 def copies(asset: Asset, version: str) -> dict[str, tuple[str, bytes]]:
     """
     The files of an asset as this version copies them: their name in the asset and their
-    stamped contents, by their path in the frontend.
+    contents (`copied`), by their path in the frontend.
     """
-    return {asset.target_path(name): (name, stamped(asset, name, version)) for name in asset.files}
+    return {asset.target_path(name): (name, copied(asset, name, version)) for name in asset.files}
 
 
 def is_stale(entry: dict, asset: Asset, version: str) -> bool:
@@ -160,17 +181,6 @@ def is_stale(entry: dict, asset: Asset, version: str) -> bool:
     }
 
 
-def updatable(lock: dict, registry: dict[str, Asset]) -> list[str]:
-    """
-    The copied assets that `update` brings to the installed version: all of the lock but the
-    template, which the product owns.
-    """
-    return [
-        name for name in lock.get('assets', {})
-        if name not in registry or registry[name].kind != TEMPLATE
-    ]
-
-
 def stale(root: Path, frontend: Path, lock: dict) -> list[str]:
     """
     What `update` would change, without reading the pristine copies or merging: the
@@ -179,7 +189,7 @@ def stale(root: Path, frontend: Path, lock: dict) -> list[str]:
     version = __version__
     registry = load()
     present = lock.get('assets', {})
-    names = updatable(lock, registry)
+    names = list(present)
     gone = [f'{it} {present[it].get("version")}' for it in names if it not in registry]
     old = [
         f'{it} {present[it].get("version")}' for it in names
@@ -323,6 +333,23 @@ def update_files(frontend: Path, name: str, entry: dict, asset: Asset | None, ve
     return updates
 
 
+def untracked_files(frontend: Path, asset: Asset, version: str) -> list[FileUpdate]:
+    """
+    The updates of the files of an asset copied without a pristine copy (the template of a
+    version that kept none, its lock entry without files): with no base, a file that differs
+    from the new version is merged as added on both sides (an empty base: the differences are
+    conflicts), and a missing one is not restored, as it may have been deleted.
+    """
+    updates = []
+    for path, (_, new) in copies(asset, version).items():
+        target = frontend / path
+        if not target.is_file():
+            updates.append(FileUpdate(path, DELETED))
+        elif (local := target.read_bytes()) != new:
+            updates.append(merge(path, asset.name, b'', local, new, version))
+    return updates
+
+
 def plan(
     root: Path,
     frontend: Path,
@@ -340,12 +367,7 @@ def plan(
     present = lock.get('assets', {})
     errors = []
     for name in names:
-        if name in registry and registry[name].kind == TEMPLATE:
-            errors.append(
-                f'{name} is the product\'s: `update` does not change it (see the npm '
-                'dependencies it reports).'
-            )
-        elif name not in present:
+        if name not in present:
             errors.append(
                 f'{name} is not in the frontend: copy it with `manage.py bazis_front add {name}`.'
                 if name in registry else f'There is no asset {name} in the frontend.'
@@ -353,7 +375,7 @@ def plan(
     if errors:
         raise CopyError(errors)
 
-    selected = list(names) or updatable(lock, registry)
+    selected = list(names) or list(present)
     order = resolve([it for it in selected if it in registry], registry)
     errors += missing_capabilities([it for it in order if it.name not in present], capabilities)
     result = Plan(version)
@@ -363,12 +385,18 @@ def plan(
             errors += foreign_files(frontend, asset, asset.files, version)
             result.assets.append(AssetUpdate(asset.name, None, asset))
         elif is_stale(entry, asset, version):
+            untracked = 'files' not in entry
             try:
-                files = update_files(frontend, asset.name, entry, asset, version)
+                files = (
+                    untracked_files(frontend, asset, version) if untracked
+                    else update_files(frontend, asset.name, entry, asset, version)
+                )
             except CopyError as err:
                 errors += err.messages
             else:
-                result.assets.append(AssetUpdate(asset.name, entry.get('version'), asset, files))
+                result.assets.append(
+                    AssetUpdate(asset.name, entry.get('version'), asset, files, untracked)
+                )
     for name in selected:
         if name not in registry:
             entry = present[name]
@@ -405,7 +433,7 @@ def apply(root: Path, frontend: Path, lock: dict, plan: Plan) -> None:
     for update in plan.assets:
         if update.old is None:
             present[update.name] = {
-                'version': version, 'files': copy_vendored(update.asset, frontend, version),
+                'version': version, 'files': copy_asset(update.asset, frontend, version),
             }
             continue
         for it in update.files:
@@ -427,22 +455,3 @@ def apply(root: Path, frontend: Path, lock: dict, plan: Plan) -> None:
         write_file(root / path, data)
     frontend_lock.write(frontend, lock)
 
-
-def dependency_changes(frontend: Path) -> list[str]:
-    """
-    The npm dependencies of the `package.json` of the template whose versions the
-    `package.json` of the frontend does not have: the template is the product's, `update`
-    reports them and never changes them.
-    """
-    template = json.loads(load()['template'].read('package.json'))
-    try:
-        product = json.loads((frontend / 'package.json').read_text(encoding='utf-8'))
-    except (OSError, ValueError) as err:
-        return [f'package.json of the frontend cannot be read: {err}']
-    declared = {**product.get('devDependencies', {}), **product.get('dependencies', {})}
-    return [
-        f'{section} {name}: {declared.get(name, "(none)")} -> {wanted}'
-        for section in ('dependencies', 'devDependencies')
-        for name, wanted in sorted(template.get(section, {}).items())
-        if declared.get(name) != wanted
-    ]

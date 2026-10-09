@@ -51,8 +51,9 @@ screen that lists the resources of the contract. It never overwrites an existing
   `spec/design/` as `bazis_front design` does (see [The design](#the-design)); a design with
   errors is reported and the theme is left to `bazis_front design`;
 
-- the files of the template (`assets/template`), which the product owns from then on,
-  among them `frontend/AGENTS.md`, the guide of the frontend for agents;
+- the files of the template (`assets/template`), which the product owns from then on
+  (`update` merges a new version with its changes), among them `frontend/AGENTS.md`, the
+  guide of the frontend for agents, with their pristine copy in `.bazis/base/template@<version>/`;
 - the protocol client in `src/bazis/client/` and the React hooks in `src/bazis/react/`,
   each file stamped with `// bazis-front <version> asset <asset>` after its license header,
   and the same pristine copy in `.bazis/base/<asset>@<version>/` for the merge of later
@@ -74,7 +75,7 @@ screen that lists the resources of the contract. It never overwrites an existing
   [The end-to-end tests](#the-end-to-end-tests));
 - `bazis-front.lock.json`: the version of bazis-front, the hashes of the contract and of
   the generated files (see below), and the version and the file hashes of every copied
-  asset (`"template"` has only its version); an asset that was not copied is not in it.
+  asset, the template too; an asset that was not copied is not in it.
   `bazis_front e2e` adds the hashes of the specs and of the tests it generates (`e2e`),
   `init` and `bazis_front design` those of the design and of the theme (`design`).
 
@@ -898,12 +899,18 @@ and the file of the frontend:
 - Everything is read and merged first: an asset that cannot be updated (a missing or edited
   pristine copy, a file of the product at the path of a new file, a missing capability)
   fails the command and nothing is written.
-- **The template is the product's** (`package.json`, `vite.config.ts`, `src/app/`,
-  `src/screens/`, `AGENTS.md`, …): `update` never changes it, and the lock keeps the
-  version of `init` for it. It prints the npm dependencies whose versions in the
-  `package.json` of the new template differ from those of `frontend/package.json`
-  (`dependencies react: 19.2.0 -> 19.3.0`): bump those that the new copies need and run
-  `npm install`.
+- **The template is the product's and is updated like the copies** (`package.json`, the
+  configs such as `playwright.config.ts` and `vite.config.ts`, `src/app/`, `src/screens/`,
+  `src/i18n/`, `AGENTS.md`, …; without the stamp line): a file the product did not change
+  is replaced by the new one, its changes are kept and merged with those of bazis-front
+  (conflicts as above), and a file it deleted (the home screen) stays deleted. When
+  `package.json` changed, run `npm install` (`update` says so). A frontend made by a
+  development version of bazis-front that kept no pristine copy of the template (its lock
+  entry `"template"` has only the version) has no base for it: `update` merges each file
+  that differs from the new template as added on both sides (conflict markers around every
+  difference: keep the lines of the product, take those of bazis-front), leaves the missing
+  ones missing (the new ones are in `.bazis/base/template@<version>/`) and records the
+  pristine copy from then on.
 - The theme is generated, not copied: run `bazis_front design` after `update` (`front.W005`
   reports a theme that the new version renders otherwise). A frontend made before the design
   layer has no theme: run `bazis_front design`, replace the variables of `:root` and `.dark`
@@ -940,7 +947,7 @@ are replaced without conflicts; wrap them in the product code instead.
 | 2. Hooks | React hooks over the client and TanStack Query (`assets/react`) | `frontend/src/bazis/react/`, copied, not edited |
 | 3. Components | visual building blocks on shadcn/ui (`assets/ui`) | `frontend/src/bazis/ui/` (and `src/components/ui/`), copied by `init` and `add`, owned by the product |
 | 4. Specs | product, screens and design specs | `spec/`, validated against the contract by `bazis_front check`; its scenarios generate the end-to-end tests (`bazis_front e2e`, `frontend/e2e/generated/`) run with the helpers of `frontend/e2e/bazis/`; its design generates the theme (`bazis_front design`, `frontend/src/bazis/generated/theme.*`) |
-| App | the template (`assets/template`): providers, session, router, errors, screens | `frontend/`, copied once by `init`, owned by the product |
+| App | the template (`assets/template`): providers, session, router, errors, screens, configs | `frontend/`, copied by `init`, owned by the product, merged with a new version by `update` |
 
 ## Rules
 
@@ -1153,7 +1160,8 @@ bazis-statusy have a column per language: set them in the data migrations).
 - **The dictionaries of the product** are `src/i18n/<language>.ts` of the frontend (the
   template has `en` and `ru`, listed in `src/i18n/index.ts`): the texts of its screens, and
   the texts of the components it words otherwise (the same key). They are merged over those
-  of the package and are the product's: `update` never changes them. A language of the
+  of the package and are the product's (`update` merges a new template with their
+  changes). A language of the
   backend without a dictionary shows the texts of the package in it, else the English ones.
   Every text of a screen goes through `t()`; never write a text of the interface in the JSX.
 - **The language of the interface** is one of `LANGUAGES`: the language of the profile of

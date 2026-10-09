@@ -23,7 +23,7 @@ import pytest
 from bazis.contrib.front import __version__, capabilities
 from bazis.contrib.front.contract.export import CONTRACT_FORMAT
 from bazis.contrib.front.vendor import registry
-from bazis.contrib.front.vendor.copy import stamped
+from bazis.contrib.front.vendor.copy import copied
 from bazis.contrib.front.vendor.lock import digest
 
 
@@ -77,12 +77,12 @@ def test_add_copies_a_component_with_what_it_requires(product):
             asset.target_path(it) for it in asset.files
         )
         for name in asset.files:
-            copied = (frontend / asset.target_path(name)).read_bytes()
-            assert copied == stamped(asset, name, __version__)
-            assert f'// bazis-front {__version__} asset {asset.name}\n'.encode() in copied
+            data = (frontend / asset.target_path(name)).read_bytes()
+            assert data == copied(asset, name, __version__)
+            assert f'// bazis-front {__version__} asset {asset.name}\n'.encode() in data
             base = frontend / '.bazis' / 'base' / f'{asset.name}@{__version__}' / name
-            assert base.read_bytes() == copied
-            assert lock['assets'][asset.name]['files'][asset.target_path(name)] == digest(copied)
+            assert base.read_bytes() == data
+            assert lock['assets'][asset.name]['files'][asset.target_path(name)] == digest(data)
     assert (frontend / 'src' / 'bazis' / 'ui' / 'resource-list' / 'resource-list.contract.test.tsx').is_file()
     assert (frontend / 'src' / 'components' / 'ui' / 'table.tsx').is_file()
 
@@ -160,7 +160,7 @@ def test_add_never_overwrites_a_file_of_the_product(product):
     assert table.read_text(encoding='utf-8') == 'mine'
 
     # the same file as the copy is taken over
-    table.write_bytes(stamped(registry.load()['table'], 'table.tsx', __version__))
+    table.write_bytes(copied(registry.load()['table'], 'table.tsx', __version__))
     add('resource-list')
     assert 'table' in read_lock(product)['assets']
 
