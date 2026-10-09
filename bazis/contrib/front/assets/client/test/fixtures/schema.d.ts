@@ -218,27 +218,6 @@ export interface paths {
         patch: operations["ChildEntityRouteSet_action_update_relationships_api_v1_entity_child_entity__item_id__relationships__related_field_name__patch"];
         trace?: never;
     };
-    "/api/v1/entity/child_entity/{item_id}/dict_data/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Childentityrouteset Action Dict Data
-         * @description Private endpoint for the current route context.
-         *             This function acts as the actual endpoint that will be called for the route.
-         */
-        get: operations["ChildEntityRouteSet_action_dict_data_api_v1_entity_child_entity__item_id__dict_data__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/entity/parent_entity/schema_list/": {
         parameters: {
             query?: never;
@@ -453,27 +432,6 @@ export interface paths {
         patch: operations["ParentEntityRouteSet_action_update_relationships_api_v1_entity_parent_entity__item_id__relationships__related_field_name__patch"];
         trace?: never;
     };
-    "/api/v1/entity/parent_entity/{item_id}/dict_data/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Parententityrouteset Action Dict Data
-         * @description Private endpoint for the current route context.
-         *             This function acts as the actual endpoint that will be called for the route.
-         */
-        get: operations["ParentEntityRouteSet_action_dict_data_api_v1_entity_parent_entity__item_id__dict_data__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -631,13 +589,11 @@ export interface components {
             /**
              * Creation time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.149073Z
              */
             readonly dt_created?: string;
             /**
              * Update time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.149090Z
              */
             readonly dt_updated?: string;
         };
@@ -664,13 +620,11 @@ export interface components {
             /**
              * Creation time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.137419Z
              */
             readonly dt_created?: string;
             /**
              * Update time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.137665Z
              */
             readonly dt_updated?: string;
         };
@@ -697,13 +651,11 @@ export interface components {
             /**
              * Creation time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.143885Z
              */
             readonly dt_created?: string;
             /**
              * Update time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.143902Z
              */
             readonly dt_updated?: string;
         };
@@ -730,13 +682,11 @@ export interface components {
             /**
              * Creation time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.154139Z
              */
             readonly dt_created?: string;
             /**
              * Update time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.154155Z
              */
             readonly dt_updated?: string;
         };
@@ -763,13 +713,11 @@ export interface components {
             /**
              * Creation time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.260840Z
              */
             readonly dt_created?: string;
             /**
              * Update time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.260857Z
              */
             readonly dt_updated?: string;
             /**
@@ -825,13 +773,11 @@ export interface components {
             /**
              * Creation time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.245162Z
              */
             readonly dt_created?: string;
             /**
              * Update time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.245178Z
              */
             readonly dt_updated?: string;
             /**
@@ -887,13 +833,11 @@ export interface components {
             /**
              * Creation time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.253322Z
              */
             readonly dt_created?: string;
             /**
              * Update time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.253338Z
              */
             readonly dt_updated?: string;
             /**
@@ -949,13 +893,11 @@ export interface components {
             /**
              * Creation time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.268964Z
              */
             readonly dt_created?: string;
             /**
              * Update time
              * Format: date-time
-             * @default 2026-10-06T15:44:55.268979Z
              */
             readonly dt_updated?: string;
             /**
@@ -1069,7 +1011,7 @@ export interface components {
         _entity__child_entity__schema_create__ResourceIdentifierSchema__entity__parent_entity: {
             /**
              * Id
-             * @example ddc84f57-70d6-4efa-a8aa-bcb7ebb47573
+             * @example 6972d23c-e0f2-5633-b86e-e5a1ff3e981f
              */
             id?: string;
             /**
@@ -1097,12 +1039,12 @@ export interface components {
             /** Relationships */
             relationships: components["schemas"]["__entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships"];
         };
-        /** _entity__child_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6 */
-        _entity__child_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6: {
+        /** _entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed */
+        _entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed: {
             /**
              * Pagination
              * @description Provides pagination metadata, including count, limit, and offset, as a
-             *             PaginationMeta object.
+             *     PaginationMeta object.
              */
             pagination?: components["schemas"]["PaginationMeta"] | null;
         };
@@ -1110,7 +1052,7 @@ export interface components {
         _entity__child_entity__schema_list__ResourceIdentifierSchema__entity__parent_entity: {
             /**
              * Id
-             * @example 31924b3d-f824-4d32-8752-66304c1a47e6
+             * @example 6972d23c-e0f2-5633-b86e-e5a1ff3e981f
              */
             id?: string;
             /**
@@ -1147,7 +1089,7 @@ export interface components {
         _entity__child_entity__schema_retrieve__ResourceIdentifierSchema__entity__parent_entity: {
             /**
              * Id
-             * @example 54af1ebb-af4f-4ef9-9773-584d73f8a7e3
+             * @example 6972d23c-e0f2-5633-b86e-e5a1ff3e981f
              */
             id?: string;
             /**
@@ -1184,7 +1126,7 @@ export interface components {
         _entity__child_entity__schema_update__ResourceIdentifierSchema__entity__parent_entity: {
             /**
              * Id
-             * @example 4a42f706-faa9-4b17-a717-989117caa3e4
+             * @example 6972d23c-e0f2-5633-b86e-e5a1ff3e981f
              */
             id?: string;
             /**
@@ -1222,7 +1164,7 @@ export interface components {
             /**
              * Id
              * @default
-             * @example d08c23b2-1380-4b07-8d7d-880cf5312c48
+             * @example d3fa232f-b978-5696-90d7-ac4ab0c4fb27
              */
             id?: string;
             /**
@@ -1235,7 +1177,7 @@ export interface components {
         _entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__dependent_entity: {
             /**
              * Id
-             * @example 3c1f8d2d-a749-4cfe-af83-15436c652ac9
+             * @example 3c38eefe-a0e4-5195-b995-9cab639fb97a
              */
             id?: string;
             /**
@@ -1248,7 +1190,7 @@ export interface components {
         _entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__extended_entity: {
             /**
              * Id
-             * @example 2fcec181-a5de-4a88-ada1-e2a7f5cf5790
+             * @example 15f5e604-9db6-5c15-8d56-0db7d86135a3
              */
             id?: string;
             /**
@@ -1276,12 +1218,12 @@ export interface components {
             /** Relationships */
             relationships: components["schemas"]["__entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships"];
         };
-        /** _entity__parent_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6 */
-        _entity__parent_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6: {
+        /** _entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed */
+        _entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed: {
             /**
              * Pagination
              * @description Provides pagination metadata, including count, limit, and offset, as a
-             *             PaginationMeta object.
+             *     PaginationMeta object.
              */
             pagination?: components["schemas"]["PaginationMeta"] | null;
         };
@@ -1290,7 +1232,7 @@ export interface components {
             /**
              * Id
              * @default
-             * @example 20673ebc-e95c-47c2-9a9f-93c10dec214f
+             * @example d3fa232f-b978-5696-90d7-ac4ab0c4fb27
              */
             id?: string;
             /**
@@ -1303,7 +1245,7 @@ export interface components {
         _entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__dependent_entity: {
             /**
              * Id
-             * @example f813310a-2872-4106-a1f9-541d55ca984f
+             * @example 3c38eefe-a0e4-5195-b995-9cab639fb97a
              */
             id?: string;
             /**
@@ -1316,7 +1258,7 @@ export interface components {
         _entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__extended_entity: {
             /**
              * Id
-             * @example 7897580b-9a5e-4a5a-8041-925a3efcce9b
+             * @example 15f5e604-9db6-5c15-8d56-0db7d86135a3
              */
             id?: string;
             /**
@@ -1354,7 +1296,7 @@ export interface components {
             /**
              * Id
              * @default
-             * @example c221f85c-2418-4dc6-af88-9c2d62a9e176
+             * @example d3fa232f-b978-5696-90d7-ac4ab0c4fb27
              */
             id?: string;
             /**
@@ -1367,7 +1309,7 @@ export interface components {
         _entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__dependent_entity: {
             /**
              * Id
-             * @example 7d2858be-c782-4d11-88db-05be202505a0
+             * @example 3c38eefe-a0e4-5195-b995-9cab639fb97a
              */
             id?: string;
             /**
@@ -1380,7 +1322,7 @@ export interface components {
         _entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__extended_entity: {
             /**
              * Id
-             * @example d1d4b9a2-862f-4c08-b66a-a6b935b2a92f
+             * @example 15f5e604-9db6-5c15-8d56-0db7d86135a3
              */
             id?: string;
             /**
@@ -1418,7 +1360,7 @@ export interface components {
             /**
              * Id
              * @default
-             * @example 4c1da20d-832a-4d4c-81d1-bbed35ec1f7a
+             * @example d3fa232f-b978-5696-90d7-ac4ab0c4fb27
              */
             id?: string;
             /**
@@ -1431,7 +1373,7 @@ export interface components {
         _entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity: {
             /**
              * Id
-             * @example 106810a6-51ef-46b1-a1ba-332578353e52
+             * @example 3c38eefe-a0e4-5195-b995-9cab639fb97a
              */
             id?: string;
             /**
@@ -1444,7 +1386,7 @@ export interface components {
         _entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity_null: {
             /**
              * Id
-             * @example dde24004-0635-402c-8f4d-7509664101fa
+             * @example 073e9377-8cb2-5bea-8184-8bfee618d0c1
              */
             id?: string;
             /**
@@ -1457,7 +1399,7 @@ export interface components {
         _entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity: {
             /**
              * Id
-             * @example 3ce07cc6-5ed5-47d2-baed-40c93260cfb3
+             * @example 15f5e604-9db6-5c15-8d56-0db7d86135a3
              */
             id?: string;
             /**
@@ -1470,7 +1412,7 @@ export interface components {
         _entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity_null: {
             /**
              * Id
-             * @example 194067e6-c7e1-4f0d-a078-c14e5a309b95
+             * @example 3636bda8-cede-542d-9bd3-7d6b5e71491b
              */
             id?: string;
             /**
@@ -1512,7 +1454,7 @@ export interface components {
             /** List data */
             data: components["schemas"]["_entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5"][];
             links: components["schemas"]["PaginationLinks"];
-            meta?: components["schemas"]["_entity__child_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6"] | null;
+            meta?: components["schemas"]["_entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed"] | null;
         };
         /** entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644 */
         entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644: {
@@ -1537,7 +1479,7 @@ export interface components {
             /** List data */
             data: components["schemas"]["_entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"][];
             links: components["schemas"]["PaginationLinks"];
-            meta?: components["schemas"]["_entity__parent_entity__schema_list__MetaSchema__acafc8ec96e2731633fa9f18eb033ab6"] | null;
+            meta?: components["schemas"]["_entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed"] | null;
         };
         /** entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1 */
         entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1: {
@@ -1652,6 +1594,15 @@ export interface operations {
                     };
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1686,6 +1637,15 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
                 };
             };
             /** @description Validation Error */
@@ -1802,7 +1762,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1847,7 +1807,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1894,7 +1854,16 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1934,7 +1903,16 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1981,7 +1959,16 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2016,6 +2003,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -2053,6 +2058,24 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2089,37 +2112,22 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["SchemaErrors"];
                 };
             };
-        };
-    };
-    ChildEntityRouteSet_action_dict_data_api_v1_entity_child_entity__item_id__dict_data__get: {
-        parameters: {
-            query?: {
-                meta?: string;
-            };
-            header?: never;
-            path: {
-                item_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SchemaErrors"];
                 };
             };
             /** @description Validation Error */
@@ -2225,6 +2233,15 @@ export interface operations {
                     };
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2259,6 +2276,15 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
                 };
             };
             /** @description Validation Error */
@@ -2375,7 +2401,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2420,7 +2446,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2469,7 +2495,16 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2509,7 +2544,16 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2556,7 +2600,16 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Unprocessable Content */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2591,6 +2644,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -2628,6 +2699,24 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaErrors"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2664,37 +2753,22 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["SchemaErrors"];
                 };
             };
-        };
-    };
-    ParentEntityRouteSet_action_dict_data_api_v1_entity_parent_entity__item_id__dict_data__get: {
-        parameters: {
-            query?: {
-                meta?: string;
-            };
-            header?: never;
-            path: {
-                item_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SchemaErrors"];
                 };
             };
             /** @description Validation Error */

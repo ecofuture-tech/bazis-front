@@ -29,18 +29,21 @@ export interface ErrorObject {
 }
 
 /**
- * The pointer of an attribute or a relationship of the item of the request: `/attributes/<name>`
- * (the body that the schema refuses) or `/data/attributes/<name>`, `/data/relationships/<name>`
- * (the checks of the backend: the model, a related item, `validate_item`).
+ * The pointer of an attribute or a relationship of the item of the request document (bazis
+ * 2.11): `/data/attributes/<name>`, `/data/relationships/<name>` and what is below them (the
+ * schema, `ERR_VALIDATE`; the checks of the backend, `ERR_ITEM_INVALID`,
+ * `ERR_RELATION_ACCESS`).
  */
-const FIELD_POINTER = /^(?:\/data)?\/(?:attributes|relationships)\/([^/]+)/;
+const FIELD_POINTER = /^\/data\/(?:attributes|relationships)\/([^/]+)/;
 /** The pointer of an included item, `/included/<index>`, and of one of its fields. */
 const INCLUDED_POINTER = /^\/included\/(\d+)(?:\/(?:attributes|relationships)\/([^/]+))?/;
 
 /**
  * An error of a request that is not of a field of its item: of the item as a whole
- * (`/data`, an invariant of `validate_item`: `ERR_ITEM_INVALID`), of an included item
- * (`/included/<index>`, of its field `field`), of a parameter or of the request.
+ * (`/data`, an invariant of `validate_item`: `ERR_ITEM_INVALID`; `/data/id`), of an included
+ * item (`/included/<index>`, of its field `field`), of a parameter or of the request. The
+ * errors of the relationships endpoints point into their body (`/data`, `/data/<index>/id`):
+ * they are of the relationship that the request changes, never of a field.
  */
 export interface FormError {
   message: string;
@@ -76,9 +79,9 @@ export class ApiError extends Error {
 
   /**
    * The messages of the errors of attributes and relationships of the item, by their name
-   * (`source.pointer` `/data/attributes/<name>`, `/data/relationships/<name>`,
-   * `/attributes/<name>` or `/relationships/<name>`), for forms. Errors of nested values
-   * belong to the attribute that contains them.
+   * (`source.pointer` `/data/attributes/<name>`, `/data/relationships/<name>`), for forms.
+   * Errors of nested values belong to the field that contains them (the id of a related item,
+   * `/data/relationships/<name>/data/<index>/id`, to its relationship).
    */
   fieldErrors(): Record<string, string[]> {
     const fields: Record<string, string[]> = {};
@@ -93,7 +96,8 @@ export class ApiError extends Error {
 
   /**
    * The errors that `fieldErrors()` does not give, for the form as a whole: of the item
-   * (`/data`), of an included item (`/included/<index>`), of a parameter or of the request.
+   * (`/data`), of an included item (`/included/<index>`), of a parameter or of the request;
+   * all the errors of a relationships endpoint.
    */
   formErrors(): FormError[] {
     return this.errors

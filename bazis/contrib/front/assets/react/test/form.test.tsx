@@ -154,6 +154,23 @@ describe('useResourceForm with an id: an update', () => {
     expect(result.current.dirty).toEqual([]);
   });
 
+  it('gives the errors of an update that the schema refuses by field', async () => {
+    // the sample (bazis 2.11): `/data/attributes/title` with the id and type of the item
+    const server = backend().on('PATCH', `${PARENT}7/`, sample.update_422, 422);
+    const { result } = render(() => useResourceForm(PARENT, { id: '7' }), server);
+    await ready(result);
+    act(() => {
+      result.current.setValue('name', 'Car');
+    });
+    await act(async () => {
+      await result.current.submit();
+    });
+    await waitFor(() => {
+      expect(result.current.errors).toEqual({ title: ['<detail>'] });
+    });
+    expect(result.current.dirty).toEqual(['name']);
+  });
+
   it('forgets the changes on reset and for another item', async () => {
     const server = backend()
       .on('GET', `${PARENT}8/schema_update/`, parentSchema('update'))
@@ -184,7 +201,7 @@ describe('useResourceForm with an id: an update', () => {
   });
 
   it('forgets the errors of a submit on reset and for another item', async () => {
-    const invalid = { errors: [{ status: 422, detail: 'Too long', source: { pointer: '/attributes/name' } }] };
+    const invalid = { errors: [{ status: 422, detail: 'Too long', source: { pointer: '/data/attributes/name' } }] };
     const server = backend()
       .on('PATCH', `${PARENT}7/`, invalid, 422)
       .on('GET', `${PARENT}8/schema_update/`, parentSchema('update'))

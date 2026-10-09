@@ -17,7 +17,7 @@ The resources of the contract: the route sets of the OpenAPI grouped by the JSON
 of their model. Everything is read from the OpenAPI (the `x-bazis` of the operations and
 the schemas of their responses), so that the contract describes exactly the API that the
 OpenAPI describes; what `filter`, `sort` and `search` reach is read from the route set
-(`QueryScope` of the core: the LIST schema of the route set and its search fields), which
+(`QueryScope` of the core, the LIST schema of the route set, and `route_search_fields`), which
 the OpenAPI does not tell (the schema of an item may have fields that the LIST schema does
 not, every list has the parameter `search`).
 """
@@ -29,7 +29,7 @@ from django.apps import apps
 
 from bazis.core.introspect import models_info
 from bazis.core.routes_abstract.jsonapi import JsonapiRouteBase
-from bazis.core.utils.query_complex import LOOKUP_PREFIXES, QueryScope
+from bazis.core.utils.query_complex import QueryScope, route_search_fields
 
 
 #: the kinds of the operations whose response describes the fields of the resource, in the
@@ -64,7 +64,9 @@ def resources(openapi: dict) -> dict:
             'path': main['path'],
             'actions': main['actions'],
             'fields': _fields(openapi, main['operations'], scope),
-            'search': _search(main_cls, scope),
+            # the search fields that its LIST schema reaches, as declared: those the core
+            # searches (`bazis.W007` reports the others); none, a `search` is 400
+            'search': route_search_fields(main_cls) if scope is not None else [],
         }
         if others:
             entry['other_routes'] = [
@@ -129,30 +131,14 @@ def _qualified_name(route_cls: type) -> str:
 
 def _scope(route_cls) -> QueryScope | None:
     """
-    What `filter`, `sort` and `search` of the route set reach (bazis 2.9): the fields of its
-    LIST schema that can filter and order and its search fields, those of the route set
-    itself (`query_fields` of the core, not the fields a package gives per user). None for
-    a route set that is not a JSON:API route set of the project.
+    What `filter` and `sort` of the route set reach (bazis 2.9): the fields of its LIST
+    schema that can filter and order, those of the route set itself (`query_fields` of the
+    core, not the fields a package gives per user). None for a route set that is not a
+    JSON:API route set of the project (it has no search either).
     """
     if not (isinstance(route_cls, type) and issubclass(route_cls, JsonapiRouteBase)):
         return None
     return QueryScope.for_route(route_cls, schema=True)
-
-
-def _search(route_cls, scope: QueryScope | None) -> list[str]:
-    """
-    The search fields of a route set that its LIST schema reaches, as declared (with their
-    lookup prefix): those the core searches with `search` (`bazis.W007` reports the
-    others). Empty when the route set has none: a `search` is then 400 `ERR_FILTER`.
-    """
-    if scope is None:
-        return []
-    names = [str(field) for field in route_cls.search_fields or ()]
-    return [
-        name
-        for name in names
-        if scope.reaches(route_cls.model, name[1:] if name[:1] in LOOKUP_PREFIXES else name)
-    ]
 
 
 def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None) -> dict:

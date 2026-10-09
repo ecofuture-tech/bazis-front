@@ -199,3 +199,39 @@ def test_the_picker_searches_only_a_route_set_with_search_fields(sample_app, wor
     error = response.json()['errors'][0]
     assert (error['code'], error['source']['pointer']) == ('ERR_FILTER', '/query/search')
 
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_item_the_user_cannot_view_is_not_found(sample_app, workflow):
+    """
+    bazis-permit 2.8.0: an item the user cannot view is the 404 of a missing item (its card
+    shows `not_found`); 403 (`forbidden`) is the list of a model he has no permission on, or
+    an item he views and may not change.
+    """
+    from django.apps import apps
+
+    from bazis.contrib.users import get_user_model
+
+    task = apps.get_model('tasks.Task').objects.create(title='Hidden')
+    guest = apps.get_model('permit.Role').objects.get(slug='guest')
+    user = get_user_model().objects.create_user('guest', password='p')
+    user.roles.add(guest)
+    user.role_current = guest
+    user.save()
+    client = get_api_client(sample_app, user.jwt_build())
+
+    hidden = client.get(f'{TASKS}{task.id}/')
+    missing = client.get(f'{TASKS}00000000-0000-0000-0000-000000000000/')
+    assert (hidden.status_code, hidden.json()) == (missing.status_code, missing.json())
+    assert hidden.status_code == 404
+    assert client.get(TASKS).status_code == 403
+
+    # the manager views a finished task, and changes only a draft
+    task.status_id = 'done'
+    task.save()
+    _, manager = manager_client(sample_app)
+    assert manager.get(f'{TASKS}{task.id}/').status_code == 200
+    response = manager.patch(f'{TASKS}{task.id}/', json_data={'data': {
+        'type': 'tasks.task', 'id': str(task.id), 'attributes': {'title': 'Changed'},
+    }})
+    assert response.status_code == 403, response.text

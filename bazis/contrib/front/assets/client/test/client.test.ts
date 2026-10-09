@@ -342,12 +342,16 @@ describe('errors', () => {
       ...(title ? { title } : {}),
       ...(pointer ? { source: { pointer } } : {}),
     });
+    // the pointers of the request schemas of bazis 2.11, into the document
     const errors = [
-      error422('Field required', '/attributes/name', 'missing'),
-      error422('Input should be a valid decimal', '/attributes/price', 'decimal_parsing'),
-      error422('Too long', '/attributes/name/0', 'too_long'),
-      error422('Not allowed', '/relationships/parent_entity'),
-      error422('Bad id', '/id'),
+      error422('Field required', '/data/attributes/name', 'missing'),
+      error422('Input should be a valid decimal', '/data/attributes/price', 'decimal_parsing'),
+      error422('Too long', '/data/attributes/name/0', 'too_long'),
+      error422('Not a valid UUID', '/data/relationships/parent_entity/data/0/id', 'value_error'),
+      error422('Bad id', '/data/id'),
+      // not a pointer into the document: a `JsonApiBazisError` of a product with
+      // `loc=('attributes', name)`, and the pointers of the schemas up to bazis 2.10
+      error422('Legacy', '/attributes/name'),
       error422('Whole item'),
     ];
     const { api } = setup([json({ errors }, 422, JSON_TYPE)]);
@@ -361,11 +365,36 @@ describe('errors', () => {
     expect(apiError.fieldErrors()).toEqual({
       name: ['Field required', 'Too long'],
       price: ['Input should be a valid decimal'],
-      parent_entity: ['Not allowed'],
+      parent_entity: ['Not a valid UUID'],
     });
+    expect(apiError.formErrors()).toEqual([
+      { message: 'Bad id', included: null, field: null },
+      { message: 'Legacy', included: null, field: null },
+      { message: 'Whole item', included: null, field: null },
+    ]);
     expect(apiError.message).toBe(
-      'Field required; Input should be a valid decimal; Too long; Not allowed; Bad id; Whole item',
+      'Field required; Input should be a valid decimal; Too long; Not a valid UUID; Bad id; Legacy; Whole item',
     );
+  });
+
+  it('gives every error of a relationships endpoint to the form: they point into its body', async () => {
+    // bazis 2.11: the value of the relationship (`/data`), a refused identifier of a to-many
+    // relationship (`/data/<index>`), an identifier that is no key (`/data/<index>/id`)
+    const errors = [
+      { status: 403, code: 'ERR_RELATION_ACCESS', detail: 'No access to the related object', source: { pointer: '/data/1' } },
+      { status: 422, code: 'ERR_VALIDATE', detail: 'Not a valid UUID', source: { pointer: '/data/0/id' } },
+      { status: 422, code: 'ERR_VALIDATE', detail: 'Input should be a valid list', source: { pointer: '/data' } },
+    ];
+    const { api } = setup([json({ errors }, 422, JSON_TYPE)]);
+    const error = (await api
+      .relationship(PARENT, '1', 'child_entities', 'add', [{ type: 'entity.child_entity', id: 'c1' }])
+      .catch((e: unknown) => e)) as ApiError;
+    expect(error.fieldErrors()).toEqual({});
+    expect(error.formErrors()).toEqual([
+      { message: 'No access to the related object', included: null, field: null },
+      { message: 'Not a valid UUID', included: null, field: null },
+      { message: 'Input should be a valid list', included: null, field: null },
+    ]);
   });
 
   it('maps the errors of the checks of the backend to the fields, the others to the form', async () => {

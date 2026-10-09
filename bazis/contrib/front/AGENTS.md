@@ -17,7 +17,7 @@ version of bazis-front, merged with the changes of the product).
 
 ## Setup
 
-`pip install bazis-front` (needs bazis 2.10.0 or newer) and add `"bazis.contrib.front"` to
+`pip install bazis-front` (needs bazis 2.11.0 or newer) and add `"bazis.contrib.front"` to
 `BS_INSTALLED_APPS`. The assets follow the protocol of recent versions of the packages of
 the capabilities: bazis-ws 2.5.0 (the socket is open once the server sends `subscribed`),
 bazis-authing 2.6.0 (the logout endpoint), bazis-permit 2.7.0 (the selectors of the
@@ -223,8 +223,9 @@ the package documents each component.
 - **The files of the others are neither linked nor included** (bazis 2.7.0 with
   bazis-uploadable 2.6.0): the core links only the objects that the default route of the
   related model shows the user, so a relationship to a file the user did not upload fails
-  with 403 `ERR_RELATION_ACCESS` (the pointer `/data/relationships/<field>`, the error of
-  the field in the forms) on a create, an update and the relationships endpoint, and
+  with 403 `ERR_RELATION_ACCESS` on a create, an update (the pointer
+  `/data/relationships/<field>`, the error of the field in the forms) and the relationships
+  endpoint (`/data`, the body of the request), and
   `include` leaves the file out (the relationship keeps its id). The route set of a model
   that references files needs no check of its own (`TaskRouteSet` of the sample has none),
   but must know the user (`UserRouteBase`, `UserRequiredRouteBase`, or a route set of
@@ -1232,6 +1233,9 @@ tests cannot log in (P026).
   their ids are `filter=pk=<a>|pk=<b>|…`: there is no `pk__in`, and `pk=<a>,<b>` is one
   value (a 400 `ERR_FILTER` on a UUID). `<app>.<model>=<ids>` filters the objects related to
   those objects of another model, not by their own ids.
+- With bazis-permit (2.8.0), an item the user cannot view is 404, as a missing one (a card
+  shows `not_found`); 403 (`forbidden`) is an item he views but cannot change or delete, or
+  a list of a model he has no permission on.
 - With bazis-permit, the schema of a list (`schema_list/`) is the union of the field sets of
   the groups of field permissions (its first member has every field): which fields a user
   sees is in the items, which leave out the hidden ones. The schemas of an item
@@ -1239,14 +1243,21 @@ tests cannot log in (P026).
 - Pagination is `page[limit]` and `page[offset]`; sorting is `sort` with `-` for
   descending; meta fields such as `pagination` are returned only when requested with
   `meta`.
-- Validation errors are 422 with `errors[].source.pointer`: `/attributes/<name>` (the body
-  that the schema refuses) or `/data/attributes/<name>`, `/data/relationships/<name>` (a
-  check of the backend: the model, a related item the user cannot see, 403
-  `ERR_RELATION_ACCESS`); an item that fails `validate_item` of its model (its invariants)
-  is `ERR_ITEM_INVALID` with the pointer of the field, `/data` for the item as a whole, and
-  under `/included/<index>` for an included item (the parameter `/related_field_name` on
-  the relationships endpoints). `fieldErrors()` gives those of the fields of the item,
-  `formErrors()` the others.
+- The errors point into the request document (bazis 2.11, `source.pointer`): a field of
+  the item is `/data/attributes/<name>` or `/data/relationships/<name>` (and below it, such
+  as the id of a related item, `/data/relationships/<name>/data/<index>/id`), whether the
+  schema refuses the body (422 `ERR_VALIDATE`), a related item is one the user cannot see
+  (403 `ERR_RELATION_ACCESS`) or the item fails `validate_item` of its model (422
+  `ERR_ITEM_INVALID`); `/data` is the item as a whole, `/data/id` its id, and an included
+  item is `/included/<index>/...`, its index in `included` of the document. The
+  relationships endpoints point into their body: `/data` (the value of the relationship),
+  `/data/<index>` (a refused identifier of a to-many relationship), `/data/<index>/id`, and
+  `ERR_ITEM_INVALID` has the parameter `/related_field_name`. `fieldErrors()` gives the
+  errors of the fields of the item (the form shows them at `error:<name>`), `formErrors()`
+  the others (the form shows them in its state, an included item with its index and
+  field), every error of a relationships endpoint among them. A hook of the product that
+  raises `JsonApiBazisError` points with `loc=('body', 'data', 'attributes', '<name>')`:
+  `loc=('attributes', '<name>')` is `/attributes/<name>`, which is no field of the form.
 - `filter`, `sort` and `search` reach only the fields of the LIST schema of the route set
   (bazis 2.9; through a relation, those of the default route of the related model, and
   only the related items the user can see); `search` searches only its `search_fields`,

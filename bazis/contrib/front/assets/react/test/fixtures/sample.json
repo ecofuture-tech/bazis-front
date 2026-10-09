@@ -1482,7 +1482,7 @@
         "code": "ERR_VALIDATE",
         "detail": "<detail>",
         "source": {
-          "pointer": "/attributes/title"
+          "pointer": "/data/attributes/title"
         }
       }
     ]
@@ -1619,5 +1619,46 @@
         "action": "async_bg"
       }
     }
-  ]
+  ],
+  "update_422": {
+    "errors": [
+      {
+        "status": 422,
+        "title": "string_too_short",
+        "code": "ERR_VALIDATE",
+        "detail": "<detail>",
+        "source": {
+          "pointer": "/data/attributes/title",
+          "id": "00000000-0000-0000-0000-000000000000",
+          "type": "tasks.task"
+        }
+      }
+    ]
+  },
+  "relationship_403": {
+    "errors": [
+      {
+        "status": 403,
+        "title": "Access denied",
+        "code": "ERR_RELATION_ACCESS",
+        "detail": "<detail>",
+        "source": {
+          "pointer": "/data"
+        }
+      }
+    ]
+  },
+  "relationship_422": {
+    "errors": [
+      {
+        "status": 422,
+        "title": "value_error",
+        "code": "ERR_VALIDATE",
+        "detail": "<detail>",
+        "source": {
+          "pointer": "/data/id"
+        }
+      }
+    ]
+  }
 }

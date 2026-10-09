@@ -109,10 +109,12 @@ written.
 - **Filter with `Filter`** (`Filter.where/and/or/not`): one `filter` expression, never
   built by hand.
 - Show validation errors by field (`form.errors` of `useResourceForm`, or
-  `ApiError.fieldErrors()`, as `FieldInput` does), the errors of the item that are not of a
-  field (`ApiError.formErrors()`: the item as a whole, `/data`, such as an invariant of
-  `validate_item`, 422 `ERR_ITEM_INVALID`; an included item, `/included/<index>`) in the
-  form, as `ResourceForm` does, any other error and the state it puts a
+  `ApiError.fieldErrors()`, as `FieldInput` does: the pointers `/data/attributes/<name>`
+  and `/data/relationships/<name>` of the backend), the errors of the item that are not of
+  a field (`ApiError.formErrors()`: the item as a whole, `/data`, such as an invariant of
+  `validate_item`, 422 `ERR_ITEM_INVALID`; an included item, `/included/<index>`; all the
+  errors of `useRelationship`, whose endpoint points into its own body) in the form, as
+  `ResourceForm` does, any other error and the state it puts a
   screen in with `StatePanel` of `@/bazis/ui/state-panel` (`errorState(error)`: 401 and 403
   `forbidden`, 404 `not_found`, 422 `invalid`, else `error`), the only mapping of the
   errors of the backend; the components and the `ErrorBoundary` of `src/app/errors.tsx`

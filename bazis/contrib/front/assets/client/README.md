@@ -100,13 +100,19 @@ and update: Bazis ignores it on a list, and the types reject it. A meta field su
 
 Errors are thrown as `ApiError` with the HTTP `status` and the JSON:API `errors`;
 `fieldErrors()` groups the messages by attribute or relationship name of the item from
-`source.pointer` (`/attributes/<name>` of the body that the schema refuses,
-`/data/attributes/<name>` and `/data/relationships/<name>` of the checks of the backend:
-the model, a related item the user cannot see, `validate_item`), and `formErrors()` lists
-the other errors, `{message, included, field}`: of the item as a whole (`/data`, an
-invariant of `validate_item`: 422 `ERR_ITEM_INVALID`), of an included item
-(`/included/<index>`, its index in `included` and the name of its field), of a parameter or
-of the request.
+`source.pointer`, which points into the request document (bazis 2.11):
+`/data/attributes/<name>` and `/data/relationships/<name>` (and below them: the id of a
+related item, `/data/relationships/<name>/data/<index>/id`), for the body that the schema
+refuses (422 `ERR_VALIDATE`) and the checks of the backend (a related item the user cannot
+see, 403 `ERR_RELATION_ACCESS`; `validate_item`, 422 `ERR_ITEM_INVALID`). `formErrors()`
+lists the other errors, `{message, included, field}`: of the item as a whole (`/data`, an
+invariant of `validate_item`; `/data/id`), of an included item (`/included/<index>`, its
+index in `included` and the name of its field), of a parameter or of the request. The
+errors of a relationships endpoint point into its body (`/data`, `/data/<index>/id`; the
+parameter `/related_field_name` for `ERR_ITEM_INVALID`): they are of the relationship that
+the request changes, so `formErrors()` has them all. A pointer of another form
+(`/attributes/<name>`, which a `JsonApiBazisError` with `loc=('attributes', name)` of a
+product gives, not a pointer into the document) is not of a field either.
 
 **The language.** With the option `language` (a code, or a function that returns the
 current one) every request, the uploads and the requests of bazis-authing too, has

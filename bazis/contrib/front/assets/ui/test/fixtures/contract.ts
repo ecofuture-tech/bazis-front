@@ -179,7 +179,6 @@ export const RESOURCES = {
       action_create: "create",
       action_delete_relationships: "relationship",
       action_destroy: "delete",
-      action_dict_data: "other",
       action_list: "collection",
       action_list_id: "other",
       action_post_relationships: "relationship",
@@ -258,7 +257,6 @@ export const RESOURCES = {
   "uploadable.file_upload": {
     actions: {
       action_create: "create",
-      action_dict_data: "other",
       action_list: "collection",
       action_list_id: "other",
       action_retrieve: "item",
@@ -297,7 +295,6 @@ export const RESOURCES = {
       action_create: "create",
       action_delete_relationships: "relationship",
       action_destroy: "delete",
-      action_dict_data: "other",
       action_list: "collection",
       action_list_id: "other",
       action_post_relationships: "relationship",

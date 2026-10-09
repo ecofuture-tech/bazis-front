@@ -162,12 +162,12 @@ export class Backend {
   readonly xhr = (): XMLHttpRequest => new UploadRequest(this) as unknown as XMLHttpRequest;
 }
 
-/** A JSON:API error document with the errors of fields: `{title: 'Required'}`. */
+/** A JSON:API error document with the errors of fields (`{title: 'Required'}`), pointed to as bazis 2.11 does. */
 export function errors(status: number, fields: Readonly<Record<string, string>> = {}): unknown {
   const items = Object.entries(fields).map(([name, detail]) => ({
     status,
     detail,
-    source: { pointer: `/attributes/${name}` },
+    source: { pointer: `/data/attributes/${name}` },
   }));
   return { errors: items.length ? items : [{ status, detail: `HTTP ${String(status)}` }] };
 }

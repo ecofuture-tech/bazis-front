@@ -18,7 +18,9 @@ the hooks read: they must stay those of the backend. This test captures them aga
 the API and compares them with the fixture; with `BAZIS_FRONT_WRITE_FIXTURES=1` it writes
 the fixture instead.
 
-It also holds what the hooks of the packages read: the messages of the socket of bazis-ws
+It holds the errors that the forms and `useRelationship` read (bazis 2.11: the pointers into
+the request document, and into the body of the relationships endpoints). It also holds what
+the hooks of the packages read: the messages of the socket of bazis-ws
 (as the server sends them: the notification and the change of a task of the sample, the
 statuses of a background request), the documents of a task of bazis-bg (`bg.task`) and the
 answers of bazis-async-request and bazis-async-background. The sample has no Kafka: the
@@ -195,7 +197,48 @@ def capture(app, settings, monkeypatch) -> dict:
     result.update(notified(app, user, client))
     result.update(bg_task(app, user))
     result.update(background(app, settings, monkeypatch, user))
+    # after the task of bazis-bg, which counts the tasks
+    result.update(refused(app, client))
     return normalize(result)
+
+
+FILES = '/api/v1/uploadable/file_upload/'
+
+
+def refused(app, client) -> dict:
+    """
+    The errors of bazis 2.11 that `ApiError.fieldErrors()` and `formErrors()` read, beside
+    those of a create: they point into the request document. An update that the schema
+    refuses (`/data/attributes/<field>`, with the id and type of the item), and on the
+    relationships endpoint, whose errors point into its body: a file of another user (403
+    `ERR_RELATION_ACCESS`, `/data`) and an id that cannot be a key (422 `ERR_VALIDATE`,
+    `/data/id`).
+    """
+    from bazis.contrib.users import get_user_model
+
+    def ok(response, status):
+        assert response.status_code == status, response.text
+        return response.json()
+
+    stranger = get_user_model().objects.create_user('stranger', password='p')
+    uploaded = get_api_client(app, stranger.jwt_build()).post(
+        FILES, files={'file': ('secret.txt', b'Not yours.', 'text/plain')},
+    )
+    theirs = str(ok(uploaded, 201)['data']['id'])
+    task_id = ok(client.post(TASKS, json_data={'data': {'type': 'tasks.task', 'attributes': {'title': 'Draft'}}}), 201)['data']['id']
+    item = f'{TASKS}{task_id}/'
+    return {
+        'update_422': errors(ok(client.patch(item, json_data={'data': {
+            'type': 'tasks.task', 'id': task_id, 'attributes': {'title': ''},
+        }}), 422)),
+        'relationship_403': errors(ok(client.patch(
+            f'{item}relationships/attachment',
+            json_data={'data': {'type': 'uploadable.file_upload', 'id': theirs}},
+        ), 403)),
+        'relationship_422': errors(ok(client.patch(
+            f'{item}relationships/assignee', json_data={'data': {'type': 'users.user', 'id': 'nope'}},
+        ), 422)),
+    }
 
 
 def subscribed(socket) -> None:

@@ -15,7 +15,10 @@
 import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { ApiError } from '@/bazis/client';
+
 import { useCreate, useDestroy, useItem, useList, useRelationship, useUpdate } from '../src/index.js';
+import sample from './fixtures/sample.json' with { type: 'json' };
 import { Backend, cachedKeys, CHILD, PARENT, render } from './support.js';
 
 const item = (id: string, name: string) => ({
@@ -118,6 +121,26 @@ describe('mutations', () => {
       `GET ${PARENT}`,
       `GET ${PARENT}7/`,
     ]);
+  });
+
+  it('the errors of a relationships endpoint point into its body: none is of a field', async () => {
+    // the sample (bazis 2.11): a file of another user (403 `/data`), an id that is no key
+    // (422 `/data/id`); their messages replaced
+    for (const [status, document] of [[403, sample.relationship_403], [422, sample.relationship_422]] as const) {
+      const backend = new Backend();
+      const { result } = await loaded(backend);
+      backend.on('PATCH', `${PARENT}7/relationships/extended_entity`, document, status);
+      act(() => {
+        result.current.relationship.mutate({ id: '7', field: 'extended_entity', operation: 'replace', data: null });
+      });
+      await waitFor(() => {
+        expect(result.current.relationship.error).toBeInstanceOf(ApiError);
+      });
+      const error = result.current.relationship.error as ApiError;
+      expect(error.status).toBe(status);
+      expect(error.fieldErrors()).toEqual({});
+      expect(error.formErrors()).toEqual([{ message: '<detail>', included: null, field: null }]);
+    }
   });
 
   it('a failed mutation refetches nothing', async () => {

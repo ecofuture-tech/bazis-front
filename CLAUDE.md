@@ -96,7 +96,8 @@ frontend made from the sample by the `e2e` job of CI.
   (`capabilities.translated`); `tests/test_contract.py` renders under two process languages
   and expects the same bytes. `CONTRACT_FORMAT` changes with the shape of contract.json (2:
   the languages; 3: the search fields of the resources, `search`, read from the route set
-  because every list of the OpenAPI has the parameter, and the selectors of the permission
+  with `route_search_fields` of the core (bazis 2.10.1) because every list of the OpenAPI
+  has the parameter, and the selectors of the permission
   models, `permit.selectors`, those of `get_selector_fields` of bazis-permit, which P020
   checks).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
