@@ -392,7 +392,9 @@ imported with `lazyScreen` of `src/app/lazy.tsx` as those of the template (its o
 loaded when its route is first shown, under the `Suspense` and the `ErrorBoundary` of the
 layout: a static import puts every screen and the libraries it uses, a map, in the one
 bundle that every page loads). A chunk that fails to load (a new version deployed since the
-page was opened) reloads the page once, then shows the error, whose retry loads it again:
+page was opened) reloads the page, at most once in 30 s (the time of the reload in
+`sessionStorage`; never when the storage is blocked), else shows the error, whose retry loads
+it again:
 
 ```tsx
 const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
