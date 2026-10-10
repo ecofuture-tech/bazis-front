@@ -13,15 +13,13 @@
 # limitations under the License.
 
 from django.apps import apps
-from django.utils.translation import gettext_lazy as _
 
 from pydantic import BaseModel
 
 from bazis.contrib.permit.routes_abstract import PermitRouteBase
 from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
-from bazis.core.errors import JsonApiBazisError, JsonApiBazisException
 from bazis.core.routes_abstract.initial import http_post
-from bazis.core.schemas.enums import RouteKind
+from bazis.core.schemas.enums import CrudAccessAction, RouteKind
 
 from .models import Task
 
@@ -52,23 +50,24 @@ class TaskRouteSet(StatusyRouteSetBase):
     # without search fields with 400)
     search_fields = ['title']
 
-    @http_post('/count/', response_model=CountStarted, kind=RouteKind.OTHER)
+    @http_post(
+        '/count/',
+        response_model=CountStarted,
+        kind=RouteKind.OTHER,
+        access_action=CrudAccessAction.VIEW,
+    )
     def action_count(self, data: CountRequest, **kwargs):
         """
         A custom action of the route set (`client.action(path, 'count', body)` of the
         frontend): queues the count of the tasks by their status, a task of bazis-bg that the
-        user reads at `/api/v1/bg/task/{id}/` (`TaskProgress`). A request without a user is
-        403; a priority that is not one of the choices is 422 at `/priority`.
+        user reads at `/api/v1/bg/task/{id}/` (`TaskProgress`). It requires the view of the
+        tasks (`access_action`); bazis-permit answers 403 to a request without a user (an
+        action that is not public); a priority that is not one of the choices is 422 at
+        `/priority`.
         """
         from .bg.count import CountTasks
 
-        user = self.inject.user
-        if user.is_anonymous:
-            raise JsonApiBazisException(
-                [JsonApiBazisError(_('Log in to count the tasks'), code='ERR_FORBIDDEN', status=403)],
-                status=403,
-            )
-        task = CountTasks.delay(priority=data.priority, author=user)
+        task = CountTasks.delay(priority=data.priority, author=self.inject.user)
         return CountStarted(task=str(task.pk))
 
 

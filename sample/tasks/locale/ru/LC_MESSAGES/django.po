@@ -103,10 +103,6 @@ msgstr "Наблюдатель"
 msgid "Manager"
 msgstr "Менеджер"
 
-#: tasks/routes.py:68
-msgid "Log in to count the tasks"
-msgstr "Войдите, чтобы посчитать задачи"
-
 #: tasks/workflow.py:27
 msgid "Draft"
 msgstr "Черновик"

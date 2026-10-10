@@ -1751,7 +1751,6 @@
     "errors": [
       {
         "status": 403,
-        "title": "Validation error",
         "code": "ERR_FORBIDDEN",
         "detail": "<detail>"
       }
