@@ -22,7 +22,7 @@ how to compose the screens:
 
 | Section | What it answers |
 |---|---|
-| [The frontend](#the-frontend) | `init`: what it creates, the lock, the pristine copies |
+| [The frontend](#the-frontend) | `init`: what it creates, the lock, the pristine copies; `status` |
 | [The components](#the-components) | the components with their props and `data-bz`; the choices, the related items ("add here"), the filters, the permissions, the relationships, the files, the points and the maps, the custom actions, the socket |
 | [The contract](#the-contract) | `contract`, `contract.json`, `contract.ts`, `schema.d.ts` |
 | [The specs](#the-specs) | `product.yaml`, `screens/*.yaml` (`card.related`), the scenarios, the codes of `check` |
@@ -30,7 +30,7 @@ how to compose the screens:
 | [The end-to-end tests](#the-end-to-end-tests) | `bazis_front e2e`, the helpers (`openItem`, `fill`...), `e2e_data` |
 | [The backend of a product](#the-backend-of-a-product) | the declared roles and workflows, the test data, the notifications |
 | [Updating the copies](#updating-the-copies) | `update`, the conflicts |
-| [The client](#the-client), [The hooks](#the-hooks) | the client, `useResourceForm`, `resourceSchema`, the custom actions (`client.action`, `useAction`) |
+| [The client](#the-client), [The hooks](#the-hooks) | the client, `useResourceForm`, `resourceSchema`, the custom actions (`client.action`, `useAction`, `useActionQuery`) |
 | [The socket](#the-socket), [The language](#the-language), [Logins with bazis-authing](#logins-with-bazis-authing) | bazis-ws, the translations and the formats, the logins |
 | [Protocol facts](#protocol-facts-that-are-easy-to-get-wrong) | what the backend does that is easy to get wrong |
 
@@ -108,6 +108,23 @@ every screen is open and requests are anonymous. The login is the token endpoint
 bazis-users, or with bazis-authing its services: the username and the password through the
 service `password`, and a button for each service whose page opens in a window (Google);
 see [Logins with bazis-authing](#logins-with-bazis-authing).
+
+```bash
+python manage.py bazis_front status         # the copies, the generated files, every stale or changed one
+python manage.py bazis_front status --json  # {bazis_front, frontend, assets, generated, issues}
+```
+
+`status` writes nothing and exits with 0: it shows the installed bazis-front, the assets of
+the lock with their versions, which generated files the frontend has (`contract`: the
+TypeScript of the contract; `design`: the theme; `e2e`: the end-to-end tests), and the
+issues of the checks of bazis-front, each with its id, level, message and hint:
+`front.W006` (an outdated package), `front.W001` (a stale contract or generated file; the
+database must be migrated, else `front.I001`), `front.W002` (an issue of the specs),
+`front.W004` (stale copies), `front.W007` (changed copies), `front.W005` (a stale theme),
+`front.W003` (stale end-to-end tests). The `--check` of `contract`, `update`, `design`
+and `e2e`, and `check`, fail on their own state in CI. No subcommand of `bazis_front` runs
+the system checks of Django (`manage.py check` and `bazis_doctor` do): their warnings never
+mix with its output.
 
 ## The components
 
@@ -350,7 +367,9 @@ the package documents each component.
 - **Custom actions** (a route of a route set declared with `@http_post('/<name>/')`, kind
   `other` in `actions` of the contract: an export, a report, a recount): call them with
   `useAction(path, '<name>')` of `@/bazis/react` (`mutate(body)`; `useItemAction` for
-  `<path><id>/<name>/`, `method` for another method than POST), typed by `schema.d.ts`:
+  `<path><id>/<name>/`, `method` for another method than POST), typed by `schema.d.ts`
+  (an action declared with `@http_get` that a screen shows is read with `useActionQuery`
+  or `useItemActionQuery`, a query refetched with its resource, never a query of your own):
   a name or a body the backend does not have does not compile. The mutation refetches the
   resource after it (`invalidate: false` for an action that changes nothing); its `error`
   is the `ApiError` (`StatePanel` `errorState(error)`), and `errors` gives the errors of its
@@ -1392,6 +1411,9 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   (`mutate(body)`, `useItemAction`: `mutate({id, body})`), typed by its OpenAPI, then
   refetches the queries of the resource (not with `invalidate: false`); `errors` are those
   of its body by field (`ApiError.bodyErrors()`), `error` the `ApiError`.
+- `useActionQuery(path, name)` and `useItemActionQuery(path, id, name)` read a custom action
+  declared with GET as a query (no request while `id` is null), keyed under its resource:
+  a mutation or an action of the resource refetches it.
 - `useBgTask(path, id)` reads a task of bazis-bg (the query of `useItem`) every 2 s until it
   is `done`: `{state, phase, outcome, progress, result, …}` (`bgTask(document)`).
 - `useAsyncRequest()` sends a request with `X-Async-Background`: `{status: 'queued',

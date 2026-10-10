@@ -277,3 +277,15 @@ def check_design(app_configs, **kwargs):
             )
         ]
     return []
+
+
+#: the checks of the state of the frontend, in the order of `bazis_front status`
+STATUS = (
+    check_packages,
+    check_contract,
+    check_spec,
+    check_update,
+    check_changed_copies,
+    check_design,
+    check_e2e,
+)

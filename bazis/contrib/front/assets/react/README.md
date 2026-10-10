@@ -60,6 +60,7 @@ with it too. The template does this in `src/app/providers.tsx`.
 | `useRelationship(path)` | `POST`/`PATCH`/`DELETE path{id}/relationships/{field}` | `mutate({id, field, operation, data})` |
 | `useResourceForm(path, {id?, fixed?})` | the schema of the create (no id) or of the update of the item, the item, then `POST` or `PATCH` | a form, below |
 | `useAction(path, name, {method?, invalidate?})`, `useItemAction(path, name, …)` | `POST path{name}/`, `POST path{id}/{name}/` (`client.action`, `client.itemAction`) | `mutate(body)`, `mutate({id, body})`: the response of the custom action, typed by its OpenAPI; `errors`, those of its body by field (`ApiError.bodyErrors()`); the queries of the resource refetched unless `invalidate: false` |
+| `useActionQuery(path, name)`, `useItemActionQuery(path, id, name)` | `GET path{name}/`, `GET path{id}/{name}/` (`client.action`, `client.itemAction` with `method: 'get'`) | a query of a custom action declared with GET (a summary, a report, the content a screen shows): its response, typed by its OpenAPI, `error` the `ApiError`; no request while `id` is null; refetched with the queries of its resource |
 | `useApi()`, `useSessionKey()` | | the client; the session of the provider |
 | `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
 | `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
@@ -103,6 +104,8 @@ with a language (`useSessionKey()`).
 | schema of an item | `['bazis', path, 'item', id, 'schema', kind, session]` |
 | filter fields | `['bazis', path, 'filter-fields', session]` |
 | related item | `['bazis', path, 'item', id, 'related', session]` |
+| GET action of the route set | `['bazis', path, 'action', name, session]` |
+| GET action of an item | `['bazis', path, 'item', id, 'action', name, session]` |
 | a task of bazis-async-background | `['bazis', 'async_background', taskId, session]` |
 
 `options` are those given, a filter as its expression.

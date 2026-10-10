@@ -60,6 +60,11 @@ export const keys = {
   /** An item read with others of its resource (`useRelatedItem`). */
   related: (path: string, id: string, scope: string) =>
     ['bazis', path, 'item', id, 'related', scope] as const,
+  /** The response of a custom action read with GET (`useActionQuery`). */
+  action: (path: string, name: string, scope: string) => ['bazis', path, 'action', name, scope] as const,
+  /** The response of a custom action of an item read with GET (`useItemActionQuery`). */
+  itemAction: (path: string, id: string, name: string, scope: string) =>
+    ['bazis', path, 'item', id, 'action', name, scope] as const,
   filterFields: (path: string, scope: string) =>
     ['bazis', path, 'filter-fields', scope] as const,
   /** The state of a task of bazis-async-background (`useAsyncTask`). */

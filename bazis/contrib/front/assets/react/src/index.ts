@@ -14,7 +14,7 @@
 
 export { BazisProvider, useApi, useSessionKey } from './context.js';
 export type { Api, BazisProviderProps } from './context.js';
-export { useAction, useItemAction } from './actions.js';
+export { useAction, useActionQuery, useItemAction, useItemActionQuery } from './actions.js';
 export type { ActionBody, ActionHookOptions, ActionMutation, ActionPath, ActionResponse, ActionVariables } from './actions.js';
 export { useCreate, useDestroy, useRelationship, useUpdate } from './mutations.js';
 export type { QueryOptions } from './keys.js';

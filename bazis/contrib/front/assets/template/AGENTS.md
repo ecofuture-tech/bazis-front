@@ -214,6 +214,7 @@ const step = useResourceForm(ROUTES['tasks.step'], { fixed: { task: id } });
 | `useRelationship(path)` | `mutate({id, field, operation: 'add' \| 'replace' \| 'remove', data})`: the relationship endpoint, for to-many relationships |
 | `useResourceForm(path, {id?, fixed?})` | a form bound to `schema_create`/`schema_update`: fields, values, dirty, submit of the changed attributes and to-one relationships, `errors` of a 422 by field; `fixed` values of fields that the screen sets (the parent of an added item) |
 | `useAction(path, name, {method?, invalidate?})`, `useItemAction(path, name, …)` | a custom action of the route set (`<path><name>/`, `<path><id>/<name>/`): `mutate(body)`, `mutate({id, body})`, typed by its OpenAPI; `errors` of its body by field, `error` the `ApiError`; it refetches the resource unless `invalidate: false` |
+| `useActionQuery(path, name)`, `useItemActionQuery(path, id, name)` | a custom action declared with GET read as a query (a summary, the content of a screen): `data` its response typed by its OpenAPI, `error` the `ApiError`, nothing read while `id` is null; refetched with its resource |
 | `useApi()`, `useSessionKey()` | the client; the scope (the session and the language), the last item of a query key of your own |
 
 With bazis-statusy, `@/bazis/react/statusy`:
@@ -386,7 +387,16 @@ export function TaskCardScreen() {
 }
 ```
 
-Add the routes of the screens to `src/app/router.tsx` (inside `RequireSession`) and their
+Add the routes of the screens to `src/app/router.tsx` (inside `RequireSession`), each screen
+imported with `lazy()` as those of the template (its own chunk, loaded when its route is
+first shown, under the `Suspense` of the layout: a static import puts every screen and the
+libraries it uses, a map, in the one bundle that every page loads):
+
+```tsx
+const TaskListScreen = lazy(() => import('@/screens/task-list').then((module) => ({ default: module.TaskListScreen })));
+```
+
+Add their
 links, with an icon of `lucide-react`, to `NAVIGATION` there. A link shown only to the users
 that the backend allows names what it `requires`, and `AppShell` shows it once the backend
 answers (the screens read the same queries: no request of its own):

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { FilePen, House, ListChecks } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
@@ -27,11 +28,17 @@ import { FileFieldProvider } from '@/bazis/ui/file-field';
 import { LiveQuery } from '@/bazis/ui/live-query';
 import { MapProvider } from '@/bazis/ui/map';
 import { NotificationCenter } from '@/bazis/ui/notification-center';
-import { DraftTasksScreen } from '@/screens/draft-tasks';
-import { HomeScreen } from '@/screens/home';
-import { LoginScreen } from '@/screens/login';
-import { TaskCardScreen } from '@/screens/task-card';
-import { TaskListScreen } from '@/screens/task-list';
+import { StatePanel } from '@/bazis/ui/state-panel';
+
+/** The screens, each loaded with its own chunk when its route is first shown. */
+const DraftTasksScreen = lazy(() => import('@/screens/draft-tasks').then((module) => ({ default: module.DraftTasksScreen })));
+const HomeScreen = lazy(() => import('@/screens/home').then((module) => ({ default: module.HomeScreen })));
+const LoginScreen = lazy(() => import('@/screens/login').then((module) => ({ default: module.LoginScreen })));
+const TaskCardScreen = lazy(() => import('@/screens/task-card').then((module) => ({ default: module.TaskCardScreen })));
+const TaskListScreen = lazy(() => import('@/screens/task-list').then((module) => ({ default: module.TaskListScreen })));
+
+/** What a route shows while the chunk of its screen loads: the loading state of the screens. */
+const loading = <StatePanel state="loading" />;
 
 /**
  * The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon;
@@ -81,7 +88,9 @@ function RequireSession() {
       }
     >
       <ErrorBoundary resetKey={location.pathname}>
-        <Outlet />
+        <Suspense fallback={loading}>
+          <Outlet />
+        </Suspense>
       </ErrorBoundary>
     </AppShell>
   );
@@ -99,7 +108,16 @@ export function AppRouter() {
         <MapProvider tiles={MAP_TILES}>
           <BrowserRouter>
             <Routes>
-              {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
+              {LOGIN_ENABLED && (
+                <Route
+                  path="/login"
+                  element={
+                    <Suspense fallback={loading}>
+                      <LoginScreen />
+                    </Suspense>
+                  }
+                />
+              )}
               <Route element={<RequireSession />}>
                 <Route index element={<HomeScreen />} />
                 {/* the card next to the list or in its place (`composition.list_card` of the theme) */}

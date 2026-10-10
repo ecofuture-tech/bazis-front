@@ -16,7 +16,8 @@
 // `paths` of tsconfig.json), as the hooks import them in a product. They are those of the
 // core sample (the fixture of the client), whose route sets are not statusy: the endpoints
 // that bazis-statusy adds to its route sets are added to `parent_entity`, with two custom
-// actions as a route set declares them (`@http_post('/count/')`, an item `summary/`).
+// actions as a route set declares them (`@http_post('/count/')`, an item `summary/`, and
+// `@http_get('/report/')`).
 
 import type { paths as corePaths } from '../../../client/test/fixtures/schema.js';
 
@@ -37,6 +38,9 @@ export type paths = corePaths & {
       requestBody: { content: { 'application/json': { priority?: 'low' | 'high' | null } } };
       responses: { 200: { content: { 'application/json': { task: string } } } };
     };
+  };
+  '/api/v1/entity/parent_entity/report/': {
+    get: { responses: { 200: { content: { 'application/json': { rows: number } } } } };
   };
   '/api/v1/entity/parent_entity/{item_id}/summary/': {
     get: { responses: { 200: { content: { 'application/json': { total: number } } } } };

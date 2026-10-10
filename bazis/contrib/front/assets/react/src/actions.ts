@@ -16,14 +16,17 @@
 // in the contract) as mutations: `client.action` and `client.itemAction`, typed by the
 // OpenAPI. An action may change the items of its resource: its queries are refetched after it,
 // unless `invalidate: false` (an export that changes nothing). An action that queues a task of
-// bazis-bg answers with its id, which `TaskProgress` (or `useBgTask`) follows.
+// bazis-bg answers with its id, which `TaskProgress` (or `useBgTask`) follows. An action
+// declared with GET (`@http_get`) that a screen reads is a query instead (`useActionQuery`,
+// `useItemActionQuery`): keyed under its resource, so that a change of it refetches it.
 
-import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 
 import { ApiError, type ActionName, type BodyOf, type EndpointOf, type HttpMethod, type ResponseOf, type RouteSetPath } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
 
 import { useBazis } from './context.js';
+import { keys } from './keys.js';
 import { invalidateResource } from './mutations.js';
 import { loose } from './types.js';
 
@@ -99,4 +102,43 @@ export function useItemAction<P extends ActionPath, N extends ActionName<paths, 
       onSuccess: () => (invalidate ? invalidateResource(queryClient, path) : undefined),
     }),
   );
+}
+
+/**
+ * A custom action of a route set declared with GET, `<path><name>/`, read as a query (the
+ * response of `client.action` with the method `get`): a summary, a report, the content that
+ * a screen shows. It is refetched with the queries of its resource (after a mutation of it
+ * or an action); its `error` is the `ApiError`.
+ */
+export function useActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get'>>(
+  path: P,
+  name: N,
+): UseQueryResult<ActionResponse<P, N, 'get'>> {
+  const { api, scope } = useBazis();
+  return useQuery({
+    queryKey: keys.action(path, name, scope),
+    queryFn: ({ signal }) =>
+      loose(api).action(path, name, undefined, { method: 'get', signal }) as Promise<ActionResponse<P, N, 'get'>>,
+  });
+}
+
+/**
+ * A custom action of an item declared with GET, `<path><id>/<name>/`, read as a query
+ * (`client.itemAction` with the method `get`); nothing is read while `id` is null. It is
+ * refetched with the queries of its item and of its resource.
+ */
+export function useItemActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get', Item>>(
+  path: P,
+  id: string | null,
+  name: N,
+): UseQueryResult<ActionResponse<P, N, 'get', Item>> {
+  const { api, scope } = useBazis();
+  return useQuery({
+    queryKey: keys.itemAction(path, id ?? '', name, scope),
+    queryFn: ({ signal }) =>
+      loose(api).itemAction(path, id ?? '', name, undefined, { method: 'get', signal }) as Promise<
+        ActionResponse<P, N, 'get', Item>
+      >,
+    enabled: id !== null,
+  });
 }

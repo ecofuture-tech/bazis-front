@@ -169,8 +169,12 @@ frontend made from the sample by the `e2e` job of CI.
 - `spec/issues.py` has the codes (`CODES`, with their severity); a code never changes its
   meaning. A new code gets a case in `tests/test_spec.py` (`CASES` must cover every code)
   and a row in the table of `bazis/contrib/front/AGENTS.md` (tested).
-- `bazis_front check` (`--json`, `--layer`) exits 1 on errors and skips the system checks
-  (they would repeat its issues). `checks.check_spec` reports every issue as the warning
+- `bazis_front check` (`--json`, `--layer`) exits 1 on errors. No subcommand runs the
+  system checks (`requires_system_checks = []`): they would repeat the issues of each
+  subcommand, and the warnings of other packages would mix with its output.
+  `bazis_front status` (`--json`) runs the checks of `checks.STATUS` itself and shows them
+  with the assets of the lock and its generated files; it exits 0. A new check of the state
+  of the frontend is added to `STATUS`. `checks.check_spec` reports every issue as the warning
   `front.W002`: an error there would block every management command (`migrate`,
   `contract`) through `SystemCheckError`.
 - `spec/scenarios.py` is the only reading of the steps of a scenario: its walk reports the
@@ -311,7 +315,8 @@ npm test
 - `src/`: `context.tsx` (`BazisProvider` with the session and the language, `useApi`,
   `useSessionKey`: the scope of the keys), `keys.ts` (the query
   keys), `queries.ts`, `mutations.ts`, `actions.ts` (`useAction`, `useItemAction`: the custom
-  actions of the route sets, `client.action`), `related.ts` (`useRelatedItem`: the related items
+  actions of the route sets, `client.action`; `useActionQuery`, `useItemActionQuery`: those
+  declared with GET as queries, keyed under their resource), `related.ts` (`useRelatedItem`: the related items
   asked for together read with one list filtered by `pk=<a>|pk=<b>`), `schema.ts` (the fields of a runtime schema),
   `form.ts` (`useResourceForm`), `types.ts`; `src/statusy/` is the separate asset
   `react-statusy` (`requires` the capability `statusy`), `src/uploadable/` the asset

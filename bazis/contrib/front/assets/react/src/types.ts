@@ -103,8 +103,8 @@ export interface LooseClient {
   schema(path: string, kind: string, options: Signal): Promise<unknown>;
   filterFields(path: string, options: Signal): Promise<unknown>;
   transit(path: string, id: string, transit: string, payload?: unknown): Promise<unknown>;
-  action(path: string, name: string, body: unknown, options: { method: HttpMethod }): Promise<unknown>;
-  itemAction(path: string, id: string, name: string, body: unknown, options: { method: HttpMethod }): Promise<unknown>;
+  action(path: string, name: string, body: unknown, options: { method: HttpMethod } & Signal): Promise<unknown>;
+  itemAction(path: string, id: string, name: string, body: unknown, options: { method: HttpMethod } & Signal): Promise<unknown>;
 }
 
 export function loose(api: Api): LooseClient {

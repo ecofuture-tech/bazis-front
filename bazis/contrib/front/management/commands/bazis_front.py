@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import shutil
 import subprocess
 from pathlib import Path
@@ -19,7 +20,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from bazis.contrib.front import __version__, capabilities
+from bazis.contrib.front import __version__, capabilities, checks
 from bazis.contrib.front.capabilities import DatabaseNotReadyError
 from bazis.contrib.front.contract import export as contract
 from bazis.contrib.front.contract import generated
@@ -51,8 +52,17 @@ def contract_capabilities() -> set[str]:
     return set(contract_data.get('capabilities', {}))
 
 
+#: the generated files of a frontend, by the key of their hashes in the lock: the TypeScript
+#: of the contract (`contract`), the theme (`design`), the end-to-end tests (`e2e`)
+GENERATED = {'contract': 'generated', 'design': 'design', 'e2e': 'e2e'}
+
+
 class Command(BaseCommand):
     help = 'The frontend layer of a Bazis product.'
+    # every subcommand reports the state it checks itself (`status` all of it), and the
+    # warnings of the system checks of other packages would mix with its output (the JSON of
+    # `check --json` and `status --json`): `manage.py check` and `bazis_doctor` run them
+    requires_system_checks = []
 
     def add_arguments(self, parser):
         subcommands = parser.add_subparsers(dest='subcommand', metavar='subcommand', required=True)
@@ -212,12 +222,21 @@ class Command(BaseCommand):
             help='Write nothing; exit with 1 if the theme differs from the design.',
         )
 
-    def execute(self, *args, **options):
-        # `check` reports the issues of the specs itself, `update` the stale copies: the
-        # system checks would repeat them (front.W002, front.W004)
-        if options.get('subcommand') in ('check', 'update'):
-            options['skip_checks'] = True
-        return super().execute(*args, **options)
+        status = subcommands.add_parser(
+            'status',
+            help='Show the state of the frontend: its copies and what is generated or stale.',
+            description=(
+                'Show the installed bazis-front, the assets copied into frontend/ with their '
+                'versions (its lock), which generated files it has (the TypeScript of the '
+                'contract, the theme, the end-to-end tests), and every issue of the checks of '
+                'bazis-front: an outdated package (front.W006), a stale contract or generated '
+                'file (front.W001; the database must be migrated), the issues of the specs '
+                '(front.W002), stale or changed copies (front.W004, front.W007), a stale theme '
+                '(front.W005) or stale end-to-end tests (front.W003). Writes nothing and exits '
+                'with 0: the `--check` of each subcommand fails on its own state.'
+            ),
+        )
+        status.add_argument('--json', action='store_true', help='Print the state as JSON.')
 
     def handle(self, *args, subcommand, **options):
         return getattr(self, f'handle_{subcommand}')(**options)
@@ -517,6 +536,56 @@ class Command(BaseCommand):
         rendered = self.render_theme()
         design_theme.write(Path(settings.BASE_DIR), frontend, lock, rendered)
         self.stdout.write(f'Generated the theme of {frontend}: {", ".join(rendered)}.')
+
+    def handle_status(self, **options):
+        from bazis.core.app import app  # noqa: F401  the contract is compared with its routes
+
+        frontend = frontend_lock.frontend_dir()
+        try:
+            lock = frontend_lock.read(frontend)
+        except frontend_lock.LockError:
+            # front.W001 reports it
+            lock = None
+        issues = [
+            {
+                'id': message.id,
+                'level': logging.getLevelName(message.level).lower(),
+                'message': message.msg,
+                'hint': message.hint,
+            }
+            for check in checks.STATUS
+            for message in check(None)
+        ]
+        state = {
+            'bazis_front': __version__,
+            'frontend': None if lock is None else str(frontend),
+            'assets': {name: entry['version'] for name, entry in sorted((lock or {}).get('assets', {}).items())},
+            'generated': {name: bool((lock or {}).get(key)) for name, key in GENERATED.items()},
+            'issues': issues,
+        }
+        if options['json']:
+            self.stdout.write(dumps(state), ending='')
+            return
+        self.stdout.write(f'bazis-front {__version__}')
+        if lock is None:
+            self.stdout.write(
+                f'{frontend}: no frontend made by `bazis_front init` '
+                f'(no readable {frontend_lock.LOCK_FILE}).'
+            )
+        else:
+            assets = ', '.join(f'{name} {version}' for name, version in state['assets'].items())
+            self.stdout.write(f'{frontend}: {assets}.')
+            generated_names = [name for name, present in state['generated'].items() if present]
+            missing = [name for name, present in state['generated'].items() if not present]
+            self.stdout.write(
+                f'Generated: {", ".join(generated_names) or "nothing"}'
+                + (f'; not generated: {", ".join(missing)}.' if missing else '.')
+            )
+        for issue in issues:
+            self.stdout.write(f'{issue["id"]} {issue["level"]}: {issue["message"]}')
+            if issue['hint']:
+                self.stdout.write(f'    {issue["hint"]}')
+        self.stdout.write(f'{len(issues)} issues.' if issues else 'No issues.')
 
     def write_issues(self, result):
         for issue in result.issues:

@@ -19,12 +19,14 @@ import { Filter } from '@/bazis/client';
 
 import {
   useAction,
+  useActionQuery,
   useCan,
   useCreate,
   useDestroy,
   useFilterFields,
   useItem,
   useItemAction,
+  useItemActionQuery,
   useList,
   useRelationship,
   useResourceForm,
@@ -134,4 +136,12 @@ export function useTypedActions(): void {
   const total: number | undefined = summary.data?.total;
   // @ts-expect-error summary is an action of an item
   seen.push(total, useAction(PARENT, 'summary', { method: 'get' }));
+  const report = useActionQuery(PARENT, 'report');
+  const rows: number | undefined = report.data?.rows;
+  // @ts-expect-error count is a POST
+  seen.push(rows, useActionQuery(PARENT, 'count'));
+  const itemSummary = useItemActionQuery(PARENT, null, 'summary');
+  const itemTotal: number | undefined = itemSummary.data?.total;
+  // @ts-expect-error report is an action of the route set
+  seen.push(itemTotal, useItemActionQuery(PARENT, '1', 'report'));
 }

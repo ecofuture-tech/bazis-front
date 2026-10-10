@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ApiError } from '@/bazis/client';
 
-import { useAction, useItem, useItemAction, useList } from '../src/index.js';
+import { useAction, useActionQuery, useItem, useItemAction, useItemActionQuery, useList } from '../src/index.js';
 import sample from './fixtures/sample.json' with { type: 'json' };
 import { Backend, PARENT, render } from './support.js';
 
@@ -103,5 +103,84 @@ describe('useAction', () => {
     });
     expect(summary).toEqual({ total: 3 });
     expect(backend.calls).toEqual([{ method: 'GET', url: `https://api.test${PARENT}7/summary/`, body: undefined }]);
+  });
+});
+
+describe('useActionQuery', () => {
+  it('reads an action of the route set with GET, refetched with its resource', async () => {
+    const backend = new Backend()
+      .on('GET', `${PARENT}report/`, { rows: 2 })
+      .on('POST', COUNT, sample.action_count);
+    const { result } = render(
+      () => ({ report: useActionQuery(PARENT, 'report'), count: useAction(PARENT, 'count') }),
+      backend,
+    );
+    await waitFor(() => {
+      expect(result.current.report.data).toEqual({ rows: 2 });
+    });
+    expect(backend.calls).toEqual([{ method: 'GET', url: `https://api.test${PARENT}report/`, body: undefined }]);
+
+    // an action of the resource changes it: the report is read again
+    backend.calls.length = 0;
+    backend.on('GET', `${PARENT}report/`, { rows: 3 });
+    await act(async () => {
+      await result.current.count.mutateAsync({});
+    });
+    await waitFor(() => {
+      expect(result.current.report.data).toEqual({ rows: 3 });
+    });
+    expect(backend.requests()).toEqual([`POST ${COUNT}`, `GET ${PARENT}report/`]);
+  });
+
+  it('gives the error of the request', async () => {
+    const backend = new Backend().on('GET', `${PARENT}report/`, sample.action_count_403, 403);
+    const { result } = render(() => useActionQuery(PARENT, 'report'), backend);
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+    expect(result.current.error).toBeInstanceOf(ApiError);
+    expect((result.current.error as ApiError).status).toBe(403);
+  });
+});
+
+describe('useItemActionQuery', () => {
+  it('reads nothing without an item, then the action of the item', async () => {
+    const backend = new Backend().on('GET', `${PARENT}7/summary/`, { total: 3 });
+    const { result, rerender } = render(
+      ({ id }: { id: string | null }) => useItemActionQuery(PARENT, id, 'summary'),
+      backend,
+      undefined,
+      { id: null as string | null },
+    );
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(backend.calls).toEqual([]);
+
+    rerender({ id: '7' });
+    await waitFor(() => {
+      expect(result.current.data).toEqual({ total: 3 });
+    });
+    expect(backend.calls).toEqual([{ method: 'GET', url: `https://api.test${PARENT}7/summary/`, body: undefined }]);
+  });
+
+  it('is refetched with its resource', async () => {
+    const backend = new Backend()
+      .on('GET', `${PARENT}7/summary/`, { total: 3 })
+      .on('POST', COUNT, sample.action_count);
+    const { result } = render(
+      () => ({ summary: useItemActionQuery(PARENT, '7', 'summary'), count: useAction(PARENT, 'count') }),
+      backend,
+    );
+    await waitFor(() => {
+      expect(result.current.summary.data).toEqual({ total: 3 });
+    });
+    backend.calls.length = 0;
+    backend.on('GET', `${PARENT}7/summary/`, { total: 4 });
+    await act(async () => {
+      await result.current.count.mutateAsync({});
+    });
+    await waitFor(() => {
+      expect(result.current.summary.data).toEqual({ total: 4 });
+    });
+    expect(backend.requests()).toEqual([`POST ${COUNT}`, `GET ${PARENT}7/summary/`]);
   });
 });

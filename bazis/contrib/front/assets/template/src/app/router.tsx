@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { House } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
@@ -21,8 +22,18 @@ import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
 import { AppShell, type NavItem } from '@/bazis/ui/app-shell';
-import { HomeScreen } from '@/screens/home';
-import { LoginScreen } from '@/screens/login';
+import { StatePanel } from '@/bazis/ui/state-panel';
+
+/**
+ * The screens, each loaded with its own chunk when its route is first shown (`lazy`), so that
+ * the bundle of the application does not grow with every screen: a screen added here is
+ * imported the same way, never statically.
+ */
+const HomeScreen = lazy(() => import('@/screens/home').then((module) => ({ default: module.HomeScreen })));
+const LoginScreen = lazy(() => import('@/screens/login').then((module) => ({ default: module.LoginScreen })));
+
+/** What a route shows while the chunk of its screen loads: the loading state of the screens. */
+const loading = <StatePanel state="loading" />;
 
 /**
  * The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon;
@@ -54,7 +65,9 @@ function RequireSession() {
   return (
     <AppShell title={PRODUCT_NAME} items={NAVIGATION.map((item) => ({ ...item, label: t(item.label) }))} session={LOGIN_ENABLED ? { onLogout } : null}>
       <ErrorBoundary resetKey={location.pathname}>
-        <Outlet />
+        <Suspense fallback={loading}>
+          <Outlet />
+        </Suspense>
       </ErrorBoundary>
     </AppShell>
   );
@@ -64,7 +77,16 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        {LOGIN_ENABLED && <Route path="/login" element={<LoginScreen />} />}
+        {LOGIN_ENABLED && (
+          <Route
+            path="/login"
+            element={
+              <Suspense fallback={loading}>
+                <LoginScreen />
+              </Suspense>
+            }
+          />
+        )}
         <Route element={<RequireSession />}>
           <Route index element={<HomeScreen />} />
         </Route>
