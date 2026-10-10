@@ -21,7 +21,7 @@ from django.test import override_settings
 
 import pytest
 
-from bazis.contrib.front import __version__
+from bazis.contrib.front import __version__, checks
 from bazis.contrib.front.management.commands.bazis_front import Command
 
 
@@ -89,3 +89,9 @@ def test_the_subcommands_run_no_system_checks(product, capsys):
     out, err = capsys.readouterr()
     assert json.loads(out)['issues'] == []
     assert 'other.W001' not in out + err
+
+
+def test_the_status_runs_every_check_of_bazis_front():
+    registered = {it for it in registry.get_checks() if it.__module__ == checks.__name__}
+    assert set(checks.STATUS) == registered
+    assert len(checks.STATUS) == len(registered)

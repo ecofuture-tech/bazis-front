@@ -427,7 +427,9 @@ npm test
   `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`, the jsdom of the
   tests), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,
-  session with its number for the query keys, router with the layout `AppShell`, errors),
+  session with its number for the query keys, router with the layout `AppShell` and the
+  screens loaded by `lazyScreen` (`lazy.tsx`: a chunk that fails reloads the page once, then
+  is loaded again by the retry of `ErrorBoundary`), errors),
   `src/screens/` (login with `LoginForm`, home with the counts of `useList`),
   `playwright.config.ts` (`npm run e2e`: `e2e/generated/` and `e2e/custom/`, one worker,
   `E2E_BASE_URL` or a dev server of its own on `E2E_PORT`, never one already running, ready

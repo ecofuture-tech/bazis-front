@@ -388,12 +388,14 @@ export function TaskCardScreen() {
 ```
 
 Add the routes of the screens to `src/app/router.tsx` (inside `RequireSession`), each screen
-imported with `lazy()` as those of the template (its own chunk, loaded when its route is
-first shown, under the `Suspense` of the layout: a static import puts every screen and the
-libraries it uses, a map, in the one bundle that every page loads):
+imported with `lazyScreen` of `src/app/lazy.tsx` as those of the template (its own chunk,
+loaded when its route is first shown, under the `Suspense` and the `ErrorBoundary` of the
+layout: a static import puts every screen and the libraries it uses, a map, in the one
+bundle that every page loads). A chunk that fails to load (a new version deployed since the
+page was opened) reloads the page once, then shows the error, whose retry loads it again:
 
 ```tsx
-const TaskListScreen = lazy(() => import('@/screens/task-list').then((module) => ({ default: module.TaskListScreen })));
+const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
 ```
 
 Add their

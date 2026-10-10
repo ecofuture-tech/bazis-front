@@ -14,6 +14,7 @@
 
 import { Component, type ReactNode } from 'react';
 
+import { ScreenLoadError } from '@/app/lazy';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 
 interface Props {
@@ -43,9 +44,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidUpdate(previous: Props) {
-    if (this.state.failed && previous.resetKey !== this.props.resetKey) {
-      this.setState({ failed: false, error: undefined });
-    }
+    if (this.state.failed && previous.resetKey !== this.props.resetKey) this.clear();
+  }
+
+  // a screen whose chunk failed loads it again (`lazyScreen`)
+  private clear() {
+    if (this.state.error instanceof ScreenLoadError) this.state.error.reset();
+    this.setState({ failed: false, error: undefined });
   }
 
   override render() {
@@ -56,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
         error={this.state.error}
         className="mx-auto max-w-xl"
         onRetry={() => {
-          this.setState({ failed: false, error: undefined });
+          this.clear();
         }}
       />
     );

@@ -13,10 +13,11 @@
 // limitations under the License.
 
 import { FilePen, House, ListChecks } from 'lucide-react';
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
+import { lazyScreen } from '@/app/lazy';
 import { MAP_TILES, PRODUCT_NAME } from '@/app/product';
 import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
@@ -31,11 +32,11 @@ import { NotificationCenter } from '@/bazis/ui/notification-center';
 import { StatePanel } from '@/bazis/ui/state-panel';
 
 /** The screens, each loaded with its own chunk when its route is first shown. */
-const DraftTasksScreen = lazy(() => import('@/screens/draft-tasks').then((module) => ({ default: module.DraftTasksScreen })));
-const HomeScreen = lazy(() => import('@/screens/home').then((module) => ({ default: module.HomeScreen })));
-const LoginScreen = lazy(() => import('@/screens/login').then((module) => ({ default: module.LoginScreen })));
-const TaskCardScreen = lazy(() => import('@/screens/task-card').then((module) => ({ default: module.TaskCardScreen })));
-const TaskListScreen = lazy(() => import('@/screens/task-list').then((module) => ({ default: module.TaskListScreen })));
+const DraftTasksScreen = lazyScreen(() => import('@/screens/draft-tasks').then((module) => module.DraftTasksScreen));
+const HomeScreen = lazyScreen(() => import('@/screens/home').then((module) => module.HomeScreen));
+const LoginScreen = lazyScreen(() => import('@/screens/login').then((module) => module.LoginScreen));
+const TaskCardScreen = lazyScreen(() => import('@/screens/task-card').then((module) => module.TaskCardScreen));
+const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
 
 /** What a route shows while the chunk of its screen loads: the loading state of the screens. */
 const loading = <StatePanel state="loading" />;
@@ -112,9 +113,11 @@ export function AppRouter() {
                 <Route
                   path="/login"
                   element={
-                    <Suspense fallback={loading}>
-                      <LoginScreen />
-                    </Suspense>
+                    <ErrorBoundary>
+                      <Suspense fallback={loading}>
+                        <LoginScreen />
+                      </Suspense>
+                    </ErrorBoundary>
                   }
                 />
               )}

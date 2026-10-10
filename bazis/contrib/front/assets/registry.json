@@ -695,6 +695,8 @@
         "src/app/errors.tsx",
         "src/app/language.test.ts",
         "src/app/language.ts",
+        "src/app/lazy.test.tsx",
+        "src/app/lazy.tsx",
         "src/app/product.ts",
         "src/app/providers.test.ts",
         "src/app/providers.tsx",
