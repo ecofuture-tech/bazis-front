@@ -25,19 +25,61 @@ import { CAPABILITIES } from './src/bazis/generated/contract';
 // The npm libraries that every page loads, in chunks of their own (by the name of their
 // package): the chunk of the entry keeps the code of the product, no chunk nears the limit of
 // 500 kB of the warning of Vite, and the libraries stay cached across the releases of the
-// product. A library that only a lazy chunk imports (Leaflet) is in none of them.
-const VENDOR_CHUNKS: [string, RegExp][] = [
-  ['react', /^(react|react-dom|scheduler|react-router|cookie|set-cookie-parser)$/],
-  ['query', /^@tanstack\//],
+// product. Only the packages of the layout are listed: React with the router, TanStack Query,
+// and the Radix primitives of the shell (the dialog of the sheet of the navigation, the
+// popover of the notifications, the slot of the buttons) with what they use. Any other
+// library (Leaflet, another Radix primitive, @tanstack/react-table) stays in the chunks of
+// the screens that import it.
+const RADIX = [
+  'primitive',
+  'react-compose-refs',
+  'react-context',
+  'react-dialog',
+  'react-dismissable-layer',
+  'react-focus-guards',
+  'react-focus-scope',
+  'react-id',
+  'react-popover',
+  'react-popper',
+  'react-portal',
+  'react-presence',
+  'react-primitive',
+  'react-slot',
+  'react-use-callback-ref',
+  'react-use-controllable-state',
+  'react-use-effect-event',
+  'react-use-escape-keydown',
+  'react-use-layout-effect',
+  'react-use-size',
+];
+const VENDOR_CHUNKS: [string, readonly string[]][] = [
+  ['react', ['react', 'react-dom', 'scheduler', 'react-router', 'cookie', 'set-cookie-parser']],
+  ['query', ['@tanstack/react-query', '@tanstack/query-core']],
   [
     'radix',
-    /^(radix-ui|@radix-ui\/.*|@floating-ui\/.*|react-remove-scroll.*|react-style-singleton|use-callback-ref|use-sidecar|aria-hidden|get-nonce|detect-node-es|tslib)$/,
+    [
+      'radix-ui',
+      ...RADIX.map((name) => `@radix-ui/${name}`),
+      '@floating-ui/core',
+      '@floating-ui/dom',
+      '@floating-ui/react-dom',
+      '@floating-ui/utils',
+      'react-remove-scroll',
+      'react-remove-scroll-bar',
+      'react-style-singleton',
+      'use-callback-ref',
+      'use-sidecar',
+      'aria-hidden',
+      'get-nonce',
+      'detect-node-es',
+      'tslib',
+    ],
   ],
 ];
 
 function vendorChunk(id: string): string | undefined {
   const name = /.*\/node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(id)?.[1];
-  return name === undefined ? undefined : VENDOR_CHUNKS.find(([, packages]) => packages.test(name))?.[0];
+  return name === undefined ? undefined : VENDOR_CHUNKS.find(([, packages]) => packages.includes(name))?.[0];
 }
 
 export default defineConfig(({ mode }) => {

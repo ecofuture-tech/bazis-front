@@ -1160,10 +1160,11 @@ their own, `AppShell` with their links and `session={null}` (a link to `/login` 
 read only what the backend gives anonymous users (a 401/403 of another route is the
 `forbidden` state of a screen, never a redirect).
 
-The npm libraries that every page loads (React, TanStack Query, Radix) are chunks of their
-own (`manualChunks` of `vite.config.ts`), so that the chunk of the entry holds the code of the
-product: a library that one screen needs is imported by that screen, in its chunk; never raise
-`chunkSizeWarningLimit` to hide a large chunk.
+The npm libraries that every page loads (React with the router, TanStack Query, the Radix
+primitives of the layout) are chunks of their own, listed by package in `manualChunks` of
+`vite.config.ts`, so that the chunk of the entry holds the code of the product: a library
+that one screen needs is imported by that screen and stays in its chunk (never add it to the
+list); never raise `chunkSizeWarningLimit` to hide a large chunk.
 
 Add their
 links, with an icon of `lucide-react`, to `NAVIGATION` there. A link shown only to the users
