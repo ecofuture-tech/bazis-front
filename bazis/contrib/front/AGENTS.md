@@ -978,7 +978,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker`, `RelationLabel`, `useListFields`, `useItemFields`; the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `compactColumns`: next to a card), `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions`; `forms`: `'dialog'` or `'page'`); `RelatedList`: a related section, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
+| `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`); `RelatedList`: a related section, its `rowActions`, the card read again after an add, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
@@ -1180,8 +1180,8 @@ The props of every component are in the `API:` sections (the `Props` types of
   from `crud_actions`), without a second `useItem`; it is drawn under the heading, above
   the sections of fields. Sections that follow the fields (the related lists of a long
   card) go after `ResourceCard` in the `Screen`, with the meta of
-  `useItem(path, id, {meta: ['crud_actions']})`: the query of the card (the same key), not
-  a second request;
+  `useItem(path, id, {meta: ['crud_actions', 'custom_actions']})`: the query of the card
+  (the same key, the meta that the card asks for), not a second request;
 - the rows of `useList` are typed by `schema.d.ts` (`row.attributes.title`); the rows that
   `ResourceList` gives `cells`, `rowTone` and `onOpen` are plain resource objects: read a
   field there with `fieldValue(row, '<field>')` of `@/bazis/ui/resource` (an attribute, or
@@ -1246,6 +1246,30 @@ more related items (`add={permitted(meta, 'change') ? {...} : undefined}`, the `
 the card), and refuse them in the backend too (`validate_item`, see
 [The backend of a product](#the-backend-of-a-product)). A form of your own uses
 `useResourceForm(path, {fixed})` the same way; never set the value with an effect.
+
+### The card follows its related items
+
+**The card follows its related items**: a related item added often changes the item of the
+card (a computed total, the transits it allows, the fields its status leaves editable).
+`RelatedList` in the `children` of `ResourceCard` reads the item of the card again once an
+item is added (`useRefreshItem(path, id)` of `@/bazis/react`: the retrieves of the item, its
+schemas, its GET actions; the queries of the related resource are refetched by the create
+itself). A `RelatedList` after the card, and an action of its rows, do the same themselves.
+`rowActions` are the actions of its rows (`{id, label, onClick(rowId), permission: 'change' |
+'delete'}`, a button `action:<id>` in a row the backend allows it on):
+
+```tsx
+const refresh = useRefreshItem(REQUESTS, id);           // in the screen, the item of the card
+const destroyLine = useDestroy(LINES);
+// in the RelatedList of the lines of the request
+rowActions={[{ id: 'delete-line', label: t('line.delete'), permission: 'delete',
+  onClick: (line) => { destroyLine.mutate(line, { onSuccess: () => void refresh() }); } }]}
+```
+
+This covers the changes made in the page. A change made elsewhere (another user, a
+background task) reaches the card through the socket: the backend publishes the item changed
+(`publish_changed(item)` of bazis-ws, also from the save of a related item that changes it;
+see [The socket](#the-socket)) and `useLiveQueries` refetches its resource.
 
 ### The filters of a list
 
@@ -2882,6 +2906,10 @@ Its props, `BazisProviderProps`:
 
 `useDestroy(path: DestroyPath): UseMutationResult<void, Error, string>`: Deletes an item: `mutate(id)`.
 
+#### useRefreshItem
+
+`useRefreshItem(path: ItemPath, id: string): () => Promise<void>`: Reads an item again: the function it returns marks every query of the item stale (its retrieves, its schemas, the responses of its GET actions) and refetches the active ones, after a change that the backend makes to it through another resource (a related item added or deleted changes its computed fields, its transits).
+
 #### useRelationship
 
 `useRelationship(path: RelationshipPath): UseMutationResult<void, Error, RelationshipChange>`: Changes a relationship of an item through its relationship endpoint: `mutate({id, field, operation, data})`; `add` and `remove` change a to-many relationship.
@@ -4123,12 +4151,12 @@ Its props, `RelationPickerProps`:
 
 #### RelatedList
 
-`RelatedList(props: RelatedListProps): Element`: The items of a related resource of the item of a card, and their create from it.
+`RelatedList(props: RelatedListProps): Element`: The items of a related resource of the item of a card, and their create from it; in the children of the card, the card is read again after an item is added.
 
 
 Its props, `RelatedListProps`:
 
-- `extends Pick<ResourceListProps, 'columns' | 'onOpen' | 'cells' | 'emptyMessage' | 'sort' | 'pageSize' | 'layout'>`
+- `extends Pick<ResourceListProps, 'columns' | 'onOpen' | 'rowActions' | 'cells' | 'emptyMessage' | 'sort' | 'pageSize' | 'layout'>`
 - `path: ListPath`: The route set of the related resource (`ROUTES` of the contract): its list, its create for `add`.
 - `entity: string`: The entity of the related resource: the list is `list:<entity>`.
 - `relation: string`: The to-one relationship of the related resource to the item of the card (`request` of an item of a request): the filter of the list (a field it can be filtered by) and the fixed value of the form.

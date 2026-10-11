@@ -16,7 +16,8 @@
 // that reference the item of the card by a to-one relationship (the items of a request), as
 // a `ResourceList` filtered by it, and "add here": the create form of the related resource
 // with the relationship fixed to the item (`ResourceForm` `fixed`), so that the user never
-// chooses the item again.
+// chooses the item again. In the children of a `ResourceCard`, an item added reads the item
+// of the card again (its computed fields, its transits).
 
 import { Plus } from 'lucide-react';
 import { useState, type ComponentType, type ReactNode } from 'react';
@@ -26,6 +27,8 @@ import type { ListPath } from '@/bazis/react';
 import type { SavedDocument } from '@/bazis/ui/resource';
 import { FormSurface, ResourceFormBody } from '@/bazis/ui/resource-form';
 import { ResourceList, type ResourceListProps } from '@/bazis/ui/resource-list';
+
+import { useCardRefresh } from './resource-card.js';
 
 /** "Add here": the create of a related item from the card. */
 export interface RelatedAdd {
@@ -42,7 +45,10 @@ export interface RelatedAdd {
 }
 
 export interface RelatedListProps
-  extends Pick<ResourceListProps, 'columns' | 'onOpen' | 'cells' | 'emptyMessage' | 'sort' | 'pageSize' | 'layout'> {
+  extends Pick<
+    ResourceListProps,
+    'columns' | 'onOpen' | 'rowActions' | 'cells' | 'emptyMessage' | 'sort' | 'pageSize' | 'layout'
+  > {
   /** The route set of the related resource (`ROUTES` of the contract): its list, its create for `add`. */
   path: ListPath;
   /** The entity of the related resource: the list is `list:<entity>`. */
@@ -67,8 +73,12 @@ export interface RelatedListProps
   forms?: 'dialog' | 'page';
 }
 
-/** The items of a related resource of the item of a card, and their create from it. */
+/**
+ * The items of a related resource of the item of a card, and their create from it; in the
+ * children of the card, the card is read again after an item is added.
+ */
 export function RelatedList({ path, entity, relation, item, title, add, forms, ...list }: RelatedListProps) {
+  const refreshCard = useCardRefresh();
   const [adding, setAdding] = useState(false);
   const close = () => {
     setAdding(false);
@@ -105,6 +115,7 @@ export function RelatedList({ path, entity, relation, item, title, add, forms, .
             fixed={{ [relation]: item }}
             onSaved={(saved) => {
               close();
+              void refreshCard?.();
               add.onSaved?.(saved);
             }}
             onCancel={close}

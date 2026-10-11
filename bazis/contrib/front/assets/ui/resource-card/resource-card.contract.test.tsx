@@ -18,7 +18,8 @@
 // that its edit does not change marked read-only, the actions the backend allows and the
 // edit (`action:edit`, then the form, in a dialog or as a page); a related section
 // (`RelatedList`): the related items of the item, `action:<id>` that adds one with the
-// relationship fixed to the item. Keep it passing when the component is changed.
+// relationship fixed to the item and reads the item of the card again, the actions of its
+// rows. Keep it passing when the component is changed.
 
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -301,5 +302,63 @@ describe('RelatedList', () => {
     );
     expect(await within(await screen.findByTestId('list:part')).findByTestId('row:p1')).toBeTruthy();
     expect(screen.queryByTestId('action:add-part')).toBeNull();
+  });
+
+  it('reads the item of the card again once an item is added in it', async () => {
+    // a part changes what the card shows of the item (a computed field, its transits)
+    const server = parts({ for_create: true })
+      .on('GET', `${ITEM}schema_retrieve/`, schema)
+      .on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report', count: 3 }), meta: { crud_actions: ['view'] } });
+    renderWithBazis(
+      <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections}>
+        <RelatedList
+          path={PARTS as never}
+          entity="part"
+          relation="item"
+          item={ITEM_ID}
+          columns={['name']}
+          forms="dialog"
+          add={{ id: 'add-part', label: 'Add a part', fields: ['name'] }}
+        />
+      </ResourceCard>,
+      server,
+    );
+    expect(await within(await screen.findByTestId('list:part')).findByTestId('row:p1')).toBeTruthy();
+    const reads = () => server.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`)).length;
+    expect(reads()).toBe(1);
+    server.on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report', count: 4 }), meta: { crud_actions: ['view'] } });
+    fireEvent.click(screen.getByTestId('action:add-part'));
+    fireEvent.change(await screen.findByTestId('field:name'), { target: { value: 'Seat' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(screen.getByTestId('field:count').textContent).toBe('4');
+    });
+    expect(reads()).toBe(2);
+  });
+
+  it('shows the actions of its rows that the user may do', async () => {
+    const remove = vi.fn();
+    // the delete of the first part only
+    const meta = { for_create: false, for_change: [], for_delete: ['p1'] };
+    const rows = [resource('p1', { name: 'Wheel' }, {}, 'test.part'), resource('p2', { name: 'Seat' }, {}, 'test.part')];
+    const server = new Backend()
+      .on('GET', `${PARTS}schema_list/`, partSchema(true))
+      .on('GET', PARTS, listDocument(rows, { meta }));
+    renderWithBazis(
+      <RelatedList
+        path={PARTS as never}
+        entity="part"
+        relation="item"
+        item={ITEM_ID}
+        columns={['name']}
+        rowActions={[{ id: 'delete-part', label: 'Delete', onClick: remove, permission: 'delete' }]}
+      />,
+      server,
+    );
+    const list = await screen.findByTestId('list:part');
+    const wheel = await within(list).findByTestId('row:p1');
+    expect(within(within(list).getByTestId('row:p2')).queryByTestId('action:delete-part')).toBeNull();
+    fireEvent.click(within(wheel).getByTestId('action:delete-part'));
+    expect(remove).toHaveBeenCalledWith('p1');
   });
 });

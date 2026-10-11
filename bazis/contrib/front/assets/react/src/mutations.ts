@@ -22,12 +22,14 @@ import {
   type QueryClient,
   type UseMutationResult,
 } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 import { useBazis } from './context.js';
 import { keys } from './keys.js';
 import {
   loose,
   type CreateDocument,
+  type ItemPath,
   type CreatePath,
   type CreateResponse,
   type DestroyPath,
@@ -41,6 +43,18 @@ import {
 /** Marks every query of the resource stale and refetches the active ones. */
 export function invalidateResource(queryClient: QueryClient, path: string): Promise<void> {
   return queryClient.invalidateQueries({ queryKey: keys.resource(path) });
+}
+
+/**
+ * Reads an item again: the function it returns marks every query of the item stale (its
+ * retrieves, its schemas, the responses of its GET actions) and refetches the active ones,
+ * after a change that the backend makes to it through another resource (a related item
+ * added or deleted changes its computed fields, its transits). The mutations of its own
+ * resource refetch it already.
+ */
+export function useRefreshItem(path: ItemPath, id: string): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return useCallback(() => queryClient.invalidateQueries({ queryKey: keys.item(path, id) }), [queryClient, path, id]);
 }
 
 /** Creates an item: `mutate(document)`. */

@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ApiError } from '@/bazis/client';
 
-import { useCreate, useDestroy, useItem, useList, useRelationship, useUpdate } from '../src/index.js';
+import { useCreate, useDestroy, useItem, useList, useRefreshItem, useRelationship, useUpdate } from '../src/index.js';
 import sample from './fixtures/sample.json' with { type: 'json' };
 import { Backend, cachedKeys, CHILD, PARENT, render } from './support.js';
 
@@ -37,6 +37,7 @@ function screen(backend: Backend) {
     update: useUpdate(PARENT),
     destroy: useDestroy(PARENT),
     relationship: useRelationship(PARENT),
+    refresh: useRefreshItem(PARENT, '7'),
   });
 }
 
@@ -141,6 +142,20 @@ describe('mutations', () => {
       expect(error.fieldErrors()).toEqual({});
       expect(error.formErrors()).toEqual([{ message: '<detail>', included: null, field: null }]);
     }
+  });
+
+  it('refresh refetches the queries of the item only', async () => {
+    const backend = new Backend();
+    const { result } = await loaded(backend);
+    const refresh = result.current.refresh;
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    // not the list of the resource, nor the other resources
+    expect(backend.requests()).toEqual([`GET ${PARENT}7/`]);
+    // the same function across renders: a dependency of effects and callbacks
+    expect(result.current.refresh).toBe(refresh);
   });
 
   it('a failed mutation refetches nothing', async () => {
