@@ -751,3 +751,36 @@ def test_a_reverse_relation_is_marked():
     assert _is_reverse('tasks.Task', 'assignee') is False
     assert _is_reverse('tasks.Task', 'no_such_field') is False
     assert _is_reverse(None, 'steps') is False
+
+
+@isolate_apps('tasks')
+def test_a_reverse_relation_is_found_by_its_accessor():
+    """
+    The core names a reverse relation by its accessor (`related_name`, else `<model>_set`),
+    which `_meta.get_field` does not know (it takes the `related_query_name`): a foreign key
+    without `related_name`, and one whose `related_query_name` differs, are reverse all the
+    same; the source of the relationship (its filter label) is tried after its name.
+    """
+    from bazis.contrib.front.contract.resources import is_reverse_relation
+
+    class Parent(models.Model):
+        class Meta:
+            app_label = 'tasks'
+
+    class Child(models.Model):
+        parent = models.ForeignKey(Parent, on_delete=models.CASCADE)
+
+        class Meta:
+            app_label = 'tasks'
+
+    class Note(models.Model):
+        parent = models.ForeignKey(Parent, on_delete=models.CASCADE, related_name='notes', related_query_name='note')
+
+        class Meta:
+            app_label = 'tasks'
+
+    assert is_reverse_relation(Parent, 'child_set') is True
+    assert is_reverse_relation(Parent, 'notes') is True
+    assert is_reverse_relation(Parent, 'note', 'notes') is True
+    assert is_reverse_relation(Child, 'parent') is False
+    assert is_reverse_relation(Parent, 'note') is False

@@ -29,10 +29,10 @@ import pydoc
 from django.apps import apps
 from django.contrib.gis.db.models import PointField
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import ForeignObjectRel
 
 from bazis.core.introspect import models_info
 from bazis.core.routes_abstract.jsonapi import JsonapiRouteBase
+from bazis.core.utils.model_meta import FieldsInfo
 from bazis.core.utils.query_complex import QueryScope, route_search_fields
 
 
@@ -184,7 +184,7 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, mod
         identifiers = _alternatives(openapi, data['items'] if many else data)
         types = sorted({it.get('properties', {}).get('type', {}).get('default') for it in identifiers} - {None})
         fields[name] = {'relation': types[0] if len(types) == 1 else types, 'many': many}
-        if _is_reverse(model, prop.get('filterLabel', name)):
+        if _is_reverse(model, name, prop.get('filterLabel', name)):
             fields[name]['reverse'] = True
         fields[name].update(_labels(prop, scope))
     return fields
@@ -200,14 +200,21 @@ def _is_point(model: str | None, name: str) -> bool:
         return False
 
 
-def _is_reverse(model: str | None, name: str) -> bool:
-    """Whether the relation of the model of a relationship (its source) is a reverse one."""
-    if model is None:
-        return False
-    try:
-        return isinstance(apps.get_model(model)._meta.get_field(name), ForeignObjectRel)
-    except FieldDoesNotExist:
-        return False
+def _is_reverse(model: str | None, *names: str) -> bool:
+    """
+    Whether the relation of the model of a relationship is a reverse one, as the core reads it
+    (`get_fields_info().relations`, whose reverse relations are named by their accessor:
+    `related_name`, else `<model>_set`; never the `related_query_name` of `_meta.get_field`):
+    the first of `names` (its name in the document, its source) that is a relation.
+    """
+    return model is not None and is_reverse_relation(apps.get_model(model), *names)
+
+
+def is_reverse_relation(model_cls, *names: str) -> bool:
+    """`_is_reverse` of a model class."""
+    relations = FieldsInfo.get_fields_info(model_cls).relations
+    info = next((relations[it] for it in names if it in relations), None)
+    return info is not None and info.reverse
 
 
 def _response_resource(openapi: dict, operation: dict) -> dict | None:
