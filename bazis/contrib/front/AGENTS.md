@@ -657,7 +657,12 @@ language. `migrate` applies them after the last migration, on every database (CI
 end-to-end tests), and keeps them as declared (the declared rows are `managed`); a change
 is a change of the module and a `migrate`. The database checks of `bazis_doctor` report a
 database that differs from them (`permit.W005`, `statusy.W003`). `access` of the specs is
-what the permissions cover (P019).
+what the permissions cover (P019). The frontend reads the names of the statuses and the
+transits, in every language, from the contract (`TRANSITS` of `contract.ts`: `statusName`,
+`statusOptions`, `transitName` of `@/bazis/ui/status-badge`), and the transits of an item
+from its retrieve: it needs no route of bazis-statusy, so do not register
+`bazis.contrib.statusy.router` for it (its routes `statusy/status/` and `statusy/transit/`
+restrict nothing, and bazis-permit warns about them, `permit.W002`).
 
 ```python
 # tasks/roles.py
