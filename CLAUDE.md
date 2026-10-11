@@ -105,7 +105,7 @@ the contract. `sample/frontend-overlay/` holds the screens of the sample (produc
 reference of screens written from specs; `src/app/router.tsx` wraps the routes in
 `FileFieldProvider`) and `e2e/` (`fixtures/`, the files that the scenarios upload, and
 `custom/`, the tests of what no scenario says: the custom actions, the downloads, the
-language, the layout with the styles of a product, `layout.spec.ts`: the foot of the sidebar
+language, the card read again after a step is added in the section after it, the layout with the styles of a product, `layout.spec.ts`: the foot of the sidebar
 with the tools of the sample, and the filters of the list of the tasks, a date range among
 them, at the width of a phone), copied over a frontend made from the sample by the `e2e`
 job of CI.

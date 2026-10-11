@@ -988,7 +988,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker`, `RelationLabel`, `useListFields`, `useItemFields`; the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `compactColumns`: next to a card), `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`); `RelatedList`: a related section, its `rowActions`, the card read again after an add, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
+| `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
@@ -1033,7 +1033,7 @@ of the specs and the paths of `ROUTES`.
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control) |
 | `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
-| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card` in the `children` of the card: `path`, `entity`, `relation`, `item={id}`, `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). The `children` are drawn under the heading, above the sections: related lists that follow the fields go after the card ("Composing beyond the specs") |
+| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card`: `path`, `entity`, `relation`, `item={id}`, `itemPath` (the `path` of the card), `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). In the `children` of the card it is drawn under the heading, above the sections of fields; a list that follows the fields goes after the card ("Composing beyond the specs"). Both read the card again after an add |
 | a field with choices (a column, a field of a card or a form, a filter) | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
 | the notifications and the live updates (bazis-notify, bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` (its `notifications`: `useInbox` with bazis-notify, else `useNotifications`) and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` ("The socket") |
 | a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
@@ -1126,6 +1126,7 @@ export function TaskCardScreen() {
               entity="step"
               relation="task"
               item={id}
+              itemPath={TASKS}
               title="Steps"
               columns={['title', 'dt_created']}
               add={permitted(meta, 'change') ? { id: 'add-step', label: 'Add a step', fields: ['title'] } : undefined}
@@ -1199,7 +1200,8 @@ The props of every component are in the `API:` sections (the `Props` types of
   the sections of fields. Sections that follow the fields (the related lists of a long
   card) go after `ResourceCard` in the `Screen`, with the meta of
   `useItem(path, id, {meta: ['crud_actions', 'custom_actions']})`: the query of the card
-  (the same key, the meta that the card asks for), not a second request;
+  (the same key, the meta that the card asks for), not a second request; a `RelatedList`
+  there reads the card again after an add as in the `children`;
 - the rows of `useList` are typed by `schema.d.ts` (`row.attributes.title`); the rows that
   `ResourceList` gives `cells`, `rowTone` and `onOpen` are plain resource objects: read a
   field there with `fieldValue(row, '<field>')` of `@/bazis/ui/resource` (an attribute, or
@@ -1254,7 +1256,7 @@ of the backend (`fill: {priority: High}`).
 
 **Related items, "add here"**: the items of another resource that reference the item of a
 card by a to-one relationship (the items of a request, the steps of a task) are a related
-section of the card, `RelatedList` in its `children` (`card.related` of the spec): their
+section of the card, `RelatedList` in its `children` or after it (`card.related` of the spec): their
 list filtered by the relationship, and `add`, the button `action:<add.id>` that opens the
 create form of the related resource with the relationship fixed to the item
 (`ResourceForm` `fixed={{request: id}}`: the value is sent, never chosen; a fixed field is
@@ -1269,12 +1271,13 @@ the card), and refuse them in the backend too (`validate_item`, see
 
 **The card follows its related items**: a related item added often changes the item of the
 card (a computed total, the transits it allows, the fields its status leaves editable).
-`RelatedList` in the `children` of `ResourceCard` reads the item of the card again once an
-item is added (`useRefreshItem(path, id)` of `@/bazis/react`: the retrieves of the item, its
-schemas, its GET actions; the queries of the related resource are refetched by the create
-itself). A `RelatedList` after the card, and an action of its rows, do the same themselves.
-`rowActions` are the actions of its rows (`{id, label, onClick(rowId), permission: 'change' |
-'delete'}`, a button `action:<id>` in a row the backend allows it on):
+`RelatedList` reads the item of the card again once an item is added, wherever the screen
+places it, in the `children` of `ResourceCard` or after it: `itemPath` and `item` name the
+item of the card (`useRefreshItem(itemPath, item)` of `@/bazis/react`: the retrieves of the
+item, its schemas, its GET actions; the queries of the related resource are refetched by the
+create itself). An action of its rows does the same itself, with `useRefreshItem` of the
+card. `rowActions` are the actions of its rows (`{id, label, onClick(rowId), permission:
+'change' | 'delete'}`, a button `action:<id>` in a row the backend allows it on):
 
 ```tsx
 const refresh = useRefreshItem(REQUESTS, id);           // in the screen, the item of the card
@@ -4170,7 +4173,7 @@ Its props, `RelationPickerProps`:
 
 #### RelatedList
 
-`RelatedList(props: RelatedListProps): Element`: The items of a related resource of the item of a card, and their create from it; in the children of the card, the card is read again after an item is added.
+`RelatedList(props: RelatedListProps): Element`: The items of a related resource of the item of a card, and their create from it; the card is read again after an item is added, wherever the section is placed.
 
 
 Its props, `RelatedListProps`:
@@ -4180,6 +4183,7 @@ Its props, `RelatedListProps`:
 - `entity: string`: The entity of the related resource: the list is `list:<entity>`.
 - `relation: string`: The to-one relationship of the related resource to the item of the card (`request` of an item of a request): the filter of the list (a field it can be filtered by) and the fixed value of the form.
 - `item: string`: The id of the item of the card.
+- `itemPath: ItemPath`: The route set of the item of the card (the `path` of the `ResourceCard`): the item read again once a related item is added.
 - `title?: ReactNode`: The heading of the section.
 - `add?: RelatedAdd | undefined`: "Add here", shown when the backend allows the create (`for_create` of the list); the screen leaves it out when the item takes no more related items (`permitted(meta, 'change')` of the card: a request that is no longer a draft).
 - `forms?: 'dialog' | 'page'`: The form in a dialog or as a page; `composition.forms` of the theme by default.

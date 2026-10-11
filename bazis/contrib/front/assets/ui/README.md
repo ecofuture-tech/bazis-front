@@ -65,7 +65,7 @@ sample (`tests/test_design.py` checks it; write it again with
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?, filter?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, rowTone?, rowToneLabel?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?})`; `RelatedList({path, entity, relation, item, columns, title?, add?: {id, label, fields?, title?, icon?, onSaved?}, onOpen?, rowActions?, cells?, emptyMessage?, sort?, pageSize?, layout?, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>`, `action:<add.id>` | |
+| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?})`; `RelatedList({path, entity, relation, item, itemPath, columns, title?, add?: {id, label, fields?, title?, icon?, onSaved?}, onOpen?, rowActions?, cells?, emptyMessage?, sort?, pageSize?, layout?, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>`, `action:<add.id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, fixed?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | capability `statusy` |
 | `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
@@ -130,9 +130,9 @@ the WebSocket of the page in a test.
   (`FormSurface`). `RelatedList` is a related section of a card: the list of a related
   resource filtered by its to-one relationship to the item (`Filter.where(relation, item)`)
   and `add`, its create form (`ResourceFormBody` in `FormSurface`) with the relationship
-  fixed to the item, shown when the backend allows the create (`for_create`); in the
-  `children` of a card, an item added reads the item of the card again (`useRefreshItem` of
-  the hooks, given by the card in a context). `children` may be a function of the item and its permission meta
+  fixed to the item, shown when the backend allows the create (`for_create`); an item added
+  reads the item of the card again (`useRefreshItem(itemPath, item)` of the hooks: its query
+  keys, so in the `children` of the card or after it alike). `children` may be a function of the item and its permission meta
   (`StatusHistory` takes the item; `permitted(meta, 'change')` for a section of the product).
 - **The field permissions of bazis-permit** (`<app>.<model>.field.<operation>.<selector>…
   .<field>.<restriction>`, restrictions `enable`, `readonly`, `disable`, …) are read from

@@ -16,19 +16,18 @@
 // that reference the item of the card by a to-one relationship (the items of a request), as
 // a `ResourceList` filtered by it, and "add here": the create form of the related resource
 // with the relationship fixed to the item (`ResourceForm` `fixed`), so that the user never
-// chooses the item again. In the children of a `ResourceCard`, an item added reads the item
-// of the card again (its computed fields, its transits).
+// chooses the item again. An item added reads the item of the card again (its computed
+// fields, its transits) by its query keys, wherever the section is placed: in the children of
+// the `ResourceCard` or after it.
 
 import { Plus } from 'lucide-react';
 import { useState, type ComponentType, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
-import type { ListPath } from '@/bazis/react';
+import { useRefreshItem, type ItemPath, type ListPath } from '@/bazis/react';
 import type { SavedDocument } from '@/bazis/ui/resource';
 import { FormSurface, ResourceFormBody } from '@/bazis/ui/resource-form';
 import { ResourceList, type ResourceListProps } from '@/bazis/ui/resource-list';
-
-import { useCardRefresh } from './resource-card.js';
 
 /** "Add here": the create of a related item from the card. */
 export interface RelatedAdd {
@@ -61,6 +60,11 @@ export interface RelatedListProps
   relation: string;
   /** The id of the item of the card. */
   item: string;
+  /**
+   * The route set of the item of the card (the `path` of the `ResourceCard`): the item read
+   * again once a related item is added.
+   */
+  itemPath: ItemPath;
   /** The heading of the section. */
   title?: ReactNode;
   /**
@@ -74,11 +78,11 @@ export interface RelatedListProps
 }
 
 /**
- * The items of a related resource of the item of a card, and their create from it; in the
- * children of the card, the card is read again after an item is added.
+ * The items of a related resource of the item of a card, and their create from it; the card
+ * is read again after an item is added, wherever the section is placed.
  */
-export function RelatedList({ path, entity, relation, item, title, add, forms, ...list }: RelatedListProps) {
-  const refreshCard = useCardRefresh();
+export function RelatedList({ path, entity, relation, item, itemPath, title, add, forms, ...list }: RelatedListProps) {
+  const refreshCard = useRefreshItem(itemPath, item);
   const [adding, setAdding] = useState(false);
   const close = () => {
     setAdding(false);
@@ -115,7 +119,7 @@ export function RelatedList({ path, entity, relation, item, title, add, forms, .
             fixed={{ [relation]: item }}
             onSaved={(saved) => {
               close();
-              void refreshCard?.();
+              void refreshCard();
               add.onSaved?.(saved);
             }}
             onCancel={close}

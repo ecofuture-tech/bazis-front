@@ -18,8 +18,8 @@
 // that its edit does not change marked read-only, the actions the backend allows and the
 // edit (`action:edit`, then the form, in a dialog or as a page); a related section
 // (`RelatedList`): the related items of the item, `action:<id>` that adds one with the
-// relationship fixed to the item and reads the item of the card again, the actions of its
-// rows. Keep it passing when the component is changed.
+// relationship fixed to the item and reads the item of the card again (in the children of the
+// card or after it), the actions of its rows. Keep it passing when the component is changed.
 
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -249,6 +249,7 @@ describe('RelatedList', () => {
         entity="part"
         relation="item"
         item={ITEM_ID}
+        itemPath={ITEMS as never}
         columns={['name']}
         title="Parts"
         forms="dialog"
@@ -288,6 +289,7 @@ describe('RelatedList', () => {
         entity="part"
         relation="item"
         item={ITEM_ID}
+        itemPath={ITEMS as never}
         columns={['name']}
         add={{ id: 'add-part', label: 'Add a part' }}
       />,
@@ -297,43 +299,59 @@ describe('RelatedList', () => {
     expect(screen.queryByTestId('action:add-part')).toBeNull();
     unmount();
     renderWithBazis(
-      <RelatedList path={PARTS as never} entity="part" relation="item" item={ITEM_ID} columns={['name']} />,
+      <RelatedList path={PARTS as never} entity="part" relation="item" item={ITEM_ID} itemPath={ITEMS as never} columns={['name']} />,
       parts({ for_create: true }),
     );
     expect(await within(await screen.findByTestId('list:part')).findByTestId('row:p1')).toBeTruthy();
     expect(screen.queryByTestId('action:add-part')).toBeNull();
   });
 
-  it('reads the item of the card again once an item is added in it', async () => {
-    // a part changes what the card shows of the item (a computed field, its transits)
-    const server = parts({ for_create: true })
-      .on('GET', `${ITEM}schema_retrieve/`, schema)
-      .on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report', count: 3 }), meta: { crud_actions: ['view'] } });
-    renderWithBazis(
-      <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections}>
+  it('reads the item of the card again once an item is added, in the card or after it', async () => {
+    // a part changes what the card shows of the item (a computed field, its transits); the
+    // section reads the card by its query keys, wherever the screen places it
+    for (const placement of ['children', 'after'] as const) {
+      const server = parts({ for_create: true })
+        .on('GET', `${ITEM}schema_retrieve/`, schema)
+        .on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report', count: 3 }), meta: { crud_actions: ['view'] } });
+      const related = (
         <RelatedList
           path={PARTS as never}
           entity="part"
           relation="item"
           item={ITEM_ID}
+          itemPath={ITEMS as never}
           columns={['name']}
           forms="dialog"
           add={{ id: 'add-part', label: 'Add a part', fields: ['name'] }}
         />
-      </ResourceCard>,
-      server,
-    );
-    expect(await within(await screen.findByTestId('list:part')).findByTestId('row:p1')).toBeTruthy();
-    const reads = () => server.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`)).length;
-    expect(reads()).toBe(1);
-    server.on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report', count: 4 }), meta: { crud_actions: ['view'] } });
-    fireEvent.click(screen.getByTestId('action:add-part'));
-    fireEvent.change(await screen.findByTestId('field:name'), { target: { value: 'Seat' } });
-    fireEvent.click(screen.getByTestId('action:submit'));
-    await waitFor(() => {
-      expect(screen.getByTestId('field:count').textContent).toBe('4');
-    });
-    expect(reads()).toBe(2);
+      );
+      const { unmount } = renderWithBazis(
+        placement === 'children' ? (
+          <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections}>
+            {related}
+          </ResourceCard>
+        ) : (
+          <>
+            <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} />
+            {related}
+          </>
+        ),
+        server,
+      );
+      expect(await within(await screen.findByTestId('list:part')).findByTestId('row:p1')).toBeTruthy();
+      expect(await screen.findByTestId('field:count')).toBeTruthy();
+      const reads = () => server.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`)).length;
+      expect(reads()).toBe(1);
+      server.on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report', count: 4 }), meta: { crud_actions: ['view'] } });
+      fireEvent.click(screen.getByTestId('action:add-part'));
+      fireEvent.change(await screen.findByTestId('field:name'), { target: { value: 'Seat' } });
+      fireEvent.click(screen.getByTestId('action:submit'));
+      await waitFor(() => {
+        expect(screen.getByTestId('field:count').textContent).toBe('4');
+      });
+      expect(reads()).toBe(2);
+      unmount();
+    }
   });
 
   it('shows the actions of its rows that the user may do', async () => {
@@ -350,6 +368,7 @@ describe('RelatedList', () => {
         entity="part"
         relation="item"
         item={ITEM_ID}
+        itemPath={ITEMS as never}
         columns={['name']}
         rowActions={[{ id: 'delete-part', label: 'Delete', onClick: remove, permission: 'delete' }]}
       />,

@@ -13,15 +13,16 @@
 // limitations under the License.
 
 // spec/screens/task-card.yaml: a task with its status, its transits, its edit and its
-// deletion, and its steps (`card.related`), added here with the task fixed while the user may
-// change the task.
+// deletion, and its steps (`card.related`), after the fields of the card, added here with the
+// task fixed while the user may change the task (the card is read again after a step is
+// added: `e2e/custom/related.spec.ts`).
 
 import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
-import { useDestroy } from '@/bazis/react';
+import { useDestroy, useItem } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
 import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
@@ -38,6 +39,8 @@ export function TaskCardScreen() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const destroy = useDestroy(TASKS);
+  // the query of the card (the same key): the meta of the task for the steps after it
+  const task = useItem(TASKS, id, { meta: ['crud_actions', 'custom_actions'] });
   const { language, t } = useLanguage();
   return (
     <Screen
@@ -79,7 +82,7 @@ export function TaskCardScreen() {
           },
         ]}
       >
-        {(item, meta) => (
+        {(item) => (
           <>
             {/* null: the user can no longer view the task */}
             <TransitBar
@@ -91,20 +94,23 @@ export function TaskCardScreen() {
             />
             {/* `history: true` of the screen */}
             <StatusHistory resource={item} />
-            {/* `card.related` of the screen: a step is added while the task may be changed */}
-            <RelatedList
-              path={STEPS}
-              entity="step"
-              relation="task"
-              item={id}
-              title={t('task.steps')}
-              columns={['title', 'dt_created']}
-              add={permitted(meta, 'change') ? { id: 'add-step', label: t('task.add_step'), fields: ['title'] } : undefined}
-              emptyMessage={t('task.no_steps')}
-            />
           </>
         )}
       </ResourceCard>
+      {/* `card.related` of the screen: a step is added while the task may be changed */}
+      {task.data && (
+        <RelatedList
+          path={STEPS}
+          entity="step"
+          relation="task"
+          item={id}
+          itemPath={TASKS}
+          title={t('task.steps')}
+          columns={['title', 'dt_created']}
+          add={permitted(task.data.meta, 'change') ? { id: 'add-step', label: t('task.add_step'), fields: ['title'] } : undefined}
+          emptyMessage={t('task.no_steps')}
+        />
+      )}
     </Screen>
   );
 }

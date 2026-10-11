@@ -19,12 +19,12 @@
 // `state:<state>` (the loading one is the skeleton of the card), its values `field:<name>`.
 
 import { Lock, Pencil } from 'lucide-react';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import type { PermitMeta } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
-import { useRefreshItem, type ItemPath } from '@/bazis/react';
+import type { ItemPath } from '@/bazis/react';
 import {
   FieldValue,
   fieldValue,
@@ -83,17 +83,6 @@ export interface ResourceCardProps {
   children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode);
   /** The edit in a dialog or as a page; `composition.forms` of the theme by default. */
   forms?: 'dialog' | 'page';
-}
-
-// the refresh of the item of the card, for the related sections in its children
-const CardContext = createContext<(() => Promise<void>) | null>(null);
-
-/**
- * Reads the item of the card again (`useRefreshItem`), from a section in its children: null
- * outside a card.
- */
-export function useCardRefresh(): (() => Promise<void>) | null {
-  return useContext(CardContext);
 }
 
 /** The skeleton of a card while its item loads. */
@@ -197,7 +186,6 @@ export function ResourceCard({
 }: ResourceCardProps) {
   const item = useAnyItem(path, id, { meta: ['crud_actions', 'custom_actions'] });
   const fields = useItemFields(path, id);
-  const refresh = useRefreshItem(path, id);
   const [editing, setEditing] = useState(false);
   const { t } = useLanguage();
   const document = item.data;
@@ -260,7 +248,7 @@ export function ResourceCard({
             ))}
         </div>
       </header>
-      <CardContext value={refresh}>{typeof children === 'function' ? children(data, meta) : children}</CardContext>
+      {typeof children === 'function' ? children(data, meta) : children}
       {changeable ? (
         <EditableSections path={path} id={id} sections={sections} item={data} fields={fields} values={values} />
       ) : (
