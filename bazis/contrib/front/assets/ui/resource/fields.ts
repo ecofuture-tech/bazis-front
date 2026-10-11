@@ -111,6 +111,19 @@ export function hasSearch(type: string): boolean {
 }
 
 /**
+ * Whether a relationship of a resource is a reverse one (`reverse` of its field in the
+ * contract): its foreign key or many-to-many field is on the related model, and the core sets
+ * it to the items of a create or an update, deleting the unlinked items of a foreign key that
+ * is not null. A form edits it only when its `fields` name it.
+ */
+export function isReverse(type: string, name: string): boolean {
+  const resources = RESOURCES as Readonly<
+    Record<string, { readonly fields?: Readonly<Record<string, { readonly reverse?: boolean }>> } | undefined>
+  >;
+  return resources[type]?.fields?.[name]?.reverse === true;
+}
+
+/**
  * The attributes that name an item, in this order: a display name first (`full_name`, or the
  * first and the last name together, as `get_full_name()` of the users of Django and
  * bazis-users), then the identifiers (`username`, `email`).

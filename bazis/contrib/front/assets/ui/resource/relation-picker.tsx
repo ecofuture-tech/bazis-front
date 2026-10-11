@@ -44,6 +44,8 @@ import { RelationLabel } from './relation.js';
 
 /** How many items a page of the picker reads; `Load more` reads the next one. */
 export const PICKER_PAGE = 20;
+/** How many labels of its items the button of a picker shows; `+N` for the others, unread. */
+const SHOWN_LABELS = 8;
 const SEARCH_DELAY = 250;
 
 export interface RelationPickerProps
@@ -315,8 +317,10 @@ function Picker({
   const { t } = useLanguage();
   // the items chosen here: their labels without another request
   const [chosen, setChosen] = useState<ReadonlyMap<string, ResourceObject>>(() => new Map());
-  const label: ReactNode = value.length
-    ? value.map((id, index) => {
+  const more = value.length - SHOWN_LABELS;
+  const label: ReactNode = value.length ? (
+    <>
+      {value.slice(0, SHOWN_LABELS).map((id, index) => {
         const item = chosen.get(id);
         return (
           <Fragment key={id}>
@@ -324,8 +328,12 @@ function Picker({
             {item ? itemLabel(item) : <RelationLabel relation={relation} id={id} path={path} />}
           </Fragment>
         );
-      })
-    : placeholder;
+      })}
+      {more > 0 && ` +${String(more)}`}
+    </>
+  ) : (
+    placeholder
+  );
   return (
     // modal: the list scrolls and takes the focus inside a dialog (a form, the payload of a transit)
     <Popover modal open={open} onOpenChange={setOpen}>
@@ -457,7 +465,8 @@ export interface RelationListPickerProps extends Omit<RelationPickerProps, 'valu
 /**
  * The picker of the related items of a to-many relationship: a button with the labels of
  * the items (`role="combobox"`, the marks given to it) that opens the list of the related
- * resource (`aria-multiselectable`) as `RelationPicker` does; a click or Enter adds or
+ * resource (`aria-multiselectable`) as `RelationPicker` does (the labels of the first 8 items,
+ * then `+N`, the others not read); a click or Enter adds or
  * removes an item and keeps the list open, the option with the placeholder
  * (`data-value=""`) removes them all, Escape and Tab close it. The ids in a text input,
  * separated by commas, when the contract has no route for the related resource.

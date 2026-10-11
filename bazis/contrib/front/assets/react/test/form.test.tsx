@@ -226,6 +226,27 @@ describe('useResourceForm with an id: an update', () => {
     expect(result.current.dirty).toEqual([]);
   });
 
+  it('does not send a to-many relationship that the user did not change', async () => {
+    // the relationship is sent with all its items only when it changed: the items linked
+    // meanwhile by others stay
+    const server = backend().on('PATCH', `${PARENT}7/`, item('Car', 'p1'));
+    const { result } = render(() => useResourceForm(PARENT, { id: '7' }), server);
+    await ready(result);
+    expect(result.current.type).toBe('entity.parent_entity');
+    act(() => {
+      result.current.setValue('name', 'Car');
+      // the same items: not a change
+      result.current.setValue('child_entities', ['c1']);
+    });
+    expect(result.current.dirty).toEqual(['name']);
+    await act(async () => {
+      await result.current.submit();
+    });
+    expect(server.calls.find((it) => it.method === 'PATCH')?.body).toEqual({
+      data: { type: 'entity.parent_entity', id: '7', attributes: { name: 'Car' }, relationships: {} },
+    });
+  });
+
   it('gives the errors of an update that the schema refuses by field', async () => {
     // the sample (bazis 2.11): `/data/attributes/title` with the id and type of the item
     const server = backend().on('PATCH', `${PARENT}7/`, sample.update_422, 422);

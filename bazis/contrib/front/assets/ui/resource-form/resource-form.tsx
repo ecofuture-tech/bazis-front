@@ -25,7 +25,7 @@ import { useState, type ReactNode, type SubmitEvent } from 'react';
 import { ApiError } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
 import type { CreatePath, FixedValues, ResourceForm as Form, UpdatePath } from '@/bazis/react';
-import { FieldInput, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
+import { FieldInput, isReverse, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,8 +36,9 @@ export type ResourceFormProps = (
 ) & {
   /**
    * The fields, in this order (those the runtime schema does not have are left out); by
-   * default every field of the schema but the `fixed` ones. A to-many relationship is chosen
-   * with `RelationListPicker` and sent with the other fields.
+   * default every field of the schema but the `fixed` ones and the reverse relationships
+   * (`isReverse`: the core deletes the unlinked items of a reverse foreign key). A to-many
+   * relationship is chosen with `RelationListPicker` and sent with all its items.
    */
   fields?: readonly string[];
   /**
@@ -128,7 +129,11 @@ export function ResourceFormBody({
 
   const byName = new Map(form.fields.map((it) => [it.name, it]));
   const isFixed = (name: string) => fixed !== undefined && name in fixed;
-  const names = fields ?? form.fields.map((it) => it.name).filter((name) => !isFixed(name));
+  const names =
+    fields ??
+    form.fields
+      .filter((field) => !isFixed(field.name) && !(field.kind === 'relation' && isReverse(form.type, field.name)))
+      .map((field) => field.name);
   const shown = names.flatMap((name) => {
     const field = byName.get(name);
     if (!field) return [];

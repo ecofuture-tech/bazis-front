@@ -45,7 +45,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 3
+    assert data['format'] == 4
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -735,3 +735,19 @@ def test_the_default_language_is_a_code_of_the_languages():
             assert default_language() == expected, code
     with override_settings(LANGUAGES=[('pt-br', 'Português')], LANGUAGE_CODE='pt'):
         assert default_language() == 'pt-br'
+
+
+def test_a_reverse_relation_is_marked():
+    """
+    `reverse` of a relationship whose foreign key or many-to-many field is on the related
+    model: the reverse side of a foreign key (the steps of a task) and of a many-to-many field
+    (the tasks a user watches); never a field of the model itself.
+    """
+    from bazis.contrib.front.contract.resources import _is_reverse
+
+    assert _is_reverse('tasks.Task', 'steps') is True
+    assert _is_reverse('users.User', 'watched_tasks') is True
+    assert _is_reverse('tasks.Task', 'watchers') is False
+    assert _is_reverse('tasks.Task', 'assignee') is False
+    assert _is_reverse('tasks.Task', 'no_such_field') is False
+    assert _is_reverse(None, 'steps') is False

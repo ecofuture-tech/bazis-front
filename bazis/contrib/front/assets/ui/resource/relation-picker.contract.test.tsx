@@ -331,6 +331,18 @@ describe('RelationListPicker', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it('shows the labels of its first 8 items, then their number', async () => {
+    const ids = Array.from({ length: 10 }, (_, index) => `i${String(index)}`);
+    const backend = new Backend().on('GET', ITEMS, listDocument(ids.map((id) => resource(id, { name: id.toUpperCase() }))));
+    renderWithBazis(<ListPicker initial={ids} />, backend);
+    const trigger = screen.getByTestId('field:owners');
+    await waitFor(() => {
+      expect(trigger.textContent).toBe('I0, I1, I2, I3, I4, I5, I6, I7 +2');
+    });
+    // the labels of the others are not read
+    expect(backend.requests()).toEqual([labels(ids.slice(0, 8))]);
+  });
+
   it('is disabled when read-only, an input of the ids without a route for its resource', () => {
     const onChange = vi.fn();
     renderWithBazis(

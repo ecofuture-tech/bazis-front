@@ -34,6 +34,8 @@ export interface ResourceForm<Saved> {
   status: 'loading' | 'error' | 'ready';
   /** The error of loading the schema or the item (403, 404, ...). */
   error: Error | null;
+  /** The JSON:API type of the resource of the schema; empty until it is loaded. */
+  type: string;
   /** The fields of the runtime schema in its order; the user may not change `readOnly` ones. */
   fields: readonly FormField[];
   /**
@@ -202,6 +204,7 @@ export function useResourceForm(
   return {
     status: error ? 'error' : loading ? 'loading' : 'ready',
     error,
+    type: resource?.type ?? '',
     fields,
     values,
     setValue: (name, value) => {

@@ -633,6 +633,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S014` | error | a value of the filter of a list does not fit the type of its field in the contract, or its highlight is not by a boolean field or has no label |
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
+| `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -817,7 +818,7 @@ differ from the backend; `--check` does the same in CI.
 
 ```json
 {
-  "format": 3,
+  "format": 4,
   "generated_by": {"bazis": "2.5.0", "bazis-front": "0.1.0", "bazis-permit": "2.4.1"},
   "openapi_hash": "sha256:…",
   "project": {
@@ -874,7 +875,11 @@ differ from the backend; `--check` does the same in CI.
   `fields` are the attributes and relationships of the item response: `type` (and
   `format`) of an attribute (`format: point` for a `PointField` of the model, whose GeoJSON
   object is that of any geometry), `relation` (the JSON:API type) and `many` of a
-  relationship;
+  relationship, and `reverse: true` for one whose foreign key or many-to-many field is on
+  the related model (the steps of a task, the tasks a user watches by the `related_name`):
+  written in a create or an update, the core sets it to the items sent and deletes the
+  unlinked items of a reverse foreign key that is not null, so a form edits it only when it
+  names it;
   `filter` and `order` are the labels for `filter` and `sort`, absent when the field cannot
   be filtered or sorted: they are those the core takes (bazis 2.9), the fields of the LIST
   schema of the route set that can filter or order (`query_fields`), so a field of the item
@@ -1387,7 +1392,8 @@ bazis-users: a user with names is `Ann Lee`, one without them his username), `ti
 (the start of a long one). Show these attributes in the LIST schema of the related route
 set (the user route set of bazis-users shows the names), and give it `search_fields` that
 cover them (`['username', 'first_name', 'last_name']`: every word of a search is in one of
-the fields): the pickers and the scenarios find an item by its label. A name that the
+the fields; `check` warns of a picker whose search does not cover them, S017): the pickers
+and the scenarios find an item by its label. A name that the
 model computes is the field `full_name` of its route set (`@calc_property`, "Calculated
 fields" of the guide of the core), never a label made in the frontend. The label as a text (a parameter of a message, `t('booking.of', {name})`) is
 `itemLabel` of the item of `useRelatedItem(ROUTES[type], id)`.
@@ -1404,7 +1410,14 @@ removes every item), the labels of the items on its button. The form sends the
 relationship with all its items, `{data: [{type, id}, …]}` (none: `[]`), with the other
 fields in the create or the update, and the backend sets it to these in the same
 transaction (`validate_item` sees them; optional with `blank=True` on the model, required
-otherwise; read-only when the user may not change it). Name the field in the `fields` of
+otherwise; read-only when the user may not change it). The relationship is sent only when
+the user changed it, and then whole, as the user saw it when the form opened: as for any
+other field the last save wins (an item linked meanwhile by someone else is removed by it);
+the items the user may not view are in the document all the same (their ids on the button)
+and are kept. The button shows the labels of the first 8 items, then `+N`. A reverse
+relationship (`reverse` in the contract: the foreign key on the related model, such as the
+steps of a task) is left out of a form without `fields`: the core deletes the related items
+that it unlinks; a form edits it only when its `fields` name it. Name the field in the `fields` of
 the form of the spec, and fill it in the scenarios with the labels of its items:
 `fill: {interviewers: [Ann Lee, Bob Stone]}` replaces those it had, `[]` removes them all.
 A form of your own takes the ids of the items as the value of the field
@@ -2618,6 +2631,20 @@ are replaced without conflicts; wrap them in the product code instead.
 - `RelatedList` requires `itemPath`, the route set of the item of the card
   (`itemPath={<the path of the ResourceCard>}`): with it a related list placed after the card
   also reads the card again after an add, not only one in its `children`.
+- The label of a related item is its display name before its identifiers (see "The label of
+  an item"): a user with a first and a last name is `Ann Lee`, no longer his username, an
+  item with `full_name` or `name` is shown by it, no longer by its e-mail. Change the
+  scenarios that fill or find (`open_item`) a related item by its username or its e-mail to
+  its name, give the test users of `e2e_data` the names the scenarios use, and add the
+  fields of the label (`first_name`, `last_name`, `full_name`, `name`) to `search_fields` of
+  the related route set, as `check` says (S017). `contract.json` is of format 4 (`reverse`):
+  export the contract again.
+- `ResourceForm` without `fields` shows and sends the to-many relationships of its schema
+  (`RelationListPicker`; not the reverse ones): a section of the screen that changed the
+  same relationship with `useRelationship` next to the form now repeats it. Remove the
+  section (or name the fields of the form without the relationship), and change the
+  scenarios that filled it in the section to fill it in the form (`fill: {field: [<label>,
+  …]}`).
 - The template formats its code with the prettier of its `package.json` (`npm run format`,
   see [The frontend](#the-frontend)): `update` merges its files formatted, so a file of the
   template that the product changed (`src/app/router.tsx`: the props of `AppShell`) may get a
@@ -3059,6 +3086,7 @@ Its props, `BazisProviderProps`:
 
 - `status: 'loading' | 'error' | 'ready'`: `loading` until the schema (and the item) are loaded, `error` if they failed.
 - `error: Error | null`: The error of loading the schema or the item (403, 404, ...).
+- `type: string`: The JSON:API type of the resource of the schema; empty until it is loaded.
 - `fields: readonly FormField[]`: The fields of the runtime schema in its order; the user may not change `readOnly` ones.
 - `values: Readonly<Record<string, unknown>>`: The value of every field: the value of an attribute, the id of the related item of a to-one relationship (null for none), the ids of the related items of a to-many one (an array).
 - `setValue(name: string, value: unknown): void`
@@ -4001,6 +4029,10 @@ Its props, `FieldInputProps`:
 
 `isNumeric(field: FormField | undefined): boolean`: Whether a field is a number: aligned to the right, with figures of the same width.
 
+#### isReverse
+
+`isReverse(type: string, name: string): boolean`: Whether a relationship of a resource is a reverse one (`reverse` of its field in the contract): its foreign key or many-to-many field is on the related model, and the core sets it to the items of a create or an update, deleting the unlinked items of a foreign key that is not null.
+
 #### itemLabel
 
 `itemLabel(resource: ResourceObject): string`: The label of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first and the last name, `title`, `username`, `email`, `slug`, `code`), or its id.
@@ -4205,7 +4237,7 @@ Its props, `FileViewProps`:
 
 #### RelationListPicker
 
-`RelationListPicker(props: RelationListPickerProps): Element`: The picker of the related items of a to-many relationship: a button with the labels of the items (`role="combobox"`, the marks given to it) that opens the list of the related resource (`aria-multiselectable`) as `RelationPicker` does; a click or Enter adds or removes an item and keeps the list open, the option with the placeholder (`data-value=""`) removes them all, Escape and Tab close it.
+`RelationListPicker(props: RelationListPickerProps): Element`: The picker of the related items of a to-many relationship: a button with the labels of the items (`role="combobox"`, the marks given to it) that opens the list of the related resource (`aria-multiselectable`) as `RelationPicker` does (the labels of the first 8 items, then `+N`, the others not read); a click or Enter adds or removes an item and keeps the list open, the option with the placeholder (`data-value=""`) removes them all, Escape and Tab close it.
 
 
 Its props, `RelationListPickerProps`:
@@ -4347,7 +4379,7 @@ Its props, `ResourceFormProps`:
 
 - either: `path: CreatePath`; `id?: undefined`
 - or: `path: UpdatePath`; `id: string`
-- `fields?: readonly string[]`: The fields, in this order (those the runtime schema does not have are left out); by default every field of the schema but the `fixed` ones.
+- `fields?: readonly string[]`: The fields, in this order (those the runtime schema does not have are left out); by default every field of the schema but the `fixed` ones and the reverse relationships (`isReverse`: the core deletes the unlinked items of a reverse foreign key).
 - `fixed?: FixedValues`: The values of fields that the screen sets and the user does not change (`useResourceForm` `fixed`): the item of a card that a related item is added to, `{request: id}`.
 - `onSaved?: (saved: SavedDocument) => void`: Called with the saved document.
 - `onCancel?: () => void`: Shows a cancel button (`action:cancel`); the changes are dropped.

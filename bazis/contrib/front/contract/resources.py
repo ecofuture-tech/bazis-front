@@ -29,6 +29,7 @@ import pydoc
 from django.apps import apps
 from django.contrib.gis.db.models import PointField
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import ForeignObjectRel
 
 from bazis.core.introspect import models_info
 from bazis.core.routes_abstract.jsonapi import JsonapiRouteBase
@@ -147,7 +148,12 @@ def _scope(route_cls) -> QueryScope | None:
 def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, model: str | None) -> dict:
     """
     The attributes and relationships of the resource in the response of the item route
-    (else of the list route): `{name: {type[, format] | relation, many[, filter][, order]}}`.
+    (else of the list route): `{name: {type[, format] | relation, many[, reverse][, filter][,
+    order]}}`. `reverse: true` is a relation of the model whose foreign key or many-to-many
+    field is on the other model (the reverse side of a foreign key or of a many-to-many
+    field, by its `related_name`): written in a create or an update, the core sets it to the
+    items of the document, and deletes the unlinked items of a reverse foreign key that is not
+    null.
     `filter` and `order` are the labels of the field in `filter` and `sort` (the
     `filterLabel` and `orderLabel` of the schema), absent when the scope of the route set
     does not take them (a field the LIST schema does not have, or cannot filter or order
@@ -178,6 +184,8 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, mod
         identifiers = _alternatives(openapi, data['items'] if many else data)
         types = sorted({it.get('properties', {}).get('type', {}).get('default') for it in identifiers} - {None})
         fields[name] = {'relation': types[0] if len(types) == 1 else types, 'many': many}
+        if _is_reverse(model, prop.get('filterLabel', name)):
+            fields[name]['reverse'] = True
         fields[name].update(_labels(prop, scope))
     return fields
 
@@ -188,6 +196,16 @@ def _is_point(model: str | None, name: str) -> bool:
         return False
     try:
         return isinstance(apps.get_model(model)._meta.get_field(name), PointField)
+    except FieldDoesNotExist:
+        return False
+
+
+def _is_reverse(model: str | None, name: str) -> bool:
+    """Whether the relation of the model of a relationship (its source) is a reverse one."""
+    if model is None:
+        return False
+    try:
+        return isinstance(apps.get_model(model)._meta.get_field(name), ForeignObjectRel)
     except FieldDoesNotExist:
         return False
 

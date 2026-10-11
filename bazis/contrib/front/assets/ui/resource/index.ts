@@ -23,6 +23,7 @@ export {
   hasSearch,
   isLongText,
   isNumeric,
+  isReverse,
   itemLabel,
   permitted,
   routeOf,

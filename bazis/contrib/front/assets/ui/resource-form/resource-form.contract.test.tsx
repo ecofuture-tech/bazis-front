@@ -20,10 +20,25 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type * as Contract from '@/bazis/generated/contract';
+
 import { Screen } from '@/bazis/ui/app-shell';
 import { FilesProvider, PointsProvider, type FileControlProps } from '@/bazis/ui/resource';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+
+// the contract of the product with the resource of the tests, whose `children` is a reverse
+// relationship (the foreign key on the related model)
+vi.mock('@/bazis/generated/contract', async (importOriginal) => {
+  const contract = await importOriginal<typeof Contract>();
+  return {
+    ...contract,
+    RESOURCES: {
+      ...contract.RESOURCES,
+      'test.item': { fields: { children: { relation: 'test.unknown', many: true, reverse: true } }, search: [] },
+    },
+  };
+});
 
 const schema = runtimeSchema({
   title: { attribute: { type: 'string', maxLength: 100, title: 'Title' }, required: true },
@@ -93,6 +108,24 @@ describe('ResourceForm', () => {
         },
       },
     });
+  });
+
+  it('leaves out a reverse relationship unless its fields name it', async () => {
+    const parent = runtimeSchema({
+      title: { attribute: { type: 'string', maxLength: 100 } },
+      children: { relation: 'test.unknown', many: true },
+      members: { relation: 'test.unknown', many: true },
+    });
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, parent);
+    const { unmount } = renderWithBazis(<ResourceForm path={ITEMS as never} />, backend);
+    expect(await screen.findByTestId('field:members')).toBeTruthy();
+    expect(screen.getByTestId('field:title')).toBeTruthy();
+    // the core deletes the unlinked items of a reverse foreign key: never in a default form
+    expect(screen.queryByTestId('field:children')).toBeNull();
+    unmount();
+
+    renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title', 'children']} />, backend);
+    expect(await screen.findByTestId('field:children')).toBeTruthy();
   });
 
   it('edits a URL field of the core and clears it to the empty string', async () => {

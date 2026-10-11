@@ -193,7 +193,9 @@ the WebSocket of the page in a test.
   values (the parent of an added item) are sent and never changed by the user, their fields
   left out or, named in `fields`, read-only; a to-one
   relationship is a `RelationPicker` (a file field the control of `FilesProvider`), a
-  to-many one a `RelationListPicker`, sent with all its items. A 422 is `state:invalid`: the errors of
+  to-many one a `RelationListPicker`, sent with all its items when it changed (its button
+  shows the labels of the first 8 items, then `+N`); a reverse relationship (`reverse` in
+  the contract, `isReverse`) is left out unless `fields` names it. A 422 is `state:invalid`: the errors of
   the fields at their fields (`error:<name>`), the others in the state (`ApiError.formErrors()`:
   an error of the item as a whole, `/data`, such as an invariant of `validate_item`,
   `ERR_ITEM_INVALID`; of an included item, `form.included_error`; of a field the form does

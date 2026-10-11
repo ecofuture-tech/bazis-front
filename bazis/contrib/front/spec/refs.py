@@ -927,8 +927,9 @@ def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues:
     """
     The pickers of the related items of the fields `(path, name)` of a resource of the
     contract, in a filter of a list (a path in `list`) or in a form (where a file is edited by
-    the file field; a to-many relationship has the picker of its items): S012 when the
-    related resource has no search fields.
+    the file field; a to-many relationship has the picker of its items; a form without
+    `fields` leaves out the reverse relationships): S012 when the related resource has no
+    search fields, S017 when they do not cover the fields of the label of its items.
     """
     resources = contract['project']['resources']
     for path, name in items:
@@ -938,6 +939,8 @@ def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues:
         in_form = path[0] != 'list'
         if target is None or (in_form and is_file(schema, contract)):
             continue
+        if in_form and schema.get('reverse') and 'fields' not in path:
+            continue
         if not target['search']:
             issues.add(
                 doc, path, 'S012',
@@ -946,3 +949,34 @@ def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues:
                 f'List the fields to search in `search_fields` of the route set of `{relation}` '
                 f'(fields of its LIST schema), and {EXPORT_HINT}.',
             )
+        elif missing := [it for it in label_fields(target) if it not in target['search']]:
+            fields = ', '.join(f'`{it}`' for it in missing)
+            issues.add(
+                doc, path, 'S017',
+                f'The picker of `{name}` shows the items of `{relation}` by {fields}, which its '
+                'search does not search: a search by the label shown finds nothing.',
+                f'Add {fields} to `search_fields` of the route set of `{relation}`, and '
+                f'{EXPORT_HINT}.',
+            )
+
+
+#: the attributes that name an item, in the order of `itemLabel` of the components
+#: (`assets/ui/resource/fields.ts`): the first group that the resource has gives its label
+LABEL_FIELDS = (
+    ('name',), ('full_name',), ('first_name', 'last_name'), ('title',), ('username',),
+    ('email',), ('slug',), ('code',),
+)
+
+
+def label_fields(resource: dict) -> list[str]:
+    """
+    The attributes of the contract that give the label of the items of a resource in the
+    pickers (the first group of `LABEL_FIELDS` that it has), those that its LIST schema can
+    filter by (`filter`): a calculated field without it is never a search field.
+    """
+    fields = resource['fields']
+    for group in LABEL_FIELDS:
+        present = [it for it in group if 'type' in fields.get(it, {})]
+        if present:
+            return [it for it in present if 'filter' in fields[it]]
+    return []

@@ -133,7 +133,9 @@ job of CI.
   with `route_search_fields` of the core (bazis 2.10.1) because every list of the OpenAPI
   has the parameter, and the selectors of the permission
   models, `permit.selectors`, those of `get_selector_fields` of bazis-permit, which P020
-  checks).
+  checks; 4: `reverse` of the relationships whose foreign key or many-to-many field is on
+  the related model, read from the model, which a `ResourceForm` without `fields` leaves
+  out).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the

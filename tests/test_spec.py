@@ -521,6 +521,29 @@ CASES = [
         [('S016', f'{LIST}#/list/filters/4'), ('S016', f'{LIST}#/list/map/field')],
     ),
     (
+        'S017',
+        # the users are searched by their username only, and shown by their names: the pickers
+        # of the assignee (a filter, a form, the card) and of the watchers (a form, the card)
+        {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=['username', 'last_name'])},
+        [
+            ('S017', f'{DRAFTS}#/list/filters/0'),
+            ('S017', f'{CARD}#/card/sections/0/fields/2'),
+            ('S017', f'{CARD}#/card/sections/0/fields/3'),
+            ('S017', f'{LIST}#/list/filters/1'),
+            ('S017', f'{LIST}#/actions/0/fields/1'),
+            ('S017', f'{LIST}#/actions/0/fields/3'),
+        ],
+    ),
+    (
+        'S017',
+        # a label that the LIST schema does not filter by (a calculated field) is not a search
+        # field: not reported
+        {CONTRACT: lambda d: [d['project']['resources']['users.user']['fields'].update(
+                                  full_name={'type': 'string'}),
+                              d['project']['resources']['users.user'].update(search=['username'])]},
+        [],
+    ),
+    (
         'P013',
         # a point is not any JSON: the contract reads it from the model
         {PRODUCT: lambda d: task(d)['fields'][6].update(type='json')},
