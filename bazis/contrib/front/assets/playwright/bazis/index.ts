@@ -27,11 +27,11 @@ import { CAPABILITIES } from '@/bazis/generated/contract';
 
 /**
  * The part of the specs that the helpers read, `PRODUCT` of `e2e/generated/product.ts`: the
- * test user of each role of spec/product.yaml (`test_user`, null without one) and the route
- * of each screen of spec/screens/.
+ * test user of each role of spec/product.yaml (`test_user`, null without one; `anonymous`:
+ * the users who do not log in) and the route of each screen of spec/screens/.
  */
 export interface Product {
-  readonly roles: Readonly<Record<string, { readonly username: string | null }>>;
+  readonly roles: Readonly<Record<string, { readonly username: string | null; readonly anonymous?: boolean }>>;
   readonly screens: Readonly<Record<string, { readonly route: string }>>;
 }
 
@@ -495,7 +495,7 @@ export async function stubForeignImages(page: Page): Promise<void> {
  * Opens the application as the test user of the role (`test_user` of spec/product.yaml,
  * the password of the environment variable E2E_PASSWORD) through the login screen, the images
  * of other origins stubbed (`stubForeignImages`). Without bazis-users there is no login: the
- * application is open.
+ * application is open; an anonymous role (`anonymous` of the role) does not log in either.
  */
 export async function loginAs<P extends Product>(page: Page, product: P, role: Role<P>): Promise<App<P>> {
   await stubForeignImages(page);
@@ -503,6 +503,7 @@ export async function loginAs<P extends Product>(page: Page, product: P, role: R
   if (CAPABILITIES.users === null) return app;
   const user = product.roles[role];
   if (user === undefined) throw new Error(`The role ${role} is not in the specs.`);
+  if (user.anonymous === true) return app;
   const { username } = user;
   if (username === null) {
     throw new Error(`The role ${role} has no test_user in spec/product.yaml: the test cannot log in.`);

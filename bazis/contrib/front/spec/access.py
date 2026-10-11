@@ -241,7 +241,8 @@ def check(
     """
     Checks that the permit role of every role of the access of an entity (`refs.Entity`) to
     its resource has the permissions that it grants (P019); a selector that is not one of
-    the resource is a warning (P020). `statusy` is the model of the resource
+    the resource is a warning (P020); an anonymous role grants with `all` only, through a
+    permit role (P030). `statusy` is the model of the resource
     in the statusy section of the contract.
     """
     data = entity.data
@@ -256,7 +257,26 @@ def check(
     roles = {it['slug']: it for it in permit['roles']}
     for role_id, role_access in data['access'].items():
         path = (*entity.path, 'access', role_id)
+        role = product.roles.get(role_id)
+        anonymous = bool(role and role.get('anonymous'))
+        if anonymous and 'permit' not in role:
+            issues.add(
+                doc, path, 'P030',
+                f'The anonymous role `{role_id}` has no permit role: bazis-permit gives the users '
+                'who do not log in only the permissions of the roles `for_anonymous`.',
+                'Give the role a permit role `for_anonymous`, or remove its access (the public '
+                'routes and actions need none).',
+            )
+            continue
         for selector_path, selector in selectors(role_access):
+            if anonymous:
+                issues.add(
+                    doc, (*path, *selector_path), 'P030',
+                    f'The selector `{selector}` of the anonymous role `{role_id}` matches nothing: '
+                    'a user who does not log in matches no selector but `all` (bazis-permit).',
+                    'Grant the anonymous role `all`, or remove the grant.',
+                )
+                continue
             if problem := selector_problem(selector, data['resource'], contract):
                 issues.add(
                     doc, (*path, *selector_path), 'P020',
@@ -267,7 +287,6 @@ def check(
                     'relation at the end of a path of relations (`parent__author`); check the '
                     f'names against the `selectors` of the section `permit`, and {EXPORT_HINT}.',
                 )
-        role = product.roles.get(role_id)
         permit_role = roles.get(role['permit']) if role else None
         if permit_role is None:
             # an unknown role (P004) or permit role (P018) is reported with the role

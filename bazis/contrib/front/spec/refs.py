@@ -330,14 +330,26 @@ def _check_roles(doc: Document, product: Product, contract: dict, issues: Issues
             f'Install bazis-permit with its app in BS_INSTALLED_APPS, and {EXPORT_HINT}.',
         )
         return
-    slugs = {it['slug'] for it in permit['roles']}
+    roles = {it['slug']: it for it in permit['roles']}
     for i, role in enumerate(doc.data['roles']):
-        if role['permit'] not in slugs:
+        if 'permit' not in role:
+            # an anonymous role of the public routes and actions only (the schema)
+            continue
+        if role['permit'] not in roles:
             issues.add(
                 doc, ('roles', i, 'permit'), 'P018',
                 f'The permit role `{role["permit"]}` of the role `{role["id"]}` is not in the contract.',
                 f'Create the Role `{role["permit"]}` of bazis-permit ({DECLARE_ROLES}), migrate, '
                 f'and {EXPORT_HINT}.',
+            )
+        elif role.get('anonymous') and not roles[role['permit']].get('for_anonymous'):
+            issues.add(
+                doc, ('roles', i, 'permit'), 'P030',
+                f'The permit role `{role["permit"]}` of the anonymous role `{role["id"]}` is not a '
+                'role for anonymous users: bazis-permit gives the users who do not log in only '
+                'the permissions of the roles `for_anonymous`.',
+                f'Declare the Role `{role["permit"]}` with `for_anonymous=True` ({DECLARE_ROLES}), '
+                f'migrate, and {EXPORT_HINT}; or name a role for anonymous users.',
             )
 
 

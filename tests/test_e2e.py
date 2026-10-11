@@ -306,6 +306,21 @@ def test_the_product_module():
     assert text.endswith('} as const;\n')
 
 
+def test_an_anonymous_role_does_not_log_in(tmp_path):
+    """The product module marks an anonymous role; its scenarios open the application with loginAs as the others."""
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+
+    def anonymous(data):
+        data['roles'][1].pop('test_user')
+        data['roles'][1]['anonymous'] = True
+
+    edit_product(tmp_path, anonymous)
+    files = rendered(tmp_path)
+    assert '    viewer: {\n      anonymous: true,\n      username: null,\n    },\n' in files[e2e.PRODUCT_TS]
+    assert '    manager: {\n      username: "manager",\n    },\n' in files[e2e.PRODUCT_TS]
+    assert any("loginAs(page, PRODUCT, 'viewer')" in text for text in files.values())
+
+
 @pytest.mark.django_db
 def test_e2e_writes_the_tests_and_the_lock(root):
     out = generate()

@@ -83,15 +83,19 @@
     "role": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "permit"],
+      "required": ["id"],
       "properties": {
         "id": {"$ref": "#/$defs/id"},
         "permit": {
-          "description": "The slug of the permit role (`Role.slug` of bazis-permit).",
+          "description": "The slug of the permit role (`Role.slug` of bazis-permit); for an anonymous role, a role `for_anonymous`, or none when the guests use only public routes and actions.",
           "type": "string",
           "pattern": "^[-a-zA-Z0-9_]+$"
         },
         "title": {"type": "string"},
+        "anonymous": {
+          "description": "The users who do not log in (the guests of a public site): bazis-permit gives them the permissions of its roles `for_anonymous`; the end-to-end tests of the scenarios of the role log in as nobody.",
+          "type": "boolean"
+        },
         "test_user": {
           "description": "The user the end-to-end tests log in as.",
           "type": "object",
@@ -99,7 +103,10 @@
           "required": ["username"],
           "properties": {"username": {"type": "string", "minLength": 1}}
         }
-      }
+      },
+      "if": {"required": ["anonymous"], "properties": {"anonymous": {"const": true}}},
+      "then": {"not": {"required": ["test_user"]}},
+      "else": {"required": ["permit"]}
     },
     "field": {
       "description": "An attribute (`type`) or a relationship (`relation`: the id of the entity it references, `many`) of the resource.",

@@ -396,6 +396,20 @@ CASES = [
         {PRODUCT: lambda d: d.update(languages=['en', 'de'], language='ru')},
         [('P029', f'{PRODUCT}#/language'), ('P029', f'{PRODUCT}#/languages'), ('P029', f'{PRODUCT}#/language')],
     ),
+    (
+        'P030',
+        # anonymous roles: one whose permit role is not for anonymous users (`guest`), one
+        # without a permit role that has access, one with a selector of a user
+        {PRODUCT: lambda d: [d['roles'].extend([{'id': 'visitor', 'permit': 'guest', 'anonymous': True},
+                                                {'id': 'walker', 'anonymous': True},
+                                                {'id': 'public', 'permit': 'viewer', 'anonymous': True}]),
+                             task(d)['access'].update(walker={'view': 'all'}, public={'view': 'assignee'})]},
+        [
+            ('P030', f'{PRODUCT}#/roles/2/permit'),
+            ('P030', f'{PRODUCT}#/entities/0/access/walker'),
+            ('P030', f'{PRODUCT}#/entities/0/access/public/view'),
+        ],
+    ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
     (
@@ -584,6 +598,28 @@ def test_issues(contract, code, edits, expected, monkeypatch):
             DECLARED_IN[code] in it.hint and 'data migration' in it.hint
             for it in found if it.code == code
         )
+
+
+@pytest.mark.django_db
+def test_an_anonymous_role_logs_in_as_nobody(contract):
+    """
+    The users who do not log in (`anonymous: true`, the permit role `viewer` of the sample is
+    for anonymous users): no `test_user` and no P025 for its scenarios; the schema refuses a
+    test user of an anonymous role and a role that is neither anonymous nor of a permit role.
+    """
+    root = contract.parent.parent
+
+    def anonymous(data):
+        data['roles'][1].pop('test_user')
+        data['roles'][1]['anonymous'] = True
+
+    edit(root, PRODUCT, anonymous)
+    assert issues(root) == []
+    edit(root, PRODUCT, lambda d: d['roles'][1].update(test_user={'username': 'viewer'}))
+    assert issues(root) == [('P002', f'{PRODUCT}#/roles/1')]
+    edit(root, PRODUCT, lambda d: [d['roles'][1].pop('test_user'), d['roles'][1].pop('anonymous'),
+                                   d['roles'][1].pop('permit')])
+    assert ('P002', f'{PRODUCT}#/roles/1') in issues(root)
 
 
 def layer_of(file: str) -> str:

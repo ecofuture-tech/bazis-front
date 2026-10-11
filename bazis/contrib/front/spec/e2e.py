@@ -149,17 +149,19 @@ def render_scenario(scenario: dict, steps: list[Step]) -> str:
 
 
 def render_product(specs: Specs) -> str:
-    roles = {
-        role['id']: {'username': role.get('test_user', {}).get('username')}
-        for role in specs.product.get('roles', [])
-    }
+    roles = {}
+    for role in specs.product.get('roles', []):
+        roles[role['id']] = {'username': role.get('test_user', {}).get('username')}
+        if role.get('anonymous'):
+            roles[role['id']]['anonymous'] = True
     screens = {screen_id: {'route': screen['route']} for screen_id, screen in specs.screens.items()}
     return '\n'.join([
         header(f'{SPEC_DIR}/'),
         constant(
             f'What the helpers of e2e/bazis/ read of the specs: the user that a test logs in as '
-            f'for each role of {SPEC_DIR}/product.yaml (`test_user`, null without one), and the '
-            f'route of each screen of {SPEC_DIR}/screens/.',
+            f'for each role of {SPEC_DIR}/product.yaml (`test_user`, null without one; '
+            f'`anonymous`: none, the test does not log in), and the route of each screen of '
+            f'{SPEC_DIR}/screens/.',
             'PRODUCT',
             {'roles': roles, 'screens': screens},
         ),

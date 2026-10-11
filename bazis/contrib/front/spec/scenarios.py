@@ -103,13 +103,14 @@ def check(doc: Document, product: Product | None, screens: dict, issues: Issues)
                 doc, (*path, 'role'), 'P004', f'The role `{scenario["role"]}` is not in `roles`.',
                 'Use the id of a role of `roles`.',
             )
-        elif login and 'test_user' not in role:
+        elif login and 'test_user' not in role and not role.get('anonymous'):
             issues.add(
                 doc, (*path, 'role'), 'P025',
                 f'The role `{scenario["role"]}` has no `test_user`: the end-to-end test of the '
                 'scenario cannot log in.',
                 'Give the role `test_user: {username: ...}`, a user of this role that the test '
-                'data of the backend creates with the password of E2E_PASSWORD.',
+                'data of the backend creates with the password of E2E_PASSWORD; or `anonymous: '
+                'true` for the users who do not log in.',
             )
         walked[scenario['id']] = _Scenario(doc, product, screens, scenario, path, issues).run()
     return walked

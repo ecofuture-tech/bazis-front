@@ -734,4 +734,18 @@ test.describe('loginAs', () => {
   test('needs the password', async ({ page }) => {
     await expect(loginAs(page, PRODUCT, 'viewer')).rejects.toThrow('Set E2E_PASSWORD');
   });
+
+  test('does not log in as an anonymous role', async ({ page }) => {
+    // the guests of `anonymous: true`: no login screen, no password; the images still stubbed
+    const product = { ...PRODUCT, roles: { ...PRODUCT.roles, guest: { username: null, anonymous: true } } };
+    // never reached: the stub of loginAs answers first
+    await page.route('https://tile.openstreetmap.org/**', (route) => route.abort());
+    const app = await loginAs(page, product, 'guest');
+    expect(app).toBeInstanceOf(App);
+    expect(page.url()).toBe('about:blank');
+    await show(page, '/map', html('<img id="tile" src="https://tile.openstreetmap.org/1/0/0.png">'));
+    await expect
+      .poll(() => page.locator('#tile').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0))
+      .toBe(true);
+  });
 });

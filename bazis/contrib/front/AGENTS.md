@@ -284,6 +284,9 @@ language: en                         # optional: the code of LANGUAGES of LANGUA
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
+  # the users who do not log in: a role `for_anonymous` of bazis-permit (or none, for the
+  # public routes and actions only), no test user (P030)
+  - {id: guest, permit: visitor, title: Guest, anonymous: true}
 entities:
   - id: task
     resource: tasks.task                 # the JSON:API type in contract.json
@@ -420,8 +423,14 @@ its screen (no `then`), the expectation names no other `screen` (P022), and the 
 fix it and submit again; every other submit saves. When the
 product logs in (`packages` has `users`), the role of a scenario has a `test_user`, the
 user its end-to-end test logs in as (P025) with its password: with bazis-authing, through
-its service `password` (P026). `bazis_front e2e` turns each scenario into a
-Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
+its service `password` (P026). A role of the users who do not log in (the guests of a
+public site, the form of a public action) is `anonymous: true`, without a `test_user`: its
+scenarios log in as nobody. Its permit role is one that bazis-permit gives anonymous users
+(`Role(..., for_anonymous=True)`), or none when they use only the public routes and actions
+(no `access` then); anonymous users match no selector but `all` (P030). Its screens are
+routed outside the screens of a session (see
+[The routes and the navigation](#the-routes-and-the-navigation)). `bazis_front e2e` turns
+each scenario into a Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
 
 ## The specs of the screens and the design
 
@@ -596,11 +605,12 @@ warning there, never blocking `migrate` or `contract`.
 | `P022` | error | a scenario step is not possible on the current screen |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
 | `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
-| `P025` | error | the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`) |
+| `P025` | error | the role of a scenario has no `test_user` and is not `anonymous`, and the product logs in (`packages` has `users`) |
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has neither `notify` nor `ws`) |
 | `P028` | error | `packages` has `ws`, and the contract has no path of the socket: the socket of bazis-ws is not routed where the export sees it (the router module) |
 | `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages` |
+| `P030` | error | an anonymous role is not what bazis-permit gives the users who do not log in: its permit role is not `for_anonymous`, it has `access` without a permit role, or a selector of its access is not `all` |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -1142,6 +1152,13 @@ it again:
 ```tsx
 const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
 ```
+
+The screens of the users who do not log in (an `anonymous` role of the specs) are routes
+outside `RequireSession`, which sends a user without a session to the login: in a layout of
+their own, `AppShell` with their links and `session={null}` (a link to `/login` in its
+`tools`), its `ErrorBoundary` and `Suspense` as in `RequireSession`, and their screens
+read only what the backend gives anonymous users (a 401/403 of another route is the
+`forbidden` state of a screen, never a redirect).
 
 The npm libraries that every page loads (React, TanStack Query, Radix) are chunks of their
 own (`manualChunks` of `vite.config.ts`), so that the chunk of the entry holds the code of the
@@ -1821,7 +1838,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
 
   | Step | Calls |
   |---|---|
-  | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users; the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
+  | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
@@ -4505,9 +4522,9 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 
 #### Product
 
-`interface Product`: The part of the specs that the helpers read, `PRODUCT` of `e2e/generated/product.ts`: the test user of each role of spec/product.yaml (`test_user`, null without one) and the route of each screen of spec/screens/.
+`interface Product`: The part of the specs that the helpers read, `PRODUCT` of `e2e/generated/product.ts`: the test user of each role of spec/product.yaml (`test_user`, null without one; `anonymous`: the users who do not log in) and the route of each screen of spec/screens/.
 
-- `readonly roles: Readonly<Record<string, { readonly username: string | null; }>>`
+- `readonly roles: Readonly<Record<string, { readonly username: string | null; readonly anonymous?: boolean; }>>`
 - `readonly screens: Readonly<Record<string, { readonly route: string; }>>`
 
 #### App
