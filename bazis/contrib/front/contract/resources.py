@@ -235,11 +235,21 @@ def _resolve(openapi: dict, schema: dict) -> dict:
 
 def _alternatives(openapi: dict, schema: dict) -> list[dict]:
     """
-    The alternatives of `anyOf`/`oneOf` other than `null`, resolved.
+    The alternatives of `anyOf`/`oneOf` other than `null`, resolved. A nested union (the
+    `anyOf` of the URL and the empty string of a `URLField` under the `maxLength` of the
+    field) is flattened: its alternatives take the keywords of the union around them.
     """
     schema = _resolve(openapi, schema)
-    items = schema.get('anyOf') or schema.get('oneOf') or [schema]
-    return [_resolve(openapi, it) for it in items if it.get('type') != 'null']
+    items = schema.get('anyOf') or schema.get('oneOf')
+    if not items:
+        return [schema]
+    around = {key: value for key, value in schema.items() if key not in ('anyOf', 'oneOf')}
+    return [
+        {**around, **alternative}
+        for item in items
+        if _resolve(openapi, item).get('type') != 'null'
+        for alternative in _alternatives(openapi, item)
+    ]
 
 
 def _not_null(openapi: dict, schema: dict) -> dict:

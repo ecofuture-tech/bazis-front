@@ -140,6 +140,37 @@ def test_a_point_is_a_point_field_of_the_model():
     assert not _is_point(None, 'location')
 
 
+def test_a_nested_union_is_flattened():
+    """
+    The attribute of a `URLField` with a `max_length` (bazis 2.16): the union of the URL and
+    the empty string under the `maxLength` of the field, nullable. It is a string with the
+    format `uri`, and the alternatives take the keywords around them.
+    """
+    from bazis.contrib.front.contract.resources import _fields, _not_null
+
+    url = {
+        'anyOf': [
+            {'anyOf': [{'type': 'string', 'format': 'uri', 'minLength': 1}, {'type': 'string', 'maxLength': 0}],
+             'maxLength': 200},
+            {'type': 'null'},
+        ],
+        'title': 'Site',
+    }
+    assert _not_null({}, url) == {'type': 'string', 'format': 'uri', 'minLength': 1, 'maxLength': 200, 'title': 'Site'}
+    # an alternative keeps its own keyword over the one around it, a nested `null` is left out
+    nested = {'oneOf': [{'anyOf': [{'type': 'null'}, {'$ref': '#/components/schemas/Empty'}], 'maxLength': 5}]}
+    openapi = {'components': {'schemas': {'Empty': {'type': 'string', 'maxLength': 0}}}}
+    assert _not_null(openapi, nested) == {'type': 'string', 'maxLength': 0}
+
+    resource = {'properties': {'attributes': {'properties': {'site': url, 'name': {'type': 'string'}}}}}
+    openapi = {'components': {'schemas': {}}}
+    operation = {
+        'x-bazis': {'kind': 'item'},
+        'responses': {'200': {'content': {'application/vnd.api+json': {'schema': {'properties': {'data': resource}}}}}},
+    }
+    assert _fields(openapi, [operation], None, None) == {'site': {'type': 'string', 'format': 'uri'}, 'name': {'type': 'string'}}
+
+
 def test_a_resource_is_described_by_the_default_route_of_its_model(sample_app):
     def operation(route_set, action, kind):
         meta = {'resource': 'tasks.task', 'route_set': route_set, 'action': action, 'kind': kind}
