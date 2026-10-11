@@ -13,4 +13,4 @@
 // limitations under the License.
 
 export { NotificationCenter } from './notification-center.js';
-export type { NotificationCenterProps } from './notification-center.js';
+export type { CenterNotification, NotificationCenterProps, NotificationSource } from './notification-center.js';

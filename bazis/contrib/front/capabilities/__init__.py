@@ -60,20 +60,26 @@ CAPABILITIES = {
         'filter of a route restricted to the fields the user sees (2.7)',
     ),
     'statusy': Capability(
-        'bazis-statusy', 'bazis.contrib.statusy', needs_db=True, minimum='2.8.0',
-        needs='the JSON Schemas of the transit payloads with their lazy titles as texts',
+        'bazis-statusy', 'bazis.contrib.statusy', needs_db=True, minimum='2.12.0',
+        needs='the JSON Schemas of the transit payloads with their lazy titles as texts (2.8) '
+        'and the initial status of each model, `Workflow(initial=...)` (2.12)',
     ),
     'uploadable': Capability(
-        'bazis-uploadable', 'bazis.contrib.uploadable', minimum='2.6.0',
-        needs='the files of their author for every route: no route links or includes the file of another user',
+        'bazis-uploadable', 'bazis.contrib.uploadable', minimum='2.7.0',
+        needs='the files of their author for every route: no route links or includes the file of another user '
+        '(2.6), the download route with the access check, `/{id}/download/` (2.7)',
     ),
     'ws': Capability(
         'bazis-ws', 'bazis.contrib.ws', app=False, minimum='2.5.0',
         needs='`{"type": "subscribed"}`, without which the socket of the frontend is never open',
     ),
-    'bg': Capability('bazis-bg', 'bazis.contrib.bg'),
+    'bg': Capability(
+        'bazis-bg', 'bazis.contrib.bg', minimum='2.6.0',
+        needs='the download route of the file of a task, `/{id}/download/`',
+    ),
     'async_background': Capability('bazis-async-background', 'bazis.contrib.async_background'),
     'async_request': Capability('bazis-async-request', 'bazis.contrib.async_request'),
+    'notify': Capability('bazis-notify', 'bazis.contrib.notify'),
 }
 
 

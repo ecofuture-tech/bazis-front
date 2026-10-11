@@ -48,6 +48,8 @@ export interface BgTask {
   outcome: 'success' | 'error' | 'interrupted' | null;
   progress: readonly BgProgress[];
   result: unknown;
+  /** The task has a file (an export), downloaded from `<path><id>/download/` (`useDownload`). */
+  file: boolean;
   started: string | null;
   finished: string | null;
 }
@@ -61,6 +63,7 @@ interface Attributes {
   result?: unknown;
   error?: unknown;
   interrupt?: unknown;
+  file?: unknown;
   dt_start?: unknown;
   dt_finish?: unknown;
 }
@@ -96,6 +99,7 @@ export function bgTask(document: { data: { id: string | number; attributes: unkn
     outcome,
     progress: bgProgress(attributes.expected, attributes.performed),
     result: attributes.result ?? null,
+    file: typeof attributes.file === 'string' && attributes.file !== '',
     started: typeof attributes.dt_start === 'string' ? attributes.dt_start : null,
     finished: typeof attributes.dt_finish === 'string' ? attributes.dt_finish : null,
   };

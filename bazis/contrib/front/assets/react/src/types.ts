@@ -17,6 +17,7 @@
 
 import type {
   BodyOf,
+  DownloadedFile,
   EndpointOf,
   HttpMethod,
   ItemOptions,
@@ -105,6 +106,7 @@ export interface LooseClient {
   transit(path: string, id: string, transit: string, payload?: unknown): Promise<unknown>;
   action(path: string, name: string, body: unknown, options: { method: HttpMethod } & Signal): Promise<unknown>;
   itemAction(path: string, id: string, name: string, body: unknown, options: { method: HttpMethod } & Signal): Promise<unknown>;
+  download(path: string, id: string, options?: Signal): Promise<DownloadedFile>;
 }
 
 export function loose(api: Api): LooseClient {

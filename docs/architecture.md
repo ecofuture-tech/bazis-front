@@ -116,14 +116,18 @@ abort) in `@/bazis/react/uploadable`, the socket of bazis-ws in `@/bazis/react/w
 (`SocketProvider`: one connection a page with the token of the session, sent in its first
 message, reconnected with a backoff and closed by a logout; `useChannel`; `useLiveQueries`,
 which refetches the queries of what a message says changed, and every query after a
-reconnect, since pub/sub keeps nothing; `useNotifications`), the tasks of bazis-bg
+reconnect, since pub/sub keeps nothing; `useNotifications`), the stored notifications of
+bazis-notify in `@/bazis/react/notify` (`useInbox`: its list, unread count, read and clear,
+refetched by `useLiveQueries` on the messages of bazis-notify), the tasks of bazis-bg
 (`useBgTask`, the item of `bg.task` read until it is done) in `@/bazis/react/bg`, and the
 background requests in `@/bazis/react/async` (`useAsyncRequest`, `useAsyncTask`: the result
 read until the task is done, at once when its status comes on the socket). bazis-ws carries
 any JSON: the formats of a change (`{"resource"}` on the common channel, which every user
 session receives: only a hint that the resource changed, never an id or data) and of a notification (`{"action":
 "notification", "title", …}`, to the channel of a user who may see its item) are those of
-bazis-front, which the backend of a product publishes.
+bazis-front, which the backend of a product publishes; bazis-notify sends its own. The
+files of bazis-uploadable and of bazis-bg are read from their download routes with the
+token (`useDownload` of `@/bazis/react`), never from the URL of the media host.
 
 Runtime metadata (schemas, filter fields, permission meta, state actions) is never part of
 the contract: it is requested at run time and cached by TanStack Query. Every query key is
@@ -158,9 +162,10 @@ shared `resource`, which also shows the files of bazis-uploadable) and, with baz
 `status-badge`, `transit-bar` and `status-history` (the current status with its date and
 author: bazis-statusy has no endpoint for the earlier transits), with bazis-uploadable
 `file-field` (the upload of a file field, given to the input of the fields of the forms by
-`FileFieldProvider`), with bazis-ws `notification-center` (a bell, the list of the
-notifications of the session, a toast for each new one) and `live-query` (the live
-refetches and the state of the socket), both in the `tools` of `AppShell`, with bazis-bg
+`FileFieldProvider`), `notification-center` (a bell, the list of the notifications, a
+toast for each new one; its source the stored notifications of bazis-notify or those of the
+socket of bazis-ws in the session) and with bazis-ws `live-query` (the live refetches and
+the state of the socket), both in the `tools` of `AppShell`, with bazis-bg
 `task-progress` and with bazis-async-background `async-result`, and `map` (the items with a
 point on a Leaflet map, and the map of a point field of the forms, given to the input of the
 fields by `MapProvider`, with the tiles of the product). The login form takes the

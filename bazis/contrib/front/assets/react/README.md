@@ -68,7 +68,10 @@ with it too. The template does this in `src/app/providers.tsx`.
 | `SocketProvider({path, token})`, `useSocket()` (ws) | the socket of bazis-ws | `{status, error, retry}`: `idle`, `connecting`, `open`, `rejected`, `unavailable` |
 | `useChannel(handler)` (ws) | | every message of the channels of the session, parsed |
 | `useLiveQueries(routes)` (ws) | refetches | the queries of a resource that a message says changed, of a task of bazis-async-background, and all after a reconnect |
-| `useNotifications()` (ws) | | `{items, unread, markRead, clear}` |
+| `useNotifications()` (ws) | | `{items, unread, markRead(key?), clear}`: received in the session |
+| `useInbox(path, {limit?, poll?})` (notify) | `GET path?page[limit]=50`, `GET path unread_count/`; `PATCH path{id}/` (`read_at`), `POST path read_all/`, `POST path clear/` | `{items, unread, status, error, retry, markRead(key?), markUnread(key), clear}`: the stored notifications (`inboxNotification`), refetched after a change |
+| `useDownload(path)` | `GET path{id}/download/` (`client.download`) | `mutate(id)`: the file saved under its name (`saveFile`) |
+| `useDownloadUrl(path, id)` | `GET path{id}/download/` | the content as an object URL (revoked with the component), null while `id` is null |
 | `useBgTask(path, id)` (bg) | `GET path{id}/` every `BG_POLL_INTERVAL` (2 s) until `done` | `BgTask` (`bgTask(document)`): `state`, `phase`, `outcome`, `progress`, `result`, `started`, `finished` |
 | `useAsyncRequest()` (async) | `method path` with `X-Async-Background` | `mutate({method, path, body})`: `{status: 'queued', taskId}` or `{status: 'done', response}` |
 | `useAsyncTask(resultPath, taskId)` (async) | `GET <result path>?full_response=true` every `ASYNC_POLL_INTERVAL` (2 s) until `completed` or `failed` | `{status, response, done, error}`; `replayedResponse(response)` |
@@ -249,11 +252,13 @@ closes it. Pub/sub keeps nothing, so `useLiveQueries` refetches every query afte
 reconnect that the server took.
 
 The formats that the hooks read (`changedResource`, `notificationOf`,
-`backgroundStatusOf`): `{"resource": "<type>", "id"?: "<id>"}` (an item or a resource
-changed; on the common channel of the user sessions, only a hint, the resource
-only), `{"action": "notification", "title", "text"?, "resource"?, "id"?}` (a
-notification, which also says its item changed) and `{"action": "async_bg", "task_id",
-"status"}` of bazis-async-background. `useNotifications` keeps the notifications received
+`notificationsChanged`, `backgroundStatusOf`): `{"resource": "<type>", "id"?: "<id>"}` (an
+item or a resource changed; on the common channel of the user sessions, only a hint, the
+resource only), `{"action": "notification", "title", "text"?, "resource"?, "id"?}` (a
+notification without bazis-notify, which also says its item changed),
+`{"action": "notification_created" | "notifications_changed", …}` of bazis-notify (its
+stored notifications changed: `useLiveQueries` refetches the resource `notify.notification`,
+`useInbox`) and `{"action": "async_bg", "task_id", "status"}` of bazis-async-background. `useNotifications` keeps the notifications received
 in the session (`NOTIFICATIONS_KEPT`, 50), each with a `key` unique in the page; they are
 dropped when the session changes.
 

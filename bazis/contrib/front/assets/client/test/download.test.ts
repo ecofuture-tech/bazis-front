@@ -1,0 +1,72 @@
+// Copyright 2026 EcoFuture Technology Services LLC and contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import { describe, expect, it, vi } from 'vitest';
+
+import { ApiError, createClient, dispositionName } from '../src/index.js';
+
+const BASE = 'https://api.test';
+const FILES = '/api/v1/uploadable/file_upload/';
+
+function setup(response: Response, token?: string) {
+  const calls: { url: string; init: RequestInit }[] = [];
+  const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
+    return Promise.resolve(response);
+  });
+  // the route sets of the fixture have no download route: the paths are plain strings here
+  const api = createClient({ baseUrl: BASE, fetch, token, language: 'ru' }) as unknown as {
+    download: (path: string, id: string, options?: { signal?: AbortSignal }) => Promise<{ blob: Blob; name: string | null }>;
+  };
+  return { api, calls };
+}
+
+describe('download', () => {
+  it('reads the file of an item with the token and the name of Content-Disposition', async () => {
+    const response = new Response('PDF', {
+      headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': "attachment; filename*=utf-8''%D0%B1%D0%B5%D0%B9%D0%B4%D0%B6.pdf" },
+    });
+    const { api, calls } = setup(response, 'jwt');
+    const file = await api.download(FILES, 'a/1');
+    expect(file.name).toBe('бейдж.pdf');
+    expect(await file.blob.text()).toBe('PDF');
+    // no Accept of JSON:API: the response is the file; the language as on every request
+    expect(calls).toEqual([
+      { url: `${BASE}${FILES}a%2F1/download/`, init: { headers: { 'Accept-Language': 'ru', Authorization: 'Bearer jwt' } } },
+    ]);
+  });
+
+  it('rejects with the ApiError of the backend', async () => {
+    const body = JSON.stringify({ errors: [{ status: 404, detail: 'Item not found' }] });
+    const { api } = setup(new Response(body, { status: 404 }));
+    const error = await api.download(FILES, '2').catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(404);
+  });
+});
+
+describe('dispositionName', () => {
+  it.each([
+    ['attachment; filename="brief.txt"', 'brief.txt'],
+    ['inline; filename="a \\"quoted\\" name.png"', 'a "quoted" name.png'],
+    ['attachment; filename=plain.csv', 'plain.csv'],
+    // the encoded name of a name that is not ASCII wins
+    ["attachment; filename=\"fallback.pdf\"; filename*=UTF-8''%C3%A9t%C3%A9.pdf", 'été.pdf'],
+    ["attachment; filename*=utf-8''%E0%A4%A", null],
+    ['attachment', null],
+    [null, null],
+  ])('reads the name of %j', (header, name) => {
+    expect(dispositionName(header)).toBe(name);
+  });
+});

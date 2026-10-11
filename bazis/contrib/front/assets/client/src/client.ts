@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { dispositionName, type DownloadedFile } from './download.js';
 import { ApiError, errorFromResponse } from './errors.js';
 import type { Filter } from './filter.js';
 import type {
@@ -198,6 +199,18 @@ export interface BazisClient<Paths> {
   ): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>>;
 
   /**
+   * Reads a file from the download route of an item, `<path><id>/download/` (bazis-uploadable
+   * `FileUploadRouteSet`, bazis-bg `BgRoute`), with the token: its content and the name of
+   * `Content-Disposition`. An error status is an `ApiError` (404: a file the user does not
+   * see, or missing from the storage). `saveFile` saves it.
+   */
+  download(
+    path: RouteSetWith<Paths, '{item_id}/download/', 'get'>,
+    id: string,
+    options?: RequestOptions,
+  ): Promise<DownloadedFile>;
+
+  /**
    * Gets a token from the token endpoint of bazis-users (an OAuth2 password form). The
    * client does not keep it: return it from the `token` option.
    */
@@ -324,6 +337,13 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
     return current ? { 'Accept-Language': current } : {};
   }
 
+  /** The language and, unless `anonymous`, the bearer token of a request. */
+  async function sessionHeaders(anonymous = false): Promise<Record<string, string>> {
+    const headers = languageHeaders();
+    const token = anonymous ? null : await authorization();
+    return token ? { ...headers, Authorization: `Bearer ${token}` } : headers;
+  }
+
   function abortError(signal: AbortSignal): Error {
     const reason: unknown = signal.reason;
     return reason instanceof Error ? reason : new DOMException('The request was aborted.', 'AbortError');
@@ -334,7 +354,7 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
     file: Blob,
     { name, onProgress, signal }: UploadOptions = {},
   ): Promise<unknown> {
-    const token = await authorization();
+    const headers = await sessionHeaders();
     return new Promise((resolve, reject) => {
       if (signal?.aborted) {
         reject(abortError(signal));
@@ -346,8 +366,7 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       };
       xhr.open('POST', `${baseUrl}${path}`);
       xhr.setRequestHeader('Accept', ACCEPT);
-      for (const [name, value] of Object.entries(languageHeaders())) xhr.setRequestHeader(name, value);
-      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value);
       xhr.upload.onprogress = (event) => {
         onProgress?.({ loaded: event.loaded, total: event.lengthComputable ? event.total : file.size });
       };
@@ -437,11 +456,7 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
 
   /** A request: the status and the body of a successful response (undefined for 204). */
   async function request(method: string, path: string, init: Send = {}): Promise<{ status: number; body: unknown }> {
-    const headers: Record<string, string> = { Accept: ACCEPT, ...languageHeaders(), ...init.headers };
-    if (!init.anonymous) {
-      const token = await authorization();
-      if (token) headers.Authorization = `Bearer ${token}`;
-    }
+    const headers: Record<string, string> = { Accept: ACCEPT, ...(await sessionHeaders(init.anonymous)), ...init.headers };
     if (init.contentType) headers['Content-Type'] = init.contentType;
 
     const response = await fetcher(`${baseUrl}${path}${queryString(init.query)}`, {
@@ -550,6 +565,15 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       body?: unknown,
       { method = 'post', signal }: ActionOptions<HttpMethod> = {},
     ) => action(method, `${item(path, id)}${name}/`, body, signal),
+
+    download: async (path: string, id: string, { signal }: RequestOptions = {}): Promise<DownloadedFile> => {
+      const response = await fetcher(`${baseUrl}${item(path, id)}download/`, {
+        headers: await sessionHeaders(),
+        ...(signal ? { signal } : {}),
+      });
+      if (!response.ok) throw errorFromResponse(response.status, response.statusText, await response.text());
+      return { blob: await response.blob(), name: dispositionName(response.headers.get('Content-Disposition')) };
+    },
 
     login: async (
       { username, password }: { username: string; password: string },

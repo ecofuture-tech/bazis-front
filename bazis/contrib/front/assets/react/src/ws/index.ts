@@ -13,7 +13,7 @@
 // limitations under the License.
 
 export { useLiveQueries } from './live.js';
-export { backgroundStatusOf, changedResource, notificationOf } from './messages.js';
+export { backgroundStatusOf, changedResource, notificationOf, notificationsChanged, NOTIFY_RESOURCE } from './messages.js';
 export type { Notification } from './messages.js';
 export {
   NOTIFICATIONS_KEPT,

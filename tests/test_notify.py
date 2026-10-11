@@ -13,11 +13,12 @@
 # limitations under the License.
 
 """
-The messages of the sample on the socket of bazis-ws (`publish_changed` and `notify` of
-`bazis.contrib.ws.messages`, called by `tasks.models.Task`): the common channel, which every
-user session receives, carries only the resource that changed, never the id of an item; the
-notification of an item goes to the channel of its assignee, in the language of his
-profile; a publication that fails does not fail a change that is committed.
+The notifications and the messages of the sample (`tasks.models.Task`): the common channel of
+bazis-ws, which every user session receives, carries only the resource that changed
+(`publish_changed`), never the id of an item; the assignee of a finished task gets a stored
+notification of bazis-notify, in the language of his profile, delivered once on his channel
+(`notification_created`, which the frontend reads, and no other message of it); a
+publication that fails does not fail a change that is committed.
 """
 
 import json
@@ -29,6 +30,7 @@ from bazis.contrib.ws import COMMON_CHANNEL
 
 
 TASKS = '/api/v1/tasks/task/'
+NOTIFICATIONS = '/api/v1/notify/notification/'
 
 
 class Published:
@@ -83,18 +85,29 @@ def test_the_common_channel_has_no_id_and_the_notification_goes_to_the_assignee(
         'relationships': {'assignee': {'data': {'type': 'users.user', 'id': str(manager.id)}}},
     }})
     assert created.status_code == 201, created.text
-    item = f'{TASKS}{created.json()["data"]["id"]}/'
+    task_id = created.json()['data']['id']
+    item = f'{TASKS}{task_id}/'
     assert client.post(f'{item}transit/', json_data={'transit': 'start'}).status_code == 200
     finished = client.post(f'{item}transit/', json_data={'transit': 'finish', 'payload': {'report': 'Done'}})
     assert finished.status_code == 200, finished.text
 
     common = [message for channel, message in published.messages if channel == COMMON_CHANNEL]
     assert common and all(message == {'resource': 'tasks.task'} for message in common)
+    # the notification, stored and listed by the inbox API of bazis-notify
+    listed = client.get(NOTIFICATIONS)
+    assert listed.status_code == 200, listed.text
+    stored, = listed.json()['data']
+    assert stored['attributes'].items() >= {
+        'notification_type': 'tasks.finished', 'title': title, 'body': 'Notify',
+        'action': {'route': f'/tasks/{task_id}'}, 'is_read': False, 'severity': 'success',
+    }.items()
+    # delivered once on the channel of the assignee: no message of bazis-ws besides it
     personal = [(channel, message) for channel, message in published.messages if channel != COMMON_CHANNEL]
-    assert personal == [(manager.user_channel, {
-        'action': 'notification', 'title': title, 'text': 'Notify', 'resource': 'tasks.task',
-        'id': created.json()['data']['id'],
-    })]
+    assert [(channel, message['action']) for channel, message in personal] == [
+        (manager.user_channel, 'notification_created'),
+    ]
+    assert personal[0][1]['notification']['id'] == stored['id']
+    assert personal[0][1]['unread_count'] == 1
 
 
 @pytest.mark.django_db(transaction=True)

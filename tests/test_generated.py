@@ -171,6 +171,7 @@ def test_contract_ts_is_rendered_from_the_contract():
         '{ readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; '
         'readonly logout_url: string | null; readonly token_param: string } | null;',
         '  readonly bg: { readonly resource: string | null } | null;',
+        '  readonly notify: { readonly resource: string | null } | null;',
         '  readonly permit: { readonly roles: typeof ROLES; readonly selectors: '
         '{ readonly [resource: string]: { readonly [selector: string]: string } } } | null;',
         '  readonly statusy: { readonly models: typeof TRANSITS } | null;',
@@ -185,6 +186,7 @@ def test_contract_ts_is_rendered_from_the_contract():
         '  async_request: null,',
         '  authing: null,',
         '  bg: null,',
+        '  notify: null,',
         '  permit: {',
         '    roles: ROLES,',
         '    selectors: {',
@@ -226,7 +228,8 @@ def test_a_capability_that_is_not_installed_is_null():
     assert (
         'export const CAPABILITIES: Capabilities = {\n'
         '  async_background: null,\n  async_request: null,\n  authing: null,\n  bg: null,\n'
-        '  permit: null,\n  statusy: null,\n  uploadable: null,\n  users: null,\n  ws: null,\n};\n'
+        '  notify: null,\n  permit: null,\n  statusy: null,\n  uploadable: null,\n  users: null,\n'
+        '  ws: null,\n};\n'
     ) in text
 
 

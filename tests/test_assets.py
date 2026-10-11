@@ -64,8 +64,8 @@ def test_the_registry_lists_the_sources_of_the_hooks():
     assert (uploadable.kind, uploadable.source, uploadable.target, uploadable.capabilities) == (
         registry.VENDORED, 'react/src/uploadable', 'src/bazis/react/uploadable', ('uploadable',)
     )
-    # the hooks of bazis-ws, bazis-bg and bazis-async-background
-    packages = {'ws': 'ws', 'bg': 'bg', 'async': 'async_background'}
+    # the hooks of bazis-ws, bazis-notify, bazis-bg and bazis-async-background
+    packages = {'ws': 'ws', 'notify': 'notify', 'bg': 'bg', 'async': 'async_background'}
     for directory, capability in packages.items():
         hooks = assets[f'react-{directory}']
         assert (hooks.kind, hooks.source, hooks.target, hooks.capabilities, hooks.assets) == (

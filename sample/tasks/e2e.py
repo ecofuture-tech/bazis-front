@@ -21,7 +21,8 @@ the task that a scenario opens (the points are written by a scenario, through th
 product writes them). Every run starts the scenarios from the
 same data: the tasks of the previous runs (those the scenarios created, with their steps) are
 deleted, so that the lists do not grow from run to run and the task of the viewer is a draft
-again.
+again, and so are the notifications of the test users (bazis-notify): a scenario finds only
+the notification it caused.
 """
 
 from django.apps import apps as global_apps
@@ -69,3 +70,4 @@ def create_test_data(password: str) -> None:
     # which a run may have changed
     task_model.objects.all().delete()
     task_model.objects.create(title=TASK)
+    global_apps.get_model('notify', 'Notification').objects.filter(user__username__in=TEST_USERS).delete()

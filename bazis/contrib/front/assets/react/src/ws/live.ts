@@ -16,14 +16,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
 import { keys } from '../keys.js';
-import { backgroundStatusOf, changedResource } from './messages.js';
+import { backgroundStatusOf, changedResource, notificationsChanged, NOTIFY_RESOURCE } from './messages.js';
 import { useChannel, useSocket } from './socket.js';
 
 /**
  * Refetches what the messages of the socket say changed: the queries of a resource
  * (`['bazis', path]`, by its type in `routes`, `ROUTES` of the contract) for
  * `{"resource", "id"}` and a notification about an item, the state of a task of
- * bazis-async-background (`useAsyncTask`) for its status. After a reconnect, every query
+ * bazis-async-background (`useAsyncTask`) for its status, the stored notifications of
+ * bazis-notify (`routes['notify.notification']`, `useInbox`) for a message of theirs. After a reconnect, every query
  * of the hooks: the messages published while the socket was closed are lost. Only the active
  * queries are refetched; mount it once, under `SocketProvider`.
  */
@@ -38,7 +39,7 @@ export function useLiveQueries(routes: Readonly<Record<string, string>>): void {
       void queryClient.invalidateQueries({ queryKey: keys.asyncTasks(background.taskId) });
       return;
     }
-    const changed = changedResource(message);
+    const changed = notificationsChanged(message) ? { resource: NOTIFY_RESOURCE } : changedResource(message);
     const path = changed === null ? undefined : routes[changed.resource];
     if (path !== undefined) void queryClient.invalidateQueries({ queryKey: keys.resource(path) });
   });

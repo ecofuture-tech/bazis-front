@@ -154,6 +154,10 @@ type ActionPaths = paths & {
   '/api/v1/entity/parent_entity/{item_id}/summary/': {
     get: { responses: { 200: { content: { 'application/json': { total: number } } } } };
   };
+  // the download route of bazis-uploadable and bazis-bg
+  '/api/v1/entity/parent_entity/{item_id}/download/': {
+    get: { responses: { 200: { content: { 'application/octet-stream': unknown } } } };
+  };
 };
 
 export async function actionTyped(id: string): Promise<void> {
@@ -176,5 +180,9 @@ export async function actionTyped(id: string): Promise<void> {
   await actions.itemAction(PARENT, id, 'summary');
   // @ts-expect-error schema_list is not an action of an item
   await actions.itemAction(PARENT, id, 'schema_list', undefined, { method: 'get' });
-  seen.push(task, total);
+  const file = await actions.download(PARENT, id);
+  const name: string | null = file.name;
+  // @ts-expect-error a route set without a download route
+  await createClient<paths>().download(PARENT, id);
+  seen.push(task, total, name ?? '');
 }

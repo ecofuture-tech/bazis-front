@@ -84,7 +84,7 @@ written.
   `row:<id>` with its cells `cell:<column>`, `field:<field>`, `error:<field>`,
   `upload:<field>` (a file field), `action:<id>`, `transit:<id>`, `status:<id>`,
   `nav:<screen>`, `map:<entity>` with `marker:<id>` (`list.map`); the components of the packages add `socket:<status>`,
-  `action:notifications`, `list:notifications`, `notification:<key>`, `bg:<state>`,
+  `action:notifications`, `list:notifications`, `notification:<key>`, `bg:<state>`, `action:download`,
   `async:<status>`): the scenarios of the
   product spec act through them (see [End-to-end tests](#end-to-end-tests)).
 - `access` is what the backend must grant, checked against the permissions of the roles
@@ -238,7 +238,13 @@ With bazis-ws, `@/bazis/react/ws` (the socket: see below):
 | `useSocket()` | `{status: 'idle' \| 'connecting' \| 'open' \| 'rejected' \| 'unavailable', error}`: `open` once the server subscribed the session (`{"type": "subscribed"}`); `rejected` with `expired_token`, `invalid_token`, `user_not_found` or a close with 1008 (no new attempt until the token changes: log in again); `unavailable` when no socket answers at the path (five failed handshakes; it keeps trying every 15–30 s and at once when the browser is online or the page shown again); `retry()` tries at once |
 | `useChannel(handler)` | every message of the channels of the session, the published JSON parsed |
 | `useLiveQueries(ROUTES)` | refetches the queries of a resource that a message says changed, a task of bazis-async-background, and every query after a reconnect; `LiveQuery` mounts it |
-| `useNotifications()` | `{items, unread, markRead, clear}`: the notifications received in the session, the newest first |
+| `useNotifications()` | `{items, unread, markRead(key?), clear}`: the notifications received in the session, the newest first (without bazis-notify) |
+
+With bazis-notify, `@/bazis/react/notify`:
+
+| Hook | What |
+|---|---|
+| `useInbox(ROUTES['notify.notification'], {limit?, poll?})` | `{items, unread, status, error, retry, markRead(key?), markUnread(key), clear}`: the stored notifications of the user, the newest first (`route` of each: where its action leads); listed again after its own changes and, with bazis-ws, on the messages of bazis-notify (`useLiveQueries`); `poll` (ms) without bazis-ws |
 
 With bazis-bg, `@/bazis/react/bg`:
 
@@ -284,9 +290,9 @@ of the installed package, lists their props and their `data-bz`):
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
 | `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card` in the `children` of the card: `path`, `entity`, `relation`, `item={id}`, `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). The `children` are drawn under the heading, above the sections: related lists that follow the fields go after the card (below) |
 | a field with choices (a column, a field of a card or a form, a filter) | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
-| the notifications and the live updates (bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` (below) |
+| the notifications and the live updates (bazis-notify, bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` (its `notifications`: `useInbox` with bazis-notify, else `useNotifications`) and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` (below) |
 | a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
-| a field `type: file` (bazis-uploadable) | shown by the components (a link to the file, a thumbnail of an image); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes (below) |
+| a field `type: file` (bazis-uploadable) | shown by the components (its name downloads it, a thumbnail of an image, both read with the token from its download route); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes (below) |
 | a field `type: point`, `list.map: {field}` | shown as its coordinates (`55.7558, 37.6173`) and edited as them in the forms, on a map too once `MapProvider` of `@/bazis/ui/map` wraps the routes; `ResourceMap` of `@/bazis/ui/map` beside the `ResourceList` of the screen, with its `filter` (below) |
 | an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | a button calling `useAction(path, '<name>')` of `@/bazis/react` (above), its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` (below) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
@@ -475,21 +481,27 @@ the screen needs it.
 A custom action of a route set (`@http_post('/export/')` in the backend, `action_export:
 "other"` in the contract) is called with `useAction`, never with a `fetch` of your own (the
 client sends the token and the language, and its errors are `ApiError`); an action that
-queues a task of bazis-bg answers with its id, which `TaskProgress` follows:
+queues a task of bazis-bg answers with its id, which `TaskProgress` follows (the file of an
+export is its `action:download`, read with the token from the download route of the tasks:
+never link the `file` URL of a task or of an uploaded file, which the media host serves to
+anyone; `useDownload(path)` of `@/bazis/react` downloads the file of any item):
 
 ```tsx
 const exporting = useAction(ROUTES['service.work_order'], 'export', { invalidate: false });
 <Button data-bz="action:export" disabled={exporting.isPending} onClick={() => { exporting.mutate({ date_from, date_to }); }}>…</Button>
 {exporting.errors.date_to && <p data-bz="error:date_to">{exporting.errors.date_to.join(' ')}</p>}
 {exporting.isError && <StatePanel inline state={errorState(exporting.error)} error={exporting.error} />}
-{exporting.data && <TaskProgress id={exporting.data.task}>{(task) => <a href={…}>…</a>}</TaskProgress>}
+{exporting.data && <TaskProgress id={exporting.data.task} />}
 ```
 
 With bazis-ws, `manage.py bazis_front add live-query notification-center`, wrap the routes
 in `SocketProvider` with the token of the session (none before the login; the logout
-closes it) and give the layout the tools. A notification is
+closes it) and give the layout the tools. With bazis-notify the bell shows the stored
+notifications (`useInbox`), which the backend creates with `notify(...)` of bazis-notify
+only: bazis-notify sends their live messages itself, and `LiveQuery` lists them again
+(never publish them a second time with bazis-ws). Without bazis-notify a notification is
 `{"action": "notification", "title", "text"?, "resource"?, "id"?}` published by the
-backend to the user (`notify(...)` of bazis-ws, after the commit); a change is
+backend to the user (`notify(...)` of bazis-ws, after the commit; `useNotifications`); a change is
 `{"resource": "<type>"}` on `COMMON_CHANNEL` of bazis-ws (`publish_changed(item)`), which
 every session receives, anonymous ones too: never an id, data or a notification there.
 The backend routes the socket in its router module
@@ -501,22 +513,35 @@ import { CAPABILITIES } from '@/bazis/generated/contract';
 import { SocketProvider } from '@/bazis/react/ws';
 import { LiveQuery } from '@/bazis/ui/live-query';
 import { NotificationCenter } from '@/bazis/ui/notification-center';
+import { useInbox } from '@/bazis/react/notify';
+
+// the bell of the stored notifications (bazis-notify): their action opens what they are about
+function Notifications() {
+  const navigate = useNavigate();
+  return (
+    <NotificationCenter
+      notifications={useInbox(ROUTES['notify.notification'])}
+      onOpen={(it) => { if (it.route !== null) void navigate(it.route); }}
+    />
+  );
+}
 
 // AppRouter: useToken() of src/app/session.ts
 <SocketProvider path={CAPABILITIES.ws?.path ?? null} token={useToken()}>
   <BrowserRouter>…</BrowserRouter>
 </SocketProvider>
 
-// RequireSession: the tools are mounted once (the bell opens the card of a task)
+// RequireSession: the tools are mounted once
 <AppShell
   …
-  tools={<><LiveQuery /><NotificationCenter onOpen={(it) => { if (it.resource === 'tasks.task') void navigate(`/tasks/${String(it.id)}`); }} /></>}
+  tools={<><LiveQuery /><Notifications /></>}
 >
 ```
 
 The dev server proxies the socket (`vite.config.ts` reads its path from the contract).
-Pub/sub keeps nothing: the notifications published while the page was closed are not
-shown, and `LiveQuery` refetches every query after a reconnect.
+Pub/sub keeps nothing: `LiveQuery` refetches every query after a reconnect, and without
+bazis-notify the notifications published while the page was closed are not shown
+(`notifications={useNotifications()}`).
 
 - **Composing beyond the specs** (the props of every component are in the table of the
   guide of bazis-front, "The components", and in the `Props` types of `src/bazis/ui/`):

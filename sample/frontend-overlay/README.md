@@ -9,7 +9,8 @@ report `src/screens/draft-tasks/`), composed from the components as the specs of
 (`src/app/router.tsx`, inside `SocketProvider`, the socket of bazis-ws with the token of the
 session, `FileFieldProvider`: the forms upload the files of bazis-uploadable, and
 `MapProvider` with the tiles of `MAP_TILES` of `src/app/product.ts`; the
-`tools` of the layout are `LiveQuery` and `NotificationCenter`), and the files that the scenarios upload (`e2e/fixtures/`). It is the
+`tools` of the layout are `LiveQuery` and `NotificationCenter` with the stored notifications
+of bazis-notify, `useInbox`), and the files that the scenarios upload (`e2e/fixtures/`). It is the
 reference of a product frontend written from its specs.
 
 A frontend is not kept in this repository: the `e2e` job of CI makes one from the sample

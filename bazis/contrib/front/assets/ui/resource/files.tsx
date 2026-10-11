@@ -15,8 +15,10 @@
 // The files of bazis-uploadable: a model references an uploaded file with a to-one
 // relationship to a resource of the uploaded files (`resources` of the capability
 // `uploadable` of the contract), whose item has the attributes `file` (its URL in the
-// storage), `name`, `extension` and `size`. `FileValue` shows one (a link, a thumbnail of an
-// image); `FieldInput` edits one with the control that `FilesProvider` gives it (`FileField`
+// storage), `name`, `extension` and `size`. `FileValue` shows one (its name downloads it, an
+// image has a thumbnail), both read from the download route of its route set with the token:
+// never from the URL of the media host, which serves a file to anyone who has its link;
+// `FieldInput` edits one with the control that `FilesProvider` gives it (`FileField`
 // of the component file-field, which uploads), else with the picker of a relationship.
 
 import { FileLock, FileText } from 'lucide-react';
@@ -29,7 +31,7 @@ import type { FormField, RelationField } from '@/bazis/react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { routeOf, type ResourceObject } from './fields.js';
-import { useAnyItem } from './hooks.js';
+import { useAnyDownload, useAnyDownloadUrl, useAnyItem } from './hooks.js';
 
 /** The resources of the uploaded files of the contract; none without bazis-uploadable. */
 export const FILE_RESOURCES: readonly string[] = CAPABILITIES.uploadable?.resources ?? [];
@@ -118,8 +120,6 @@ export function formatSize(bytes: number, { language, t }: Pick<LanguageContextV
 
 /** The attributes of an uploaded file. */
 export interface UploadedFile {
-  /** The URL of the file in the storage (the path of MEDIA_URL for the file system). */
-  url: string | null;
   name: string;
   size: number | null;
 }
@@ -127,18 +127,29 @@ export interface UploadedFile {
 /** The attributes of an item of a resource of the uploaded files. */
 export function uploadedFile(item: ResourceObject): UploadedFile {
   const { file, name, size } = item.attributes ?? {};
-  const url = typeof file === 'string' && file ? file : null;
   return {
-    url,
-    name: typeof name === 'string' && name ? name : (url?.split('/').pop() ?? item.id),
+    // the name of the upload, else that of the stored file
+    name: typeof name === 'string' && name ? name : ((typeof file === 'string' && file.split('/').pop()) || item.id),
     size: typeof size === 'number' ? size : null,
   };
 }
 
-/** A file: a thumbnail of an image (`preview`, else its URL) or an icon, its name as a link to it, its size. */
-export function FileView({ file, preview }: { file: UploadedFile; preview?: string | null | undefined }) {
+export interface FileViewProps {
+  file: UploadedFile;
+  /** The URL of the thumbnail of an image (a local copy, or the content read with the token). */
+  preview?: string | null | undefined;
+  /** Downloads the file: its name is a button; without it, a text. */
+  onDownload?: (() => void) | null | undefined;
+  /** The download runs. */
+  downloading?: boolean | undefined;
+  /** The download failed: said next to the name. */
+  failed?: boolean | undefined;
+}
+
+/** A file: a thumbnail of an image (`preview`) or an icon, its name (a button that downloads it), its size. */
+export function FileView({ file, preview, onDownload, downloading = false, failed = false }: FileViewProps) {
   const language = useLanguage();
-  const image = isImage(file.name) ? (preview ?? file.url) : null;
+  const image = isImage(file.name) ? preview : null;
   return (
     <span className="inline-flex max-w-full min-w-0 items-center gap-2 align-middle">
       {image ? (
@@ -146,24 +157,30 @@ export function FileView({ file, preview }: { file: UploadedFile; preview?: stri
       ) : (
         <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       )}
-      {file.url ? (
-        <a
-          href={file.url}
-          target="_blank"
-          rel="noreferrer"
-          className="truncate font-medium text-primary underline-offset-4 hover:underline"
-          // the link of a row opens the file, not the row
+      {onDownload ? (
+        <button
+          type="button"
+          disabled={downloading}
+          aria-busy={downloading || undefined}
+          className="truncate font-medium text-primary underline-offset-4 hover:underline disabled:opacity-70"
+          // the button of a row downloads the file, it does not open the row
           onClick={(event) => {
             event.stopPropagation();
+            onDownload();
           }}
         >
           {file.name}
-        </a>
+        </button>
       ) : (
         <span className="truncate">{file.name}</span>
       )}
       {file.size !== null && (
         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatSize(file.size, language)}</span>
+      )}
+      {failed && (
+        <span role="alert" className="shrink-0 text-xs text-destructive">
+          {language.t('file.download_failed')}
+        </span>
       )}
     </span>
   );
@@ -192,8 +209,24 @@ export function FileValue({
 
 function StoredFile({ path, id, preview }: { path: string; id: string; preview: string | null | undefined }) {
   const item = useAnyItem(path, id);
+  const download = useAnyDownload(path);
+  const file = item.data ? uploadedFile(item.data.data) : null;
+  // the thumbnail of a stored image: its content, read with the token
+  const thumbnail = useAnyDownloadUrl(path, file && !preview && isImage(file.name) ? id : null);
   const { t } = useLanguage();
-  if (item.data) return <FileView file={uploadedFile(item.data.data)} preview={preview} />;
+  if (file) {
+    return (
+      <FileView
+        file={file}
+        preview={preview ?? thumbnail}
+        onDownload={() => {
+          download.mutate(id);
+        }}
+        downloading={download.isPending}
+        failed={download.isError}
+      />
+    );
+  }
   if (item.isPending) return <Skeleton className="inline-block h-4 w-28 align-middle" />;
   // bazis-uploadable gives a user only his own files: the file of another user (the
   // attachment of a shared item) is a 404, as a deleted one

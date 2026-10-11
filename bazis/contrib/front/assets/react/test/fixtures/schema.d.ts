@@ -17,7 +17,7 @@
 // core sample (the fixture of the client), whose route sets are not statusy: the endpoints
 // that bazis-statusy adds to its route sets are added to `parent_entity`, with two custom
 // actions as a route set declares them (`@http_post('/count/')`, an item `summary/`, and
-// `@http_get('/report/')`).
+// `@http_get('/report/')`), and the download route of bazis-uploadable and bazis-bg.
 
 import type { paths as corePaths } from '../../../client/test/fixtures/schema.js';
 
@@ -44,5 +44,8 @@ export type paths = corePaths & {
   };
   '/api/v1/entity/parent_entity/{item_id}/summary/': {
     get: { responses: { 200: { content: { 'application/json': { total: number } } } } };
+  };
+  '/api/v1/entity/parent_entity/{item_id}/download/': {
+    get: { responses: { 200: { content: { 'application/octet-stream': unknown } } } };
   };
 };

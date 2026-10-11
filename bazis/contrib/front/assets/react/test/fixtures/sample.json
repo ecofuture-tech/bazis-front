@@ -1731,6 +1731,60 @@
       "id": "00000000-0000-0000-0000-000000000000"
     }
   },
+  "ws_notification_created": {
+    "type": "data",
+    "data": {
+      "action": "notification_created",
+      "notification": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "notification_type": "tasks.finished",
+        "title": "Task finished",
+        "body": "Notify",
+        "action": {
+          "route": "/tasks/00000000-0000-0000-0000-000000000000"
+        },
+        "metadata": {},
+        "category": "tasks",
+        "severity": "success",
+        "is_read": false,
+        "read_at": null,
+        "dt_created": "2026-01-01T00:00:00Z"
+      },
+      "unread_count": 1
+    }
+  },
+  "ws_notifications_changed": {
+    "type": "data",
+    "data": {
+      "action": "notifications_changed",
+      "unread_count": 0
+    }
+  },
+  "notify_list": {
+    "data": [
+      {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "type": "notify.notification",
+        "attributes": {
+          "notification_type": "tasks.finished",
+          "title": "Task finished",
+          "body": "Notify",
+          "action": {
+            "route": "/tasks/00000000-0000-0000-0000-000000000000"
+          },
+          "metadata": {},
+          "read_at": null,
+          "dt_created": "2026-01-01T00:00:00Z",
+          "is_read": false,
+          "category": "tasks",
+          "severity": "success"
+        }
+      }
+    ]
+  },
+  "notify_unread_count": {
+    "unread_count": 1
+  },
   "action_count": {
     "task": "00000000-0000-0000-0000-000000000000"
   },
@@ -1769,6 +1823,7 @@
         "result": null,
         "error": null,
         "interrupt": false,
+        "file": null,
         "dt_start": null,
         "dt_finish": null
       }
@@ -1787,6 +1842,7 @@
         "result": null,
         "error": null,
         "interrupt": false,
+        "file": null,
         "dt_start": null,
         "dt_finish": null
       }
@@ -1808,6 +1864,7 @@
         },
         "error": null,
         "interrupt": false,
+        "file": null,
         "dt_start": null,
         "dt_finish": "2026-01-01T00:00:00Z"
       }

@@ -14,11 +14,12 @@
 
 // The contract of the progress of a task of bazis-bg: `bg:<state>` (`waiting`, `running`,
 // `success`, `error`, `interrupted`), the phase that runs with a progress bar for each
-// counter, what the product renders of a task that succeeded, `onDone` once, and the states
-// of the reading (`state:loading`, `state:not_found`). Keep it passing when the component is
+// counter, what the product renders of a task that succeeded, the download of its file
+// (`action:download`, from the download route of the tasks), `onDone` once, and the states of
+// the reading (`state:loading`, `state:not_found`). Keep it passing when the component is
 // changed.
 
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TaskProgress } from '@/bazis/ui/task-progress';
@@ -90,6 +91,35 @@ describe('TaskProgress', () => {
       expect(onDone).toHaveBeenCalledOnce();
     });
     expect(onDone.mock.calls[0]?.[0]).toMatchObject({ outcome: 'success', result: { count: 3 } });
+  });
+
+  it('downloads the file of a task that succeeded from the download route of the tasks', async () => {
+    // jsdom has no object URLs and saves no file
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:export'), revokeObjectURL: vi.fn() });
+    const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const backend = show(task({ state: 'done', phase: 'completed', file: '/media/bg/k3_items.xlsx' }));
+    backend.file(`${TASK}download/`, 'xlsx', 'attachment; filename="items.xlsx"');
+    fireEvent.click(await screen.findByTestId('action:download'));
+    await waitFor(() => {
+      expect(saved).toHaveBeenCalledOnce();
+    });
+    expect(backend.requests()).toEqual([`GET ${TASK}`, `GET ${TASK}download/`]);
+    expect((saved.mock.contexts[0] as HTMLAnchorElement).download).toBe('items.xlsx');
+    saved.mockRestore();
+  });
+
+  it('shows the error of a download', async () => {
+    const backend = show(task({ state: 'done', phase: 'completed', file: '/media/bg/k3_items.xlsx' }));
+    backend.on('GET', `${TASK}download/`, errors(404), 404);
+    fireEvent.click(await screen.findByTestId('action:download'));
+    await screen.findByTestId('state:not_found');
+    expect(screen.getByTestId('bg:success')).toBeTruthy();
+  });
+
+  it('offers no download of a task without a file', async () => {
+    show(task({ state: 'done', phase: 'completed', file: null }));
+    await screen.findByTestId('bg:success');
+    expect(screen.queryByTestId('action:download')).toBeNull();
   });
 
   it('shows a failure without its traceback, and an interruption', async () => {

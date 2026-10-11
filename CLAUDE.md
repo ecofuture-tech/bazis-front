@@ -31,7 +31,7 @@ python -m pytest ../tests -o addopts="" -p no:cacheprovider
 Lint: `ruff check bazis tests sample scripts`.
 
 The sample (`sample/`) installs bazis-users, bazis-authing, bazis-permit, bazis-statusy,
-bazis-uploadable, bazis-ws, bazis-author with bazis-bg, bazis-async-background and
+bazis-uploadable, bazis-ws, bazis-notify, bazis-author with bazis-bg, bazis-async-background and
 bazis-async-request (the `test` extra) with a project app `users` (its route set of the users,
 `users.routes.UserRouteSet`, is that of bazis-users with `search_fields`, which the picker
 of the assignee searches: the core 2.9 answers a search of a route set without them with
@@ -86,10 +86,12 @@ same data); it never creates a role, a status or a transit. The user model has
 `sample/main.py` adds `AsyncRequestMiddleware`; `tasks.models.Task` publishes with the
 helpers of bazis-ws 2.6 (after the commit and robustly: Redis down does not fail the
 change) every save of a task to the common channel (`publish_changed`, `{"resource"}` only:
-an invalidation hint, never data) and the notification of the assignee of a finished task
-(`notify` with `notification`, to the channel of the assignee, in the language of his
-profile), which the scenario `manager-is-notified-of-a-finished-task` expects (Redis
-only; `tests/test_notify.py` replaces the Redis of bazis-ws). The sample has no Kafka and
+an invalidation hint, never data), and notifies the assignee of a finished task with
+`notify` of bazis-notify (the type `tasks.finished` of `tasks/notifications.py`, stored, in
+the language of his profile, delivered live by bazis-notify itself: never published a
+second time), which the scenario `manager-is-notified-of-a-finished-task` expects (the
+bell lists it with `useInbox`; `e2e_data` deletes the notifications of the test users;
+`tests/test_notify.py` replaces the Redis of bazis-ws). The sample has no Kafka and
 no `bg_scheduler`: a request with `X-Async-Background` runs at once
 (`async_request.W001` is silenced in `sample/settings.py`), and the task of bazis-bg of the
 sample (`tasks.bg.count.CountTasks`) is run by the tests in their process; the 202, the

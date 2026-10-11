@@ -13,22 +13,20 @@
 // limitations under the License.
 
 // The maps of the points (Leaflet, the npm dependency that `bazis_front add map` sets in
-// package.json): the tiles of `MapProvider` (OpenStreetMap by default, with its attribution:
+// package.json, loaded with the first map shown: `leaflet-map.tsx`): the tiles of `MapProvider` (OpenStreetMap by default, with its attribution:
 // set those of the product, its tile server and its terms, in production), a marker per point
 // in the colors of the theme (the classes of its tokens: the dark mode and the brand follow),
 // a button that the keyboard reaches when it opens its item.
 // `MapProvider` also gives the forms the map of a point field (`MapPointControl`).
 
-import 'leaflet/dist/leaflet.css';
-
-import L from 'leaflet';
 import { LocateFixed } from 'lucide-react';
-import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, lazy, Suspense, use, useMemo, useState, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { POINT_FIELDS, PointsProvider, type LatLng, type PointControlProps } from '@/bazis/ui/resource';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 /** The tiles of the maps: the URL template of a tile server and its attribution (HTML). */
@@ -150,22 +148,6 @@ export interface MapMarker {
   label: string;
 }
 
-/** The view of a map without markers: the world. */
-const WORLD = { center: [20, 0] as L.LatLngTuple, zoom: 2 };
-
-/** The icon of a marker: a dot in the colors of the theme, larger for the open item. */
-function markerIcon(kind: 'item' | 'selected' | 'me'): L.DivIcon {
-  const size = kind === 'selected' ? 22 : kind === 'me' ? 14 : 16;
-  return L.divIcon({
-    html: '',
-    iconSize: [size, size],
-    className: cn(
-      'rounded-full border-2 border-background shadow-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
-      kind === 'me' ? 'bg-info' : 'bg-primary',
-    ),
-  });
-}
-
 export interface LeafletMapProps {
   markers: readonly MapMarker[];
   /** The marker drawn larger (the open item). */
@@ -180,125 +162,28 @@ export interface LeafletMapProps {
   'data-bz'?: string | undefined;
 }
 
-/** What the view of a map is fitted to: the ids and the points of its markers, and the position of the user. */
-function placementOf(markers: readonly MapMarker[], me: LatLng | null | undefined): string {
-  return JSON.stringify([markers.map(({ id, point }) => [id, point.latitude, point.longitude]), me ? [me.latitude, me.longitude] : null]);
-}
+/** The Leaflet map, a chunk of its own (`leaflet-map.tsx`). */
+const LeafletView = lazy(() => import('./leaflet-map.js'));
 
 /**
  * A Leaflet map with a marker per point (`marker:<id>`, a button with the label as its name and
  * its title when it opens the item: the keyboard reaches it), fitted to them when they change
- * (not when another one is selected); the tiles of `MapProvider`.
+ * (not when another one is selected); the tiles of `MapProvider`. Leaflet is loaded with the
+ * first map shown (`aria-busy` meanwhile).
  */
-export function LeafletMap({ markers, selected, onOpen, onPick, me, className, 'data-bz': mark }: LeafletMapProps) {
-  const { t } = useLanguage();
-  const tiles = useMapTiles();
-  const element = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
-  const layer = useRef<L.LayerGroup | null>(null);
-  const handlers = useRef({ onOpen, onPick });
-  useEffect(() => {
-    handlers.current = { onOpen, onPick };
-  }, [onOpen, onPick]);
-  const opens = onOpen !== undefined;
-  const placement = placementOf(markers, me);
-
-  useEffect(() => {
-    if (!element.current) return undefined;
-    const created = L.map(element.current, { center: WORLD.center, zoom: WORLD.zoom, scrollWheelZoom: false });
-    L.tileLayer(tiles.url, { attribution: tiles.attribution, maxZoom: tiles.maxZoom ?? 19 }).addTo(created);
-    layer.current = L.layerGroup().addTo(created);
-    created.on('click', (event: L.LeafletMouseEvent) => {
-      handlers.current.onPick?.({ latitude: event.latlng.lat, longitude: event.latlng.lng });
-    });
-    map.current = created;
-    return () => {
-      created.remove();
-      map.current = null;
-      layer.current = null;
-    };
-  }, [tiles]);
-
-  // the markers, drawn again when the points, their labels or the position change: a
-  // selection only changes their icons (below), so that the focus of the keyboard stays
-  const markerLayers = useRef(new Map<string, { marker: L.Marker; selected: boolean }>());
-  const drawn = JSON.stringify([placement, markers.map(({ label }) => label)]);
-  useEffect(() => {
-    const group = layer.current;
-    if (!group) return;
-    group.clearLayers();
-    markerLayers.current.clear();
-    const [points, labels] = JSON.parse(drawn) as [string, string[]];
-    const [placed, position] = JSON.parse(points) as [[string, number, number][], [number, number] | null];
-    placed.forEach(([id, latitude, longitude], index) => {
-      const label = labels[index] ?? '';
-      // a marker that opens nothing lets a click through to the map (the map of a point field)
-      const marker = L.marker([latitude, longitude], {
-        icon: markerIcon('item'),
-        interactive: opens,
-        keyboard: opens,
-        title: label,
-        riseOnHover: true,
-      });
-      marker.on('click', () => {
-        handlers.current.onOpen?.(id);
-      });
-      marker.addTo(group);
-      markerLayers.current.set(id, { marker, selected: false });
-      const icon = marker.getElement();
-      icon?.setAttribute('data-bz', `marker:${id}`);
-      icon?.setAttribute('aria-label', label);
-      // a marker that opens nothing is an image named by its label (Leaflet makes the
-      // others buttons)
-      if (!opens) icon?.setAttribute('role', 'img');
-      icon?.addEventListener('keydown', (event) => {
-        if (opens && (event.key === 'Enter' || event.key === ' ')) {
-          event.preventDefault();
-          handlers.current.onOpen?.(id);
-        }
-      });
-    });
-    if (position) {
-      const icon = L.marker(position, { icon: markerIcon('me'), interactive: false, keyboard: false, title: t('map.locate') })
-        .addTo(group)
-        .getElement();
-      icon?.setAttribute('role', 'img');
-      icon?.setAttribute('aria-label', t('map.locate'));
-    }
-  }, [drawn, opens, t, tiles]);
-
-  // the open item larger: `setIcon` of Leaflet keeps the element of a `DivIcon` (and its focus)
-  useEffect(() => {
-    const drawnMarkers = markerLayers.current;
-    for (const [id, { marker, selected: was }] of drawnMarkers) {
-      const isSelected = id === selected;
-      if (was === isSelected) continue;
-      marker.setIcon(markerIcon(isSelected ? 'selected' : 'item'));
-      drawnMarkers.set(id, { marker, selected: isSelected });
-    }
-  }, [selected, drawn, opens, t, tiles]);
-
-  // the view: fitted to the points when they change, kept when one is selected or the screen
-  // renders again
-  useEffect(() => {
-    const current = map.current;
-    if (!current) return;
-    const [points, position] = JSON.parse(placement) as [[string, number, number][], [number, number] | null];
-    const bounds: L.LatLngTuple[] = [...points.map(([, latitude, longitude]): L.LatLngTuple => [latitude, longitude]), ...(position ? [position] : [])];
-    const [first] = bounds;
-    if (bounds.length === 1 && first) current.setView(first, Math.max(current.getZoom(), 13));
-    else if (bounds.length > 1) current.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 });
-  }, [placement, tiles]);
-
+export function LeafletMap(props: LeafletMapProps) {
   return (
-    <div
-      ref={element}
-      role="region"
-      aria-label={t('map.label')}
-      data-bz={mark}
-      // under the popovers and the dialogs of the screen
-      className={cn('z-0 h-72 w-full overflow-hidden rounded-xl border bg-muted sm:h-96', className)}
-    />
+    <Suspense
+      fallback={
+        <Skeleton
+          data-bz={props['data-bz']}
+          aria-busy="true"
+          className={cn('h-72 w-full rounded-xl sm:h-96', props.className)}
+        />
+      }
+    >
+      <LeafletView {...props} />
+    </Suspense>
   );
 }
 

@@ -8,6 +8,7 @@
       "target": "src/bazis/client",
       "files": [
         "client.ts",
+        "download.ts",
         "errors.ts",
         "filter.ts",
         "index.ts",
@@ -29,6 +30,7 @@
       "files": [
         "actions.ts",
         "context.tsx",
+        "download.ts",
         "form.ts",
         "index.ts",
         "keys.ts",
@@ -93,6 +95,24 @@
         "live.ts",
         "messages.ts",
         "socket.tsx"
+      ]
+    },
+    {
+      "name": "react-notify",
+      "kind": "vendored",
+      "source": "react/src/notify",
+      "target": "src/bazis/react/notify",
+      "requires": {
+        "capabilities": [
+          "notify"
+        ],
+        "assets": [
+          "react"
+        ]
+      },
+      "files": [
+        "inbox.ts",
+        "index.ts"
       ]
     },
     {
@@ -423,13 +443,15 @@
           "react-uploadable",
           "resource",
           "testing",
-          "button"
+          "button",
+          "skeleton"
         ]
       },
       "files": [
         "file-field.contract.test.tsx",
         "file-field.tsx",
-        "index.ts"
+        "index.ts",
+        "upload-field.tsx"
       ]
     },
     {
@@ -460,12 +482,8 @@
       "source": "ui/notification-center",
       "target": "src/bazis/ui/notification-center",
       "requires": {
-        "capabilities": [
-          "ws"
-        ],
         "assets": [
           "i18n",
-          "react-ws",
           "state-panel",
           "testing",
           "button",
@@ -489,9 +507,11 @@
         ],
         "assets": [
           "i18n",
+          "react",
           "react-bg",
           "state-panel",
-          "testing"
+          "testing",
+          "button"
         ]
       },
       "files": [
@@ -547,6 +567,7 @@
       },
       "files": [
         "index.ts",
+        "leaflet-map.tsx",
         "map.contract.test.tsx",
         "map.tsx",
         "resource-map.tsx"

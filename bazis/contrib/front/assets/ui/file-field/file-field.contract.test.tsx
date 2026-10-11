@@ -96,6 +96,9 @@ describe('FileField', () => {
     const field = spies();
     renderWithBazis(<Field spies={field} />, backend);
 
+    // the field is a chunk of its own: busy until it is loaded
+    expect(screen.getByTestId('upload:attachment').getAttribute('aria-busy')).toBe('true');
+    await screen.findByTestId('field:attachment');
     expect(screen.getByTestId('upload:attachment').textContent).toContain('Drop a file here');
     expect(screen.getByTestId('field:attachment')).toHaveProperty('type', 'file');
     choose(BRIEF);
@@ -105,9 +108,9 @@ describe('FileField', () => {
     expect(backend.calls.find((it) => it.method === 'POST')).toMatchObject({ method: 'POST', url: FILES, body: { file: 'brief.txt' } });
     expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
     expect(field.onError).toHaveBeenCalledWith(null);
-    // the file of the value: a link to it, with its size
-    const link = await screen.findByRole('link', { name: 'brief.txt' });
-    expect(link.getAttribute('href')).toBe('/media/files/brief.txt');
+    // the file of the value: its name downloads it (with the token, not from its URL), its size
+    await screen.findByRole('button', { name: 'brief.txt' });
+    expect(screen.queryByRole('link')).toBeNull();
     expect(screen.getByTestId('upload:attachment').textContent).toContain('11 B');
     expect(screen.getByTestId('upload:attachment').getAttribute('aria-busy')).toBeNull();
   });
@@ -118,7 +121,7 @@ describe('FileField', () => {
       .on('GET', `${FILES}5/`, { data: uploaded(5, 'old.txt') });
     const field = spies();
     renderWithBazis(<Field spies={field} initial="5" />, backend);
-    await screen.findByRole('link', { name: 'old.txt' });
+    await screen.findByRole('button', { name: 'old.txt' });
 
     choose(BRIEF);
     await waitFor(() => {
@@ -130,7 +133,7 @@ describe('FileField', () => {
     await waitFor(() => {
       expect(screen.getByTestId('upload:attachment').getAttribute('aria-busy')).toBeNull();
     });
-    expect(await screen.findByRole('link', { name: 'old.txt' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'old.txt' })).toBeTruthy();
     expect(field.onChange).not.toHaveBeenCalled();
     expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
   });
@@ -209,7 +212,7 @@ describe('FileField', () => {
       .on('GET', `${FILES}2/`, { data: uploaded(2, 'new.txt') });
     const field = spies();
     renderWithBazis(<Field spies={field} initial="1" />, backend);
-    await screen.findByRole('link', { name: 'brief.txt' });
+    await screen.findByRole('button', { name: 'brief.txt' });
     expect(screen.getByRole('button', { name: 'Replace' })).toBeTruthy();
 
     choose(new File(['new'], 'new.txt'));
@@ -227,12 +230,12 @@ describe('FileField', () => {
       <Field spies={spies()} initial="1" field={{ ...FIELD, required: true, nullable: false }} />,
       backend,
     );
-    await screen.findByRole('link', { name: 'brief.txt' });
+    await screen.findByRole('button', { name: 'brief.txt' });
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
     unmount();
 
     renderWithBazis(<Field spies={spies()} initial="1" disabled />, backend);
-    await screen.findByRole('link', { name: 'brief.txt' });
+    await screen.findByRole('button', { name: 'brief.txt' });
     expect(screen.getByTestId('field:attachment')).toHaveProperty('disabled', true);
     expect(screen.queryByRole('button', { name: 'Replace' })).toBeNull();
   });

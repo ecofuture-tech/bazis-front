@@ -149,6 +149,14 @@ beforeEach(() => {
   fake.state.markers.length = 0;
 });
 
+/** The map of the test, once Leaflet (a chunk of its own) is loaded and the map created. */
+async function shownMap() {
+  await waitFor(() => {
+    expect(fake.state.maps).toHaveLength(1);
+  });
+  return fake.state.maps[0];
+}
+
 const point = (latitude: number, longitude: number) => ({ type: 'Point', coordinates: [longitude, latitude] });
 
 const items = listDocument([
@@ -286,7 +294,7 @@ describe('the map of a point field', () => {
     );
     const input = screen.getByTestId<HTMLInputElement>('field:location');
     expect(screen.getByTestId('map:location')).toBeTruthy();
-    fake.state.maps.at(-1)?.fire('click', { latlng: { lat: 10.5, lng: 20 } });
+    (await shownMap())?.fire('click', { latlng: { lat: 10.5, lng: 20 } });
     await waitFor(() => {
       expect(input.value).toBe('10.5, 20');
     });
@@ -301,7 +309,7 @@ describe('the map of a point field', () => {
     expect(fake.state.markers.at(-1)?.position).toEqual([-33.86, 151.21]);
   });
 
-  it('is not placed on a read-only field', () => {
+  it('is not placed on a read-only field', async () => {
     const onChange = vi.fn();
     renderWithBazis(
       <MapProvider points={{ [ITEMS]: ['location'] }}>
@@ -309,7 +317,7 @@ describe('the map of a point field', () => {
       </MapProvider>,
       new Backend(),
     );
-    fake.state.maps.at(-1)?.fire('click', { latlng: { lat: 10.5, lng: 20 } });
+    (await shownMap())?.fire('click', { latlng: { lat: 10.5, lng: 20 } });
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByTestId('action:locate-location')).toBeNull();
   });

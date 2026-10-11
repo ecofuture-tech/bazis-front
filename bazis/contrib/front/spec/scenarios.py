@@ -29,8 +29,9 @@ from .refs import Entity, Product, related_fields, related_sections
 #: the package whose users log in: the role of a scenario then needs a `test_user`
 LOGIN_PACKAGE = 'users'
 
-#: the package of the notifications of the users (bazis-ws)
-NOTIFY_PACKAGE = 'ws'
+#: the packages of the notifications of the users: the stored ones of bazis-notify, the live
+#: ones of bazis-ws
+NOTIFY_PACKAGES = ('notify', 'ws')
 
 
 @dataclass(frozen=True)
@@ -381,12 +382,13 @@ class _Scenario:
                 )
 
     def step_expect(self, path, value):
-        if 'notification' in value and NOTIFY_PACKAGE not in self.doc.data.get('packages', []):
+        packages = self.doc.data.get('packages', [])
+        if 'notification' in value and not any(it in packages for it in NOTIFY_PACKAGES):
             self.add(
                 (*path, 'notification'), 'P027',
-                'A notification comes over the socket of bazis-ws: `packages` has no `ws`.',
-                'Add `ws` to `packages` (the backend installs bazis-ws and publishes the '
-                'notification to the user), or expect something else.',
+                'The product has no notifications: `packages` has neither `notify` nor `ws`.',
+                'Add `notify` to `packages` (the backend installs bazis-notify and notifies the '
+                'user with `notify`; `ws` too for the live delivery), or expect something else.',
             )
         current = (self.state.screen or {}).get('id')
         if 'screen' in value and self.refused and self.state.known and value['screen'] != current:

@@ -174,9 +174,9 @@ CASES = [
     # the sample has bazis-statusy and bazis-uploadable: a frontend made by `init` has their hooks
     (
         'C003',
-        # the hooks of the five packages of the sample that have their own
+        # the hooks of the six packages of the sample that have their own
         {LOCK: lambda d: lock('client', 'react', 'template')},
-        [('C003', f'{LOCK}#/assets')] * 5,
+        [('C003', f'{LOCK}#/assets')] * 6,
     ),
     ('P001', {PRODUCT: lambda d: 'spec: [\n'}, [('P001', PRODUCT)]),
     ('P002', {PRODUCT: lambda d: d.update(spec='bazis-product/2')}, [('P002', f'{PRODUCT}#/spec')]),
@@ -380,8 +380,8 @@ CASES = [
     ),
     (
         'P027',
-        # the notification of the last scenario comes over the socket of bazis-ws
-        {PRODUCT: lambda d: d['packages'].remove('ws')},
+        # the notification of a scenario is one of bazis-notify (or of bazis-ws): neither
+        {PRODUCT: lambda d: [d['packages'].remove('ws'), d['packages'].remove('notify')]},
         [('P027', f'{PRODUCT}#/scenarios/6/steps/7/expect/notification')],
     ),
     (
@@ -594,7 +594,7 @@ def layer_of(file: str) -> str:
 @pytest.mark.django_db
 def test_the_assets_follow_the_capabilities(contract):
     root = contract.parent.parent
-    hooks = ['react-statusy', 'react-uploadable', 'react-ws', 'react-bg', 'react-async']
+    hooks = ['react-statusy', 'react-uploadable', 'react-ws', 'react-notify', 'react-bg', 'react-async']
     edit(root, LOCK, lambda d: lock('client', 'react', *hooks, 'template'))
     assert issues(root) == []
     # the components of a package are added when the product needs them

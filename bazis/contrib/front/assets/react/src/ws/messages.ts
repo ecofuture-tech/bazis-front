@@ -23,6 +23,9 @@
 // - `{"action": "async_bg", "task_id": "...", "status": "..."}`: the status of a task of
 //   bazis-async-background (sent by the backend itself); `useLiveQueries` refetches the
 //   task (`useAsyncTask`).
+// - `{"action": "notification_created", ...}` and `{"action": "notifications_changed", ...}`:
+//   the stored notifications of the user changed (bazis-notify, sent by the backend itself);
+//   `useLiveQueries` refetches them (`useInbox` of `@/bazis/react/notify`).
 
 /** A notification of the user, as received. */
 export interface Notification {
@@ -33,9 +36,16 @@ export interface Notification {
   /** The JSON:API type and the id of the item it is about. */
   resource: string | null;
   id: string | null;
-  received: Date;
+  /** When it was received. */
+  time: Date;
   read: boolean;
 }
+
+/** The resource of the stored notifications of bazis-notify. */
+export const NOTIFY_RESOURCE = 'notify.notification';
+
+/** The actions of the messages of bazis-notify: the stored notifications of the user changed. */
+const NOTIFY_ACTIONS = new Set(['notification_created', 'notifications_changed']);
 
 type Message = Readonly<Record<string, unknown>>;
 
@@ -56,7 +66,7 @@ export function changedResource(message: unknown): { resource: string; id: strin
 }
 
 /** The notification of a message (numbered `key`), null for another message. */
-export function notificationOf(message: unknown, key: number, received: Date): Notification | null {
+export function notificationOf(message: unknown, key: number, time: Date): Notification | null {
   const data = object(message);
   if (data === null || data.action !== 'notification' || typeof data.title !== 'string') return null;
   return {
@@ -65,9 +75,15 @@ export function notificationOf(message: unknown, key: number, received: Date): N
     text: typeof data.text === 'string' ? data.text : null,
     resource: typeof data.resource === 'string' ? data.resource : null,
     id: identifier(data.id),
-    received,
+    time,
     read: false,
   };
+}
+
+/** Whether a message says that the stored notifications of the user changed (bazis-notify). */
+export function notificationsChanged(message: unknown): boolean {
+  const data = object(message);
+  return data !== null && typeof data.action === 'string' && NOTIFY_ACTIONS.has(data.action);
 }
 
 /** The status of a task of bazis-async-background that a message carries; null for another message. */

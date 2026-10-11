@@ -19,6 +19,7 @@ export const LANGUAGE: string = "en";
 /** The path of the route set of each resource, by its JSON:API type. */
 export const ROUTES = {
   "bg.task": "/api/v1/bg/task/",
+  "notify.notification": "/api/v1/notify/notification/",
   "tasks.step": "/api/v1/tasks/step/",
   "tasks.task": "/api/v1/tasks/task/",
   "uploadable.file_upload": "/api/v1/uploadable/file_upload/",
@@ -32,6 +33,7 @@ export type ResourceType = keyof typeof ROUTES;
 export const RESOURCES = {
   "bg.task": {
     actions: {
+      action_download: "other",
       action_list: "collection",
       action_retrieve: "item",
     },
@@ -175,6 +177,75 @@ export const RESOURCES = {
     route_set: "bazis.contrib.bg.routes.BgRoute",
     search: [],
   },
+  "notify.notification": {
+    actions: {
+      action_clear: "other",
+      action_destroy: "delete",
+      action_list: "collection",
+      action_list_id: "other",
+      action_read_all: "other",
+      action_retrieve: "item",
+      action_schema_list: "schema",
+      action_schema_retrieve: "schema",
+      action_schema_update: "schema",
+      action_unread_count: "other",
+      action_update: "update",
+      get_route_filter_fields: "schema",
+    },
+    fields: {
+      action: {
+        filter: "action",
+        order: "action",
+        type: "object",
+      },
+      body: {
+        filter: "body",
+        order: "body",
+        type: "string",
+      },
+      category: {
+        type: "string",
+      },
+      dt_created: {
+        filter: "dt_created",
+        format: "date-time",
+        order: "dt_created",
+        type: "string",
+      },
+      is_read: {
+        filter: "is_read",
+        type: "boolean",
+      },
+      metadata: {
+        filter: "metadata",
+        order: "metadata",
+        type: "object",
+      },
+      notification_type: {
+        filter: "notification_type",
+        order: "notification_type",
+        type: "string",
+      },
+      read_at: {
+        filter: "read_at",
+        format: "date-time",
+        order: "read_at",
+        type: "string",
+      },
+      severity: {
+        type: "string",
+      },
+      title: {
+        filter: "title",
+        order: "title",
+        type: "string",
+      },
+    },
+    model: "notify.Notification",
+    path: "/api/v1/notify/notification/",
+    route_set: "bazis.contrib.notify.routes.NotificationRouteSet",
+    search: [],
+  },
   "tasks.step": {
     actions: {
       action_create: "create",
@@ -235,7 +306,7 @@ export const RESOURCES = {
       action_schema_create: "schema",
       action_schema_list: "schema",
       action_schema_retrieve: "schema",
-      action_schema_transit: "other",
+      action_schema_transit: "schema",
       action_schema_update: "schema",
       action_transit: "other",
       action_update: "update",
@@ -317,6 +388,7 @@ export const RESOURCES = {
   "uploadable.file_upload": {
     actions: {
       action_create: "create",
+      action_download: "other",
       action_list: "collection",
       action_list_id: "other",
       action_retrieve: "item",
@@ -578,6 +650,7 @@ export interface Capabilities {
   readonly async_request: { readonly header: string } | null;
   readonly authing: { readonly auth_url: string | null; readonly actions: readonly { readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; readonly logout_url: string | null; readonly token_param: string } | null;
   readonly bg: { readonly resource: string | null } | null;
+  readonly notify: { readonly resource: string | null } | null;
   readonly permit: { readonly roles: typeof ROLES; readonly selectors: { readonly [resource: string]: { readonly [selector: string]: string } } } | null;
   readonly statusy: { readonly models: typeof TRANSITS } | null;
   readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;
@@ -607,6 +680,9 @@ export const CAPABILITIES: Capabilities = {
   },
   bg: {
     resource: "bg.task",
+  },
+  notify: {
+    resource: "notify.notification",
   },
   permit: {
     roles: ROLES,

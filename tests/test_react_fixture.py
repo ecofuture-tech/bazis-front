@@ -21,8 +21,10 @@ the fixture instead.
 It holds the errors that the forms and `useRelationship` read (bazis 2.11: the pointers into
 the request document, and into the body of the relationships endpoints). It also holds what
 the hooks of the packages read: the messages of the socket of bazis-ws
-(as the server sends them: the notification and the change of a task of the sample, the
-statuses of a background request), the custom action of the sample that queues a task of
+(as the server sends them: the change of a task of the sample, the messages of bazis-notify
+about the notification of its assignee, a notification of bazis-ws, the statuses of a
+background request), the inbox of bazis-notify (the list and the unread count), the custom
+action of the sample that queues a task of
 bazis-bg and the documents of that task (`bg.task`), and the
 answers of bazis-async-request and bazis-async-background. The sample has no Kafka: the
 request is queued with the publication to Kafka replaced, and the consumer is the function
@@ -54,7 +56,8 @@ TASKS = '/api/v1/tasks/task/'
 
 NORMAL = [
     (re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'), '00000000-0000-0000-0000-000000000000'),
-    (re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z'), '2026-01-01T00:00:00Z'),
+    # `Z` of the API, `+00:00` of the messages of bazis-notify (`isoformat`)
+    (re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|\+00:00)'), '2026-01-01T00:00:00Z'),
 ]
 
 
@@ -345,13 +348,35 @@ def background(app, settings, monkeypatch, user) -> dict:
     }
 
 
+NOTIFICATIONS = '/api/v1/notify/notification/'
+
+
+def next_action(socket, action: str) -> dict:
+    """
+    The next message of the socket with this action (the changes of the tasks between).
+    """
+    while True:
+        message, = received(socket, 1)
+        if message['data'].get('action') == action:
+            return message
+
+
 def notified(app, user, tasks_client) -> dict:
     """
     The messages of the socket of the user while a task assigned to them is finished: the
     first change of a task on the common channel (the resource, never the id of an item: every
-    user session receives it), and the notification of the assignee.
+    user session receives it), the stored notification of the assignee (bazis-notify:
+    `notification_created`, its list and its unread count, then `notifications_changed` once
+    it is read), and a notification of bazis-ws (`notify` with `notification` of
+    `bazis.contrib.ws.messages`, the format of `useNotifications`, which the sample does not
+    send).
     """
+    from django.apps import apps
+
+    from bazis.contrib.ws.messages import notification, notify
+
     token = user.jwt_build()
+    client = get_api_client(app, token)
     with get_api_client(app).client.websocket_connect('/api/v1/ws') as socket:
         socket.send_json({'token': token})
         subscribed(socket)
@@ -363,21 +388,37 @@ def notified(app, user, tasks_client) -> dict:
         assert tasks_client.post(f'{item}transit/', json_data={'transit': 'start'}).status_code == 200
         finished = tasks_client.post(f'{item}transit/', json_data={'transit': 'finish', 'payload': {'report': 'Done'}})
         assert finished.status_code == 200, finished.text
-        changed, notification = None, None
-        while notification is None:
-            message, = received(socket, 1)
-            if message['data'].get('action') == 'notification':
-                notification = message
-            elif changed is None:
-                changed = message
+        changed, = received(socket, 1)
+        created_message = next_action(socket, 'notification_created')
+        listed = client.get(NOTIFICATIONS)
+        assert listed.status_code == 200, listed.text
+        unread = client.get(f'{NOTIFICATIONS}unread_count/')
+        assert unread.status_code == 200, unread.text
+        stored, = listed.json()['data']
+        read = client.patch(f'{NOTIFICATIONS}{stored["id"]}/', json_data={'data': {
+            'id': stored['id'], 'type': stored['type'], 'attributes': {'read_at': '2026-01-01T00:00:00Z'},
+        }})
+        assert read.status_code == 200, read.text
+        changed_message = next_action(socket, 'notifications_changed')
+        task = apps.get_model('tasks.Task').objects.get(pk=created['data']['id'])
+        notify(user, lambda recipient: notification('Task finished', task.title, task))
+        ws_message = next_action(socket, 'notification')
     assert changed['data'] == {'resource': 'tasks.task'}
-    return {'ws_changed': changed, 'ws_notification': notification}
+    return {
+        'ws_changed': changed,
+        'ws_notification': ws_message,
+        'ws_notification_created': created_message,
+        'ws_notifications_changed': changed_message,
+        # what the hooks read of the list
+        'notify_list': {'data': [{key: stored[key] for key in ('id', 'type', 'attributes')}]},
+        'notify_unread_count': unread.json(),
+    }
 
 
 #: the attributes of a task of bazis-bg that the hooks read (the others hold its arguments,
 #: its log with the times of its records, the durations of its phases)
 BG_ATTRIBUTES = [
-    'name', 'state', 'phase', 'expected', 'performed', 'result', 'error', 'interrupt',
+    'name', 'state', 'phase', 'expected', 'performed', 'result', 'error', 'interrupt', 'file',
     'dt_start', 'dt_finish',
 ]
 

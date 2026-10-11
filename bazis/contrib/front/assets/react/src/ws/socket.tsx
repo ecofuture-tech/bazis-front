@@ -80,7 +80,7 @@ interface Socket {
   retry: () => void;
   listeners: Set<Listener>;
   notifications: readonly Notification[];
-  markRead: () => void;
+  markRead: (key?: number) => void;
   clear: () => void;
 }
 
@@ -282,10 +282,11 @@ export function SocketProvider({ path, token, children }: SocketProviderProps) {
     () => (notifications.session === session ? notifications.items : []),
     [notifications, session],
   );
-  const markRead = useCallback(() => {
+  const markRead = useCallback((key?: number) => {
+    const marked = (it: Notification) => !it.read && (key === undefined || it.key === key);
     setNotifications((current) => ({
       session: current.session,
-      items: current.items.some((it) => !it.read) ? current.items.map((it) => ({ ...it, read: true })) : current.items,
+      items: current.items.some(marked) ? current.items.map((it) => (marked(it) ? { ...it, read: true } : it)) : current.items,
     }));
   }, []);
   const clear = useCallback(() => {
@@ -338,12 +339,14 @@ export function useChannel(handler: (message: unknown) => void): void {
 /**
  * The notifications received in this session, the newest first (at most
  * `NOTIFICATIONS_KEPT`): pub/sub keeps nothing, so those published before the page
- * subscribed are not there. `unread` counts those not marked read by `markRead()`.
+ * subscribed are not there (the stored notifications are those of bazis-notify, `useInbox`).
+ * `unread` counts those not marked read by `markRead(key)` (all of them without a key);
+ * `clear()` forgets them. The source of `NotificationCenter`.
  */
 export function useNotifications(): {
   items: readonly Notification[];
   unread: number;
-  markRead: () => void;
+  markRead: (key?: number) => void;
   clear: () => void;
 } {
   const { notifications, markRead, clear } = useSocketContext();

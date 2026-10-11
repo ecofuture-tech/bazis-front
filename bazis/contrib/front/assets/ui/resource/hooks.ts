@@ -17,10 +17,12 @@
 // it the typed paths of their contract. The only casts of the components are here: the
 // signatures below, with the documents of Bazis that the components read.
 
-import type { UseQueryResult } from '@tanstack/react-query';
+import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 
-import type { PaginationLinks, PaginationMeta, PermitMeta } from '@/bazis/client';
+import type { DownloadedFile, PaginationLinks, PaginationMeta, PermitMeta } from '@/bazis/client';
 import {
+  useDownload,
+  useDownloadUrl,
   useFilterFields,
   useItem,
   useList,
@@ -94,6 +96,12 @@ export const useAnyResourceForm = useResourceForm as unknown as (
   path: string,
   options: { id?: string; fixed?: FixedValues },
 ) => ResourceForm<SavedDocument>;
+
+/** `useDownload(path)`: `mutate(id)` saves the file of the item. */
+export const useAnyDownload = useDownload as unknown as (path: string) => UseMutationResult<DownloadedFile, Error, string>;
+
+/** `useDownloadUrl(path, id)`: the content of the file of the item as an object URL. */
+export const useAnyDownloadUrl = useDownloadUrl as unknown as (path: string, id: string | null) => string | null;
 
 /** A value as text: a JSON value that is not a string, a number or a boolean as JSON. */
 export function text(value: unknown): string {

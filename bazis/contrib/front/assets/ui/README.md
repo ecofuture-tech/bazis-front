@@ -72,8 +72,8 @@ sample (`tests/test_design.py` checks it; write it again with
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 | `file-field` | `FileFieldProvider({accept?, maxSize?, resources?, children})`; `FileField(props)` (the control of a file field of `FieldInput`, with `maxSize?`, `accept?`, `path?`); `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
 | `live-query` | `LiveQuery({routes?})` (`ROUTES` by default); the texts `socket.<status>` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
-| `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | capability `ws` |
-| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
+| `notification-center` | `NotificationCenter({notifications, onOpen?(notification), toasts?})`: `notifications` is `useInbox(path)` (bazis-notify) or `useNotifications()` (bazis-ws); `CenterNotification`, `NotificationSource` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` | none (its source) |
+| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
 | `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})`; `MapProvider({tiles?, points?, children})`, `OSM_TILES`, `useMapTiles`; `LeafletMap({markers, selected?, onOpen?, onPick?, me?})`, `MapPointControl`; `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`; the texts `map.<text>` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; the map of a point field `map:<field>`, `action:locate-<field>` | npm `leaflet` (`add` sets it in package.json) |
 
@@ -190,9 +190,11 @@ the WebSocket of the page in a test.
 - **Files** (bazis-uploadable): a field is a file when it is a to-one relationship to a
   resource of `resources` of the capability `uploadable` (`uploadable.file_upload`, whose
   items have `file`, the URL in the storage, `name`, `extension`, `size`). `FieldValue`
-  shows it with `FileValue` in the cards and the lists: a link to the file (in a new tab)
-  with its size and a thumbnail of an image (by its extension), read with the retrieve of
-  the route set (`useItem`). bazis-uploadable gives a user only the files he uploaded: the
+  shows it with `FileValue` in the cards and the lists: its name, a button that downloads
+  it (`useDownload`: `<path><id>/download/` with the token, saved under the name the backend
+  gives; never the `file` URL, which the media host serves to anyone), with its size and a
+  thumbnail of an image (by its extension; its content read the same way,
+  `useDownloadUrl`), read with the retrieve of the route set (`useItem`). bazis-uploadable gives a user only the files he uploaded: the
   file of another user (the attachment of a shared item) is a 404, shown as
   `file:unavailable` ("File not available", with a hint; "File not loaded" for another
   error), never as an id.
@@ -224,26 +226,33 @@ the WebSocket of the page in a test.
   state of the socket as a dot with its label for assistive technologies
   (`socket:<status>`); when no socket answers (`unavailable`) a `Retry`
   (`action:reconnect`) tries at once. Mount it once, under `SocketProvider` of `@/bazis/react/ws`.
-- **`notification-center`** (bazis-ws): a bell with the count of the unread notifications
+- **`notification-center`**: a bell with the count of the unread notifications
   (`action:notifications`, its label says the count) opens their list
   (`list:notifications`, newest first, each `notification:<key>`: the title, the text, the
-  time), which marks them read, also those that come while it is open; `Clear` empties it.
-  A notification about an item is a button when `onOpen` is given. Each new notification
-  is a toast (`tone: 'info'`) once in the page, whatever the number of centers; those
-  received before the center was mounted are not. The notifications are those received in
-  the session: pub/sub keeps nothing.
+  time, the unread ones marked); a click on one marks it read and calls `onOpen` (the list
+  closes), `action:read-notifications` marks them all read, `action:clear-notifications`
+  clears them. Each new unread notification is a toast once in the page, whatever the
+  number of centers (`success` and `error` of bazis-notify in their tone, else `info`);
+  those there when the notifications were first read are not. It needs no package: its
+  `notifications` are the stored ones of bazis-notify (`useInbox(path)`, with a loading and
+  an error state) or those received on the socket of bazis-ws in the session
+  (`useNotifications()`: pub/sub keeps nothing).
 - **`task-progress`** (bazis-bg): a task by its id (the route set of `bg.task`, `BG_TASKS`),
   read until it is done: its name, its state, the phase that runs with a progress bar per
   counter (without a maximum when nothing is expected), then its outcome and, once it
-  succeeded, what `children` renders of it. The traceback of a failure is not shown.
-  `onDone` is called once.
+  succeeded, what `children` renders of it and, when it has a file (an export),
+  `action:download`: the file read with the token from `<path><id>/download/` (bazis-bg
+  2.6), never its `file` URL. The traceback of a failure is not shown. `onDone` is called
+  once.
 - **`async-result`** (bazis-async-background, bazis-async-request): the result of what
   `useAsyncRequest` resolved to (`start`): a queued task read at `RESULT_PATH` until it is
   done, a request run at once completed at once. The response given to `children` is that
   of the endpoint for a replayed request, whose HTTP error is a failure with its message
   (`errors[0].detail`), as is a `failed` task (`error` of its response). `onDone` is called
   once for each `start`.
-- **`map`**: Leaflet (the npm dependency that `add map` sets in package.json) with the tiles
+- **`map`**: Leaflet (the npm dependency that `add map` sets in package.json; `leaflet-map.tsx`,
+  a chunk of its own loaded with the first map shown, `aria-busy` meanwhile, so that the main
+  chunk of a product does not carry it) with the tiles
   of `MapProvider` (`OSM_TILES`, OpenStreetMap with its attribution, by default: set those of
   the product in production, with their host in its CSP), a circle marker per point in the
   colors of the theme (the classes of its tokens, `bg-primary`, `border-background`), a

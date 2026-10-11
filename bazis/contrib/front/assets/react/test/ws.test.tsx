@@ -24,6 +24,7 @@ import { BazisProvider, useList } from '../src/index.js';
 import {
   changedResource,
   notificationOf,
+  notificationsChanged,
   PING_INTERVAL,
   RECONNECT_MAX,
   RECONNECT_MIN,
@@ -81,20 +82,25 @@ describe('the messages', () => {
     // the common channel of the sample: the resource, never the id of an item
     expect(sample.ws_changed.data).toEqual({ resource: 'tasks.task' });
     expect(changedResource(sample.ws_changed.data)).toEqual({ resource: 'tasks.task', id: null });
-    const received = new Date();
-    expect(notificationOf(sample.ws_notification.data, 1, received)).toEqual({
+    const time = new Date();
+    expect(notificationOf(sample.ws_notification.data, 1, time)).toEqual({
       key: 1,
       title: 'Task finished',
       text: 'Notify',
       resource: 'tasks.task',
       id: sample.ws_notification.data.id,
-      received,
+      time,
       read: false,
     });
     // a notification about an item: the item changed
     expect(changedResource(sample.ws_notification.data)).toEqual({ resource: 'tasks.task', id: sample.ws_notification.data.id });
     // the statuses of a task of bazis-async-background are not the change of a resource
     for (const { data } of sample.ws_async_bg) expect(changedResource({ ...data, resource: 'x' })).toBeNull();
+    // the stored notifications of bazis-notify changed: a new one, a read
+    expect(notificationsChanged(sample.ws_notification_created.data)).toBe(true);
+    expect(notificationsChanged(sample.ws_notifications_changed.data)).toBe(true);
+    expect(notificationOf(sample.ws_notification_created.data, 1, time)).toBeNull();
+    expect(changedResource(sample.ws_notification_created.data)).toBeNull();
   });
 
   it('leave out other messages', () => {
@@ -104,6 +110,9 @@ describe('the messages', () => {
     expect(changedResource({ resource: 1 })).toBeNull();
     expect(changedResource({ resource: 'tasks.task' })).toEqual({ resource: 'tasks.task', id: null });
     expect(changedResource({ resource: 'tasks.task', id: 7 })).toEqual({ resource: 'tasks.task', id: '7' });
+    for (const message of [sample.ws_notification.data, sample.ws_changed.data, { action: 1 }, 'notifications_changed', null]) {
+      expect(notificationsChanged(message)).toBe(false);
+    }
   });
 });
 
@@ -382,6 +391,12 @@ describe('useNotifications', () => {
     expect([second?.title, second?.text, first?.title, first?.text]).toEqual(['Second', null, 'Task finished', 'Notify']);
     expect(second?.key).toBe((first?.key ?? 0) + 1);
     expect(result.current.unread).toBe(2);
+    // one, then all
+    act(() => {
+      result.current.markRead(first?.key);
+    });
+    expect(result.current.items.map((it) => it.read)).toEqual([false, true]);
+    expect(result.current.unread).toBe(1);
     act(() => {
       result.current.markRead();
     });
@@ -403,7 +418,8 @@ describe('useNotifications', () => {
 });
 
 describe('useLiveQueries', () => {
-  const ROUTES = { 'entity.parent_entity': PARENT, 'entity.child_entity': CHILD };
+  // the route set of the children stands for that of the notifications of bazis-notify
+  const ROUTES = { 'entity.parent_entity': PARENT, 'notify.notification': CHILD };
 
   function live() {
     const backend = new Backend().on('GET', PARENT, { data: [] }).on('GET', CHILD, { data: [] });
@@ -416,7 +432,7 @@ describe('useLiveQueries', () => {
     return { invalidate, keys: () => invalidate.mock.calls.map(([filters]) => filters?.queryKey) };
   }
 
-  it('refetches the queries of a changed resource and of a task', () => {
+  it('refetches the queries of a changed resource, of a task and of the stored notifications', () => {
     const { keys } = live();
     act(() => {
       const socket = FakeSocket.last();
@@ -425,10 +441,14 @@ describe('useLiveQueries', () => {
       socket.publish({ resource: 'unknown.model' });
       socket.publish(sample.ws_notification.data);
       socket.publish(sample.ws_async_bg[0]?.data);
+      socket.publish(sample.ws_notification_created.data);
+      socket.publish(sample.ws_notifications_changed.data);
     });
     expect(keys()).toEqual([
       ['bazis', PARENT],
       ['bazis', 'async_background', sample.ws_async_bg[0]?.data.task_id],
+      ['bazis', CHILD],
+      ['bazis', CHILD],
     ]);
   });
 

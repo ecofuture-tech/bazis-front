@@ -19,10 +19,11 @@ from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from bazis.contrib.notify.service import notify
 from bazis.contrib.permit.models_abstract import PermitModelMixin
 from bazis.contrib.statusy import transit_before
 from bazis.contrib.statusy.models_abstract import StatusyMixin, StatusyTransit
-from bazis.contrib.ws.messages import notification, notify, publish_changed
+from bazis.contrib.ws.messages import publish_changed
 from bazis.core.models_abstract import DtMixin, JsonApiMixin, UuidMixin
 
 from .schemas import FinishPayload
@@ -67,8 +68,13 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     def before_finish(self, statusy_transit: StatusyTransit, payload: FinishPayload):
         self.report = payload.report
         self.save()
-        # only the assignee, who may see the task, in the language of his profile
-        notify(self.assignee, lambda user: notification(_('Task finished'), self.title, self))
+        # a stored notification of bazis-notify (tasks/notifications.py), only to the assignee,
+        # who may see the task, in the language of his profile; delivered live on his channel
+        # of bazis-ws (`notification_created`), never published a second time by hand
+        notify(
+            self.assignee, 'tasks.finished', _('Task finished'), lambda user: self.title,
+            action={'route': f'/tasks/{self.pk}'},
+        )
 
 
 class Step(PermitModelMixin, DtMixin, UuidMixin, JsonApiMixin):

@@ -37,6 +37,8 @@ export interface Call {
 interface Reply {
   status: number;
   body?: unknown;
+  /** The headers of a file (`file`): its body is a text, not JSON. */
+  headers?: Record<string, string>;
 }
 
 /** A backend: `on(method, url, body, status)` registers a reply; `calls` are the requests. */
@@ -49,6 +51,12 @@ export class Backend {
 
   on(method: string, url: string, body?: unknown, status = 200): this {
     this.replies.set(`${method} ${BASE}${url}`, { status, body });
+    return this;
+  }
+
+  /** A file of a download route: its content and its `Content-Disposition`. */
+  file(url: string, content: string, disposition: string): this {
+    this.replies.set(`GET ${BASE}${url}`, { status: 200, body: content, headers: { 'Content-Disposition': disposition } });
     return this;
   }
 
@@ -82,6 +90,7 @@ export class Backend {
     await this.pending.get(`${method} ${url}`);
     const reply = this.replies.get(`${method} ${url}`);
     if (!reply) return new Response('', { status: 404, statusText: `no reply to ${method} ${url}` });
+    if (reply.headers) return new Response(String(reply.body), { status: reply.status, headers: reply.headers });
     const body = reply.body === undefined ? null : JSON.stringify(reply.body);
     return new Response(reply.status === 204 ? null : body, { status: reply.status });
   };

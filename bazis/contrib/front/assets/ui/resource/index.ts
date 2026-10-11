@@ -42,7 +42,7 @@ export {
   uploadedFile,
   useFiles,
 } from './files.js';
-export type { ControlProps, FileControlProps, UploadedFile } from './files.js';
+export type { ControlProps, FileControlProps, FileViewProps, UploadedFile } from './files.js';
 export {
   formatPoint,
   geoJsonPoint,

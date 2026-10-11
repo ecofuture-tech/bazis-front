@@ -38,6 +38,7 @@ describe('bgTask', () => {
       outcome: null,
       progress: [],
       result: null,
+      file: false,
       started: null,
       finished: null,
     });
@@ -62,6 +63,13 @@ describe('bgTask', () => {
     expect(bgTask(failed).outcome).toBe('error');
     const interrupted = { data: { ...done, attributes: { ...done.attributes, phase: 'interrupted', interrupt: true } } };
     expect(bgTask(interrupted).outcome).toBe('interrupted');
+  });
+
+  it('says whether the task has a file (an export), downloaded from its route', () => {
+    const done = sample.bg_task_done.data;
+    const exported = { data: { ...done, attributes: { ...done.attributes, file: '/media/bg/k3_orders.xlsx' } } };
+    expect(bgTask(exported).file).toBe(true);
+    expect(bgTask(sample.bg_task_done).file).toBe(false);
   });
 
   it('reads counters by key', () => {

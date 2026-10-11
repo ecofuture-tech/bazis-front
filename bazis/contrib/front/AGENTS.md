@@ -132,10 +132,11 @@ mix with its output.
 python manage.py bazis_front add resource-list resource-card resource-form   # the core
 python manage.py bazis_front add status-badge status-history transit-bar     # with bazis-statusy
 python manage.py bazis_front add file-field                                  # with bazis-uploadable
-python manage.py bazis_front add live-query notification-center              # with bazis-ws
+python manage.py bazis_front add notification-center                         # with bazis-notify (or bazis-ws)
+python manage.py bazis_front add live-query                                  # with bazis-ws
 python manage.py bazis_front add task-progress                               # with bazis-bg
 python manage.py bazis_front add async-result                                # with bazis-async-background
-python manage.py bazis_front add map                                         # the points on a map (Leaflet): then `npm install`
+python manage.py bazis_front add map                                         # the points on a map (Leaflet, loaded with the first map): then `npm install`
 ```
 
 The components are the visual building blocks of the screens: React components on
@@ -155,7 +156,7 @@ dependencies to the versions of the new release without a conflict in `package.j
 
 - A component of a package needs its capability in `contract/contract.json` (export the
   contract first): `transit-bar`, `status-badge` and `status-history` need `statusy`,
-  `file-field` needs `uploadable`, `live-query` and `notification-center` need `ws`,
+  `file-field` needs `uploadable`, `live-query` needs `ws`,
   `task-progress` needs `bg`, `async-result` needs `async_background`; `add` fails with the
   missing capability and copies nothing.
 - An asset already in the frontend is kept as it is; `add` of it again does nothing when
@@ -200,8 +201,8 @@ dependencies to the versions of the new release without a conflict in `package.j
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider({accept?: {field: types}, maxSize?, children})`: `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField(props)`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
 | `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
-| `notification-center` | `NotificationCenter({onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list, a toast for each new one | `action:notifications`, `list:notifications` with `notification:<key>`, `action:clear-notifications` | `ws` |
-| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS` (the texts `bg.<view>`) | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
+| `notification-center` | `NotificationCenter({notifications, onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list (a click marks one read and opens it), mark all read, clear, a toast for each new one; `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only) | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` | none (its source: `notify` or `ws`) |
+| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
 | `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})` (`list.map`: the items with a point in `field`), `MapProvider({tiles?, children})` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
 
@@ -298,8 +299,11 @@ the package documents each component.
 - **Files** (bazis-uploadable): a model references an uploaded file with a foreign key to
   `uploadable.FileUpload`; its field is a to-one relationship to `uploadable.file_upload`
   (a resource of `resources` of the capability `uploadable`), `type: file` in the specs.
-  `FieldValue` shows it (`FileValue`: a link to the file with its size, a thumbnail of an
-  image, read with the retrieve of the route set) in the cards and the lists; the file of
+  `FieldValue` shows it (`FileValue`: its name, a button that downloads it, its size, a
+  thumbnail of an image, read with the retrieve of the route set) in the cards and the
+  lists. The content (the download, the thumbnail) is read with the token from
+  `<files>/{id}/download/` (`useDownload`, `useDownloadUrl`), never from the `file` URL of
+  the media host, which serves it to anyone who has the link; the file of
   another user, which bazis-uploadable does not give (a 404), is `file:unavailable`
   ("File not available"). In the
   forms, with `FileFieldProvider` around the routes (`src/app/router.tsx`), `FieldInput`
@@ -385,13 +389,19 @@ the package documents each component.
 - **The socket** (bazis-ws): wrap the routes in `SocketProvider` of `@/bazis/react/ws` with
   `path={CAPABILITIES.ws?.path ?? null}` and the token of the session (`useToken()` of the
   template; null before the login: no socket), and give `AppShell` the `tools`
-  `<LiveQuery />` and `<NotificationCenter onOpen={…} />` (see [The socket](#the-socket)).
+  `<LiveQuery />` and the bell `NotificationCenter` (see [The socket](#the-socket)).
   `LiveQuery` refetches the lists and the items that the backend says changed, and every
-  query after a reconnect; `NotificationCenter` keeps the notifications of the session (none
-  of before the page was opened: pub/sub keeps nothing).
+  query after a reconnect. The bell shows the stored notifications of bazis-notify
+  (`notifications={useInbox(ROUTES['notify.notification'])}`, `@/bazis/react/notify`:
+  listed again on its messages `notification_created` and `notifications_changed`, so the
+  backend sends nothing else; without bazis-ws, `useInbox(path, {poll})`), else, with
+  bazis-ws only, those received in the session (`notifications={useNotifications()}`: none
+  of before the page was opened, pub/sub keeps nothing).
 - **Background work**: `TaskProgress` shows a task of bazis-bg whose id the endpoint of the
   product that queued it returned (`delay(author=user)`; a user reads only their tasks),
-  read until it is done; the traceback of a failure is not shown. `AsyncResult` shows the
+  read until it is done; the traceback of a failure is not shown; a task with a file (an
+  export) has `action:download`, read with the token from `<tasks>/{id}/download/` (bazis-bg
+  2.6), never from its `file` URL. `AsyncResult` shows the
   result of `useAsyncRequest` (bazis-async-request) or of a task of
   bazis-async-background (`{status: 'queued', taskId}`), read until it is done; a request
   that the backend ran at once (no Kafka) is completed at once, and an HTTP error of the
@@ -475,6 +485,7 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
     "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"]},
     "ws": {"path": "/api/v1/ws"},
     "bg": {"resource": "bg.task"},
+    "notify": {"resource": "notify.notification"},
     "async_background": {"result_path": "/api/v1/async_background_response/{task_id}/"},
     "async_request": {"header": "X-Async-Background"},
     "permit": {"roles": [{"slug": "manager", "name": {"en": "Manager", "ru": "Менеджер"}, "for_anonymous": false,
@@ -534,11 +545,13 @@ python manage.py bazis_front contract --no-node  # do not run openapi-typescript
   `get_selector_fields`, its relations to a selector source, also a many-to-many field and a
   reverse relation by its accessor, which the route set may not show, and `self` when the
   model is a selector source itself), `statusy` (per statusy model: the
-  initial status, the statuses of its transits, the transits with the JSON Schema of the
+  initial status, that of its `Workflow(initial=...)` of bazis-statusy 2.12, else the global
+  `BAZIS_STATUS_INITIAL`, the statuses of its transits, the transits with the JSON Schema of the
   payload they require, `null` without one), `ws` (`path`: the path of the socket, that of
   a route of `WsEndpoint` that the application of `bazis.core.app` has, null without one;
   see [The socket](#the-socket)), `bg` (`resource`: the JSON:API type of the route set of `BgRoute`, null
-  when it is not routed), `async_background` (`result_path`: the path of the result of a
+  when it is not routed), `notify` (`resource`: that of `NotificationRouteSet` of
+  bazis-notify, null when it is not routed), `async_background` (`result_path`: the path of the result of a
   task with `{task_id}`, null when it is not routed), `async_request` (`header`: the header
   that asks for the background execution, `X-Async-Background`). The names of the roles,
   the statuses and the transits are maps `{language: name}` of every language of
@@ -688,7 +701,8 @@ scenarios:
   not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
   current card, without an open form, show these texts; a file its name), `rows`,
   `error`, `notification` (a notification of the user whose text contains the text, in the
-  list of the notifications; the product has bazis-ws, `packages` has `ws`: P027). The
+  list of the notifications; the product has bazis-notify or bazis-ws, `packages` has
+  `notify` or `ws`: P027). The
   validator follows the steps from screen to screen
   and checks each against the screen it acts on: `open` takes a screen without an item in
   its route (an item is reached with `open_item` or the `then` of a form), a form with
@@ -870,7 +884,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
 | `P025` | error | the role of a scenario has no `test_user`, and the product logs in (`packages` has `users`) |
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
-| `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has no `ws`) |
+| `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has neither `notify` nor `ws`) |
 | `P028` | error | `packages` has `ws`, and the contract has no path of the socket: the socket of bazis-ws is not routed where the export sees it (the router module) |
 | `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages` |
 | `S001` | error | a screen file is not valid YAML |
@@ -1115,17 +1129,21 @@ What the frontend relies on in the backend, as the sample of the bazis-front rep
 - **The test data of the end-to-end tests** is `manage.py e2e_data` (see
   [The end-to-end tests](#the-end-to-end-tests); `sample/tasks/management/commands/e2e_data.py`
   and `sample/tasks/e2e.py`; not `workflow.py`, the module of the declared workflows).
-- **The changes and the notifications** reach the frontend through bazis-ws in the formats of
-  [The socket](#the-socket), from `save()` and from an action of a transit, with the helpers
-  of `bazis.contrib.ws.messages` (after the commit, robustly, a lazy title in the language
-  of each user), as `sample/tasks/models.py` does: the change of a task on the common
-  channel without its id, the notification of the assignee on his channel.
+- **The changes and the notifications** reach the frontend as `sample/tasks/models.py` sends
+  them, from `save()` and from an action of a transit (after the commit, robustly): the change
+  of a task on the common channel of bazis-ws without its id (`publish_changed`, the formats
+  of [The socket](#the-socket)), the notification of the assignee with `notify` of
+  bazis-notify (stored, in his language, its type registered in `<app>/notifications.py`;
+  bazis-notify delivers it live itself, `notification_created`: never publish it a second
+  time with `bazis.contrib.ws.messages.notify`, which is for a product without bazis-notify).
 
   ```python
-  from bazis.contrib.ws.messages import notification, notify, publish_changed
+  from bazis.contrib.notify.service import notify
+  from bazis.contrib.ws.messages import publish_changed
 
   publish_changed(task)
-  notify(task.assignee, lambda user: notification(_('Task finished'), task.title, task))
+  notify(task.assignee, 'tasks.finished', _('Task finished'), lambda user: task.title,
+         action={'route': f'/tasks/{task.pk}'})   # the route that the bell opens
   ```
 - **Every rule that the frontend follows to hide an action is a rule of the backend too**:
   the frontend is not a security boundary, and a hidden button stops nobody who sends the
@@ -1352,6 +1370,7 @@ import { useList, useResourceForm } from '@/bazis/react';
 import { useTransit, useTransits } from '@/bazis/react/statusy';   // with bazis-statusy
 import { useUpload } from '@/bazis/react/uploadable';             // with bazis-uploadable
 import { SocketProvider, useChannel, useNotifications } from '@/bazis/react/ws';   // with bazis-ws
+import { useInbox } from '@/bazis/react/notify';                  // with bazis-notify
 import { useBgTask } from '@/bazis/react/bg';                     // with bazis-bg
 import { useAsyncRequest, useAsyncTask } from '@/bazis/react/async';   // with bazis-async-background
 
@@ -1406,7 +1425,15 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   [The socket](#the-socket)); `useSocket()` is its `status` (`idle`, `connecting`, `open`,
   `rejected`, `unavailable`), the `error` of a refused token and `retry()`;
   `useChannel(handler)` gets every message of the channels of the session, parsed; `useLiveQueries(ROUTES)` refetches what the
-  messages say changed; `useNotifications()` is `{items, unread, markRead, clear}`.
+  messages say changed (also the notifications of bazis-notify on its messages);
+  `useNotifications()` is `{items, unread, markRead(key?), clear}` of the session.
+- `useInbox(path, {limit?, poll?})` (bazis-notify, `ROUTES['notify.notification']`) is the
+  stored notifications of the user, the newest first: `{items, unread, status, error,
+  retry, markRead(key?), markUnread(key), clear}` (PATCH of `read_at`, `read_all/`,
+  `clear/`; `unread` is `unread_count/`); both are the source of `NotificationCenter`.
+- `useDownload(path)` (`mutate(id)`) saves the file of an item from `<path><id>/download/`
+  (bazis-uploadable, bazis-bg) with the token, `useDownloadUrl(path, id)` gives its content
+  as an object URL (a thumbnail); `client.download(path, id)` and `saveFile` are below them.
 - `useAction(path, name, {method?, invalidate?})` calls a custom action of a route set
   (`mutate(body)`, `useItemAction`: `mutate({id, body})`), typed by its OpenAPI, then
   refetches the queries of the resource (not with `invalidate: false`); `errors` are those
@@ -1483,7 +1510,9 @@ both after the commit and robustly. The facts that the hooks rely on:
   `useLiveQueries` refetches the queries of the resource, each client with its own
   permissions; to `COMMON_CHANNEL` without the id),
   `{"action": "notification", "title": "…", "text"?: "…", "resource"?: "…", "id"?: "…"}`
-  (a notification of the user; with a resource, the item also changed), and
+  (a notification of the user without bazis-notify, `useNotifications`; with a resource, the
+  item also changed), `{"action": "notification_created" | "notifications_changed", …}`,
+  which bazis-notify sends itself (`useLiveQueries` refetches `useInbox`), and
   `{"action": "async_bg", "task_id", "status"}`, which bazis-async-background sends itself.
 
 ## The language
@@ -1632,7 +1661,10 @@ tests cannot log in (P026).
   to-one relationship, set to its id in the document of a create or an update. A file larger
   than `BAZIS_FILE_UPLOAD_MAX_SIZE` is a 413 `ERR_FILE_TOO_LARGE`, checked after the whole
   body is received. bazis-uploadable does not restrict the types and never deletes a
-  replaced file from the storage.
+  replaced file from the storage. The `file` URL is served by the media host to anyone who
+  has it: read the content from `GET <path><id>/download/` with the token (bazis-uploadable
+  2.7, the files the user sees: 404 otherwise; bazis-bg 2.6 for the file of a task), as
+  `useDownload` does, and never link the `file` URL.
 - A point (`PointField`) is GeoJSON, `{"type": "Point", "coordinates": [<longitude>,
   <latitude>]}`: the longitude first, as in `<field>__near=<lon>,<lat>[,<meters>]` (100 m
   by default; `<field>=<lon>,<lat>` is within 10 m) and `<field>__in_bbox=<lon1>,<lat1>,

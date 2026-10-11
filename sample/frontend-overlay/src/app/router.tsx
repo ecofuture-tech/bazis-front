@@ -23,7 +23,8 @@ import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
-import { SocketProvider, type Notification } from '@/bazis/react/ws';
+import { useInbox, type InboxNotification } from '@/bazis/react/notify';
+import { SocketProvider } from '@/bazis/react/ws';
 import { AppShell, ListCardLayout, type NavItem } from '@/bazis/ui/app-shell';
 import { FileFieldProvider } from '@/bazis/ui/file-field';
 import { LiveQuery } from '@/bazis/ui/live-query';
@@ -53,6 +54,19 @@ const NAVIGATION: readonly (NavItem & { label: string })[] = [
 ];
 
 /**
+ * The stored notifications of the user (bazis-notify), refetched by `LiveQuery` on the
+ * messages of bazis-notify: a notification of a task opens its card (its `route`).
+ */
+function Notifications() {
+  const notifications = useInbox(ROUTES['notify.notification']);
+  const navigate = useNavigate();
+  const open = (notification: InboxNotification) => {
+    if (notification.route !== null) void navigate(notification.route);
+  };
+  return <NotificationCenter notifications={notifications} onOpen={open} />;
+}
+
+/**
  * The screens of a logged-in user in the layout of the application (a sidebar or a top bar,
  * `navigation` of spec/design/theme.yaml); the others go to the login screen and come back.
  * Without a login (no bazis-users) they are open.
@@ -62,7 +76,6 @@ function RequireSession() {
   const api = useApi();
   const { t } = useLanguage();
   const location = useLocation();
-  const navigate = useNavigate();
   if (LOGIN_ENABLED && !token) {
     const from = location.pathname + location.search;
     return <Navigate to="/login" replace state={{ from }} />;
@@ -71,20 +84,16 @@ function RequireSession() {
   const onLogout = () => {
     signOut(api);
   };
-  // a notification of a task opens its card
-  const open = (notification: Notification) => {
-    if (notification.resource === 'tasks.task' && notification.id !== null) void navigate(`/tasks/${notification.id}`);
-  };
   return (
     <AppShell
       title={PRODUCT_NAME}
       items={NAVIGATION.map((item) => ({ ...item, label: t(item.label) }))}
       session={LOGIN_ENABLED ? { onLogout } : null}
-      // bazis-ws: the lists and the cards refetched when a task changes, the notifications
+      // bazis-ws: the lists, the cards and the notifications refetched when they change
       tools={
         <>
           <LiveQuery />
-          <NotificationCenter onOpen={open} />
+          <Notifications />
         </>
       }
     >

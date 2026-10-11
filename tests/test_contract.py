@@ -80,7 +80,9 @@ def test_export_is_deterministic(sample_app, tmp_path):
 def test_resources_come_from_x_bazis(sample_app, tmp_path):
     resources = export(tmp_path)['project']['resources']
 
-    assert sorted(resources) == ['bg.task', 'tasks.step', 'tasks.task', 'uploadable.file_upload', 'users.user']
+    assert sorted(resources) == [
+        'bg.task', 'notify.notification', 'tasks.step', 'tasks.task', 'uploadable.file_upload', 'users.user',
+    ]
     task = resources['tasks.task']
     assert task['model'] == 'tasks.Task'
     assert task['route_set'] == 'tasks.routes.TaskRouteSet'
@@ -206,13 +208,15 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
     sections = export(tmp_path)['capabilities']
 
     assert sorted(sections) == [
-        'async_background', 'async_request', 'authing', 'bg', 'permit', 'statusy', 'uploadable',
-        'users', 'ws',
+        'async_background', 'async_request', 'authing', 'bg', 'notify', 'permit', 'statusy',
+        'uploadable', 'users', 'ws',
     ]
-    # the socket of bazis-ws, the resource of the tasks of bazis-bg, the result of
-    # bazis-async-background and the header of bazis-async-request
+    # the socket of bazis-ws, the resources of the tasks of bazis-bg and of the notifications
+    # of bazis-notify, the result of bazis-async-background and the header of
+    # bazis-async-request
     assert sections['ws'] == {'path': '/api/v1/ws'}
     assert sections['bg'] == {'resource': 'bg.task'}
+    assert sections['notify'] == {'resource': 'notify.notification'}
     assert sections['async_background'] == {
         'result_path': '/api/v1/async_background_response/{task_id}/'
     }
@@ -296,6 +300,29 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
     assert schema['required'] == ['report']
     # the combined payload type is named after the ids of its classes
     assert 'title' not in schema
+
+
+@pytest.mark.django_db
+def test_the_initial_status_is_that_of_the_model(monkeypatch):
+    """
+    The initial status of a model is the one its workflow declares (`Workflow(initial=...)`
+    of bazis-statusy 2.12, what a new object gets), else the global BAZIS_STATUS_INITIAL,
+    which is then a status of the model (its name from the settings until its row exists).
+    """
+    from bazis.contrib.front.capabilities import statusy
+
+    names = {'en': 'Waiting', 'ru': 'Waiting'}
+    with override_settings(BAZIS_STATUS_INITIAL=['waiting', 'Waiting']):
+        monkeypatch.setattr(statusy, 'initial_statuses', lambda: {'tasks.Task': 'in_progress'})
+        task = statusy.section()['models']['tasks.task']
+        assert task['initial'] == 'in_progress'
+        # no phantom status: the global initial status is not one of the model
+        assert [it['id'] for it in task['statuses']] == ['done', 'draft', 'in_progress']
+
+        monkeypatch.setattr(statusy, 'initial_statuses', dict)
+        task = statusy.section()['models']['tasks.task']
+        assert task['initial'] == 'waiting'
+        assert {'id': 'waiting', 'name': names} in task['statuses']
 
 
 @pytest.mark.django_db
@@ -424,7 +451,7 @@ def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monke
     )
 
     # the other sections are read from the settings and the routes
-    names = ['async_background', 'async_request', 'authing', 'bg', 'uploadable', 'users', 'ws']
+    names = ['async_background', 'async_request', 'authing', 'bg', 'notify', 'uploadable', 'users', 'ws']
     assert capabilities.enabled() == names
     assert list(capabilities.sections()) == names
 
@@ -436,8 +463,8 @@ def test_capabilities_follow_the_installed_apps():
     # bazis-ws is not a Django app: its capability is the installed package
     assert not capabilities.app_enabled('bazis.contrib.ws')
     assert capabilities.enabled() == [
-        'async_background', 'async_request', 'authing', 'bg', 'permit', 'statusy', 'uploadable',
-        'users', 'ws',
+        'async_background', 'async_request', 'authing', 'bg', 'notify', 'permit', 'statusy',
+        'uploadable', 'users', 'ws',
     ]
 
 
@@ -628,25 +655,31 @@ def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch)
 
     real = metadata.version
     # a pre-release of the version counts as the version
-    versions = {'bazis-ws': '2.4.0', 'bazis-authing': '2.6.0rc1', 'bazis-uploadable': '2.4.9'}
+    versions = {'bazis-ws': '2.4.0', 'bazis-authing': '2.6.0rc1', 'bazis-uploadable': '2.6.3'}
     monkeypatch.setattr(metadata, 'version', lambda name: versions.get(name) or real(name))
     warnings = check_packages(None)
     # warnings: an outdated package never blocks migrate or runserver (C004 of check fails)
     assert [(it.id, it.level) for it in warnings] == [('front.W006', WARNING), ('front.W006', WARNING)]
-    assert 'bazis-uploadable 2.4.9 is installed' in warnings[0].msg
+    assert 'bazis-uploadable 2.6.3 is installed' in warnings[0].msg
+    assert 'download' in warnings[0].msg
     assert 'bazis-ws>=2.5.0' in warnings[1].msg and 'subscribed' in warnings[1].msg
     assert [name for name, _, _ in capabilities.outdated(['ws', 'statusy', 'unknown'])] == ['ws']
-    # bazis-uploadable `2.6` is its minimum 2.6.0
-    versions['bazis-uploadable'] = '2.6'
+    # bazis-uploadable `2.7` is its minimum 2.7.0 (the download route)
+    versions['bazis-uploadable'] = '2.7'
     assert [name for name, _, _ in capabilities.outdated(['uploadable', 'ws'])] == ['ws']
+    # bazis-bg: the download route of the file of a task (2.6)
+    versions['bazis-bg'] = '2.5.1'
+    assert [name for name, _, _ in capabilities.outdated(['bg'])] == ['bg']
+    versions['bazis-bg'] = '2.6.0'
     # bazis-permit: the selectors of the contract (2.6) and the query scope of its routes (2.7)
     versions['bazis-permit'] = '2.6.0'
     assert [name for name, _, _ in capabilities.outdated(['permit', 'statusy'])] == ['permit']
     assert 'bazis-permit>=2.7.0' in check_packages(None)[0].msg
-    # bazis-statusy: the JSON Schemas of the payloads with their titles translated (2.8)
-    versions['bazis-statusy'] = '2.7.9'
+    # bazis-statusy: the JSON Schemas of the payloads with their titles translated (2.8), the
+    # initial status of each model (2.12)
+    versions['bazis-statusy'] = '2.11.0'
     assert [name for name, _, _ in capabilities.outdated(['statusy'])] == ['statusy']
-    assert 'bazis-statusy>=2.8.0' in check_packages(None)[1].msg
+    assert 'bazis-statusy>=2.12.0' in check_packages(None)[1].msg
 
 
 def test_the_default_language_is_a_code_of_the_languages():

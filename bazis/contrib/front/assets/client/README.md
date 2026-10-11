@@ -89,6 +89,7 @@ Every operation takes the path of a route set and, for an item, its id:
 | `itemAction(path, id, name, body?, {method})` | `POST path{id}/{name}/`, as `action` |
 | `login({username, password}, {path})` | `POST /api/openapi-token/` (bazis-users), a form |
 | `upload(path, file, {name, onProgress})` | `POST path`, `multipart/form-data` with `file` (and `name`), with XMLHttpRequest (bazis-uploadable); the created item |
+| `download(path, id)` | `GET path{id}/download/` with the token (bazis-uploadable 2.7, bazis-bg 2.6); `{blob, name}`, the name of `Content-Disposition` (`dispositionName`); `saveFile(file, fallback?)` saves it in the browser |
 | `auth(path, {store})` | `GET path` (bazis-authing), the store token as the bearer token, without cookies; the state of the store |
 | `authLogin(path, store, body)` | `POST path` of a login action, `application/json` in the store, its redirect to the auth endpoint followed; the state of the store |
 | `authWait(path, store, {interval})` | `GET path` every `interval` ms (`AUTH_POLL_INTERVAL`, 1.5 s) until the store is signed in, has an error or has expired |
@@ -134,7 +135,9 @@ of the file in the storage, `name`, `extension`, `size`; its `id` is a number fo
 primary key); an error status is an `ApiError` (413 `ERR_FILE_TOO_LARGE` beyond
 `BAZIS_FILE_UPLOAD_MAX_SIZE`, also a page of a proxy that refuses the body), a network
 error a `TypeError`, an abort (`signal`) a `DOMException` `AbortError`. A model references
-the file by a to-one relationship set to its id.
+the file by a to-one relationship set to its id. Its content is read from the download
+route of the item (`download`), with the token: the `file` URL is served by the media host
+to anyone who has it, so it is never linked.
 
 **bazis-authing.** `GET` of the auth endpoint without a store token creates a store: a 400
 whose error `UNAUTHORIZED` has the store token in `meta.token`. With a store token, a store

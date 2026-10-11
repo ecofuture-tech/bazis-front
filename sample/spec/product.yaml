@@ -7,7 +7,7 @@ product:
   id: tasks
   name: Tasks
   summary: The tasks of a team, started and finished with a report
-packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request]
+packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request, notify]
 languages: [en, ru]            # LANGUAGES of the backend: the interface is in English and Russian
 language: en                   # the code of LANGUAGES of LANGUAGE_CODE
 roles:
@@ -129,8 +129,8 @@ scenarios:
       - upload: {field: attachment, file: brief.txt}
       - submit: {}
       - expect: {values: {title: Attach the brief, attachment: brief.txt}}
-  # bazis-ws: the assignee of a finished task is notified (sample/tasks/models.py), over the
-  # socket that the frontend opens after the login
+  # bazis-notify: the assignee of a finished task is notified (sample/tasks/models.py), a
+  # stored notification delivered live over the socket of bazis-ws
   - id: manager-is-notified-of-a-finished-task
     role: manager
     steps:

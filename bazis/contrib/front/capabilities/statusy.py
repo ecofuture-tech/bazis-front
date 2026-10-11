@@ -14,9 +14,11 @@
 
 """
 bazis-statusy: the statuses and the transits of every statusy model, from the database,
-with the JSON Schema of the payload a transit requires. The names are in every language of
-the project (translated fields; the name of the initial status of the settings, a lazy text
-until its row exists); the translated titles of a payload (`Field(title=_('…'))`, which the
+with the JSON Schema of the payload a transit requires, and the status of its new objects:
+the one its workflow declares (`Workflow(initial=...)`, bazis-statusy 2.12), else the
+global `BAZIS_STATUS_INITIAL`. The names are in every language of the project (translated
+fields; the name of the global initial status, a lazy text until its row exists); the
+translated titles of a payload (`Field(title=_('…'))`, which the
 runtime schemas give in the language of the request) are in the language of the export: the
 payload type of bazis-statusy generates its JSON Schema with them as texts of the active
 language (`TranslatedSchemaModel` of the core).
@@ -25,6 +27,7 @@ language (`TranslatedSchemaModel` of the core).
 from django.apps import apps
 from django.conf import settings
 
+from bazis.contrib.statusy.declare import initial_statuses
 from bazis.contrib.statusy.models_abstract import StatusyMixin
 
 from . import translated
@@ -32,22 +35,33 @@ from . import translated
 
 def section() -> dict:
     status_model = apps.get_model(settings.BAZIS_STATUSY_STATUS_MODEL)
-    initial_id, initial_name = settings.BAZIS_STATUS_INITIAL
+    default_id, default_name = settings.BAZIS_STATUS_INITIAL
+    declared = initial_statuses()
     models = {}
     for model in apps.get_models():
         if not issubclass(model, StatusyMixin):
             continue
+        # the status that StatusyMixin gives a new object: that of the workflow of the model
+        # (or of its concrete model), else the global one
+        initial = (
+            declared.get(model._meta.label)
+            or declared.get(model._meta.concrete_model._meta.label)
+            or default_id
+        )
         transits = sorted(model.get_model_transits(), key=lambda it: it.id)
-        ids = {initial_id} | {it.status_src_id for it in transits} | {it.status_dst_id for it in transits}
+        ids = {initial} | {it.status_src_id for it in transits} | {it.status_dst_id for it in transits}
         statuses = status_model.objects.in_bulk(ids)
         models[model.get_resource_label()] = {
-            'initial': initial_id,
+            'initial': initial,
             'statuses': [
                 {
                     'id': pk,
-                    # the initial status has no row until the first object is created
+                    # the global initial status has no row until the first object is created
+                    # (the declared statuses are created by migrate)
                     'name': translated(
-                        lambda status=statuses.get(pk): status.name if status else initial_name
+                        lambda status=statuses.get(pk), pk=pk: (
+                            status.name if status else default_name if pk == default_id else pk
+                        )
                     ),
                 }
                 for pk in sorted(ids)

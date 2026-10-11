@@ -166,13 +166,16 @@ describe('file fields', () => {
     expect(screen.getByTestId('field:attachment').getAttribute('type')).not.toBe('file');
   });
 
-  it('shows a file: its link, its size, the thumbnail of an image', async () => {
+  it('shows a file: its name, its size, the thumbnail of an image read with the token', async () => {
+    // jsdom has no object URLs
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:photo'), revokeObjectURL: vi.fn() });
     const item = (id: string, name: string, size: number) =>
       resource(id, { file: `/media/${name}`, name, extension: name.split('.').pop(), size }, {}, 'test.file');
     // read with the retrieve of the route set: it may have no list
     const backend = new Backend()
       .on('GET', `${FILES}1/`, { data: item('1', 'brief.txt', 2048) })
-      .on('GET', `${FILES}2/`, { data: item('2', 'photo.png', 11) });
+      .on('GET', `${FILES}2/`, { data: item('2', 'photo.png', 11) })
+      .file(`${FILES}2/download/`, 'png', 'inline; filename="photo.png"');
     renderWithBazis(
       <FilesProvider control={null} resources={['test.file']}>
         <span data-bz="field:attachment">
@@ -186,13 +189,48 @@ describe('file fields', () => {
       </FilesProvider>,
       backend,
     );
-    const link = await screen.findByRole('link', { name: 'brief.txt' });
-    expect(link.getAttribute('href')).toBe('/media/brief.txt');
+    // never a link to the URL of the media host, which serves the file without the token
+    await screen.findByRole('button', { name: 'brief.txt' });
     expect(screen.getByTestId('field:attachment').textContent).toBe('brief.txt2 KB');
-    await screen.findByRole('link', { name: 'photo.png' });
-    expect(backend.requests('GET').sort()).toEqual([`GET ${FILES}1/`, `GET ${FILES}2/`]);
-    expect(document.querySelector('img')?.getAttribute('src')).toBe('/media/photo.png');
+    await screen.findByRole('button', { name: 'photo.png' });
+    await waitFor(() => {
+      expect(document.querySelector('img')?.getAttribute('src')).toBe('blob:photo');
+    });
+    expect(screen.queryByRole('link')).toBeNull();
+    // the thumbnail of the image only: the other file is read when it is downloaded
+    expect(backend.requests('GET').sort()).toEqual([`GET ${FILES}1/`, `GET ${FILES}2/`, `GET ${FILES}2/download/`]);
     expect(screen.getByTestId('field:other').textContent).toBe('3');
+  });
+
+  it('downloads a file with the token, and says when it fails', async () => {
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:brief'), revokeObjectURL: vi.fn() });
+    const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const backend = new Backend()
+      .on('GET', `${FILES}1/`, { data: resource('1', { file: '/media/brief.txt', name: 'brief.txt', size: 3 }, {}, 'test.file') })
+      .file(`${FILES}1/download/`, 'brief', 'attachment; filename="brief.txt"');
+    const onRow = vi.fn();
+    renderWithBazis(
+      <div onClick={onRow}>
+        <FilesProvider control={null} resources={['test.file']}>
+          <FileValue relation="test.file" id="1" path={FILES} />
+        </FilesProvider>
+      </div>,
+      backend,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'brief.txt' }));
+    await waitFor(() => {
+      expect(saved).toHaveBeenCalledOnce();
+    });
+    expect((saved.mock.contexts[0] as HTMLAnchorElement).download).toBe('brief.txt');
+    // the button of a row downloads the file, it does not open the row
+    expect(onRow).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    backend.on('GET', `${FILES}1/download/`, errors(404), 404);
+    fireEvent.click(screen.getByRole('button', { name: 'brief.txt' }));
+    await screen.findByRole('alert');
+    expect(saved).toHaveBeenCalledOnce();
+    saved.mockRestore();
   });
 
   it('shows a file that the user may not read (another user uploaded it) as not available', async () => {

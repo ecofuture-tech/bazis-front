@@ -211,11 +211,12 @@ jobs:
         if: ${{ !matrix.empty }}
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
         run: |
-          # the sample has bazis-statusy, bazis-uploadable, bazis-ws, bazis-bg and
+          # the sample has bazis-statusy, bazis-uploadable, bazis-ws, bazis-notify, bazis-bg and
           # bazis-async-background: their hooks are copied and compiled with the rest
           test -f src/bazis/react/statusy/index.ts
           test -f src/bazis/react/uploadable/index.ts
           test -f src/bazis/react/ws/index.ts
+          test -f src/bazis/react/notify/index.ts
           test -f src/bazis/react/bg/index.ts
           test -f src/bazis/react/async/index.ts
           test -f src/bazis/ui/transit-bar/transit-bar.contract.test.tsx
@@ -254,7 +255,7 @@ jobs:
           python manage.py bazis_front check
           python manage.py bazis_front design --check
           # the components that need no capability
-          python manage.py bazis_front add resource-list resource-card resource-form map
+          python manage.py bazis_front add resource-list resource-card resource-form notification-center map
 
       - name: Check and build the frontend of a product without resources
         if: ${{ matrix.empty }}

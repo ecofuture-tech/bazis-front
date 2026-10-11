@@ -44,6 +44,7 @@ SECTION_TYPES = {
         'readonly logout_url: string | null; readonly token_param: string }'
     ),
     'bg': '{ readonly resource: string | null }',
+    'notify': '{ readonly resource: string | null }',
     'permit': (
         '{ readonly roles: typeof ROLES; readonly selectors: '
         '{ readonly [resource: string]: { readonly [selector: string]: string } } }'

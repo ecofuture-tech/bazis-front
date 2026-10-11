@@ -13,22 +13,22 @@
 // limitations under the License.
 
 // The contract of the notifications: the bell `action:notifications` with the count of the
-// unread ones, the list `list:notifications` that it opens (each `notification:<key>`,
-// marked read when the list opens), a toast for each new one (once, whatever the number of
-// centers), the opening of the item of a notification and the clearing of the list. Keep it
-// passing when the component is changed.
+// unread ones, the list `list:notifications` that it opens (each `notification:<key>`), where
+// a click marks a notification read and opens it, `action:read-notifications` and
+// `action:clear-notifications`, a toast for each new one (once, whatever the number of
+// centers, none for those there when they are first read), the states of the reading. The
+// source is a plain object, as `useInbox` (bazis-notify) and `useNotifications` (bazis-ws)
+// give it. Keep it passing when the component is changed.
 
 import { act, fireEvent, screen, within } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SocketProvider } from '@/bazis/react/ws';
-import { NotificationCenter } from '@/bazis/ui/notification-center';
+import { NotificationCenter, type CenterNotification, type NotificationSource } from '@/bazis/ui/notification-center';
 import { Toaster } from '@/bazis/ui/state-panel';
-import { Backend, FakeSocket, renderWithBazis } from '@/bazis/ui/testing';
+import { Backend, renderWithBazis } from '@/bazis/ui/testing';
 
 beforeEach(() => {
-  FakeSocket.sockets.length = 0;
-  vi.stubGlobal('WebSocket', FakeSocket);
   // the popover is positioned with ResizeObserver, which jsdom does not have
   vi.stubGlobal(
     'ResizeObserver',
@@ -44,87 +44,139 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const FINISHED = { action: 'notification', title: 'Task finished', text: 'Write the report', resource: 'test.item', id: '7' };
-
-function open() {
-  act(() => {
-    FakeSocket.last().accept();
-  });
+interface Note extends CenterNotification {
+  key: string;
+  route: string | null;
 }
 
-function publish(message: unknown) {
-  act(() => {
-    FakeSocket.last().publish(message);
-  });
+let keys = 0;
+
+/** A notification, unread, with a key unique in the tests (the toasts are once per page). */
+function note(title: string, extra: Partial<Note> = {}): Note {
+  keys += 1;
+  return { key: `n${String(keys)}`, title, text: null, time: new Date('2026-01-01T09:30:00Z'), read: false, route: null, ...extra };
+}
+
+/** The source of the tests: its state, its actions recorded, `push` and `set` change it. */
+function source(initial: readonly Note[], status: NotificationSource<Note>['status'] = 'ready') {
+  type Change = Partial<{ items: readonly Note[]; status: NotificationSource<Note>['status'] }>;
+  const handle = {
+    markRead: vi.fn(),
+    clear: vi.fn(),
+    retry: vi.fn(),
+    /** Changes the source, set by the rendered center. */
+    set: (change: Change): void => {
+      throw new Error(`Not rendered: ${JSON.stringify(change)}`);
+    },
+  };
+  function Center({ count = 1, onOpen }: { count?: number; onOpen?: (it: Note) => void }) {
+    const [state, setState] = useState({ items: initial, status });
+    handle.set = (change) => {
+      act(() => {
+        setState((current) => ({ ...current, ...change }));
+      });
+    };
+    const notifications: NotificationSource<Note> = {
+      items: state.items,
+      unread: state.items.filter((it) => !it.read).length,
+      status: state.status,
+      error: state.status === 'error' ? new Error('Down') : null,
+      retry: handle.retry,
+      markRead: handle.markRead,
+      clear: handle.clear,
+    };
+    return (
+      <>
+        {Array.from({ length: count }, (_, index) => (
+          <NotificationCenter key={index} notifications={notifications} {...(onOpen ? { onOpen } : {})} />
+        ))}
+        <Toaster />
+      </>
+    );
+  }
+  return { handle, Center };
 }
 
 describe('NotificationCenter', () => {
-  it('counts the new notifications, toasts them and lists them', () => {
-    renderWithBazis(
-      <SocketProvider path="/ws" token="session-jwt">
-        <NotificationCenter />
-        <Toaster />
-      </SocketProvider>,
-      new Backend(),
-    );
-    open();
+  it('counts the unread notifications and lists them, the unread ones marked', () => {
+    const { Center } = source([note('Task finished', { text: 'Write the report' }), note('Old', { read: true })]);
+    renderWithBazis(<Center />, new Backend());
     const bell = screen.getByTestId('action:notifications');
-    expect(bell.getAttribute('aria-label')).toBe('Notifications');
-    publish(FINISHED);
-    publish({ resource: 'test.item' });
-    publish({ action: 'notification', title: 'Second' });
-    expect(bell.getAttribute('aria-label')).toBe('Notifications, 2 unread');
-    const toasts = screen.getByRole('region', { name: 'Notifications' });
-    expect(toasts.textContent).toContain('Task finished');
-    expect(toasts.textContent).toContain('Write the report');
-
+    expect(bell.getAttribute('aria-label')).toBe('Notifications, 1 unread');
     fireEvent.click(bell);
     const list = screen.getByTestId('list:notifications');
-    const items = within(list).getAllByText(/Task finished|Second/);
-    expect(items.map((it) => it.textContent)).toEqual(['Second', 'Task finished']);
-    expect(list.querySelectorAll('[data-bz^="notification:"]')).toHaveLength(2);
-    expect(bell.getAttribute('aria-label')).toBe('Notifications');
-    // a notification that comes while the list is open is read
-    publish({ action: 'notification', title: 'Third' });
-    expect(within(screen.getByTestId('list:notifications')).getByText('Third')).toBeTruthy();
-    expect(bell.getAttribute('aria-label')).toBe('Notifications');
+    const items = list.querySelectorAll('[data-bz^="notification:"]');
+    expect([...items].map((it) => it.textContent)).toEqual([
+      expect.stringMatching(/^UnreadTask finished.*Write the report$/) as unknown,
+      expect.stringMatching(/^Old/) as unknown,
+    ]);
+    // the list is open: nothing is read until it is clicked
+    expect(bell.getAttribute('aria-label')).toBe('Notifications, 1 unread');
   });
 
-  it('toasts a notification once, whatever the number of centers', () => {
-    renderWithBazis(
-      <SocketProvider path="/ws" token="session-jwt">
-        <NotificationCenter />
-        <NotificationCenter />
-        <Toaster />
-      </SocketProvider>,
-      new Backend(),
-    );
-    open();
-    publish({ action: 'notification', title: 'Only once' });
-    expect(screen.getAllByText('Only once')).toHaveLength(1);
-  });
-
-  it('opens the item of a notification, and clears the list', () => {
+  it('marks a notification read when it is clicked and opens it, marks all read, clears', () => {
+    const first = note('Task finished', { route: '/tasks/7' });
+    const read = note('Read', { read: true });
+    const { Center, handle } = source([first, read]);
     const onOpen = vi.fn();
-    renderWithBazis(
-      <SocketProvider path="/ws" token="session-jwt">
-        <NotificationCenter onOpen={onOpen} toasts={false} />
-      </SocketProvider>,
-      new Backend(),
-    );
-    open();
-    publish(FINISHED);
-    publish({ action: 'notification', title: 'About nothing' });
+    renderWithBazis(<Center onOpen={onOpen} />, new Backend());
     fireEvent.click(screen.getByTestId('action:notifications'));
-    const list = screen.getByTestId('list:notifications');
-    // a notification without an item is not a link
-    expect(within(list).getAllByRole('button')).toHaveLength(1);
-    fireEvent.click(within(list).getByRole('button'));
-    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ title: 'Task finished', resource: 'test.item', id: '7' }));
+    fireEvent.click(within(screen.getByTestId(`notification:${first.key}`)).getByRole('button'));
+    expect(handle.markRead).toHaveBeenCalledWith(first.key);
+    expect(onOpen).toHaveBeenCalledWith(first);
     expect(screen.queryByTestId('list:notifications')).toBeNull();
 
+    // a read one is opened, not marked again
     fireEvent.click(screen.getByTestId('action:notifications'));
+    fireEvent.click(within(screen.getByTestId(`notification:${read.key}`)).getByRole('button'));
+    expect(handle.markRead).toHaveBeenCalledTimes(1);
+    expect(onOpen).toHaveBeenLastCalledWith(read);
+
+    fireEvent.click(screen.getByTestId('action:notifications'));
+    fireEvent.click(screen.getByTestId('action:read-notifications'));
+    expect(handle.markRead).toHaveBeenLastCalledWith();
     fireEvent.click(screen.getByTestId('action:clear-notifications'));
+    expect(handle.clear).toHaveBeenCalledOnce();
+    handle.set({ items: [] });
     expect(within(screen.getByTestId('list:notifications')).getByText('No notifications')).toBeTruthy();
+    expect(screen.queryByTestId('action:read-notifications')).toBeNull();
+    expect(screen.queryByTestId('action:clear-notifications')).toBeNull();
+  });
+
+  it('keeps the list open without onOpen', () => {
+    const first = note('Plain');
+    const { Center, handle } = source([first]);
+    renderWithBazis(<Center />, new Backend());
+    fireEvent.click(screen.getByTestId('action:notifications'));
+    fireEvent.click(within(screen.getByTestId(`notification:${first.key}`)).getByRole('button'));
+    expect(handle.markRead).toHaveBeenCalledWith(first.key);
+    expect(screen.getByTestId('list:notifications')).toBeTruthy();
+  });
+
+  it('toasts each new notification once, whatever the number of centers, not those it found', () => {
+    const { Center, handle } = source([], 'loading');
+    renderWithBazis(<Center count={2} />, new Backend());
+    const found = note('Found at the first reading');
+    handle.set({ status: 'ready', items: [found] });
+    expect(screen.queryByRole('region', { name: 'Notifications' })?.textContent ?? '').not.toContain('Found');
+    const fresh = note('Only once', { text: 'Write the report', severity: 'success' });
+    handle.set({ items: [fresh, note('Already read', { read: true }), found] });
+    const toasts = screen.getByRole('region', { name: 'Notifications' });
+    expect(within(toasts).getAllByText('Only once')).toHaveLength(1);
+    expect(toasts.textContent).toContain('Write the report');
+    expect(toasts.textContent).not.toContain('Already read');
+  });
+
+  it('shows the reading of the notifications and its retry', () => {
+    const { Center, handle } = source([], 'loading');
+    renderWithBazis(<Center />, new Backend());
+    fireEvent.click(screen.getByTestId('action:notifications'));
+    expect(screen.getByTestId('state:loading')).toBeTruthy();
+    expect(screen.queryByTestId('list:notifications')).toBeNull();
+    handle.set({ status: 'error' });
+    fireEvent.click(within(screen.getByTestId('state:error')).getByTestId('action:retry'));
+    expect(handle.retry).toHaveBeenCalledOnce();
+    handle.set({ status: 'ready', items: [note('Back')] });
+    expect(within(screen.getByTestId('list:notifications')).getByText('Back')).toBeTruthy();
   });
 });

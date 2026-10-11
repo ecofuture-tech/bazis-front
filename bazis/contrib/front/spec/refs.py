@@ -429,7 +429,8 @@ def _check_workflow(doc: Document, entity: Entity, contract: dict, issues: Issue
         issues.add(
             doc, (*path, 'workflow', 'initial'), 'P015',
             f'The initial status is `{model["initial"]}` in the contract, not `{workflow["initial"]}`.',
-            'Use the initial status of the backend (BAZIS_STATUS_INITIAL).',
+            'Use the initial status of the model in the backend: `initial` of its `Workflow` '
+            '(bazis-statusy), else BAZIS_STATUS_INITIAL.',
         )
     statuses = {it['id'] for it in model['statuses']}
     for i, status in enumerate(workflow['statuses']):

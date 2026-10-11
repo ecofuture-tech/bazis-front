@@ -15,16 +15,22 @@
 // A background task of bazis-bg (`bg.task`, `useBgTask`), read until it is done: its name, its
 // state (`bg:<state>`: `waiting`, `running`, then `success`, `error` or `interrupted`), the
 // phase that runs with its progress (a bar for each counter, without a maximum when the task
-// expects no count) and, done, what the product renders of it. bazis-bg saves the progress
-// every few seconds; the traceback of a failure (`error`) is not shown.
+// expects no count) and, done, what the product renders of it and the download of its file (an
+// export: `action:download`, read with the token from `<tasks>/{id}/download/` of bazis-bg 2.6,
+// never from the URL of the media host). bazis-bg saves the progress every few seconds; the
+// traceback of a failure (`error`) is not shown.
 
-import type { UseQueryResult } from '@tanstack/react-query';
+import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
+import { Download } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 
+import type { DownloadedFile } from '@/bazis/client';
 import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
 import { formatNumber, useLanguage } from '@/bazis/i18n';
+import { useDownload } from '@/bazis/react';
 import { useBgTask, type BgProgress, type BgTask } from '@/bazis/react/bg';
 import { errorState, SkeletonLines, StatePanel } from '@/bazis/ui/state-panel';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /** The route set of the tasks of bazis-bg (`resource` of `CAPABILITIES.bg`); null when it is not routed. */
@@ -47,6 +53,9 @@ const TONES: Readonly<Record<TaskView, string>> = {
 
 /** `useBgTask` over a plain path: the component is generic over the route sets of any product. */
 const useAnyBgTask = useBgTask as unknown as (path: string, id: string | null) => UseQueryResult<BgTask>;
+
+/** `useDownload` over a plain path. */
+const useAnyDownload = useDownload as unknown as (path: string) => UseMutationResult<DownloadedFile, Error, string>;
 
 /** What a task is to the user: waiting until it runs, then running, then its outcome. */
 export function taskView(task: BgTask): TaskView {
@@ -118,6 +127,7 @@ function Task({
   children,
 }: Omit<TaskProgressProps, 'path'> & { path: string }) {
   const query = useAnyBgTask(path, id);
+  const download = useAnyDownload(path);
   const { t } = useLanguage();
   const task = query.data;
   const reported = useRef<string | null>(null);
@@ -162,6 +172,25 @@ function Task({
         </>
       )}
       {view === 'success' && children?.(task)}
+      {view === 'success' && task.file && (
+        // the file of the task (an export), read with the token from its download route
+        <div className="grid justify-items-start gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-bz="action:download"
+            disabled={download.isPending}
+            onClick={() => {
+              download.mutate(task.id);
+            }}
+          >
+            <Download />
+            {t('bg.download')}
+          </Button>
+          {download.isError && <StatePanel state={errorState(download.error)} error={download.error} inline />}
+        </div>
+      )}
     </section>
   );
 }

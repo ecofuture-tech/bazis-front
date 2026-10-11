@@ -59,6 +59,8 @@ interface Reply {
   status: number;
   body?: unknown;
   pending?: boolean;
+  /** The headers of a file (`file`): its body is a text, not JSON. */
+  headers?: Record<string, string>;
 }
 
 /**
@@ -125,6 +127,12 @@ export class Backend {
     return this;
   }
 
+  /** A file of a download route (`GET`): its content and its `Content-Disposition`. */
+  file(url: string, content: string, disposition: string): this {
+    this.replies.set(`GET ${url}`, { status: 200, body: content, headers: { 'Content-Disposition': disposition } });
+    return this;
+  }
+
   /** The request never gets a reply: what renders while it loads. */
   hold(method: string, url: string): this {
     this.replies.set(`${method} ${url}`, { status: 0, pending: true });
@@ -154,6 +162,7 @@ export class Backend {
       this.replies.get(`${method} ${url}`) ?? this.replies.get(`${method} ${url.split('?')[0] ?? ''}`);
     if (!reply) return new Response('', { status: 404, statusText: `no reply to ${method} ${url}` });
     if (reply.pending) return new Promise<Response>(() => undefined);
+    if (reply.headers) return new Response(String(reply.body), { status: reply.status, headers: reply.headers });
     const body = reply.body === undefined ? null : JSON.stringify(reply.body);
     return new Response(reply.status === 204 ? null : body, { status: reply.status });
   };
