@@ -22,13 +22,24 @@ import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 
 import { CAPABILITIES } from './src/bazis/generated/contract';
 
-// The dev server proxies `/api` to the backend: BAZIS_API_URL from the environment or from
-// `.env.local`, http://localhost:8000 by default; `/media`, the files of bazis-uploadable
-// in the file system storage (MEDIA_URL), which the backend redirects to MEDIA_HOST_URL; and
-// the socket of bazis-ws (its path in the contract, when the backend routes it). The built
-// frontend is served from the origin of the API. The tests run in jsdom (the contract tests
-// of the components render them); the pristine copies of the assets in `.bazis/` are not
-// tests of the product.
+// The npm libraries that every page loads, in chunks of their own (by the name of their
+// package): the chunk of the entry keeps the code of the product, no chunk nears the limit of
+// 500 kB of the warning of Vite, and the libraries stay cached across the releases of the
+// product. A library that only a lazy chunk imports (Leaflet) is in none of them.
+const VENDOR_CHUNKS: [string, RegExp][] = [
+  ['react', /^(react|react-dom|scheduler|react-router|cookie|set-cookie-parser)$/],
+  ['query', /^@tanstack\//],
+  [
+    'radix',
+    /^(radix-ui|@radix-ui\/.*|@floating-ui\/.*|react-remove-scroll.*|react-style-singleton|use-callback-ref|use-sidecar|aria-hidden|get-nonce|detect-node-es|tslib)$/,
+  ],
+];
+
+function vendorChunk(id: string): string | undefined {
+  const name = /.*\/node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(id)?.[1];
+  return name === undefined ? undefined : VENDOR_CHUNKS.find(([, packages]) => packages.test(name))?.[0];
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, 'BAZIS_');
   const backend = { target: env.BAZIS_API_URL ?? 'http://localhost:8000', changeOrigin: true };
@@ -39,6 +50,7 @@ export default defineConfig(({ mode }) => {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
     server: { proxy },
     preview: { proxy },
+    build: { rollupOptions: { output: { manualChunks: vendorChunk } } },
     // e2e/ is Playwright (`npm run e2e`)
     test: { environment: 'jsdom', exclude: ['**/node_modules/**', 'dist/**', '.bazis/**', 'e2e/**'] },
   };

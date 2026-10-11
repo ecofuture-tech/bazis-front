@@ -16,8 +16,11 @@
 Checks the build of a frontend (its `dist/`, built with `vite build --manifest`): the
 entry chunk and the chunks it imports statically do not have what the components load
 with the first map or file field shown (Leaflet, `leaflet-map.tsx`, `upload-field.tsx`), so
-that the main chunk of a product does not carry them. Run by the e2e job of CI on the
-frontend of the sample.
+that the main chunk of a product does not carry them, and none of them is larger than
+`BUDGET`, which leaves a product 100 kB of its own code under the limit of the warning of
+Vite (500 kB; the npm libraries are chunks of their own, `manualChunks` of `vite.config.ts`
+of the template). Run by the frontend job of CI on the frontend of every preset and by the
+e2e job on that of the sample.
 """
 
 import json
@@ -29,6 +32,8 @@ from pathlib import Path
 LAZY = ('node_modules/leaflet/', '/ui/map/leaflet-map.tsx', '/ui/file-field/upload-field.tsx')
 #: a text of the code of Leaflet, which may be bundled into a chunk without a key of its own
 LEAFLET = 'leaflet-container'
+#: the largest chunk loaded with the entry, in bytes (the kB of Vite are 1000 bytes)
+BUDGET = 400_000
 
 
 def static_sources(manifest: dict) -> set[str]:
@@ -54,11 +59,19 @@ def main(dist: str) -> int:
         manifest[key]['file'] for key in static
         if LEAFLET in (Path(dist) / manifest[key]['file']).read_text(encoding='utf-8')
     )
+    sizes = {manifest[key]['file']: (Path(dist) / manifest[key]['file']).stat().st_size for key in static}
+    large = sorted(f'{file} ({size / 1000:.2f} kB)' for file, size in sizes.items() if size > BUDGET)
     if eager:
         print(f'Loaded with the entry chunk, not lazily: {", ".join(eager)}', file=sys.stderr)
+    if large:
+        print(f'Loaded with the entry chunk, over {BUDGET / 1000:.0f} kB: {", ".join(large)}', file=sys.stderr)
+    if eager or large:
         return 1
     lazy = sorted(key for key in manifest if key not in static and any(it in f'/{key}' for it in LAZY))
-    print(f'{len(static)} chunks with the entry; lazy: {", ".join(lazy) or "none"}')
+    print(
+        f'{len(static)} chunks with the entry, the largest {max(sizes.values()) / 1000:.2f} kB;'
+        f' lazy: {", ".join(lazy) or "none"}'
+    )
     return 0
 
 

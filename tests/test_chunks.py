@@ -13,8 +13,9 @@
 # limitations under the License.
 
 """
-`scripts/check_chunks.py`, which the e2e job of CI runs on the build of the frontend of the
-sample: Leaflet and the file field must not be in the chunks loaded with the entry.
+`scripts/check_chunks.py`, which the frontend and the e2e jobs of CI run on the builds of the
+frontends: Leaflet and the file field must not be in the chunks loaded with the entry, and
+none of those chunks is larger than the budget.
 """
 
 import importlib.util
@@ -25,7 +26,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent / 'scripts' / 'check_chunks.py'
 
 
-def check(tmp_path, manifest: dict, code: str = 'export {};') -> int:
+def check(tmp_path, manifest: dict, code: str = 'export {};', sizes: dict[str, int] | None = None) -> int:
     spec = importlib.util.spec_from_file_location('check_chunks', SCRIPT)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -33,8 +34,9 @@ def check(tmp_path, manifest: dict, code: str = 'export {};') -> int:
     (tmp_path / '.vite' / 'manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
     (tmp_path / 'assets').mkdir()
     for chunk in manifest.values():
-        # the code of the vendor chunk, the others empty modules
+        # the code of the vendor chunk, the others empty modules, padded to their `sizes`
         text = code if chunk['file'] == 'assets/vendor.js' else 'export {};'
+        text = text.ljust((sizes or {}).get(chunk['file'], 0))
         (tmp_path / chunk['file']).write_text(text, encoding='utf-8')
     return module.main(str(tmp_path))
 
@@ -52,7 +54,10 @@ def manifest(map_imports: list[str]) -> dict:
 
 def test_leaflet_is_a_lazy_chunk(tmp_path, capsys):
     assert check(tmp_path, manifest([])) == 0
-    assert 'lazy: node_modules/leaflet/dist/leaflet-src.js, src/bazis/ui/map/leaflet-map.tsx' in capsys.readouterr().out
+    assert capsys.readouterr().out == (
+        '2 chunks with the entry, the largest 0.01 kB;'
+        ' lazy: node_modules/leaflet/dist/leaflet-src.js, src/bazis/ui/map/leaflet-map.tsx\n'
+    )
 
 
 def test_leaflet_imported_with_the_entry_fails(tmp_path, capsys):
@@ -64,3 +69,18 @@ def test_leaflet_bundled_into_a_chunk_of_the_entry_fails(tmp_path, capsys):
     code = 'L.DomUtil.addClass(container, "leaflet-container");'
     assert check(tmp_path, manifest([]), code) == 1
     assert 'not lazily: assets/vendor.js' in capsys.readouterr().err
+
+
+def test_a_chunk_of_the_entry_at_the_budget_passes(tmp_path, capsys):
+    assert check(tmp_path, manifest([]), sizes={'assets/vendor.js': 400_000}) == 0
+    assert '2 chunks with the entry, the largest 400.00 kB;' in capsys.readouterr().out
+
+
+def test_a_chunk_of_the_entry_over_the_budget_fails(tmp_path, capsys):
+    assert check(tmp_path, manifest([]), sizes={'assets/index.js': 400_001}) == 1
+    assert capsys.readouterr().err == 'Loaded with the entry chunk, over 400 kB: assets/index.js (400.00 kB)\n'
+
+
+def test_a_lazy_chunk_over_the_budget_passes(tmp_path):
+    # Leaflet, loaded with the first map: the budget is that of what every page loads
+    assert check(tmp_path, manifest([]), sizes={'assets/leaflet.js': 400_001}) == 0

@@ -449,7 +449,7 @@ npm run api-reference     # the API reference of the guide, after a change of an
 
 - The frontend of a product, copied by `init` and merged by `update`: `package.json` with pinned versions,
   `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`, the jsdom of the
-  tests), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
+  tests, the npm libraries that every page loads in chunks of their own, `manualChunks`), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,
   session with its number for the query keys, router with the layout `AppShell` and the
   screens loaded by `lazyScreen` (`lazy.tsx`: a chunk that fails reloads the page at most once per
@@ -470,7 +470,9 @@ npm run api-reference     # the API reference of the guide, after a change of an
   passes the prop of a default it relies on): on the sample (with `BS_BASE_DIR` outside the
   checkout) `init`, `contract`, `contract --check`, `check` (the starters of the specs
   against the contract), `design --check`, `add` of every component, then `tsc --noEmit`, lint, tests (the
-  contract tests of the components) and build of the generated frontend. Its variant
+  contract tests of the components) and build of the generated frontend, whose chunks
+  loaded with the entry `scripts/check_chunks.py` checks (none over 400 kB, the budget that
+  leaves a product 100 kB under the warning of Vite; Leaflet and the file field lazy). Its variant
   `empty` is a new product before its first model: the sample with the settings of
   `bazis new` (only `bazis.contrib.front` installed, the default router, the user model of
   Django: environment variables over `sample/project.env`), whose contract has no

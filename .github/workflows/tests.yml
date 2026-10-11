@@ -231,7 +231,9 @@ jobs:
           npm run lint
           # the contract tests of the components with the tests of the template
           npm test
-          npm run build
+          npm run build -- --manifest
+          # the chunks loaded with the entry: within the budget, Leaflet not among them
+          python "$GITHUB_WORKSPACE/scripts/check_chunks.py" dist
 
       # the overrides of the settings of sample/project.env: no app of the sample, the
       # default router (nothing registered) and the user model of Django
@@ -265,7 +267,8 @@ jobs:
           npx tsc --noEmit
           npm run lint
           npm test
-          npm run build
+          npm run build -- --manifest
+          python "$GITHUB_WORKSPACE/scripts/check_chunks.py" dist
 
   # the end-to-end tests of the scenarios of the sample (sample/spec/product.yaml): a frontend
   # made by `init` from the sample, with the components and the screens of the sample
@@ -362,7 +365,8 @@ jobs:
           npx tsc --noEmit
           npm run lint
           npm run build -- --manifest
-          # Leaflet and the file field are chunks of their own, not in the main chunk
+          # Leaflet and the file field are chunks of their own, not in the main chunk, and the
+          # chunks loaded with the entry are within the budget with the screens of the sample
           python "$GITHUB_WORKSPACE/scripts/check_chunks.py" dist
 
       # the backend serves the socket of bazis-ws (`/api/v1/ws`), which `vite preview` proxies: the

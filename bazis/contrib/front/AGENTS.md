@@ -1143,6 +1143,11 @@ it again:
 const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
 ```
 
+The npm libraries that every page loads (React, TanStack Query, Radix) are chunks of their
+own (`manualChunks` of `vite.config.ts`), so that the chunk of the entry holds the code of the
+product: a library that one screen needs is imported by that screen, in its chunk; never raise
+`chunkSizeWarningLimit` to hide a large chunk.
+
 Add their
 links, with an icon of `lucide-react`, to `NAVIGATION` there. A link shown only to the users
 that the backend allows names what it `requires`, and `AppShell` shows it once the backend
