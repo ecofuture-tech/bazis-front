@@ -69,6 +69,22 @@ export interface ActionQueryOptions<Query> {
   query?: Query | null;
 }
 
+/**
+ * The options argument of a query of an action whose query parameters are `Query`: required,
+ * with its `query` (or null), when the action has a required query parameter, optional
+ * otherwise.
+ */
+export type ActionQueryArg<Query> = [Query] extends [never]
+  ? [options?: ActionQueryOptions<never>]
+  : object extends Query
+    ? [options?: ActionQueryOptions<Query>]
+    : [options: ActionQueryOptions<Query> & { query: Query | null }];
+
+/** The query parameters of the options argument of a query of an action. */
+function queryOf(args: readonly unknown[]): Readonly<Record<string, unknown>> | null | undefined {
+  return (args[0] as ActionQueryOptions<Readonly<Record<string, unknown>>> | undefined)?.query;
+}
+
 export interface ActionHookOptions<M extends HttpMethod> {
   /** The method of the action, `post` by default. */
   method?: M;
@@ -130,17 +146,19 @@ export function useItemAction<P extends ActionPath, N extends ActionName<paths, 
 
 /**
  * A custom action of a route set declared with GET, `<path><name>/`, read as a query (the
- * response of `client.action` with the method `get` and the query parameters of `query`): a
- * summary, a report, a check, the content that a screen shows. It is refetched with the
+ * response of `client.action` with the method `get` and the query parameters of `query`,
+ * required with a required parameter): a summary, a report, a check, the content that a
+ * screen shows. It is refetched with the
  * queries of its resource (after a mutation of it or an action); its `error` is the
  * `ApiError`.
  */
 export function useActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get'>>(
   path: P,
   name: N,
-  { query }: ActionQueryOptions<ActionQuery<P, N, 'get'>> = {},
+  ...options: ActionQueryArg<ActionQuery<P, N, 'get'>>
 ): UseQueryResult<ActionResponse<P, N, 'get'>> {
   const { api, scope } = useBazis();
+  const query = queryOf(options);
   const params = query ?? undefined;
   return useQuery({
     queryKey: keys.action(path, name, query, scope),
@@ -162,9 +180,10 @@ export function useItemActionQuery<P extends ActionPath, N extends ActionName<pa
   path: P,
   id: string | null,
   name: N,
-  { query }: ActionQueryOptions<ActionQuery<P, N, 'get', Item>> = {},
+  ...options: ActionQueryArg<ActionQuery<P, N, 'get', Item>>
 ): UseQueryResult<ActionResponse<P, N, 'get', Item>> {
   const { api, scope } = useBazis();
+  const query = queryOf(options);
   const params = query ?? undefined;
   return useQuery({
     queryKey: keys.itemAction(path, id ?? '', name, query, scope),

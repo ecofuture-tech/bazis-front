@@ -830,6 +830,21 @@ def test_the_selectors_of_bazis_permit(contract):
 
 
 @pytest.mark.django_db
+def test_a_missing_permission_through_an_undescribed_relation_is_not_copied(contract):
+    # the manager has no permission to delete: the hint of a path that the contract does not
+    # describe asks to check it, never to declare it as it is
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: task(d)['access']['manager'].update(
+        delete=['all', 'steps__task__assignee']))
+    found = {it.path: it.hint for it in validate(root).issues}
+    assert set(found) == {'/entities/0/access/manager/delete/0', '/entities/0/access/manager/delete/1'}
+    assert found['/entities/0/access/manager/delete/0'].startswith('Add `tasks.task.item.delete.all.all`')
+    hint = found['/entities/0/access/manager/delete/1']
+    assert hint.startswith('Check the path of the selector `steps__task__assignee` first: `steps` is not in the contract')
+    assert 'tasks.task.item.delete.steps__task__assignee' not in hint
+
+
+@pytest.mark.django_db
 def test_a_number_declared_for_a_string_names_the_decimal_field(contract):
     # a DecimalField is a string of the API: the spec declares it `string`
     root = contract.parent.parent

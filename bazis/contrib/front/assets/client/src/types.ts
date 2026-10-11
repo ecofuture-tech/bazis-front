@@ -86,6 +86,17 @@ export interface ActionOptions<M extends HttpMethod, Query = never> extends Requ
   query?: Query;
 }
 
+/**
+ * The options argument of a custom action whose query parameters are `Query`: required, with
+ * its `query`, when the operation has a required query parameter (`code: str` of the
+ * backend), optional otherwise.
+ */
+export type ActionOptionsArg<M extends HttpMethod, Query> = [Query] extends [never]
+  ? [options?: ActionOptions<M>]
+  : object extends Query
+    ? [options?: ActionOptions<M, Query>]
+    : [options: ActionOptions<M, Query> & { query: Query }];
+
 /** The JSON body of the successful (200 or 201) response of an operation. */
 export type ResponseOf<Operation> = Operation extends { responses: infer Responses }
   ? Responses[Extract<keyof Responses, 200 | 201 | '200' | '201'>] extends {

@@ -150,6 +150,10 @@ export function useTypedActions(): void {
   seen.push(valid, useActionQuery(PARENT, 'check', { query: null }), useActionQuery(PARENT, 'report', { query: { year: 2026 } }));
   // @ts-expect-error a parameter of another type
   seen.push(useActionQuery(PARENT, 'check', { query: { code: 1 } }));
+  // @ts-expect-error the query of a required parameter is missing
+  seen.push(useActionQuery(PARENT, 'check'));
+  // @ts-expect-error the query of a required parameter is missing
+  seen.push(useActionQuery(PARENT, 'check', {}));
   // @ts-expect-error a parameter the action does not declare
   seen.push(useActionQuery(PARENT, 'report', { query: { month: 1 } }));
   // @ts-expect-error the action has no query parameters

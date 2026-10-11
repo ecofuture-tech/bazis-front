@@ -196,6 +196,8 @@ export async function actionTyped(id: string): Promise<void> {
   await actions.action(PARENT, 'check', undefined, { method: 'get', query: { code: 'A1', page: 2 } });
   // @ts-expect-error a required parameter is missing
   await actions.action(PARENT, 'check', undefined, { method: 'get', query: { limit: 2 } });
+  // @ts-expect-error the query of a required parameter is missing
+  await actions.action(PARENT, 'check', undefined, { method: 'get' });
   // @ts-expect-error the action has no query parameters
   await actions.itemAction(PARENT, id, 'summary', undefined, { method: 'get', query: { code: 'A1' } });
   const file = await actions.download(PARENT, id);

@@ -24,8 +24,11 @@ export function formatNumber(value: number, language: string, options?: Intl.Num
   return value.toLocaleString(language, options);
 }
 
-/** A decimal as the backend writes it: digits, and the digits after the point. */
-const DECIMAL = /^[+-]?\d+(?:\.(\d+))?$/;
+/**
+ * A decimal as the backend writes it: digits, the digits after the point and an exponent
+ * (Python writes a small one so, `0E-8`, `1.0E-7`, for a field with 7 decimal places or more).
+ */
+const DECIMAL = /^[+-]?\d+(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/;
 
 /**
  * A decimal of the backend: a `DecimalField` is a string in the API and in the contract
@@ -42,12 +45,13 @@ export function formatDecimal(value: unknown, language: string, options?: Intl.N
   const text = value.trim();
   const match = DECIMAL.exec(text);
   if (!match) return value;
-  const digits = Math.min(match[1]?.length ?? 0, 20);
+  // the digits after the point of the value: those written, shifted by the exponent
+  const digits = Math.min(Math.max(0, (match[1]?.length ?? 0) - Number(match[2] ?? 0)), 20);
   const precision =
     options?.minimumFractionDigits === undefined && options?.maximumFractionDigits === undefined
       ? { minimumFractionDigits: digits, maximumFractionDigits: digits }
       : {};
-  // Intl formats the string itself (ES2023), never rounded to a double first
+  // Intl formats the string itself, its exponent too (ES2023), never rounded to a double first
   return new Intl.NumberFormat(language, { ...precision, ...options }).format(text as unknown as number);
 }
 

@@ -210,6 +210,13 @@ describe('the formats', () => {
     // a sum, in the currency of the product
     expect(formatDecimal('1500.50', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^1\s500,50\s₽$/);
     expect(formatDecimal('1500.50', 'en', { maximumFractionDigits: 0 })).toBe('1,501');
+    // only the minimum: the maximum of Intl, never below it
+    expect(formatDecimal('1.5', 'en', { minimumFractionDigits: 2 })).toBe('1.50');
+    expect(formatDecimal('1.23456', 'en', { minimumFractionDigits: 2 })).toBe('1.235');
+    // the exponent of Python for a small value of a field with 7 decimal places or more
+    expect(formatDecimal('0E-8', 'en')).toBe('0.00000000');
+    expect(formatDecimal('1.0E-7', 'en')).toBe('0.00000010');
+    expect(formatDecimal('1.5E+3', 'ru')).toMatch(/^1\s500$/);
     expect(formatDecimal(1234.5, 'en')).toBe('1,234.5');
     expect(formatDecimal('n/a', 'en')).toBe('n/a');
     // the value of a field as it is: none is shown as FieldValue shows it

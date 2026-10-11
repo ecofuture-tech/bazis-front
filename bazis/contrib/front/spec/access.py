@@ -158,42 +158,71 @@ def selectors(role_access: dict) -> list[tuple[tuple, str]]:
     return [(path, it) for path, it in result if it not in (ALL, NONE)]
 
 
+@dataclass(frozen=True)
+class Walk:
+    """
+    The relations of the path of a selector (all its names but the last) followed in the
+    contract.
+    """
+
+    #: the resource of its last name; None when the path is not followed to the end
+    resource: str | None
+    #: why a relation of the path is not one, else None
+    problem: str | None = None
+    #: the name of the path that the contract does not describe, neither a field of its
+    #: resource nor one of its selectors (a relation that its route set does not show)
+    undescribed: str | None = None
+
+
+def walk(selector: str, resource: str, contract: dict) -> Walk:
+    """
+    Follows the relations of the path of a selector from the resource, as bazis-permit
+    resolves it (`parse_selector`): a relation is a relationship of the resource in the
+    contract or one of its selectors. The walk stops at a resource that the contract does
+    not describe and at a name that it does not describe (`undescribed`): bazis-permit
+    follows every relation of the model, also those that no route set shows (the reverse
+    relation `registrations` of the user to the registrations of the events), and checks
+    the selectors of the declared permissions itself (permit.E005).
+    """
+    resources = contract['project']['resources']
+    known = contract['capabilities']['permit'].get('selectors', {})
+    *hops, _last = selector.split(LOOKUP_SEP)
+    current = resource
+    for part in hops:
+        if current not in resources and current not in known:
+            return Walk(None)
+        field = resources.get(current, {}).get('fields', {}).get(part)
+        target = known.get(current, {}).get(part) if field is None else field.get('relation')
+        if field is None and target is None:
+            return Walk(None, undescribed=part)
+        if target is None:
+            return Walk(None, problem=f'`{part}` is not a relationship of `{current}` in the contract')
+        if not isinstance(target, str):
+            return Walk(None)
+        current = target
+    return Walk(current)
+
+
 def selector_problem(selector: str, resource: str, contract: dict) -> str | None:
     """
     Why a selector is not one of the resource in the contract, or None. A selector is
     `self` (on a selector source), a selector of the resource (a relation that links the
     object to a selector source, such as the user), or such a selector at the end of a path
-    of relations
-    (`parent__author`), as bazis-permit resolves it (`parse_selector`,
-    `get_selector_model`). The selectors of a permission model are those of the section
-    `permit` of the contract, also the relations its route does not show (a reverse
-    relation, `members`); a hop is a relationship of the resource in the contract or one of
-    its selectors. What the contract does not describe is not checked: a resource that is
-    not in it, a hop that is neither a field of the resource nor one of its selectors (a
-    relation that its route set does not show, such as the reverse relation `registrations`
-    of the user to the registrations of the events: bazis-permit follows every relation of
-    the model, and checks the selectors of the declared permissions itself, permit.E004),
+    of relations (`parent__author`, followed by `walk`), as bazis-permit resolves it
+    (`parse_selector`, `get_selector_model`). The selectors of a permission model are those
+    of the section `permit` of the contract, also the relations its route does not show (a
+    reverse relation, `members`). What the contract does not describe is not checked: a
+    resource that is not in it, a relation of the path that it does not describe (`walk`),
     and of a resource that is not a permission model the last name is only checked to be a
     relationship.
     """
     resources = contract['project']['resources']
     known = contract['capabilities']['permit'].get('selectors', {})
-    *hops, last = selector.split(LOOKUP_SEP)
-    current = resource
-    for part in hops:
-        if current not in resources and current not in known:
-            return None
-        field = resources.get(current, {}).get('fields', {}).get(part)
-        target = known.get(current, {}).get(part) if field is None else field.get('relation')
-        if field is None and target is None:
-            # a relation that the contract does not describe
-            return None
-        if target is None:
-            return f'`{part}` is not a relationship of `{current}` in the contract'
-        if not isinstance(target, str):
-            return None
-        current = target
-    if last == SELF and hops:
+    followed = walk(selector, resource, contract)
+    if followed.resource is None:
+        return followed.problem
+    current, last = followed.resource, selector.split(LOOKUP_SEP)[-1]
+    if last == SELF and LOOKUP_SEP in selector:
         return '`self` is the object itself, never the end of a path of relations'
     if current in known:
         if last not in known[current]:
@@ -246,10 +275,27 @@ def check(
         permissions = permit_role['permissions']
         for grant_path, grant in grants(data['resource'], role_access, statusy):
             if not any(grant.covered_by(it) for it in permissions):
+                undescribed = walk(grant.selector, data['resource'], contract).undescribed
+                if undescribed is None:
+                    hint = (
+                        f'Add `{grant.slug}` to a permission group of the role '
+                        f'`{permit_role["slug"]}` ({DECLARE_ROLES}), migrate, and {EXPORT_HINT}; '
+                        'or change the access.'
+                    )
+                else:
+                    # a path through a relation that check cannot see: never copied as it is
+                    hint = (
+                        f'Check the path of the selector `{grant.selector}` first: `{undescribed}` '
+                        'is not in the contract (a relation that the route set does not show, '
+                        'or a wrong name), so check cannot tell that it is a relation of the '
+                        'model. Once the path is that of the relations of the models (bazis-permit '
+                        'refuses another one, permit.E005), grant it in a permission group of the '
+                        f'role `{permit_role["slug"]}` ({DECLARE_ROLES}), migrate, and '
+                        f'{EXPORT_HINT}; or change the access.'
+                    )
                 issues.add(
                     doc, (*path, *grant_path), 'P019',
                     f'The permit role `{permit_role["slug"]}` has no permission `{grant.slug}`, '
                     f'which the access of `{role_id}` to `{data["id"]}` grants.',
-                    f'Add `{grant.slug}` to a permission group of the role `{permit_role["slug"]}` '
-                    f'({DECLARE_ROLES}), migrate, and {EXPORT_HINT}; or change the access.',
+                    hint,
                 )

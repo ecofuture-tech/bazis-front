@@ -18,6 +18,7 @@ import type { Filter } from './filter.js';
 import type {
   ActionName,
   ActionOptions,
+  ActionOptionsArg,
   AuthState,
   AuthUser,
   BackgroundMethod,
@@ -171,8 +172,8 @@ export interface BazisClient<Paths> {
   /**
    * Calls a custom action of a route set, `<path><name>/` (a route of the backend declared
    * with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for
-   * `get`), its query parameters (`query` of the options) and its JSON response, typed by
-   * the OpenAPI; resolves to undefined for 204. An error status is an `ApiError`; the errors
+   * `get`), its query parameters (`query` of the options, required with a required
+   * parameter) and its JSON response, typed by the OpenAPI; resolves to undefined for 204. An error status is an `ApiError`; the errors
    * of the body point to its fields (`/<field>`: `ApiError.bodyErrors()`).
    */
   action<
@@ -183,7 +184,7 @@ export interface BazisClient<Paths> {
     path: P,
     name: N,
     body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>,
-    options?: ActionOptions<M, QueryParams<EndpointOf<Paths, P, `${N}/`, M>>>,
+    ...options: ActionOptionsArg<M, QueryParams<EndpointOf<Paths, P, `${N}/`, M>>>
   ): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>>;
 
   /** Calls a custom action of an item, `<path><id>/<name>/`, as `action` does. */
@@ -196,7 +197,7 @@ export interface BazisClient<Paths> {
     id: string,
     name: N,
     body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>,
-    options?: ActionOptions<M, QueryParams<EndpointOf<Paths, P, `${Item}${N}/`, M>>>,
+    ...options: ActionOptionsArg<M, QueryParams<EndpointOf<Paths, P, `${Item}${N}/`, M>>>
   ): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>>;
 
   /**

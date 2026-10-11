@@ -23,6 +23,7 @@ export type {
   ActionMutation,
   ActionPath,
   ActionQuery,
+  ActionQueryArg,
   ActionQueryOptions,
   ActionResponse,
   ActionVariables,

@@ -391,7 +391,7 @@ route set does not show and that is not a selector (a reverse relation to a mode
 is no selector source: the participants of the events of an organizer,
 `registrations__event__author` on the user) is written in `access` as it is, like any
 other grant: the contract does not describe the relation, bazis-permit checks the
-selectors of the permissions it declares (`permit.E004`) and `check` that the role has
+selectors of the permissions it declares (`permit.E005`) and `check` that the role has
 the permission (P019). Never leave a grant out of the spec to silence a warning.
 
 #### Scenarios
@@ -1458,7 +1458,8 @@ An action that queues a task of bazis-bg answers with its id: show it with `Task
 its path nor in its body (`code: str`, `year: int | None = None`; a list with `Query()`)
 are its query parameters: `useActionQuery(path, '<name>', {query: {code}})` (and
 `useItemActionQuery`, `client.action(path, name, undefined, {method: 'get', query})`), typed
-by its OpenAPI and in the key of the query, nothing read while `query` is null. A check that
+by its OpenAPI (`query` is required when a parameter is) and in the key of the query, nothing
+read while `query` is null. A check that
 changes nothing (of a code, of a period) is a GET with a query read when the form is
 submitted, not a POST made for want of a query; a secret (a password, a token) never goes in
 a query, which the logs of the servers keep: it is the body of a POST. Never `fetch` an
@@ -2116,9 +2117,9 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
 - `useActionQuery(path, name, {query?})` and `useItemActionQuery(path, id, name, {query?})`
   read a custom action declared with GET as a query (a summary, a check, the content of a
   screen; no request while `id` or `query` is null), keyed under its resource and by its
-  query parameters (`query`, typed by its OpenAPI: other parameters are another query): a
-  mutation or an action of the resource refetches it; `data` is its response typed by its
-  OpenAPI, `error` the `ApiError`.
+  query parameters (`query`, typed by its OpenAPI and required with a required parameter:
+  other parameters are another query): a mutation or an action of the resource refetches
+  it; `data` is its response typed by its OpenAPI, `error` the `ApiError`.
 
 ### The tasks and the background requests (bazis-bg, bazis-async-background)
 
@@ -2495,6 +2496,14 @@ are replaced without conflicts; wrap them in the product code instead.
 - A custom action has its button only when `custom_actions` allows it (see
   [Custom actions and background work](#custom-actions-and-background-work)), not a meta
   field of the product.
+- The query key of a custom action read with GET (`src/bazis/react/keys.ts`) has its query
+  parameters after its name: `['bazis', path, 'action', name, <parameters>, scope]` and
+  `['bazis', path, 'item', id, 'action', name, <parameters>, scope]` (`{}` without
+  parameters, null while `query` is null), and `keys.action`/`keys.itemAction` take the
+  parameters before the scope (`undefined` without any). A key of the product written as the
+  whole key of the old shape no longer matches: match a prefix (`['bazis', path, 'action',
+  name]`, every parameters), as the invalidation of a resource does. `useActionQuery` and
+  `useItemActionQuery` require their `query` when the action has a required query parameter.
 
 ## API: the client
 
@@ -2522,8 +2531,8 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `schema<K extends ItemSchemaKind, P extends RouteSetWith<Paths, SchemaSuffix[K], 'get'>>(path: P, kind: K, id: string, options?: RequestOptions & IncludeOption<EndpointOf<Paths, P, SchemaSuffix[K], 'get'>>): Promise<ResponseOf<EndpointOf<Paths, P, SchemaSuffix[K], 'get'>>>`: The JSON schema of an action on an item for the current user (`schema_update/`...).
 - `filterFields<P extends RouteSetWith<Paths, 'route_filter_fields/', 'get'>>(path: P, options?: RequestOptions): Promise<ResponseOf<EndpointOf<Paths, P, 'route_filter_fields/', 'get'>>>`: The fields a list can be filtered by (`route_filter_fields/`).
 - `transit<P extends RouteSetWith<Paths, '{item_id}/transit/', 'post'>>(path: P, id: string, transit: string, payload?: unknown, options?: RequestOptions): Promise<ResponseOf<EndpointOf<Paths, P, '{item_id}/transit/', 'post'>> | null>`: Runs a transit of bazis-statusy (`POST {item_id}/transit/`).
-- `` action<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M>, M extends HttpMethod = 'post'>(path: P, name: N, body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>, options?: ActionOptions<M, QueryParams<EndpointOf<Paths, P, `${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>> ``: Calls a custom action of a route set, `<path><name>/` (a route of the backend declared with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for `get`), its query parameters (`query` of the options) and its JSON response, typed by the OpenAPI; resolves to undefined for 204.
-- `` itemAction<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M, Item>, M extends HttpMethod = 'post'>(path: P, id: string, name: N, body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>, options?: ActionOptions<M, QueryParams<EndpointOf<Paths, P, `${Item}${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>> ``: Calls a custom action of an item, `<path><id>/<name>/`, as `action` does.
+- `` action<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M>, M extends HttpMethod = 'post'>(path: P, name: N, body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>, ...options: ActionOptionsArg<M, QueryParams<EndpointOf<Paths, P, `${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>> ``: Calls a custom action of a route set, `<path><name>/` (a route of the backend declared with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for `get`), its query parameters (`query` of the options, required with a required parameter) and its JSON response, typed by the OpenAPI; resolves to undefined for 204.
+- `` itemAction<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M, Item>, M extends HttpMethod = 'post'>(path: P, id: string, name: N, body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>, ...options: ActionOptionsArg<M, QueryParams<EndpointOf<Paths, P, `${Item}${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>> ``: Calls a custom action of an item, `<path><id>/<name>/`, as `action` does.
 - `download(path: RouteSetWith<Paths, '{item_id}/download/', 'get'>, id: string, options?: RequestOptions): Promise<DownloadedFile>`: Reads a file from the download route of an item, `<path><id>/download/` (bazis-uploadable `FileUploadRouteSet`, bazis-bg `BgRoute`), with the token: its content and the name of `Content-Disposition`.
 - `login(credentials: { username: string; password: string; }, options?: RequestOptions & { path?: string; }): Promise<TokenResponse>`: Gets a token from the token endpoint of bazis-users (an OAuth2 password form).
 - `upload<P extends RouteSetWith<Paths, '', 'post'>>(path: P, file: Blob, options?: UploadOptions): Promise<ResponseOf<EndpointOf<Paths, P, '', 'post'>>>`: Uploads a file to a route set of bazis-uploadable (`FileUploadRouteSet` or a subclass): a `POST` of multipart form data with `file` (and `name`), sent with XMLHttpRequest, whose progress `onProgress` reports.
@@ -2778,6 +2787,7 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `type CrudAccessAction = 'view' | 'change' | 'add' | 'delete' | 'check'`: The access actions of the core (`CrudAccessAction`) checked by bazis-permit.
 - `` type CustomActionName = `action_${string}` ``: A custom action of a route set by its name, `action` of `x-bazis` in the OpenAPI (the method of the route set: `action_export`), as `custom_actions` lists it.
 - `` type ActionName<Paths, P extends string, M extends HttpMethod, Prefix extends string = ''> = { [K in keyof Paths & string]: K extends `${P}${Prefix}${infer Name}/` ? Name extends '' | `${string}/${string}` | `{${string}` ? never : [ OperationOf<Paths, K, M> ] extends [ never ] ? never : Name : never; }[keyof Paths & string] ``: The names of the custom actions of the route set `P` for the method `M`: the endpoints `<P><Prefix><name>/` that the backend declares (`@http_post('/<name>/')` of a route set), `Prefix` `{item_id}/` for those of an item.
+- `type ActionOptionsArg<M extends HttpMethod, Query> = [ Query ] extends [ never ] ? [ options?: ActionOptions<M> ] : object extends Query ? [ options?: ActionOptions<M, Query> ] : [ options: ActionOptions<M, Query> & { query: Query; } ]`: The options argument of a custom action whose query parameters are `Query`: required, with its `query`, when the operation has a required query parameter (`code: str` of the backend), optional otherwise.
 - `type BackgroundMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'`: The methods of a request that bazis-async-request runs in the background.
 - `type BackgroundStatus = 'created' | 'pending' | 'processing' | 'completed' | 'failed'`: The statuses of a task of bazis-async-background: `created` (registered, not sent to Kafka yet), `pending` (queued), `processing`, then `completed` or `failed`.
 - `type BodyOf<Operation> = Operation extends { requestBody: { content: infer Content; }; } ? JsonContent<Content> : never`: The JSON request body of an operation.
@@ -2821,7 +2831,7 @@ Its props, `BazisProviderProps`:
 
 #### useActionQuery
 
-`useActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get'>>(path: P, name: N, options?: ActionQueryOptions<ActionQuery<P, N, 'get'>>): UseQueryResult<ActionResponse<P, N, 'get'>>`: A custom action of a route set declared with GET, `<path><name>/`, read as a query (the response of `client.action` with the method `get` and the query parameters of `query`): a summary, a report, a check, the content that a screen shows.
+`useActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get'>>(path: P, name: N, ...options: ActionQueryArg<ActionQuery<P, N, 'get'>>): UseQueryResult<ActionResponse<P, N, 'get'>>`: A custom action of a route set declared with GET, `<path><name>/`, read as a query (the response of `client.action` with the method `get` and the query parameters of `query`, required with a required parameter): a summary, a report, a check, the content that a screen shows.
 
 #### useItemAction
 
@@ -2829,7 +2839,7 @@ Its props, `BazisProviderProps`:
 
 #### useItemActionQuery
 
-`useItemActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get', Item>>(path: P, id: string | null, name: N, options?: ActionQueryOptions<ActionQuery<P, N, 'get', Item>>): UseQueryResult<ActionResponse<P, N, 'get', Item>>`: A custom action of an item declared with GET, `<path><id>/<name>/`, read as a query (`client.itemAction` with the method `get` and the query parameters of `query`); nothing is read while `id` or `query` is null.
+`useItemActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get', Item>>(path: P, id: string | null, name: N, ...options: ActionQueryArg<ActionQuery<P, N, 'get', Item>>): UseQueryResult<ActionResponse<P, N, 'get', Item>>`: A custom action of an item declared with GET, `<path><id>/<name>/`, read as a query (`client.itemAction` with the method `get` and the query parameters of `query`); nothing is read while `id` or `query` is null.
 
 #### useDownload
 
@@ -2994,6 +3004,7 @@ Its props, `BazisProviderProps`:
 - `` type ActionBody<P extends string, N extends string, M extends HttpMethod, Prefix extends string = ''> = BodyOf<EndpointOf<paths, P, `${Prefix}${N}/`, M>> ``: The body of the action `N` of the route set `P` (`<P><Prefix><N>/`) for the method `M`.
 - `type ActionPath = RouteSetPath<paths>`: A route set: the path of its collection.
 - `` type ActionQuery<P extends string, N extends string, M extends HttpMethod, Prefix extends string = ''> = QueryParams<EndpointOf<paths, P, `${Prefix}${N}/`, M>> ``: The query parameters of the action `N` of the route set `P` for the method `M`, as its OpenAPI declares them.
+- `type ActionQueryArg<Query> = [ Query ] extends [ never ] ? [ options?: ActionQueryOptions<never> ] : object extends Query ? [ options?: ActionQueryOptions<Query> ] : [ options: ActionQueryOptions<Query> & { query: Query | null; } ]`: The options argument of a query of an action whose query parameters are `Query`: required, with its `query` (or null), when the action has a required query parameter, optional otherwise.
 - `` type ActionResponse<P extends string, N extends string, M extends HttpMethod, Prefix extends string = ''> = ResponseOf<EndpointOf<paths, P, `${Prefix}${N}/`, M>> ``: The response of the action `N` of the route set `P` for the method `M`.
 - `type ActionVariables<Body> = [ Body ] extends [ never ] ? undefined : Body`: What `mutate` of an action takes: its body, `undefined` for an action without one (a GET).
 - `type Can = 'view' | 'add' | CustomActionName`: What a user may do on a route set: view its items (its list), add one, call a custom action of the collection.

@@ -34,6 +34,7 @@ export type { CrudAccessAction, CustomActionName, PermitMeta } from './permit.js
 export type {
   ActionName,
   ActionOptions,
+  ActionOptionsArg,
   AuthAction,
   AuthState,
   AuthUser,
