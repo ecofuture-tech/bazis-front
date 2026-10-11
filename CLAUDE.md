@@ -447,7 +447,10 @@ npm run api-reference     # the API reference of the guide, after a change of an
 
 ### The template (`assets/template`)
 
-- The frontend of a product, copied by `init` and merged by `update`: `package.json` with pinned versions,
+- The frontend of a product, copied by `init` and merged by `update`: `package.json` with pinned versions
+  (prettier among them, with the style of the template in its `prettier` key: `npm run format`
+  formats the code of the product, `.prettierignore` leaves out the copies and the generated
+  files; the `frontend` job checks that the template is formatted, `prettier --check`),
   `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`, the jsdom of the
   tests, the npm libraries that every page loads in chunks of their own, `manualChunks`), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,

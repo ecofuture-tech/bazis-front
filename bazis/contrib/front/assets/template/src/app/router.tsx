@@ -43,7 +43,9 @@ const loading = <StatePanel state="loading" />;
  * ROUTES['<app>.<model>']}` to view its items, `can: 'add'` to add one, `filters` of a
  * report), and the layout shows it once the backend does: never decide it by the role here.
  */
-const NAVIGATION: readonly (NavItem & { label: string })[] = [{ screen: 'home', label: 'nav.home', to: '/', end: true, icon: House }];
+const NAVIGATION: readonly (NavItem & { label: string })[] = [
+  { screen: 'home', label: 'nav.home', to: '/', end: true, icon: House },
+];
 
 /**
  * The screens of a logged-in user in the layout of the application (a sidebar or a top bar,
@@ -64,7 +66,11 @@ function RequireSession() {
     signOut(api);
   };
   return (
-    <AppShell title={PRODUCT_NAME} items={NAVIGATION.map((item) => ({ ...item, label: t(item.label) }))} session={LOGIN_ENABLED ? { onLogout } : null}>
+    <AppShell
+      title={PRODUCT_NAME}
+      items={NAVIGATION.map((item) => ({ ...item, label: t(item.label) }))}
+      session={LOGIN_ENABLED ? { onLogout } : null}
+    >
       <ErrorBoundary resetKey={location.pathname}>
         <Suspense fallback={loading}>
           <Outlet />

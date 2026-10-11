@@ -218,6 +218,7 @@ npm install
 npm run dev        # the dev server; /api goes to BAZIS_API_URL (http://localhost:8000)
 npm run typecheck
 npm run lint
+npm run format     # prettier of package.json, its style; the code of the product only (.prettierignore)
 npm test
 npm run build
 npx playwright install chromium   # once
@@ -225,7 +226,10 @@ npm run e2e        # the end-to-end tests, against the running backend of BAZIS_
 ```
 
 `schema.d.ts` is generated with the `openapi-typescript` of the `package.json` of the
-frontend: run `npm install` before `bazis_front contract`.
+frontend: run `npm install` before `bazis_front contract`. Format with `npm run format` only:
+it is the prettier pinned in `package.json` with the style of the template (`prettier` there),
+and leaves the copies and the generated files alone; `npx prettier` downloads another
+version with other defaults, and its output no longer matches the copies and the template.
 
 ```bash
 python manage.py bazis_front status         # the copies, the generated files, every stale or changed one

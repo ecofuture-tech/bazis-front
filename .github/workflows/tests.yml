@@ -229,6 +229,8 @@ jobs:
           npm install
           npx tsc --noEmit
           npm run lint
+          # `npm run format` of a new product changes nothing: the template has its style
+          npx --no-install prettier --check src e2e
           # the contract tests of the components with the tests of the template
           npm test
           npm run build -- --manifest
@@ -266,6 +268,7 @@ jobs:
           npm install
           npx tsc --noEmit
           npm run lint
+          npx --no-install prettier --check src e2e
           npm test
           npm run build -- --manifest
           python "$GITHUB_WORKSPACE/scripts/check_chunks.py" dist

@@ -135,10 +135,7 @@ describe('lazyScreen', () => {
   it('keeps a failure until the retry of its boundary, which loads the chunk again', async () => {
     sessionStorage.setItem(RELOADED, String(Date.now()));
     const reload = vi.fn();
-    const load = vi
-      .fn<() => Promise<typeof Card>>()
-      .mockRejectedValueOnce(new Error(GONE))
-      .mockResolvedValue(Card);
+    const load = vi.fn<() => Promise<typeof Card>>().mockRejectedValueOnce(new Error(GONE)).mockResolvedValue(Card);
     const Screen = lazyScreen(load, reload);
     await route(<Screen name="Ann" />);
     await screen.findByRole('alert');

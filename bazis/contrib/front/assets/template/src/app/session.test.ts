@@ -14,15 +14,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  getToken,
-  login,
-  loginInWindow,
-  logout,
-  onSessionChange,
-  PASSWORD_LOGIN,
-  signOut,
-} from '@/app/session';
+import { getToken, login, loginInWindow, logout, onSessionChange, PASSWORD_LOGIN, signOut } from '@/app/session';
 import { ApiError } from '@/bazis/client';
 import { CAPABILITIES } from '@/bazis/generated/contract';
 import type { Api } from '@/bazis/react';
@@ -205,7 +197,8 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
     openWindow();
     const failed = {
       auth: () => signedOut('store'),
-      authWait: () => signedOut('store', [{ status: 422, code: 'GOOGLE_AUTH_ERROR', detail: 'Google authentication failed' }]),
+      authWait: () =>
+        signedOut('store', [{ status: 422, code: 'GOOGLE_AUTH_ERROR', detail: 'Google authentication failed' }]),
     } as unknown as Api;
     await expect(loginInWindow(failed, GOOGLE)).rejects.toThrow('Google authentication failed');
     expect(getToken()).toBeNull();

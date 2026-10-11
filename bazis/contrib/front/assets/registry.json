@@ -705,6 +705,7 @@
       "target": "",
       "files": [
         ".gitignore",
+        ".prettierignore",
         "AGENTS.md",
         "components.json",
         "e2e/custom/README.md",

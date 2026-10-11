@@ -55,7 +55,11 @@ function Count({ path }: { path: string }) {
     );
   }
   const count = pagination(list.data)?.count;
-  return <span className="text-3xl font-semibold tabular-nums">{count === undefined ? '—' : formatNumber(count, language)}</span>;
+  return (
+    <span className="text-3xl font-semibold tabular-nums">
+      {count === undefined ? '—' : formatNumber(count, language)}
+    </span>
+  );
 }
 
 /** The resources of the backend, from the generated contract, with the number of their items. */
@@ -65,7 +69,10 @@ export function HomeScreen() {
     <Screen id="home" title={t('home.title')} description={t('home.description')}>
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {Object.entries(resources).map(([type, resource]) => (
-          <li key={type} className="flex flex-col gap-4 rounded-xl border bg-card p-(--space-card) text-card-foreground shadow-xs">
+          <li
+            key={type}
+            className="flex flex-col gap-4 rounded-xl border bg-card p-(--space-card) text-card-foreground shadow-xs"
+          >
             <div className="flex items-center gap-3">
               <span className="flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary-ink">
                 <Database className="size-4" aria-hidden="true" />

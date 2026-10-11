@@ -121,16 +121,14 @@ function sessionToken(state: AuthState): string {
  * `password` of bazis-authing (in a new store of its auth endpoint), else the token endpoint
  * of bazis-users.
  */
-export async function login(
-  api: Api,
-  credentials: { username: string; password: string },
-): Promise<void> {
+export async function login(api: Api, credentials: { username: string; password: string }): Promise<void> {
   const { users } = CAPABILITIES;
   if (users === null) throw new Error('The backend has no login: bazis-users is not installed.');
   if (AUTHING?.auth_url) {
     if (PASSWORD_ACTION === null) throw new Error('bazis-authing has no service password.');
     const start = await api.auth(AUTHING.auth_url);
-    const state = start.status === 'signed_in' ? start : await api.authLogin(PASSWORD_ACTION.url, start.store, credentials);
+    const state =
+      start.status === 'signed_in' ? start : await api.authLogin(PASSWORD_ACTION.url, start.store, credentials);
     setToken(sessionToken(state));
     return;
   }
