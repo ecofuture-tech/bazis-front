@@ -1,6 +1,8 @@
-# The copies of bazis-front and the generated files are written by `manage.py bazis_front`:
-# `npm run format` formats the code of the product only.
+# The copies of bazis-front and the generated files are written by `manage.py bazis_front`,
+# and the files that the end-to-end tests upload are read byte for byte: `npm run format`
+# formats the code of the product only.
 src/bazis/
 src/components/ui/
 e2e/bazis/
 e2e/generated/
+e2e/fixtures/

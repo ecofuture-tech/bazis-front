@@ -228,7 +228,7 @@ npm run e2e        # the end-to-end tests, against the running backend of BAZIS_
 `schema.d.ts` is generated with the `openapi-typescript` of the `package.json` of the
 frontend: run `npm install` before `bazis_front contract`. Format with `npm run format` only:
 it is the prettier pinned in `package.json` with the style of the template (`prettier` there),
-and leaves the copies and the generated files alone; `npx prettier` downloads another
+and leaves the copies, the generated files and `e2e/fixtures/` (uploaded byte for byte) alone; `npx prettier` downloads another
 version with other defaults, and its output no longer matches the copies and the template.
 
 ```bash
@@ -2563,6 +2563,15 @@ are replaced without conflicts; wrap them in the product code instead.
   whole key of the old shape no longer matches: match a prefix (`['bazis', path, 'action',
   name]`, every parameters), as the invalidation of a resource does. `useActionQuery` and
   `useItemActionQuery` require their `query` when the action has a required query parameter.
+- `RelatedList` requires `itemPath`, the route set of the item of the card
+  (`itemPath={<the path of the ResourceCard>}`): with it a related list placed after the card
+  also reads the card again after an add, not only one in its `children`.
+- The template formats its code with the prettier of its `package.json` (`npm run format`,
+  see [The frontend](#the-frontend)): `update` merges its files formatted, so a file of the
+  template that the product changed (`src/app/router.tsx`: the props of `AppShell`) may get a
+  conflict once. Resolve it by taking the lines of the template, adding the changes of the
+  product to them again, then `npm run format`; the links of `NAVIGATION` stay on their
+  line (`// prettier-ignore`).
 
 ## API: the client
 
