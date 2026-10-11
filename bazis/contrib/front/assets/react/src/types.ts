@@ -86,6 +86,12 @@ interface Signal {
   signal?: AbortSignal;
 }
 
+/** The options of a custom action: its method and query parameters. */
+interface ActionCall extends Signal {
+  method: HttpMethod;
+  query?: Readonly<Record<string, unknown>> | undefined;
+}
+
 /** The client with plain strings for paths and documents, for the bodies of the hooks. */
 export interface LooseClient {
   list(path: string, options: QueryOptions & Signal): Promise<unknown>;
@@ -104,8 +110,8 @@ export interface LooseClient {
   schema(path: string, kind: string, options: Signal): Promise<unknown>;
   filterFields(path: string, options: Signal): Promise<unknown>;
   transit(path: string, id: string, transit: string, payload?: unknown): Promise<unknown>;
-  action(path: string, name: string, body: unknown, options: { method: HttpMethod } & Signal): Promise<unknown>;
-  itemAction(path: string, id: string, name: string, body: unknown, options: { method: HttpMethod } & Signal): Promise<unknown>;
+  action(path: string, name: string, body: unknown, options: ActionCall): Promise<unknown>;
+  itemAction(path: string, id: string, name: string, body: unknown, options: ActionCall): Promise<unknown>;
   download(path: string, id: string, options?: Signal): Promise<DownloadedFile>;
 }
 

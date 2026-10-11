@@ -122,17 +122,19 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
   const { field } = filter;
   if (type === 'date' || type === 'datetime') {
     return (
-      <fieldset className="flex items-center gap-2">
+      // on a phone a row of the full width (a fieldset is as wide as its content otherwise),
+      // its two dates under the label when they do not fit beside it, sharing the row
+      <fieldset className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
         <legend className="sr-only">{label}</legend>
         <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
           {label}
         </span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex min-w-0 grow items-center gap-1.5 sm:grow-0">
           {(['gte', 'lte'] as const).map((bound) => (
             <Input
               key={bound}
               type="date"
-              className="h-9 w-36"
+              className="h-9 w-36 min-w-0 flex-1 sm:flex-none"
               aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
               data-bz={`field:${field}__${bound}`}
               value={values[`${field}__${bound}`] ?? ''}
@@ -176,7 +178,7 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
       <RelationPicker
         id={id}
         data-bz={`field:${field}`}
-        className="w-48"
+        className="w-48 min-w-0 flex-1 sm:flex-none"
         label={label}
         relation={relationType}
         value={value || null}
@@ -191,7 +193,7 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
       <Input
         id={id}
         data-bz={`field:${field}`}
-        className="h-9 w-40"
+        className="h-9 w-40 min-w-0 flex-1 sm:flex-none"
         type={type !== undefined && NUMBERS.has(type) ? 'number' : 'text'}
         step={type === 'integer' ? 1 : type !== undefined && NUMBERS.has(type) ? 'any' : undefined}
         value={value}
@@ -201,8 +203,9 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
       />
     );
   }
+  // on a phone a row of the full width, its control taking the rest of it
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
       <Label htmlFor={id} className="font-normal whitespace-nowrap text-muted-foreground">
         {label}
       </Label>

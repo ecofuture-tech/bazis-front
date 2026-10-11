@@ -86,7 +86,7 @@ describe('useInbox', () => {
     // a message of bazis-notify refetches the resource (`useLiveQueries`): both
     expect(cachedKeys(queryClient)).toEqual([
       ['bazis', INBOX, 'list', { page: { limit: 50 } }, 's1'],
-      ['bazis', INBOX, 'action', 'unread_count', 's1'],
+      ['bazis', INBOX, 'action', 'unread_count', {}, 's1'],
     ]);
   });
 

@@ -465,7 +465,8 @@ CASES = [
         # the filter of the screen by a field that the contract cannot filter by
         {LIST: lambda d: d['list'].update(filter={'dt_created': '2026-01-01'}),
          CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['dt_created'].pop('filter')]},
-        [('S008', f'{LIST}#/list/filter/dt_created')],
+        # and the filter of the user by it
+        [('S008', f'{LIST}#/list/filters/3'), ('S008', f'{LIST}#/list/filter/dt_created')],
     ),
     (
         'S014',
@@ -485,7 +486,7 @@ CASES = [
         'S016',
         # a map by a text, a filter of the user by a point
         {LIST: lambda d: d['list'].update(map={'field': 'title'}, filters=[*d['list']['filters'], 'location'])},
-        [('S016', f'{LIST}#/list/filters/3'), ('S016', f'{LIST}#/list/map/field')],
+        [('S016', f'{LIST}#/list/filters/4'), ('S016', f'{LIST}#/list/map/field')],
     ),
     (
         'P013',
@@ -640,13 +641,13 @@ def test_without_a_contract_only_the_specs_are_checked(root):
 
     # an error of the specs themselves is found
     edit(root, LIST, lambda d: d['list']['filters'].append('rank'))
-    assert issues(root) == [('S007', f'{LIST}#/list/filters/4')]
+    assert issues(root) == [('S007', f'{LIST}#/list/filters/5')]
 
     out = StringIO()
     with pytest.raises(CommandError, match='The specs have 1 errors'):
         call_command('bazis_front', 'check', stdout=out)
     assert 'not checked against the backend' in out.getvalue()
-    assert f'{LIST}#/list/filters/4: S007 error: ' in out.getvalue()
+    assert f'{LIST}#/list/filters/5: S007 error: ' in out.getvalue()
 
 
 @pytest.mark.django_db
@@ -807,7 +808,12 @@ def test_the_selectors_of_bazis_permit(contract):
         'assignee__roles': None,
         'members__roles': None,
         'assignee__username': '`username` is not a relationship of `users.user`',
-        'owner__author': '`owner` is not a relationship of `tasks.task`',
+        # a relation that the contract does not describe, neither a field nor a selector (the
+        # reverse relation of the task to its steps, which its route set does not show): not
+        # checked, bazis-permit checks the selectors of the permissions it declares
+        'steps__task__assignee': None,
+        'owner__author': None,
+        # a field of the contract that is not a relation
         'title__author': '`title` is not a relationship of `tasks.task`',
         'assignee__self': '`self` is the object itself',
         # statusy.status is not a resource of the contract: not checked further
@@ -821,6 +827,19 @@ def test_the_selectors_of_bazis_permit(contract):
         else:
             assert [(it.code, it.path) for it in found] == [('P020', '/entities/0/access/manager/view')], selector
             assert problem in found[0].message
+
+
+@pytest.mark.django_db
+def test_a_number_declared_for_a_string_names_the_decimal_field(contract):
+    # a DecimalField is a string of the API: the spec declares it `string`
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: [task(d)['fields'][0].update(type='number'),
+                                   task(d)['fields'][2].update(type='date')])
+    hints = {it.path: it.hint for it in validate(root).issues if it.code == 'P013'}
+    assert set(hints) == {'/entities/0/fields/0', '/entities/0/fields/2'}
+    assert 'A DecimalField is a string in the API' in hints['/entities/0/fields/0']
+    assert 'formatDecimal' in hints['/entities/0/fields/0']
+    assert 'DecimalField' not in hints['/entities/0/fields/2']
 
 
 @pytest.mark.django_db

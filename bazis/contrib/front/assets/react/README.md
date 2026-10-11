@@ -61,7 +61,7 @@ with it too. The template does this in `src/app/providers.tsx`.
 | `useRelationship(path)` | `POST`/`PATCH`/`DELETE path{id}/relationships/{field}` | `mutate({id, field, operation, data})` |
 | `useResourceForm(path, {id?, fixed?})` | the schema of the create (no id) or of the update of the item, the item, then `POST` or `PATCH` | a form, below |
 | `useAction(path, name, {method?, invalidate?})`, `useItemAction(path, name, …)` | `POST path{name}/`, `POST path{id}/{name}/` (`client.action`, `client.itemAction`) | `mutate(body)`, `mutate({id, body})`: the response of the custom action, typed by its OpenAPI; `errors`, those of its body by field (`ApiError.bodyErrors()`); the queries of the resource refetched unless `invalidate: false` |
-| `useActionQuery(path, name)`, `useItemActionQuery(path, id, name)` | `GET path{name}/`, `GET path{id}/{name}/` (`client.action`, `client.itemAction` with `method: 'get'`) | a query of a custom action declared with GET (a summary, a report, the content a screen shows): its response, typed by its OpenAPI, `error` the `ApiError`; no request while `id` is null; refetched with the queries of its resource |
+| `useActionQuery(path, name, {query?})`, `useItemActionQuery(path, id, name, {query?})` | `GET path{name}/?<query>`, `GET path{id}/{name}/?<query>` (`client.action`, `client.itemAction` with `method: 'get'`) | a query of a custom action declared with GET (a summary, a report, a check, the content a screen shows) with its query parameters, typed by its OpenAPI: its response, typed by its OpenAPI, `error` the `ApiError`; no request while `id` or `query` is null; refetched with the queries of its resource |
 | `useApi()`, `useSessionKey()` | | the client; the session of the provider |
 | `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
 | `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
@@ -108,8 +108,8 @@ with a language (`useSessionKey()`).
 | schema of an item | `['bazis', path, 'item', id, 'schema', kind, session]` |
 | filter fields | `['bazis', path, 'filter-fields', session]` |
 | related item | `['bazis', path, 'item', id, 'related', session]` |
-| GET action of the route set | `['bazis', path, 'action', name, session]` |
-| GET action of an item | `['bazis', path, 'item', id, 'action', name, session]` |
+| GET action of the route set | `['bazis', path, 'action', name, query, session]` (`query`: its parameters without the null and undefined ones, `{}` without any; null while it waits) |
+| GET action of an item | `['bazis', path, 'item', id, 'action', name, query, session]` |
 | a task of bazis-async-background | `['bazis', 'async_background', taskId, session]` |
 
 `options` are those given, a filter as its expression.
@@ -166,8 +166,10 @@ the components), and `Intl` for the plural forms, the dates and the numbers.
   number `count`, the plural form `<key>.<category>` of `Intl.PluralRules` first. A missing
   text shows its key. `translate(dictionaries, locale, key, params)` is the same as a
   function.
-- `formatNumber`, `formatDate` (a date of the backend, `2026-10-08`, is that day wherever
-  the user is), `formatDateTime`, `formatTime`: `Intl` in the language of the interface.
+- `formatNumber`, `formatDecimal` (a `DecimalField` of the backend, a string such as
+  `"45000.10"`, formatted exactly with its digits after the point), `formatDate` (a date of
+  the backend, `2026-10-08`, is that day wherever the user is), `formatDateTime`,
+  `formatTime`: `Intl` in the language of the interface.
 - The language of the profile: with `profile_language` of the capability `users` (a text
   field `language` of the user model), `followProfileLanguage(store, api, {path, type},
   token)` finds the user of the session token (`sub` of its JWT, `filter=username=<sub>`),

@@ -335,7 +335,10 @@ that `LANGUAGE_CODE` names) of the contract (P029). See [The language](#the-lang
 
 **Fields** are those of the resource in the API (`fields` of contract.json), with `type`
 (`string`, `text`, `integer`, `number`, `boolean`, `date`, `datetime`, `time`, `json`,
-`point`, `file`) or `relation` (the id of an entity) and `many`. A `point` is a
+`point`, `file`) or `relation` (the id of an entity) and `many`. A `DecimalField` (a sum,
+a price) is a `string` of its exact digits in the API and in the contract
+(`"45000.10"`): declare it `string` (`number` is P013), and show it with `formatDecimal`
+(see [The language](#the-language)). A `point` is a
 `PointField` of the model (`format: point` of the contract; `json` is another object: a
 point field declared `json` is P013, declare it `point`). A `file` is a to-one
 relationship to a resource of the uploaded files of bazis-uploadable (`resources` of the
@@ -385,8 +388,11 @@ bazis-permit 2.6.0, whether the route shows it or not; `self` only on a selector
 source), and each relation of its path a relationship of the contract or a selector;
 what the contract does not describe is not checked. A path through a relation that the
 route set does not show and that is not a selector (a reverse relation to a model that
-is no selector source) is still reported: show the relation in the route set, or ignore
-the warning when bazis-permit resolves it.
+is no selector source: the participants of the events of an organizer,
+`registrations__event__author` on the user) is written in `access` as it is, like any
+other grant: the contract does not describe the relation, bazis-permit checks the
+selectors of the permissions it declares (`permit.E004`) and `check` that the role has
+the permission (P019). Never leave a grant out of the spec to silence a warning.
 
 #### Scenarios
 
@@ -585,7 +591,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P017` | error | the payload of a transition differs from the contract |
 | `P018` | error | the permit role of a role is not in the contract |
 | `P019` | error | the permit role lacks a permission that `access` grants |
-| `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a relation of its path is not a relationship of the contract |
+| `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a field of its path is not a relationship (a relation that the contract does not describe is not checked) |
 | `P021` | error | a scenario step references an unknown screen |
 | `P022` | error | a scenario step is not possible on the current screen |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
@@ -968,7 +974,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | Component | What | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel` (the state of a screen or of a part of it, `inline`, with a `skeleton` while it loads), `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once), `Screen`, `ListCardLayout`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
+| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker`, `RelationLabel`, `useListFields`, `useItemFields`; the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `compactColumns`: next to a card), `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
@@ -1192,7 +1198,8 @@ The props of every component are in the `API:` sections (the `Props` types of
   relationship), as `ResourceForm` does; a value the screen sets is `fixed`, never set by
   an effect;
 - numbers and dates in a text of your own: `formatNumber(value, language, options?)`
-  (`{style: 'currency', currency: 'RUB'}`), `formatDate`, `formatDateTime` of `@/bazis/i18n`;
+  (`{style: 'currency', currency: 'RUB'}`), `formatDecimal` (a `DecimalField`, a string of
+  the API: a sum, a price), `formatDate`, `formatDateTime` of `@/bazis/i18n`;
 - a related item that the user may not view (the author of a message for a client) is
   null in `useRelatedItem`, and `RelationLabel` shows its id: show something of your own
   for null, never request it otherwise;
@@ -1447,8 +1454,15 @@ resource after it (`invalidate: false` for an action that changes nothing); its 
 is the `ApiError` (`StatePanel` `errorState(error)`), and `errors` gives the errors of its
 body by field (the core points them to `/<field>` of a JSON body: `ApiError.bodyErrors()`).
 An action that queues a task of bazis-bg answers with its id: show it with `TaskProgress`
-(`<TaskProgress id={action.data.task} />`). Never `fetch` an endpoint of the backend by
-hand: the client sends the token and the language of the session, and turns the errors
+(`<TaskProgress id={action.data.task} />`). The arguments of an action that are neither in
+its path nor in its body (`code: str`, `year: int | None = None`; a list with `Query()`)
+are its query parameters: `useActionQuery(path, '<name>', {query: {code}})` (and
+`useItemActionQuery`, `client.action(path, name, undefined, {method: 'get', query})`), typed
+by its OpenAPI and in the key of the query, nothing read while `query` is null. A check that
+changes nothing (of a code, of a period) is a GET with a query read when the form is
+submitted, not a POST made for want of a query; a secret (a password, a token) never goes in
+a query, which the logs of the servers keep: it is the body of a POST. Never `fetch` an
+endpoint of the backend by hand: the client sends the token and the language of the session, and turns the errors
 into `ApiError`. Offer the button of an action to the users the backend lets call it, from
 `custom_actions` of bazis-permit 2.11 (the names of `actions` of the contract, `action` of
 `x-bazis`): an action of the collection with `useCan(path, 'action_<name>')`, an action of
@@ -1468,6 +1482,17 @@ const exporting = useAction(ROUTES['service.work_order'], 'export', { invalidate
 {exporting.errors.date_to && <p data-bz="error:date_to">{exporting.errors.date_to.join(' ')}</p>}
 {exporting.isError && <StatePanel inline state={errorState(exporting.error)} error={exporting.error} />}
 {exporting.data && <TaskProgress id={exporting.data.task} />}
+```
+
+A check declared with `@http_get('/check/')` and an argument `code: str` (a query
+parameter), read once the form is submitted:
+
+```tsx
+const [code, setCode] = useState<string | null>(null); // the submitted code
+const check = useActionQuery(ROUTES['events.registration'], 'check', { query: code === null ? null : { code } });
+<form onSubmit={(event) => { event.preventDefault(); setCode(new FormData(event.currentTarget).get('code') as string); }}>…</form>
+{check.isError && <StatePanel inline state={errorState(check.error)} error={check.error} />}
+{check.data && <p data-bz="field:valid">{check.data.valid ? t('check.valid') : t('check.invalid')}</p>}
 ```
 
 ### Background work
@@ -1916,10 +1941,11 @@ for what they do not cover (the login, a custom endpoint).
 - Upload a file with `api.upload(path, file, {name?, onProgress?, signal?})` (or
   `useUpload`): a multipart `POST` to the route set of the uploaded files, with
   XMLHttpRequest for its progress.
-- Call a custom action of a route set with `api.action(path, name, body?, {method?})`
-  (`<path><name>/`, POST by default; `api.itemAction(path, id, name, body?, {method?})` for
-  `<path><id>/<name>/`), or `useAction`: the JSON body and response of its OpenAPI; the
-  errors of the body by field are `ApiError.bodyErrors()` (`/<field>`), not
+- Call a custom action of a route set with `api.action(path, name, body?, {method?, query?})`
+  (`<path><name>/`, POST by default; `api.itemAction(path, id, name, body?, {method?, query?})`
+  for `<path><id>/<name>/`), or `useAction`: the JSON body, the query parameters (`?code=A1`:
+  a list repeats the parameter, null and undefined are left out) and the response of its
+  OpenAPI; the errors of the body by field are `ApiError.bodyErrors()` (`/<field>`), not
   `fieldErrors()` (the pointers of a JSON:API document).
 - Run a request in the background with `api.background(method, path, {body?})` (or
   `useAsyncRequest`, bazis-async-request): `{status: 'queued', taskId}` or `{status:
@@ -2087,10 +2113,12 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   (`mutate(body)`, `useItemAction`: `mutate({id, body})`), typed by its OpenAPI, then
   refetches the queries of the resource (not with `invalidate: false`); `errors` are those
   of its body by field (`ApiError.bodyErrors()`), `error` the `ApiError`.
-- `useActionQuery(path, name)` and `useItemActionQuery(path, id, name)` read a custom action
-  declared with GET as a query (a summary, the content of a screen; no request while `id`
-  is null), keyed under its resource: a mutation or an action of the resource refetches
-  it; `data` is its response typed by its OpenAPI, `error` the `ApiError`.
+- `useActionQuery(path, name, {query?})` and `useItemActionQuery(path, id, name, {query?})`
+  read a custom action declared with GET as a query (a summary, a check, the content of a
+  screen; no request while `id` or `query` is null), keyed under its resource and by its
+  query parameters (`query`, typed by its OpenAPI: other parameters are another query): a
+  mutation or an action of the resource refetches it; `data` is its response typed by its
+  OpenAPI, `error` the `ApiError`.
 
 ### The tasks and the background requests (bazis-bg, bazis-async-background)
 
@@ -2143,7 +2171,9 @@ components in `src/bazis/i18n/messages/<language>.ts`, English and Russian), the
 forms of `Intl.PluralRules` (`<key>.one`, `<key>.few`, `<key>.many`, `<key>.other`, with
 the parameter `count`), `translator(store, messages)` (`t` outside the components), and
 `formatNumber(value, language, options?)` (the options of `Intl.NumberFormat`: a sum,
-`{style: 'currency', currency: 'RUB'}`), `formatDate(value, language)`,
+`{style: 'currency', currency: 'RUB'}`), `formatDecimal(value, language, options?)` (a
+`DecimalField`, a string of the API, formatted exactly with its digits after the point; a
+sum with the same options), `formatDate(value, language)`,
 `formatDateTime(value, language)`, `formatTime(date, language)` (`Intl`, in the language
 of the interface: `const { language } = useLanguage()`). No i18next.
 
@@ -2162,8 +2192,11 @@ Every text of a screen goes through `t()`; never write a text of the interface i
 **In a screen**: `const { t, language } = useLanguage()` of `@/bazis/i18n`,
 `t('tasks.title')`, `t('list.range_of', {from, to, count})`. Dates and numbers are
 formatted in the language of the interface, never in that of the browser: `formatNumber`,
-`formatDate`, `formatDateTime`, `formatTime` with `language` (`FieldValue` does it for the
-fields); the names of the statuses are `statusName(type, id, language)` of
+`formatDecimal`, `formatDate`, `formatDateTime`, `formatTime` with `language` (`FieldValue`
+does it for the fields, but for a `DecimalField`, a string it shows as it is: format it in
+`cells` of `ResourceList` and `values` of `ResourceCard`, a sum with the currency of the
+product, `formatDecimal(fieldValue(row, 'total'), language, {style: 'currency', currency:
+'RUB'})`, `—` for none); the names of the statuses are `statusName(type, id, language)` of
 `@/bazis/ui/status-badge`.
 
 ### The language of the interface
@@ -2316,6 +2349,9 @@ session at once and, with bazis-authing, posts to its logout endpoint.
   document); the core points the errors of its body to `/<field>` (`ApiError.bodyErrors()`),
   and a hook that raises `JsonApiBazisError` points to a field of it with `loc=('body',
   '<field>')`.
+- A `DecimalField` is a JSON string of its exact digits (`"45000.10"`), in the responses and
+  in `contract.json` (`type: string`); a write takes a string or a number. Never compute
+  with it as a float: show it with `formatDecimal`, and let the backend sum it.
 - The `id` of an item of a model with an integer primary key (`FileUpload`) is a JSON number
   in its documents, a string in the relationships that reference it: compare them as
   strings.
@@ -2486,8 +2522,8 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `schema<K extends ItemSchemaKind, P extends RouteSetWith<Paths, SchemaSuffix[K], 'get'>>(path: P, kind: K, id: string, options?: RequestOptions & IncludeOption<EndpointOf<Paths, P, SchemaSuffix[K], 'get'>>): Promise<ResponseOf<EndpointOf<Paths, P, SchemaSuffix[K], 'get'>>>`: The JSON schema of an action on an item for the current user (`schema_update/`...).
 - `filterFields<P extends RouteSetWith<Paths, 'route_filter_fields/', 'get'>>(path: P, options?: RequestOptions): Promise<ResponseOf<EndpointOf<Paths, P, 'route_filter_fields/', 'get'>>>`: The fields a list can be filtered by (`route_filter_fields/`).
 - `transit<P extends RouteSetWith<Paths, '{item_id}/transit/', 'post'>>(path: P, id: string, transit: string, payload?: unknown, options?: RequestOptions): Promise<ResponseOf<EndpointOf<Paths, P, '{item_id}/transit/', 'post'>> | null>`: Runs a transit of bazis-statusy (`POST {item_id}/transit/`).
-- `` action<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M>, M extends HttpMethod = 'post'>(path: P, name: N, body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>, options?: ActionOptions<M>): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>> ``: Calls a custom action of a route set, `<path><name>/` (a route of the backend declared with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for `get`) and its JSON response, typed by the OpenAPI; resolves to undefined for 204.
-- `` itemAction<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M, Item>, M extends HttpMethod = 'post'>(path: P, id: string, name: N, body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>, options?: ActionOptions<M>): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>> ``: Calls a custom action of an item, `<path><id>/<name>/`, as `action` does.
+- `` action<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M>, M extends HttpMethod = 'post'>(path: P, name: N, body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>, options?: ActionOptions<M, QueryParams<EndpointOf<Paths, P, `${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>> ``: Calls a custom action of a route set, `<path><name>/` (a route of the backend declared with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for `get`), its query parameters (`query` of the options) and its JSON response, typed by the OpenAPI; resolves to undefined for 204.
+- `` itemAction<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M, Item>, M extends HttpMethod = 'post'>(path: P, id: string, name: N, body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>, options?: ActionOptions<M, QueryParams<EndpointOf<Paths, P, `${Item}${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>> ``: Calls a custom action of an item, `<path><id>/<name>/`, as `action` does.
 - `download(path: RouteSetWith<Paths, '{item_id}/download/', 'get'>, id: string, options?: RequestOptions): Promise<DownloadedFile>`: Reads a file from the download route of an item, `<path><id>/download/` (bazis-uploadable `FileUploadRouteSet`, bazis-bg `BgRoute`), with the token: its content and the name of `Content-Disposition`.
 - `login(credentials: { username: string; password: string; }, options?: RequestOptions & { path?: string; }): Promise<TokenResponse>`: Gets a token from the token endpoint of bazis-users (an OAuth2 password form).
 - `upload<P extends RouteSetWith<Paths, '', 'post'>>(path: P, file: Blob, options?: UploadOptions): Promise<ResponseOf<EndpointOf<Paths, P, '', 'post'>>>`: Uploads a file to a route set of bazis-uploadable (`FileUploadRouteSet` or a subclass): a `POST` of multipart form data with `file` (and `name`), sent with XMLHttpRequest, whose progress `onProgress` reports.
@@ -2620,9 +2656,10 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 
 #### ActionOptions
 
-`interface ActionOptions<M extends HttpMethod> extends RequestOptions`: The options of a custom action: the method (`post` by default).
+`interface ActionOptions<M extends HttpMethod, Query = never> extends RequestOptions`: The options of a custom action: the method (`post` by default) and the query parameters of its operation (`Query`, those of its OpenAPI), sent as `?<name>=<value>`: a list repeats the parameter, a null or undefined value is left out.
 
 - `method?: M`
+- `query?: Query`
 
 #### AuthAction
 
@@ -2747,6 +2784,7 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `` type EndpointOf<Paths, P extends string, Suffix extends string, M extends HttpMethod> = OperationOf<Paths, `${P}${Suffix}`, M> ``: The operation of the endpoint `<P><Suffix>` for the method `M`.
 - `type HttpMethod = 'get' | 'post' | 'patch' | 'delete'`
 - `type ItemOptions<Operation> = RequestOptions & FieldsOption<Operation> & IncludeOption<Operation> & MetaOption<Operation>`: The query of an operation on one item.
+- `type QueryParams<Operation> = Operation extends { parameters: { query?: infer Query; }; } ? [ NonNullable<Query> ] extends [ never ] ? never : NonNullable<Query> : never`: The query parameters of an operation as its OpenAPI declares them (`parameters.query`: the arguments of a route of the backend that are neither in its path nor in its body, such as `code: str` of `@http_get('/check/')`); `never` when it has none.
 - `type ResponseOf<Operation> = Operation extends { responses: infer Responses; } ? Responses[Extract<keyof Responses, 200 | 201 | '200' | '201'>] extends { content: infer Content; } ? JsonContent<Content> : never : never`: The JSON body of the successful (200 or 201) response of an operation.
 - `` type RouteSetPath<Paths> = { [P in keyof Paths & string]: `${P}{item_id}/` extends keyof Paths ? P : never; }[keyof Paths & string] ``: The paths of the route sets: the paths that have an item path `<path>{item_id}/`.
 - `` type RouteSetWith<Paths, Suffix extends string, M extends HttpMethod> = { [P in RouteSetPath<Paths>]: [ OperationOf<Paths, `${P}${Suffix}`, M> ] extends [ never ] ? never : P; }[RouteSetPath<Paths>] ``: The route sets whose endpoint `<path><Suffix>` has the method `M`.
@@ -2783,7 +2821,7 @@ Its props, `BazisProviderProps`:
 
 #### useActionQuery
 
-`useActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get'>>(path: P, name: N): UseQueryResult<ActionResponse<P, N, 'get'>>`: A custom action of a route set declared with GET, `<path><name>/`, read as a query (the response of `client.action` with the method `get`): a summary, a report, the content that a screen shows.
+`useActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get'>>(path: P, name: N, options?: ActionQueryOptions<ActionQuery<P, N, 'get'>>): UseQueryResult<ActionResponse<P, N, 'get'>>`: A custom action of a route set declared with GET, `<path><name>/`, read as a query (the response of `client.action` with the method `get` and the query parameters of `query`): a summary, a report, a check, the content that a screen shows.
 
 #### useItemAction
 
@@ -2791,7 +2829,7 @@ Its props, `BazisProviderProps`:
 
 #### useItemActionQuery
 
-`useItemActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get', Item>>(path: P, id: string | null, name: N): UseQueryResult<ActionResponse<P, N, 'get', Item>>`: A custom action of an item declared with GET, `<path><id>/<name>/`, read as a query (`client.itemAction` with the method `get`); nothing is read while `id` is null.
+`useItemActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get', Item>>(path: P, id: string | null, name: N, options?: ActionQueryOptions<ActionQuery<P, N, 'get', Item>>): UseQueryResult<ActionResponse<P, N, 'get', Item>>`: A custom action of an item declared with GET, `<path><id>/<name>/`, read as a query (`client.itemAction` with the method `get` and the query parameters of `query`); nothing is read while `id` or `query` is null.
 
 #### useDownload
 
@@ -2814,6 +2852,12 @@ Its props, `BazisProviderProps`:
 
 - and the members of `UseMutationResult<Response, Error, Variables>`
 - `errors: Readonly<Record<string, readonly string[]>>`
+
+#### ActionQueryOptions
+
+`interface ActionQueryOptions<Query>`
+
+- `query?: Query | null`: The query parameters of the action (`?<name>=<value>`), typed by its OpenAPI and in the key of the query: other parameters are another query.
 
 #### useCreate
 
@@ -2949,6 +2993,7 @@ Its props, `BazisProviderProps`:
 - `type DownloadPath = RouteSetWith<paths, '{item_id}/download/', 'get'>`: A route set with the download route of its items (bazis-uploadable, bazis-bg).
 - `` type ActionBody<P extends string, N extends string, M extends HttpMethod, Prefix extends string = ''> = BodyOf<EndpointOf<paths, P, `${Prefix}${N}/`, M>> ``: The body of the action `N` of the route set `P` (`<P><Prefix><N>/`) for the method `M`.
 - `type ActionPath = RouteSetPath<paths>`: A route set: the path of its collection.
+- `` type ActionQuery<P extends string, N extends string, M extends HttpMethod, Prefix extends string = ''> = QueryParams<EndpointOf<paths, P, `${Prefix}${N}/`, M>> ``: The query parameters of the action `N` of the route set `P` for the method `M`, as its OpenAPI declares them.
 - `` type ActionResponse<P extends string, N extends string, M extends HttpMethod, Prefix extends string = ''> = ResponseOf<EndpointOf<paths, P, `${Prefix}${N}/`, M>> ``: The response of the action `N` of the route set `P` for the method `M`.
 - `type ActionVariables<Body> = [ Body ] extends [ never ] ? undefined : Body`: What `mutate` of an action takes: its body, `undefined` for an action without one (a GET).
 - `type Can = 'view' | 'add' | CustomActionName`: What a user may do on a route set: view its items (its list), add one, call a custom action of the collection.
@@ -3269,6 +3314,10 @@ Its props, `SocketProviderProps`:
 
 `formatDateTime(value: string | Date, language: string): string`: A date-time of the backend (ISO) or a Date, with the date and the time; the text when it is not one.
 
+#### formatDecimal
+
+`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it has (`45,000.10` in English, `45 000,10` in Russian) unless `options` sets them; a sum is `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`).
+
 #### formatNumber
 
 `formatNumber(value: number, language: string, options?: Intl.NumberFormatOptions): string`: A number: `1,234.5` in English, `1 234,5` in Russian.
@@ -3412,7 +3461,7 @@ Its props, `AppShellProps`:
 - `navigation?: Navigation`: `navigation` of the theme by default.
 - `items: readonly NavItem[]`
 - `session?: ShellSession | null`
-- `tools?: ReactNode`: The tools of the product next to the color mode, such as the notifications (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at the foot of the sidebar or, on a phone, in its header.
+- `tools?: ReactNode`: The tools of the product next to the color mode, such as the notifications (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at the foot of the sidebar (a row that wraps, above the session) or, on a phone, in its header.
 - `children: ReactNode`
 
 #### Screen

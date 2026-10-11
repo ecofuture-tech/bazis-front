@@ -10,8 +10,11 @@ report `src/screens/draft-tasks/`), composed from the components as the specs of
 session, `FileFieldProvider`: the forms upload the files of bazis-uploadable, and
 `MapProvider` with the tiles of `MAP_TILES` of `src/app/product.ts`; the
 `tools` of the layout are `LiveQuery` and `NotificationCenter` with the stored notifications
-of bazis-notify, `useInbox`), and the files that the scenarios upload (`e2e/fixtures/`). It is the
-reference of a product frontend written from its specs.
+of bazis-notify, `useInbox`), the files that the scenarios upload (`e2e/fixtures/`) and the
+end-to-end tests of what no scenario says (`e2e/custom/`: the custom actions, the downloads,
+the language, and the layout, `layout.spec.ts`: the foot of the sidebar with these tools, and
+the filters of the list of the tasks, a date range among them, at the width of a phone). It
+is the reference of a product frontend written from its specs.
 
 A frontend is not kept in this repository: the `e2e` job of CI makes one from the sample
 (`bazis_front init`, `contract`, `add` of the components, `npm install` for the Leaflet of

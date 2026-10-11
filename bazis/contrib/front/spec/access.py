@@ -169,8 +169,12 @@ def selector_problem(selector: str, resource: str, contract: dict) -> str | None
     `permit` of the contract, also the relations its route does not show (a reverse
     relation, `members`); a hop is a relationship of the resource in the contract or one of
     its selectors. What the contract does not describe is not checked: a resource that is
-    not in it, and of a resource that is not a permission model the last name is only
-    checked to be a relationship.
+    not in it, a hop that is neither a field of the resource nor one of its selectors (a
+    relation that its route set does not show, such as the reverse relation `registrations`
+    of the user to the registrations of the events: bazis-permit follows every relation of
+    the model, and checks the selectors of the declared permissions itself, permit.E004),
+    and of a resource that is not a permission model the last name is only checked to be a
+    relationship.
     """
     resources = contract['project']['resources']
     known = contract['capabilities']['permit'].get('selectors', {})
@@ -179,8 +183,11 @@ def selector_problem(selector: str, resource: str, contract: dict) -> str | None
     for part in hops:
         if current not in resources and current not in known:
             return None
-        field = resources.get(current, {}).get('fields', {}).get(part, {})
-        target = field.get('relation', known.get(current, {}).get(part))
+        field = resources.get(current, {}).get('fields', {}).get(part)
+        target = known.get(current, {}).get(part) if field is None else field.get('relation')
+        if field is None and target is None:
+            # a relation that the contract does not describe
+            return None
         if target is None:
             return f'`{part}` is not a relationship of `{current}` in the contract'
         if not isinstance(target, str):

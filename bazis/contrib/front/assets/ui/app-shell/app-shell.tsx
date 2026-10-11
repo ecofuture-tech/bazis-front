@@ -94,7 +94,8 @@ export interface AppShellProps {
   /**
    * The tools of the product next to the color mode, such as the notifications
    * (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at
-   * the foot of the sidebar or, on a phone, in its header. They are mounted once.
+   * the foot of the sidebar (a row that wraps, above the session) or, on a phone, in its
+   * header. They are mounted once.
    */
   tools?: ReactNode;
   children: ReactNode;
@@ -343,15 +344,15 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
           <div className="flex-1 overflow-y-auto px-3 py-2">
             <Navigation items={items} vertical />
           </div>
-          <div className="flex items-center gap-1 border-t border-sidebar-border p-3">
-            <ColorModeToggle className="text-muted-foreground" />
-            <LanguageToggle className="text-muted-foreground" />
-            {wide && tools}
-            {session && (
-              <div className="ml-auto min-w-0">
-                <Session session={session} compact />
-              </div>
-            )}
+          {/* the foot: the toggles and the tools of the product on a row that wraps, the
+              session on a row of its own under them, so that neither pushes the other out */}
+          <div className="grid gap-2 border-t border-sidebar-border p-3">
+            <div data-slot="sidebar-tools" className="flex flex-wrap items-center gap-1">
+              <ColorModeToggle className="text-muted-foreground" />
+              <LanguageToggle className="text-muted-foreground" />
+              {wide && tools}
+            </div>
+            {session && <Session session={session} />}
           </div>
         </aside>
         <div className="flex min-w-0 flex-col">

@@ -47,6 +47,7 @@ export type {
   ItemOptions,
   ListOptions,
   Page,
+  QueryParams,
   ReplayedResponse,
   RequestOptions,
   ResourceIdentifier,

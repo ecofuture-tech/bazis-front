@@ -65,9 +65,25 @@ export type ActionName<Paths, P extends string, M extends HttpMethod, Prefix ext
     : never;
 }[keyof Paths & string];
 
-/** The options of a custom action: the method (`post` by default). */
-export interface ActionOptions<M extends HttpMethod> extends RequestOptions {
+/**
+ * The query parameters of an operation as its OpenAPI declares them (`parameters.query`: the
+ * arguments of a route of the backend that are neither in its path nor in its body, such as
+ * `code: str` of `@http_get('/check/')`); `never` when it has none.
+ */
+export type QueryParams<Operation> = Operation extends { parameters: { query?: infer Query } }
+  ? [NonNullable<Query>] extends [never]
+    ? never
+    : NonNullable<Query>
+  : never;
+
+/**
+ * The options of a custom action: the method (`post` by default) and the query parameters
+ * of its operation (`Query`, those of its OpenAPI), sent as `?<name>=<value>`: a list repeats
+ * the parameter, a null or undefined value is left out.
+ */
+export interface ActionOptions<M extends HttpMethod, Query = never> extends RequestOptions {
   method?: M;
+  query?: Query;
 }
 
 /** The JSON body of the successful (200 or 201) response of an operation. */

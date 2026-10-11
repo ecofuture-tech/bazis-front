@@ -144,4 +144,14 @@ export function useTypedActions(): void {
   const itemTotal: number | undefined = itemSummary.data?.total;
   // @ts-expect-error report is an action of the route set
   seen.push(itemTotal, useItemActionQuery(PARENT, '1', 'report'));
+  // the query parameters of the OpenAPI of the action; null: nothing is read yet
+  const checked = useActionQuery(PARENT, 'check', { query: { code: 'A1' } });
+  const valid: boolean | undefined = checked.data?.valid;
+  seen.push(valid, useActionQuery(PARENT, 'check', { query: null }), useActionQuery(PARENT, 'report', { query: { year: 2026 } }));
+  // @ts-expect-error a parameter of another type
+  seen.push(useActionQuery(PARENT, 'check', { query: { code: 1 } }));
+  // @ts-expect-error a parameter the action does not declare
+  seen.push(useActionQuery(PARENT, 'report', { query: { month: 1 } }));
+  // @ts-expect-error the action has no query parameters
+  seen.push(useItemActionQuery(PARENT, '1', 'summary', { query: { year: 2026 } }));
 }

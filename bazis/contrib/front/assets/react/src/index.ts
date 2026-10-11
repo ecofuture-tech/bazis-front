@@ -17,7 +17,16 @@ export type { Api, BazisProviderProps } from './context.js';
 export { useAction, useActionQuery, useItemAction, useItemActionQuery } from './actions.js';
 export { useDownload, useDownloadUrl } from './download.js';
 export type { DownloadPath } from './download.js';
-export type { ActionBody, ActionHookOptions, ActionMutation, ActionPath, ActionResponse, ActionVariables } from './actions.js';
+export type {
+  ActionBody,
+  ActionHookOptions,
+  ActionMutation,
+  ActionPath,
+  ActionQuery,
+  ActionQueryOptions,
+  ActionResponse,
+  ActionVariables,
+} from './actions.js';
 export { useCreate, useDestroy, useRelationship, useUpdate } from './mutations.js';
 export type { QueryOptions } from './keys.js';
 export { useCan, useFilterFields, useItem, useList, useSchema } from './queries.js';

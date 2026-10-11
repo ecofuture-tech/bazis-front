@@ -103,8 +103,12 @@ submit. `sample/spec/` is a complete valid spec of the sample: the permissions
 of the declared roles cover its `access`, and `tests/test_spec.py` checks it against
 the contract. `sample/frontend-overlay/` holds the screens of the sample (product code, the
 reference of screens written from specs; `src/app/router.tsx` wraps the routes in
-`FileFieldProvider`) and `e2e/fixtures/` (the files that the scenarios upload), copied over a
-frontend made from the sample by the `e2e` job of CI.
+`FileFieldProvider`) and `e2e/` (`fixtures/`, the files that the scenarios upload, and
+`custom/`, the tests of what no scenario says: the custom actions, the downloads, the
+language, the layout with the styles of a product, `layout.spec.ts`: the foot of the sidebar
+with the tools of the sample, and the filters of the list of the tasks, a date range among
+them, at the width of a phone), copied over a frontend made from the sample by the `e2e`
+job of CI.
 
 ### The contract export
 
@@ -313,7 +317,8 @@ npm run api-reference     # the API reference of the guide, after a change of an
 ### The client (`assets/client`)
 
 - `src/`: `client.ts` (the operations, with the custom actions of the route sets
-  (`action`, `itemAction`: plain JSON, their errors by field `ApiError.bodyErrors()`), the
+  (`action`, `itemAction`: plain JSON, their query parameters typed by `parameters.query` of
+  the operation, `QueryParams`, their errors by field `ApiError.bodyErrors()`), the
   upload of bazis-uploadable over XMLHttpRequest, the authorization store of bazis-authing and the background requests of
   bazis-async-request with the results of bazis-async-background), `types.ts` (types read from
   the generated `paths`), `filter.ts` (the filter grammar of
@@ -333,7 +338,8 @@ npm run api-reference     # the API reference of the guide, after a change of an
   `useSessionKey`: the scope of the keys), `keys.ts` (the query
   keys), `queries.ts`, `mutations.ts`, `actions.ts` (`useAction`, `useItemAction`: the custom
   actions of the route sets, `client.action`; `useActionQuery`, `useItemActionQuery`: those
-  declared with GET as queries, keyed under their resource), `related.ts` (`useRelatedItem`: the related items
+  declared with GET as queries, keyed under their resource and by their query parameters,
+  `query`, none read while it is null), `related.ts` (`useRelatedItem`: the related items
   asked for together read with one list filtered by `pk=<a>|pk=<b>`), `schema.ts` (the fields of a runtime schema),
   `form.ts` (`useResourceForm`), `types.ts`; `src/statusy/` is the separate asset
   `react-statusy` (`requires` the capability `statusy`), `src/uploadable/` the asset
@@ -343,7 +349,8 @@ npm run api-reference     # the API reference of the guide, after a change of an
   `bg`), `src/async/` the asset `react-async` (`useAsyncRequest`, `useAsyncTask`,
   `async_background`), `src/i18n/` the asset `i18n` (copied to `src/bazis/i18n/` of every
   product: `LanguageProvider`, `useLanguage`, `t`, the dictionaries `messages/en.ts` and
-  `messages/ru.ts`, the `Intl` formats, the language of the profile; the components import
+  `messages/ru.ts`, the `Intl` formats (`formatDecimal`: a `DecimalField`, a string of the
+  API, formatted exactly), the language of the profile; the components import
   it as `@/bazis/i18n`, aliased in the configs of `ui`). `README.md` documents the API, the keys and the protocol facts they
   rely on. The tests of the socket use a fake WebSocket (`test/socket.ts`; the components
   have theirs in `testing`).

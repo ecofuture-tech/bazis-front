@@ -25,6 +25,7 @@ import {
   followProfileLanguage,
   formatDate,
   formatDateTime,
+  formatDecimal,
   formatNumber,
   formatTime,
   LanguageProvider,
@@ -198,6 +199,22 @@ describe('the formats', () => {
     expect(formatDateTime(moment, 'en')).toMatch(/^Oct 8, 2026, 3:04\sPM$/);
     expect(formatDateTime('later', 'en')).toBe('later');
     expect(formatTime(moment, 'ru')).toBe('15:04');
+  });
+
+  it('format a decimal of the backend, a string, exactly with its digits after the point', () => {
+    expect(formatDecimal('45000.10', 'en')).toBe('45,000.10');
+    expect(formatDecimal('45000.10', 'ru')).toMatch(/^45\s000,10$/);
+    expect(formatDecimal('-7', 'en')).toBe('-7');
+    // more digits than a double keeps
+    expect(formatDecimal('12345678901234567.89', 'en')).toBe('12,345,678,901,234,567.89');
+    // a sum, in the currency of the product
+    expect(formatDecimal('1500.50', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^1\s500,50\s₽$/);
+    expect(formatDecimal('1500.50', 'en', { maximumFractionDigits: 0 })).toBe('1,501');
+    expect(formatDecimal(1234.5, 'en')).toBe('1,234.5');
+    expect(formatDecimal('n/a', 'en')).toBe('n/a');
+    // the value of a field as it is: none is shown as FieldValue shows it
+    expect(formatDecimal(null, 'en')).toBe('—');
+    expect(formatDecimal(undefined, 'en')).toBe('—');
   });
 });
 

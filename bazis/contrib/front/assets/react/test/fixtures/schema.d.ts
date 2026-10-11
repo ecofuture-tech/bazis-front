@@ -17,7 +17,9 @@
 // core sample (the fixture of the client), whose route sets are not statusy: the endpoints
 // that bazis-statusy adds to its route sets are added to `parent_entity`, with two custom
 // actions as a route set declares them (`@http_post('/count/')`, an item `summary/`, and
-// `@http_get('/report/')`), and the download route of bazis-uploadable and bazis-bg.
+// `@http_get('/report/')` with an optional query parameter, `year: int | None = None`, and
+// `@http_get('/check/')` with a required one, `code: str`), and the download route of
+// bazis-uploadable and bazis-bg.
 
 import type { paths as corePaths } from '../../../client/test/fixtures/schema.js';
 
@@ -40,7 +42,16 @@ export type paths = corePaths & {
     };
   };
   '/api/v1/entity/parent_entity/report/': {
-    get: { responses: { 200: { content: { 'application/json': { rows: number } } } } };
+    get: {
+      parameters: { query?: { year?: number | null }; header?: never; path?: never; cookie?: never };
+      responses: { 200: { content: { 'application/json': { rows: number } } } };
+    };
+  };
+  '/api/v1/entity/parent_entity/check/': {
+    get: {
+      parameters: { query: { code: string }; header?: never; path?: never; cookie?: never };
+      responses: { 200: { content: { 'application/json': { valid: boolean } } } };
+    };
   };
   '/api/v1/entity/parent_entity/{item_id}/summary/': {
     get: { responses: { 200: { content: { 'application/json': { total: number } } } } };

@@ -39,6 +39,19 @@ function options({ filter, ...rest }: QueryOptions): Record<string, unknown> {
   return result;
 }
 
+/** Query parameters of a custom action; null for those not known yet (no request). */
+type ActionParams = Readonly<Record<string, unknown>> | null | undefined;
+
+/** The query parameters of a custom action, as they are in a key: those the client sends. */
+function parameters(query: ActionParams): Record<string, unknown> | null {
+  if (query === null) return null;
+  const result: Record<string, unknown> = {};
+  for (const [name, value] of Object.entries(query ?? {})) {
+    if (value !== undefined && value !== null) result[name] = value;
+  }
+  return result;
+}
+
 /** The second item of the keys of the tasks of bazis-async-background: not a path. */
 const ASYNC_TASKS = 'async_background';
 
@@ -67,11 +80,12 @@ export const keys = {
   /** An item read with others of its resource (`useRelatedItem`). */
   related: (path: string, id: string, scope: string) =>
     ['bazis', path, 'item', id, 'related', scope] as const,
-  /** The response of a custom action read with GET (`useActionQuery`). */
-  action: (path: string, name: string, scope: string) => ['bazis', path, 'action', name, scope] as const,
-  /** The response of a custom action of an item read with GET (`useItemActionQuery`). */
-  itemAction: (path: string, id: string, name: string, scope: string) =>
-    ['bazis', path, 'item', id, 'action', name, scope] as const,
+  /** The response of a custom action read with GET (`useActionQuery`), by its query parameters. */
+  action: (path: string, name: string, query: ActionParams, scope: string) =>
+    ['bazis', path, 'action', name, parameters(query), scope] as const,
+  /** The response of a custom action of an item read with GET (`useItemActionQuery`), by its query parameters. */
+  itemAction: (path: string, id: string, name: string, query: ActionParams, scope: string) =>
+    ['bazis', path, 'item', id, 'action', name, parameters(query), scope] as const,
   filterFields: (path: string, scope: string) =>
     ['bazis', path, 'filter-fields', scope] as const,
   /** The state of a task of bazis-async-background (`useAsyncTask`). */

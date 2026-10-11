@@ -188,6 +188,39 @@ describe('AppShell', () => {
     });
   }
 
+  it('puts the session under the tools at the foot of the sidebar, which wrap', () => {
+    function Tool({ id }: { id: string }) {
+      return <button type="button" data-bz={`action:${id}`} />;
+    }
+    renderWithBazis(
+      <AppShell
+        title="Product"
+        navigation="sidebar"
+        items={items}
+        session={{ user: 'A user with a long name', onLogout: vi.fn() }}
+        tools={
+          <>
+            <Tool id="live" />
+            <Tool id="bell" />
+          </>
+        }
+      >
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      new Backend(),
+    );
+    const sidebar = screen.getByTestId('action:bell').closest('aside');
+    const row = sidebar?.querySelector('[data-slot="sidebar-tools"]');
+    if (!sidebar || !row) throw new Error('No foot of the sidebar');
+    // the tools and the toggles share a row that wraps; the session is not on it
+    expect(row.contains(screen.getByTestId('action:live'))).toBe(true);
+    expect(row.className).toContain('flex-wrap');
+    const logout = sidebar.querySelector('[data-bz="action:logout"]');
+    expect(logout).not.toBeNull();
+    expect(row.contains(logout)).toBe(false);
+    expect(row.parentElement?.contains(logout)).toBe(true);
+  });
+
   it('lays the header of a screen out in the screen, so that it sticks in it', () => {
     renderWithBazis(
       <AppShell title="Product" navigation="sidebar" items={items}>

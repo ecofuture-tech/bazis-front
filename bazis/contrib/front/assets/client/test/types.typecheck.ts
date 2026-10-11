@@ -154,6 +154,14 @@ type ActionPaths = paths & {
   '/api/v1/entity/parent_entity/{item_id}/summary/': {
     get: { responses: { 200: { content: { 'application/json': { total: number } } } } };
   };
+  // `@http_get('/check/')` with the arguments `code: str` and `limit: int | None = None`:
+  // query parameters of its operation
+  '/api/v1/entity/parent_entity/check/': {
+    get: {
+      parameters: { query: { code: string; limit?: number | null }; header?: never; path?: never; cookie?: never };
+      responses: { 200: { content: { 'application/json': { valid: boolean } } } };
+    };
+  };
   // the download route of bazis-uploadable and bazis-bg
   '/api/v1/entity/parent_entity/{item_id}/download/': {
     get: { responses: { 200: { content: { 'application/octet-stream': unknown } } } };
@@ -180,11 +188,21 @@ export async function actionTyped(id: string): Promise<void> {
   await actions.itemAction(PARENT, id, 'summary');
   // @ts-expect-error schema_list is not an action of an item
   await actions.itemAction(PARENT, id, 'schema_list', undefined, { method: 'get' });
+  const checked = await actions.action(PARENT, 'check', undefined, { method: 'get', query: { code: 'A1', limit: 2 } });
+  const valid: boolean = checked.valid;
+  // @ts-expect-error a parameter of another type
+  await actions.action(PARENT, 'check', undefined, { method: 'get', query: { code: 1 } });
+  // @ts-expect-error a parameter the action does not declare
+  await actions.action(PARENT, 'check', undefined, { method: 'get', query: { code: 'A1', page: 2 } });
+  // @ts-expect-error a required parameter is missing
+  await actions.action(PARENT, 'check', undefined, { method: 'get', query: { limit: 2 } });
+  // @ts-expect-error the action has no query parameters
+  await actions.itemAction(PARENT, id, 'summary', undefined, { method: 'get', query: { code: 'A1' } });
   const file = await actions.download(PARENT, id);
   const name: string | null = file.name;
   // @ts-expect-error a route set without a download route
   await createClient<paths>().download(PARENT, id);
-  seen.push(task, total, name ?? '');
+  seen.push(task, total, name ?? '', valid);
 }
 
 export function customActions(meta: PermitMeta): boolean {

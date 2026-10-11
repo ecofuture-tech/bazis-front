@@ -295,6 +295,32 @@ describe('action', () => {
     ]);
   });
 
+  it('sends the query parameters of an action: a list repeats its name, null and undefined are left out', async () => {
+    const { api, calls } = setup([json({ valid: true }, 200, JSON_TYPE), json({ total: 3 }, 200, JSON_TYPE)]);
+    type Options = { method?: string; query?: Record<string, unknown> };
+    const loose = api as unknown as {
+      action: (path: string, name: string, body?: unknown, options?: Options) => Promise<unknown>;
+      itemAction: (path: string, id: string, name: string, body?: unknown, options?: Options) => Promise<unknown>;
+    };
+    await loose.action(PARENT, 'check', undefined, {
+      method: 'get',
+      query: { code: 'a b&c', limit: 5, strict: false, tags: ['x', 'y'], since: null, until: undefined },
+    });
+    await loose.itemAction(PARENT, '7', 'summary', { ignored: true }, { method: 'get', query: { currency: 'RUB' } });
+    expect(calls).toEqual([
+      {
+        url: `${BASE}${PARENT}check/?code=a+b%26c&limit=5&strict=false&tags=x&tags=y`,
+        init: { method: 'GET', headers: { Accept: ACCEPT } },
+      },
+      { url: `${BASE}${PARENT}7/summary/?currency=RUB`, init: { method: 'GET', headers: { Accept: ACCEPT } } },
+    ]);
+    // an object is no query parameter: nothing is sent
+    await expect(loose.action(PARENT, 'check', undefined, { method: 'get', query: { code: { a: 1 } } })).rejects.toThrow(
+      TypeError,
+    );
+    expect(calls).toHaveLength(2);
+  });
+
   it('rejects with the errors of the body by its fields', async () => {
     const errors = [
       { status: 422, code: 'ERR_VALIDATE', detail: 'Input should be a valid date', source: { pointer: '/date_to' } },

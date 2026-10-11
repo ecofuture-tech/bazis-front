@@ -138,7 +138,7 @@ export function useInbox(path: string, { limit = INBOX_LIMIT, poll }: InboxOptio
     refetchInterval: poll,
   });
   const count = useQuery({
-    queryKey: keys.action(path, 'unread_count', scope),
+    queryKey: keys.action(path, 'unread_count', undefined, scope),
     queryFn: ({ signal }) =>
       client.action(path, 'unread_count', undefined, { method: 'get', signal }) as Promise<{ unread_count: number }>,
     refetchInterval: poll,

@@ -85,8 +85,8 @@ Every operation takes the path of a route set and, for an item, its id:
 | `schema(path, 'list' \| 'create')`, `schema(path, 'retrieve' \| 'update' \| 'transit', id)` | `GET path[{id}/]schema_<kind>/`: the JSON schema of the action for the current user |
 | `filterFields(path)` | `GET path route_filter_fields/` |
 | `transit(path, id, transit, payload?)` | `POST path{id}/transit/` (bazis-statusy); `null` on 204 |
-| `action(path, name, body?, {method})` | `POST path{name}/` (a custom action of the route set, `@http_post('/<name>/')`; another `method`, no body for `get`), `application/json`; its JSON response, undefined on 204 |
-| `itemAction(path, id, name, body?, {method})` | `POST path{id}/{name}/`, as `action` |
+| `action(path, name, body?, {method, query})` | `POST path{name}/` (a custom action of the route set, `@http_post('/<name>/')`; another `method`, no body for `get`), `application/json`, `query` its query parameters (`?code=A1`: a list repeats the parameter, null and undefined are left out; typed by `parameters.query` of its operation); its JSON response, undefined on 204 |
+| `itemAction(path, id, name, body?, {method, query})` | `POST path{id}/{name}/`, as `action` |
 | `login({username, password}, {path})` | `POST /api/openapi-token/` (bazis-users), a form |
 | `upload(path, file, {name, onProgress})` | `POST path`, `multipart/form-data` with `file` (and `name`), with XMLHttpRequest (bazis-uploadable); the created item |
 | `download(path, id)` | `GET path{id}/download/` with the token (bazis-uploadable 2.7, bazis-bg 2.6); `{blob, name}`, the name of `Content-Disposition` (`dispositionName`); `saveFile(file, fallback?)` saves it in the browser |

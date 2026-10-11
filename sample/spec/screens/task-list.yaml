@@ -8,7 +8,7 @@ roles: [manager, viewer]
 primitive: list
 list:
   columns: [title, status, priority, assignee, dt_created]
-  filters: [status, assignee, priority]
+  filters: [status, assignee, priority, dt_created]
   sort: [-dt_created]
   search: true
   open: task-card

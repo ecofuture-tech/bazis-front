@@ -24,6 +24,33 @@ export function formatNumber(value: number, language: string, options?: Intl.Num
   return value.toLocaleString(language, options);
 }
 
+/** A decimal as the backend writes it: digits, and the digits after the point. */
+const DECIMAL = /^[+-]?\d+(?:\.(\d+))?$/;
+
+/**
+ * A decimal of the backend: a `DecimalField` is a string in the API and in the contract
+ * (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it
+ * has (`45,000.10` in English, `45 000,10` in Russian) unless `options` sets them; a sum is
+ * `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`). It takes the value of a field as it
+ * is (`fieldValue(row, 'total')`): a number is formatted as `formatNumber` does, no value
+ * (null, undefined, '') is `—` as `FieldValue` shows it, another value its text.
+ */
+export function formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'number') return formatNumber(value, language, options);
+  if (typeof value !== 'string') return JSON.stringify(value);
+  const text = value.trim();
+  const match = DECIMAL.exec(text);
+  if (!match) return value;
+  const digits = Math.min(match[1]?.length ?? 0, 20);
+  const precision =
+    options?.minimumFractionDigits === undefined && options?.maximumFractionDigits === undefined
+      ? { minimumFractionDigits: digits, maximumFractionDigits: digits }
+      : {};
+  // Intl formats the string itself (ES2023), never rounded to a double first
+  return new Intl.NumberFormat(language, { ...precision, ...options }).format(text as unknown as number);
+}
+
 /**
  * A date of the backend (`2026-10-08`, read as that day wherever the user is) or a Date;
  * the text when it is not a date.

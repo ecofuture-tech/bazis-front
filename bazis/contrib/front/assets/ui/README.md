@@ -106,7 +106,8 @@ the WebSocket of the page in a test.
 - **`resource-list`** reads the list with `useList` (`meta`: `pagination`, `for_create`,
   `for_change`, `for_delete`), the titles of the columns from `schema_list/`, the types of
   the filters from `route_filter_fields/` (a relation: the picker of the related resource; a
-  date: a range; a string: `<field>__$search`; `options` for choices such as the statuses,
+  date: a range; a string: `<field>__$search`; on a phone, below the breakpoint `sm`, each
+  filter is a row of the full width, its control taking the rest of it; `options` for choices such as the statuses,
   those of the list schema by their labels for a field with choices;
   no control for a field that the backend does not list for the user; the inline
   `state:error` when they cannot be read), the sort labels from
@@ -217,7 +218,8 @@ the WebSocket of the page in a test.
   endpoint that reads them, and does not store the payload of a transit: the earlier
   transits and their payloads are not shown until it has one.
 - **`app-shell`** renders the `tools` of the product (the notifications, the state of the
-  socket) next to the color mode once: in the top bar, at the foot of the sidebar, or in
+  socket) next to the color mode once: in the top bar, at the foot of the sidebar (on the
+  row of the toggles, which wraps, with the session on a row of its own under it), or in
   the header of a phone (the sidebar is shown from the breakpoint `md`, read with
   `matchMedia`), so that a component there mounts its hooks once.
 - **`live-query`** (bazis-ws): `LiveQuery` mounts `useLiveQueries` (the queries of a

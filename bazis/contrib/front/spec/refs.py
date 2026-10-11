@@ -401,12 +401,16 @@ def _check_field(
         if matches_type(item['type'], actual):
             return
         expected = None
+    # a DecimalField is a string of its exact digits in the API, not a JSON number
+    decimal = item.get('type') in ('number', 'integer') and matches_type('string', actual)
     issues.add(
         doc, path, 'P013',
         f'The field `{item["id"]}` of `{name}` is {_describe(actual)} in the contract, '
         + (f'the spec declares {_describe(expected)}.' if expected else f'the spec declares the type `{item["type"]}`.'),
         'Make the spec follow the contract, or change the model.'
-        + (' A relationship to the uploaded files of bazis-uploadable is `type: file`.' if is_file(actual, contract) else ''),
+        + (' A relationship to the uploaded files of bazis-uploadable is `type: file`.' if is_file(actual, contract) else '')
+        + (' A DecimalField is a string in the API (its exact digits): declare it `type: string`, '
+           'and show it with `formatDecimal` of `@/bazis/i18n`.' if decimal else ''),
     )
 
 

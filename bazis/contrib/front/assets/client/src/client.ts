@@ -29,6 +29,7 @@ import type {
   IncludeOption,
   ItemOptions,
   ListOptions,
+  QueryParams,
   RequestOptions,
   ResourceIdentifier,
   ResponseOf,
@@ -170,9 +171,9 @@ export interface BazisClient<Paths> {
   /**
    * Calls a custom action of a route set, `<path><name>/` (a route of the backend declared
    * with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for
-   * `get`) and its JSON response, typed by the OpenAPI; resolves to undefined for 204. An
-   * error status is an `ApiError`; the errors of the body point to its fields
-   * (`/<field>`: `ApiError.bodyErrors()`).
+   * `get`), its query parameters (`query` of the options) and its JSON response, typed by
+   * the OpenAPI; resolves to undefined for 204. An error status is an `ApiError`; the errors
+   * of the body point to its fields (`/<field>`: `ApiError.bodyErrors()`).
    */
   action<
     P extends RouteSetPath<Paths>,
@@ -182,7 +183,7 @@ export interface BazisClient<Paths> {
     path: P,
     name: N,
     body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>,
-    options?: ActionOptions<M>,
+    options?: ActionOptions<M, QueryParams<EndpointOf<Paths, P, `${N}/`, M>>>,
   ): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>>;
 
   /** Calls a custom action of an item, `<path><id>/<name>/`, as `action` does. */
@@ -195,7 +196,7 @@ export interface BazisClient<Paths> {
     id: string,
     name: N,
     body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>,
-    options?: ActionOptions<M>,
+    options?: ActionOptions<M, QueryParams<EndpointOf<Paths, P, `${Item}${N}/`, M>>>,
   ): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>>;
 
   /**
@@ -316,6 +317,28 @@ function queryString(query: Query = {}): string {
   }
   if (query.include?.length) params.set('include', query.include.join(','));
   if (query.meta?.length) params.set('meta', query.meta.join(','));
+  const text = params.toString();
+  return text ? `?${text}` : '';
+}
+
+/** The query parameters of a custom action by name. */
+type ActionQuery = Readonly<Record<string, unknown>>;
+
+/**
+ * The query string of a custom action: a parameter is a string, a number, a boolean or a list
+ * of them, which repeats its name; null and undefined are left out.
+ */
+function actionQueryString(query: ActionQuery = {}): string {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(query)) {
+    for (const item of Array.isArray(value) ? (value as unknown[]) : [value]) {
+      if (item === null || item === undefined) continue;
+      if (typeof item !== 'string' && typeof item !== 'number' && typeof item !== 'boolean') {
+        throw new TypeError(`The query parameter ${name} of a custom action is not a string, a number or a boolean.`);
+      }
+      params.append(name, String(item));
+    }
+  }
   const text = params.toString();
   return text ? `?${text}` : '';
 }
@@ -485,9 +508,16 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
   const item = (path: string, id: string): string => `${path}${encodeURIComponent(id)}/`;
   const jsonapi = (document: unknown) => ({ body: JSON.stringify(document), contentType: JSONAPI });
   const json = (body: unknown) => ({ body: JSON.stringify(body), contentType: JSON_TYPE });
-  /** A custom action: the JSON body, none for GET. */
-  const action = (method: HttpMethod, url: string, body: unknown, signal: AbortSignal | undefined) =>
-    send(method.toUpperCase(), url, { ...(body === undefined || method === 'get' ? {} : json(body)), signal });
+  /** A custom action: its query parameters, and the JSON body, none for GET. */
+  const action = async (
+    url: string,
+    body: unknown,
+    { method = 'post', query, signal }: ActionOptions<HttpMethod, ActionQuery>,
+  ) =>
+    send(method.toUpperCase(), `${url}${actionQueryString(query)}`, {
+      ...(body === undefined || method === 'get' ? {} : json(body)),
+      signal,
+    });
   const methods: Record<RelationshipOperation, string> = {
     add: 'POST',
     replace: 'PATCH',
@@ -555,16 +585,16 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
         signal,
       })) ?? null,
 
-    action: (path: string, name: string, body?: unknown, { method = 'post', signal }: ActionOptions<HttpMethod> = {}) =>
-      action(method, `${path}${name}/`, body, signal),
+    action: (path: string, name: string, body?: unknown, options: ActionOptions<HttpMethod, ActionQuery> = {}) =>
+      action(`${path}${name}/`, body, options),
 
     itemAction: (
       path: string,
       id: string,
       name: string,
       body?: unknown,
-      { method = 'post', signal }: ActionOptions<HttpMethod> = {},
-    ) => action(method, `${item(path, id)}${name}/`, body, signal),
+      options: ActionOptions<HttpMethod, ActionQuery> = {},
+    ) => action(`${item(path, id)}${name}/`, body, options),
 
     download: async (path: string, id: string, { signal }: RequestOptions = {}): Promise<DownloadedFile> => {
       const response = await fetcher(`${baseUrl}${item(path, id)}download/`, {

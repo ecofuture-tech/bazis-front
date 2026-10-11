@@ -133,8 +133,9 @@ export function TaskListScreen() {
         path={TASKS}
         entity="task"
         columns={['title', 'status', 'priority', 'assignee', 'dt_created']}
-        // the priority is filtered by the labels of its choices (the list schema)
-        filters={[{ field: 'status', options: statusOptions('tasks.task', language) }, 'assignee', 'priority']}
+        // the priority is filtered by the labels of its choices (the list schema), the date of
+        // creation by a range
+        filters={[{ field: 'status', options: statusOptions('tasks.task', language) }, 'assignee', 'priority', 'dt_created']}
         sort={['-dt_created']}
         search
         selected={id}

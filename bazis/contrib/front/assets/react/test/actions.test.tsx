@@ -19,7 +19,7 @@ import { ApiError } from '@/bazis/client';
 
 import { useAction, useActionQuery, useItem, useItemAction, useItemActionQuery, useList } from '../src/index.js';
 import sample from './fixtures/sample.json' with { type: 'json' };
-import { Backend, PARENT, render } from './support.js';
+import { Backend, cachedKeys, PARENT, render } from './support.js';
 
 // the custom action `count` of the route set of the tasks of the sample: its response (the
 // id of the task of bazis-bg it queued) and its errors, as the backend returns them
@@ -132,6 +132,37 @@ describe('useActionQuery', () => {
     expect(backend.requests()).toEqual([`POST ${COUNT}`, `GET ${PARENT}report/`]);
   });
 
+  it('sends its query parameters, keyed by them, and reads nothing while they are null', async () => {
+    const backend = new Backend()
+      .on('GET', `${PARENT}check/?code=A1`, { valid: true })
+      .on('GET', `${PARENT}check/?code=B2`, { valid: false });
+    const { result, rerender, queryClient } = render(
+      ({ code }: { code: string | null }) => useActionQuery(PARENT, 'check', { query: code === null ? null : { code } }),
+      backend,
+      undefined,
+      { code: null as string | null },
+    );
+    // a form not submitted yet: nothing is read
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(backend.calls).toEqual([]);
+
+    rerender({ code: 'A1' });
+    await waitFor(() => {
+      expect(result.current.data).toEqual({ valid: true });
+    });
+    // other parameters are another query
+    rerender({ code: 'B2' });
+    await waitFor(() => {
+      expect(result.current.data).toEqual({ valid: false });
+    });
+    expect(backend.requests()).toEqual([`GET ${PARENT}check/?code=A1`, `GET ${PARENT}check/?code=B2`]);
+    expect(cachedKeys(queryClient)).toEqual([
+      ['bazis', PARENT, 'action', 'check', null, 's1'],
+      ['bazis', PARENT, 'action', 'check', { code: 'A1' }, 's1'],
+      ['bazis', PARENT, 'action', 'check', { code: 'B2' }, 's1'],
+    ]);
+  });
+
   it('gives the error of the request', async () => {
     const backend = new Backend().on('GET', `${PARENT}report/`, sample.action_count_403, 403);
     const { result } = render(() => useActionQuery(PARENT, 'report'), backend);
@@ -160,6 +191,28 @@ describe('useItemActionQuery', () => {
       expect(result.current.data).toEqual({ total: 3 });
     });
     expect(backend.calls).toEqual([{ method: 'GET', url: `https://api.test${PARENT}7/summary/`, body: undefined }]);
+  });
+
+  it('reads nothing while its query parameters are null', async () => {
+    const backend = new Backend().on('GET', `${PARENT}7/summary/?currency=RUB`, { total: 3 });
+    const loose = useItemActionQuery as unknown as (
+      path: string,
+      id: string | null,
+      name: string,
+      options: { query: Record<string, unknown> | null },
+    ) => ReturnType<typeof useItemActionQuery>;
+    const { result, rerender } = render(
+      ({ query }: { query: Record<string, unknown> | null }) => loose(PARENT, '7', 'summary', { query }),
+      backend,
+      undefined,
+      { query: null as Record<string, unknown> | null },
+    );
+    expect(result.current.fetchStatus).toBe('idle');
+    rerender({ query: { currency: 'RUB', detail: undefined } });
+    await waitFor(() => {
+      expect(result.current.data).toEqual({ total: 3 });
+    });
+    expect(backend.requests()).toEqual([`GET ${PARENT}7/summary/?currency=RUB`]);
   });
 
   it('is refetched with its resource', async () => {
