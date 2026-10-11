@@ -9,12 +9,15 @@ backend, its contract and the specs of the product are one directory up (`manage
 `contract/`, `spec/`).
 
 Its guide is the guide of bazis-front: `package_guide("bazis-front")` of the MCP server of
-Bazis, else `bazis/contrib/front/AGENTS.md` of the installed package. Read its introduction
-(the steps of building a frontend, the rules, the map of its sections), then a section when
-a step needs it; `guide_search` finds the section that answers a question. Its `API:`
-sections give the props of the components and the signatures of the hooks, the client and
-the helpers of the end-to-end tests, so the copies in `src/bazis/` and `e2e/bazis/` need not
-be read. This file only says where to look:
+Bazis. Without that server, read the `AGENTS.md` of the installed package, whose `## `
+headings are the sections named below; this command, run in the project root (one
+directory up), prints its path:
+`.venv/bin/python -c "import bazis.contrib.front, pathlib; print(pathlib.Path(bazis.contrib.front.__file__).parent / 'AGENTS.md')"`.
+Read its introduction (the steps of building a frontend, the rules, the map of its
+sections), then a section when a step needs it; `guide_search` finds the section that
+answers a question. Its `API:` sections give the props of the components and the
+signatures of the hooks, the client and the helpers of the end-to-end tests, so the copies
+in `src/bazis/` and `e2e/bazis/` need not be read. This file only says where to look:
 
 | In this frontend | The sections of the guide of bazis-front |
 |---|---|
