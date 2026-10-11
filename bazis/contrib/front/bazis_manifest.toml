@@ -20,14 +20,14 @@ pairs_well = [
 [[extension_points]]
 name = "manage.py bazis_front"
 import = "bazis.contrib.front.management.commands.bazis_front.Command"
-use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock, and the starters of spec/); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares; validate spec/ against the contract with `bazis_front check` (`--json`, exit 1 on errors); compile spec/design/ into the theme of the frontend with `bazis_front design` (`--check` only compares); after `pip install -U bazis-front`, bring the copies to the new version with `bazis_front update` (a three-way merge with the changes of the product, `--check` only lists them); see the copies, the generated files and every stale or changed one with `bazis_front status` (`--json`, writes nothing)"
+use_when = "create the frontend of the product with `bazis_front init` (frontend/ with the copied client and its lock, and the starters of spec/); export the contract with `bazis_front contract` (contract/openapi.json, contract/contract.json and frontend/src/bazis/generated/), `--check` only compares; validate spec/ against the contract with `bazis_front check` (`--json`, exit 1 on errors); copy the components with `bazis_front add`; generate the end-to-end tests of the scenarios with `bazis_front e2e` (`--check` only compares); compile spec/design/ into the theme of the frontend with `bazis_front design` (`--check` only compares); after `pip install -U bazis-front`, bring the copies to the new version with `bazis_front update` (a three-way merge with the changes of the product, `--check` only lists them); see the copies, the generated files and every stale or changed one with `bazis_front status` (`--json`, writes nothing)"
 
 [[pitfalls]]
 text = "the contract (contract/openapi.json, contract/contract.json) is generated: export it again after every change of the backend, never edit it"
 check = "front.W001"
 
 [[pitfalls]]
-text = "the permit roles and the statusy transits of the contract are read from the database: export from a migrated database with the data of the project loaded"
+text = "the permit roles and the statusy transits of the contract are read from the database: export from a migrated database (`migrate` applies the roles, statuses and transits declared in roles.py and workflow.py)"
 check = "front.E002"
 
 [[pitfalls]]
@@ -35,7 +35,7 @@ text = "frontend/src/bazis/generated/ (contract.ts, schema.d.ts) is written by `
 check = "front.W001"
 
 [[pitfalls]]
-text = "the specs (spec/) are checked against contract/contract.json: export the contract before `bazis_front check`; `access` must be covered by the permissions of the permit roles (P019), and the issues have stable codes (see AGENTS.md)"
+text = "the specs (spec/) are checked against contract/contract.json: export the contract before `bazis_front check`; `access` must be covered by the permissions of the permit roles (P019), and the issues have stable codes (the section \"The issues of check\" of AGENTS.md)"
 check = "front.W002"
 
 [[pitfalls]]
@@ -43,7 +43,7 @@ text = "the theme of the frontend (frontend/src/bazis/generated/theme.css and th
 check = "front.W005"
 
 [[pitfalls]]
-text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-uploadable>=2.6.0 (the files of their author, for every route); an older installed package is the warning front.W006 (the error C004 of `bazis_front check`): upgrade it"
+text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-permit>=2.7.0 (the selectors, the filters restricted to the fields the user sees), bazis-statusy>=2.12.0 (the translated payload schemas, the initial status of each model), bazis-uploadable>=2.7.0 (the files of their author, their download route), bazis-bg>=2.6.0 (the download of the file of a task); an older installed package is the warning front.W006 (the error C004 of `bazis_front check`): upgrade it"
 check = "front.W006"
 
 [[pitfalls]]

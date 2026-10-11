@@ -16,7 +16,8 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm test --workspaces"
+    "test": "npm test --workspaces && npm run api-reference -- --check",
+    "api-reference": "node scripts/gen_api_reference.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
