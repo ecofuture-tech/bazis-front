@@ -66,9 +66,9 @@ def test_the_items_of_a_resource_by_their_primary_keys(sample_app):
     assert response.json()['errors'][0]['code'] == 'ERR_FILTER'
     assert other not in ids(client.get(TASKS, params={'filter': f'pk={first}|pk={second}'}))
 
-    # the user that the manager may not view (bazis-users: a user who is not staff sees
-    # himself) is not in the list: its label is its id
-    stranger = get_user_model().objects.create_user('stranger', password='p')
+    # the user that the manager may not view (the sample: an inactive one, seen by staff only)
+    # is not in the list: its label is its id
+    stranger = get_user_model().objects.create_user('stranger', password='p', is_active=False)
     response = client.get(USERS, params={'filter': f'pk={user.id}|pk={stranger.id}', 'page[limit]': 2})
     assert ids(response) == [str(user.id)]
 

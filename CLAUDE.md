@@ -36,7 +36,9 @@ bazis-async-request (the `test` extra) with a project app `users` (its route set
 `users.routes.UserRouteSet`, is that of bazis-users with `search_fields`, the username and
 the first and the last name, by which the frontend labels a user, which the pickers of the
 assignee and of the watchers search: the core 2.9 answers a search of a route set without
-them with 400) and a statusy model `tasks.Task` (searched by its title; its `watchers` are a
+them with 400; a signed-in user views and links every active user, the team, in its list and
+items and in the relationships of the other routes, `restrict_queryset`, while its changes
+keep the rule of bazis-users 2.9, himself only: `tests/test_watchers.py`) and a statusy model `tasks.Task` (searched by its title; its `watchers` are a
 many-to-many field to the users, edited in the forms with `RelationListPicker` and sent with
 the task, the scenario `manager-adds-a-watcher`; its `priority` has choices, whose
 labels the runtime schemas give translated, `enumDict`, which the frontend shows, offers and

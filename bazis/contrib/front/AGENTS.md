@@ -1229,7 +1229,8 @@ The props of every component are in the `API:` sections (the `Props` types of
   never write a form of your own for it. A button that adds or removes one item without a
   form (on a card) calls `useRelationship(path).mutate({id, field, operation: 'add' |
   'remove' | 'replace', data: [{type, id}]})`, the item chosen with `RelationPicker({relation,
-  value: null, onChange})` of `@/bazis/ui/resource`; its errors are all in `formErrors()`
+  value: null, onChange})` of `@/bazis/ui/resource` (it offers the users that the user route
+  set shows: see "The users that the pickers offer"); its errors are all in `formErrors()`
   (`FormError`: `message`, and `included`, `field` of an included item, null otherwise);
 - the label of a related item (`RelationPicker`, `RelationListPicker`, `RelationLabel`) is
   its display name, else an identifier (see "The label of an item" below); as a text
@@ -1421,7 +1422,23 @@ that it unlinks; a form edits it only when its `fields` name it. Name the field 
 the form of the spec, and fill it in the scenarios with the labels of its items:
 `fill: {interviewers: [Ann Lee, Bob Stone]}` replaces those it had, `[]` removes them all.
 A form of your own takes the ids of the items as the value of the field
-(`useResourceForm`). `useRelationship` changes one item outside a form (see
+(`useResourceForm`).
+
+### The users that the pickers offer
+
+**The users that the pickers offer** are those that the default user route set shows and
+lets link: bazis-users (2.9) shows and links to a user who is not staff only himself, in its
+list and items (`get_queryset`) and in the relationships of the other routes
+(`restrict_queryset`: 403 `ERR_RELATION_ACCESS` for another user). A product whose users pick
+each other (the interviewers of an interview, the assignee of a task) declares its user route
+set (`<app>/routes.py`, a subclass of that of bazis-users, routed or the default route of the
+user model) whose `restrict_queryset` lets a signed-in user view and link the users he picks
+(`CrudAccessAction.VIEW`: the team, the users of his organization) and whose `get_queryset`
+shows them in its list and items (the picker and the labels read them there), while its
+updates and deletes keep the rule of bazis-users (`super().get_queryset()` for a route other
+than `collection` and `item`, `self.route_ctx.kind`); the sample of bazis-front does it,
+`sample/users/routes.py`. Never widen the frontend instead: the backend refuses the users it
+does not let link. `useRelationship` changes one item outside a form (see
 [Composing beyond the specs](#composing-beyond-the-specs)).
 
 ## Files, points and maps
@@ -2639,6 +2656,12 @@ are replaced without conflicts; wrap them in the product code instead.
   fields of the label (`first_name`, `last_name`, `full_name`, `name`) to `search_fields` of
   the related route set, as `check` says (S017). `contract.json` is of format 4 (`reverse`):
   export the contract again.
+- bazis-users 2.9 restricts the users that the other routes link and include
+  (`restrict_queryset`): a user who is not staff links only himself, 403
+  `ERR_RELATION_ACCESS` for another user (an assignee, an interviewer). A product whose users
+  pick each other declares its user route set that lets them view and link the users they
+  pick (see "The users that the pickers offer" in
+  [Choices, filters, permissions and relationships](#choices-filters-permissions-and-relationships)).
 - `ResourceForm` without `fields` shows and sends the to-many relationships of its schema
   (`RelationListPicker`; not the reverse ones): a section of the screen that changed the
   same relationship with `useRelationship` next to the form now repeats it. Remove the

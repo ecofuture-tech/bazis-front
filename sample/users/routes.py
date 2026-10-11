@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from django.db.models import Q
+
+from bazis.contrib.users.models_abstract import UserMixin
 from bazis.contrib.users.routes import UserRouteSet as UserRouteSetBase
+from bazis.core.schemas import CrudAccessAction
+from bazis.core.schemas.enums import RouteKind
 
 
 class UserRouteSet(UserRouteSetBase):
@@ -22,6 +27,34 @@ class UserRouteSet(UserRouteSetBase):
     last name of a user who has them (the core 2.9 answers a search of a route set without
     `search_fields` with 400; every word of a search is in one of the fields). Declared after
     the bundled route set, it is the default route of the user model.
+
+    The users of the team pick each other: a signed-in user views and links every active user
+    (and himself), in the list and the items of this route (the pickers, the labels) and in
+    the relationships, `included` and the filters of the other routes (`restrict_queryset`,
+    which the core calls on the default route of the user model); an inactive user is seen by
+    staff only (403 `ERR_RELATION_ACCESS` for another user who links him). Who changes a user
+    stays the rule of bazis-users: staff every user, another user only himself.
     """
 
     search_fields = ['username', 'first_name', 'last_name']
+
+    @classmethod
+    def restrict_queryset(cls, qs, access_action, user=None, **kwargs):
+        if user is None:
+            user = UserMixin.CTX_USER_REQUEST.get()
+        if getattr(user, 'is_authenticated', False) is not True:
+            return qs.none()
+        if user.is_staff:
+            return qs
+        if access_action == CrudAccessAction.VIEW:
+            return qs.filter(Q(is_active=True) | Q(pk=user.pk))
+        return qs.filter(pk=user.pk)
+
+    def get_queryset(self):
+        # the reads of this route show the users of the team; its changes keep the rule of
+        # bazis-users (its `get_queryset`)
+        if self.route_ctx.kind in (RouteKind.COLLECTION, RouteKind.ITEM):
+            return type(self).restrict_queryset(
+                super(UserRouteSetBase, self).get_queryset(), CrudAccessAction.VIEW, user=self.inject.user
+            )
+        return super().get_queryset()

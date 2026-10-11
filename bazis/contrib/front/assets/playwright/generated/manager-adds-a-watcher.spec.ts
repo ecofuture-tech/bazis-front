@@ -15,17 +15,17 @@ test('manager-adds-a-watcher', async ({ page }) => {
   await test.step('action: create', async () => {
     await app.action('create');
   });
-  await test.step('fill: {title: Watch the release, assignee: Mary Manager, watchers: [Mary Manager]}', async () => {
-    await app.fill({ title: 'Watch the release', assignee: 'Mary Manager', watchers: ['Mary Manager'] });
+  await test.step('fill: {title: Watch the release, assignee: Mary Manager, watchers: [Mary Manager, Victor Viewer]}', async () => {
+    await app.fill({ title: 'Watch the release', assignee: 'Mary Manager', watchers: ['Mary Manager', 'Victor Viewer'] });
   });
   await test.step('submit', async () => {
     await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
-  await test.step('expect: {screen: task-card, status: draft, values: {watchers: Mary Manager}}', async () => {
+  await test.step('expect: {screen: task-card, status: draft, values: {watchers: Victor Viewer}}', async () => {
     await app.expectScreen('task-card');
     await app.expectStatus('draft');
-    await app.expectValues({ watchers: 'Mary Manager' });
+    await app.expectValues({ watchers: 'Victor Viewer' });
   });
   await test.step('open: draft-tasks', async () => {
     await app.open('draft-tasks');

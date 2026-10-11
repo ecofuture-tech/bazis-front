@@ -335,7 +335,7 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     # and in its title
     assert "test.step('fill: {watchers: []}'" in files[WATCHER]
     assert "await app.fill({ watchers: [] });" in files[WATCHER]
-    assert "watchers: ['Mary Manager'] });" in files[WATCHER]
+    assert "watchers: ['Mary Manager', 'Victor Viewer'] });" in files[WATCHER]
     lock = lock_of(root)
     assert lock['e2e'] == {
         'spec': {

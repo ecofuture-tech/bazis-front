@@ -191,7 +191,8 @@ scenarios:
       - fill: {location: '55.7558, 37.6173'}
       - submit: {}
       - expect: {values: {title: Inspect the site, location: '55.7558, 37.6173'}}
-  # a to-many relationship: its picker sets the items to those of the list ([] for none);
+  # a to-many relationship: its picker sets the items to those of the list ([] for none),
+  # the users of the team (sample/users/routes.py);
   # the list of the drafts (no search) is found by the label of a related item, read after
   # its rows
   - id: manager-adds-a-watcher
@@ -199,9 +200,9 @@ scenarios:
     steps:
       - open: task-list
       - action: create
-      - fill: {title: Watch the release, assignee: Mary Manager, watchers: [Mary Manager]}
+      - fill: {title: Watch the release, assignee: Mary Manager, watchers: [Mary Manager, Victor Viewer]}
       - submit: {}
-      - expect: {screen: task-card, status: draft, values: {watchers: Mary Manager}}
+      - expect: {screen: task-card, status: draft, values: {watchers: Victor Viewer}}   # in the order of the backend
       - open: draft-tasks
       - open_item: {where: {title: Watch the release, assignee: Mary Manager}}
       - expect: {screen: task-card}
