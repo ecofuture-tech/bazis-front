@@ -99,9 +99,10 @@ function isEmptyString(node: Node): boolean {
 
 /**
  * `anyOf: [X, {type: 'null'}]` as X, and whether null is allowed. Alternatives that are all
- * strings (the URL and the empty string of a `URLField`: `{type: 'string', format: 'uri'}`,
- * `{type: 'string', maxLength: 0}`) are the first one that is not only the empty string, the
- * empty string allowed (`blank`); others (a decimal, a number or a string) stay a union.
+ * strings, one of them only the empty string (the URL and the empty string of a `URLField`:
+ * `{type: 'string', format: 'uri'}`, `{type: 'string', maxLength: 0}`), are the first one
+ * that is not only the empty string, the empty string allowed (`blank`); other unions (a
+ * decimal, two enums, a string or a UUID) stay unions.
  */
 function withoutNull(value: unknown, root: JsonSchema): { node: Node; nullable: boolean; blank: boolean } {
   const node = resolve(value, root);
@@ -109,7 +110,10 @@ function withoutNull(value: unknown, root: JsonSchema): { node: Node; nullable: 
   if (Array.isArray(anyOf)) {
     const members = anyOf.map((member) => resolve(member, root));
     const others = members.filter((member) => member.type !== 'null');
-    const strings = others.length > 1 && others.every((member) => member.type === 'string');
+    // a union of strings with the empty string (a URL field); other unions of strings (two
+    // enums, a string or a UUID) stay unions
+    const strings =
+      others.length > 1 && others.every((member) => member.type === 'string') && others.some(isEmptyString);
     const main = strings ? (others.find((member) => !isEmptyString(member)) ?? others[0]) : others.length === 1 ? others[0] : undefined;
     if (main) {
       return {

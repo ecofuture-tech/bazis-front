@@ -167,18 +167,24 @@ describe('resourceSchema', () => {
                 link: url(true),
                 only: { anyOf: [{ type: 'string', format: 'uri' }, { type: 'null' }] },
                 price: { anyOf: [{ type: 'number' }, { type: 'string', pattern: '^-?\\d+(\\.\\d+)?$' }] },
+                // two enums, a string or a UUID: no empty string among them
+                kind: { anyOf: [{ $ref: '#/$defs/Color' }, { $ref: '#/$defs/Size' }] },
+                ref: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'string' }, { type: 'null' }] },
               },
             },
           },
         },
       },
+      $defs: { Color: { type: 'string', enum: ['red', 'blue'] }, Size: { type: 'string', enum: ['s', 'm'] } },
     });
-    const [site, link, only, price] = fields;
+    const [site, link, only, price, kind, ref] = fields;
     expect(site).toMatchObject({ type: 'string', format: 'uri', nullable: false, blank: true, title: 'Site' });
     expect(site?.kind === 'attribute' && site.schema).toMatchObject({ maxLength: 200, minLength: 1 });
     expect(link).toMatchObject({ type: 'string', format: 'uri', nullable: true, blank: true });
     expect(only).toMatchObject({ type: 'string', format: 'uri', nullable: true, blank: false });
     expect(price).toMatchObject({ type: null, format: null, blank: false });
+    expect(kind).toMatchObject({ type: null, enum: null, blank: false });
+    expect(ref).toMatchObject({ type: null, format: null, nullable: false, blank: false });
   });
 
   it('reads no fields from what is not a resource schema', () => {
