@@ -221,7 +221,8 @@ export class App<P extends Product = Product> {
   /**
    * Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input
    * `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer
-   * busy and shows the name of the file) or shows an error of this upload.
+   * busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an
+   * error of this upload.
    */
   async upload(field: string, file: string): Promise<void> {
     const form = this.form();
@@ -233,7 +234,7 @@ export class App<P extends Product = Product> {
       .poll(
         async () =>
           (await form.locator(NEW_FAILED).count()) > 0 ||
-          ((await zone.getAttribute('aria-busy')) === null && (await zone.innerText()).includes(name)),
+          ((await zone.getAttribute('aria-busy')) !== 'true' && (await zone.innerText()).includes(name)),
         { message: `the file ${name} is uploaded into ${field} or shows an error` },
       )
       .toBe(true);

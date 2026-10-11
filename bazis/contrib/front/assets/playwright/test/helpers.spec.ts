@@ -419,6 +419,14 @@ test.describe('upload', () => {
     expect(await page.locator(bz('upload', 'attachment')).innerText()).toContain('brief.txt 23 B');
   });
 
+  test('takes aria-busy="false" as not busy', async ({ page }) => {
+    // the upload control of a product may keep the attribute, set to false
+    await show(page, '/tasks/1', uploadPage(`zone.setAttribute('aria-busy', 'false'); zone.firstChild.textContent = name + ' 23 B';`));
+    const app = new App(page, PRODUCT);
+    await app.upload('attachment', 'brief.txt');
+    expect(await page.locator(bz('upload', 'attachment')).innerText()).toContain('brief.txt 23 B');
+  });
+
   test('returns when the upload shows an error', async ({ page }) => {
     await show(page, '/tasks/1',
       uploadPage(`zone.removeAttribute('aria-busy'); zone.firstChild.textContent = 'Drop a file here';
