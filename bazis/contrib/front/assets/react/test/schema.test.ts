@@ -94,6 +94,31 @@ describe('resourceSchema', () => {
     expect(fields.child_entities).toMatchObject({ relation: 'entity.child_entity', many: true, nullable: false });
   });
 
+  it('reads a list schema by its first member, the union of its variants', () => {
+    // bazis-permit 2.11: `anyOf[0]` has every field a row may show; the other members, the
+    // combinations of the groups of field permissions, have fewer
+    const item = (attributes: Record<string, unknown>) => ({
+      type: 'object',
+      properties: {
+        type: { type: 'string', default: 'shop.order' },
+        attributes: { type: 'object', properties: attributes },
+        relationships: { type: 'object', properties: {} },
+      },
+    });
+    const title = { type: 'string', title: 'Title' };
+    const total = { type: 'number', title: 'Total' };
+    const note = { type: 'string', title: 'Note' };
+    const schema = {
+      type: 'object',
+      properties: {
+        data: { type: 'array', items: { anyOf: [item({ title, total, note }), item({ title }), item({ title, note })] } },
+      },
+    };
+    const { type, fields } = resourceSchema(schema);
+    expect(type).toBe('shop.order');
+    expect(fields.map((it) => [it.name, it.title])).toEqual([['title', 'Title'], ['total', 'Total'], ['note', 'Note']]);
+  });
+
   it('reads the list and the retrieve schemas of the sample: what the user may see', () => {
     for (const schema of [sample.schema_list, sample.schema_retrieve]) {
       const { type, fields } = resourceSchema(schema);

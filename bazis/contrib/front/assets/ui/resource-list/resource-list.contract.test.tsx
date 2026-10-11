@@ -434,7 +434,7 @@ describe('ResourceList', () => {
   });
 
   it('leaves out a column whose field no row has (hidden by the field permissions)', async () => {
-    // the schema of a list has every field; the items leave out those the user may not see
+    // the schema of a list has every field a row may show; the items leave out those the user may not see
     const hidden = [resource('a', { title: 'First', done: true }), resource('b', { title: 'Second' })];
     renderWithBazis(
       <ResourceList path={ITEMS as never} entity="item" columns={['title', 'count', 'done']} layout="table" />,
@@ -451,6 +451,38 @@ describe('ResourceList', () => {
     renderWithBazis(
       <ResourceList path={ITEMS as never} entity="item" columns={['title', 'count']} layout="table" />,
       backend(listDocument(some)),
+    );
+    const loaded = await screen.findByTestId('state:loaded');
+    expect([...loaded.querySelectorAll('th')].map((it) => it.textContent)).toEqual(['Title', 'Count']);
+    expect(within(screen.getByTestId('row:a')).getByTestId('cell:count').textContent).toBe('—');
+    expect(within(screen.getByTestId('row:b')).getByTestId('cell:count').textContent).toBe('2');
+  });
+
+  it('reads the columns of a list schema whose first member is the union of its variants', async () => {
+    // bazis-permit 2.11: the first member of `anyOf` has every field that a row may show, the
+    // others the fields of a combination of the groups of field permissions of the user
+    const title = { attribute: { type: 'string', title: 'Title' } } as const;
+    const count = { attribute: { type: 'integer', title: 'Count' } } as const;
+    const done = { attribute: { type: 'boolean', title: 'Done' } } as const;
+    const member = (fields: Parameters<typeof runtimeSchema>[0]) => runtimeSchema(fields).properties.data as unknown;
+    const union = {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: { anyOf: [member({ title, count, done }), member({ title }), member({ title, count })] },
+        },
+      },
+    };
+    // a row of each variant: `count` shown in one, `done` in none
+    const some = [resource('a', { title: 'First' }), resource('b', { title: 'Second', count: 2 })];
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, union)
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [] })
+      .on('GET', ITEMS, listDocument(some));
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'count', 'done']} layout="table" />,
+      server,
     );
     const loaded = await screen.findByTestId('state:loaded');
     expect([...loaded.querySelectorAll('th')].map((it) => it.textContent)).toEqual(['Title', 'Count']);

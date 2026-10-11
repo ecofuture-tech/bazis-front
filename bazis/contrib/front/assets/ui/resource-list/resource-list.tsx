@@ -458,7 +458,7 @@ export function ResourceList({
   // the user's own search or filters (the filter of the screen is what the list is)
   const filtered = Boolean(search || filter);
   // bazis-permit leaves out of the items the fields that the user may not see (the schema of
-  // a list has them all): a column is shown when a row of the page has its field
+  // a list has every field a row may show): a column is shown when a row of the page has its field
   const shown = columns.filter(
     (name) => fields.has(name) && (rows.length === 0 || rows.some((row) => fieldValue(row, name) !== undefined)),
   );

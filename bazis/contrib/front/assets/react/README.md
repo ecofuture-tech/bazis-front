@@ -85,8 +85,8 @@ The fields of a runtime schema are read with `resourceSchema(schema)`: its JSON:
 and its fields in schema order (as `fields` of `useResourceForm` below), for the schema of a
 create, an update or a retrieve (`data` is the resource) and of a list (`data` is an array
 whose items are the members of an `anyOf`: the first one is read). With bazis-permit the
-first member of a list has every field and each other one the fields of a group of the
-field permissions of the user: the schema of a list gives the titles and the types, the
+first member of a list has all the fields any row can show and each other one the fields
+of a combination of the groups of the field permissions of the user: the schema of a list gives the titles and the types, the
 items leave out the fields the user may not see; the schemas of an item (`retrieve`,
 `update`) are those of the user for this item.
 `objectFields(schema)` reads the properties of the JSON Schema of an object as attributes,

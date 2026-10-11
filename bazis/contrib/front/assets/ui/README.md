@@ -145,7 +145,7 @@ the WebSocket of the page in a test.
   for screen readers) the fields that its update does not change; the form leaves out the
   fields that `schema_update/` does not have and disables the read-only ones. The schema of a
   list is the union of the field sets of the groups of permissions (its first member has
-  every field), so the list shows a column when a row of the page has its field.
+  all the fields any row can show), so the list shows a column when a row of the page has its field.
 - **The labels of related items** (`RelationLabel`: the cells of a relationship in a
   list, its value in a card, the value of a picker) are read with `useRelatedItem` of the
   hooks: the items of a resource asked for at the same time (the rows of a page) are read

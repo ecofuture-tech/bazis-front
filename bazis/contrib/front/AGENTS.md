@@ -1345,7 +1345,7 @@ when the user may change the item, marks read-only the fields its update does no
 change; `ResourceForm` leaves out the fields its schema does not have and disables the
 read-only ones; `ResourceList` shows a column when a row of the page has its field (the
 schema of a list is the union of the field sets of the groups of permissions: its first
-member has every field). Check them in the scenarios with `expect: {field_readonly}` and
+member has all the fields any row can show). Check them in the scenarios with `expect: {field_readonly}` and
 `expect: {field_absent}`.
 
 ### Relationships
@@ -2362,8 +2362,9 @@ session at once and, with bazis-authing, posts to its logout endpoint.
   shows `not_found`); 403 (`forbidden`) is an item he views but cannot change or delete, or
   a list of a model he has no permission on.
 - With bazis-permit, the schema of a list (`schema_list/`) is the union of the field sets of
-  the groups of field permissions (its first member has every field): which fields a user
-  sees is in the items, which leave out the hidden ones. The schemas of an item
+  the groups of field permissions (its first member has all the fields any row can show;
+  with more than 4 conditional groups of the user, those every row shows): which fields a
+  user sees is in the items, which leave out the hidden ones. The schemas of an item
   (`schema_retrieve/`, `schema_update/`) are those of the user for this item.
 - Pagination is `page[limit]` and `page[offset]`; sorting is `sort` with `-` for
   descending; meta fields such as `pagination` are returned only when requested with

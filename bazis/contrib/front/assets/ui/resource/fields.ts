@@ -65,7 +65,8 @@ function fieldsOf(query: { data?: JsonSchema | undefined; isPending: boolean }):
 /**
  * The fields of a list (`schema_list/`): their titles and types. Which of them the user sees
  * is in the items: with bazis-permit the schema of a list also has the fields that the field
- * permissions hide (its first member has every field), and an item leaves them out.
+ * permissions hide in some rows (its first member has all the fields any row can show), and
+ * an item leaves them out.
  */
 export function useListFields(path: string): Fields {
   return fieldsOf(useAnySchema(path, 'list'));
