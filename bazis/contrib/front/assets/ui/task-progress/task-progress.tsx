@@ -24,7 +24,6 @@ import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 
-import type { DownloadedFile } from '@/bazis/client';
 import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
 import { formatNumber, useLanguage } from '@/bazis/i18n';
 import { useDownload } from '@/bazis/react';
@@ -55,7 +54,7 @@ const TONES: Readonly<Record<TaskView, string>> = {
 const useAnyBgTask = useBgTask as unknown as (path: string, id: string | null) => UseQueryResult<BgTask>;
 
 /** `useDownload` over a plain path. */
-const useAnyDownload = useDownload as unknown as (path: string) => UseMutationResult<DownloadedFile, Error, string>;
+const useAnyDownload = useDownload as unknown as (path: string) => UseMutationResult<string | null, Error, string>;
 
 /** What a task is to the user: waiting until it runs, then running, then its outcome. */
 export function taskView(task: BgTask): TaskView {

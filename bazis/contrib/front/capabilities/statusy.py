@@ -27,7 +27,7 @@ language (`TranslatedSchemaModel` of the core).
 from django.apps import apps
 from django.conf import settings
 
-from bazis.contrib.statusy.declare import initial_statuses
+from bazis.contrib.statusy.declare import initial_status
 from bazis.contrib.statusy.models_abstract import StatusyMixin
 
 from . import translated
@@ -36,18 +36,13 @@ from . import translated
 def section() -> dict:
     status_model = apps.get_model(settings.BAZIS_STATUSY_STATUS_MODEL)
     default_id, default_name = settings.BAZIS_STATUS_INITIAL
-    declared = initial_statuses()
     models = {}
     for model in apps.get_models():
         if not issubclass(model, StatusyMixin):
             continue
-        # the status that StatusyMixin gives a new object: that of the workflow of the model
-        # (or of its concrete model), else the global one
-        initial = (
-            declared.get(model._meta.label)
-            or declared.get(model._meta.concrete_model._meta.label)
-            or default_id
-        )
+        # the status that StatusyMixin gives a new object: that of its workflow, else the
+        # global one
+        initial = initial_status(model) or default_id
         transits = sorted(model.get_model_transits(), key=lambda it: it.id)
         ids = {initial} | {it.status_src_id for it in transits} | {it.status_dst_id for it in transits}
         statuses = status_model.objects.in_bulk(ids)

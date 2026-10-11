@@ -90,6 +90,7 @@ describe('the messages', () => {
       resource: 'tasks.task',
       id: sample.ws_notification.data.id,
       time,
+      received: time,
       read: false,
     });
     // a notification about an item: the item changed
@@ -421,10 +422,10 @@ describe('useLiveQueries', () => {
   // the route set of the children stands for that of the notifications of bazis-notify
   const ROUTES = { 'entity.parent_entity': PARENT, 'notify.notification': CHILD };
 
-  function live() {
+  function live(notifications: string | null = 'notify.notification') {
     const backend = new Backend().on('GET', PARENT, { data: [] }).on('GET', CHILD, { data: [] });
     const rendered = renderSocket(() => {
-      useLiveQueries(ROUTES);
+      useLiveQueries(ROUTES, { notifications });
       useList(PARENT);
       useList(CHILD);
     }, backend);
@@ -450,6 +451,16 @@ describe('useLiveQueries', () => {
       ['bazis', CHILD],
       ['bazis', CHILD],
     ]);
+  });
+
+  it('refetches no notifications without their resource', () => {
+    const { keys } = live(null);
+    act(() => {
+      const socket = FakeSocket.last();
+      socket.accept();
+      socket.publish(sample.ws_notification_created.data);
+    });
+    expect(keys()).toEqual([]);
   });
 
   it('refetches every query after a reconnect that the server took, not while it drops the session', () => {

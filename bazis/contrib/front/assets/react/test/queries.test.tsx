@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { Filter } from '@/bazis/client';
 
 import { useCan, useFilterFields, useItem, useList, useSchema } from '../src/index.js';
+import sample from './fixtures/sample.json' with { type: 'json' };
 import { Backend, cachedKeys, PARENT, render } from './support.js';
 
 const page = (ids: string[], offset = 0) => ({
@@ -206,6 +207,42 @@ describe('useCan', () => {
       ['bazis', PARENT, 'schema', 'list', 's1'],
       ['bazis', PARENT, 'schema', 'create', 's1'],
     ]);
+  });
+
+  it('reads the custom actions of the collection from the meta of the list (bazis-permit 2.11)', async () => {
+    const LIST = `${PARENT}?page%5Blimit%5D=1&meta=custom_actions`;
+    const backend = new Backend().on('GET', LIST, sample.list_custom_actions);
+    const { result, queryClient } = render(
+      () => ({ count: useCan(PARENT, 'action_count'), export: useCan(PARENT, 'action_export') }),
+      backend,
+    );
+    expect(result.current).toEqual({ count: undefined, export: undefined });
+    await waitFor(() => {
+      expect(result.current).toEqual({ count: true, export: false });
+    });
+    // one list of one item, keyed under the resource: an action of it reads it again
+    expect(backend.requests()).toEqual([`GET ${LIST}`]);
+    expect(cachedKeys(queryClient)).toEqual([['bazis', PARENT, 'list', { page: { limit: 1 }, meta: ['custom_actions'] }, 's1']]);
+  });
+
+  it('refuses a custom action the meta does not list, and allows it without the meta', async () => {
+    const LIST = `${PARENT}?page%5Blimit%5D=1&meta=custom_actions`;
+    const forbidden = { errors: [{ status: 403, code: 'ERR_FORBIDDEN' }] };
+    const cases: [unknown, number, boolean][] = [
+      // `count` needs a user
+      [sample.list_custom_actions_anonymous, 200, false],
+      // no bazis-permit: no meta, the backend checks the call
+      [{ data: [], meta: {} }, 200, true],
+      [forbidden, 403, false],
+    ];
+    for (const [answer, status, expected] of cases) {
+      const backend = new Backend().on('GET', LIST, answer, status);
+      const { result, unmount } = render(() => useCan(PARENT, 'action_count'), backend);
+      await waitFor(() => {
+        expect(result.current).toBe(expected);
+      });
+      unmount();
+    }
   });
 
   it('is not a refusal when the backend fails otherwise', async () => {

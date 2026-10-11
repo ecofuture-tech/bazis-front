@@ -16,7 +16,7 @@
 // runtime schemas (their titles, types and formats, for the current user), the related
 // resources of the contract and the permission meta of bazis-permit.
 
-import { can, type PermitMeta } from '@/bazis/client';
+import { can, type CustomActionName, type PermitMeta } from '@/bazis/client';
 import { RESOURCES, ROUTES } from '@/bazis/generated/contract';
 import { ENGLISH, formatDate, formatDateTime, formatNumber, type LanguageContextValue } from '@/bazis/i18n';
 import { choiceLabel, resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
@@ -124,15 +124,20 @@ export function itemLabel(resource: ResourceObject): string {
 /**
  * Whether the backend allows an action now, from the permission meta of bazis-permit
  * (`can()` of the client): `add` from `for_create` of a list or `crud_actions` of an item,
- * `change` and `delete` of an item of a list from `for_change`/`for_delete` with its id.
- * Without the meta (no bazis-permit, or a route set without it) it is allowed: the backend
- * checks every request itself.
+ * `change` and `delete` of an item of a list from `for_change`/`for_delete` with its id, a
+ * custom action (`'action_<name>'`, `action` of `x-bazis`) from `custom_actions` (bazis-permit
+ * 2.11; by what the action declares, not the checks of its own code). Without the meta (no
+ * bazis-permit, or a route set without it) it is allowed: the backend checks every request
+ * itself.
  */
 export function permitted(
   meta: PermitMeta | null | undefined,
-  action: 'add' | 'change' | 'delete',
+  action: 'add' | 'change' | 'delete' | CustomActionName,
   id?: string,
 ): boolean {
+  if (action !== 'add' && action !== 'change' && action !== 'delete') {
+    return meta?.custom_actions === undefined || meta.custom_actions === null || can(meta, action);
+  }
   if (id !== undefined && action !== 'add') {
     const ids = action === 'change' ? meta?.for_change : meta?.for_delete;
     return ids === undefined || ids === null || can(meta, action, id);

@@ -15,12 +15,14 @@
 // The notifications of the user: a bell with the count of the unread ones
 // (`action:notifications`), their list (`list:notifications`, each `notification:<key>`, the
 // unread ones marked), opened by the bell, where a click on one marks it read and opens it,
-// with the actions to mark them all read (`action:read-notifications`) and to clear them
-// (`action:clear-notifications`); a toast for each new one. Its source is a prop, so that it
-// needs no package: `useInbox(path)` of `@/bazis/react/notify` (the stored notifications of
-// bazis-notify, listed again when the backend says they changed: `useLiveQueries` with
-// bazis-ws) or `useNotifications()` of `@/bazis/react/ws` (those received on the socket of
-// bazis-ws in the session, lost on a reload). Mount it once, in the `tools` of `AppShell`.
+// with the action to mark them all read (`action:read-notifications`); a toast for each new
+// one. Its source is a prop, so that it needs no package: `useInbox(path)` of
+// `@/bazis/react/notify` (the stored notifications of bazis-notify, listed again when the
+// backend says they changed: `useLiveQueries` with bazis-ws) or `useNotifications()` of
+// `@/bazis/react/ws` (those received on the socket of bazis-ws in the session, lost on a
+// reload, which `action:clear-notifications` forgets). The stored notifications are deleted
+// only with `onDeleteAll` (`action:delete-notifications`, then
+// `action:confirm-delete-notifications`). Mount it once, in the `tools` of `AppShell`.
 
 import { Bell } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -55,11 +57,17 @@ export interface NotificationSource<T extends CenterNotification> {
   retry?: () => void;
   /** Marks a notification read, or all of them without a key. */
   markRead: (key?: T['key']) => void;
-  clear: () => void;
+  /** Forgets the notifications (those of the session, `useNotifications`): `action:clear-notifications`. */
+  clear?: (() => void) | undefined;
 }
 
 export interface NotificationCenterProps<T extends CenterNotification> {
-  notifications: NotificationSource<T>;
+  /**
+   * The notifications: `useInbox(ROUTES['notify.notification'])` or `useNotifications()`.
+   * Required (a center of an older version took the notifications of the socket itself):
+   * without it the bell is not shown and the console says so.
+   */
+  notifications?: NotificationSource<T> | undefined;
   /**
    * Opens what a notification is about (its card, `route` of a notification of bazis-notify);
    * the list closes. A click on a notification marks it read in any case.
@@ -67,7 +75,16 @@ export interface NotificationCenterProps<T extends CenterNotification> {
   onOpen?: (notification: T) => void;
   /** A toast for each new notification (not for those there when it was mounted). */
   toasts?: boolean;
+  /**
+   * Deletes all the notifications (`deleteAll` of `useInbox`: irreversible), offered as
+   * `action:delete-notifications` and done after `action:confirm-delete-notifications`; none
+   * without it.
+   */
+  onDeleteAll?: (() => void) | undefined;
 }
+
+/** A center without its source: no bell (the props of an older version). */
+const NONE = { items: [], unread: 0, markRead: () => undefined } as const;
 
 // the notifications shown as a toast: each is toasted once in the page, whatever center saw
 // it first
@@ -104,16 +121,38 @@ function Item({ notification, onClick }: { notification: CenterNotification; onC
 }
 
 /** The bell of the notifications with their list. */
-export function NotificationCenter<T extends CenterNotification>({ notifications, onOpen, toasts = true }: NotificationCenterProps<T>) {
-  const { items, unread, status = 'ready', error = null, retry, markRead, clear } = notifications;
+export function NotificationCenter<T extends CenterNotification>({
+  notifications,
+  onOpen,
+  toasts = true,
+  onDeleteAll,
+}: NotificationCenterProps<T>) {
+  const missing = notifications === undefined;
+  const { items, unread, status = 'ready', error = null, retry, markRead, clear }: NotificationSource<T> =
+    notifications ?? NONE;
   const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { t } = useLanguage();
   // what is there when the notifications are first read is not new: no toast for it
   const [known, setKnown] = useState<ReadonlySet<string> | null>(null);
   if (known === null && status === 'ready') setKnown(new Set(items.map((it) => String(it.key))));
 
   useEffect(() => {
-    if (!toasts || open || known === null) return;
+    if (missing) {
+      console.error(
+        'NotificationCenter needs its notifications: notifications={useInbox(ROUTES[\'notify.notification\'])} ' +
+          '(bazis-notify) or notifications={useNotifications()} (bazis-ws); see "Migrating" in the guide of bazis-front.',
+      );
+    }
+  }, [missing]);
+
+  useEffect(() => {
+    if (!toasts || known === null) return;
+    // what comes while the list is open is seen there: never a toast later
+    if (open) {
+      for (const item of items) toasted.add(String(item.key));
+      return;
+    }
     for (const item of [...items].reverse()) {
       const key = String(item.key);
       if (item.read || known.has(key) || toasted.has(key)) continue;
@@ -126,6 +165,7 @@ export function NotificationCenter<T extends CenterNotification>({ notifications
     }
   }, [items, toasts, open, known]);
 
+  if (missing) return null;
   const label = unread > 0 ? t('notifications.unread', { count: unread }) : t('notifications.title');
   let list;
   if (status === 'loading') {
@@ -153,7 +193,13 @@ export function NotificationCenter<T extends CenterNotification>({ notifications
     );
   }
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setDeleting(false);
+      }}
+    >
       <PopoverTrigger asChild>
         <Button type="button" variant="ghost" size="icon-sm" data-bz="action:notifications" aria-label={label} className="relative">
           <Bell />
@@ -183,12 +229,54 @@ export function NotificationCenter<T extends CenterNotification>({ notifications
               {t('notifications.read_all')}
             </Button>
           )}
-          {items.length > 0 && (
+          {clear && items.length > 0 && (
             <Button type="button" variant="ghost" size="sm" data-bz="action:clear-notifications" onClick={clear}>
               {t('notifications.clear')}
             </Button>
           )}
+          {onDeleteAll && items.length > 0 && !deleting && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              data-bz="action:delete-notifications"
+              onClick={() => {
+                setDeleting(true);
+              }}
+            >
+              {t('notifications.delete_all')}
+            </Button>
+          )}
         </div>
+        {deleting && onDeleteAll && (
+          <div role="alert" className="flex items-center justify-between gap-2 border-b bg-danger-soft px-4 py-2 text-sm text-danger-ink">
+            <span>{t('notifications.delete_confirm')}</span>
+            <span className="flex gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDeleting(false);
+                }}
+              >
+                {t('action.cancel')}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                data-bz="action:confirm-delete-notifications"
+                onClick={() => {
+                  setDeleting(false);
+                  onDeleteAll();
+                }}
+              >
+                {t('notifications.delete_all')}
+              </Button>
+            </span>
+          </div>
+        )}
         {list}
       </PopoverContent>
     </Popover>

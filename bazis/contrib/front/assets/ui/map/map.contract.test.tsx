@@ -18,7 +18,7 @@
 // that records what the components ask of it: jsdom draws no map. Keep it passing when the
 // component is changed.
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -294,10 +294,12 @@ describe('the map of a point field', () => {
     );
     const input = screen.getByTestId<HTMLInputElement>('field:location');
     expect(screen.getByTestId('map:location')).toBeTruthy();
-    (await shownMap())?.fire('click', { latlng: { lat: 10.5, lng: 20 } });
-    await waitFor(() => {
-      expect(input.value).toBe('10.5, 20');
+    const map = await shownMap();
+    // a click of Leaflet, outside React: its effects (the marker) are flushed with it
+    act(() => {
+      map?.fire('click', { latlng: { lat: 10.5, lng: 20 } });
     });
+    expect(input.value).toBe('10.5, 20');
     expect(onChange).toHaveBeenLastCalledWith(point(10.5, 20));
     expect(fake.state.markers.at(-1)?.position).toEqual([10.5, 20]);
     // the marker of the point opens nothing: an image named by the field, not a button
@@ -317,7 +319,10 @@ describe('the map of a point field', () => {
       </MapProvider>,
       new Backend(),
     );
-    (await shownMap())?.fire('click', { latlng: { lat: 10.5, lng: 20 } });
+    const map = await shownMap();
+    act(() => {
+      map?.fire('click', { latlng: { lat: 10.5, lng: 20 } });
+    });
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.queryByTestId('action:locate-location')).toBeNull();
   });

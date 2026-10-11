@@ -42,6 +42,13 @@ function options({ filter, ...rest }: QueryOptions): Record<string, unknown> {
 /** The second item of the keys of the tasks of bazis-async-background: not a path. */
 const ASYNC_TASKS = 'async_background';
 
+/**
+ * The first item of the keys of the content of the files (`useDownloadUrl`): not under
+ * `['bazis']`, so that no invalidation of the hooks reads a file again (a file of an item is
+ * not changed: another file is another item).
+ */
+const FILES = 'bazis-files';
+
 export const keys = {
   /** Every query of the hooks. */
   all: ['bazis'] as const,
@@ -69,6 +76,8 @@ export const keys = {
     ['bazis', path, 'filter-fields', scope] as const,
   /** The state of a task of bazis-async-background (`useAsyncTask`). */
   asyncTask: (taskId: string, scope: string) => ['bazis', ASYNC_TASKS, taskId, scope] as const,
+  /** The content of the file of an item (`useDownloadUrl`), outside `keys.all`. */
+  download: (path: string, id: string, scope: string) => [FILES, path, id, scope] as const,
   /** Every query of the state of a task, whatever the scope. */
   asyncTasks: (taskId: string) => ['bazis', ASYNC_TASKS, taskId] as const,
 };

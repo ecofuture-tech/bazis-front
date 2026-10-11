@@ -94,6 +94,8 @@ export const en: Messages = {
   'map.locate_failed': 'The location is not available.',
   'map.pick': 'Click the map to place the point.',
   'notifications.clear': 'Clear',
+  'notifications.delete_all': 'Delete all',
+  'notifications.delete_confirm': 'Delete all the notifications for good?',
   'notifications.empty': 'No notifications',
   'notifications.new': 'Unread',
   'notifications.read_all': 'Mark all read',

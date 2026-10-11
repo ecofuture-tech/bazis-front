@@ -122,7 +122,9 @@ written.
   use it.
 - **The backend decides the rights.** Do not encode roles or permissions here: request
   the permission meta (`for_change`, `for_delete`, `for_create` on a list, `crud_actions`
-  on an item), read it with `can()`, and take the fields of a form from its runtime schema
+  on an item, `custom_actions` for the custom actions: `useCan(path, 'action_<name>')` of the
+  collection, `permitted(meta, 'action_<name>')` of an item; never a field of your own such
+  as `can_report`), read it with `can()`, and take the fields of a form from its runtime schema
   (`useResourceForm`). Hide or disable what the backend does not allow; a link of the
   navigation names what it `requires` (below), never a role. A rule by which a screen hides
   an action (no "add here" once the item is no longer a draft) is also a rule of the
@@ -210,6 +212,7 @@ const step = useResourceForm(ROUTES['tasks.step'], { fixed: { task: id } });
 | `useSchema(path, 'list' \| 'create')`, `useSchema(path, 'retrieve' \| 'update' \| 'transit', id)` | the runtime schema for the current user, kept for the session |
 | `useFilterFields(path)` | the fields a list can be filtered by, with their types: those of the user |
 | `useCan(path, 'view' \| 'add')` | whether the user may view the items of the route set or add one: undefined until the backend answers, false when it refuses (403 of the runtime schema of the list or of the create) |
+| `useCan(path, 'action_<name>')` | whether the user may call a custom action of the collection (`custom_actions` of bazis-permit 2.11; allowed without it): the button of an export is offered to those only |
 | `useCreate(path)`, `useUpdate(path)`, `useDestroy(path)` | `mutate(document)`, `mutate({id, document})`, `mutate(id)` |
 | `useRelationship(path)` | `mutate({id, field, operation: 'add' \| 'replace' \| 'remove', data})`: the relationship endpoint, for to-many relationships |
 | `useResourceForm(path, {id?, fixed?})` | a form bound to `schema_create`/`schema_update`: fields, values, dirty, submit of the changed attributes and to-one relationships, `errors` of a 422 by field; `fixed` values of fields that the screen sets (the parent of an added item) |
@@ -244,7 +247,7 @@ With bazis-notify, `@/bazis/react/notify`:
 
 | Hook | What |
 |---|---|
-| `useInbox(ROUTES['notify.notification'], {limit?, poll?})` | `{items, unread, status, error, retry, markRead(key?), markUnread(key), clear}`: the stored notifications of the user, the newest first (`route` of each: where its action leads); listed again after its own changes and, with bazis-ws, on the messages of bazis-notify (`useLiveQueries`); `poll` (ms) without bazis-ws |
+| `useInbox(ROUTES['notify.notification'], {limit?, poll?})` | `{items, unread, status, error, retry, markRead(key?), markUnread(key), deleteAll}` (`deleteAll`: for good, give it to `onDeleteAll` of `NotificationCenter` only if the product offers it): the stored notifications of the user, the newest first (`route` of each: where its action leads); listed again after its own changes and, with bazis-ws, on the messages of bazis-notify (`useLiveQueries`); `poll` (ms) without bazis-ws |
 
 With bazis-bg, `@/bazis/react/bg`:
 
@@ -600,7 +603,11 @@ bazis-notify the notifications published while the page was closed are not shown
   `.ts`/`.tsx` file only), `npm run lint`, `npm test` and `manage.py bazis_front update
   --check` (it reports the files of the conflicts that still have a marker, `package.json`
   and the configs too). A file of the template that bazis-front removed is kept, the
-  product's; an image changed on both sides is kept and reported, to merge by hand.
+  product's; an image changed on both sides is kept and reported, to merge by hand. Then
+  `tsc` shows the code of the product that a change of the API of the copies needs:
+  "Migrating the code of the product" in the guide of bazis-front lists them
+  (`NotificationCenter` takes its `notifications`, the files are downloaded with the token,
+  the buttons of custom actions follow `custom_actions`).
 - The components decide nothing: the fields and their titles come from the runtime
   schemas, the actions from the permission meta (`permission`), the states from the errors
   of the backend (`StatePanel`). Pass the field ids of the specs and the paths of

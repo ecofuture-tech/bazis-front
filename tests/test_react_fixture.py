@@ -196,6 +196,12 @@ def capture(app, settings, monkeypatch) -> dict:
         'schema_update': schema(ok(client.get(f'{item}schema_update/'))),
         'retrieve_draft': actions(ok(client.get(item, params={'meta': 'state_actions,crud_actions'}))),
     }
+    # the custom actions of the collection that the user may call (bazis-permit 2.11): `count`
+    # needs a user
+    result['list_custom_actions'] = {'meta': ok(client.get(TASKS, params=CUSTOM_ACTIONS))['meta']}
+    result['list_custom_actions_anonymous'] = {
+        'meta': ok(get_api_client(app).get(TASKS, params=CUSTOM_ACTIONS))['meta']
+    }
     ok(client.post(f'{item}transit/', json_data={'transit': 'start'}))
     result['retrieve_in_progress'] = actions(ok(client.get(item, params={'meta': 'state_actions'})))
     result['create_422'] = errors(
@@ -210,6 +216,8 @@ def capture(app, settings, monkeypatch) -> dict:
 
 
 FILES = '/api/v1/uploadable/file_upload/'
+#: the list that tells the custom actions of the collection (`useCan(path, 'action_<name>')`)
+CUSTOM_ACTIONS = {'meta': 'custom_actions', 'page[limit]': 1}
 
 
 def refused(app, client) -> dict:

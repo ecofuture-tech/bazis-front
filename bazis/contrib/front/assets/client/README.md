@@ -178,8 +178,10 @@ endpoint is a `completed` task with that status.
 
 `can(meta, action, id?)` reads the permission meta of bazis-permit: on a list
 `can(meta, 'change' | 'delete', id)` (`for_change`, `for_delete`) and `can(meta, 'add')`
-(`for_create`); on an item `can(meta, action)` (`crud_actions`). It is false when the meta
-was not requested. The backend checks every request itself: use it only to adapt the
+(`for_create`); on an item `can(meta, action)` (`crud_actions`); `can(meta,
+'action_<name>')` a custom action (`custom_actions` of bazis-permit 2.11, of the collection
+on a list, of the item on an item, by its name in `x-bazis`: what the action declares, not a
+check in its own code). It is false when the meta was not requested. The backend checks every request itself: use it only to adapt the
 interface.
 
 ## The filter grammar

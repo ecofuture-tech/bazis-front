@@ -71,8 +71,8 @@ sample (`tests/test_design.py` checks it; write it again with
 | `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 | `file-field` | `FileFieldProvider({accept?, maxSize?, resources?, children})`; `FileField(props)` (the control of a file field of `FieldInput`, with `maxSize?`, `accept?`, `path?`); `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
-| `live-query` | `LiveQuery({routes?})` (`ROUTES` by default); the texts `socket.<status>` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
-| `notification-center` | `NotificationCenter({notifications, onOpen?(notification), toasts?})`: `notifications` is `useInbox(path)` (bazis-notify) or `useNotifications()` (bazis-ws); `CenterNotification`, `NotificationSource` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` | none (its source) |
+| `live-query` | `LiveQuery({routes?, notifications?})` (`ROUTES` and `CAPABILITIES.notify.resource` by default); the texts `socket.<status>` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
+| `notification-center` | `NotificationCenter({notifications, onOpen?(notification), toasts?, onDeleteAll?})`: `notifications` is `useInbox(path)` (bazis-notify) or `useNotifications()` (bazis-ws); `CenterNotification`, `NotificationSource` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications`, `action:delete-notifications`, `action:confirm-delete-notifications` | none (its source) |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
 | `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})`; `MapProvider({tiles?, points?, children})`, `OSM_TILES`, `useMapTiles`; `LeafletMap({markers, selected?, onOpen?, onPick?, me?})`, `MapPointControl`; `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`; the texts `map.<text>` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; the map of a point field `map:<field>`, `action:locate-<field>` | npm `leaflet` (`add` sets it in package.json) |
@@ -231,9 +231,14 @@ the WebSocket of the page in a test.
   (`list:notifications`, newest first, each `notification:<key>`: the title, the text, the
   time, the unread ones marked); a click on one marks it read and calls `onOpen` (the list
   closes), `action:read-notifications` marks them all read, `action:clear-notifications`
-  clears them. Each new unread notification is a toast once in the page, whatever the
+  forgets them when the source can (`clear` of `useNotifications`); the stored ones are
+  deleted only with `onDeleteAll` (`deleteAll` of `useInbox`), after
+  `action:delete-notifications` and `action:confirm-delete-notifications`. Without its
+  `notifications` (the props of an older version) it shows no bell and says so in the
+  console. Each new unread notification is a toast once in the page, whatever the
   number of centers (`success` and `error` of bazis-notify in their tone, else `info`);
-  those there when the notifications were first read are not. It needs no package: its
+  those there when the notifications were first read, or that came while the list was open,
+  are not. It needs no package: its
   `notifications` are the stored ones of bazis-notify (`useInbox(path)`, with a loading and
   an error state) or those received on the socket of bazis-ws in the session
   (`useNotifications()`: pub/sub keeps nothing).

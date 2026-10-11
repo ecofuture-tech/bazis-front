@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
 import { keys } from '../keys.js';
-import { backgroundStatusOf, changedResource, notificationsChanged, NOTIFY_RESOURCE } from './messages.js';
+import { backgroundStatusOf, changedResource, notificationsChanged } from './messages.js';
 import { useChannel, useSocket } from './socket.js';
 
 /**
@@ -24,11 +24,20 @@ import { useChannel, useSocket } from './socket.js';
  * (`['bazis', path]`, by its type in `routes`, `ROUTES` of the contract) for
  * `{"resource", "id"}` and a notification about an item, the state of a task of
  * bazis-async-background (`useAsyncTask`) for its status, the stored notifications of
- * bazis-notify (`routes['notify.notification']`, `useInbox`) for a message of theirs. After a reconnect, every query
+ * bazis-notify (`useInbox`) for a message of theirs, by `notifications`, their resource
+ * (`CAPABILITIES.notify.resource`; `LiveQuery` gives it). After a reconnect, every query
  * of the hooks: the messages published while the socket was closed are lost. Only the active
  * queries are refetched; mount it once, under `SocketProvider`.
  */
-export function useLiveQueries(routes: Readonly<Record<string, string>>): void {
+export interface LiveQueriesOptions {
+  /** The resource of the stored notifications of bazis-notify (`CAPABILITIES.notify.resource`); none without it. */
+  notifications?: string | null | undefined;
+}
+
+export function useLiveQueries(
+  routes: Readonly<Record<string, string>>,
+  { notifications = null }: LiveQueriesOptions = {},
+): void {
   const queryClient = useQueryClient();
   const { status } = useSocket();
   const opened = useRef(false);
@@ -39,8 +48,8 @@ export function useLiveQueries(routes: Readonly<Record<string, string>>): void {
       void queryClient.invalidateQueries({ queryKey: keys.asyncTasks(background.taskId) });
       return;
     }
-    const changed = notificationsChanged(message) ? { resource: NOTIFY_RESOURCE } : changedResource(message);
-    const path = changed === null ? undefined : routes[changed.resource];
+    const resource = notificationsChanged(message) ? notifications : changedResource(message)?.resource;
+    const path = resource == null ? undefined : routes[resource];
     if (path !== undefined) void queryClient.invalidateQueries({ queryKey: keys.resource(path) });
   });
 

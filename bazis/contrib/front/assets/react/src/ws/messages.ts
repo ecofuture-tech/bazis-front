@@ -25,7 +25,8 @@
 //   task (`useAsyncTask`).
 // - `{"action": "notification_created", ...}` and `{"action": "notifications_changed", ...}`:
 //   the stored notifications of the user changed (bazis-notify, sent by the backend itself);
-//   `useLiveQueries` refetches them (`useInbox` of `@/bazis/react/notify`).
+//   `useLiveQueries` refetches them (`useInbox` of `@/bazis/react/notify`) when it is given
+//   their resource (`CAPABILITIES.notify.resource`).
 
 /** A notification of the user, as received. */
 export interface Notification {
@@ -38,11 +39,10 @@ export interface Notification {
   id: string | null;
   /** When it was received. */
   time: Date;
+  /** @deprecated The same as `time` (its name before the source of `NotificationCenter`); use `time`. */
+  received: Date;
   read: boolean;
 }
-
-/** The resource of the stored notifications of bazis-notify. */
-export const NOTIFY_RESOURCE = 'notify.notification';
 
 /** The actions of the messages of bazis-notify: the stored notifications of the user changed. */
 const NOTIFY_ACTIONS = new Set(['notification_created', 'notifications_changed']);
@@ -76,6 +76,7 @@ export function notificationOf(message: unknown, key: number, time: Date): Notif
     resource: typeof data.resource === 'string' ? data.resource : null,
     id: identifier(data.id),
     time,
+    received: time,
     read: false,
   };
 }

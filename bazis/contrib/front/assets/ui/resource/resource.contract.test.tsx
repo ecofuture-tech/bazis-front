@@ -400,6 +400,14 @@ describe('permitted', () => {
     expect(permitted({}, 'delete', 'a')).toBe(true);
     expect(permitted(undefined, 'add')).toBe(true);
   });
+
+  it('reads the custom actions of an item or a list (`custom_actions`), and allows without them', () => {
+    expect(permitted({ crud_actions: ['view'], custom_actions: ['action_report'] }, 'action_report')).toBe(true);
+    expect(permitted({ crud_actions: ['view'], custom_actions: [] }, 'action_report')).toBe(false);
+    // the meta of a backend without bazis-permit 2.11, or not requested
+    expect(permitted({ crud_actions: ['view'] }, 'action_report')).toBe(true);
+    expect(permitted(null, 'action_report')).toBe(true);
+  });
 });
 
 describe('the label of a related item', () => {

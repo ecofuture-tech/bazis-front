@@ -19,7 +19,7 @@
 // a retry tries at once (`action:reconnect`). Mount it once under `SocketProvider`, in the
 // `tools` of `AppShell`.
 
-import { ROUTES } from '@/bazis/generated/contract';
+import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
 import { useLiveQueries, useSocket, type SocketStatus } from '@/bazis/react/ws';
 import { Button } from '@/components/ui/button';
@@ -38,11 +38,13 @@ const DOTS: Readonly<Record<SocketStatus, string>> = {
 export interface LiveQueryProps {
   /** The paths of the resources by their type: `ROUTES` of the contract by default. */
   routes?: Readonly<Record<string, string>>;
+  /** The resource of the stored notifications of bazis-notify: that of the contract by default. */
+  notifications?: string | null;
 }
 
 /** Refetches what the socket says changed; shows the state of the socket. */
-export function LiveQuery({ routes = ROUTES }: LiveQueryProps) {
-  useLiveQueries(routes);
+export function LiveQuery({ routes = ROUTES, notifications = CAPABILITIES.notify?.resource ?? null }: LiveQueryProps) {
+  useLiveQueries(routes, { notifications });
   const { status, retry } = useSocket();
   const { t } = useLanguage();
   const label = t(`socket.${status}`);

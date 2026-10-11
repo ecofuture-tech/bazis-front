@@ -30,7 +30,7 @@ export type { FilterValue } from './filter.js';
 export { nextPage, pagination, prevPage } from './pagination.js';
 export type { PaginationLinks, PaginationMeta } from './pagination.js';
 export { can } from './permit.js';
-export type { CrudAccessAction, PermitMeta } from './permit.js';
+export type { CrudAccessAction, CustomActionName, PermitMeta } from './permit.js';
 export type {
   ActionName,
   ActionOptions,

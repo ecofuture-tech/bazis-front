@@ -111,8 +111,11 @@ export interface Inbox {
   markRead: (key?: string) => void;
   /** Marks a notification unread again (`read_at: null`). */
   markUnread: (key: string) => void;
-  /** Deletes the notifications of the user (`clear/`). */
-  clear: () => void;
+  /**
+   * Deletes every stored notification of the user (`clear/`): irreversible, so it is not the
+   * `clear` of a source of `NotificationCenter` (`onDeleteAll` there, with a confirmation).
+   */
+  deleteAll: () => void;
 }
 
 /** A change of the notifications: of one (its `read_at`), or an action of all of them. */
@@ -121,7 +124,7 @@ type Change = { kind: 'read' | 'unread'; key: string } | { kind: 'read_all' } | 
 /**
  * The stored notifications of the user from the route set of bazis-notify (`path`:
  * `ROUTES['notify.notification']`): the newest `limit`, the unread count, the read, the unread,
- * read all and clear, after which the list and the count are read again (with bazis-ws, also
+ * read all and delete all, after which the list and the count are read again (with bazis-ws, also
  * when the backend says they changed: `useLiveQueries`).
  */
 export function useInbox(path: string, { limit = INBOX_LIMIT, poll }: InboxOptions = {}): Inbox {
@@ -172,7 +175,7 @@ export function useInbox(path: string, { limit = INBOX_LIMIT, poll }: InboxOptio
     markUnread: (key) => {
       mutate({ kind: 'unread', key });
     },
-    clear: () => {
+    deleteAll: () => {
       mutate({ kind: 'clear' });
     },
   };

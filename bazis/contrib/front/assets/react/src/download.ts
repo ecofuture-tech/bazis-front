@@ -15,7 +15,7 @@
 import { useMutation, useQuery, type UseMutationResult } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 
-import { saveFile, type DownloadedFile, type RouteSetWith } from '@/bazis/client';
+import { saveFile, type RouteSetWith } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
 
 import { useBazis } from './context.js';
@@ -29,30 +29,35 @@ export type DownloadPath = RouteSetWith<paths, '{item_id}/download/', 'get'>;
  * Downloads the file of an item from the download route of its route set
  * (`<path><id>/download/`, with the token: never the URL of the media host, which serves a
  * file to anyone who has its link) and saves it under the name the backend gives it:
- * `mutate(id)`; its `error` is the `ApiError` (404: a file the user does not see).
+ * `mutate(id)` resolves to that name (the content is not kept); its `error` is the `ApiError`
+ * (404: a file the user does not see).
  */
-export function useDownload(path: DownloadPath): UseMutationResult<DownloadedFile, Error, string> {
+export function useDownload(path: DownloadPath): UseMutationResult<string | null, Error, string> {
   const { api } = useBazis();
   return useMutation({
-    mutationFn: (id) => loose(api).download(path, id),
-    onSuccess: (file) => {
+    mutationFn: async (id) => {
+      const file = await loose(api).download(path, id);
       saveFile(file);
+      return file.name;
     },
   });
 }
 
 /**
  * The content of the file of an item as an object URL (the thumbnail of an image), read from
- * its download route while `id` is not null; null until it is read (or when it fails). The
- * URL is revoked when the content or the component changes. Keyed under the item, so a change
- * of the resource reads it again.
+ * its download route while `id` is not null; null until it is read (or when it fails). Read
+ * once: a file of an item does not change, so neither a refetch of the hooks nor the focus of
+ * the window reads it again (`keys.download`, outside `keys.all`). The URL is revoked when the
+ * content or the component changes.
  */
 export function useDownloadUrl(path: DownloadPath, id: string | null): string | null {
   const { api, scope } = useBazis();
   const content = useQuery({
-    queryKey: keys.itemAction(path, id ?? '', 'download', scope),
+    queryKey: keys.download(path, id ?? '', scope),
     queryFn: async ({ signal }) => (await loose(api).download(path, id ?? '', { signal })).blob,
     enabled: id !== null,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
   const blob = id === null ? undefined : content.data;
   const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);

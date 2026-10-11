@@ -19,7 +19,7 @@
 
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 
-import type { DownloadedFile, PaginationLinks, PaginationMeta, PermitMeta } from '@/bazis/client';
+import type { PaginationLinks, PaginationMeta, PermitMeta } from '@/bazis/client';
 import {
   useDownload,
   useDownloadUrl,
@@ -98,7 +98,7 @@ export const useAnyResourceForm = useResourceForm as unknown as (
 ) => ResourceForm<SavedDocument>;
 
 /** `useDownload(path)`: `mutate(id)` saves the file of the item. */
-export const useAnyDownload = useDownload as unknown as (path: string) => UseMutationResult<DownloadedFile, Error, string>;
+export const useAnyDownload = useDownload as unknown as (path: string) => UseMutationResult<string | null, Error, string>;
 
 /** `useDownloadUrl(path, id)`: the content of the file of the item as an object URL. */
 export const useAnyDownloadUrl = useDownloadUrl as unknown as (path: string, id: string | null) => string | null;

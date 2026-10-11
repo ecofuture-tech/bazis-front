@@ -14,11 +14,13 @@
 
 // The contract of the notifications: the bell `action:notifications` with the count of the
 // unread ones, the list `list:notifications` that it opens (each `notification:<key>`), where
-// a click marks a notification read and opens it, `action:read-notifications` and
-// `action:clear-notifications`, a toast for each new one (once, whatever the number of
-// centers, none for those there when they are first read), the states of the reading. The
-// source is a plain object, as `useInbox` (bazis-notify) and `useNotifications` (bazis-ws)
-// give it. Keep it passing when the component is changed.
+// a click marks a notification read and opens it, `action:read-notifications`,
+// `action:clear-notifications` of a source that can forget them (the session of bazis-ws), the
+// deletion with a confirmation only with `onDeleteAll`, a toast for each new one (once,
+// whatever the number of centers, none for those there when they are first read or that came
+// while the list was open), the states of the reading. The source is a plain object, as
+// `useInbox` (bazis-notify) and `useNotifications` (bazis-ws) give it. Keep it passing when
+// the component is changed.
 
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import { useState } from 'react';
@@ -58,7 +60,11 @@ function note(title: string, extra: Partial<Note> = {}): Note {
 }
 
 /** The source of the tests: its state, its actions recorded, `push` and `set` change it. */
-function source(initial: readonly Note[], status: NotificationSource<Note>['status'] = 'ready') {
+function source(
+  initial: readonly Note[],
+  status: NotificationSource<Note>['status'] = 'ready',
+  { forgets = true }: { forgets?: boolean } = {},
+) {
   type Change = Partial<{ items: readonly Note[]; status: NotificationSource<Note>['status'] }>;
   const handle = {
     markRead: vi.fn(),
@@ -69,7 +75,7 @@ function source(initial: readonly Note[], status: NotificationSource<Note>['stat
       throw new Error(`Not rendered: ${JSON.stringify(change)}`);
     },
   };
-  function Center({ count = 1, onOpen }: { count?: number; onOpen?: (it: Note) => void }) {
+  function Center({ count = 1, onOpen, onDeleteAll }: { count?: number; onOpen?: (it: Note) => void; onDeleteAll?: () => void }) {
     const [state, setState] = useState({ items: initial, status });
     handle.set = (change) => {
       act(() => {
@@ -83,12 +89,12 @@ function source(initial: readonly Note[], status: NotificationSource<Note>['stat
       error: state.status === 'error' ? new Error('Down') : null,
       retry: handle.retry,
       markRead: handle.markRead,
-      clear: handle.clear,
+      ...(forgets ? { clear: handle.clear } : {}),
     };
     return (
       <>
         {Array.from({ length: count }, (_, index) => (
-          <NotificationCenter key={index} notifications={notifications} {...(onOpen ? { onOpen } : {})} />
+          <NotificationCenter key={index} notifications={notifications} onOpen={onOpen} onDeleteAll={onDeleteAll} />
         ))}
         <Toaster />
       </>
@@ -141,6 +147,47 @@ describe('NotificationCenter', () => {
     expect(within(screen.getByTestId('list:notifications')).getByText('No notifications')).toBeTruthy();
     expect(screen.queryByTestId('action:read-notifications')).toBeNull();
     expect(screen.queryByTestId('action:clear-notifications')).toBeNull();
+  });
+
+  it('offers no clear of the stored notifications, and deletes them only after a confirmation', () => {
+    const { Center, handle } = source([note('Stored')], 'ready', { forgets: false });
+    const onDeleteAll = vi.fn();
+    const { unmount } = renderWithBazis(<Center />, new Backend());
+    fireEvent.click(screen.getByTestId('action:notifications'));
+    expect(screen.queryByTestId('action:clear-notifications')).toBeNull();
+    expect(screen.queryByTestId('action:delete-notifications')).toBeNull();
+    unmount();
+
+    renderWithBazis(<Center onDeleteAll={onDeleteAll} />, new Backend());
+    fireEvent.click(screen.getByTestId('action:notifications'));
+    fireEvent.click(screen.getByTestId('action:delete-notifications'));
+    expect(onDeleteAll).not.toHaveBeenCalled();
+    // cancelled
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByTestId('action:confirm-delete-notifications')).toBeNull();
+    fireEvent.click(screen.getByTestId('action:delete-notifications'));
+    fireEvent.click(screen.getByTestId('action:confirm-delete-notifications'));
+    expect(onDeleteAll).toHaveBeenCalledOnce();
+    expect(handle.clear).not.toHaveBeenCalled();
+  });
+
+  it('shows no bell without its notifications, and says why', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    renderWithBazis(<NotificationCenter />, new Backend());
+    expect(screen.queryByTestId('action:notifications')).toBeNull();
+    expect(String(logged.mock.calls[0]?.[0])).toContain('notifications={useInbox(');
+    logged.mockRestore();
+  });
+
+  it('toasts no notification that came while the list was open', () => {
+    const { Center, handle } = source([]);
+    renderWithBazis(<Center />, new Backend());
+    fireEvent.click(screen.getByTestId('action:notifications'));
+    handle.set({ items: [note('Seen in the list')] });
+    expect(within(screen.getByTestId('list:notifications')).getByText('Seen in the list')).toBeTruthy();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(screen.queryByTestId('list:notifications')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Notifications' })?.textContent ?? '').not.toContain('Seen in the list');
   });
 
   it('keeps the list open without onOpen', () => {

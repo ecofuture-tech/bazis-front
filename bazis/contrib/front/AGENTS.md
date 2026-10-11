@@ -29,7 +29,7 @@ how to compose the screens:
 | [The design](#the-design) | the preset, the tokens, the theme |
 | [The end-to-end tests](#the-end-to-end-tests) | `bazis_front e2e`, the helpers (`openItem`, `fill`...), `e2e_data` |
 | [The backend of a product](#the-backend-of-a-product) | the declared roles and workflows, the test data, the notifications |
-| [Updating the copies](#updating-the-copies) | `update`, the conflicts |
+| [Updating the copies](#updating-the-copies) | `update`, the conflicts, migrating the code of the product |
 | [The client](#the-client), [The hooks](#the-hooks) | the client, `useResourceForm`, `resourceSchema`, the custom actions (`client.action`, `useAction`, `useActionQuery`) |
 | [The socket](#the-socket), [The language](#the-language), [Logins with bazis-authing](#logins-with-bazis-authing) | bazis-ws, the translations and the formats, the logins |
 | [Protocol facts](#protocol-facts-that-are-easy-to-get-wrong) | what the backend does that is easy to get wrong |
@@ -192,7 +192,7 @@ dependencies to the versions of the new release without a conflict in `package.j
 | `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`, `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})` (`tools`: next to the color mode, mounted once; `requires`: below), `Screen({id, title?, description?, actions?, children})`, `ListCardLayout({list, mode?})`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})`: the password form with `onLogin`, a button per method (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource` (shared, copied with the components) | `FieldInput({field, value, onChange, errors?, disabled?, onBusy?, path?})` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue({field, value})`, `formatValue(field, value, {language, t})`, `choiceOptions(field)`, `fieldValue(item, name)`, `itemLabel(item)`, `permitted(meta, 'add' \| 'change' \| 'delete', id?)`, `RelationPicker({relation, value, onChange, nullable?, searchable?, label?})`, `RelationLabel({relation, id})`, `useListFields(path)`, `useItemFields(path, id, 'retrieve' \| 'update')`; the points: `pointOf(value)`, `geoJsonPoint(point)`, `formatPoint(point)`, `parsePoint(text)`, `PointsProvider({control, fields?})` | `field:<name>`, `error:<name>` | |
+| `resource` (shared, copied with the components) | `FieldInput({field, value, onChange, errors?, disabled?, onBusy?, path?})` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue({field, value})`, `formatValue(field, value, {language, t})`, `choiceOptions(field)`, `fieldValue(item, name)`, `itemLabel(item)`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker({relation, value, onChange, nullable?, searchable?, label?})`, `RelationLabel({relation, id})`, `useListFields(path)`, `useItemFields(path, id, 'retrieve' \| 'update')`; the points: `pointOf(value)`, `geoJsonPoint(point)`, `formatPoint(point)`, `parsePoint(text)`, `PointsProvider({control, fields?})` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList({path, entity, columns, filters?: (field \| {field, label?, options?: [{value, label}]})[], filter?: Filter, sort?, search?, pageSize?, onOpen?, selected?, actions?: [{id, label, onClick, permission?, icon?}], rowActions?: [{id, label, onClick(id), permission?}], cells?: {column: (row) => node}, rowTone?: (row) => Tone \| undefined, rowToneLabel?: (row) => string \| undefined, emptyMessage?, layout?: 'table' \| 'cards', compactColumns?})`, `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?: 'dialog' \| 'page'})` (`meta`: the permission meta of the item, `crud_actions`); `RelatedList({path, entity, relation, item, columns, title?, add?: {id, label, fields?, title?, icon?, onSaved?}, onOpen?, cells?, emptyMessage?, sort?, pageSize?, layout?, forms?})`: a related section (below) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
 | `resource-form` | `ResourceForm({path, id?, fields?, fixed?: {field: value}, onSaved?, onCancel?, submitLabel?})`, `FormSurface({open, onClose, title, description?, mode?: 'dialog' \| 'page', children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
@@ -200,8 +200,8 @@ dependencies to the versions of the new release without a conflict in `package.j
 | `status-history` | `StatusHistory({resource, label?})`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar({path, id, onDone?})` | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider({accept?: {field: types}, maxSize?, children})`: `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField(props)`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
-| `live-query` | `LiveQuery({routes?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
-| `notification-center` | `NotificationCenter({notifications, onOpen?(notification), toasts?})`: a bell with the count of the unread notifications, their list (a click marks one read and opens it), mark all read, clear, a toast for each new one; `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only) | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` | none (its source: `notify` or `ws`) |
+| `live-query` | `LiveQuery({routes?, notifications?})`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` and `CAPABILITIES.notify.resource` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
+| `notification-center` | `NotificationCenter({notifications, onOpen?(notification), toasts?, onDeleteAll?})`: a bell with the count of the unread notifications, their list (a click marks one read and opens it), mark all read, a toast for each new one; `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only, which also has `clear`: forget those of the session); the stored notifications are deleted only with `onDeleteAll={inbox.deleteAll}`, after a confirmation | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` (`useNotifications`), `action:delete-notifications` and `action:confirm-delete-notifications` (`onDeleteAll`) | none (its source: `notify` or `ws`) |
 | `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`, `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`, `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
 | `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})` (`list.map`: the items with a point in `field`), `MapProvider({tiles?, children})` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
@@ -381,7 +381,15 @@ the package documents each component.
   An action that queues a task of bazis-bg answers with its id: show it with `TaskProgress`
   (`<TaskProgress id={action.data.task} />`). Never `fetch` an endpoint of the backend by
   hand: the client sends the token and the language of the session, and turns the errors
-  into `ApiError`.
+  into `ApiError`. Offer the button of an action to the users the backend lets call it, from
+  `custom_actions` of bazis-permit 2.11 (the names of `actions` of the contract, `action` of
+  `x-bazis`): an action of the collection with `useCan(path, 'action_<name>')`, an action of
+  an item with `permitted(meta, 'action_<name>')` (the `meta` that `ResourceCard` gives its
+  children, which requests it) or `can(meta, 'action_<name>')` of the client with
+  `meta: ['custom_actions']` of your own `useItem`. Never a field of your own such as
+  `can_report`. It reports what the action declares (`public`, `access_action`), not a check
+  in the code of the action, which still answers 403 or 422; the transits of bazis-statusy
+  are `state_actions` (`TransitBar`).
 - **The status history** (`StatusHistory`) is what bazis-statusy exposes: the current
   status with `status_dt` and `status_author`. bazis-statusy records every transit
   (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
@@ -1270,6 +1278,24 @@ line (a marker on purpose, in a test or a document) is released by removing its 
 `.bazis/` and the lock. The client, the hooks and the helpers are never edited, so they
 are replaced without conflicts; wrap them in the product code instead.
 
+### Migrating the code of the product
+
+`tsc` shows what a new version changes in the API of the copies; the changes so far:
+
+- `NotificationCenter` takes its notifications: `notifications={useInbox(ROUTES['notify.notification'])}`
+  with bazis-notify (its `onOpen` gets an `InboxNotification`: open `route`), else
+  `notifications={useNotifications()}`; without it the bell is not shown and the console
+  says so. The list is no longer read when it opens: a click marks a notification read,
+  `action:read-notifications` all of them. The backend notifies with bazis-notify only (no
+  second message of bazis-ws).
+- `Notification.received` of `@/bazis/react/ws` is `time` (`received` is kept, deprecated).
+- `FileView` shows the name of a file as a button that downloads it with the token
+  (`onDownload`, `useDownload`), not a link: `UploadedFile.url` (the media URL) is
+  deprecated, never link it; the file of a task of bazis-bg is `action:download` of
+  `TaskProgress`.
+- A custom action has its button only when `custom_actions` allows it (above), not a meta
+  field of the product.
+
 ## Layers
 
 | Layer | What | In the product |
@@ -1388,8 +1414,10 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   `useDestroy`, `useRelationship` change and then refetch every query of the resource
   (`['bazis', path]`). `useCan(path, 'view' | 'add')` is whether the user may view the items
   of a route set or add one (undefined until the backend answers; false on its 403), read
-  from the runtime schema of the list or of the create; what he may do on an item is its
-  meta (`crud_actions`, `for_change`, `for_delete`: `can()` of the client).
+  from the runtime schema of the list or of the create; `useCan(path, 'action_<name>')`
+  whether he may call a custom action of the collection (`custom_actions` of a list of one
+  item; allowed without the meta); what he may do on an item is its meta (`crud_actions`,
+  `custom_actions`, `for_change`, `for_delete`: `can()` of the client).
 - The errors (the template, `src/app/providers.tsx`): a query that the backend refused (4xx)
   is not retried, a failure of the server or of the network at most three times; a 401
   ends the session; the errors are not thrown but returned (`query.error`), and the
@@ -1424,16 +1452,19 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
 - `SocketProvider({path, token})` opens the socket of bazis-ws (one a page; see
   [The socket](#the-socket)); `useSocket()` is its `status` (`idle`, `connecting`, `open`,
   `rejected`, `unavailable`), the `error` of a refused token and `retry()`;
-  `useChannel(handler)` gets every message of the channels of the session, parsed; `useLiveQueries(ROUTES)` refetches what the
-  messages say changed (also the notifications of bazis-notify on its messages);
+  `useChannel(handler)` gets every message of the channels of the session, parsed; `useLiveQueries(ROUTES, {notifications?})` refetches what the
+  messages say changed (also the notifications of bazis-notify on its messages, given their
+  resource, `CAPABILITIES.notify.resource`);
   `useNotifications()` is `{items, unread, markRead(key?), clear}` of the session.
 - `useInbox(path, {limit?, poll?})` (bazis-notify, `ROUTES['notify.notification']`) is the
   stored notifications of the user, the newest first: `{items, unread, status, error,
-  retry, markRead(key?), markUnread(key), clear}` (PATCH of `read_at`, `read_all/`,
-  `clear/`; `unread` is `unread_count/`); both are the source of `NotificationCenter`.
-- `useDownload(path)` (`mutate(id)`) saves the file of an item from `<path><id>/download/`
-  (bazis-uploadable, bazis-bg) with the token, `useDownloadUrl(path, id)` gives its content
-  as an object URL (a thumbnail); `client.download(path, id)` and `saveFile` are below them.
+  retry, markRead(key?), markUnread(key), deleteAll}` (PATCH of `read_at`, `read_all/`,
+  `clear/`, which deletes them for good; `unread` is `unread_count/`); both are the source of
+  `NotificationCenter`.
+- `useDownload(path)` (`mutate(id)`, resolves to the name) saves the file of an item from
+  `<path><id>/download/` (bazis-uploadable, bazis-bg) with the token, `useDownloadUrl(path,
+  id)` gives its content as an object URL (a thumbnail), read once (a file of an item does
+  not change); `client.download(path, id)` and `saveFile` are below them.
 - `useAction(path, name, {method?, invalidate?})` calls a custom action of a route set
   (`mutate(body)`, `useItemAction`: `mutate({id, body})`), typed by its OpenAPI, then
   refetches the queries of the resource (not with `invalidate: false`); `errors` are those

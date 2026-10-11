@@ -77,7 +77,8 @@ export interface ResourceCardProps {
    * Under the heading: the transits of the item (`TransitBar` of transit-bar), its status
    * history (`StatusHistory` of status-history, which takes the item), a section of the
    * product, given the permission meta of the item (`crud_actions`: `permitted(meta,
-   * 'change')`) without a request of its own.
+   * 'change')`; `custom_actions`: `permitted(meta, 'action_report')`, the button of a custom
+   * action of the item) without a request of its own.
    */
   children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode);
   /** The edit in a dialog or as a page; `composition.forms` of the theme by default. */
@@ -183,7 +184,7 @@ export function ResourceCard({
   children,
   forms,
 }: ResourceCardProps) {
-  const item = useAnyItem(path, id, { meta: ['crud_actions'] });
+  const item = useAnyItem(path, id, { meta: ['crud_actions', 'custom_actions'] });
   const fields = useItemFields(path, id);
   const [editing, setEditing] = useState(false);
   const { t } = useLanguage();

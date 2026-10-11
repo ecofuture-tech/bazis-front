@@ -74,19 +74,24 @@ describe('ResourceCard', () => {
   });
 
   it('gives a section of the product the item and its permission meta', async () => {
-    // what the user may do on the item (`crud_actions` of the card), without another request
-    const server = backend({ crud_actions: ['view', 'change'] });
+    // what the user may do on the item (`crud_actions` and `custom_actions` of the card),
+    // without another request
+    const server = backend({ crud_actions: ['view', 'change'], custom_actions: ['action_report'] });
     renderWithBazis(
       <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections}>
         {(item, meta) => (
-          <span data-bz="field:mine">{`${String(item.attributes?.title)} ${permitted(meta, 'change') ? 'change' : 'view'}`}</span>
+          <span data-bz="field:mine">
+            {`${String(item.attributes?.title)} ${permitted(meta, 'change') ? 'change' : 'view'}`}
+            {` ${permitted(meta, 'action_report') ? 'report' : ''}${permitted(meta, 'action_archive') ? ' archive' : ''}`}
+          </span>
         )}
       </ResourceCard>,
       server,
     );
     await screen.findByTestId('state:loaded');
-    expect(screen.getByTestId('field:mine').textContent).toBe('Report change');
-    expect(server.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`))).toHaveLength(1);
+    expect(screen.getByTestId('field:mine').textContent).toBe('Report change report');
+    const reads = server.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`));
+    expect(reads).toEqual([`GET ${ITEM}?meta=crud_actions%2Ccustom_actions`]);
   });
 
   it('shows the fields of its sections', async () => {

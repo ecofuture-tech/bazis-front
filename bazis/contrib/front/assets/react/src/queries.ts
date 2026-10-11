@@ -14,7 +14,13 @@
 
 import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query';
 
-import { ApiError, type CollectionSchemaKind, type ItemSchemaKind } from '@/bazis/client';
+import {
+  ApiError,
+  type CollectionSchemaKind,
+  type CustomActionName,
+  type ItemSchemaKind,
+  type PermitMeta,
+} from '@/bazis/client';
 
 import { useBazis, type Api } from './context.js';
 import { keys, type QueryOptions } from './keys.js';
@@ -120,24 +126,45 @@ export function useSchema(
   return useQuery(schemaQuery(api, path, kind, id, scope));
 }
 
-/** What a user may do on a route set: view its items (its list) or add one. */
-export type Can = 'view' | 'add';
+/** What a user may do on a route set: view its items (its list), add one, call a custom action of the collection. */
+export type Can = 'view' | 'add' | CustomActionName;
+
+/** The query of the list that tells the custom actions of the collection the user may call. */
+const ACTIONS_QUERY: QueryOptions = { page: { limit: 1 }, meta: ['custom_actions'] };
 
 /**
  * Whether the backend lets the current user view the items of a route set (`view`) or add
  * one (`add`): the runtime schema of the list or of the create, which bazis-permit refuses
  * with 403 without a permission of the model for the action (`<app>.<model>.item.view|add.*`
  * of his role). It is the query of `useSchema`, so a screen that shows the list or the form
- * of the resource makes no request of its own. Undefined until the backend answers, false
- * when it refuses, true when it answers anything else (an error is shown by the screen).
+ * of the resource makes no request of its own. A custom action of the collection
+ * (`'action_<name>'`, `action` of `x-bazis`: the button of an export) is in `custom_actions` of
+ * the list (bazis-permit 2.11, a list of one item with that meta), by what the action
+ * declares (`public`, `access_action`; a check in its own code is not reflected); without the
+ * meta (no bazis-permit) it is allowed: the backend checks the call. Undefined until the
+ * backend answers, false when it refuses, true when it answers anything else (an error is
+ * shown by the screen).
  */
 export function useCan(path: SchemaPath<'list'>, action: 'view'): boolean | undefined;
 export function useCan(path: SchemaPath<'create'>, action: 'add'): boolean | undefined;
+export function useCan(path: ListPath, action: CustomActionName): boolean | undefined;
 export function useCan(path: string, action: Can): boolean | undefined {
   const { api, scope } = useBazis();
-  const schema = useQuery(schemaQuery(api, path, action === 'view' ? 'list' : 'create', undefined, scope));
-  if (schema.isPending) return undefined;
-  return !(schema.error instanceof ApiError && schema.error.status === 403);
+  const custom = action !== 'view' && action !== 'add';
+  // one query whatever the action: the list of the custom actions has the shape of the
+  // query of a schema for this hook, which reads only its error and its meta
+  const options = custom
+    ? (queryOptions({
+        queryKey: keys.list(path, ACTIONS_QUERY, scope),
+        queryFn: ({ signal }) => loose(api).list(path, { ...ACTIONS_QUERY, signal }),
+      }) as unknown as ReturnType<typeof schemaQuery>)
+    : schemaQuery(api, path, action === 'view' ? 'list' : 'create', undefined, scope);
+  const query = useQuery(options);
+  if (query.isPending) return undefined;
+  if (query.error instanceof ApiError && query.error.status === 403) return false;
+  if (!custom) return true;
+  const meta = (query.data as { meta?: PermitMeta | null } | undefined)?.meta;
+  return meta?.custom_actions == null || meta.custom_actions.includes(action);
 }
 
 /** The fields a list can be filtered by (`route_filter_fields/`), with their types. */

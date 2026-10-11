@@ -41,7 +41,19 @@ describe('can', () => {
     expect(can(item, 'add')).toBe(false);
   });
 
+  it('checks the custom actions of a list or an item by their names (`custom_actions`)', () => {
+    const item = { crud_actions: ['view'], custom_actions: ['action_card'] };
+    expect(can(item, 'action_card')).toBe(true);
+    expect(can(item, 'action_report')).toBe(false);
+    // a custom action is never a CRUD action of the item
+    expect(can({ crud_actions: ['action_card'] }, 'action_card')).toBe(false);
+    expect(can({ custom_actions: ['action_count'] }, 'action_count')).toBe(true);
+    expect(can({ custom_actions: [] }, 'action_count')).toBe(false);
+  });
+
   it('denies when the meta was not requested', () => {
+    expect(can({ crud_actions: ['view'] }, 'action_card')).toBe(false);
+    expect(can({ custom_actions: null }, 'action_card')).toBe(false);
     expect(can(undefined, 'view')).toBe(false);
     expect(can(null, 'change', '1')).toBe(false);
     expect(can({}, 'add')).toBe(false);

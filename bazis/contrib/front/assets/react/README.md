@@ -53,6 +53,7 @@ with it too. The template does this in `src/app/providers.tsx`.
 | `useSchema(path, 'list' \| 'create')`, `useSchema(path, 'retrieve' \| 'update' \| 'transit', id)` | `GET path[{id}/]schema_<kind>/` | the JSON Schema for the current user, not refetched in the session (`staleTime: Infinity`) but after a mutation of the resource |
 | `useFilterFields(path)` | `GET path route_filter_fields/` | `{fields: [{name, py_type}]}`, kept for the session |
 | `useCan(path, 'view' \| 'add')` | the query of `useSchema(path, 'list' \| 'create')` | whether the user may view the items of the route set or add one: undefined while it loads, false on a 403 (bazis-permit, without a permission of the model for the action), else true |
+| `useCan(path, 'action_<name>')` | `GET path?page[limit]=1&meta=custom_actions` | whether the user may call a custom action of the collection (`custom_actions` of bazis-permit 2.11; true without the meta, false on a 403) |
 | `useRelatedItem(path, id)` | `GET path?filter=pk=<id>\|pk=<id>…&page[limit]=<n>`, one for the items of the resource asked for together | the item of the list (to show its label), null when the user may not view it |
 | `useCreate(path)` | `POST path` | `mutate(document)` |
 | `useUpdate(path)` | `PATCH path{id}/` | `mutate({id, document})` |
@@ -67,11 +68,11 @@ with it too. The template does this in `src/app/providers.tsx`.
 | `useUpload(path)` (uploadable) | `POST path`, multipart, with XMLHttpRequest | `upload(file, {name?})`: the created item, null when aborted; `status`, `progress`, `error`, `abort()`, `reset()` |
 | `SocketProvider({path, token})`, `useSocket()` (ws) | the socket of bazis-ws | `{status, error, retry}`: `idle`, `connecting`, `open`, `rejected`, `unavailable` |
 | `useChannel(handler)` (ws) | | every message of the channels of the session, parsed |
-| `useLiveQueries(routes)` (ws) | refetches | the queries of a resource that a message says changed, of a task of bazis-async-background, and all after a reconnect |
+| `useLiveQueries(routes, {notifications?})` (ws) | refetches | the queries of a resource that a message says changed, of a task of bazis-async-background, of the notifications of bazis-notify (their resource, `CAPABILITIES.notify.resource`), and all after a reconnect |
 | `useNotifications()` (ws) | | `{items, unread, markRead(key?), clear}`: received in the session |
-| `useInbox(path, {limit?, poll?})` (notify) | `GET path?page[limit]=50`, `GET path unread_count/`; `PATCH path{id}/` (`read_at`), `POST path read_all/`, `POST path clear/` | `{items, unread, status, error, retry, markRead(key?), markUnread(key), clear}`: the stored notifications (`inboxNotification`), refetched after a change |
-| `useDownload(path)` | `GET path{id}/download/` (`client.download`) | `mutate(id)`: the file saved under its name (`saveFile`) |
-| `useDownloadUrl(path, id)` | `GET path{id}/download/` | the content as an object URL (revoked with the component), null while `id` is null |
+| `useInbox(path, {limit?, poll?})` (notify) | `GET path?page[limit]=50`, `GET path unread_count/`; `PATCH path{id}/` (`read_at`), `POST path read_all/`, `POST path clear/` | `{items, unread, status, error, retry, markRead(key?), markUnread(key), deleteAll}`: the stored notifications (`inboxNotification`), refetched after a change; `deleteAll` deletes them for good |
+| `useDownload(path)` | `GET path{id}/download/` (`client.download`) | `mutate(id)`: the file saved under its name (`saveFile`), resolves to the name |
+| `useDownloadUrl(path, id)` | `GET path{id}/download/`, once (`keys.download`, outside `['bazis']`: never invalidated, not on focus) | the content as an object URL (revoked with the component), null while `id` is null |
 | `useBgTask(path, id)` (bg) | `GET path{id}/` every `BG_POLL_INTERVAL` (2 s) until `done` | `BgTask` (`bgTask(document)`): `state`, `phase`, `outcome`, `progress`, `result`, `started`, `finished` |
 | `useAsyncRequest()` (async) | `method path` with `X-Async-Background` | `mutate({method, path, body})`: `{status: 'queued', taskId}` or `{status: 'done', response}` |
 | `useAsyncTask(resultPath, taskId)` (async) | `GET <result path>?full_response=true` every `ASYNC_POLL_INTERVAL` (2 s) until `completed` or `failed` | `{status, response, done, error}`; `replayedResponse(response)` |
@@ -257,7 +258,7 @@ item or a resource changed; on the common channel of the user sessions, only a h
 resource only), `{"action": "notification", "title", "text"?, "resource"?, "id"?}` (a
 notification without bazis-notify, which also says its item changed),
 `{"action": "notification_created" | "notifications_changed", …}` of bazis-notify (its
-stored notifications changed: `useLiveQueries` refetches the resource `notify.notification`,
+stored notifications changed: `useLiveQueries` refetches their resource, `notifications`,
 `useInbox`) and `{"action": "async_bg", "task_id", "status"}` of bazis-async-background. `useNotifications` keeps the notifications received
 in the session (`NOTIFICATIONS_KEPT`, 50), each with a `key` unique in the page; they are
 dropped when the session changes.

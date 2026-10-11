@@ -396,6 +396,21 @@
             "default": null,
             "title": "Available for creation"
           },
+          "custom_actions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Available custom actions"
+          },
           "status_aggs": {
             "anyOf": [
               {
@@ -1088,6 +1103,21 @@
             "default": null,
             "title": "Available actions"
           },
+          "custom_actions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Available custom actions"
+          },
           "state_actions": {
             "anyOf": [
               {
@@ -1611,6 +1641,21 @@
             "type": "tasks.task"
           }
         }
+      ]
+    }
+  },
+  "list_custom_actions": {
+    "meta": {
+      "custom_actions": [
+        "action_count",
+        "action_list_id"
+      ]
+    }
+  },
+  "list_custom_actions_anonymous": {
+    "meta": {
+      "custom_actions": [
+        "action_list_id"
       ]
     }
   },

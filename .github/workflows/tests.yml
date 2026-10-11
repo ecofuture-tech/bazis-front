@@ -361,7 +361,9 @@ jobs:
           npm install
           npx tsc --noEmit
           npm run lint
-          npm run build
+          npm run build -- --manifest
+          # Leaflet and the file field are chunks of their own, not in the main chunk
+          python "$GITHUB_WORKSPACE/scripts/check_chunks.py" dist
 
       # the backend serves the socket of bazis-ws (`/api/v1/ws`), which `vite preview` proxies: the
       # notifications of the scenarios come over it (Redis pub/sub)

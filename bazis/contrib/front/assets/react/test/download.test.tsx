@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { focusManager } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -63,11 +64,17 @@ describe('useDownload', () => {
   it('reads the file of an item from its download route and saves it under its name', async () => {
     const backend = new Backend().file(DOWNLOAD, 'report', 'attachment; filename="report.xlsx"');
     const { result } = render(() => useDownload(PARENT), backend);
+    let name: string | null = null;
     await act(async () => {
-      await result.current.mutateAsync('7');
+      name = await result.current.mutateAsync('7');
     });
     expect(backend.requests()).toEqual([`GET ${DOWNLOAD}`]);
     expect(clicked).toEqual([{ href: 'blob:6', download: 'report.xlsx', attached: true }]);
+    // the name of the file, not its content, is kept in the state of the mutation
+    expect(name).toBe('report.xlsx');
+    await waitFor(() => {
+      expect(result.current.data).toBe('report.xlsx');
+    });
   });
 
   it('gives the error of the backend and saves nothing', async () => {
@@ -98,10 +105,18 @@ describe('useDownloadUrl', () => {
     await waitFor(() => {
       expect(result.current).toBe('blob:3');
     });
-    // keyed under the item: a change of the resource reads it again
+    // read once: neither an invalidation of the hooks nor the focus of the window reads it again
     expect(queryClient.getQueryCache().getAll().map((query) => query.queryKey)).toContainEqual(
-      ['bazis', PARENT, 'item', '7', 'action', 'download', 's1'],
+      ['bazis-files', PARENT, '7', 's1'],
     );
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: ['bazis'] });
+      await queryClient.invalidateQueries({ queryKey: ['bazis', PARENT] });
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+      await queryClient.refetchQueries({ stale: true, type: 'active' });
+    });
+    expect(backend.requests()).toEqual([`GET ${DOWNLOAD}`]);
     rerender({ id: null });
     expect(result.current).toBeNull();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:3');

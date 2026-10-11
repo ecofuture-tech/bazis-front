@@ -16,15 +16,25 @@
 export type CrudAccessAction = 'view' | 'change' | 'add' | 'delete' | 'check';
 
 /**
+ * A custom action of a route set by its name, `action` of `x-bazis` in the OpenAPI (the
+ * method of the route set: `action_export`), as `custom_actions` lists it.
+ */
+export type CustomActionName = `action_${string}`;
+
+/**
  * The meta fields of a `PermitRouteBase` route, returned when requested with `meta`:
  * on a list `for_change`, `for_delete` (the ids of the page) and `for_create`; on an item
- * (retrieve, create, update) `crud_actions`.
+ * (retrieve, create, update) `crud_actions`; `custom_actions` (bazis-permit 2.11) the custom
+ * actions the user may call, those of the collection on a list, those of the item on an
+ * item, by what they declare (`public`, `access_action`): a check an action makes in its own
+ * code is not in it.
  */
 export interface PermitMeta {
   for_change?: readonly string[] | null;
   for_delete?: readonly string[] | null;
   for_create?: boolean | null;
   crud_actions?: readonly string[] | null;
+  custom_actions?: readonly string[] | null;
 }
 
 /**
@@ -34,7 +44,9 @@ export interface PermitMeta {
  * - `can(listMeta, 'change' | 'delete', id)`: the item of the page is in `for_change` or
  *   `for_delete`;
  * - `can(itemMeta, action)`: the action is in `crud_actions` of the item;
- * - `can(listMeta, 'add')`: `for_create` of the list.
+ * - `can(listMeta, 'add')`: `for_create` of the list;
+ * - `can(meta, 'action_<name>')`: the custom action is in `custom_actions` (of the list for
+ *   an action of the collection, of the item for an action of an item).
  *
  * False when the meta field was not requested.
  */
@@ -43,13 +55,14 @@ export function can(
   action: 'change' | 'delete',
   id: string,
 ): boolean;
-export function can(meta: PermitMeta | null | undefined, action: CrudAccessAction): boolean;
+export function can(meta: PermitMeta | null | undefined, action: CrudAccessAction | CustomActionName): boolean;
 export function can(
   meta: PermitMeta | null | undefined,
-  action: CrudAccessAction,
+  action: CrudAccessAction | CustomActionName,
   id?: string,
 ): boolean {
   if (!meta) return false;
+  if (action.startsWith('action_')) return meta.custom_actions?.includes(action) ?? false;
   if (id !== undefined) {
     const ids = action === 'change' ? meta.for_change : meta.for_delete;
     return ids?.includes(id) ?? false;

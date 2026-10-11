@@ -25,7 +25,7 @@ import { useNavigate, useParams } from 'react-router';
 import { Filter, pagination } from '@/bazis/client';
 import { ROUTES, TRANSITS } from '@/bazis/generated/contract';
 import { formatNumber, useLanguage } from '@/bazis/i18n';
-import { useAction, useList } from '@/bazis/react';
+import { useAction, useCan, useList } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceMap } from '@/bazis/ui/map';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
@@ -69,12 +69,15 @@ function StatusCount({ status, name }: { status: string; name: string }) {
 
 /**
  * The count of the tasks by their status in the background: the action `count` of the route
- * set queues a task of bazis-bg (the backend refuses a user without a login: its error), whose
- * progress and result `TaskProgress` shows. It changes no task: nothing to refetch.
+ * set queues a task of bazis-bg, whose progress and result `TaskProgress` shows. It is offered
+ * to the users the backend lets call it (`custom_actions` of bazis-permit: a user with a
+ * login); it changes no task: nothing to refetch.
  */
 function TaskCount() {
   const { t } = useLanguage();
+  const allowed = useCan(TASKS, 'action_count');
   const count = useAction(TASKS, 'count', { invalidate: false });
+  if (!allowed) return null;
   return (
     <div className="grid gap-2">
       <div>

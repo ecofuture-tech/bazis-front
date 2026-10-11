@@ -94,6 +94,8 @@ export const ru: Messages = {
   'map.locate_failed': 'Местоположение недоступно.',
   'map.pick': 'Щёлкните по карте, чтобы поставить точку.',
   'notifications.clear': 'Очистить',
+  'notifications.delete_all': 'Удалить все',
+  'notifications.delete_confirm': 'Удалить все уведомления безвозвратно?',
   'notifications.empty': 'Уведомлений нет',
   'notifications.new': 'Не прочитано',
   'notifications.read_all': 'Прочитать все',

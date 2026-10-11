@@ -313,13 +313,13 @@ def test_the_initial_status_is_that_of_the_model(monkeypatch):
 
     names = {'en': 'Waiting', 'ru': 'Waiting'}
     with override_settings(BAZIS_STATUS_INITIAL=['waiting', 'Waiting']):
-        monkeypatch.setattr(statusy, 'initial_statuses', lambda: {'tasks.Task': 'in_progress'})
+        monkeypatch.setattr(statusy, 'initial_status', lambda model: 'in_progress')
         task = statusy.section()['models']['tasks.task']
         assert task['initial'] == 'in_progress'
         # no phantom status: the global initial status is not one of the model
         assert [it['id'] for it in task['statuses']] == ['done', 'draft', 'in_progress']
 
-        monkeypatch.setattr(statusy, 'initial_statuses', dict)
+        monkeypatch.setattr(statusy, 'initial_status', lambda model: None)
         task = statusy.section()['models']['tasks.task']
         assert task['initial'] == 'waiting'
         assert {'id': 'waiting', 'name': names} in task['statuses']

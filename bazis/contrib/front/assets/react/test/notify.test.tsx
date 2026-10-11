@@ -90,7 +90,7 @@ describe('useInbox', () => {
     ]);
   });
 
-  it('marks one read and unread with read_at, all read, clears, and reads them again', async () => {
+  it('marks one read and unread with read_at, all read, deletes all, and reads them again', async () => {
     const server = backend();
     const { result } = await loaded(server);
     act(() => {
@@ -122,7 +122,7 @@ describe('useInbox', () => {
       ],
       [
         () => {
-          result.current.clear();
+          result.current.deleteAll();
         },
         { method: 'POST', url: expect.stringContaining('/clear/') as unknown },
       ],
