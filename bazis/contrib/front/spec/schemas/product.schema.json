@@ -268,6 +268,18 @@
       "propertyNames": {"$ref": "#/$defs/field_id"},
       "additionalProperties": {"$ref": "#/$defs/scalar"}
     },
+    "form_values": {
+      "description": "The values of the fields of a form: a scalar, or the labels of the related items of a to-many relationship (`many: true`), which replace those it has (`[]`: none).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/field_id"},
+      "additionalProperties": {
+        "anyOf": [
+          {"$ref": "#/$defs/scalar"},
+          {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+        ]
+      }
+    },
     "texts": {
       "type": "object",
       "minProperties": 1,
@@ -290,7 +302,7 @@
           "properties": {"where": {"$ref": "#/$defs/values"}}
         },
         "action": {"description": "Run an action of the current screen.", "$ref": "#/$defs/id"},
-        "fill": {"description": "Fill fields of the open form.", "$ref": "#/$defs/values"},
+        "fill": {"description": "Fill fields of the open form.", "$ref": "#/$defs/form_values"},
         "submit": {"description": "Submit the open form.", "type": "object", "maxProperties": 0},
         "transit": {
           "description": "Run a transit on the current card, with its payload.",

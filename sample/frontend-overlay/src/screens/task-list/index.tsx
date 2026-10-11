@@ -164,7 +164,7 @@ export function TaskListScreen() {
       >
         <ResourceForm
           path={TASKS}
-          fields={['title', 'assignee', 'priority']}
+          fields={['title', 'assignee', 'priority', 'watchers']}
           onSaved={(saved) => {
             setCreating(false);
             void navigate(`/tasks/${saved.data.id}`);

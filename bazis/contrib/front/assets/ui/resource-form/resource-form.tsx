@@ -36,7 +36,8 @@ export type ResourceFormProps = (
 ) & {
   /**
    * The fields, in this order (those the runtime schema does not have are left out); by
-   * default every field of the schema but the to-many relationships and the `fixed` ones.
+   * default every field of the schema but the `fixed` ones. A to-many relationship is chosen
+   * with `RelationListPicker` and sent with the other fields.
    */
   fields?: readonly string[];
   /**
@@ -130,7 +131,7 @@ export function ResourceFormBody({
   const names = fields ?? form.fields.map((it) => it.name).filter((name) => !isFixed(name));
   const shown = names.flatMap((name) => {
     const field = byName.get(name);
-    if (!field || (field.kind === 'relation' && field.many)) return [];
+    if (!field) return [];
     // the user sees a fixed value, never changes it
     return [isFixed(name) ? { ...field, readOnly: true } : field];
   });

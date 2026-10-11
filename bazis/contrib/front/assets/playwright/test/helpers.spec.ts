@@ -113,6 +113,25 @@ test('openItem finds a row by a cell of a hidden column', async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-opened', '2');
 });
 
+test('openItem waits for the labels of the related items of the rows', async ({ page }) => {
+  // `RelationLabel` reads the label after the rows are shown: a skeleton marked
+  // `state:loading` until then, in a list without a search
+  const list = `<div data-bz="list:task"><div data-bz="state:loaded"><table><tbody>
+    <tr data-bz="row:1" onclick="document.body.dataset.opened = '1'"><td data-bz="cell:title">A</td>
+      <td data-bz="cell:assignee"><span id="label" data-bz="state:loading"></span></td></tr>
+  </tbody></table></div></div>`;
+  await serve(page, {
+    '/tasks': html(
+      `<section data-bz="screen:task-list">${list}</section>`,
+      `setTimeout(() => { document.getElementById('label').outerHTML = 'Mary Manager'; }, 800);`,
+    ),
+  });
+  const app = new App(page, PRODUCT);
+  await app.open('task-list');
+  await app.openItem({ where: { title: 'A', assignee: 'Mary Manager' } });
+  await expect(page.locator('body')).toHaveAttribute('data-opened', '1');
+});
+
 /**
  * The list of the tasks as `ResourceList` renders it, over items `[title, assignee]`: pages of
  * two rows (`action:next-page`), a search of the titles (`field:$search`) applied after the
@@ -228,6 +247,13 @@ test('fill fills the open form only, waiting for the options of a select', async
   await app.fill({ assignee: null, urgent: false });
   await expect(dialog.locator(bz('field', 'assignee'))).toHaveValue('');
   await expect(dialog.locator(bz('field', 'urgent'))).not.toBeChecked();
+});
+
+test('fill refuses a list for a field that is not the picker of a relationship', async ({ page }) => {
+  await show(page, '/tasks', formPage(''));
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-list');
+  await expect(app.fill({ title: ['A'] })).rejects.toThrow('The field title is not the picker of a to-many relationship.');
 });
 
 test.describe('fill of a date-time', () => {

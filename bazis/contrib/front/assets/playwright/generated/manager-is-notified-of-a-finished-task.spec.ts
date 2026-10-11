@@ -15,8 +15,8 @@ test('manager-is-notified-of-a-finished-task', async ({ page }) => {
   await test.step('action: create', async () => {
     await app.action('create');
   });
-  await test.step('fill: {title: Notify the assignee, assignee: manager}', async () => {
-    await app.fill({ title: 'Notify the assignee', assignee: 'manager' });
+  await test.step('fill: {title: Notify the assignee, assignee: Mary Manager}', async () => {
+    await app.fill({ title: 'Notify the assignee', assignee: 'Mary Manager' });
   });
   await test.step('submit', async () => {
     await app.submit({ saved: true });

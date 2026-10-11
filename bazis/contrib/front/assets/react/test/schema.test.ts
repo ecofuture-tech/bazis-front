@@ -62,6 +62,11 @@ describe('resourceSchema', () => {
           kind: 'relation', name: 'attachment', title: 'Attachment', required: false, readOnly: false,
           nullable: true, relation: 'uploadable.file_upload', many: false,
         },
+        // a many-to-many field: the ids of its related items, optional with `blank=True`
+        {
+          kind: 'relation', name: 'watchers', title: 'Watchers', required: false, readOnly: false,
+          nullable: false, relation: 'users.user', many: true,
+        },
       ],
     });
   });
@@ -76,6 +81,7 @@ describe('resourceSchema', () => {
       ['location', 'attribute', false],
       ['assignee', 'relation', false],
       ['attachment', 'relation', false],
+      ['watchers', 'relation', false],
     ]);
   });
 
@@ -135,6 +141,7 @@ describe('resourceSchema', () => {
         ['status_author', 'status author', false],
         ['assignee', 'assignee', false],
         ['attachment', 'Attachment', false],
+        ['watchers', 'Watchers', false],
       ]);
       expect(fields[0]).toMatchObject({ type: 'string', format: 'date-time' });
       expect(fields[9]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });

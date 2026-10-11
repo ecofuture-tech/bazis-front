@@ -110,14 +110,35 @@ export function hasSearch(type: string): boolean {
   return (resource?.search?.length ?? 0) > 0;
 }
 
-/** The attributes that name an item, in this order. */
-const LABELS = ['name', 'title', 'username', 'email', 'slug', 'code'];
+/**
+ * The attributes that name an item, in this order: a display name first (`full_name`, or the
+ * first and the last name together, as `get_full_name()` of the users of Django and
+ * bazis-users), then the identifiers (`username`, `email`).
+ */
+const LABELS: readonly (readonly string[])[] = [
+  ['name'],
+  ['full_name'],
+  ['first_name', 'last_name'],
+  ['title'],
+  ['username'],
+  ['email'],
+  ['slug'],
+  ['code'],
+];
 
-/** The label of an item: its first non-empty attribute of `LABELS`, or its id. */
+/**
+ * The label of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first
+ * and the last name, `title`, `username`, `email`, `slug`, `code`), or its id.
+ */
 export function itemLabel(resource: ResourceObject): string {
-  for (const name of LABELS) {
-    const value = resource.attributes?.[name];
-    if (typeof value === 'string' && value) return value;
+  for (const names of LABELS) {
+    const label = names
+      .map((name) => resource.attributes?.[name])
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join(' ');
+    if (label) return label;
   }
   return resource.id;
 }

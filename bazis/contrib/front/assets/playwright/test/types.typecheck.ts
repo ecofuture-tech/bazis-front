@@ -30,5 +30,9 @@ void app.open('task-lst');
 void loginAs(page, PRODUCT, 'viewer');
 // @ts-expect-error: not a role of the specs
 void loginAs(page, PRODUCT, 'admin');
-// @ts-expect-error: the values of fields are scalars
-void app.fill({ title: ['Write the report'] });
+// a to-many relationship is filled with the labels of its items
+void app.fill({ watchers: ['Mary Manager'] });
+// @ts-expect-error: the labels are texts
+void app.fill({ watchers: [1] });
+// @ts-expect-error: the values of the fields that an item is found by are scalars
+void app.openItem({ where: { title: ['Write the report'] } });

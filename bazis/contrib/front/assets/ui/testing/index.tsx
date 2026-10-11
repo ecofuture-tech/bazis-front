@@ -210,10 +210,10 @@ export function listDocument(
   };
 }
 
-/** A field of a runtime schema: an attribute (its JSON Schema) or a to-one relationship. */
+/** A field of a runtime schema: an attribute (its JSON Schema) or a relationship (to-many with `many`). */
 export type SchemaField =
   | { attribute: Readonly<Record<string, unknown>>; required?: boolean }
-  | { relation: string; title?: string; required?: boolean; nullable?: boolean };
+  | { relation: string; title?: string; required?: boolean; nullable?: boolean; many?: boolean };
 
 /**
  * A runtime schema of Bazis for the resource `type` with these fields: of a create or an
@@ -232,10 +232,11 @@ export function runtimeSchema(
       if (field.required) required.attributes.push(name);
     } else {
       const identifier = { properties: { id: { type: 'string' }, type: { type: 'string', default: field.relation } } };
+      const many = field.many ?? false;
       relationships[name] = {
         title: field.title ?? name,
-        nullable: field.nullable ?? true,
-        properties: { data: { anyOf: [identifier, { type: 'null' }] } },
+        nullable: field.nullable ?? !many,
+        properties: { data: many ? { type: 'array', items: identifier } : { anyOf: [identifier, { type: 'null' }] } },
       };
       if (field.required) required.relationships.push(name);
     }

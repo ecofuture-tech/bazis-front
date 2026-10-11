@@ -37,9 +37,9 @@ export interface ResourceForm<Saved> {
   /** The fields of the runtime schema in its order; the user may not change `readOnly` ones. */
   fields: readonly FormField[];
   /**
-   * The value of every field but the to-many relationships: the value of an attribute, the
-   * id of the related item of a to-one relationship (null for none). `undefined` is no
-   * value: on a create, a field without a default.
+   * The value of every field: the value of an attribute, the id of the related item of a
+   * to-one relationship (null for none), the ids of the related items of a to-many one (an
+   * array). `undefined` is no value: on a create, a field without a default.
    */
   values: Readonly<Record<string, unknown>>;
   setValue(name: string, value: unknown): void;
@@ -62,7 +62,7 @@ export interface ResourceForm<Saved> {
 interface Item {
   data?: {
     attributes?: Record<string, unknown>;
-    relationships?: Record<string, { data?: { id: string } | readonly unknown[] | null }>;
+    relationships?: Record<string, { data?: { id: string } | readonly { id: string }[] | null }>;
   };
 }
 
@@ -77,24 +77,27 @@ function same(a: unknown, b: unknown): boolean {
 function initialValues(fields: readonly FormField[], item: Item | undefined): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const field of fields) {
-    if (field.kind === 'relation' && field.many) continue;
     if (item === undefined) {
       if (field.kind === 'attribute' && 'default' in field.schema) {
         values[field.name] = field.schema.default;
       } else if (field.kind === 'relation') {
-        values[field.name] = null;
+        values[field.name] = field.many ? [] : null;
       }
     } else if (field.kind === 'attribute') {
       values[field.name] = item.data?.attributes?.[field.name];
     } else {
       const data = item.data?.relationships?.[field.name]?.data;
-      values[field.name] = data && !Array.isArray(data) ? (data as { id: string }).id : null;
+      if (field.many) values[field.name] = Array.isArray(data) ? (data as readonly { id: string }[]).map((it) => it.id) : [];
+      else values[field.name] = data && !Array.isArray(data) ? (data as { id: string }).id : null;
     }
   }
   return values;
 }
 
-/** The JSON:API document of the changed fields: attributes and to-one relationships. */
+/**
+ * The JSON:API document of the changed fields: the attributes and the relationships (a
+ * to-many one with every related item: the backend sets it to these).
+ */
 export function formDocument(
   type: string,
   id: string | undefined,
@@ -109,7 +112,10 @@ export function formDocument(
     const value = values[field.name];
     if (field.kind === 'attribute') {
       attributes[field.name] = value;
-    } else if (!field.many) {
+    } else if (field.many) {
+      const ids = Array.isArray(value) ? (value as unknown[]) : [];
+      relationships[field.name] = { data: ids.map((id) => ({ type: field.relation, id })) };
+    } else {
       relationships[field.name] = {
         data: value === null || value === undefined ? null : { type: field.relation, id: value },
       };
@@ -130,9 +136,9 @@ const NO_FIXED: FixedValues = {};
 /**
  * A form of a resource bound to its runtime schema: `schema_create/` without an id,
  * `schema_update/` of the item with one, so that the fields are those the current user may
- * set. Submit sends the changed attributes and to-one relationships as one JSON:API
- * document; a 422 gives the `errors` by field. To-many relationships are in `fields`
- * (`many: true`) but not in `values`: change them with `useRelationship`. `fixed` values
+ * set. Submit sends the changed attributes and relationships as one JSON:API document (a
+ * to-many relationship, `many: true`, with all its related items: its value is their ids);
+ * a 422 gives the `errors` by field. `fixed` values
  * are those of their fields whatever `setValue` sets, and are sent like a change when they
  * differ from the initial values (the backend still decides: a read-only field is never
  * sent).

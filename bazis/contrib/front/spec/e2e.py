@@ -75,10 +75,13 @@ def string(value: str) -> str:
 def literal(value) -> str:
     """
     The TypeScript literal of a scalar of the specs, or of an object of them (the values of
-    the fields, whose names are identifiers), on one line.
+    the fields, whose names are identifiers) or a list of them (the labels of the items of a
+    to-many relationship), on one line.
     """
     if isinstance(value, dict):
         return '{ ' + ', '.join(f'{key}: {literal(item)}' for key, item in value.items()) + ' }'
+    if isinstance(value, list):
+        return '[' + ', '.join(literal(item) for item in value) + ']'
     if isinstance(value, str):
         return string(value)
     return json.dumps(value)
@@ -90,6 +93,8 @@ def flow(value) -> str:
     """
     if isinstance(value, dict):
         return '{' + ', '.join(f'{key}: {flow(item)}' for key, item in value.items()) + '}'
+    if isinstance(value, list):
+        return '[' + ', '.join(flow(item) for item in value) + ']'
     if isinstance(value, str):
         return value or "''"
     return json.dumps(value)

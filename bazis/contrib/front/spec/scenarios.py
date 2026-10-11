@@ -312,13 +312,36 @@ class _Scenario:
     def step_fill(self, path, values):
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
-            for name in values:
+            for name, value in values.items():
                 self.fixed((*path, name), name)
                 if self.file(name):
                     self.add(
                         (*path, name), 'P022', f'The field `{name}` is a file: it is not filled.',
                         f'Upload its file: `upload: {{field: {name}, file: <a file of e2e/fixtures/>}}`.',
                     )
+                else:
+                    self.fill_value((*path, name), name, value)
+
+    def fill_value(self, path, name, value) -> None:
+        """
+        Reports a value of the wrong shape: a to-many relationship (`many: true`) is filled
+        with the list of the labels of its items, every other field with one value.
+        """
+        entity = self.entity
+        field = entity.fields.get(name) if entity is not None else None
+        if field is None:
+            return
+        many = field.get('many', False)
+        if many and not isinstance(value, list):
+            self.add(
+                path, 'P022', f'The field `{name}` is a to-many relationship: it is filled with a list.',
+                f'Fill it with the labels of its items: `{name}: [<label>, ...]` (`[]` for none).',
+            )
+        elif not many and isinstance(value, list):
+            self.add(
+                path, 'P022', f'The field `{name}` takes one value, not a list.',
+                'A list fills a to-many relationship (`many: true`) only: fill one value.',
+            )
 
     def step_upload(self, path, value):
         if self.editing(path):

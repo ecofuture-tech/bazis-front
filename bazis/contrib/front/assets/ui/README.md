@@ -82,7 +82,8 @@ only one: the forms and the payloads of the transits use it; the choices of a fi
 select of their labels), `FieldValue` (with
 `formatValue(field, value, {language, t}?)`: the value in the language of the interface, a
 choice by its label; `choiceOptions(field)`: the choices as options of a filter),
-`RelationPicker({relation, value, onChange, label?, placeholder?, nullable?, disabled?, path?, searchable?})` and
+`RelationPicker({relation, value, onChange, label?, placeholder?, nullable?, disabled?, path?, searchable?})`,
+`RelationListPicker({relation, value, onChange, ...})` (the ids of the items of a to-many relationship) and
 `RelationLabel({relation, id, path?})` (the related resource by its route in `ROUTES`, or
 `path`; `hasSearch(type)`: whether the contract gives the resource search fields),
 `useListFields`/`useItemFields` (the titles and types of the list, retrieve and
@@ -152,9 +153,12 @@ the WebSocket of the page in a test.
   with one list of the related resource filtered by their primary keys
   (`filter=pk=<a>|pk=<b>|…`, at most 50 ids a request), cached by item and shared with every
   other place that shows it; an item the user may not view (the list leaves it out) shows
-  its id. Bazis ignores `include` on a list, and the core has no `pk__in` lookup. The label
-  of an item (here and in `RelationPicker`) is `itemLabel`: its first non-empty attribute of
-  `name`, `title`, `username`, `email`, `slug`, `code`, else its id.
+  its id; a label being read is a skeleton marked `state:loading`, which the helpers of the
+  end-to-end tests wait for. Bazis ignores `include` on a list, and the core has no `pk__in`
+  lookup. The label of an item (here and in the pickers) is `itemLabel`: its display name,
+  else an identifier, the first non-empty of `name`, `full_name`, the first and the last
+  name together (`first_name`, `last_name`: as `get_full_name()` of a user), `title`,
+  `username`, `email`, `slug`, `code`, else its id.
 - **`RelationPicker`** (the input of a to-one relationship in a form and in the payload of a
   transit, and of the filter of a relationship) is a combobox: a button
   (`role="combobox"`, the marks of the field) with the label of the item opens a popover
@@ -178,12 +182,18 @@ the WebSocket of the page in a test.
   the search (loading, nothing found, an error) is announced (`role="status"`). The popover
   is modal, so that it scrolls and keeps the focus inside a dialog. A related resource
   without a route is an input of the id.
+- **`RelationListPicker`** (the input of a to-many relationship in a form) is the same
+  combobox over the same list, `aria-multiselectable`: its button shows the labels of the
+  items, a click or Enter adds or removes an item and the popover stays open (Escape and
+  Tab close it), the option with the placeholder (`data-value=""`) removes every item, which
+  the helpers of the end-to-end tests choose first when they fill it with a list. Without a
+  route for the related resource it is an input of the ids separated by commas.
 - **`resource-form`** is `useResourceForm`: the fields of `schema_create/` or
   `schema_update/` of the current user, read-only ones disabled and never sent; `fixed`
   values (the parent of an added item) are sent and never changed by the user, their fields
   left out or, named in `fields`, read-only; a to-one
-  relationship is a `RelationPicker` (a file field the control of `FilesProvider`); to-many
-  relationships are left out (`useRelationship`). A 422 is `state:invalid`: the errors of
+  relationship is a `RelationPicker` (a file field the control of `FilesProvider`), a
+  to-many one a `RelationListPicker`, sent with all its items. A 422 is `state:invalid`: the errors of
   the fields at their fields (`error:<name>`), the others in the state (`ApiError.formErrors()`:
   an error of the item as a whole, `/data`, such as an invariant of `validate_item`,
   `ERR_ITEM_INVALID`; of an included item, `form.included_error`; of a field the form does

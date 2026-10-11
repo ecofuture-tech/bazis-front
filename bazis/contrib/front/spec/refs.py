@@ -905,8 +905,8 @@ def _check_search_contract(doc: Document, entity: Entity, contract: dict, issues
     The search of a screen against the search fields of the contract (bazis 2.9: a route
     set without search fields answers a `search` with 400): the search of a list (S013),
     and the pickers of the related items (S012), which list the items of a resource without
-    search fields without a search. In a form, a file is edited by the file field and a
-    to-many relationship is not edited: no picker.
+    search fields without a search. In a form, a file is edited by the file field: no
+    picker.
     """
     resource = contract['project']['resources'].get(entity.data['resource'])
     if resource is None:
@@ -927,8 +927,8 @@ def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues:
     """
     The pickers of the related items of the fields `(path, name)` of a resource of the
     contract, in a filter of a list (a path in `list`) or in a form (where a file is edited by
-    the file field and a to-many relationship is not edited): S012 when the related resource
-    has no search fields.
+    the file field; a to-many relationship has the picker of its items): S012 when the
+    related resource has no search fields.
     """
     resources = contract['project']['resources']
     for path, name in items:
@@ -936,7 +936,7 @@ def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues:
         relation = schema.get('relation')
         target = resources.get(relation) if isinstance(relation, str) else None
         in_form = path[0] != 'list'
-        if target is None or (in_form and (schema['many'] or is_file(schema, contract))):
+        if target is None or (in_form and is_file(schema, contract)):
             continue
         if not target['search']:
             issues.add(

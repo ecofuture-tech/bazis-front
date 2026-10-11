@@ -25,6 +25,7 @@ entities:
       - {id: attachment, type: file}     # bazis-uploadable: a file uploaded with the task
       - {id: priority, type: string}     # choices: shown, filled and filtered by their labels
       - {id: location, type: point}      # a PointField: on the map of the list, its coordinates on the card
+      - {id: watchers, relation: user, many: true}   # a to-many relationship: chosen in the forms
     workflow:
       initial: draft
       statuses: [draft, in_progress, done]
@@ -75,17 +76,18 @@ scenarios:
       # a field permission of the viewer (tasks/roles.py): the report is hidden; he adds no step
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
       - expect: {action_absent: add-step}
-  # the picker of the assignee searches the user by the label; the list shows the label
+  # the picker of the assignee searches the user by the label (his first and last name,
+  # given by `manage.py e2e_data`); the list shows the label
   - id: manager-assigns-a-task
     role: manager
     steps:
       - open: task-list
       - action: create
-      - fill: {title: Assign the review, assignee: manager}
+      - fill: {title: Assign the review, assignee: Mary Manager}
       - submit: {}
       - expect: {screen: task-card, status: draft}
       - open: task-list
-      - open_item: {where: {title: Assign the review, assignee: manager}}
+      - open_item: {where: {title: Assign the review, assignee: Mary Manager}}
       - expect: {screen: task-card}
   # a field permission of the manager: the report is written by the transit `finish`, never
   # in the edit of the task
@@ -136,7 +138,7 @@ scenarios:
     steps:
       - open: task-list
       - action: create
-      - fill: {title: Notify the assignee, assignee: manager}
+      - fill: {title: Notify the assignee, assignee: Mary Manager}
       - submit: {}
       - expect: {screen: task-card, status: draft}
       - transit: start
@@ -189,3 +191,20 @@ scenarios:
       - fill: {location: '55.7558, 37.6173'}
       - submit: {}
       - expect: {values: {title: Inspect the site, location: '55.7558, 37.6173'}}
+  # a to-many relationship: its picker sets the items to those of the list ([] for none);
+  # the list of the drafts (no search) is found by the label of a related item, read after
+  # its rows
+  - id: manager-adds-a-watcher
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Watch the release, assignee: Mary Manager, watchers: [Mary Manager]}
+      - submit: {}
+      - expect: {screen: task-card, status: draft, values: {watchers: Mary Manager}}
+      - open: draft-tasks
+      - open_item: {where: {title: Watch the release, assignee: Mary Manager}}
+      - expect: {screen: task-card}
+      - fill: {watchers: []}
+      - submit: {}
+      - expect: {values: {title: Watch the release, watchers: '—'}}

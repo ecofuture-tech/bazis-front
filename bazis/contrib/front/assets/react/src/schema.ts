@@ -59,7 +59,7 @@ export interface RelationField extends FieldBase {
   kind: 'relation';
   /** The JSON:API type of the related resource. */
   relation: string;
-  /** A to-many relationship: it is changed through `useRelationship`, not by the form. */
+  /** A to-many relationship: its value in a form is the ids of the related items. */
   many: boolean;
 }
 

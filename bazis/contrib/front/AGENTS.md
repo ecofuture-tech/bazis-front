@@ -115,8 +115,8 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | The contract | you export the contract or read `contract.json` and `contract.ts` (`ROUTES`, `CAPABILITIES`, the sections of the capabilities) |
 | The components | you choose the components and copy them (`add`): what each one is, its `data-bz`, what it requires |
 | Writing the screens | you write a screen from its spec: the component of each part of a spec, the routes, the navigation, the card next to the list |
-| Composing beyond the specs | a screen needs more than the specs say: a section of your own, a to-many relationship, a form of your own, numbers and dates in a text |
-| Choices, filters, permissions and relationships | the choices and their labels, the related items ("add here"), the filters of a list, the navigation, the field permissions, the pickers and the labels of related items |
+| Composing beyond the specs | a screen needs more than the specs say: a section of your own, a form of your own (and the marks that the tests need), numbers and dates in a text |
+| Choices, filters, permissions and relationships | the choices and their labels, the related items ("add here"), the filters of a list, the navigation, the field permissions, the pickers and the labels of related items, the to-many fields in a form |
 | Files, points and maps | the files of bazis-uploadable, the points and the maps, what is near |
 | Custom actions and background work | an action of the backend that is no CRUD (an export, a report), its permission, a task of bazis-bg, a background request |
 | The socket | bazis-ws: the live updates, the notifications and the bell, the protocol of the socket |
@@ -408,7 +408,9 @@ key: `open: <screen>`, `open_item: {where: {field: value}}` (a row of the curren
 which opens the screen of its `list.open`), `action: <action of the screen>`,
 `fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
 `edit: true`; a `file` field is uploaded, a file of `e2e/fixtures/` of the frontend,
-never filled: P022), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
+never filled: P022; a to-many relationship, `many: true`, is filled with the list of the
+labels of its items, `fill: {interviewers: [Ann Lee, Bob Stone]}`, which replace those it
+had, `[]` for none: P022 for one value), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
 `transitions: true`), `expect` with `screen`, `status`, `state`, `action_absent`,
 `field_readonly`, `field_absent` (a field the screen shows that the user may not see:
 not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
@@ -995,7 +997,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `state-panel` | `StatePanel` (the state of a screen or of a part of it, `inline`, with a `skeleton` while it loads), `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker`, `RelationLabel`, `useListFields`, `useItemFields`; the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
+| `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `compactColumns`: next to a card), `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
 | `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
@@ -1016,7 +1018,7 @@ runtime schemas; an action with a `permission` (`add` on a list, `change` or `de
 row or an item) is shown when the permission meta of bazis-permit allows it, and always
 when the backend does not report the meta. The shared parts are the asset `resource`
 (`FieldInput`, the only input of a field: the forms and the payloads of the transits use
-it; `FieldValue`, `RelationLabel`, `RelationPicker`, `FileValue`, `FilesProvider`,
+it; `FieldValue`, `RelationLabel`, `RelationPicker`, `RelationListPicker`, `FileValue`, `FilesProvider`,
 `permitted`) and `testing` (the support of the contract tests). The `API:` sections list
 the exports of each component with their props.
 
@@ -1215,13 +1217,17 @@ The props of every component are in the `API:` sections (the `Props` types of
   `ResourceList` gives `cells`, `rowTone` and `onOpen` are plain resource objects: read a
   field there with `fieldValue(row, '<field>')` of `@/bazis/ui/resource` (an attribute, or
   the id of a to-one relationship), never with a cast;
-- a to-many relationship (the participants of a booking): the card shows it read-only; a
-  section of your own changes it with `useRelationship(path).mutate({id, field, operation:
-  'add' | 'remove' | 'replace', data: [{type, id}]})`, the item chosen with
-  `RelationPicker({relation, value: null, onChange})` of `@/bazis/ui/resource`; its errors
-  are all in `formErrors()`;
-- the label of a related item (`RelationPicker`, `RelationLabel`) is its first non-empty
-  attribute of `name`, `title`, `username`, `email`, `slug`, `code`, else its id; as a text
+- a to-many relationship (the interviewers of an interview, the participants of a
+  booking) is a field of the forms like any other: `ResourceForm` edits it with
+  `RelationListPicker` and sends it with the item (see "To-many fields" in
+  [Choices, filters, permissions and relationships](#choices-filters-permissions-and-relationships)),
+  never write a form of your own for it. A button that adds or removes one item without a
+  form (on a card) calls `useRelationship(path).mutate({id, field, operation: 'add' |
+  'remove' | 'replace', data: [{type, id}]})`, the item chosen with `RelationPicker({relation,
+  value: null, onChange})` of `@/bazis/ui/resource`; its errors are all in `formErrors()`
+  (`FormError`: `message`, and `included`, `field` of an included item, null otherwise);
+- the label of a related item (`RelationPicker`, `RelationListPicker`, `RelationLabel`) is
+  its display name, else an identifier (see "The label of an item" below); as a text
   (`t('booking.of', {name})`: `{name}` is the parameter `name`), `itemLabel` of
   `@/bazis/ui/resource` of `useRelatedItem(ROUTES[type], id).data`;
 - a status: `StatusBadge` in `cells` of a list and in `badge` of a card, the options of its
@@ -1229,8 +1235,12 @@ The props of every component are in the `API:` sections (the `Props` types of
 - a form of your own (a step of the form of a wizard): `useResourceForm(path, {id?, fixed?})`
   with a `FieldInput` of `@/bazis/ui/resource` per field (`field`, `value`, `onChange`,
   `errors`: the control by the type, the choices by their labels, the picker of a
-  relationship), as `ResourceForm` does; a value the screen sets is `fixed`, never set by
-  an effect;
+  relationship, of the items of a to-many one), as `ResourceForm` does; a value the screen
+  sets is `fixed`, never set by an effect. The steps of the scenarios drive it through its
+  marks: a `<form>` with a submit button `action:submit`, the controls of `FieldInput`
+  (`field:<name>`) and their errors (`error:<name>`), the other errors of `submitError` in
+  `StatePanel` (`state:invalid`); see "A form of your own" in
+  [The end-to-end tests](#the-end-to-end-tests);
 - numbers and dates in a text of your own: `formatNumber(value, language, options?)`
   (`{style: 'currency', currency: 'RUB'}`), `formatDecimal` (a `DecimalField`, a string of
   the API: a sum, a price), `formatDate`, `formatDateTime` of `@/bazis/i18n`;
@@ -1361,16 +1371,44 @@ items without a search box, and `check` warns of such a picker (S012). **Give th
 sets that the pickers list `search_fields`** (fields of their LIST schema, such as
 `username`); `RelationLabel` shows a related item, the
 items of a resource shown together (the rows of a page) read with one request
-(`useRelatedItem`, `filter=pk=<a>|pk=<b>|…`). Both need the route of the related resource
-in `ROUTES`; the user sees the items its list returns to them. **The label of an item** in
-both is its first non-empty attribute of `name`, `title`, `username`, `email`, `slug`,
-`code` (`itemLabel` of `@/bazis/ui/resource`), else its id (the start of a long one): show
-such an attribute in the LIST schema of the related route set. The label as a text (a
-parameter of a message, `t('booking.of', {name})`) is `itemLabel` of the item of
-`useRelatedItem(ROUTES[type], id)`. An item that the user may not view (the list leaves it
-out: an agent for a client) is null there, and both show its id (the start of a long
-one); never request it otherwise. To-many relationships are shown, not edited, by the
-components: change them with `useRelationship` (see
+(`useRelatedItem`, `filter=pk=<a>|pk=<b>|…`; a skeleton marked `state:loading` until then,
+which the helpers of the end-to-end tests wait for). Both need the route of the related
+resource in `ROUTES`; the user sees the items its list returns to them. An item that the
+user may not view (the list leaves it out: an agent for a client) is null there, and both
+show its id (the start of a long one); never request it otherwise.
+
+### The label of an item
+
+**The label of an item** in the pickers and in `RelationLabel` is its display name, else an
+identifier: the first non-empty of `name`, `full_name`, the first and the last name
+together (`first_name` and `last_name`, as `get_full_name()` of the users of Django and
+bazis-users: a user with names is `Ann Lee`, one without them his username), `title`,
+`username`, `email`, `slug`, `code` (`itemLabel` of `@/bazis/ui/resource`), else its id
+(the start of a long one). Show these attributes in the LIST schema of the related route
+set (the user route set of bazis-users shows the names), and give it `search_fields` that
+cover them (`['username', 'first_name', 'last_name']`: every word of a search is in one of
+the fields): the pickers and the scenarios find an item by its label. A name that the
+model computes is the field `full_name` of its route set (`@calc_property`, "Calculated
+fields" of the guide of the core), never a label made in the frontend. The label as a text (a parameter of a message, `t('booking.of', {name})`) is
+`itemLabel` of the item of `useRelatedItem(ROUTES[type], id)`.
+
+### To-many fields
+
+**To-many fields** (a many-to-many field of the model, also through a model of its own:
+the interviewers of an interview, the moderators of a venue; `many: true` in the contract
+and in the entity of the spec) are fields of the forms like the others: `ResourceForm` and
+`FieldInput` edit them with `RelationListPicker` of `@/bazis/ui/resource`, the list of
+`RelationPicker` (its search, its pages) in which a click or Enter adds or removes an item
+and that stays open (Escape closes it; the option with the placeholder, `data-value=""`,
+removes every item), the labels of the items on its button. The form sends the
+relationship with all its items, `{data: [{type, id}, …]}` (none: `[]`), with the other
+fields in the create or the update, and the backend sets it to these in the same
+transaction (`validate_item` sees them; optional with `blank=True` on the model, required
+otherwise; read-only when the user may not change it). Name the field in the `fields` of
+the form of the spec, and fill it in the scenarios with the labels of its items:
+`fill: {interviewers: [Ann Lee, Bob Stone]}` replaces those it had, `[]` removes them all.
+A form of your own takes the ids of the items as the value of the field
+(`useResourceForm`). `useRelationship` changes one item outside a form (see
 [Composing beyond the specs](#composing-beyond-the-specs)).
 
 ## Files, points and maps
@@ -1840,7 +1878,7 @@ which switches the language of the interface: not a step of the scenarios). `../
 exports `loginAs(page, PRODUCT, role)` (the `App` of the user), the class `App` (its
 methods below, and `page`, `screen()`, the current screen, `form()`, the open form),
 `bz(kind, id)` (the selector of a mark), `routePattern(route)` and the types `Product`,
-`Role`, `ScreenId`, `Values`, `State`.
+`Role`, `ScreenId`, `Values`, `FormValues`, `State`.
 
 ### The steps and their helpers
 
@@ -1853,9 +1891,9 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   |---|---|
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
-  | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
+  | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, a checkbox by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
+  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
@@ -1865,6 +1903,19 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   the same code (`spec/scenarios.py`). `expectFieldReadonly` passes when the open form has
   the field read-only or disabled (or not at all), and on a card when it has no edit or its
   edit has the field read-only (it opens the edit and cancels it).
+
+#### A form of your own
+
+**A form of your own** is driven by the steps through the marks that `ResourceForm`
+renders: the helpers take as the open form the `<form>` that has the submit button
+`action:submit` (`app.form()`), its controls by `field:<name>` (an input, a select, a
+checkbox, a picker: `role="combobox"` with its popup in `aria-controls`), the errors of a
+submit by `error:<name>` and the states of a failure (`state:invalid`, `state:error`,
+`state:forbidden`, `state:not_found`); a submit that saves closes the form or leads to
+another screen. Render each field with `FieldInput` (it gives the marks of the control and
+of its errors, and the pickers) in such a `<form>`, show `submitError` with `StatePanel`,
+and the scenarios fill and submit it as any form. The signatures of the helpers are in
+"API: the helpers of the end-to-end tests"; never read the copies in `frontend/e2e/bazis/`.
 
 #### The test data is the job of the backend: `manage.py e2e_data`
 
@@ -2111,19 +2162,19 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
 - `useResourceForm(path, {id?, fixed?})` takes its fields from `schema_create`/`schema_update`
   (those of the current user: type, required, read-only, nullable, choices, the
   related resource of a relationship), its values from the defaults or the item, and
-  submits the changed attributes and to-one relationships as one document; a 422 gives
-  `errors` by field. It is `{status: 'loading' | 'error' | 'ready', error, fields, values,
+  submits the changed attributes and relationships as one document (a to-many one with all
+  its items, its value the list of their ids); a 422 gives `errors` by field. It is `{status: 'loading' | 'error' | 'ready', error, fields, values,
   setValue(name, value), dirty, errors, submitError, isSubmitting, submit(), reset()}`
   (`submit` resolves to the saved document, null when it failed). `fixed` values (the
   parent of an item added from its card, `{request: id}`) are those of their fields whatever
-  `setValue` sets, and are sent when they differ from the initial ones. To-many
-  relationships go through `useRelationship`. A form of your own renders each field with
-  `FieldInput` of `@/bazis/ui/resource` (the control by the type, the choices by their
-  labels, the picker of a relationship, its errors), as `ResourceForm` does.
+  `setValue` sets, and are sent when they differ from the initial ones. A form of your own
+  renders each field with `FieldInput` of `@/bazis/ui/resource` (the control by the type,
+  the choices by their labels, the picker of a relationship or of the items of a to-many
+  one, its errors), as `ResourceForm` does.
   The form shows the errors of a 422 by field from `errors` and any other error from
   `submitError`; the fields the user may not change now are `readOnly` in `schema_update`
   (shown disabled) and are never sent, and those the field permissions disable are not in
-  it. To-many relationships are in `fields` (`many: true`) but not in its `values`.
+  it.
 
 ### The transits (bazis-statusy)
 
@@ -3009,7 +3060,7 @@ Its props, `BazisProviderProps`:
 - `status: 'loading' | 'error' | 'ready'`: `loading` until the schema (and the item) are loaded, `error` if they failed.
 - `error: Error | null`: The error of loading the schema or the item (403, 404, ...).
 - `fields: readonly FormField[]`: The fields of the runtime schema in its order; the user may not change `readOnly` ones.
-- `values: Readonly<Record<string, unknown>>`: The value of every field but the to-many relationships: the value of an attribute, the id of the related item of a to-one relationship (null for none).
+- `values: Readonly<Record<string, unknown>>`: The value of every field: the value of an attribute, the id of the related item of a to-one relationship (null for none), the ids of the related items of a to-many one (an array).
 - `setValue(name: string, value: unknown): void`
 - `dirty: readonly string[]`: The fields whose value differs from the initial one; only they are submitted.
 - `errors: Readonly<Record<string, readonly string[]>>`: The validation errors of the last submit by field (`ApiError.fieldErrors()`).
@@ -3052,7 +3103,7 @@ Its props, `BazisProviderProps`:
 
 - `kind: 'relation'`
 - `relation: string`: The JSON:API type of the related resource.
-- `many: boolean`: A to-many relationship: it is changed through `useRelationship`, not by the form.
+- `many: boolean`: A to-many relationship: its value in a form is the ids of the related items.
 
 #### ResourceSchema
 
@@ -3905,13 +3956,13 @@ The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The co
 
 #### FieldInput
 
-`FieldInput(props: FieldInputProps): Element`: A field of a runtime schema with its label and its errors: the control by the type, format and choices of an attribute (a select of the labels of the choices), the coordinates of a point field of the route set `path` (`PointInput`, with the map of `MapProvider`), the picker of the related item of a to-one relationship (`RelationPicker`), the upload of a file field (the control of `FilesProvider`, `FileField` of file-field); read-only when the user may not change it.
+`FieldInput(props: FieldInputProps): Element`: A field of a runtime schema with its label and its errors: the control by the type, format and choices of an attribute (a select of the labels of the choices), the coordinates of a point field of the route set `path` (`PointInput`, with the map of `MapProvider`), the picker of the related item of a to-one relationship (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the upload of a file field (the control of `FilesProvider`, `FileField` of file-field); read-only when the user may not change it.
 
 
 Its props, `FieldInputProps`:
 
 - `field: FormField`
-- `value: unknown`: The value: of an attribute, the id of the related item of a to-one relationship.
+- `value: unknown`: The value: of an attribute, the id of the related item of a to-one relationship, the ids of the related items of a to-many one.
 - `onChange: (value: unknown) => void`
 - `errors?: readonly string[] | undefined`: The validation errors of the field.
 - `disabled?: boolean`: Disables the control, e.g. while the form is submitted.
@@ -3952,7 +4003,7 @@ Its props, `FieldInputProps`:
 
 #### itemLabel
 
-`itemLabel(resource: ResourceObject): string`: The label of an item: its first non-empty attribute of `LABELS`, or its id.
+`itemLabel(resource: ResourceObject): string`: The label of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first and the last name, `title`, `username`, `email`, `slug`, `code`), or its id.
 
 #### permitted
 
@@ -4150,7 +4201,18 @@ Its props, `FileViewProps`:
 
 #### RelationLabel
 
-`RelationLabel(props: { relation: string; id: string; path?: string | undefined; }): Element`: The label of a related item: read from its resource when the contract has a route for it (`useRelatedItem`: the items of a resource shown together are read with one request, and cached), else the start of its id.
+`RelationLabel(props: { relation: string; id: string; path?: string | undefined; }): Element`: The label of a related item: read from its resource when the contract has a route for it (`useRelatedItem`: the items of a resource shown together are read with one request, and cached), else the start of its id; a skeleton marked `state:loading` while it is read.
+
+#### RelationListPicker
+
+`RelationListPicker(props: RelationListPickerProps): Element`: The picker of the related items of a to-many relationship: a button with the labels of the items (`role="combobox"`, the marks given to it) that opens the list of the related resource (`aria-multiselectable`) as `RelationPicker` does; a click or Enter adds or removes an item and keeps the list open, the option with the placeholder (`data-value=""`) removes them all, Escape and Tab close it.
+
+
+Its props, `RelationListPickerProps`:
+
+- `extends Omit<RelationPickerProps, 'value' | 'onChange' | 'nullable'>`
+- `value: readonly string[]`: The ids of the related items, in the order they were chosen.
+- `onChange: (value: string[]) => void`
 
 #### RelationPicker
 
@@ -4186,6 +4248,7 @@ Its props, `RelationPickerProps`:
 - `useAnyResourceForm: (path: string, options: { id?: string | undefined; fixed?: Readonly<Record<string, unknown>> | undefined; }) => ResourceForm<SavedDocument>`: `useResourceForm(path, {id, fixed})`: a create without an id.
 - `useAnySchema: (path: string, kind: "list" | "create" | "retrieve" | "update" | "transit", id?: string | undefined) => UseQueryResult<Readonly<Record<string, unknown>>>`: `useSchema(path, kind)` of the route set, `useSchema(path, kind, id)` of an item.
 - `PICKER_PAGE: 20`: How many items a page of the picker reads; `Load more` reads the next one.
+- `RelationListPickerProps`: the props of `RelationListPicker`, listed with it
 - `RelationPickerProps`: the props of `RelationPicker`, listed with it
 
 ### `@/bazis/ui/resource-card`
@@ -4284,7 +4347,7 @@ Its props, `ResourceFormProps`:
 
 - either: `path: CreatePath`; `id?: undefined`
 - or: `path: UpdatePath`; `id: string`
-- `fields?: readonly string[]`: The fields, in this order (those the runtime schema does not have are left out); by default every field of the schema but the to-many relationships and the `fixed` ones.
+- `fields?: readonly string[]`: The fields, in this order (those the runtime schema does not have are left out); by default every field of the schema but the `fixed` ones.
 - `fixed?: FixedValues`: The values of fields that the screen sets and the user does not change (`useResourceForm` `fixed`): the item of a card that a related item is added to, `{request: id}`.
 - `onSaved?: (saved: SavedDocument) => void`: Called with the saved document.
 - `onCancel?: () => void`: Shows a cancel button (`action:cancel`); the changes are dropped.
@@ -4562,7 +4625,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `open(screen: ScreenId<P>): Promise<void>`: Opens a screen by its route (one without the id of an item) and waits for its state.
 - `openItem(options: { where: Values; }): Promise<void>`: Opens the first row of the list of the current screen whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search; fails when no page has it.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>`.
-- `fill(values: Values): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option; a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; a checkbox by true or false.
+- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option; a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox by true or false.
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).
 - `transit(id: string, payload?: Values): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog, and waits until it is done (the transit is no longer offered) or shows an error.
@@ -4583,4 +4646,5 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `type Role<P extends Product> = keyof P['roles'] & string`: A role of the specs.
 - `type ScreenId<P extends Product> = keyof P['screens'] & string`: A screen of the specs.
 - `type Values = Readonly<Record<string, string | number | boolean | null>>`: The values of fields by name, scalars as in the specs.
+- `type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>`: The values of the fields of a form by name: a scalar, or the labels of the related items of a to-many relationship (a list, `[]` for none).
 - `type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid'`: The states that the screens render (`state:<state>`).

@@ -34,15 +34,16 @@ function UnknownItem({ id }: { id: string }) {
 function RelatedLabel({ path, id }: { path: string; id: string }) {
   const item = useAnyRelated(path, id);
   if (item.data) return <>{itemLabel(item.data)}</>;
-  if (item.isPending) return <Skeleton className="inline-block h-3.5 w-20 align-middle" />;
+  // a loading state: the helpers of the end-to-end tests wait until no label loads
+  if (item.isPending) return <Skeleton data-bz="state:loading" className="inline-block h-3.5 w-20 align-middle" />;
   return <UnknownItem id={id} />;
 }
 
 /**
  * The label of a related item: read from its resource when the contract has a route for it
  * (`useRelatedItem`: the items of a resource shown together are read with one request, and
- * cached), else the start of its id. `path`: the route set of the related resource, instead
- * of its route in `ROUTES`.
+ * cached), else the start of its id; a skeleton marked `state:loading` while it is read.
+ * `path`: the route set of the related resource, instead of its route in `ROUTES`.
  */
 export function RelationLabel({ relation, id, path = routeOf(relation) }: { relation: string; id: string; path?: string | undefined }) {
   return path ? <RelatedLabel path={path} id={id} /> : <UnknownItem id={id} />;

@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The picker of the related item of a to-one relationship: a combobox over the list of the
+// The pickers of the related items of a relationship: a combobox over the list of the
 // related resource (its path from `ROUTES` of the contract), read page after page and
 // searched by the backend (`search`) when its route set has search fields (`search` of the
 // resource in the contract): the core answers a search of a route set without them with 400.
+// `RelationPicker` chooses the item of a to-one relationship, `RelationListPicker` the items
+// of a to-many one.
 
 import { Check, ChevronsUpDown, LoaderCircle, Search } from 'lucide-react';
 import {
+  Fragment,
   useEffect,
   useId,
   useRef,
@@ -83,8 +86,12 @@ type Entry = { kind: 'clear' } | { kind: 'item'; item: ResourceObject } | { kind
 
 interface OptionsProps {
   path: string;
-  value: string | null;
-  nullable: boolean;
+  /** The ids of the selected items. */
+  selected: readonly string[];
+  /** Several items are selected: a click toggles an item and keeps the list open. */
+  multiple: boolean;
+  /** An option that clears the value (with the placeholder). */
+  clearable: boolean;
   placeholder: string;
   /** Whether the items are searched: a search box, else the list takes the keys. */
   searchable: boolean;
@@ -102,10 +109,21 @@ interface OptionsProps {
  * and the keys (`aria-activedescendant` on the listbox). The items are read page after page
  * (`page[offset]`, `PICKER_PAGE` each: a larger `page[limit]` would pass the maximum of the
  * backend, `BAZIS_API_PAGINATION_PAGE_SIZE_MAX`). The active option (`aria-activedescendant`)
- * is, until the user moves, the selected item when the picker opens and the first item
- * after a search, never the option that clears the value.
+ * is, until the user moves, the (first) selected item when the picker opens and the first
+ * item after a search, never the option that clears the value.
  */
-function Options({ path, value, nullable, placeholder, searchable, searchLabel, listRef, onSelect, onClose }: OptionsProps) {
+function Options({
+  path,
+  selected,
+  multiple,
+  clearable,
+  placeholder,
+  searchable,
+  searchLabel,
+  listRef,
+  onSelect,
+  onClose,
+}: OptionsProps) {
   const listId = useId();
   const { t } = useLanguage();
   const [text, setText] = useState('');
@@ -135,13 +153,13 @@ function Options({ path, value, nullable, placeholder, searchable, searchLabel, 
   const items = [...earlier, ...page];
   const next = list.data && !list.isPlaceholderData ? nextPage(list.data) : null;
   const entries: Entry[] = [
-    ...(nullable ? [{ kind: 'clear' } as const] : []),
+    ...(clearable ? [{ kind: 'clear' } as const] : []),
     ...items.map((item) => ({ kind: 'item', item }) as const),
     ...(next !== null ? [{ kind: 'more' } as const] : []),
   ];
-  const first = nullable && items.length ? 1 : items.length ? 0 : -1;
-  const selected = search ? -1 : entries.findIndex((entry) => entry.kind === 'item' && entry.item.id === value);
-  const current = active === null ? (selected >= 0 ? selected : first) : Math.min(active, entries.length - 1);
+  const first = clearable && items.length ? 1 : items.length ? 0 : -1;
+  const initial = search ? -1 : entries.findIndex((entry) => entry.kind === 'item' && selected.includes(entry.item.id));
+  const current = active === null ? (initial >= 0 ? initial : first) : Math.min(active, entries.length - 1);
   // the options shown are not those of the text typed yet
   const stale = list.isPending || list.isPlaceholderData || text.trim() !== search;
   const optionId = (index: number) => `${listId}-${String(index)}`;
@@ -208,6 +226,7 @@ function Options({ path, value, nullable, placeholder, searchable, searchLabel, 
         id={listId}
         aria-label={searchLabel}
         aria-busy={list.isFetching || undefined}
+        aria-multiselectable={multiple || undefined}
         // without a search the list has the focus (the first focusable of the popover) and the keys
         {...(searchable
           ? {}
@@ -221,7 +240,8 @@ function Options({ path, value, nullable, placeholder, searchable, searchLabel, 
         className={cn('max-h-72 overflow-y-auto p-1 outline-none', searchable ? 'empty:hidden' : 'empty:p-0')}
       >
         {entries.map((entry, index) => {
-          const chosen = entry.kind === 'item' ? entry.item.id === value : entry.kind === 'clear' && value === null;
+          const chosen =
+            entry.kind === 'item' ? selected.includes(entry.item.id) : entry.kind === 'clear' && !selected.length;
           return (
             <li
               key={entry.kind === 'item' ? entry.item.id : `$${entry.kind}`}
@@ -271,29 +291,41 @@ function Picker({
   relation,
   value,
   onChange,
+  multiple,
   placeholder,
-  nullable,
+  clearable,
   searchable,
   disabled,
   required,
   className,
   label: name,
   ...control
-}: Omit<RelationPickerProps, 'path' | 'placeholder' | 'nullable' | 'searchable'> & {
+}: Omit<RelationPickerProps, 'path' | 'placeholder' | 'nullable' | 'searchable' | 'value' | 'onChange'> & {
   path: string;
+  /** The ids of the selected items (one at most without `multiple`). */
+  value: readonly string[];
+  onChange: (value: string[]) => void;
+  multiple: boolean;
   placeholder: string;
-  nullable: boolean;
+  clearable: boolean;
   searchable: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const { t } = useLanguage();
-  // the item chosen here: its label without another request
-  const [chosen, setChosen] = useState<ResourceObject | null>(null);
-  let label: ReactNode = placeholder;
-  if (value !== null) {
-    label = chosen?.id === value ? itemLabel(chosen) : <RelationLabel relation={relation} id={value} path={path} />;
-  }
+  // the items chosen here: their labels without another request
+  const [chosen, setChosen] = useState<ReadonlyMap<string, ResourceObject>>(() => new Map());
+  const label: ReactNode = value.length
+    ? value.map((id, index) => {
+        const item = chosen.get(id);
+        return (
+          <Fragment key={id}>
+            {index > 0 && ', '}
+            {item ? itemLabel(item) : <RelationLabel relation={relation} id={id} path={path} />}
+          </Fragment>
+        );
+      })
+    : placeholder;
   return (
     // modal: the list scrolls and takes the focus inside a dialog (a form, the payload of a transit)
     <Popover modal open={open} onOpenChange={setOpen}>
@@ -313,7 +345,7 @@ function Picker({
             }
           }}
         >
-          <span className={cn('min-w-0 truncate', value === null && 'text-muted-foreground')}>{label}</span>
+          <span className={cn('min-w-0 truncate', !value.length && 'text-muted-foreground')}>{label}</span>
           <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden="true" />
         </button>
       </PopoverTrigger>
@@ -332,8 +364,9 @@ function Picker({
       >
         <Options
           path={path}
-          value={value}
-          nullable={nullable}
+          selected={value}
+          multiple={multiple}
+          clearable={clearable}
           placeholder={placeholder}
           searchable={searchable}
           listRef={listRef}
@@ -341,9 +374,15 @@ function Picker({
             name: name ?? control['aria-label'] ?? relation,
           })}
           onSelect={(item) => {
-            setChosen(item);
-            onChange(item === null ? null : item.id);
-            setOpen(false);
+            if (item === null) {
+              onChange([]);
+            } else {
+              setChosen((current) => new Map(current).set(item.id, item));
+              if (!multiple) onChange([item.id]);
+              else onChange(value.includes(item.id) ? value.filter((id) => id !== item.id) : [...value, item.id]);
+            }
+            // several items are chosen one after the other: the list stays open
+            if (!multiple) setOpen(false);
           }}
           onClose={() => {
             setOpen(false);
@@ -371,6 +410,8 @@ export function RelationPicker({
   path,
   relation,
   searchable,
+  value,
+  onChange,
   ...props
 }: RelationPickerProps) {
   const route = path ?? routeOf(relation);
@@ -380,13 +421,18 @@ export function RelationPicker({
         {...props}
         relation={relation}
         path={route}
+        value={value === null ? [] : [value]}
+        onChange={(ids) => {
+          onChange(ids[0] ?? null);
+        }}
+        multiple={false}
         placeholder={placeholder}
-        nullable={nullable}
+        clearable={nullable}
         searchable={searchable ?? hasSearch(relation)}
       />
     );
   }
-  const { value, onChange, required, 'aria-readonly': readOnly, label, ...control } = props;
+  const { required, 'aria-readonly': readOnly, label, ...control } = props;
   return (
     <Input
       {...control}
@@ -397,6 +443,78 @@ export function RelationPicker({
       readOnly={readOnly}
       onChange={(event) => {
         onChange(event.target.value || null);
+      }}
+    />
+  );
+}
+
+export interface RelationListPickerProps extends Omit<RelationPickerProps, 'value' | 'onChange' | 'nullable'> {
+  /** The ids of the related items, in the order they were chosen. */
+  value: readonly string[];
+  onChange: (value: string[]) => void;
+}
+
+/**
+ * The picker of the related items of a to-many relationship: a button with the labels of
+ * the items (`role="combobox"`, the marks given to it) that opens the list of the related
+ * resource (`aria-multiselectable`) as `RelationPicker` does; a click or Enter adds or
+ * removes an item and keeps the list open, the option with the placeholder
+ * (`data-value=""`) removes them all, Escape and Tab close it. The ids in a text input,
+ * separated by commas, when the contract has no route for the related resource.
+ */
+export function RelationListPicker({
+  placeholder = '—',
+  path,
+  relation,
+  searchable,
+  value,
+  onChange,
+  ...props
+}: RelationListPickerProps) {
+  const route = path ?? routeOf(relation);
+  if (route) {
+    return (
+      <Picker
+        {...props}
+        relation={relation}
+        path={route}
+        value={value}
+        onChange={onChange}
+        multiple
+        placeholder={placeholder}
+        clearable
+        searchable={searchable ?? hasSearch(relation)}
+      />
+    );
+  }
+  return <IdsInput {...props} value={value} onChange={onChange} placeholder={placeholder} />;
+}
+
+/** The ids of a to-many relationship in a text input, separated by commas, kept as typed. */
+function IdsInput({
+  value,
+  onChange,
+  required,
+  'aria-readonly': readOnly,
+  label,
+  ...control
+}: Omit<RelationListPickerProps, 'relation' | 'path' | 'searchable'> & { placeholder: string }) {
+  const [draft, setDraft] = useState(() => value.join(', '));
+  return (
+    <Input
+      {...control}
+      aria-label={control['aria-label'] ?? label}
+      value={draft}
+      required={required}
+      readOnly={readOnly}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        onChange(
+          event.target.value
+            .split(',')
+            .map((it) => it.trim())
+            .filter(Boolean),
+        );
       }}
     />
   );

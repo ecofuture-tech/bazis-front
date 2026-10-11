@@ -15,8 +15,8 @@ test('manager-assigns-a-task', async ({ page }) => {
   await test.step('action: create', async () => {
     await app.action('create');
   });
-  await test.step('fill: {title: Assign the review, assignee: manager}', async () => {
-    await app.fill({ title: 'Assign the review', assignee: 'manager' });
+  await test.step('fill: {title: Assign the review, assignee: Mary Manager}', async () => {
+    await app.fill({ title: 'Assign the review', assignee: 'Mary Manager' });
   });
   await test.step('submit', async () => {
     await app.submit({ saved: true });
@@ -29,8 +29,8 @@ test('manager-assigns-a-task', async ({ page }) => {
   await test.step('open: task-list', async () => {
     await app.open('task-list');
   });
-  await test.step('open_item: {where: {title: Assign the review, assignee: manager}}', async () => {
-    await app.openItem({ where: { title: 'Assign the review', assignee: 'manager' } });
+  await test.step('open_item: {where: {title: Assign the review, assignee: Mary Manager}}', async () => {
+    await app.openItem({ where: { title: 'Assign the review', assignee: 'Mary Manager' } });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card}', async () => {

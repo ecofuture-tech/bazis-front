@@ -118,11 +118,13 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert not {'action_update', 'action_destroy'} & set(files['actions'])
     assert sorted(files['fields']) == ['extension', 'file', 'name', 'size']
     assert resources['users.user']['fields']['roles']['many'] is True
-    # the search fields of the route sets (the pickers search the users by their username);
-    # none: the route set answers a search with 400 (bazis 2.9)
+    # the search fields of the route sets (the pickers search the users by their username
+    # and the names of their labels); none: the route set answers a search with 400 (bazis 2.9)
     assert task['search'] == ['title']
     assert resources['users.user']['route_set'] == 'users.routes.UserRouteSet'
-    assert resources['users.user']['search'] == ['username']
+    assert resources['users.user']['search'] == ['username', 'first_name', 'last_name']
+    # a to-many relationship of the model (a many-to-many field)
+    assert fields['watchers'] == {'relation': 'users.user', 'many': True, 'filter': 'watchers', 'order': 'watchers'}
     assert files['search'] == []
     assert resources['bg.task']['search'] == []
     # a write-only attribute can be neither filtered nor sorted
@@ -313,7 +315,7 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
     # the steps
     assert sections['permit']['selectors'] == {
         'tasks.step': {},
-        'tasks.task': {'assignee': 'users.user', 'status_author': 'users.user'},
+        'tasks.task': {'assignee': 'users.user', 'status_author': 'users.user', 'watchers': 'users.user'},
     }
 
     task = sections['statusy']['models']['tasks.task']
@@ -408,6 +410,7 @@ def test_the_selectors_are_those_of_bazis_permit(sample_app, db, monkeypatch):
     monkeypatch.setattr(task, 'get_selector_fields', classmethod(lambda cls: fields))
     assert permit.selectors()['tasks.task'] == {
         'assignee': 'users.user', 'members': 'users.user', 'status_author': 'users.user',
+        'watchers': 'users.user',
     }
     # a permission model that is a selector source itself has `self`
     monkeypatch.setattr(permit, 'PermitSelectorMixin', task)
@@ -462,9 +465,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0009_location')
+    unapply('tasks', '0010_watchers')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0009_location.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0010_watchers.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -472,12 +475,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0009_location' in messages[0].msg
+    assert 'tasks.0010_watchers' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0009_location')
+    unapply('tasks', '0010_watchers')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )

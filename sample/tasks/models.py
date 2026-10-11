@@ -54,6 +54,11 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     # list of the tasks (`list.map`) and on the card; a geography, whose GiST index the
     # distances of the core use (`near`, and the sort by the distance)
     location = PointField(_('Location'), geography=True, blank=True, null=True)
+    # a to-many relationship, chosen in the forms (`RelationListPicker`) and sent with the
+    # other fields: the users who follow the task (`manager-adds-a-watcher`)
+    watchers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, verbose_name=_('Watchers'), blank=True, related_name='watched_tasks',
+    )
 
     class Meta:
         verbose_name = _('Task')

@@ -28,11 +28,14 @@ import { fromLocalDateTime, toLocalDateTime } from './fields.js';
 import { isFile, useFiles, type ControlProps } from './files.js';
 import { text } from './hooks.js';
 import { isPoint, PointInput, usePoints } from './points.js';
-import { RelationPicker } from './relation-picker.js';
+import { RelationListPicker, RelationPicker } from './relation-picker.js';
 
 export interface FieldInputProps {
   field: FormField;
-  /** The value: of an attribute, the id of the related item of a to-one relationship. */
+  /**
+   * The value: of an attribute, the id of the related item of a to-one relationship, the ids
+   * of the related items of a to-many one.
+   */
   value: unknown;
   onChange: (value: unknown) => void;
   /** The validation errors of the field. */
@@ -204,9 +207,9 @@ function noBusy(): void {
  * format and choices of an attribute (a select of the labels of the choices), the
  * coordinates of a point field of the route set `path` (`PointInput`, with the map of
  * `MapProvider`), the picker of the related item of a to-one relationship
- * (`RelationPicker`), the upload of a file field (the control of `FilesProvider`, `FileField`
- * of file-field); read-only when the user may not change it.
- * To-many relationships are not edited here (`useRelationship`): they are shown read-only.
+ * (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the
+ * upload of a file field (the control of `FilesProvider`, `FileField` of file-field);
+ * read-only when the user may not change it.
  */
 export function FieldInput({
   field,
@@ -258,7 +261,15 @@ export function FieldInput({
         />
       ) : field.kind === 'relation' ? (
         field.many ? (
-          <Input {...control} value={Array.isArray(value) ? value.join(', ') : ''} readOnly />
+          <RelationListPicker
+            {...control}
+            relation={field.relation}
+            label={field.title}
+            value={Array.isArray(value) ? value.map(text) : []}
+            disabled={disabled || field.readOnly}
+            aria-readonly={field.readOnly || undefined}
+            onChange={onChange}
+          />
         ) : (
           <RelationPicker
             {...control}

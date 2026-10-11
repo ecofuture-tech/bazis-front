@@ -20,14 +20,17 @@
 // item after a search, never the option that clears; Enter ignored while the options are
 // those of another search; Escape and Tab give the focus back), announces the state of the
 // search (`role="status"`) and clears a nullable value (the option `data-value=""`, which the
-// helpers of the end-to-end tests choose for null). The labels of the related items shown
-// together are read with one request. Keep it passing when the component is changed.
+// helpers of the end-to-end tests choose for null). The picker of a to-many relationship has
+// the same list, `aria-multiselectable`: an item is added and removed, the list stays open,
+// the option `data-value=""` removes every item. The labels of the related items shown
+// together are read with one request, marked `state:loading` until then. Keep it passing when
+// the component is changed.
 
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { FieldValue, PICKER_PAGE, RelationLabel, RelationPicker } from '@/bazis/ui/resource';
+import { FieldValue, PICKER_PAGE, RelationLabel, RelationListPicker, RelationPicker } from '@/bazis/ui/resource';
 import { Backend, ITEMS, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
 
 // the popover is positioned with ResizeObserver and the active option scrolled into view,
@@ -261,7 +264,106 @@ describe('RelationPicker', () => {
   });
 });
 
+function ListPicker({ initial = [], onChange = vi.fn() }: { initial?: string[]; onChange?: (ids: string[]) => void }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <RelationListPicker
+      relation="test.item"
+      path={ITEMS}
+      searchable
+      data-bz="field:owners"
+      aria-label="Owners"
+      value={value}
+      onChange={(next) => {
+        setValue(next);
+        onChange(next);
+      }}
+    />
+  );
+}
+
+describe('RelationListPicker', () => {
+  it('shows the labels of its items, adds and removes items and stays open', async () => {
+    const carl = resource('c3', { name: 'Carl' });
+    const backend = new Backend().on('GET', ITEMS, listDocument([ann, bob, carl]));
+    const onChange = vi.fn();
+    renderWithBazis(<ListPicker initial={['a1', 'b2']} onChange={onChange} />, backend);
+    const trigger = screen.getByTestId('field:owners');
+    expect(trigger.getAttribute('role')).toBe('combobox');
+    await waitFor(() => {
+      expect(trigger.textContent).toBe('Ann, Bob');
+    });
+    expect(backend.requests()).toEqual([labels(['a1', 'b2'])]);
+
+    fireEvent.click(trigger);
+    const listbox = await screen.findByRole('listbox');
+    expect(listbox.getAttribute('aria-multiselectable')).toBe('true');
+    await within(listbox).findByText('Carl');
+    // the option that removes every item, then the items: those of the value selected
+    const options = within(listbox).getAllByRole('option');
+    expect(options.map((it) => [it.getAttribute('data-value'), it.getAttribute('aria-selected')])).toEqual([
+      ['', 'false'], ['a1', 'true'], ['b2', 'true'], ['c3', 'false'],
+    ]);
+
+    fireEvent.click(within(listbox).getByText('Carl'));
+    expect(onChange).toHaveBeenLastCalledWith(['a1', 'b2', 'c3']);
+    fireEvent.click(within(listbox).getByText('Ann'));
+    expect(onChange).toHaveBeenLastCalledWith(['b2', 'c3']);
+    // the list stays open for the next item
+    expect(screen.getByRole('listbox')).toBe(listbox);
+    expect(trigger.textContent).toBe('Bob, Carl');
+    // the first selected item is active: Enter adds the item above it
+    const search = screen.getByRole('combobox', { name: 'Search Owners' });
+    expect(search.getAttribute('aria-activedescendant')).toBe(within(listbox).getByText('Bob').closest('li')?.id);
+    fireEvent.keyDown(search, { key: 'ArrowUp' });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith(['b2', 'c3', 'a1']);
+
+    fireEvent.click(listbox.querySelector('[data-value=""]') as Element);
+    expect(onChange).toHaveBeenLastCalledWith([]);
+    await waitFor(() => {
+      expect(trigger.textContent).toBe('—');
+    });
+    fireEvent.keyDown(search, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).toBeNull();
+    });
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('is disabled when read-only, an input of the ids without a route for its resource', () => {
+    const onChange = vi.fn();
+    renderWithBazis(
+      <>
+        <RelationListPicker relation="test.item" path={ITEMS} data-bz="field:owners" value={[]} disabled aria-readonly onChange={vi.fn()} />
+        <RelationListPicker relation="test.unknown" data-bz="field:others" value={['x1', 'x2']} onChange={onChange} />
+      </>,
+      new Backend(),
+    );
+    const trigger = screen.getByTestId('field:owners');
+    expect(trigger.hasAttribute('disabled')).toBe(true);
+    expect(trigger.getAttribute('aria-readonly')).toBe('true');
+    const input = screen.getByTestId<HTMLInputElement>('field:others');
+    expect(input.value).toBe('x1, x2');
+    fireEvent.change(input, { target: { value: 'x1, ,x3 ' } });
+    expect(onChange).toHaveBeenLastCalledWith(['x1', 'x3']);
+  });
+});
+
 describe('RelationLabel', () => {
+  it('is loading until the label is read', async () => {
+    const backend = new Backend().hold('GET', ITEMS);
+    renderWithBazis(
+      <span data-bz="field:label">
+        <RelationLabel relation="test.item" path={ITEMS} id="a1" />
+      </span>,
+      backend,
+    );
+    // the helpers of the end-to-end tests wait until nothing on the page is loading
+    expect(within(screen.getByTestId('field:label')).getByTestId('state:loading')).toBeTruthy();
+    await act(() => Promise.resolve());
+  });
+
   it('reads the labels of the items shown together with one request', async () => {
     const backend = new Backend().on('GET', ITEMS, listDocument([ann, bob]));
     renderWithBazis(

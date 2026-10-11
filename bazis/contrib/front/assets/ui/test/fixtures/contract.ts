@@ -377,6 +377,12 @@ export const RESOURCES = {
         order: "title",
         type: "string",
       },
+      watchers: {
+        filter: "watchers",
+        many: true,
+        order: "watchers",
+        relation: "users.user",
+      },
     },
     model: "tasks.Task",
     path: "/api/v1/tasks/task/",
@@ -520,6 +526,8 @@ export const RESOURCES = {
     route_set: "users.routes.UserRouteSet",
     search: [
       "username",
+      "first_name",
+      "last_name",
     ],
   },
 } as const;
@@ -691,6 +699,7 @@ export const CAPABILITIES: Capabilities = {
       "tasks.task": {
         assignee: "users.user",
         status_author: "users.user",
+        watchers: "users.user",
       },
     },
   },

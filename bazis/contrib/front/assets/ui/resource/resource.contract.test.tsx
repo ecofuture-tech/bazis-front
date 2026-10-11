@@ -434,6 +434,17 @@ describe('the label of a related item', () => {
     expect(itemLabel(resource('7', { size: 3 }))).toBe('7');
   });
 
+  it('is the display name of a person before his username and e-mail', () => {
+    // a user of bazis-users: his first and last name, as `get_full_name()`
+    const user = { username: 'ann', email: 'ann@example.com', first_name: 'Ann', last_name: 'Lee' };
+    expect(itemLabel(resource('1', user))).toBe('Ann Lee');
+    expect(itemLabel(resource('1', { ...user, last_name: '' }))).toBe('Ann');
+    expect(itemLabel(resource('1', { ...user, first_name: ' ', last_name: '' }))).toBe('ann');
+    // a full name of the resource (a candidate), before his e-mail
+    expect(itemLabel(resource('1', { full_name: 'Petr Ivanov', email: 'petr@example.com' }))).toBe('Petr Ivanov');
+    expect(itemLabel(resource('1', { name: 'Team', full_name: 'Ann Lee' }))).toBe('Team');
+  });
+
   it('is read with the other items of the resource on the screen, also as a text', async () => {
     // a text of the product with the label (`t('booking.of', {name})`): the hook of
     // `RelationLabel` and `itemLabel`

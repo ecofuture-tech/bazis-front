@@ -66,5 +66,5 @@ export {
 } from './hooks.js';
 export type { FilterFieldsDocument, ItemDocument, ListDocument, SavedDocument } from './hooks.js';
 export { RelationLabel } from './relation.js';
-export { PICKER_PAGE, RelationPicker } from './relation-picker.js';
-export type { RelationPickerProps } from './relation-picker.js';
+export { PICKER_PAGE, RelationListPicker, RelationPicker } from './relation-picker.js';
+export type { RelationListPickerProps, RelationPickerProps } from './relation-picker.js';

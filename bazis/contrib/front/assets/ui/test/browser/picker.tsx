@@ -15,7 +15,8 @@
 // A page with `RelationPicker` for the tests of the helpers of the end-to-end tests in a
 // browser (`assets/playwright/test/picker.spec.ts`, served by Vite with the aliases of
 // `vitest.config.ts`): the focus of Radix and the display of an empty list, which jsdom does
-// not have. The query sets `searchable` and `nullable`; the backend is the route of the test.
+// not have. The query sets `searchable` and `nullable`, and `multiple` (`RelationListPicker`,
+// `field:owners`, its value the ids separated by commas); the backend is the route of the test.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -25,7 +26,7 @@ import { createClient } from '@/bazis/client';
 import { LanguageProvider } from '@/bazis/i18n';
 import type { paths } from '@/bazis/generated/schema';
 import { BazisProvider } from '@/bazis/react';
-import { RelationPicker } from '@/bazis/ui/resource';
+import { RelationListPicker, RelationPicker } from '@/bazis/ui/resource';
 
 /** The route set that the test answers. */
 const ITEMS = '/api/test/item/';
@@ -36,23 +37,37 @@ const api = createClient<paths>({ baseUrl: window.location.origin, language: 'en
 
 function Page() {
   const [value, setValue] = useState<string | null>(null);
+  const [values, setValues] = useState<string[]>(query.get('initial')?.split(',') ?? []);
+  const searchable = query.get('searchable') === 'true';
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
       }}
     >
-      <RelationPicker
-        relation="test.item"
-        path={ITEMS}
-        data-bz="field:owner"
-        aria-label="Owner"
-        value={value}
-        searchable={query.get('searchable') === 'true'}
-        nullable={query.get('nullable') !== 'false'}
-        onChange={setValue}
-      />
-      <output data-testid="value">{value ?? ''}</output>
+      {query.get('multiple') === 'true' ? (
+        <RelationListPicker
+          relation="test.item"
+          path={ITEMS}
+          data-bz="field:owners"
+          aria-label="Owners"
+          value={values}
+          searchable={searchable}
+          onChange={setValues}
+        />
+      ) : (
+        <RelationPicker
+          relation="test.item"
+          path={ITEMS}
+          data-bz="field:owner"
+          aria-label="Owner"
+          value={value}
+          searchable={searchable}
+          nullable={query.get('nullable') !== 'false'}
+          onChange={setValue}
+        />
+      )}
+      <output data-testid="value">{query.get('multiple') === 'true' ? values.join(',') : (value ?? '')}</output>
       <button type="submit" data-bz="action:submit">
         Save
       </button>

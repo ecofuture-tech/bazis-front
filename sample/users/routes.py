@@ -17,10 +17,11 @@ from bazis.contrib.users.routes import UserRouteSet as UserRouteSetBase
 
 class UserRouteSet(UserRouteSetBase):
     """
-    The users of bazis-users, searched by their username: the frontend picks the assignee of
-    a task with a search (the core 2.9 answers a search of a route set without
-    `search_fields` with 400). Declared after the bundled route set, it is the default route
-    of the user model.
+    The users of bazis-users, searched by their username and their names: the frontend picks
+    the assignee and the watchers of a task with a search of their labels, the first and the
+    last name of a user who has them (the core 2.9 answers a search of a route set without
+    `search_fields` with 400; every word of a search is in one of the fields). Declared after
+    the bundled route set, it is the default route of the user model.
     """
 
-    search_fields = ['username']
+    search_fields = ['username', 'first_name', 'last_name']

@@ -31,8 +31,9 @@ from django.core.exceptions import ObjectDoesNotExist
 
 
 #: the test users of the roles of spec/product.yaml (`test_user`): the slug of the role of
-#: each, by username
-TEST_USERS = {'manager': 'manager', 'viewer': 'viewer'}
+#: each and the first and the last name, by username. The frontend labels a user by his
+#: names (`Mary Manager`), the scenarios pick and find him by them
+TEST_USERS = {'manager': ('manager', 'Mary', 'Manager'), 'viewer': ('viewer', 'Victor', 'Viewer')}
 
 #: the title of the task that the scenario of the viewer opens; no scenario creates a task
 #: with this title, so that the scenarios do not depend on their order
@@ -42,14 +43,14 @@ TASK = 'Review the plan'
 def create_test_data(password: str) -> None:
     """
     The data of the end-to-end tests on top of the migrations: the test user of each role,
-    with the password (set again when the user exists, so that the tests log in with the
-    current E2E_PASSWORD, and the language of the profile cleared), and the task that the
+    with his names and the password (set again when the user exists, so that the tests log in
+    with the current E2E_PASSWORD, and the language of the profile cleared), and the task that the
     scenario of the viewer opens, created again after the tasks of the previous runs are
     deleted (the database of the end-to-end tests is theirs). A role that `migrate` did not
     apply is an error: this data never creates one.
     """
     role_model = global_apps.get_model('permit', 'Role')
-    for username, slug in TEST_USERS.items():
+    for username, (slug, first_name, last_name) in TEST_USERS.items():
         try:
             role = role_model.objects.get(slug=slug)
         except ObjectDoesNotExist:
@@ -57,6 +58,7 @@ def create_test_data(password: str) -> None:
                 f'The role {slug!r} of the test user {username!r} does not exist: migrate.'
             ) from None
         user = get_user_model().objects.get_or_create(username=username)[0]
+        user.first_name, user.last_name = first_name, last_name
         user.set_password(password)
         user.roles.add(role)
         user.role_current = role

@@ -13,9 +13,9 @@
 // limitations under the License.
 
 // The contract of the form of a resource: its states (`loading`, `forbidden`, `invalid`),
-// `field:<name>` and `error:<name>` of its fields, the read-only fields, `action:submit` and
-// `action:cancel`, no submit while a file uploads. Keep it passing when the component is
-// changed.
+// `field:<name>` and `error:<name>` of its fields (a to-many relationship among them, sent
+// with all its items), the read-only fields, `action:submit` and `action:cancel`, no submit
+// while a file uploads. Keep it passing when the component is changed.
 
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -60,6 +60,38 @@ describe('ResourceForm', () => {
     });
     expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
       data: { type: 'test.item', attributes: { title: 'Report' }, relationships: {} },
+    });
+  });
+
+  it('sends the items of a to-many relationship with the other fields', async () => {
+    // a resource without a route in the contract: the ids in a text input (else the picker of
+    // its items, `RelationListPicker`)
+    const members = runtimeSchema({ members: { relation: 'test.unknown', many: true, title: 'Members' } });
+    const backend = new Backend()
+      .on('GET', `${ITEMS}${ITEM_ID}/schema_update/`, members)
+      .on('GET', `${ITEMS}${ITEM_ID}/`, {
+        data: { ...resource(ITEM_ID), relationships: { members: { data: [{ id: 'x1', type: 'test.unknown' }] } } },
+      })
+      .on('PATCH', `${ITEMS}${ITEM_ID}/`, { data: resource(ITEM_ID) });
+    const onSaved = vi.fn();
+    renderWithBazis(<ResourceForm path={ITEMS as never} id={ITEM_ID} onSaved={onSaved} />, backend);
+
+    const input = await screen.findByTestId<HTMLInputElement>('field:members');
+    expect(input.value).toBe('x1');
+    fireEvent.change(input, { target: { value: 'x1, x2' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalled();
+    });
+    expect(backend.calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+      data: {
+        type: 'test.item',
+        id: ITEM_ID,
+        attributes: {},
+        relationships: {
+          members: { data: [{ type: 'test.unknown', id: 'x1' }, { type: 'test.unknown', id: 'x2' }] },
+        },
+      },
     });
   });
 

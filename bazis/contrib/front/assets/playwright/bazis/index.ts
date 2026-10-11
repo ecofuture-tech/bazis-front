@@ -44,6 +44,12 @@ export type ScreenId<P extends Product> = keyof P['screens'] & string;
 /** The values of fields by name, scalars as in the specs. */
 export type Values = Readonly<Record<string, string | number | boolean | null>>;
 
+/**
+ * The values of the fields of a form by name: a scalar, or the labels of the related items
+ * of a to-many relationship (a list, `[]` for none).
+ */
+export type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>;
+
 /** The states that the screens render (`state:<state>`). */
 export type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid';
 
@@ -162,10 +168,11 @@ export class App<P extends Product = Product> {
   /**
    * Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a
    * choice) by the label of its option; a combobox (the picker of a relationship) by the
-   * label of the item, searched in its popup, null by its option that clears the value; a
-   * checkbox by true or false.
+   * label of the item, searched in its popup, null by its option that clears the value; the
+   * picker of a to-many relationship by the list of the labels of its items, which replace
+   * those it had (`[]`: none); a checkbox by true or false.
    */
-  async fill(values: Values): Promise<void> {
+  async fill(values: FormValues): Promise<void> {
     const form = this.form();
     for (const [name, value] of Object.entries(values)) {
       const control = form.locator(bz('field', name));
@@ -176,7 +183,10 @@ export class App<P extends Product = Product> {
             ? element.type
             : element.tagName.toLowerCase(),
       );
-      if (kind === 'checkbox') await control.setChecked(value === true);
+      if (typeof value === 'object' && value !== null) {
+        if (kind !== 'combobox') throw new Error(`The field ${name} is not the picker of a to-many relationship.`);
+        await this.chooseAll(name, control, value);
+      } else if (kind === 'checkbox') await control.setChecked(value === true);
       else if (kind === 'select') await control.selectOption(value === null ? { value: '' } : { label: String(value) });
       else if (kind === 'combobox') await this.choose(control, value);
       else await control.fill(value === null ? '' : String(value));
@@ -184,38 +194,72 @@ export class App<P extends Product = Product> {
   }
 
   /**
-   * Chooses an item in a combobox: opens its popup (`aria-controls`), searches the label (in
-   * the search of the popup; a popup without one, whose route set has no search fields:
-   * reads the next page, the option without `data-value`, until the item is listed, each
-   * page waited for on its own) and clicks the option with exactly that text, or the option
-   * that clears the value (`data-value=""`); waits until the popup is closed.
+   * Chooses an item in a combobox: opens its popup (`aria-controls`), finds the option of the
+   * label (`option`) and clicks it, or the option that clears the value (`data-value=""`);
+   * waits until the popup is closed.
    */
   private async choose(control: Locator, value: string | number | boolean | null): Promise<void> {
-    await control.click();
-    const popup = this.page.locator(`[id=${JSON.stringify((await control.getAttribute('aria-controls')) ?? '')}]`);
-    if (value === null) {
-      await popup.locator('[role="option"][data-value=""]').click();
-    } else {
-      const option = popup.getByRole('option', { name: exactly(value) });
-      // the search and the list are rendered together (an empty list may be hidden)
-      await expect(popup.locator('[role="listbox"]')).toHaveCount(1);
-      if (await popup.getByRole('combobox').count()) {
-        await popup.getByRole('combobox').fill(String(value));
-      } else {
-        const options = popup.getByRole('option');
-        const more = popup.locator('[role="option"]:not([data-value])');
-        // the item, or the next page: the option of the next page is gone while it loads
-        await expect(option.or(more).first()).toBeVisible();
-        while (!(await option.count())) {
-          const listed = await options.count();
-          await more.click();
-          await expect.poll(() => options.count()).not.toBe(listed);
-          await expect(option.or(more).first()).toBeVisible();
-        }
-      }
-      await option.click();
-    }
+    const popup = await this.openPopup(control);
+    if (value === null) await popup.locator('[role="option"][data-value=""]').click();
+    else await (await this.option(popup, value)).click();
     await expect(popup).toHaveCount(0);
+  }
+
+  /**
+   * Sets the items of the picker of a to-many relationship: opens its popup (a listbox with
+   * `aria-multiselectable`, which stays open), clears it with the option `data-value=""`,
+   * selects the option of each label (`option`) and closes the popup with Escape.
+   */
+  private async chooseAll(name: string, control: Locator, labels: readonly string[]): Promise<void> {
+    const popup = await this.openPopup(control);
+    const listbox = popup.locator('[role="listbox"]');
+    await expect(listbox).toHaveCount(1);
+    if ((await listbox.getAttribute('aria-multiselectable')) !== 'true') {
+      throw new Error(`The field ${name} is the picker of a to-one relationship: fill it with one label.`);
+    }
+    const clear = popup.locator('[role="option"][data-value=""]');
+    await clear.click();
+    await expect(clear).toHaveAttribute('aria-selected', 'true');
+    for (const label of labels) {
+      const option = await this.option(popup, label);
+      await option.click();
+      await expect(option).toHaveAttribute('aria-selected', 'true');
+    }
+    await this.page.keyboard.press('Escape');
+    await expect(popup).toHaveCount(0);
+  }
+
+  /** Opens the popup of a combobox (`aria-controls`). */
+  private async openPopup(control: Locator): Promise<Locator> {
+    await control.click();
+    return this.page.locator(`[id=${JSON.stringify((await control.getAttribute('aria-controls')) ?? '')}]`);
+  }
+
+  /**
+   * The option of a label in the popup of a combobox, listed: searched in the search of the
+   * popup, or, in a popup without one (its route set has no search fields), the next page
+   * read (the option without `data-value`) until the item is listed, each page waited for on
+   * its own.
+   */
+  private async option(popup: Locator, value: string | number | boolean): Promise<Locator> {
+    const option = popup.getByRole('option', { name: exactly(value) });
+    // the search and the list are rendered together (an empty list may be hidden)
+    await expect(popup.locator('[role="listbox"]')).toHaveCount(1);
+    if (await popup.getByRole('combobox').count()) {
+      await popup.getByRole('combobox').fill(String(value));
+      return option;
+    }
+    const options = popup.getByRole('option');
+    const more = popup.locator('[role="option"]:not([data-value])');
+    // the item, or the next page: the option of the next page is gone while it loads
+    await expect(option.or(more).first()).toBeVisible();
+    while (!(await option.count())) {
+      const listed = await options.count();
+      await more.click();
+      await expect.poll(() => options.count()).not.toBe(listed);
+      await expect(option.or(more).first()).toBeVisible();
+    }
+    return option;
   }
 
   /**

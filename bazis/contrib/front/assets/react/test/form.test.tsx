@@ -51,16 +51,19 @@ describe('useResourceForm without an id: a create', () => {
     expect(result.current.fields.map((it) => it.name)).toEqual([
       'name', 'price', 'is_active', 'state', 'dt_created', 'parent', 'child_entities',
     ]);
-    // the to-many relationship has no value: it is changed through useRelationship
-    expect(result.current.values).toEqual({ price: null, is_active: true, state: 'new', parent: null });
+    // the to-many relationship starts without related items
+    expect(result.current.values).toEqual({
+      price: null, is_active: true, state: 'new', parent: null, child_entities: [],
+    });
     expect(result.current.dirty).toEqual([]);
 
     act(() => {
       result.current.setValue('name', 'Bike');
       result.current.setValue('parent', 'p1');
+      result.current.setValue('child_entities', ['c1', 'c2']);
       result.current.setValue('is_active', true); // the default: not a change
     });
-    expect(result.current.dirty).toEqual(['name', 'parent']);
+    expect(result.current.dirty).toEqual(['name', 'parent', 'child_entities']);
 
     let saved: unknown;
     await act(async () => {
@@ -71,7 +74,16 @@ describe('useResourceForm without an id: a create', () => {
       data: {
         type: 'entity.parent_entity',
         attributes: { name: 'Bike' },
-        relationships: { parent: { data: { type: 'entity.parent_entity', id: 'p1' } } },
+        // a to-many relationship with every related item
+        relationships: {
+          parent: { data: { type: 'entity.parent_entity', id: 'p1' } },
+          child_entities: {
+            data: [
+              { type: 'entity.child_entity', id: 'c1' },
+              { type: 'entity.child_entity', id: 'c2' },
+            ],
+          },
+        },
       },
     });
     // saved: the form starts again
@@ -174,6 +186,7 @@ describe('useResourceForm with an id: an update', () => {
     await ready(result);
     expect(result.current.values).toEqual({
       name: 'Bike', price: 10, is_active: true, state: 'new', dt_created: '2026-10-07T10:00:00Z', parent: 'p1',
+      child_entities: ['c1'],
     });
     expect(cachedKeys(queryClient)).toEqual([
       ['bazis', PARENT, 'item', '7', 'schema', 'update', 's1'],
@@ -183,6 +196,8 @@ describe('useResourceForm with an id: an update', () => {
     act(() => {
       result.current.setValue('name', 'Car');
       result.current.setValue('parent', null);
+      // every related item removed: an empty list
+      result.current.setValue('child_entities', []);
       result.current.setValue('dt_created', '2000-01-01T00:00:00Z'); // read-only: never sent
     });
     server.on('GET', `${PARENT}7/`, item('Car', null));
@@ -199,7 +214,7 @@ describe('useResourceForm with an id: an update', () => {
           type: 'entity.parent_entity',
           id: '7',
           attributes: { name: 'Car' },
-          relationships: { parent: { data: null } },
+          relationships: { parent: { data: null }, child_entities: { data: [] } },
         },
       },
     });

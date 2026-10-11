@@ -184,7 +184,7 @@ CASES = [
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/7/id')],
+        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/8/id')],
     ),
     (
         'P004',
@@ -221,7 +221,7 @@ CASES = [
     (
         'P012',
         {PRODUCT: lambda d: task(d)['fields'].append({'id': 'due_date', 'type': 'date'})},
-        [('P012', f'{PRODUCT}#/entities/0/fields/7')],
+        [('P012', f'{PRODUCT}#/entities/0/fields/8')],
     ),
     (
         'P013',
@@ -232,6 +232,10 @@ CASES = [
             ('P013', f'{PRODUCT}#/entities/0/fields/0'),
             ('P013', f'{PRODUCT}#/entities/0/fields/2'),
             ('P013', f'{PRODUCT}#/entities/0/fields/3'),
+            # and the scenarios fill the assignee, now a to-many relationship, with one value
+            ('P022', f'{PRODUCT}#/scenarios/2/steps/2/fill/assignee'),
+            ('P022', f'{PRODUCT}#/scenarios/6/steps/2/fill/assignee'),
+            ('P022', f'{PRODUCT}#/scenarios/11/steps/2/fill/assignee'),
         ],
     ),
     (
@@ -345,6 +349,17 @@ CASES = [
         ],
     ),
     (
+        'P022',
+        # a to-many relationship is filled with the list of the labels of its items, another
+        # field with one value
+        {PRODUCT: lambda d: [steps(d, 2)[2]['fill'].update(assignee=['Mary Manager']),
+                             steps(d, 11)[2]['fill'].update(watchers='Mary Manager')]},
+        [
+            ('P022', f'{PRODUCT}#/scenarios/2/steps/2/fill/assignee'),
+            ('P022', f'{PRODUCT}#/scenarios/11/steps/2/fill/watchers'),
+        ],
+    ),
+    (
         'P023',
         {PRODUCT: lambda d: [steps(d, 0)[2]['fill'].update(due='tomorrow', report='Later'),
                              steps(d, 1)[2]['open_item']['where'].update(owner='me')]},
@@ -435,7 +450,7 @@ CASES = [
     (
         'S007',
         {CARD: lambda d: d['card']['sections'][0]['fields'].append('rank')},
-        [('S007', f'{CARD}#/card/sections/0/fields/6')],
+        [('S007', f'{CARD}#/card/sections/0/fields/7')],
     ),
     (
         'S008',
@@ -455,12 +470,15 @@ CASES = [
     (
         'S012',
         # the users have no search: the pickers of the assignee (a filter, a form, the card)
+        # and of the watchers (a form, the card)
         {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=[])},
         [
             ('S012', f'{DRAFTS}#/list/filters/0'),
             ('S012', f'{CARD}#/card/sections/0/fields/2'),
+            ('S012', f'{CARD}#/card/sections/0/fields/3'),
             ('S012', f'{LIST}#/list/filters/1'),
             ('S012', f'{LIST}#/actions/0/fields/1'),
+            ('S012', f'{LIST}#/actions/0/fields/3'),
         ],
     ),
     (
@@ -837,7 +855,9 @@ def test_the_selectors_of_bazis_permit(contract):
         'status_author': None,
         'members': None,
         'self': '`self` is not a selector of `tasks.task`',
-        'watchers': '`watchers` is not a selector of `tasks.task`',
+        # a many-to-many field to the user
+        'watchers': None,
+        'reviewers': '`reviewers` is not a selector of `tasks.task`',
         # a path of relations: tasks.task -> users.user -> permit.role, also through a
         # selector the route set does not show; users.user is not a permission model of the
         # contract, its last name is checked to be a relationship
@@ -1086,7 +1106,7 @@ def test_several_grants_of_one_operation(contract):
     assert (issue.code, issue.path) == ('P019', '/entities/0/access/viewer/view/1')
     assert '`tasks.task.item.view.status_author.done`' in issue.message
 
-    edit(root, PRODUCT, lambda d: task(d)['access']['viewer'].update(view=['assignee', 'watchers']))
+    edit(root, PRODUCT, lambda d: task(d)['access']['viewer'].update(view=['assignee', 'reviewers']))
     assert sorted(found()) == [
         ('P019', '/entities/0/access/viewer/view/1'), ('P020', '/entities/0/access/viewer/view/1'),
     ]

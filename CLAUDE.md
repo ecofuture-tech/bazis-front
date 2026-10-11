@@ -33,9 +33,12 @@ Lint: `ruff check bazis tests sample scripts`.
 The sample (`sample/`) installs bazis-users, bazis-authing, bazis-permit, bazis-statusy,
 bazis-uploadable, bazis-ws, bazis-notify, bazis-author with bazis-bg, bazis-async-background and
 bazis-async-request (the `test` extra) with a project app `users` (its route set of the users,
-`users.routes.UserRouteSet`, is that of bazis-users with `search_fields`, which the picker
-of the assignee searches: the core 2.9 answers a search of a route set without them with
-400) and a statusy model `tasks.Task` (searched by its title; its `priority` has choices, whose
+`users.routes.UserRouteSet`, is that of bazis-users with `search_fields`, the username and
+the first and the last name, by which the frontend labels a user, which the pickers of the
+assignee and of the watchers search: the core 2.9 answers a search of a route set without
+them with 400) and a statusy model `tasks.Task` (searched by its title; its `watchers` are a
+many-to-many field to the users, edited in the forms with `RelationListPicker` and sent with
+the task, the scenario `manager-adds-a-watcher`; its `priority` has choices, whose
 labels the runtime schemas give translated, `enumDict`, which the frontend shows, offers and
 filters by; its `location` is a geography `PointField`, GeoJSON in the API and `format: point`
 in the contract, on the map of the list of the tasks (`list.map`), written through the API by
@@ -78,7 +81,8 @@ field permissions (the viewer does not see the report, the manager may not chang
 the scenarios check with `field_absent` and `field_readonly`. `manage.py e2e_data` is the
 e2e data command that bazis-front recommends to products (the module AGENTS.md, "The
 end-to-end tests"): on top of the migrations it creates only the test users of the roles,
-their password set to `E2E_PASSWORD` at every run, and the task that the scenario of the
+with their first and last names (`Mary Manager`: the labels that the scenarios pick and find)
+and their password set to `E2E_PASSWORD` at every run, and the task that the scenario of the
 viewer opens, after it deleted the tasks of the previous runs (every run starts from the
 same data); it never creates a role, a status or a transit. The user model has
 `UserWsMixin`, `sample/router.py` routes the socket of bazis-ws
@@ -105,7 +109,8 @@ the contract. `sample/frontend-overlay/` holds the screens of the sample (produc
 reference of screens written from specs; `src/app/router.tsx` wraps the routes in
 `FileFieldProvider`) and `e2e/` (`fixtures/`, the files that the scenarios upload, and
 `custom/`, the tests of what no scenario says: the custom actions, the downloads, the
-language, the card read again after a step is added in the section after it, the layout with the styles of a product, `layout.spec.ts`: the foot of the sidebar
+language, the card read again after a step is added in the section after it, a row found by
+the label of a related item read after the rows (`late-labels.spec.ts`), the layout with the styles of a product, `layout.spec.ts`: the foot of the sidebar
 with the tools of the sample, and the filters of the list of the tasks, a date range among
 them, at the width of a phone), copied over a frontend made from the sample by the `e2e`
 job of CI.
@@ -439,7 +444,8 @@ npm run api-reference     # the API reference of the guide, after a change of an
   against the helpers and linted); `test/helpers.spec.ts` runs the helpers in Chromium
   against pages served by the test with the marks of the components and delays of a
   backend (also the negative cases: an expectation must not pass before the screen has
-  loaded); `test/picker.spec.ts` runs them against the real `RelationPicker`, the page
+  loaded); `test/picker.spec.ts` runs them against the real `RelationPicker` and
+  `RelationListPicker`, the page
   `assets/ui/test/browser/` served by Vite with the aliases of the components (where Radix
   puts the focus, the display of an empty list: what jsdom does not have; only the rules of
   the Tailwind utilities it relies on); `test/types.typecheck.ts` has the type tests. The template declares
