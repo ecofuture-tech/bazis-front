@@ -3020,6 +3020,7 @@ Its props, `BazisProviderProps`:
 - `type: string | null`: The JSON Schema type (`string`, `integer`, `number`, `boolean`, `object`, `array`).
 - `format: string | null`: `date-time`, `date`, `time`, `uuid`, ...
 - `enum: readonly unknown[] | null`: The allowed values (the choices of the model field).
+- `blank: boolean`: The empty string is a value of the field besides those of its type and format: a `URLField` with `blank=True` (an alternative `{type: 'string', maxLength: 0}` next to the URL).
 - `labels: Readonly<Record<string, string>> | null`: The labels of the choices by the value as text (`enumDict` of Bazis: the labels of the choices of the model field, in the language of the request); null without them.
 - `schema: JsonSchema`: The schema of the attribute (`maxLength`, `minimum`, `default`, ...).
 

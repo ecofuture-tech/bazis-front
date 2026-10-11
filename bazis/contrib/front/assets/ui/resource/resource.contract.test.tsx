@@ -44,7 +44,7 @@ import { Backend, errors, ITEMS, renderWithBazis, resource, testLanguages } from
 const base = { required: false, readOnly: false, nullable: false };
 
 function attribute(name: string, type: string, extra: Partial<FormField> = {}): FormField {
-  return { ...base, kind: 'attribute', name, title: name, type, format: null, enum: null, labels: null, schema: {}, ...extra } as FormField;
+  return { ...base, kind: 'attribute', name, title: name, type, format: null, enum: null, labels: null, blank: false, schema: {}, ...extra } as FormField;
 }
 
 describe('FieldInput', () => {
@@ -93,6 +93,22 @@ describe('FieldInput', () => {
     fireEvent.change(screen.getByTestId('field:state'), { target: { value: 'done' } });
     expect(onChange).toHaveBeenLastCalledWith('done');
     expect(screen.getByTestId('field:code').hasAttribute('readonly')).toBe(true);
+  });
+
+  it('edits a URL as a URL, cleared to the empty string when the field allows it', () => {
+    const onChange = vi.fn();
+    render(
+      <>
+        <FieldInput field={attribute('site', 'string', { format: 'uri', blank: true, schema: { maxLength: 200 } })} value="https://a.example/" onChange={onChange} />
+        <FieldInput field={attribute('link', 'string', { format: 'uri', nullable: true })} value="https://b.example/" onChange={onChange} />
+      </>,
+    );
+    const site = screen.getByTestId<HTMLInputElement>('field:site');
+    expect([site.type, site.maxLength]).toEqual(['url', 200]);
+    fireEvent.change(site, { target: { value: '' } });
+    expect(onChange).toHaveBeenLastCalledWith('');
+    fireEvent.change(screen.getByTestId('field:link'), { target: { value: '' } });
+    expect(onChange).toHaveBeenLastCalledWith(null);
   });
 
   it('offers the choices of a field by their labels and gives their values', () => {

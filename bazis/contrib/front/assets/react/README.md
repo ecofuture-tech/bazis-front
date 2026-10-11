@@ -190,8 +190,10 @@ that permissions disable and marks `readOnly` those the user may see but not cha
 
 - an attribute: `kind: 'attribute'`, `type`, `format`, `enum` (the values of its choices),
   `labels` (their labels by the value as text: `enumDict` of Bazis, in the language of the
-  request; `choiceLabel(field, value)` reads one, null without it), `schema` (its JSON
-  Schema);
+  request; `choiceLabel(field, value)` reads one, null without it), `blank` (the empty
+  string is a value besides those of its format: a `URLField` with `blank=True`, whose
+  alternatives are the URL and `{type: 'string', maxLength: 0}`; read as the URL), `schema`
+  (its JSON Schema);
 - a relationship: `kind: 'relation'`, `relation` (the JSON:API type of the related
   resource, as `relation` of the field in the contract), `many`.
 

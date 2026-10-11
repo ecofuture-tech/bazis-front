@@ -27,25 +27,25 @@ describe('resourceSchema', () => {
       fields: [
         {
           kind: 'attribute', name: 'title', title: 'Title', required: true, readOnly: false,
-          nullable: false, type: 'string', format: null, enum: null, labels: null,
+          nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false,
           schema: expect.objectContaining({ maxLength: 255 }) as unknown,
         },
         {
           kind: 'attribute', name: 'report', title: 'Report', required: false, readOnly: false,
-          nullable: false, type: 'string', format: null, enum: null, labels: null,
+          nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false,
           schema: expect.objectContaining({ default: '' }) as unknown,
         },
         // choices, with their labels in the language of the request (`enumDict`)
         {
           kind: 'attribute', name: 'priority', title: 'Priority', required: false, readOnly: false,
           nullable: false, type: 'string', format: null, enum: ['low', 'normal', 'high'],
-          labels: { low: 'Low', normal: 'Normal', high: 'High' },
+          labels: { low: 'Low', normal: 'Normal', high: 'High' }, blank: false,
           schema: expect.objectContaining({ default: 'normal' }) as unknown,
         },
         // a PointField: its GeoJSON object (the contract says that it is a point)
         {
           kind: 'attribute', name: 'location', title: 'Location', required: false, readOnly: false,
-          nullable: true, type: 'object', format: null, enum: null, labels: null,
+          nullable: true, type: 'object', format: null, enum: null, labels: null, blank: false,
           schema: expect.objectContaining({ required: ['type', 'coordinates'] }) as unknown,
         },
         // the initial status, which bazis-statusy accepts on a create
@@ -146,6 +146,41 @@ describe('resourceSchema', () => {
     expect(choiceLabel(undefined, 1)).toBeNull();
   });
 
+  it('reads a URL field: the URL, the empty string allowed', () => {
+    // a `URLField` of the core (bazis 2.16): the URL or the empty string (`blank=True`), the
+    // null of a nullable one; a decimal (a number or a string) stays a union
+    const url = (nullable: boolean) => ({
+      anyOf: [
+        { type: 'string', format: 'uri', minLength: 1, maxLength: 200 },
+        { type: 'string', maxLength: 0 },
+        ...(nullable ? [{ type: 'null' }] : []),
+      ],
+      title: 'Site',
+    });
+    const { fields } = resourceSchema({
+      properties: {
+        data: {
+          properties: {
+            attributes: {
+              properties: {
+                site: url(false),
+                link: url(true),
+                only: { anyOf: [{ type: 'string', format: 'uri' }, { type: 'null' }] },
+                price: { anyOf: [{ type: 'number' }, { type: 'string', pattern: '^-?\\d+(\\.\\d+)?$' }] },
+              },
+            },
+          },
+        },
+      },
+    });
+    const [site, link, only, price] = fields;
+    expect(site).toMatchObject({ type: 'string', format: 'uri', nullable: false, blank: true, title: 'Site' });
+    expect(site?.kind === 'attribute' && site.schema).toMatchObject({ maxLength: 200, minLength: 1 });
+    expect(link).toMatchObject({ type: 'string', format: 'uri', nullable: true, blank: true });
+    expect(only).toMatchObject({ type: 'string', format: 'uri', nullable: true, blank: false });
+    expect(price).toMatchObject({ type: null, format: null, blank: false });
+  });
+
   it('reads no fields from what is not a resource schema', () => {
     expect(resourceSchema({})).toEqual({ type: '', fields: [] });
   });
@@ -157,7 +192,7 @@ describe('objectFields', () => {
     expect(objectFields(payload)).toEqual([
       {
         kind: 'attribute', name: 'report', title: 'Report', required: true, readOnly: false,
-        nullable: false, type: 'string', format: null, enum: null, labels: null,
+        nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false,
         schema: { title: 'Report', type: 'string' },
       },
     ]);

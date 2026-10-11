@@ -40,6 +40,12 @@ export interface AttributeField extends FieldBase {
   /** The allowed values (the choices of the model field). */
   enum: readonly unknown[] | null;
   /**
+   * The empty string is a value of the field besides those of its type and format: a
+   * `URLField` with `blank=True` (an alternative `{type: 'string', maxLength: 0}` next to the
+   * URL). The form sends `''` to clear it.
+   */
+  blank: boolean;
+  /**
    * The labels of the choices by the value as text (`enumDict` of Bazis: the labels of the
    * choices of the model field, in the language of the request); null without them. Read
    * one with `choiceLabel`.
@@ -86,18 +92,34 @@ function resolve(value: unknown, root: JsonSchema): Node {
   return node;
 }
 
-/** `anyOf: [X, {type: 'null'}]` as X, and whether null is allowed. */
-function withoutNull(value: unknown, root: JsonSchema): { node: Node; nullable: boolean } {
+/** The alternative of a string that is only the empty string (`{type: 'string', maxLength: 0}`). */
+function isEmptyString(node: Node): boolean {
+  return node.type === 'string' && node.maxLength === 0;
+}
+
+/**
+ * `anyOf: [X, {type: 'null'}]` as X, and whether null is allowed. Alternatives that are all
+ * strings (the URL and the empty string of a `URLField`: `{type: 'string', format: 'uri'}`,
+ * `{type: 'string', maxLength: 0}`) are the first one that is not only the empty string, the
+ * empty string allowed (`blank`); others (a decimal, a number or a string) stay a union.
+ */
+function withoutNull(value: unknown, root: JsonSchema): { node: Node; nullable: boolean; blank: boolean } {
   const node = resolve(value, root);
   const { anyOf, ...siblings } = node;
   if (Array.isArray(anyOf)) {
     const members = anyOf.map((member) => resolve(member, root));
     const others = members.filter((member) => member.type !== 'null');
-    if (others.length === 1 && others[0]) {
-      return { node: { ...others[0], ...siblings }, nullable: others.length < members.length };
+    const strings = others.length > 1 && others.every((member) => member.type === 'string');
+    const main = strings ? (others.find((member) => !isEmptyString(member)) ?? others[0]) : others.length === 1 ? others[0] : undefined;
+    if (main) {
+      return {
+        node: { ...main, ...siblings },
+        nullable: others.length < members.length,
+        blank: others.some((member) => member !== main && isEmptyString(member)),
+      };
     }
   }
-  return { node, nullable: false };
+  return { node, nullable: false, blank: false };
 }
 
 function stringOr<T>(value: unknown, fallback: T): string | T {
@@ -131,13 +153,14 @@ function labels(value: unknown): Readonly<Record<string, string>> | null {
 }
 
 function attribute(name: string, property: Node, root: JsonSchema, required: string[]): AttributeField {
-  const { node, nullable } = withoutNull(property, root);
+  const { node, nullable, blank } = withoutNull(property, root);
   return {
     ...base(name, property, node, nullable, required),
     kind: 'attribute',
     type: stringOr(node.type, null),
     format: stringOr(node.format, null),
     enum: Array.isArray(node.enum) ? node.enum : null,
+    blank,
     labels: labels(node.enumDict),
     schema: node,
   };

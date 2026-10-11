@@ -63,6 +63,35 @@ describe('ResourceForm', () => {
     });
   });
 
+  it('edits a URL field of the core and clears it to the empty string', async () => {
+    // the schema of a `URLField(blank=True)` of bazis 2.16: the URL or the empty string
+    const linked = runtimeSchema({
+      site: {
+        attribute: {
+          anyOf: [{ type: 'string', format: 'uri', minLength: 1, maxLength: 200 }, { type: 'string', maxLength: 0 }],
+          title: 'Site',
+        },
+      },
+    });
+    const backend = new Backend()
+      .on('GET', `${ITEMS}${ITEM_ID}/schema_update/`, linked)
+      .on('GET', `${ITEMS}${ITEM_ID}/`, { data: resource(ITEM_ID, { site: 'https://example.com/' }) })
+      .on('PATCH', `${ITEMS}${ITEM_ID}/`, { data: resource(ITEM_ID, { site: '' }) });
+    const onSaved = vi.fn();
+    renderWithBazis(<ResourceForm path={ITEMS as never} id={ITEM_ID} onSaved={onSaved} />, backend);
+
+    const site = await screen.findByTestId<HTMLInputElement>('field:site');
+    expect([site.type, site.value]).toEqual(['url', 'https://example.com/']);
+    fireEvent.change(site, { target: { value: '' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalled();
+    });
+    expect(backend.calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
+      data: { attributes: { site: '' } },
+    });
+  });
+
   it('edits a point field of its route set as coordinates and sends GeoJSON', async () => {
     const located = runtimeSchema({
       location: { attribute: { anyOf: [{ type: 'object' }, { type: 'null' }], nullable: true, title: 'Location' } },

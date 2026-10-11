@@ -185,7 +185,9 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
         disabled={disabled}
         onChange={(event) => {
           const next = event.target.value;
-          onChange(next === '' && type !== undefined ? empty(field) : next);
+          // an empty URL, e-mail or date is no value of its format: null, or the empty string
+          // of a field that allows it (`blank`)
+          onChange(next === '' && type !== undefined && !field.blank ? empty(field) : next);
         }}
       />
     );

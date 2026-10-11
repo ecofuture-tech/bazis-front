@@ -265,7 +265,7 @@ describe('ResourceMap', () => {
 describe('the map of a point field', () => {
   const location: FormField = {
     kind: 'attribute', name: 'location', title: 'Location', required: false, readOnly: false, nullable: true,
-    type: 'object', format: null, enum: null, labels: null, schema: {},
+    type: 'object', format: null, enum: null, labels: null, blank: false, schema: {},
   };
 
   // the value of the field, as a form keeps it
