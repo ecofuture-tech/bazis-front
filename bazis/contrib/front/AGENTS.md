@@ -43,8 +43,9 @@ in `frontend/` never need to be read.
 1. Install bazis-front and the packages of the product (above), then create the frontend
    with `python manage.py bazis_front init` (`--preset portal` for a product for the public,
    `workspace` for the staff): "The frontend".
-2. Describe the product top down: `spec/product.yaml` (the roles with their `test_user`, the
-   entities with their fields, workflows and access, the scenarios, the languages), "The
+2. Describe the product top down: `spec/product.yaml` (the roles with their `test_user`, or
+   `anonymous: true` for the users who do not log in, the entities with their fields,
+   workflows and access, the scenarios, the languages), "The
    specs"; then a file `spec/screens/<id>.yaml` per screen and the design, "The specs of the
    screens and the design".
 3. Build the backend to satisfy the specs: the models and route sets, the roles with their
