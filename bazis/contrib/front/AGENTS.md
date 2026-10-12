@@ -2948,7 +2948,7 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 #### The types and the constants of `@/bazis/client`
 
 - `AUTH_POLL_INTERVAL: 1500`: How often `authWait` asks the auth endpoint of bazis-authing, in milliseconds.
-- `BACKGROUND_HEADER: "X-Async-Background"`: The header that asks bazis-async-request to run a request in the background (`async_request` of the contract).
+- `BACKGROUND_HEADER: "X-Async-Background"`: The header that asks bazis-async-request to run a request in the background: the value of `async_request.header` of the contract, which the client does not read.
 - `type CollectionSchemaKind = 'list' | 'create'`: Runtime schemas of a route set; `transit` exists on bazis-statusy route sets.
 - `type ItemSchemaKind = 'retrieve' | 'update' | 'transit'`
 - `type RelationshipOperation = 'add' | 'replace' | 'remove'`

@@ -67,7 +67,10 @@ export interface ClientOptions {
   language?: string | (() => string | null | undefined);
 }
 
-/** The header that asks bazis-async-request to run a request in the background (`async_request` of the contract). */
+/**
+ * The header that asks bazis-async-request to run a request in the background: the value of
+ * `async_request.header` of the contract, which the client does not read.
+ */
 export const BACKGROUND_HEADER = 'X-Async-Background';
 
 /** How often `authWait` asks the auth endpoint of bazis-authing, in milliseconds. */
