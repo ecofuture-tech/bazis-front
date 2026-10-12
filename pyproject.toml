@@ -84,8 +84,9 @@ test = [
     "bazis-notify>=0.1.0",
     "bazis-author>=2.4.2",
     "bazis-bg>=2.6.0",
-    "bazis-async-background>=2.4.0",
-    "bazis-async-request>=2.4.0",
+    # the fixture of the hooks: a task is queued as pending, the 202 has async_request_id only
+    "bazis-async-background>=2.5.0",
+    "bazis-async-request>=2.5.0",
 ]
 dev = [
     "ruff"
