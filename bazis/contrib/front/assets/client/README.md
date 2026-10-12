@@ -161,11 +161,11 @@ session token, which is stateless: the application drops it.
 **Background requests** (bazis-async-request, bazis-async-background). A request with the
 header `X-Async-Background` (its presence is enough) and a bearer token that names a
 channel of bazis-ws (a session JWT, or an anonymous token of bazis-ws; else 401 with
-`{"detail"}`) is queued in Kafka: 202 `{"data": null, "meta": {"async_request_id": <id>,
-"async_background_id": <id>}}`, the same id. Without Kafka the middleware runs it at once
-and answers as the endpoint does, so `background` resolves to `{status: 'done', response}`
-for any other status (a 2xx; a 4xx is an `ApiError` as usual), and to the task only for a
-202 with `meta.async_request_id`. The result path of the contract
+`{"detail"}`) is queued in Kafka: 202 `{"data": null, "meta": {"async_request_id": <id>}}`,
+the id of its task. Without Kafka the middleware runs it at once and answers as the
+endpoint does, so `background` resolves to `{status: 'done', response}` for any other
+status (a 2xx; a 4xx is an `ApiError` as usual), and to the task only for a 202 with
+`meta.async_request_id`. The result path of the contract
 (`async_background.result_path`, `{task_id}` replaced) with `full_response=true` answers
 `{status, channel_name, response}` with the token of the request (403 with another one, 404
 for an unknown task or after `KAFKA_RESPONSE_HOLD_SEC`); `backgroundResult` returns its

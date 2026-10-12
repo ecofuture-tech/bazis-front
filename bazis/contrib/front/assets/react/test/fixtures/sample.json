@@ -2548,8 +2548,7 @@
   "async_request_queued": {
     "data": null,
     "meta": {
-      "async_request_id": "00000000-0000-0000-0000-000000000000",
-      "async_background_id": "00000000-0000-0000-0000-000000000000"
+      "async_request_id": "00000000-0000-0000-0000-000000000000"
     }
   },
   "async_result_pending": {

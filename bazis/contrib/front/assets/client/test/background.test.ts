@@ -37,7 +37,7 @@ const DOCUMENT = { data: { type: 'tasks.task', id: '7f1c', attributes: { title: 
 describe('background', () => {
   it('sends the request with the header and takes the task of a 202', async () => {
     const { api, calls } = setup([
-      json({ data: null, meta: { async_request_id: TASK, async_background_id: TASK } }, 202),
+      json({ data: null, meta: { async_request_id: TASK } }, 202),
     ]);
     await expect(api.background('PATCH', ITEM, { body: DOCUMENT })).resolves.toEqual({ status: 'queued', taskId: TASK });
     expect(BACKGROUND_HEADER).toBe('X-Async-Background');
