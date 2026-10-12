@@ -15,7 +15,7 @@ with the other Bazis packages and versioned by setuptools-scm, one version for e
 - **Python** does all that needs no Node: contract export, spec validation, copying and
   updating the assets, Django system checks `front.*` (run by `bazis_doctor` and bazis-mcp).
   It is one management command with subcommands, `manage.py bazis_front`
-  (`init`, `contract`, `check`, `design`, `add`, `update`, `e2e`; `impact` is planned).
+  (`init`, `contract`, `check`, `design`, `add`, `update`, `e2e`, `status`).
 - **TypeScript** is shipped as package data in `bazis/contrib/front/assets/` and copied
   into the product, in the way of shadcn/ui: the protocol client, React hooks, components,
   the project template, Playwright helpers. Only third-party dependencies (React,
