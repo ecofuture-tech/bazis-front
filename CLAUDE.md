@@ -352,7 +352,8 @@ npm run api-reference     # the API reference of the guide, after a change of an
   `react-statusy` (`requires` the capability `statusy`), `src/uploadable/` the asset
   `react-uploadable` (`useUpload`, the capability `uploadable`), `src/ws/` the asset
   `react-ws` (`SocketProvider`, `useSocket`, `useChannel`, `useLiveQueries`,
-  `useNotifications`, the capability `ws`), `src/bg/` the asset `react-bg` (`useBgTask`,
+  `useNotifications`, the capability `ws`), `src/notify/` the asset `react-notify` (`useInbox`,
+  the capability `notify`), `src/bg/` the asset `react-bg` (`useBgTask`,
   `bg`), `src/async/` the asset `react-async` (`useAsyncRequest`, `useAsyncTask`,
   `async_background`), `src/i18n/` the asset `i18n` (copied to `src/bazis/i18n/` of every
   product: `LanguageProvider`, `useLanguage`, `t`, the dictionaries `messages/en.ts` and
