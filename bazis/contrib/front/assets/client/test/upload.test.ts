@@ -16,8 +16,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ApiError, createClient } from '../src/index.js';
 import type { paths } from './fixtures/schema.js';
+import { BASE } from './support.js';
 
-const BASE = 'https://api.test';
 // a route set with a create: the upload of bazis-uploadable is the create of its route set
 const FILES = '/api/v1/entity/parent_entity/';
 

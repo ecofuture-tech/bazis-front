@@ -12,28 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { ApiError, BACKGROUND_HEADER, createClient } from '../src/index.js';
 import type { paths } from './fixtures/schema.js';
+import { BASE, recordingFetch } from './support.js';
 
-const BASE = 'https://api.test';
 const ITEM = '/api/v1/tasks/task/7f1c/';
 const RESULT = '/api/v1/async_background_response/1b2c/';
 const ACCEPT = 'application/vnd.api+json, application/json';
 const TASK = '1b2c';
 
-interface Call {
-  url: string;
-  init: RequestInit;
-}
-
 function setup(responses: Response[]) {
-  const calls: Call[] = [];
-  const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    calls.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
-    return Promise.resolve(responses.shift() ?? new Response(null, { status: 500 }));
-  });
+  const { fetch, calls } = recordingFetch(responses);
   const api = createClient<paths>({ baseUrl: BASE, fetch, token: 'session' });
   return { api, calls };
 }

@@ -12,19 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { ApiError, createClient, dispositionName } from '../src/index.js';
+import { BASE, recordingFetch } from './support.js';
 
-const BASE = 'https://api.test';
 const FILES = '/api/v1/uploadable/file_upload/';
 
 function setup(response: Response, token?: string) {
-  const calls: { url: string; init: RequestInit }[] = [];
-  const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    calls.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
-    return Promise.resolve(response);
-  });
+  const { fetch, calls } = recordingFetch([response]);
   // the route sets of the fixture have no download route: the paths are plain strings here
   const api = createClient({ baseUrl: BASE, fetch, token, language: 'ru' }) as unknown as {
     download: (path: string, id: string, options?: { signal?: AbortSignal }) => Promise<{ blob: Blob; name: string | null }>;

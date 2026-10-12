@@ -16,23 +16,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError, AUTH_POLL_INTERVAL, createClient } from '../src/index.js';
 import type { paths } from './fixtures/schema.js';
+import { BASE, recordingFetch, type Call } from './support.js';
 
-const BASE = 'https://api.test';
 const AUTH = '/api/v1/authing/auth/';
 const PASSWORD = '/api/v1/authing/password/';
 const ACCEPT = 'application/vnd.api+json, application/json';
 
-interface Call {
-  url: string;
-  init: RequestInit;
-}
-
 function setup(responses: Response[]) {
-  const calls: Call[] = [];
-  const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    calls.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
-    return Promise.resolve(responses.shift() ?? new Response(null, { status: 500 }));
-  });
+  const { fetch, calls } = recordingFetch(responses);
   // the session token of the client is never sent to the auth endpoint
   const api = createClient<paths>({ baseUrl: BASE, fetch, token: 'session' });
   return { api, calls };

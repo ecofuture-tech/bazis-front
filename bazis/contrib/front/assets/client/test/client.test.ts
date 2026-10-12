@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, createClient, Filter } from '../src/index.js';
 import type { ClientOptions } from '../src/index.js';
 import type { paths } from './fixtures/schema.js';
+import { BASE, recordingFetch } from './support.js';
 
 // The route sets of the core sample are not statusy: the transit endpoint is added for the
 // tests of `transit`, as bazis-statusy adds it to its route sets.
@@ -29,23 +30,13 @@ type StatusyPaths = paths & {
   };
 };
 
-const BASE = 'https://api.test';
 const PARENT = '/api/v1/entity/parent_entity/';
 const ACCEPT = 'application/vnd.api+json, application/json';
 const JSONAPI = 'application/vnd.api+json';
 const JSON_TYPE = 'application/json';
 
-interface Call {
-  url: string;
-  init: RequestInit;
-}
-
 function setup(responses: Response[] = [], options: ClientOptions = {}) {
-  const calls: Call[] = [];
-  const fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    calls.push({ url: input instanceof Request ? input.url : input.toString(), init: init ?? {} });
-    return Promise.resolve(responses.shift() ?? new Response(null, { status: 204 }));
-  });
+  const { fetch, calls } = recordingFetch(responses, 204);
   const api = createClient<StatusyPaths>({ baseUrl: BASE, fetch, ...options });
   return { api, calls };
 }
