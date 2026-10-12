@@ -239,7 +239,9 @@ python manage.py bazis_front status --json  # {bazis_front, frontend, assets, ge
 `status` writes nothing and exits with 0: it shows the installed bazis-front, the assets of
 the lock with their versions, which generated files the frontend has (`contract`: the
 TypeScript of the contract; `design`: the theme; `e2e`: the end-to-end tests), and the
-issues of the checks of bazis-front, each with its id, level, message and hint:
+issues of the checks of bazis-front, each with its id, level, message, hint and `command`,
+the subcommand that brings up to date what it reports stale (`contract`, `update`, `design`,
+`e2e`; null for the others):
 `front.W006` (an outdated package), `front.W001` (a stale contract or generated file; the
 database must be migrated, else `front.I001`), `front.W002` (an issue of the specs),
 `front.W004` (stale copies), `front.W007` (changed copies), `front.W005` (a stale theme),

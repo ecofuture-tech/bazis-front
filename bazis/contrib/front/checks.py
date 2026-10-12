@@ -260,6 +260,15 @@ def check_design(app_configs, **kwargs):
     return []
 
 
+#: the subcommand of `bazis_front` that brings up to date what a check reports stale (its
+#: `--check` makes the same comparison): `command` of the issues of `bazis_front status`
+COMMANDS = {
+    'front.W001': 'contract',
+    'front.W003': 'e2e',
+    'front.W004': 'update',
+    'front.W005': 'design',
+}
+
 #: the checks of the state of the frontend, in the order of `bazis_front status`
 STATUS = (
     check_packages,

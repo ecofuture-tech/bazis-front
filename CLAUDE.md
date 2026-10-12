@@ -188,8 +188,10 @@ job of CI.
   system checks (`requires_system_checks = []`): they would repeat the issues of each
   subcommand, and the warnings of other packages would mix with its output.
   `bazis_front status` (`--json`) runs the checks of `checks.STATUS` itself and shows them
-  with the assets of the lock and its generated files; it exits 0. A new check of the state
-  of the frontend is added to `STATUS`. `checks.check_spec` reports every issue as the warning
+  with the assets of the lock and its generated files, each issue with the subcommand that
+  brings up to date what it reports stale (`checks.COMMANDS`, which `front_status` of
+  bazis-mcp groups them by); it exits 0. A new check of the state of the frontend is added
+  to `STATUS`. `checks.check_spec` reports every issue as the warning
   `front.W002`: an error there would block every management command (`migrate`,
   `contract`) through `SystemCheckError`.
 - `spec/scenarios.py` is the only reading of the steps of a scenario: its walk reports the

@@ -61,6 +61,8 @@ def test_the_status_of_a_frontend(sample_app, product):
     assert state['generated'] == {'contract': False, 'design': True, 'e2e': False}
     assert [it['id'] for it in state['issues']] == ['front.W001']
     assert state['issues'][0]['level'] == 'warning'
+    # the subcommand that brings it up to date
+    assert state['issues'][0]['command'] == 'contract'
 
     call_command('bazis_front', 'contract', '--no-node', stdout=StringIO(), stderr=StringIO())
     client = product / 'frontend' / 'src' / 'bazis' / 'client' / 'client.ts'
@@ -68,7 +70,9 @@ def test_the_status_of_a_frontend(sample_app, product):
     state = json.loads(status('--json'))
     assert state['generated']['contract'] is True
     # the generated schema.d.ts is missing without Node (front.W001), the client was changed
-    assert [it['id'] for it in state['issues']] == ['front.W001', 'front.W007']
+    assert [(it['id'], it['command']) for it in state['issues']] == [
+        ('front.W001', 'contract'), ('front.W007', None),
+    ]
     text = status()
     assert f'{product / "frontend"}: ' in text
     assert 'Generated: contract, design; not generated: e2e.' in text

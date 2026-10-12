@@ -513,6 +513,7 @@ class Command(BaseCommand):
                 'level': logging.getLevelName(message.level).lower(),
                 'message': message.msg,
                 'hint': message.hint,
+                'command': checks.COMMANDS.get(message.id),
             }
             for check in checks.STATUS
             for message in check(None)
