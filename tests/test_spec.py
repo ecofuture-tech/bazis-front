@@ -614,9 +614,11 @@ def test_the_sample_spec_is_valid(contract):
 
 
 #: the module that declares what an issue lacks in the backend (bazis-permit and
-#: bazis-statusy 2.9), which its hint names with the data migration of the older versions
-#: (P015 and P016 also have issues of another kind, with their own hints)
+#: bazis-statusy 2.9), which its hint names; the roles also with the data migration of
+#: bazis-permit before 2.9, which the assets support (P015 and P016 also have issues of
+#: another kind, with their own hints)
 DECLARED_IN = {'P015': '`workflow.py`', 'P016': '`workflow.py`', 'P018': '`roles.py`', 'P019': '`roles.py`'}
+DATA_MIGRATION = {'P018', 'P019'}
 
 
 @pytest.mark.django_db
@@ -636,7 +638,7 @@ def test_issues(contract, code, edits, expected, monkeypatch):
         assert issue.layer == layer_of(issue.file)
     if code in DECLARED_IN:
         assert any(
-            DECLARED_IN[code] in it.hint and 'data migration' in it.hint
+            DECLARED_IN[code] in it.hint and ('data migration' in it.hint) == (code in DATA_MIGRATION)
             for it in found if it.code == code
         )
 
