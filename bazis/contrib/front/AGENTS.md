@@ -2041,7 +2041,8 @@ export const api = createClient<paths>({ baseUrl, token: () => session.token });
 In a frontend made by `init`, the client is created in `src/app/providers.tsx`, given to
 the hooks by `BazisProvider` and read with `useApi()` of `@/bazis/react`; the token is
 kept by `src/app/session.ts`. Read and change data with the hooks (below); call the client
-for what they do not cover (the login, a custom endpoint).
+for what they do not cover (the login, a custom endpoint). Its signatures are in "API: the
+client".
 
 ### The paths and the filters
 
@@ -2076,19 +2077,17 @@ for what they do not cover (the login, a custom endpoint).
 
 ### The uploads, the custom actions and the background requests
 
-- Upload a file with `api.upload(path, file, {name?, onProgress?, signal?})` (or
-  `useUpload`): a multipart `POST` to the route set of the uploaded files, with
-  XMLHttpRequest for its progress.
-- Call a custom action of a route set with `api.action(path, name, body?, {method?, query?})`
-  (`<path><name>/`, POST by default; `api.itemAction(path, id, name, body?, {method?, query?})`
-  for `<path><id>/<name>/`), or `useAction`: the JSON body, the query parameters (`?code=A1`:
-  a list repeats the parameter, null and undefined are left out) and the response of its
-  OpenAPI; the errors of the body by field are `ApiError.bodyErrors()` (`/<field>`), not
-  `fieldErrors()` (the pointers of a JSON:API document).
-- Run a request in the background with `api.background(method, path, {body?})` (or
-  `useAsyncRequest`, bazis-async-request): `{status: 'queued', taskId}` or `{status:
-  'done', response}`; read a task with `api.backgroundResult(resultPath)` (or
-  `useAsyncTask`): `{status, response}`.
+- Upload a file with `api.upload` (or `useUpload`): a multipart `POST` to the route set of
+  the uploaded files, with XMLHttpRequest for its progress.
+- Call a custom action of a route set with `api.action` (`<path><name>/`, POST by default;
+  `api.itemAction` for `<path><id>/<name>/`), or `useAction`: the JSON body, the query
+  parameters (`?code=A1`: a list repeats the parameter, null and undefined are left out) and
+  the response of its OpenAPI; the errors of the body by field are `ApiError.bodyErrors()`
+  (`/<field>`), not `fieldErrors()` (the pointers of a JSON:API document).
+- Run a request in the background with `api.background` (or `useAsyncRequest`,
+  bazis-async-request): it is queued with the id of its task, or done with its response
+  when the backend ran it at once; read the task with `api.backgroundResult` (or
+  `useAsyncTask`).
 
 ## The hooks
 
@@ -2136,31 +2135,27 @@ const item = useItem(TASKS, id, { include: ['assignee'], meta: ['crud_actions'] 
 const editable = can(item.data?.meta, 'change');
 
 const form = useResourceForm(TASKS, { id });        // without `id`: a create
-// form.status: loading | error | ready; form.fields: name, title, kind, required,
-// readOnly, nullable; attributes: type, format, enum, labels (of the choices: choiceLabel);
-// relations: relation, many
 form.setValue('title', 'Report');                   // a to-one relation takes the id or null
 const saved = await form.submit();                  // null when it failed: form.errors.title
 // an item added from the card of its parent: the relationship fixed, never chosen
 const step = useResourceForm(ROUTES['tasks.step'], { fixed: { task: id } });
-const transits = useTransits(TASKS, id);                             // [{id, allowed, restricts, payload}]
-const upload = useUpload(ROUTES['uploadable.file_upload']);           // upload(file) -> the item; progress, abort
+const transits = useTransits(TASKS, id);                             // those the user may run now
+const upload = useUpload(ROUTES['uploadable.file_upload']);           // upload(file) -> the item
 useChannel((message) => { … });                                       // the messages of the socket, parsed
 const task = useBgTask(ROUTES['bg.task'], taskId);                    // a task of bazis-bg, until it is done
-const request = useAsyncRequest();                                    // mutate({method, path, body}) with X-Async-Background
-const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);   // {status, response, done, error}
+const request = useAsyncRequest();                                    // a request with X-Async-Background
+const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
 ```
 
 ### Reading and changing the data
 
 - `useList`, `useItem`, `useSchema`, `useFilterFields` read; `useCreate`, `useUpdate`,
   `useDestroy`, `useRelationship` change and then refetch every query of the resource
-  (`['bazis', path]`): `mutate(document)`, `mutate({id, document})`, `mutate(id)` and
-  `mutate({id, field, operation: 'add' | 'replace' | 'remove', data})` (the relationship
-  endpoint, for to-many relationships). `useSchema(path, 'list' | 'create')` and
-  `useSchema(path, 'retrieve' | 'update' | 'transit', id)` are the runtime schemas for the
-  current user, kept for the session; `useFilterFields(path)` the fields a list can be
-  filtered by, with their types: those of the user. `useCan(path, 'view' | 'add')` is
+  (`['bazis', path]`); `useRelationship` changes a to-many relationship through its
+  relationship endpoint (`add`, `replace`, `remove`). `useSchema` gives the runtime schemas
+  for the current user (of the list and the create; of the retrieve, the update and a
+  transit of an item), kept for the session; `useFilterFields(path)` the fields a list can
+  be filtered by, with their types: those of the user. `useCan(path, 'view' | 'add')` is
   whether the user may view the items
   of a route set or add one (undefined until the backend answers; false on its 403), read
   from the runtime schema of the list or of the create; `useCan(path, 'action_<name>')`
@@ -2178,11 +2173,9 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   `useAnyRelated` of `@/bazis/ui/resource` are the same hooks with plain paths, for the
   generic code of the components: a screen uses the typed hooks.
 - `resourceSchema(schema)` reads the fields of a runtime schema (of a create, an update, a
-  retrieve or a list): `{kind, name, title, required, readOnly, nullable}`, and of an
-  attribute `type`, `format`, `enum` (the values of the choices), `labels` (their labels by
-  value, `enumDict`: `choiceLabel(field, value)`) and `schema`, of a relationship
-  `relation` and `many`; `objectFields(schema)` those of the JSON Schema of an object, such
-  as the payload of a transit; the components render them.
+  retrieve or a list), with the labels of the choices by value (`enumDict`:
+  `choiceLabel(field, value)`); `objectFields(schema)` those of the JSON Schema of an
+  object, such as the payload of a transit; the components render them.
 
 ### The forms
 
@@ -2190,9 +2183,8 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
   (those of the current user: type, required, read-only, nullable, choices, the
   related resource of a relationship), its values from the defaults or the item, and
   submits the changed attributes and relationships as one document (a to-many one with all
-  its items, its value the list of their ids); a 422 gives `errors` by field. It is `{status: 'loading' | 'error' | 'ready', error, fields, values,
-  setValue(name, value), dirty, errors, submitError, isSubmitting, submit(), reset()}`
-  (`submit` resolves to the saved document, null when it failed). `fixed` values (the
+  its items, its value the list of their ids); a 422 gives `errors` by field, and `submit`
+  resolves to the saved document, null when it failed. `fixed` values (the
   parent of an item added from its card, `{request: id}`) are those of their fields whatever
   `setValue` sets, and are sent when they differ from the initial ones. A form of your own
   renders each field with `FieldInput` of `@/bazis/ui/resource` (the control by the type,
@@ -2206,72 +2198,67 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId); 
 ### The transits (bazis-statusy)
 
 - `useTransits(path, id)` reads `meta.state_actions` of the item: the transits the user may
-  run now (`id`; `allowed` unless a validator restricts them, `restricts`; `payload`, the
-  JSON Schema of the payload they require, or null; `related`), their names in `TRANSITS`
-  of `contract.ts`. `useTransit(path, id)` runs one, `mutate({transit, payload})`: it
-  resolves to the item, or to null when the user can no longer view it (leave its screen).
+  run now (allowed unless a validator restricts them, with the JSON Schema of the payload
+  they require), their names in `TRANSITS` of `contract.ts`. `useTransit(path, id)` runs
+  one: it resolves to the item, or to null when the user can no longer view it (leave its
+  screen).
 
 ### The uploads and the downloads (bazis-uploadable, bazis-bg)
 
 - `useUpload(path)` uploads one file at a time to a route set of the uploaded files
-  (`ROUTES['uploadable.file_upload']`): `upload(file, {name?})` resolves to the created item
-  (null when aborted; its id may be a number: `String(item.data.id)` is the value of the
-  relationship), with `status` (`idle`, `uploading`, `success`, `error`), `progress`
-  (`{loaded, total}` while it uploads), `error` (413 `ERR_FILE_TOO_LARGE`…), `abort()` and
-  `reset()`; it refetches the queries of the route set.
-- `useDownload(path)` (`mutate(id)`, resolves to the name) saves the file of an item from
-  `<path><id>/download/` (bazis-uploadable, bazis-bg) with the token, `useDownloadUrl(path,
-  id)` gives its content as an object URL (a thumbnail), read once (a file of an item does
-  not change); `client.download(path, id)` and `saveFile` are below them.
+  (`ROUTES['uploadable.file_upload']`): `upload(file)` resolves to the created item (null
+  when aborted; its id may be a number: `String(item.data.id)` is the value of the
+  relationship), with its progress and its error (413 `ERR_FILE_TOO_LARGE`…); it refetches
+  the queries of the route set.
+- `useDownload(path)` saves the file of an item from `<path><id>/download/`
+  (bazis-uploadable, bazis-bg) with the token, `useDownloadUrl(path, id)` gives its content
+  as an object URL (a thumbnail), read once (a file of an item does not change);
+  `client.download` and `saveFile` are below them.
 
 ### The socket and the notifications (bazis-ws, bazis-notify)
 
 - `SocketProvider({path, token})` opens the socket of bazis-ws at `CAPABILITIES.ws.path`
   with the token of the session, sent in its first message (one a page, none without a
   token; it reconnects with a backoff and a logout closes it; see
-  [The socket](#the-socket)); `useSocket()` is its `status` (`idle`, `connecting`, `open`,
-  `rejected`, `unavailable`), the `error` of a refused token and `retry()`;
-  `useChannel(handler)` gets every message of the channels of the session, parsed;
-  `useLiveQueries(ROUTES, {notifications?})` refetches what the messages say changed (also
-  the notifications of bazis-notify on its messages, given their resource,
+  [The socket](#the-socket)); `useSocket()` is its state (with the error of a refused token
+  and a retry); `useChannel(handler)` gets every message of the channels of the session,
+  parsed; `useLiveQueries(ROUTES)` refetches what the messages say changed (also the
+  notifications of bazis-notify on its messages, given their resource,
   `CAPABILITIES.notify.resource`, and a task of bazis-async-background), and every query
-  after a reconnect (`LiveQuery` mounts it); `useNotifications()` is `{items, unread,
-  markRead(key?), clear}` of the session, the newest first (without bazis-notify).
-- `useInbox(path, {limit?, poll?})` (bazis-notify, `ROUTES['notify.notification']`) is the
-  stored notifications of the user, the newest first (`route` of each: where its action
-  leads): `{items, unread, status, error, retry, markRead(key?), markUnread(key),
-  deleteAll}` (PATCH of `read_at`, `read_all/`, `clear/`, which deletes them for good: give
-  `deleteAll` to `onDeleteAll` of `NotificationCenter` only if the product offers it;
-  `unread` is `unread_count/`). It is listed again after its own changes and, with
-  bazis-ws, on the messages of bazis-notify (`useLiveQueries`); `poll` (ms) without
-  bazis-ws. Both are the source of `NotificationCenter`.
+  after a reconnect (`LiveQuery` mounts it); `useNotifications()` is the notifications of
+  the session, the newest first (without bazis-notify).
+- `useInbox(path)` (bazis-notify, `ROUTES['notify.notification']`) is the stored
+  notifications of the user, the newest first (`route` of each: where its action leads),
+  read and marked read through the route set (its unread count is `unread_count/`);
+  `deleteAll` (`clear/`) deletes them for good: give it to `onDeleteAll` of
+  `NotificationCenter` only if the product offers it. It is listed again after its own
+  changes and, with bazis-ws, on the messages of bazis-notify (`useLiveQueries`); its option
+  `poll` (ms) without bazis-ws. Both are the source of `NotificationCenter`.
+
 ### The custom actions
 
-- `useAction(path, name, {method?, invalidate?})` calls a custom action of a route set
-  (`mutate(body)`, `useItemAction`: `mutate({id, body})`), typed by its OpenAPI, then
-  refetches the queries of the resource (not with `invalidate: false`); `errors` are those
-  of its body by field (`ApiError.bodyErrors()`), `error` the `ApiError`.
-- `useActionQuery(path, name, {query?})` and `useItemActionQuery(path, id, name, {query?})`
-  read a custom action declared with GET as a query (a summary, a check, the content of a
-  screen; no request while `id` or `query` is null), keyed under its resource and by its
-  query parameters (`query`, typed by its OpenAPI and required with a required parameter:
-  other parameters are another query): a mutation or an action of the resource refetches
-  it; `data` is its response typed by its OpenAPI, `error` the `ApiError`.
+- `useAction(path, name)` calls a custom action of a route set (`useItemAction`: of an
+  item), typed by its OpenAPI, then refetches the queries of the resource (not with
+  `invalidate: false`); its `errors` are those of its body by field
+  (`ApiError.bodyErrors()`).
+- `useActionQuery(path, name)` and `useItemActionQuery(path, id, name)` read a custom
+  action declared with GET as a query (a summary, a check, the content of a screen; no
+  request while `id` or `query` is null), keyed under its resource and by its query
+  parameters (`query`, typed by its OpenAPI and required with a required parameter: other
+  parameters are another query): a mutation or an action of the resource refetches it.
 
 ### The tasks and the background requests (bazis-bg, bazis-async-background)
 
 - `useBgTask(path, id)` reads a task of bazis-bg (`ROUTES['bg.task']`, the user's own; the
-  query of `useItem`) every 2 s until it is `done`: `{state, phase, outcome, progress,
-  result, …}` (`bgTask(document)`): `state` `waiting`, `starting`, `running` or `done`,
-  `progress` `[{key, performed, expected}]`, `outcome` `success`, `error` or `interrupted`.
-- `useAsyncRequest()` sends a request with `X-Async-Background`: `{status: 'queued',
-  taskId}` (202), or `{status: 'done', response}` when the backend ran it at once (without
-  Kafka); nothing is refetched until the task is done. `useAsyncTask(resultPath, taskId)`
-  reads the task at `CAPABILITIES.async_background.result_path` every 2 s until it is
+  query of `useItem`) every 2 s until it is done: its state, the phase that runs, its
+  progress by counter and its outcome (`bgTask(document)`).
+- `useAsyncRequest()` sends a request with `X-Async-Background`: queued (202) with the id
+  of its task, or done with its response when the backend ran it at once (without Kafka);
+  nothing is refetched until the task is done. `useAsyncTask(resultPath, taskId)` reads
+  the task at `CAPABILITIES.async_background.result_path` every 2 s until it is
   `completed` or `failed` (a status on the socket refetches it at once with
-  `useLiveQueries`): `{status, response, done, error}`; `replayedResponse(response)` reads
-  the HTTP status and body of a replayed request (an HTTP error there is still
-  `completed`).
+  `useLiveQueries`); `replayedResponse(response)` reads the HTTP status and body of a
+  replayed request (an HTTP error there is still `completed`).
 
 ### The caches and the session
 
