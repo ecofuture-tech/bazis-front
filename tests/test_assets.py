@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from bazis.contrib.front.capabilities import CAPABILITIES
+from bazis.contrib.front.spec.refs import LABEL_FIELDS
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor.copy import stamp
 
@@ -148,6 +149,41 @@ def test_the_components_of_init_need_no_capability():
     assert initial == ['state-panel', 'app-shell', 'login-form']
     for asset in registry.resolve(initial, assets):
         assert asset.kind in (registry.UI, registry.VENDORED) and not asset.capabilities, asset.name
+
+
+def test_the_labels_of_the_components_are_those_of_the_check_of_the_specs():
+    """
+    `LABELS` of the components (the label of an item, `itemLabel`) and `LABEL_FIELDS` of the
+    specs (the search fields that S017 asks for) are the same groups in the same order.
+    """
+    source = (ASSETS / 'ui' / 'resource' / 'fields.ts').read_text(encoding='utf-8')
+    labels = re.search(r'const LABELS: [^=]+= \[(.*?)\n\];', source, re.S).group(1)
+    groups = [tuple(re.findall(r"'(\w+)'", group)) for group in re.findall(r'\[([^\]]*)\]', labels)]
+    assert groups == list(LABEL_FIELDS)
+
+
+#: an import of a component (`@/bazis/ui/<asset>`) or of a shadcn/ui component
+#: (`@/components/ui/<asset>`), with the quotes of either
+UI_IMPORT = re.compile(r"""(?:from|import) ["']@/(?:bazis|components)/ui/([^/"']+)""")
+
+
+def test_the_components_require_the_components_they_import():
+    """
+    `requires.assets` of a component names the components and the shadcn/ui components that
+    its files (its contract test too: it is copied into products) import, and no other.
+    """
+    assets = registry.load()
+    for asset in assets.values():
+        if asset.kind != registry.UI:
+            continue
+        imported = {
+            name
+            for file in asset.files
+            for name in UI_IMPORT.findall(asset.read(file).decode('utf-8'))
+            if name != asset.name
+        }
+        required = {name for name in asset.assets if assets[name].kind == registry.UI}
+        assert imported == required, asset.name
 
 
 #: a bare import of the components: `from 'leaflet'`, `import 'leaflet/dist/leaflet.css'`

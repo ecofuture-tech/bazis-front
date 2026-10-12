@@ -961,7 +961,8 @@ def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues:
 
 
 #: the attributes that name an item, in the order of `itemLabel` of the components
-#: (`assets/ui/resource/fields.ts`): the first group that the resource has gives its label
+#: (`LABELS` of `assets/ui/resource/fields.ts`, the same groups: `tests/test_assets.py`): the
+#: first group that the resource has gives its label
 LABEL_FIELDS = (
     ('name',), ('full_name',), ('first_name', 'last_name'), ('title',), ('username',),
     ('email',), ('slug',), ('code',),

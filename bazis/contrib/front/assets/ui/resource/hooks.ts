@@ -14,8 +14,10 @@
 
 // The hooks of `@/bazis/react` with plain paths and options, for the bodies of the
 // components: a component is generic over the resources of any product, whose screens pass
-// it the typed paths of their contract. The only casts of the components are here: the
-// signatures below, with the documents of Bazis that the components read.
+// it the typed paths of their contract. The casts of these hooks are here: the signatures
+// below, with the documents of Bazis that the components read. A component that uses a hook
+// of a package (`useUpload` of `file-field`, `useBgTask` of `task-progress`) or does not
+// require this asset (`app-shell`, `task-progress`) casts the hooks it uses itself.
 
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 

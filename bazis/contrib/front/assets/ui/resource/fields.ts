@@ -124,9 +124,10 @@ export function isReverse(type: string, name: string): boolean {
 }
 
 /**
- * The attributes that name an item, in this order: a display name first (`full_name`, or the
- * first and the last name together, as `get_full_name()` of the users of Django and
- * bazis-users), then the identifiers (`username`, `email`).
+ * The attributes that name an item, in this order: a display name first (`name`, `full_name`,
+ * the first and the last name together, as `get_full_name()` of the users of Django and
+ * bazis-users, `title`), then the identifiers (`username`, `email`, `slug`, `code`).
+ * `LABEL_FIELDS` of `spec/refs.py` of bazis-front is the same list (S017), compared by its tests.
  */
 const LABELS: readonly (readonly string[])[] = [
   ['name'],

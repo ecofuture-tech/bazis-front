@@ -340,13 +340,13 @@
       "requires": {
         "assets": [
           "i18n",
+          "app-shell",
           "resource",
           "resource-form",
           "resource-list",
           "state-panel",
           "testing",
           "button",
-          "card",
           "skeleton"
         ]
       },
