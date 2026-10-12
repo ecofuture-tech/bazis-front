@@ -403,17 +403,6 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
 
 
 @pytest.mark.django_db
-def test_e2e_needs_the_helpers(root):
-    lock = lock_of(root)
-    del lock['assets']['playwright']
-    (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
-    for args in ((), ('--check',)):
-        with pytest.raises(CommandError, match='`manage.py bazis_front add playwright`'):
-            generate(*args)
-    assert not (root / 'frontend' / 'e2e' / 'generated').exists()
-
-
-@pytest.mark.django_db
 def test_check_finds_the_stale_and_the_edited_tests(root):
     generate()
     frontend = root / 'frontend'

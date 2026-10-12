@@ -38,10 +38,6 @@ from .validate import SPEC_DIR, Specs
 GENERATED_DIR = 'e2e/generated'
 PRODUCT_TS = f'{GENERATED_DIR}/product.ts'
 
-#: the asset of the helpers that the generated tests import, and its directory
-HELPERS = 'playwright'
-HELPERS_DIR = 'e2e/bazis'
-
 #: the keys of an `expect` step, in the order of their checks, with their helper
 EXPECT = (
     ('screen', 'expectScreen'),

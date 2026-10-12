@@ -1890,8 +1890,8 @@ E2E_PASSWORD=... python manage.py e2e_data   # the test data of the backend (bel
 cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSWORD, against the backend
 ```
 
-- `e2e` needs a frontend made by `init` with the helpers (a frontend of an older bazis-front
-  gets them with `bazis_front add playwright`) and specs without errors (`bazis_front check`). It
+- `e2e` needs a frontend made by `init` (with the helpers, `e2e/bazis/`) and specs without
+  errors (`bazis_front check`). It
   writes a Playwright test per scenario, `frontend/e2e/generated/<scenario>.spec.ts`, and
   `e2e/generated/product.ts` (`PRODUCT`: the test user of each role, the route of each
   screen), deletes the tests of a scenario removed from the specs, and records in the lock
