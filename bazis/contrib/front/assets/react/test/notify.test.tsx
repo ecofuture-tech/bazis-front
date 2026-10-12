@@ -139,6 +139,23 @@ describe('useInbox', () => {
     }
   });
 
+  it('reads the list and the count again every `poll` milliseconds, never without it', async () => {
+    const polled = backend();
+    const { result } = render(() => useInbox(INBOX, { poll: 20 }), polled);
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+    polled.calls.length = 0;
+    await waitFor(() => {
+      expect(polled.requests()).toEqual(expect.arrayContaining([`GET ${LIST}`, `GET ${COUNT}`]));
+    });
+
+    const server = backend();
+    await loaded(server);
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(server.requests()).toEqual([]);
+  });
+
   it('gives the error of the list and reads it again', async () => {
     const server = new Backend().on('GET', LIST, { errors: [{ status: 403, detail: 'Forbidden' }] }, 403).on('GET', COUNT, sample.notify_unread_count);
     const { result } = render(() => useInbox(INBOX), server);
