@@ -2576,14 +2576,7 @@ is replaced by the new one, its changes are kept and merged with those of bazis-
 (conflicts as above), a file it deleted (the home screen) stays deleted, and a file that
 bazis-front removed or renamed is never deleted: it is kept and reported, the product's
 from now on. When `update` brings a new `package.json` (replaced, merged, added), run
-`npm install` (`update` says so). A frontend made by a development version of bazis-front
-that kept no pristine copy of the template (its lock entry `"template"` has only the
-version) has no base for it: `update` adopts it without a merge, writes none of its files,
-records the template of the new version as its base (`.bazis/base/template@<version>/`)
-and lists the files that differ from it: review each against that copy and take what the
-product lacks (a fix of `playwright.config.ts`); from then on they are changes of the
-product. A file of the new template that the frontend lacks is listed as missing (new in
-that version, or removed by the product): copy it from there if the product needs it.
+`npm install` (`update` says so).
 
 - The theme is generated, not copied: run `bazis_front design` after `update` (`front.W005`
   reports a theme that the new version renders otherwise). A frontend made before the design

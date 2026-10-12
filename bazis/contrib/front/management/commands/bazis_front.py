@@ -364,13 +364,6 @@ class Command(BaseCommand):
                 continue
             if asset.asset is None:
                 self.stdout.write(f'{asset.name} {asset.old}: no longer in bazis-front {plan.version}.')
-            elif asset.untracked:
-                self.stdout.write(
-                    f'{asset.name}: {asset.old} -> {plan.version} ({asset.old} kept no pristine copy '
-                    f'of it: adopted, nothing is written; the template of {plan.version} is its base '
-                    f'from now on, in {frontend_lock.BASE_DIR}/{asset.name}@{plan.version}/: review '
-                    'the files listed against it, they are the changes of the product)'
-                )
             else:
                 replaced = sum(it.status == update.REPLACED for it in asset.files)
                 self.stdout.write(

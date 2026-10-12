@@ -262,9 +262,7 @@ job of CI.
   PyPI are GPL. The template is updated the same way (`Plan.dependencies_changed` asks for
   `npm install`); the npm dependencies of the assets are set in the base (those of the old
   entries) and in the upstream (those of the new ones) of the merge of `package.json`, so
-  that they never conflict, and set alone when the template is not merged (`Plan.package`); a lock entry of the template without files (a frontend of a version that
-  kept no pristine copy of it) is adopted without a merge (`untracked_files`: the files that
-  differ are `DIFFERS`, those it lacks `MISSING`, reported for a review by hand). A file of the template removed
+  that they never conflict, and set alone when the template is not merged (`Plan.package`). A file of the template removed
   upstream is never deleted (`ORPHANED`); a file that is not UTF-8 text is never merged
   (`BINARY` when both changed it). `apply` records the files of the conflicts in the lock
   (`conflicts`), and `unresolved` (`update --check`, `front.W004`, and a refusal of `plan`)

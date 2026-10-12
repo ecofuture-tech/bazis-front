@@ -36,10 +36,7 @@ and the local file of the product:
 The template (the frontend itself: `package.json`, the configs, `src/app/`, its guide) is
 updated the same way: the product changes it, and the new version is merged with the
 changes; but a file of the template is never deleted: removed (or renamed) upstream, it is
-kept and reported, the product's from now on. A template copied by a version that kept no
-pristine copy of it (its lock entry has no files) is adopted: the template of this version
-is recorded as its base without a merge, and the files that differ from it are reported,
-for the developer to review against the pristine copy.
+kept and reported, the product's from now on.
 
 The conflicts of an update are recorded in the lock (`conflicts`): until their markers are
 resolved, `update --check` and `front.W004` report them, and `update` refuses to run. The
@@ -113,10 +110,6 @@ ORPHANED = 'orphaned'
 DELETED = 'deleted'
 #: not text, changed in the frontend and in bazis-front: kept, merged by hand
 BINARY = 'binary'
-#: of a template adopted without a pristine copy, different from this version: kept, reviewed by hand
-DIFFERS = 'differs'
-#: of a template adopted without a pristine copy, not in the frontend: not added
-MISSING = 'missing'
 #: package.json of the frontend with the new npm dependencies of the assets, the template
 #: not merged
 DEPENDENCIES = 'dependencies'
@@ -132,10 +125,6 @@ DESCRIPTIONS = {
     DELETED: 'not restored (deleted in the frontend)',
     BINARY: 'KEPT: changed in the frontend and in bazis-front, not text: merge it by hand '
     'with its pristine copy in .bazis/base/',
-    DIFFERS: 'kept: differs from the template of bazis-front, review it against its pristine '
-    'copy in .bazis/base/',
-    MISSING: 'missing: new in this version or removed by the product; add it from its pristine '
-    'copy in .bazis/base/ if the product needs it',
     DEPENDENCIES: 'the npm dependencies of the assets set',
 }
 
@@ -171,8 +160,6 @@ class AssetUpdate:
     #: the asset of the registry; None when it is no longer in bazis-front
     asset: Asset | None
     files: list[FileUpdate] = field(default_factory=list)
-    #: copied by a version that kept no pristine copy of it (the template): adopted, no merge
-    untracked: bool = False
 
 
 @dataclass
@@ -442,24 +429,6 @@ def update_files(
     return updates
 
 
-def untracked_files(frontend: Path, asset: Asset, version: str) -> list[FileUpdate]:
-    """
-    The files of an asset copied without a pristine copy (the template of a development
-    version that kept none, its lock entry without files), adopted: nothing is written, the
-    files of this version become its base, and those that differ are reported for the
-    developer to review against it (they are the product's changes from then on), those
-    that are missing too (new in this version, or removed by the product: not added).
-    """
-    updates = []
-    for path, (_, new) in copies(asset, version).items():
-        target = frontend / path
-        if not target.is_file():
-            updates.append(FileUpdate(path, MISSING))
-        elif target.read_bytes() != new:
-            updates.append(FileUpdate(path, DIFFERS))
-    return updates
-
-
 @dataclass
 class Npm:
     """The npm dependencies of the assets in package.json of the frontend, before and after the update."""
@@ -542,22 +511,16 @@ def plan(
             errors += foreign_files(frontend, asset, asset.files, version)
             result.assets.append(AssetUpdate(asset.name, None, asset))
         elif is_stale(entry, asset, version):
-            untracked = 'files' not in entry
-            template_merged |= asset.kind == TEMPLATE and not untracked
+            template_merged |= asset.kind == TEMPLATE
             try:
-                files = (
-                    untracked_files(frontend, asset, version) if untracked
-                    else update_files(
-                        frontend, asset.name, entry, asset, version,
-                        (npm.base, npm.new) if asset.kind == TEMPLATE else ({}, {}),
-                    )
+                files = update_files(
+                    frontend, asset.name, entry, asset, version,
+                    (npm.base, npm.new) if asset.kind == TEMPLATE else ({}, {}),
                 )
             except CopyError as err:
                 errors += err.messages
             else:
-                result.assets.append(
-                    AssetUpdate(asset.name, entry.get('version'), asset, files, untracked)
-                )
+                result.assets.append(AssetUpdate(asset.name, entry.get('version'), asset, files))
     for name in selected:
         if name not in registry:
             entry = present[name]

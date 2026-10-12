@@ -709,49 +709,6 @@ def test_update_never_deletes_a_file_of_the_template(product):
     assert 'src/app/legacy.ts' not in read_lock(product)['assets']['template']['files']
 
 
-def test_update_adopts_a_template_without_its_pristine_copy(product):
-    """
-    A frontend made by a development version that kept no pristine copy of the template
-    (its lock has only the version): adopted without a merge, nothing written; the template
-    of this version is its base from now on, and the files that differ from it (or are
-    missing) are listed for the developer to review.
-    """
-    frontend = product / 'frontend'
-    shutil.rmtree(base_dir(frontend, 'template', __version__))
-    lock = read_lock(product)
-    lock['assets']['template'] = {'version': OLD}
-    write_lock(product, lock)
-    config = frontend / PLAYWRIGHT_CONFIG
-    text = config.read_text(encoding='utf-8')
-    config.write_text(change_line(text, late(text), '// old\n'), encoding='utf-8')
-    (frontend / 'AGENTS.md').unlink()
-    before = files(frontend)
-    assert w004()[0].msg == (
-        f'The copies of template {OLD} in the frontend are not those of bazis-front {__version__}.'
-    )
-
-    out = update()
-    assert f'template: {OLD} -> {__version__} ({OLD} kept no pristine copy of it: adopted' in out
-    assert f'  {PLAYWRIGHT_CONFIG}: kept: differs from the template of bazis-front, review it' in out
-    # new in this version or removed by the product: not added, never "deleted"
-    assert '  AGENTS.md: missing: new in this version or removed by the product; add it' in out
-    assert 'deleted in the frontend' not in out
-    assert ROUTER not in out
-    assert 'npm install' not in out
-    # nothing of the frontend is written but its lock and the pristine copy
-    def product_files(found):
-        return {
-            path: data for path, data in found.items()
-            if '.bazis' not in path.parts and path.name != 'bazis-front.lock.json'
-        }
-
-    assert product_files(files(frontend)) == product_files(before)
-    assert_updated(product, 'template')
-    assert w004() == []
-    # the difference is a change of the product from now on
-    assert update('--check').endswith(f'are those of bazis-front {__version__}.\n')
-
-
 @dataclass(frozen=True)
 class Images(registry.Asset):
     """An asset with a binary file, an image of the template."""
