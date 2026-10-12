@@ -229,10 +229,10 @@ export type AuthState =
   | { status: 'signed_out'; store: string; errors: readonly ErrorObject[] };
 
 /**
- * The statuses of a task of bazis-async-background: `created` (registered, not sent to Kafka
- * yet), `pending` (queued), `processing`, then `completed` or `failed`.
+ * The statuses of a task of bazis-async-background: `pending` (queued), `processing`, then
+ * `completed` or `failed`.
  */
-export type BackgroundStatus = 'created' | 'pending' | 'processing' | 'completed' | 'failed';
+export type BackgroundStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 /** The methods of a request that bazis-async-request runs in the background. */
 export type BackgroundMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

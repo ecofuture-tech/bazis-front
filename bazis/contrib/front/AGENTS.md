@@ -2497,7 +2497,7 @@ session at once and, with bazis-authing, posts to its logout endpoint.
   (`async_request.W001`) it runs the request at once and answers as usual. The result is
   `GET <result_path>?full_response=true` with the same token (403 with another one, 404
   for an unknown or expired task, `KAFKA_RESPONSE_HOLD_SEC`): `{status, channel_name,
-  response}`, the status `created`, `pending`, `processing`, `completed` or `failed`;
+  response}`, the status `pending`, `processing`, `completed` or `failed`;
   without `full_response` it is the response or `{"status": "not ready"}`, which a response
   cannot be told from. The response of a replayed request is `{task_id, endpoint, status,
   headers, response}`: an HTTP error there is a `completed` task. The queued request keeps
@@ -2934,7 +2934,7 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `` type ActionName<Paths, P extends string, M extends HttpMethod, Prefix extends string = ''> = { [K in keyof Paths & string]: K extends `${P}${Prefix}${infer Name}/` ? Name extends '' | `${string}/${string}` | `{${string}` ? never : [ OperationOf<Paths, K, M> ] extends [ never ] ? never : Name : never; }[keyof Paths & string] ``: The names of the custom actions of the route set `P` for the method `M`: the endpoints `<P><Prefix><name>/` that the backend declares (`@http_post('/<name>/')` of a route set), `Prefix` `{item_id}/` for those of an item.
 - `type ActionOptionsArg<M extends HttpMethod, Query> = [ Query ] extends [ never ] ? [ options?: ActionOptions<M> ] : object extends Query ? [ options?: ActionOptions<M, Query> ] : [ options: ActionOptions<M, Query> & { query: Query; } ]`: The options argument of a custom action whose query parameters are `Query`: required, with its `query`, when the operation has a required query parameter (`code: str` of the backend), optional otherwise.
 - `type BackgroundMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'`: The methods of a request that bazis-async-request runs in the background.
-- `type BackgroundStatus = 'created' | 'pending' | 'processing' | 'completed' | 'failed'`: The statuses of a task of bazis-async-background: `created` (registered, not sent to Kafka yet), `pending` (queued), `processing`, then `completed` or `failed`.
+- `type BackgroundStatus = 'pending' | 'processing' | 'completed' | 'failed'`: The statuses of a task of bazis-async-background: `pending` (queued), `processing`, then `completed` or `failed`.
 - `type BodyOf<Operation> = Operation extends { requestBody: { content: infer Content; }; } ? JsonContent<Content> : never`: The JSON request body of an operation.
 - `` type EndpointOf<Paths, P extends string, Suffix extends string, M extends HttpMethod> = OperationOf<Paths, `${P}${Suffix}`, M> ``: The operation of the endpoint `<P><Suffix>` for the method `M`.
 - `type HttpMethod = 'get' | 'post' | 'patch' | 'delete'`

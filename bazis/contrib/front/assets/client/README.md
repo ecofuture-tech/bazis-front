@@ -169,8 +169,8 @@ status (a 2xx; a 4xx is an `ApiError` as usual), and to the task only for a 202 
 (`async_background.result_path`, `{task_id}` replaced) with `full_response=true` answers
 `{status, channel_name, response}` with the token of the request (403 with another one, 404
 for an unknown task or after `KAFKA_RESPONSE_HOLD_SEC`); `backgroundResult` returns its
-`status` (`created`, `pending`, `processing`, `completed`, `failed`) and `response` (null
-until the task sets one). Without `full_response` the endpoint answers the response itself
+`status` (`pending`, `processing`, `completed`, `failed`) and `response` (null until the
+task sets one). Without `full_response` the endpoint answers the response itself
 or `{"status": "not ready"}`, which cannot be told apart, so the client always asks for
 the full one. The response of a request replayed by bazis-async-request is
 `ReplayedResponse` (`{task_id, endpoint, status, headers, response}`): an HTTP error of the
