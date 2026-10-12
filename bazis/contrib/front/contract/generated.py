@@ -48,7 +48,7 @@ def render_contract_ts(rendered: dict[str, str]) -> str:
     return typescript.render(json.loads(rendered['contract.json']))
 
 
-def openapi_hash(rendered: dict[str, str]) -> str:
+def openapi_digest(rendered: dict[str, str]) -> str:
     return frontend_lock.digest(rendered['openapi.json'].encode('utf-8'))
 
 
@@ -76,7 +76,7 @@ def schema_is_current(frontend: Path, lock: dict, rendered: dict[str, str]) -> b
     return (
         recorded not in (None, MISSING)
         and file_hash(frontend / SCHEMA_TS) == recorded
-        and lock.get('contract', {}).get('openapi.json') == openapi_hash(rendered)
+        and lock.get('contract', {}).get('openapi.json') == openapi_digest(rendered)
     )
 
 
@@ -140,7 +140,7 @@ def write(
     else:
         generated[SCHEMA_TS] = MISSING
 
-    lock.update(contract={'openapi.json': openapi_hash(rendered)}, generated=generated)
+    lock.update(contract={'openapi.json': openapi_digest(rendered)}, generated=generated)
     frontend_lock.write(frontend, lock)
     if error is not None:
         raise error

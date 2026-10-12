@@ -28,7 +28,7 @@ import pytest
 from bazis.contrib.front import capabilities
 from bazis.contrib.front.checks import check_contract
 from bazis.contrib.front.contract.export import render
-from bazis.contrib.front.contract.openapi import dumps, openapi_hash
+from bazis.contrib.front.contract.openapi import dumps
 from bazis.contrib.front.contract.resources import resources
 
 
@@ -52,7 +52,6 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     assert data['project']['languages'] == [
         {'code': 'en', 'name': 'English'}, {'code': 'ru', 'name': 'Русский'},
     ]
-    assert data['openapi_hash'] == openapi_hash(sample_app.openapi())
     assert {'bazis', 'bazis-front', 'bazis-permit', 'bazis-statusy', 'bazis-users'} <= set(
         data['generated_by']
     )
@@ -615,33 +614,6 @@ def test_the_socket_is_found_however_the_router_module_mounts_it(monkeypatch):
     registered.register('bazis.contrib.ws.router')
     monkeypatch.setattr(bazis.core.app, 'app', application(registered))
     assert ws.section() == {'path': '/api/v1/ws'}
-
-
-def test_openapi_hash_covers_the_operation_surface():
-    openapi = {
-        'info': {'title': 'API', 'version': '1'},
-        'paths': {
-            '/a/': {
-                'get': {
-                    'summary': 'A', 'operationId': 'a',
-                    'parameters': [{'name': 'x', 'in': 'query'}],
-                    'responses': {'200': {}},
-                    'x-bazis': {'kind': 'collection'},
-                },
-            },
-        },
-        'components': {'schemas': {}},
-    }
-    base = openapi_hash(openapi)
-    assert base.startswith('sha256:') and len(base) == 7 + 64
-
-    openapi['info']['version'] = '2'
-    openapi['paths']['/a/']['get']['summary'] = 'B'
-    openapi['paths']['/a/']['get']['operationId'] = 'b'
-    assert openapi_hash(openapi) == base
-
-    openapi['paths']['/a/']['get']['parameters'][0]['name'] = 'y'
-    assert openapi_hash(openapi) != base
 
 
 def test_the_subcommand_is_required():

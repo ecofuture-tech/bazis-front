@@ -820,7 +820,6 @@ differ from the backend; `--check` does the same in CI.
 {
   "format": 4,
   "generated_by": {"bazis": "2.5.0", "bazis-front": "0.1.0", "bazis-permit": "2.4.1"},
-  "openapi_hash": "sha256:…",
   "project": {
     "language": "en",
     "languages": [{"code": "en", "name": "English"}, {"code": "ru", "name": "Русский"}],
@@ -862,9 +861,7 @@ differ from the backend; `--check` does the same in CI.
 ```
 
 - `format`: the version of this format; `generated_by`: the versions of the Bazis
-  distributions whose apps the project installs; `openapi_hash`: the hash of what clients
-  depend on in the OpenAPI (parameters, bodies, responses, security, `x-bazis` of every
-  operation, and the components), not of summaries and descriptions.
+  distributions whose apps the project installs.
 - `project.languages` are the languages of the backend (`LANGUAGES`, in their order, with
   their names) and `project.language` its default language (the code of `LANGUAGES` that
   `LANGUAGE_CODE` names: the same code, else the same base code): those the interface may be in.

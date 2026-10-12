@@ -26,7 +26,7 @@ from bazis.core.introspect import packages
 
 from ..capabilities import app_enabled, sections
 from . import generated
-from .openapi import dumps, openapi_hash
+from .openapi import dumps
 from .resources import resources
 
 
@@ -106,7 +106,6 @@ def build_contract(openapi: dict) -> dict:
         return {
             'format': CONTRACT_FORMAT,
             'generated_by': generated_by(),
-            'openapi_hash': openapi_hash(openapi),
             'project': {
                 'language': default_language(),
                 'languages': languages(),

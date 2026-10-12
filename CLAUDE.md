@@ -122,8 +122,8 @@ job of CI.
 - `manage.py bazis_front` is one command with argparse subcommands
   (`management/commands/bazis_front.py`); a subcommand is a `handle_<name>` method.
 - `contract/export.py` renders the files (`render`), compares them byte for byte
-  (`stale_files`) and writes them; `contract/openapi.py` is the canonical JSON and the hash
-  of the operation surface, `contract/resources.py` the resources read from the OpenAPI
+  (`stale_files`) and writes them; `contract/openapi.py` is the canonical JSON,
+  `contract/resources.py` the resources read from the OpenAPI
   (and, from the model, the `PointField`s: `format: point` of their GeoJSON object, which
   the OpenAPI gives for every geometry alike).
 - The export is in `LANGUAGE_CODE` whatever the language of the process: `render` reads the
