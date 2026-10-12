@@ -128,7 +128,8 @@ def stale_files(directory: Path, rendered: dict[str, str]) -> list[str]:
     text, byte for byte (also in their line endings).
     """
     return [
-        path for path, text in rendered.items()
+        path
+        for path, text in rendered.items()
         if not (target := directory / path).is_file() or target.read_bytes() != text.encode('utf-8')
     ]
 
@@ -164,8 +165,10 @@ def generation_changes(
     previous, generated = recorded.get('spec', {}), recorded.get('generated', {})
     changed = sorted(it for it in {*previous, *spec} if previous.get(it) != spec.get(it))
     edited = [
-        it for it in names
-        if it in generated and (frontend / it).is_file()
+        it
+        for it in names
+        if it in generated
+        and (frontend / it).is_file()
         and digest((frontend / it).read_bytes()) != generated[it]
     ]
     return changed, edited

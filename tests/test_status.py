@@ -71,7 +71,8 @@ def test_the_status_of_a_frontend(sample_app, product):
     assert state['generated']['contract'] is True
     # the generated schema.d.ts is missing without Node (front.W001), the client was changed
     assert [(it['id'], it['command']) for it in state['issues']] == [
-        ('front.W001', 'contract'), ('front.W007', None),
+        ('front.W001', 'contract'),
+        ('front.W007', None),
     ]
     text = status()
     assert f'{product / "frontend"}: ' in text
