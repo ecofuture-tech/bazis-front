@@ -66,9 +66,10 @@ When the product has a frontend made by `init`, the command also generates
 `ROUTES`, `RESOURCES`, `ROLES`, `TRANSITS`, `as const`, and `CAPABILITIES`, `null` for a package the product does
 not install), rendered from `contract.json` by Python,
 and, through the openapi-typescript of the frontend with `--default-non-nullable=false`,
-`schema.d.ts`. The lock of the frontend records the hashes of the contract they were made
-from and their own, so that `--check` and `front.W001` find a stale or edited
-`schema.d.ts` without Node; without Node it is `missing` in the lock.
+`schema.d.ts`. The lock of the frontend records their hashes and the hash of the OpenAPI
+from which `schema.d.ts` was made (`contract.ts` is compared with what the contract
+renders), so that `--check` and `front.W001` find a stale or edited `schema.d.ts` without
+Node; without Node it is `missing` in the lock.
 
 `--default-non-nullable=false` is required: without it the fields with a server default
 (`is_active`, `dt_created`) become required in the bodies of create.
@@ -270,8 +271,9 @@ are listed in `assets/registry.json`, which the wheel is checked against.
 ## Updates of the copied code
 
 Every copied file carries the version of bazis-front in its header (a stamp line after its
-license header), and `frontend/bazis-front.lock.json` records the hashes of the contract,
-the generated files and the copied assets. Pristine copies of the assets are kept in
+license header), and `frontend/bazis-front.lock.json` records the hash of the OpenAPI of
+the contract (`openapi.json`), the hashes of the generated files and the version and the
+hashes of each copied asset. Pristine copies of the assets are kept in
 `frontend/.bazis/base/<asset>@<version>/` and committed: after `pip install -U
 bazis-front` the old version is no longer installed, and the merge needs it.
 
@@ -289,10 +291,7 @@ JSON Schemas in `spec/` are refreshed. Everything is read and merged before anyt
 written. The template (the frontend itself: `package.json`, the configs, `src/app/`, its
 guide) is the product's and is updated the same way, without the stamp line: a fix of a
 config reaches the products made before it, merged with their changes, and a file the
-product deleted stays deleted; a file of the template is never deleted by an update. A
-template copied by a development version that kept no pristine copy of it is adopted: the
-new template becomes its base without a merge, and the files that differ are listed for a
-review by hand. A file that is not text is never merged: changed on both sides, it is kept
+product deleted stays deleted; a file of the template is never deleted by an update. A file that is not text is never merged: changed on both sides, it is kept
 and reported. The files of the conflicts are recorded in the lock, and `update --check` and
 `front.W004` report them until no marker is left (the compiler sees only those of
 TypeScript files).
