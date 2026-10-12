@@ -1774,7 +1774,7 @@ panel: one preset, a few options and the tokens of a brand, compiled into the fr
 after `bazis_front update`). The text depends on the design only: `--check` and the system
 check `front.W005` (when the lock has `design`; without Node and the database) render it
 again and compare it byte for byte; `front.W005` also reports a frontend with components and
-no theme (made before the design layer: see [Updating the copies](#updating-the-copies)).
+no theme (an `init` whose design had errors).
 The generated files are never edited. The design must have no errors
 (`bazis_front check --layer design`).
 
@@ -2579,11 +2579,7 @@ from now on. When `update` brings a new `package.json` (replaced, merged, added)
 `npm install` (`update` says so).
 
 - The theme is generated, not copied: run `bazis_front design` after `update` (`front.W005`
-  reports a theme that the new version renders otherwise). A frontend made before the design
-  layer has no theme: run `bazis_front design`, replace the variables of `:root` and `.dark`
-  of its `src/index.css` with `@import './bazis/generated/theme.css';` (after the imports of
-  Tailwind), and call `initColorMode()` of `@/bazis/ui/app-shell` in `src/main.tsx` before the
-  render, as the new template does.
+  reports a theme that the new version renders otherwise).
 
 ### Conflicts
 

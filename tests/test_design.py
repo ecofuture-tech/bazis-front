@@ -233,13 +233,12 @@ def test_the_charts_of_shadcn():
 @pytest.mark.django_db
 def test_a_frontend_without_a_theme(root):
     lock = lock_of(root)
-    # a frontend made before the design layer: components, and no theme in its lock
+    # an `init` whose design had errors: components, and no theme in its lock
     del lock['design']
     (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
     [warning] = check_design(None)
     assert warning.id == 'front.W005'
     assert 'has no theme' in warning.msg and 'bazis_front design' in warning.hint
-    assert 'src/index.css' in warning.hint
     # without components there is nothing to style
     lock['assets'] = {name: entry for name, entry in lock['assets'].items() if name in ('client', 'react', 'template')}
     (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
