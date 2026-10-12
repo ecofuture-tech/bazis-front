@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import shutil
+from io import StringIO
+
+from django.core.management import call_command
+from django.test import override_settings
+
 import pytest
+
+from .support import SAMPLE_SPEC, write_contract
 
 
 @pytest.fixture
@@ -20,4 +28,27 @@ def sample_app():
     from sample.main import app
 
     return app
+
+
+@pytest.fixture
+def product(tmp_path):
+    """
+    A product with a frontend made by `init` (with bazis-statusy) and a contract that has
+    the capabilities `users` and `permit`.
+    """
+    with override_settings(BASE_DIR=str(tmp_path)):
+        call_command('bazis_front', 'init', '--no-node', stdout=StringIO())
+        write_contract(tmp_path, 'permit', 'users')
+        yield tmp_path
+
+
+@pytest.fixture
+def root(tmp_path):
+    """
+    A product root with the specs of the sample and a frontend made by `init`.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    with override_settings(BASE_DIR=str(tmp_path)):
+        call_command('bazis_front', 'init', '--no-node', stdout=StringIO(), stderr=StringIO())
+        yield tmp_path
 

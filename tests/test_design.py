@@ -22,7 +22,6 @@ the dark mode, the defaults of a preset, the files and the lock in a frontend, `
 
 import json
 import os
-import shutil
 from io import StringIO
 from pathlib import Path
 
@@ -37,32 +36,18 @@ from bazis.contrib.front.spec import design, theme
 from bazis.contrib.front.spec.validate import Specs, validate
 from bazis.contrib.front.vendor.lock import digest
 
+from .support import SAMPLE_SPEC, read_lock, write_lock
+
 
 REPOSITORY = Path(__file__).resolve().parent.parent
-SAMPLE_SPEC = REPOSITORY / 'sample' / 'spec'
 FIXTURE = REPOSITORY / 'bazis' / 'contrib' / 'front' / 'assets' / 'ui' / 'test' / 'fixtures' / 'theme.ts'
 TEMPLATE_CSS = REPOSITORY / 'bazis' / 'contrib' / 'front' / 'assets' / 'template' / 'src' / 'index.css'
-
-
-@pytest.fixture
-def root(tmp_path):
-    """
-    A product root with the specs of the sample and a frontend made by `init`.
-    """
-    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
-    with override_settings(BASE_DIR=str(tmp_path)):
-        call_command('bazis_front', 'init', '--no-node', stdout=StringIO(), stderr=StringIO())
-        yield tmp_path
 
 
 def generate(*args) -> str:
     out = StringIO()
     call_command('bazis_front', 'design', *args, stdout=out, stderr=StringIO())
     return out.getvalue()
-
-
-def lock_of(root: Path) -> dict:
-    return json.loads((root / 'frontend' / 'bazis-front.lock.json').read_text(encoding='utf-8'))
 
 
 def edit_theme(root: Path, change) -> None:
@@ -175,14 +160,14 @@ def test_design_writes_the_theme_and_the_lock(root):
     # init generated it
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    lock = lock_of(root)
+    lock = read_lock(root)
     assert lock['design'] == {
         'spec': {path: digest((root / path).read_bytes()) for path in theme.DESIGN_FILES},
         'generated': {path: digest(text.encode('utf-8')) for path, text in files.items()},
     }
     out = generate()
     assert 'Generated the theme' in out
-    assert lock_of(root) == lock
+    assert read_lock(root) == lock
     assert 'up to date' in generate('--check')
     assert check_design(None) == []
 
@@ -232,16 +217,16 @@ def test_the_charts_of_shadcn():
 
 @pytest.mark.django_db
 def test_a_frontend_without_a_theme(root):
-    lock = lock_of(root)
+    lock = read_lock(root)
     # an `init` whose design had errors: components, and no theme in its lock
     del lock['design']
-    (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    write_lock(root, lock)
     [warning] = check_design(None)
     assert warning.id == 'front.W005'
     assert 'has no theme' in warning.msg and 'bazis_front design' in warning.hint
     # without components there is nothing to style
     lock['assets'] = {name: entry for name, entry in lock['assets'].items() if name in ('client', 'react', 'template')}
-    (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    write_lock(root, lock)
     assert check_design(None) == []
     generate()
     assert check_design(None) == []

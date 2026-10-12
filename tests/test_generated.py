@@ -27,8 +27,11 @@ import pytest
 from bazis.contrib.front import capabilities
 from bazis.contrib.front.checks import check_contract
 from bazis.contrib.front.contract import typescript
+from bazis.contrib.front.contract.export import CONTRACT_FORMAT
 from bazis.contrib.front.contract.generated import CONTRACT_TS, SCHEMA_TS
 from bazis.contrib.front.vendor.lock import digest
+
+from .support import read_lock, write_lock
 
 
 pytestmark = pytest.mark.django_db
@@ -78,13 +81,9 @@ def contract(*args):
     return out.getvalue(), err.getvalue()
 
 
-def read_lock(frontend):
-    return json.loads((frontend / 'bazis-front.lock.json').read_text(encoding='utf-8'))
-
-
 def test_contract_ts_is_rendered_from_the_contract():
     contract_json = {
-        'format': 3,
+        'format': CONTRACT_FORMAT,
         'project': {'language': 'en', 'languages': [{'code': 'en', 'name': 'English'}, {'code': 'ru', 'name': 'Русский'}], 'resources': {
             'shop.order': {'path': '/api/v1/shop/order/', 'fields': {'total-sum': {'type': 'number'}}, 'search': ['^number']},
             'shop.item': {'path': '/api/v1/shop/item/', 'fields': {}, 'search': []},
@@ -241,7 +240,7 @@ def test_every_capability_has_a_type():
 
 def test_contract_generates_the_frontend(frontend):
     product = frontend.parent
-    assets = read_lock(frontend)['assets']
+    assets = read_lock(frontend.parent)['assets']
 
     out, err = contract('--no-node')
 
@@ -254,7 +253,7 @@ def test_contract_generates_the_frontend(frontend):
     assert '        id: "finish",\n' in contract_ts
     assert f'Generated src/bazis/generated of {frontend}' in out
 
-    lock = read_lock(frontend)
+    lock = read_lock(frontend.parent)
     assert lock['contract'] == {
         'openapi.json': digest((product / 'contract' / 'openapi.json').read_bytes())
     }
@@ -284,21 +283,21 @@ def test_schema_is_generated_by_openapi_typescript(frontend, npx):
         ],
         frontend,
     )]
-    assert read_lock(frontend)['generated'][SCHEMA_TS] == digest(SCHEMA.encode('utf-8'))
+    assert read_lock(frontend.parent)['generated'][SCHEMA_TS] == digest(SCHEMA.encode('utf-8'))
     out, _ = contract('--check')
     assert 'and the generated files of' in out
 
     # without Node, an unchanged OpenAPI keeps the schema current
     _, err = contract('--no-node')
     assert err == ''
-    assert read_lock(frontend)['generated'][SCHEMA_TS] == digest(SCHEMA.encode('utf-8'))
+    assert read_lock(frontend.parent)['generated'][SCHEMA_TS] == digest(SCHEMA.encode('utf-8'))
 
     # an edited schema.d.ts is stale, and without Node it is missing
     (frontend / SCHEMA_TS).write_text('export interface paths { edited: true }\n', encoding='utf-8')
     with pytest.raises(CommandError, match=rf'are stale: {SCHEMA_TS}\.'):
         contract('--check')
     contract('--no-node')
-    assert read_lock(frontend)['generated'][SCHEMA_TS] == 'missing'
+    assert read_lock(frontend.parent)['generated'][SCHEMA_TS] == 'missing'
 
 
 def test_schema_is_missing_without_openapi_typescript(frontend, npx):
@@ -306,7 +305,7 @@ def test_schema_is_missing_without_openapi_typescript(frontend, npx):
 
     assert npx.calls == []
     assert 'openapi-typescript is not installed: run `npm install`' in err
-    assert read_lock(frontend)['generated'][SCHEMA_TS] == 'missing'
+    assert read_lock(frontend.parent)['generated'][SCHEMA_TS] == 'missing'
 
 
 def test_a_failure_of_openapi_typescript_fails_the_command(frontend, npx):
@@ -315,7 +314,7 @@ def test_a_failure_of_openapi_typescript_fails_the_command(frontend, npx):
 
     with pytest.raises(CommandError, match='openapi-typescript failed with code 1:\ninvalid OpenAPI'):
         contract()
-    assert read_lock(frontend)['generated'][SCHEMA_TS] == 'missing'
+    assert read_lock(frontend.parent)['generated'][SCHEMA_TS] == 'missing'
 
 
 def test_check_catches_stale_generated_files(frontend, npx):
@@ -339,9 +338,9 @@ def test_check_catches_stale_generated_files(frontend, npx):
 
     # a schema.d.ts generated from another OpenAPI is stale
     contract()
-    lock = read_lock(frontend)
+    lock = read_lock(frontend.parent)
     lock['contract']['openapi.json'] = digest(b'another')
-    (frontend / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    write_lock(frontend.parent, lock)
     with pytest.raises(CommandError, match=rf'are stale: {SCHEMA_TS}\.'):
         contract('--check')
 
@@ -369,7 +368,7 @@ def test_the_contract_may_be_exported_elsewhere(frontend, npx):
     contract('--out', str(out))
 
     assert npx.calls[0][0][3] == '../api/contract/openapi.json'
-    assert read_lock(frontend)['contract'] == {
+    assert read_lock(frontend.parent)['contract'] == {
         'openapi.json': digest((out / 'openapi.json').read_bytes())
     }
     assert not (frontend.parent / 'contract').exists()

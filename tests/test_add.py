@@ -21,40 +21,17 @@ from django.test import override_settings
 import pytest
 
 from bazis.contrib.front import __version__, capabilities
-from bazis.contrib.front.contract.export import CONTRACT_FORMAT
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor.copy import copied
 from bazis.contrib.front.vendor.lock import digest
 
-
-@pytest.fixture
-def product(tmp_path):
-    """
-    A product with a frontend made by `init` (with bazis-statusy) and a contract that has
-    the capabilities `users` and `permit`.
-    """
-    with override_settings(BASE_DIR=str(tmp_path)):
-        call_command('bazis_front', 'init', '--no-node', stdout=StringIO())
-        contract(tmp_path, 'permit', 'users')
-        yield tmp_path
-
-
-def contract(root, *names):
-    (root / 'contract').mkdir(exist_ok=True)
-    (root / 'contract' / 'contract.json').write_text(
-        json.dumps({'format': CONTRACT_FORMAT, 'capabilities': dict.fromkeys(names, {})}),
-        encoding='utf-8',
-    )
+from .support import read_lock, write_contract, write_lock
 
 
 def add(*names):
     out = StringIO()
     call_command('bazis_front', 'add', *names, stdout=out, stderr=StringIO())
     return out.getvalue()
-
-
-def read_lock(root):
-    return json.loads((root / 'frontend' / 'bazis-front.lock.json').read_text(encoding='utf-8'))
 
 
 def test_add_copies_a_component_with_what_it_requires(product):
@@ -173,7 +150,7 @@ def test_add_refuses_a_deleted_file_and_another_version(product):
 
     lock = read_lock(product)
     lock['assets']['state-panel']['version'] = '0.0.1'
-    (product / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    write_lock(product, lock)
     with pytest.raises(CommandError, match=f'state-panel 0.0.1 is in the frontend, bazis-front is {__version__}'):
         add('state-panel')
 
@@ -183,7 +160,7 @@ def test_add_refuses_a_required_asset_of_another_version(product):
     # them is not added next to them
     lock = read_lock(product)
     lock['assets']['react']['version'] = '0.0.1'
-    (product / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    write_lock(product, lock)
 
     with pytest.raises(CommandError, match=(
         f'react 0.0.1 is in the frontend \\(required by what you add\\), bazis-front is '
@@ -235,7 +212,7 @@ def test_add_copies_the_hooks_of_a_package_installed_after_init(tmp_path, monkey
         # the frontend was made without bazis-statusy
         monkeypatch.setattr(capabilities, 'enabled', lambda: ['permit', 'users'])
         call_command('bazis_front', 'init', '--no-node', stdout=StringIO())
-        contract(tmp_path, 'permit', 'statusy', 'users')
+        write_contract(tmp_path, 'permit', 'statusy', 'users')
 
         out = add('transit-bar')
         assert [line.split()[1] for line in out.splitlines() if line.startswith('Added ')] == [

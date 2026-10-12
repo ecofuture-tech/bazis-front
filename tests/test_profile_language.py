@@ -18,8 +18,7 @@ frontend reads and saves it (`followProfileLanguage` of the asset i18n): the con
 the users have one (`users.profile_language`), the user finds his item by the username of
 his session token (`filter=username=<sub>`), reads his language (null: none) and changes it
 with a PATCH of the attribute `language` (a language of LANGUAGES, else 422); nobody else
-changes it. Skipped while the user
-model has no such field: the language of the frontend is kept in the browser then.
+changes it.
 """
 
 import json
@@ -31,16 +30,6 @@ from bazis_test_utils.utils import get_api_client
 USERS = '/api/v1/users/user/'
 
 
-@pytest.fixture
-def profile(db):
-    from django.contrib.auth import get_user_model
-
-    from bazis.contrib.front.capabilities.users import profile_language
-
-    if not profile_language(get_user_model()):
-        pytest.skip('the user model has no language (UserLanguageMixin of bazis-users 2.7.0)')
-
-
 def user_client(app, username: str):
     from bazis.contrib.users import get_user_model
 
@@ -49,7 +38,7 @@ def user_client(app, username: str):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_user_reads_and_saves_the_language_of_his_profile(sample_app, profile, tmp_path):
+def test_the_user_reads_and_saves_the_language_of_his_profile(sample_app, db, tmp_path):
     from django.core.management import call_command
 
     call_command('bazis_front', 'contract', '--out', str(tmp_path))

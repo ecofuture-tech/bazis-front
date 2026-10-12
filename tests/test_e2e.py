@@ -37,9 +37,10 @@ from bazis.contrib.front.spec import e2e
 from bazis.contrib.front.spec.validate import validate
 from bazis.contrib.front.vendor.lock import digest
 
+from .support import SAMPLE_SPEC, read_lock, write_lock
+
 
 REPOSITORY = Path(__file__).resolve().parent.parent
-SAMPLE_SPEC = REPOSITORY / 'sample' / 'spec'
 FIXTURES = REPOSITORY / 'bazis' / 'contrib' / 'front' / 'assets' / 'playwright' / 'generated'
 
 MANAGER = 'e2e/generated/manager-finishes-a-task.spec.ts'
@@ -56,25 +57,10 @@ STEP = 'e2e/generated/manager-adds-a-step.spec.ts'
 WATCHER = 'e2e/generated/manager-adds-a-watcher.spec.ts'
 
 
-@pytest.fixture
-def root(tmp_path):
-    """
-    A product root with the specs of the sample and a frontend made by `init`.
-    """
-    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
-    with override_settings(BASE_DIR=str(tmp_path)):
-        call_command('bazis_front', 'init', '--no-node', stdout=StringIO())
-        yield tmp_path
-
-
 def generate(*args) -> str:
     out = StringIO()
     call_command('bazis_front', 'e2e', *args, stdout=out, stderr=StringIO())
     return out.getvalue()
-
-
-def lock_of(root: Path) -> dict:
-    return json.loads((root / 'frontend' / 'bazis-front.lock.json').read_text(encoding='utf-8'))
 
 
 def edit_product(root: Path, change) -> None:
@@ -336,7 +322,7 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     assert "test.step('fill: {watchers: []}'" in files[WATCHER]
     assert "await app.fill({ watchers: [] });" in files[WATCHER]
     assert "watchers: ['Mary Manager', 'Victor Viewer'] });" in files[WATCHER]
-    lock = lock_of(root)
+    lock = read_lock(root)
     assert lock['e2e'] == {
         'spec': {
             path: digest((root / path).read_bytes())
@@ -351,7 +337,7 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     before = {path: (frontend / path).read_bytes() for path in files}
     generate()
     assert {path: (frontend / path).read_bytes() for path in files} == before
-    assert lock_of(root) == lock
+    assert read_lock(root) == lock
     assert 'up to date' in generate('--check')
     assert check_e2e(None) == []
 
@@ -375,7 +361,7 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert not (frontend / VIEWER).exists()
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
-    assert sorted(lock_of(root)['e2e']['generated']) == [
+    assert sorted(read_lock(root)['e2e']['generated']) == [
         STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PLACES, PRIORITY, e2e.PRODUCT_TS, DRAFTS,
     ]
     generate('--check')
@@ -385,11 +371,11 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
 def test_e2e_deletes_only_files_of_e2e_generated(root):
     generate()
     frontend = root / 'frontend'
-    lock = lock_of(root)
+    lock = read_lock(root)
     # a lock edited by hand, or written by something else, lists other files of the frontend
     others = ['src/main.tsx', 'e2e/bazis/index.ts', 'e2e/generated/../../index.html', '../spec/product.yaml']
     lock['e2e']['generated'].update({path: 'sha256:0' for path in others})
-    (frontend / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
+    write_lock(root, lock)
     before = {path: (frontend / path).read_bytes() for path in others}
 
     # they are not stale
@@ -397,7 +383,7 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     assert check_e2e(None) == []
     generate()
     assert {path: (frontend / path).read_bytes() for path in others} == before
-    assert sorted(lock_of(root)['e2e']['generated']) == [
+    assert sorted(read_lock(root)['e2e']['generated']) == [
         STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PLACES, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS,
     ]
 
@@ -437,7 +423,7 @@ def test_e2e_needs_specs_without_errors(root):
         call_command('bazis_front', 'e2e', stdout=out)
     assert 'P022' in out.getvalue()
     assert not (root / 'frontend' / 'e2e' / 'generated').exists()
-    assert 'e2e' not in lock_of(root)
+    assert 'e2e' not in read_lock(root)
 
 
 @pytest.mark.django_db

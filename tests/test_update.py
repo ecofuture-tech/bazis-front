@@ -31,7 +31,6 @@ from django.test import override_settings
 import pytest
 
 from bazis.contrib.front import __version__, checks
-from bazis.contrib.front.contract.export import CONTRACT_FORMAT
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor import update as vendor_update
@@ -39,44 +38,18 @@ from bazis.contrib.front.vendor.copy import base_dir, copied, lock_entry, restam
 from bazis.contrib.front.vendor.lock import digest
 from bazis.contrib.front.vendor.npm import with_dependencies
 
+from .support import read_lock, write_contract, write_lock
+
 
 OLD = '0.0.1'
 CLIENT = 'src/bazis/client/client.ts'
 MARKERS = ('<<<<<<< frontend\n', '=======\n', f'>>>>>>> bazis-front {__version__}\n')
 
 
-@pytest.fixture
-def product(tmp_path):
-    """
-    A product with a frontend made by `init` (with bazis-statusy) and a contract that has
-    the capabilities `users` and `permit`.
-    """
-    with override_settings(BASE_DIR=str(tmp_path)):
-        call_command('bazis_front', 'init', '--no-node', stdout=StringIO())
-        contract(tmp_path, 'permit', 'users')
-        yield tmp_path
-
-
-def contract(root, *names):
-    (root / 'contract').mkdir(exist_ok=True)
-    (root / 'contract' / 'contract.json').write_text(
-        json.dumps({'format': CONTRACT_FORMAT, 'capabilities': dict.fromkeys(names, {})}),
-        encoding='utf-8',
-    )
-
-
 def update(*args):
     out = StringIO()
     call_command('bazis_front', 'update', *args, stdout=out, stderr=StringIO())
     return out.getvalue()
-
-
-def read_lock(root):
-    return json.loads((root / 'frontend' / 'bazis-front.lock.json').read_text(encoding='utf-8'))
-
-
-def write_lock(root, lock):
-    (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
 
 
 def files(root):
@@ -410,7 +383,7 @@ def test_update_copies_what_a_new_version_requires(product):
 
 def test_update_needs_the_capabilities_of_a_new_requirement(product):
     frontend = product / 'frontend'
-    contract(product, 'permit', 'statusy', 'users')
+    write_contract(product, 'permit', 'statusy', 'users')
     call_command('bazis_front', 'add', 'transit-bar', stdout=StringIO())
     lock = read_lock(product)
     for path in lock['assets'].pop('react-statusy')['files']:
@@ -418,14 +391,14 @@ def test_update_needs_the_capabilities_of_a_new_requirement(product):
     shutil.rmtree(base_dir(frontend, 'react-statusy', __version__))
     write_lock(product, lock)
     downgrade(product, 'transit-bar')
-    contract(product, 'permit', 'users')
+    write_contract(product, 'permit', 'users')
     before = files(product)
 
     with pytest.raises(CommandError, match='react-statusy requires the capabilities statusy, which the contract does not have'):
         update()
     assert files(product) == before
 
-    contract(product, 'permit', 'statusy', 'users')
+    write_contract(product, 'permit', 'statusy', 'users')
     update()
     assert_updated(product, 'react-statusy')
     assert_updated(product, 'transit-bar')

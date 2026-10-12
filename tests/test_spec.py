@@ -32,8 +32,9 @@ from bazis.contrib.front.spec.access import Grant
 from bazis.contrib.front.spec.issues import CODES
 from bazis.contrib.front.spec.validate import schema_files, validate
 
+from .support import SAMPLE_SPEC
 
-SAMPLE_SPEC = Path(__file__).resolve().parent.parent / 'sample' / 'spec'
+
 AGENTS_MD = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front' / 'AGENTS.md'
 
 
