@@ -226,7 +226,7 @@ def test_update_replaces_unchanged_copies(product):
     assert w004() == []
     assert update('--check').endswith(f'are those of bazis-front {__version__}.\n')
     lock = read_lock(product)
-    assert update() == update('--all')
+    update()
     assert read_lock(product) == lock
 
 
@@ -493,8 +493,6 @@ def test_update_of_named_assets(product):
         update('nope')
     with pytest.raises(CommandError, match='resource-list is not in the frontend: copy it with `manage.py bazis_front add resource-list`'):
         update('resource-list')
-    with pytest.raises(CommandError, match='Name the assets or pass --all, not both'):
-        update('react', '--all')
 
 
 PLAYWRIGHT_CONFIG = 'playwright.config.ts'

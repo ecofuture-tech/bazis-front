@@ -157,9 +157,6 @@ class Command(BaseCommand):
             help='The assets to update, with those they require (default: every copied asset).',
         )
         update_parser.add_argument(
-            '--all', action='store_true', dest='all_assets', help='Update every copied asset.',
-        )
-        update_parser.add_argument(
             '--check',
             action='store_true',
             help='Write nothing; list the changes and exit with 1 if a copy is not up to date.',
@@ -312,9 +309,7 @@ class Command(BaseCommand):
                 'copies and keeps the tests passing when it changes them.'
             )
 
-    def handle_update(self, assets, all_assets=False, check=False, **options):
-        if assets and all_assets:
-            raise CommandError('Name the assets or pass --all, not both.')
+    def handle_update(self, assets, check=False, **options):
         frontend = frontend_lock.frontend_dir()
         try:
             lock = frontend_lock.read(frontend)
