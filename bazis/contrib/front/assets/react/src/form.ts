@@ -100,7 +100,7 @@ function initialValues(fields: readonly FormField[], item: Item | undefined): Re
  * The JSON:API document of the changed fields: the attributes and the relationships (a
  * to-many one with every related item: the backend sets it to these).
  */
-export function formDocument(
+function formDocument(
   type: string,
   id: string | undefined,
   fields: readonly FormField[],

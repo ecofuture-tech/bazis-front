@@ -14,5 +14,5 @@
 
 export { LeafletMap, MapPointControl, MapProvider, nearFilter, nearSort, OSM_TILES, useGeolocation, useMapTiles } from './map.js';
 export type { Geolocation, LeafletMapProps, MapMarker, MapTiles } from './map.js';
-export { MAP_PAGE, ResourceMap } from './resource-map.js';
+export { ResourceMap } from './resource-map.js';
 export type { ResourceMapProps } from './resource-map.js';

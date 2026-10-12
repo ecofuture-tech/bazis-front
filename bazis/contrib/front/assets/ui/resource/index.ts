@@ -27,7 +27,6 @@ export {
   itemLabel,
   permitted,
   routeOf,
-  toLocalDateTime,
   useItemFields,
   useListFields,
 } from './fields.js';
@@ -40,14 +39,12 @@ export {
   formatSize,
   isFile,
   isImage,
-  uploadedFile,
   useFiles,
 } from './files.js';
 export type { ControlProps, FileControlProps, FileViewProps, UploadedFile } from './files.js';
 export {
   formatPoint,
   geoJsonPoint,
-  isPoint,
   parsePoint,
   POINT_FIELDS,
   PointInput,

@@ -18,7 +18,6 @@ export {
   createLanguageStore,
   defaultLanguage,
   ENGLISH,
-  LANGUAGE_KEY,
   LanguageProvider,
   matchLanguage,
   MESSAGES,
@@ -33,7 +32,7 @@ export type {
   LanguageStore,
   LanguageStoreOptions,
 } from './language.js';
-export { followProfileLanguage, readProfile, saveProfileLanguage, tokenSubject } from './profile.js';
+export { followProfileLanguage, tokenSubject } from './profile.js';
 export type { Profile, ProfileResource } from './profile.js';
 export { translate } from './translate.js';
 export type { Messages, Params, Translate } from './translate.js';

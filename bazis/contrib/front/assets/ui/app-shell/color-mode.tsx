@@ -81,7 +81,7 @@ function subscribe(listener: () => void) {
   };
 }
 
-export function useColorMode(): ColorMode {
+function useColorMode(): ColorMode {
   return useSyncExternalStore(subscribe, () => mode, () => mode);
 }
 

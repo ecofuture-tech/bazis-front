@@ -19,5 +19,5 @@ export {
   StatePanel,
 } from './state-panel.js';
 export type { ErrorState, StatePanelProps, ViewState } from './state-panel.js';
-export { dismissToast, toast, Toaster } from './toast.js';
+export { toast, Toaster } from './toast.js';
 export type { Toast } from './toast.js';

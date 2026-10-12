@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { AUTH_POLL_INTERVAL, BACKGROUND_HEADER, createClient, TOKEN_PATH } from './client.js';
+export { AUTH_POLL_INTERVAL, BACKGROUND_HEADER, createClient } from './client.js';
 export type {
   BazisClient,
   ClientOptions,

@@ -2949,7 +2949,6 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 
 - `AUTH_POLL_INTERVAL: 1500`: How often `authWait` asks the auth endpoint of bazis-authing, in milliseconds.
 - `BACKGROUND_HEADER: "X-Async-Background"`: The header that asks bazis-async-request to run a request in the background (`async_request` of the contract).
-- `TOKEN_PATH: "/api/openapi-token/"`: The default path of the token endpoint of bazis-users (`BAZIS_OPENAPI_TOKEN_URL`).
 - `type CollectionSchemaKind = 'list' | 'create'`: Runtime schemas of a route set; `transit` exists on bazis-statusy route sets.
 - `type ItemSchemaKind = 'retrieve' | 'update' | 'transit'`
 - `type RelationshipOperation = 'add' | 'replace' | 'remove'`
@@ -3397,12 +3396,11 @@ Its props, `SocketProviderProps`:
 
 `interface InboxOptions`
 
-- `limit?: number`: The notifications listed, the newest first: `INBOX_LIMIT` by default.
+- `limit?: number`: The notifications listed, the newest first: 50 by default.
 - `poll?: number`: Read the list and the count again every `poll` milliseconds: for a backend without bazis-ws, whose notifications come with no live message.
 
 #### The types and the constants of `@/bazis/react/notify`
 
-- `INBOX_LIMIT: 50`: The notifications that the inbox lists, the newest first.
 - `type Severity = 'info' | 'success' | 'warning' | 'error'`
 
 ### `@/bazis/react/bg`
@@ -3590,14 +3588,6 @@ Its props, `LanguageProviderProps`:
 
 `followProfileLanguage(store: LanguageStore, api: Api, resource: ProfileResource, token: string): () => void`: Makes the language of the store follow the profile of the user of the session token while it lasts: adopts the language of the profile, then saves every change of the language by the user.
 
-#### readProfile
-
-`readProfile(api: Api, resource: ProfileResource, username: string): Promise<Profile | null>`: The profile of the user of this username; null when the user is not found.
-
-#### saveProfileLanguage
-
-`saveProfileLanguage(api: Api, resource: ProfileResource, id: string, language: string): Promise<void>`: Saves the language to the profile: a PATCH of the attribute `language` of the user.
-
 #### tokenSubject
 
 `tokenSubject(token: string): string | null`: The username of a session token of bazis-users (`sub` of its JWT); null for another token.
@@ -3623,7 +3613,6 @@ Its props, `LanguageProviderProps`:
 #### The types and the constants of `@/bazis/i18n`
 
 - `ENGLISH: LanguageContextValue`: The texts of the package in English: the default of the components without a `LanguageProvider`, and of the functions that format outside a component.
-- `LANGUAGE_KEY: "bazis.language"`: The key of the language chosen by the user in localStorage.
 - `MESSAGES: Readonly<Record<string, Messages>>`: The dictionaries of the package, by language: those of the product are merged over them.
 - `LanguageProviderProps`: the props of `LanguageProvider`, listed with it
 - `type Messages = Readonly<Record<string, string>>`: A dictionary: the text of each key in one language.
@@ -3711,10 +3700,6 @@ Its props, `ScreenProps`:
 #### setColorMode
 
 `setColorMode(next: ColorMode): void`
-
-#### useColorMode
-
-`useColorMode(): ColorMode`
 
 #### LanguageToggle
 
@@ -3954,7 +3939,6 @@ Its props, `ResourceMapProps`:
 
 - `OSM_TILES: MapTiles`: The tiles of OpenStreetMap, the default: their usage policy allows light use with this attribution; a product in production sets the tiles of its provider (`MapProvider tiles`) and lets their host in its Content Security Policy (`img-src`).
 - `LeafletMapProps`: the props of `LeafletMap`, listed with it
-- `MAP_PAGE: 200`: The items a map reads at most, the first page of its list.
 - `ResourceMapProps`: the props of `ResourceMap`, listed with it
 
 ### `@/bazis/ui/notification-center`
@@ -4067,10 +4051,6 @@ Its props, `FieldInputProps`:
 
 `routeOf(type: string): string | undefined`: The path of the route set of a JSON:API type (`ROUTES` of the contract), if it has one.
 
-#### toLocalDateTime
-
-`toLocalDateTime(value: unknown): string`: A date-time of the backend as the value of `<input type="datetime-local">`.
-
 #### useItemFields
 
 `useItemFields(path: string, id: string, kind?: 'retrieve' | 'update'): Fields`: The fields that the current user may see in an item (`schema_retrieve/`, by default), or may set in its update (`schema_update/`: those they may not change now are `readOnly`), for this item: the field permissions of bazis-permit depend on the item (its selectors, its status).
@@ -4132,10 +4112,6 @@ Its props, `FileViewProps`:
 
 `isImage(name: string): boolean`: Whether a file is an image, by its name or its extension.
 
-#### uploadedFile
-
-`uploadedFile(item: ResourceObject): UploadedFile`: The attributes of an item of a resource of the uploaded files.
-
 #### useFiles
 
 `useFiles(): Files`: The resources of the uploaded files and the control of a file field.
@@ -4173,10 +4149,6 @@ Its props, `FileViewProps`:
 #### geoJsonPoint
 
 `geoJsonPoint(options: LatLng): GeoJsonPoint`: The GeoJSON of a point, the value of a point field.
-
-#### isPoint
-
-`isPoint(field: { kind: string; name: string; }, path: string | undefined, fields: Points['fields']): boolean`: Whether a field of the route set `path` is a point field (an attribute of `fields`).
 
 #### parsePoint
 
@@ -4519,10 +4491,6 @@ Its props, `StatePanelProps`:
 - `skeleton?: ReactNode`: The `loading` state: the skeleton of the content (lines of text by default).
 - `children?: ReactNode`: The content of the `loaded` state.
 - `className?: string`
-
-#### dismissToast
-
-`dismissToast(id: number): void`: Removes a toast.
 
 #### toast
 

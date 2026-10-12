@@ -46,7 +46,7 @@ const FORM = 'application/x-www-form-urlencoded';
 const ACCEPT = `${JSONAPI}, ${JSON_TYPE}`;
 
 /** The default path of the token endpoint of bazis-users (`BAZIS_OPENAPI_TOKEN_URL`). */
-export const TOKEN_PATH = '/api/openapi-token/';
+const TOKEN_PATH = '/api/openapi-token/';
 
 type MaybePromise<T> = T | Promise<T>;
 

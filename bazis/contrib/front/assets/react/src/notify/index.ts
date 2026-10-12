@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { INBOX_LIMIT, inboxNotification, useInbox } from './inbox.js';
+export { inboxNotification, useInbox } from './inbox.js';
 export type { Inbox, InboxNotification, InboxOptions, Severity } from './inbox.js';

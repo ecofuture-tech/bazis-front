@@ -25,7 +25,7 @@ import { invalidateResource } from '../mutations.js';
 import { loose } from '../types.js';
 
 /** The notifications that the inbox lists, the newest first. */
-export const INBOX_LIMIT = 50;
+const INBOX_LIMIT = 50;
 
 export type Severity = 'info' | 'success' | 'warning' | 'error';
 
@@ -89,7 +89,7 @@ export function inboxNotification(item: ResourceObject): InboxNotification {
 }
 
 export interface InboxOptions {
-  /** The notifications listed, the newest first: `INBOX_LIMIT` by default. */
+  /** The notifications listed, the newest first: 50 by default. */
   limit?: number;
   /**
    * Read the list and the count again every `poll` milliseconds: for a backend without

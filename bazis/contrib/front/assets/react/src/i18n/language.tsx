@@ -35,7 +35,7 @@ export interface Language {
 export const MESSAGES: Readonly<Record<string, Messages>> = { en, ru };
 
 /** The key of the language chosen by the user in localStorage. */
-export const LANGUAGE_KEY = 'bazis.language';
+const LANGUAGE_KEY = 'bazis.language';
 
 /** The language of the texts of the package without a dictionary of the language. */
 const BASE = 'en';

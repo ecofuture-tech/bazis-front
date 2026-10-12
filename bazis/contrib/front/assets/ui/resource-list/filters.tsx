@@ -57,7 +57,7 @@ type FieldType = string;
 const NUMBERS = new Set(['integer', 'number', 'Decimal']);
 
 /** The types of the filter fields of the route set by name, whether they are loaded, the error of their request. */
-export function useFilterTypes(path: string): { types: ReadonlyMap<string, FieldType>; pending: boolean; error: Error | null } {
+function useFilterTypes(path: string): { types: ReadonlyMap<string, FieldType>; pending: boolean; error: Error | null } {
   const query = useAnyFilterFields(path);
   const fields = query.data?.fields ?? [];
   return { types: new Map(fields.map((it) => [it.name, it.py_type])), pending: query.isPending, error: query.error };
@@ -107,7 +107,7 @@ function typeOfPath(path: string): string | undefined {
   return Object.entries(ROUTES as Readonly<Record<string, string>>).find(([, it]) => it === path)?.[0];
 }
 
-export interface FilterControlProps {
+interface FilterControlProps {
   filter: ListFilter;
   label: string;
   type: FieldType | undefined;
@@ -116,7 +116,7 @@ export interface FilterControlProps {
 }
 
 /** The control of a filter, marked `field:<field>` (the range of a date `field:<field>__gte`, `__lte`). */
-export function FilterControl({ filter, label, type, values, onChange }: FilterControlProps) {
+function FilterControl({ filter, label, type, values, onChange }: FilterControlProps) {
   const { t } = useLanguage();
   const id = `filter-${filter.field}`;
   const { field } = filter;
@@ -214,7 +214,7 @@ export function FilterControl({ filter, label, type, values, onChange }: FilterC
   );
 }
 
-export interface FilterBarProps {
+interface FilterBarProps {
   path: string;
   filters: readonly ListFilter[];
   /** Whether the titles of the fields are loaded: until then, and until the types of the filters are, a skeleton. */

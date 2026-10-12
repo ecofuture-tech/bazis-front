@@ -61,7 +61,7 @@ export function tokenSubject(token: string): string | null {
 }
 
 /** The profile of the user of this username; null when the user is not found. */
-export async function readProfile(api: Api, resource: ProfileResource, username: string): Promise<Profile | null> {
+async function readProfile(api: Api, resource: ProfileResource, username: string): Promise<Profile | null> {
   const client = api as unknown as ProfileClient;
   const { data } = await client.list(resource.path, { filter: Filter.where('username', username), page: { limit: 1 } });
   const item = data[0];
@@ -71,7 +71,7 @@ export async function readProfile(api: Api, resource: ProfileResource, username:
 }
 
 /** Saves the language to the profile: a PATCH of the attribute `language` of the user. */
-export async function saveProfileLanguage(
+async function saveProfileLanguage(
   api: Api,
   resource: ProfileResource,
   id: string,

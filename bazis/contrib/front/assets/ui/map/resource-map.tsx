@@ -29,7 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LeafletMap, type MapMarker } from './map.js';
 
 /** The items a map reads at most, the first page of its list. */
-export const MAP_PAGE = 200;
+const MAP_PAGE = 200;
 
 export interface ResourceMapProps {
   /** The route set (`ROUTES` of the contract). */

@@ -125,7 +125,7 @@ export interface UploadedFile {
 }
 
 /** The attributes of an item of a resource of the uploaded files. */
-export function uploadedFile(item: ResourceObject): UploadedFile {
+function uploadedFile(item: ResourceObject): UploadedFile {
   const { file, name, size } = item.attributes ?? {};
   // the name of the upload, else that of the stored file (the last part of its media URL,
   // which is never linked: the file is downloaded with the token, `useDownload`)

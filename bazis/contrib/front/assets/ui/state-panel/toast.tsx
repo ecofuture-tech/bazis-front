@@ -43,7 +43,7 @@ function emit(items: readonly Toast[]) {
 }
 
 /** Removes a toast. */
-export function dismissToast(id: number): void {
+function dismissToast(id: number): void {
   emit(toasts.filter((it) => it.id !== id));
 }
 
