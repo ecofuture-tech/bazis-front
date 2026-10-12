@@ -888,8 +888,7 @@ differ from the backend; `--check` does the same in CI.
   searches with `search`; empty, the route set has no search, and a `search` is 400
   `ERR_FILTER`. Both are read for the LIST schema of the route set itself: a package that
   narrows it per user (the field permissions of bazis-permit) may refuse a field for some
-  users, and `BS_BAZIS_FILTERS_STRICT=false` (transitional) searches a route set without
-  search fields anyway; the contract follows the strict scope.
+  users.
 
 ### The sections of the capabilities
 
