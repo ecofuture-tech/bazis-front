@@ -175,9 +175,9 @@ screen that lists the resources of the contract. It never overwrites an existing
 - the helpers of the end-to-end tests in `e2e/bazis/` (the asset `playwright`, copied like
   the hooks), with `playwright.config.ts` and `e2e/custom/` of the template (see
   [The end-to-end tests](#the-end-to-end-tests));
-- `bazis-front.lock.json`: the version of bazis-front, the hashes of the contract and of
-  the generated files (see below), and the version and the file hashes of every copied
-  asset, the template too; an asset that was not copied is not in it.
+- `bazis-front.lock.json`: the hashes of the generated files and of the OpenAPI they were
+  made from (see below), and the version and the file hashes of every copied asset, the
+  template too; an asset that was not copied is not in it.
   `bazis_front e2e` adds the hashes of the specs and of the tests it generates (`e2e`),
   `init` and `bazis_front design` those of the design and of the theme (`design`).
 
@@ -209,7 +209,7 @@ them:
 | `frontend/src/app/` | App (the template, `assets/template`) | providers (query cache, `BazisProvider`), session, router (the layout and the navigation), errors | the product; merged with a new version by `update` |
 | `frontend/src/screens/<screen>/` | App | the screens, composed from the components | the product |
 | `frontend/package.json`, the configs, `frontend/src/i18n/`, `frontend/AGENTS.md` | App | the rest of the template | the product; merged with a new version by `update` |
-| `frontend/bazis-front.lock.json`, `frontend/.bazis/base/` | | the versions and hashes of the contract, of the generated files and of the copied assets; the pristine copies of the assets, from which `bazis_front update` merges a new version | bazis-front; commit them, never edit them |
+| `frontend/bazis-front.lock.json`, `frontend/.bazis/base/` | | the hashes of the OpenAPI and of the generated files, the versions and hashes of the copied assets; the pristine copies of the assets, from which `bazis_front update` merges a new version | bazis-front; commit them, never edit them |
 
 From `frontend/`:
 

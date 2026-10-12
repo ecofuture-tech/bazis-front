@@ -256,8 +256,7 @@ def test_contract_generates_the_frontend(frontend):
 
     lock = read_lock(frontend)
     assert lock['contract'] == {
-        name: digest((product / 'contract' / name).read_bytes())
-        for name in ('contract.json', 'openapi.json')
+        'openapi.json': digest((product / 'contract' / 'openapi.json').read_bytes())
     }
     assert lock['generated'] == {
         CONTRACT_TS: digest(contract_ts.encode('utf-8')), SCHEMA_TS: 'missing'
@@ -371,7 +370,7 @@ def test_the_contract_may_be_exported_elsewhere(frontend, npx):
 
     assert npx.calls[0][0][3] == '../api/contract/openapi.json'
     assert read_lock(frontend)['contract'] == {
-        name: digest((out / name).read_bytes()) for name in ('contract.json', 'openapi.json')
+        'openapi.json': digest((out / 'openapi.json').read_bytes())
     }
     assert not (frontend.parent / 'contract').exists()
     contract('--check', '--out', str(out))

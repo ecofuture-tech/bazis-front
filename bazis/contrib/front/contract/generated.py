@@ -16,8 +16,8 @@
 The generated files of the frontend of a product (layer 0), in `src/bazis/generated/`:
 `contract.ts`, rendered from contract.json (`typescript`), and `schema.d.ts`, the types of
 the API generated from openapi.json by openapi-typescript (it needs Node and the
-`npm install` of the frontend). The lock of the frontend records the hashes of the
-contract they were made from and their own.
+`npm install` of the frontend). The lock of the frontend records their hashes and that of
+the OpenAPI that `schema.d.ts` was made from.
 """
 
 import json
@@ -26,7 +26,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .. import __version__
 from ..vendor import lock as frontend_lock
 from . import typescript
 
@@ -49,8 +48,8 @@ def render_contract_ts(rendered: dict[str, str]) -> str:
     return typescript.render(json.loads(rendered['contract.json']))
 
 
-def contract_hashes(rendered: dict[str, str]) -> dict[str, str]:
-    return {name: frontend_lock.digest(text.encode('utf-8')) for name, text in rendered.items()}
+def openapi_hash(rendered: dict[str, str]) -> str:
+    return frontend_lock.digest(rendered['openapi.json'].encode('utf-8'))
 
 
 def file_hash(path: Path) -> str | None:
@@ -74,11 +73,10 @@ def stale_files(frontend: Path, lock: dict, rendered: dict[str, str]) -> list[st
 
 def schema_is_current(frontend: Path, lock: dict, rendered: dict[str, str]) -> bool:
     recorded = lock.get('generated', {}).get(SCHEMA_TS)
-    openapi = contract_hashes(rendered)['openapi.json']
     return (
         recorded not in (None, MISSING)
         and file_hash(frontend / SCHEMA_TS) == recorded
-        and lock.get('contract', {}).get('openapi.json') == openapi
+        and lock.get('contract', {}).get('openapi.json') == openapi_hash(rendered)
     )
 
 
@@ -142,7 +140,7 @@ def write(
     else:
         generated[SCHEMA_TS] = MISSING
 
-    lock.update(bazis_front=__version__, contract=contract_hashes(rendered), generated=generated)
+    lock.update(contract={'openapi.json': openapi_hash(rendered)}, generated=generated)
     frontend_lock.write(frontend, lock)
     if error is not None:
         raise error

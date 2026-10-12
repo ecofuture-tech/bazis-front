@@ -92,7 +92,6 @@ def test_init_creates_the_frontend(product):
     design = lock.pop('design')
     assert lock == {
         'lock': 1,
-        'bazis_front': __version__,
         'contract': {},
         'generated': {},
         'assets': {name: {'version': __version__} for name in [*vendored, 'template']},

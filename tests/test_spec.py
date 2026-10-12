@@ -133,7 +133,7 @@ def lock(*assets):
     The lock of a frontend with these assets.
     """
     return {
-        'lock': 1, 'bazis_front': '0.1.0', 'contract': {}, 'generated': {},
+        'lock': 1, 'contract': {}, 'generated': {},
         'assets': {name: {'version': '0.1.0'} for name in assets},
     }
 

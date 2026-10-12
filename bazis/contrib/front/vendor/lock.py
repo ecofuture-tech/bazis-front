@@ -17,8 +17,8 @@ The frontend of a product and its lock, `frontend/bazis-front.lock.json`: the ve
 hashes of what bazis-front wrote there.
 
 ```json
-{"lock": 1, "bazis_front": "0.1.0",
- "contract": {"contract.json": "sha256:…", "openapi.json": "sha256:…"},
+{"lock": 1,
+ "contract": {"openapi.json": "sha256:…"},
  "generated": {"src/bazis/generated/contract.ts": "sha256:…",
                "src/bazis/generated/schema.d.ts": "sha256:…"},
  "assets": {"client": {"version": "0.1.0", "files": {"src/bazis/client/client.ts": "sha256:…"}},
@@ -27,8 +27,9 @@ hashes of what bazis-front wrote there.
          "generated": {"e2e/generated/product.ts": "sha256:…"}}}
 ```
 
-`contract` has the hashes of the contract files from which the files of `generated` were
-made; a generated file that could not be made is `"missing"`. The hashes of the files of
+`contract` has the hash of the OpenAPI from which `schema.d.ts` of `generated` was made (the
+other generated files are compared with what the contract renders); a generated file that
+could not be made is `"missing"`. The hashes of the files of
 an asset are those of its pristine copy in `.bazis/base/<asset>@<version>/`. An asset that set npm
 dependencies in `package.json` (the map) has them in `npm`, `{section: {package: version}}`. `e2e`
 (written by `bazis_front e2e`, `spec/e2e.py`) has the hashes of the specs from which the

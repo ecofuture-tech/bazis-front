@@ -151,7 +151,6 @@ def create_frontend(frontend: Path, capabilities: Iterable[str]) -> None:
                 assets[asset.name] = lock_entry(asset, version, copy_asset(asset, temporary, version))
         lock = {
             'lock': frontend_lock.LOCK_FORMAT,
-            'bazis_front': version,
             'contract': {},
             'generated': {},
             'assets': assets,
