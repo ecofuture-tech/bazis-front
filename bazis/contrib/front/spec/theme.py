@@ -32,18 +32,18 @@ the files (`design`).
 
 from pathlib import Path
 
+from ..contract.generated import GENERATED_DIR
 from ..contract.typescript import literal
 from ..vendor import lock as frontend_lock
 from . import design
-from .validate import SPEC_DIR, Specs
+from .validate import THEME_FILE, TOKENS_FILE, Specs
 
 
-GENERATED_DIR = 'src/bazis/generated'
 THEME_CSS = f'{GENERATED_DIR}/theme.css'
 THEME_TS = f'{GENERATED_DIR}/theme.ts'
 
 #: the files of the design in the product root
-DESIGN_FILES = (f'{SPEC_DIR}/design/theme.yaml', f'{SPEC_DIR}/design/tokens.json')
+DESIGN_FILES = (THEME_FILE, TOKENS_FILE)
 
 #: the options of each preset, when theme.yaml does not give them
 PRESETS = {
@@ -248,35 +248,20 @@ def render(specs: Specs) -> dict[str, str]:
     }
 
 
-def spec_hashes(root: Path) -> dict[str, str]:
-    return {
-        path: frontend_lock.digest((root / path).read_bytes())
-        for path in DESIGN_FILES if (root / path).is_file()
-    }
-
-
 def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> list[str]:
     """
     Why the theme of the frontend differs from that of the specs, one message for each;
     empty when it is current. The files are compared byte for byte.
     """
-    recorded = lock.get('design', {})
-    names = [
-        path for path, text in rendered.items()
-        if not (frontend / path).is_file() or (frontend / path).read_bytes() != text.encode('utf-8')
-    ]
+    names = frontend_lock.stale_files(frontend, rendered)
     if not names:
         return []
     problems = [f'The theme of {frontend} is stale: {", ".join(names)}.']
-    previous, current = recorded.get('spec', {}), spec_hashes(root)
-    if changed := sorted(it for it in {*previous, *current} if previous.get(it) != current.get(it)):
+    changed, edited = frontend_lock.generation_changes(
+        lock.get('design', {}), frontend_lock.file_hashes(root, DESIGN_FILES), frontend, names
+    )
+    if changed:
         problems.append(f'The design changed since it was generated: {", ".join(changed)}.')
-    generated = recorded.get('generated', {})
-    edited = [
-        it for it in names
-        if it in generated and (frontend / it).is_file()
-        and frontend_lock.digest((frontend / it).read_bytes()) != generated[it]
-    ]
     if edited:
         problems.append(f'Edited after it was generated: {", ".join(edited)}.')
     return problems
@@ -286,12 +271,6 @@ def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> N
     """
     Writes the theme and records the hashes of the design and of the files in the lock.
     """
-    for path, text in rendered.items():
-        target = frontend / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding='utf-8', newline='\n')
-    lock['design'] = {
-        'spec': spec_hashes(root),
-        'generated': {path: frontend_lock.digest(text.encode('utf-8')) for path, text in rendered.items()},
-    }
+    frontend_lock.write_files(frontend, rendered)
+    lock['design'] = frontend_lock.generation(frontend_lock.file_hashes(root, DESIGN_FILES), rendered)
     frontend_lock.write(frontend, lock)

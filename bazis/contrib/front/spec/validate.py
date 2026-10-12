@@ -42,6 +42,12 @@ from .scenarios import Step
 
 SPEC_DIR = 'spec'
 
+#: the files of the specs, by their path in the product root (the screens are
+#: `screen_files`)
+PRODUCT_FILE = f'{SPEC_DIR}/product.yaml'
+THEME_FILE = f'{SPEC_DIR}/design/theme.yaml'
+TOKENS_FILE = f'{SPEC_DIR}/design/tokens.json'
+
 #: the copies of the JSON Schemas in the specs of a product, for the editors
 SCHEMA_DIR = 'schema'
 
@@ -256,25 +262,33 @@ def check_packages(contract: dict, issues: Issues) -> None:
         )
 
 
+def screen_files(root: Path) -> list[str]:
+    """
+    The specs of the screens, `spec/screens/<id>.yaml`, by their path in the product root.
+    """
+    return [
+        it.relative_to(root).as_posix() for it in sorted((root / SPEC_DIR / 'screens').glob('*.yaml'))
+    ]
+
+
 def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     """
     Checks `spec/` of the product root against itself and `contract/contract.json`. The
     issues of the other layers are left out (the layers are checked together, because they
     reference each other); those of the contract are always reported.
     """
-    spec = root / SPEC_DIR
     issues = Issues()
     contract = load_contract(root, issues)
     if contract is not None:
         check_assets(root, contract, issues)
         check_packages(contract, issues)
 
-    product_doc = load(root, spec / 'product.yaml', 'product', PRODUCT_SCHEMA, ('P001', 'P002'), issues)
+    product_doc = load(root, root / PRODUCT_FILE, 'product', PRODUCT_SCHEMA, ('P001', 'P002'), issues)
     screen_docs = [
-        load(root, path, 'screens', SCREEN_SCHEMA, ('S001', 'S002'), issues)
-        for path in sorted((spec / 'screens').glob('*.yaml'))
+        load(root, root / path, 'screens', SCREEN_SCHEMA, ('S001', 'S002'), issues)
+        for path in screen_files(root)
     ]
-    theme_path, tokens_path = spec / 'design' / 'theme.yaml', spec / 'design' / 'tokens.json'
+    theme_path, tokens_path = root / THEME_FILE, root / TOKENS_FILE
     theme_doc = (
         load(root, theme_path, 'design', DESIGN_SCHEMA, ('D001', 'D002'), issues)
         if theme_path.exists() else None

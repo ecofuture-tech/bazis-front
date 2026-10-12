@@ -32,7 +32,7 @@ from pathlib import Path
 from ..contract.typescript import constant
 from ..vendor import lock as frontend_lock
 from .scenarios import Step
-from .validate import SPEC_DIR, Specs
+from .validate import PRODUCT_FILE, SPEC_DIR, Specs, screen_files
 
 
 GENERATED_DIR = 'e2e/generated'
@@ -130,7 +130,7 @@ def calls(step: Step) -> list[str]:
 
 def render_scenario(scenario: dict, steps: list[Step]) -> str:
     lines = [
-        header(f'the scenario `{scenario["id"]}` of {SPEC_DIR}/product.yaml'),
+        header(f'the scenario `{scenario["id"]}` of {PRODUCT_FILE}'),
         "import { test } from '@playwright/test';",
         '',
         "import { loginAs } from '../bazis';",
@@ -160,7 +160,7 @@ def render_product(specs: Specs) -> str:
         header(f'{SPEC_DIR}/'),
         constant(
             f'What the helpers of e2e/bazis/ read of the specs: the user that a test logs in as '
-            f'for each role of {SPEC_DIR}/product.yaml (`test_user`, null without one; '
+            f'for each role of {PRODUCT_FILE} (`test_user`, null without one; '
             f'`anonymous`: none, the test does not log in), and the route of each screen of '
             f'{SPEC_DIR}/screens/.',
             'PRODUCT',
@@ -185,12 +185,7 @@ def spec_hashes(root: Path) -> dict[str, str]:
     The hashes of the specs that the tests are generated from, by their path in the product
     root: product.yaml and the screens.
     """
-    spec = root / SPEC_DIR
-    paths = [spec / 'product.yaml', *sorted((spec / 'screens').glob('*.yaml'))]
-    return {
-        it.relative_to(root).as_posix(): frontend_lock.digest(it.read_bytes())
-        for it in paths if it.is_file()
-    }
+    return frontend_lock.file_hashes(root, [PRODUCT_FILE, *screen_files(root)])
 
 
 def generated_path(frontend: Path, path: str) -> bool:
@@ -217,12 +212,7 @@ def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> l
     each; empty when they are current. The files are compared byte for byte; those of the
     lock that the specs no longer generate are stale while they exist.
     """
-    recorded = lock.get('e2e', {})
-    generated = recorded.get('generated', {})
-    names = [
-        path for path, text in rendered.items()
-        if not (frontend / path).is_file() or (frontend / path).read_bytes() != text.encode('utf-8')
-    ]
+    names = frontend_lock.stale_files(frontend, rendered)
     removed = removed_files(frontend, lock, rendered)
     if not names and not removed:
         return []
@@ -233,15 +223,11 @@ def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> l
         )
         + '.'
     ]
-    previous = recorded.get('spec', {})
-    current = spec_hashes(root)
-    if changed := sorted(it for it in {*previous, *current} if previous.get(it) != current.get(it)):
+    changed, edited = frontend_lock.generation_changes(
+        lock.get('e2e', {}), spec_hashes(root), frontend, names
+    )
+    if changed:
         problems.append(f'The specs changed since they were generated: {", ".join(changed)}.')
-    edited = [
-        it for it in names
-        if it in generated and (frontend / it).is_file()
-        and frontend_lock.digest((frontend / it).read_bytes()) != generated[it]
-    ]
     if edited:
         problems.append(f'Edited after they were generated: {", ".join(edited)}.')
     return problems
@@ -254,17 +240,9 @@ def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> l
     paths.
     """
     removed = removed_files(frontend, lock, rendered)
-    for path, text in rendered.items():
-        target = frontend / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding='utf-8', newline='\n')
+    frontend_lock.write_files(frontend, rendered)
     for path in removed:
         (frontend / path).unlink()
-    lock['e2e'] = {
-        'spec': spec_hashes(root),
-        'generated': {
-            path: frontend_lock.digest(text.encode('utf-8')) for path, text in rendered.items()
-        },
-    }
+    lock['e2e'] = frontend_lock.generation(spec_hashes(root), rendered)
     frontend_lock.write(frontend, lock)
     return removed

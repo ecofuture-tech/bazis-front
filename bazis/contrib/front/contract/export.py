@@ -25,6 +25,7 @@ from django.utils import translation
 from bazis.core.introspect import packages
 
 from ..capabilities import app_enabled, sections
+from ..vendor import lock as frontend_lock
 from . import generated
 from .openapi import dumps
 from .resources import resources
@@ -127,18 +128,6 @@ def generated_by() -> dict[str, str]:
     }
 
 
-def stale_files(directory: Path, rendered: dict[str, str]) -> list[str]:
-    """
-    The names of the files that are missing in the directory or differ from the rendered
-    ones, byte for byte (also in their line endings).
-    """
-    return [
-        name
-        for name, text in rendered.items()
-        if not (path := directory / name).is_file() or path.read_bytes() != text.encode('utf-8')
-    ]
-
-
 def stale(directory: Path, rendered: dict[str, str], frontend: Path, lock: dict | None) -> list[str]:
     """
     Why the contract in the directory and the generated files of the frontend (with its
@@ -147,7 +136,7 @@ def stale(directory: Path, rendered: dict[str, str], frontend: Path, lock: dict 
     system check `front.W001` both use it.
     """
     problems = []
-    if names := stale_files(directory, rendered):
+    if names := frontend_lock.stale_files(directory, rendered):
         problems.append(
             f'The contract in {directory} is stale: {", ".join(names)} differ from the backend.'
         )
@@ -157,6 +146,4 @@ def stale(directory: Path, rendered: dict[str, str], frontend: Path, lock: dict 
 
 
 def write(directory: Path, rendered: dict[str, str]) -> None:
-    directory.mkdir(parents=True, exist_ok=True)
-    for name, text in rendered.items():
-        (directory / name).write_text(text, encoding='utf-8', newline='\n')
+    frontend_lock.write_files(directory, rendered)

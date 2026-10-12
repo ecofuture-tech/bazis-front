@@ -62,10 +62,7 @@ def stale_files(frontend: Path, lock: dict, rendered: dict[str, str]) -> list[st
     is compared byte for byte; `schema.d.ts` (made by Node) by the lock, which must have
     its hash and the hash of the current openapi.json.
     """
-    stale = []
-    path = frontend / CONTRACT_TS
-    if not path.is_file() or path.read_bytes() != render_contract_ts(rendered).encode('utf-8'):
-        stale.append(CONTRACT_TS)
+    stale = frontend_lock.stale_files(frontend, {CONTRACT_TS: render_contract_ts(rendered)})
     if not schema_is_current(frontend, lock, rendered):
         stale.append(SCHEMA_TS)
     return stale
@@ -120,10 +117,8 @@ def write(
     that cannot be generated stays recorded when the OpenAPI did not change; otherwise it is
     `missing` in the lock. Raises SchemaError when openapi-typescript fails.
     """
-    path = frontend / CONTRACT_TS
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_contract_ts(rendered), encoding='utf-8', newline='\n')
-    generated = {CONTRACT_TS: file_hash(path)}
+    frontend_lock.write_files(frontend, {CONTRACT_TS: render_contract_ts(rendered)})
+    generated = {CONTRACT_TS: file_hash(frontend / CONTRACT_TS)}
 
     error = None
     reason = 'the option --no-node is given' if not node else node_unavailable(frontend)

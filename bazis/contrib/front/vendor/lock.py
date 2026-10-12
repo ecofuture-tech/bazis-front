@@ -35,10 +35,15 @@ dependencies in `package.json` (the map) has them in `npm`, `{section: {package:
 (written by `bazis_front e2e`, `spec/e2e.py`) has the hashes of the specs from which the
 end-to-end tests were generated and of the tests. `conflicts` (written by `bazis_front
 update`, absent without them) lists the files that its last run wrote with conflict markers.
+
+The files generated from the contract and the specs are compared with their rendered text
+byte for byte, written and recorded with the helpers below (`stale_files`, `write_files`,
+`generation`, `generation_changes`), the same for the contract, the theme and the tests.
 """
 
 import hashlib
 import json
+from collections.abc import Iterable
 from pathlib import Path
 
 from django.conf import settings
@@ -97,3 +102,59 @@ def read(frontend: Path) -> dict | None:
 
 def write(frontend: Path, lock: dict) -> None:
     (frontend / LOCK_FILE).write_text(dumps(lock), encoding='utf-8', newline='\n')
+
+
+def file_hashes(root: Path, paths: Iterable[str]) -> dict[str, str]:
+    """
+    The hashes of the files of these paths in the directory, by path; a missing file has none.
+    """
+    return {path: digest((root / path).read_bytes()) for path in paths if (root / path).is_file()}
+
+
+def stale_files(directory: Path, rendered: dict[str, str]) -> list[str]:
+    """
+    The paths of the rendered files that are missing in the directory or differ from their
+    text, byte for byte (also in their line endings).
+    """
+    return [
+        path for path, text in rendered.items()
+        if not (target := directory / path).is_file() or target.read_bytes() != text.encode('utf-8')
+    ]
+
+
+def write_files(directory: Path, rendered: dict[str, str]) -> None:
+    """
+    Writes the rendered files in the directory, UTF-8 with `\\n`.
+    """
+    for path, text in rendered.items():
+        target = directory / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding='utf-8', newline='\n')
+
+
+def generation(spec: dict[str, str], rendered: dict[str, str]) -> dict:
+    """
+    The record of the files generated from specs (`design`, `e2e`): the hashes of the specs
+    and of the files.
+    """
+    return {
+        'spec': spec,
+        'generated': {path: digest(text.encode('utf-8')) for path, text in rendered.items()},
+    }
+
+
+def generation_changes(
+    recorded: dict, spec: dict[str, str], frontend: Path, names: list[str]
+) -> tuple[list[str], list[str]]:
+    """
+    Why the stale generated files `names` of a record of `generation` differ: the specs whose
+    hashes changed since, and the files of `names` edited after they were generated.
+    """
+    previous, generated = recorded.get('spec', {}), recorded.get('generated', {})
+    changed = sorted(it for it in {*previous, *spec} if previous.get(it) != spec.get(it))
+    edited = [
+        it for it in names
+        if it in generated and (frontend / it).is_file()
+        and digest((frontend / it).read_bytes()) != generated[it]
+    ]
+    return changed, edited
