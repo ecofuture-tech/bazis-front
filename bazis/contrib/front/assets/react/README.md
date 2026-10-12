@@ -14,9 +14,10 @@ The hooks are not an npm package: `src/` is copied into a product by
 the product has its capability (`requires` in `assets/registry.json`): `src/statusy/` is
 the asset `react-statusy`, `@/bazis/react/statusy`, `src/uploadable/` the asset
 `react-uploadable`, `@/bazis/react/uploadable`, `src/ws/` the asset `react-ws`
-(`@/bazis/react/ws`, the capability `ws`), `src/bg/` the asset `react-bg`
-(`@/bazis/react/bg`, `bg`), `src/async/` the asset `react-async` (`@/bazis/react/async`,
-`async_background`). Do not edit the copies.
+(`@/bazis/react/ws`, the capability `ws`), `src/notify/` the asset `react-notify`
+(`@/bazis/react/notify`, `notify`), `src/bg/` the asset `react-bg` (`@/bazis/react/bg`,
+`bg`), `src/async/` the asset `react-async` (`@/bazis/react/async`, `async_background`);
+`src/i18n/` is the asset `i18n` of every product (below). Do not edit the copies.
 
 They import the client as `@/bazis/client` and the generated types of the product as
 `@/bazis/generated/schema` (the `paths` of openapi-typescript), so every path, option and
@@ -46,37 +47,42 @@ with it too. The template does this in `src/app/providers.tsx`.
 
 ## Hooks
 
+Their signatures, options and results are in the API reference of the guide ("API: the
+hooks" and "API: the hooks of the packages and the language" of
+`bazis/contrib/front/AGENTS.md`, generated from the sources); the table gives the requests
+they make.
+
 | Hook | Request | Result |
 |---|---|---|
-| `useList(path, {filter, search, sort, page, fields, meta})` | `GET path` | the list; while another page or filter of the same list loads, the previous one (`isPlaceholderData`) |
-| `useItem(path, id, {include, fields, meta})` | `GET path{id}/` | the item |
+| `useList` | `GET path` | the list; while another page or filter of the same list loads, the previous one (`isPlaceholderData`) |
+| `useItem` | `GET path{id}/` | the item |
 | `useSchema(path, 'list' \| 'create')`, `useSchema(path, 'retrieve' \| 'update' \| 'transit', id)` | `GET path[{id}/]schema_<kind>/` | the JSON Schema for the current user, not refetched in the session (`staleTime: Infinity`) but after a mutation of the resource |
-| `useFilterFields(path)` | `GET path route_filter_fields/` | `{fields: [{name, py_type}]}`, kept for the session |
+| `useFilterFields` | `GET path route_filter_fields/` | `{fields: [{name, py_type}]}`, kept for the session |
 | `useCan(path, 'view' \| 'add')` | the query of `useSchema(path, 'list' \| 'create')` | whether the user may view the items of the route set or add one: undefined while it loads, false on a 403 (bazis-permit, without a permission of the model for the action), else true |
 | `useCan(path, 'action_<name>')` | `GET path?page[limit]=1&meta=custom_actions` | whether the user may call a custom action of the collection (`custom_actions` of bazis-permit 2.11; true without the meta, false on a 403) |
-| `useRelatedItem(path, id)` | `GET path?filter=pk=<id>\|pk=<id>…&page[limit]=<n>`, one for the items of the resource asked for together | the item of the list (to show its label), null when the user may not view it |
-| `useCreate(path)` | `POST path` | `mutate(document)` |
-| `useUpdate(path)` | `PATCH path{id}/` | `mutate({id, document})` |
-| `useDestroy(path)` | `DELETE path{id}/` | `mutate(id)`; the queries of the item are removed |
-| `useRelationship(path)` | `POST`/`PATCH`/`DELETE path{id}/relationships/{field}` | `mutate({id, field, operation, data})` |
-| `useRefreshItem(path, id)` | the queries of the item (`['bazis', path, 'item', id]`) | a function that refetches the item, its schemas and its GET actions, after a change made to it through another resource (a related item added: `RelatedList` in a card calls that of the card) |
-| `useResourceForm(path, {id?, fixed?})` | the schema of the create (no id) or of the update of the item, the item, then `POST` or `PATCH` | a form, below |
-| `useAction(path, name, {method?, invalidate?})`, `useItemAction(path, name, …)` | `POST path{name}/`, `POST path{id}/{name}/` (`client.action`, `client.itemAction`) | `mutate(body)`, `mutate({id, body})`: the response of the custom action, typed by its OpenAPI; `errors`, those of its body by field (`ApiError.bodyErrors()`); the queries of the resource refetched unless `invalidate: false` |
-| `useActionQuery(path, name, {query?})`, `useItemActionQuery(path, id, name, {query?})` | `GET path{name}/?<query>`, `GET path{id}/{name}/?<query>` (`client.action`, `client.itemAction` with `method: 'get'`) | a query of a custom action declared with GET (a summary, a report, a check, the content a screen shows) with its query parameters, typed by its OpenAPI (`query` required with a required parameter): its response, typed by its OpenAPI, `error` the `ApiError`; no request while `id` or `query` is null; refetched with the queries of its resource |
-| `useApi()`, `useSessionKey()` | | the client; the session of the provider |
-| `useTransits(path, id)` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
-| `useTransit(path, id)` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
-| `useUpload(path)` (uploadable) | `POST path`, multipart, with XMLHttpRequest | `upload(file, {name?})`: the created item, null when aborted; `status`, `progress`, `error`, `abort()`, `reset()` |
-| `SocketProvider({path, token})`, `useSocket()` (ws) | the socket of bazis-ws | `{status, error, retry}`: `idle`, `connecting`, `open`, `rejected`, `unavailable` |
-| `useChannel(handler)` (ws) | | every message of the channels of the session, parsed |
-| `useLiveQueries(routes, {notifications?})` (ws) | refetches | the queries of a resource that a message says changed, of a task of bazis-async-background, of the notifications of bazis-notify (their resource, `CAPABILITIES.notify.resource`), and all after a reconnect |
-| `useNotifications()` (ws) | | `{items, unread, markRead(key?), clear}`: received in the session |
-| `useInbox(path, {limit?, poll?})` (notify) | `GET path?page[limit]=50`, `GET path unread_count/`; `PATCH path{id}/` (`read_at`), `POST path read_all/`, `POST path clear/` | `{items, unread, status, error, retry, markRead(key?), markUnread(key), deleteAll}`: the stored notifications (`inboxNotification`), refetched after a change; `deleteAll` deletes them for good |
-| `useDownload(path)` | `GET path{id}/download/` (`client.download`) | `mutate(id)`: the file saved under its name (`saveFile`), resolves to the name |
-| `useDownloadUrl(path, id)` | `GET path{id}/download/`, once (`keys.download`, outside `['bazis']`: never invalidated, not on focus) | the content as an object URL (revoked with the component), null while `id` is null |
-| `useBgTask(path, id)` (bg) | `GET path{id}/` every `BG_POLL_INTERVAL` (2 s) until `done` | `BgTask` (`bgTask(document)`): `state`, `phase`, `outcome`, `progress`, `result`, `started`, `finished` |
-| `useAsyncRequest()` (async) | `method path` with `X-Async-Background` | `mutate({method, path, body})`: `{status: 'queued', taskId}` or `{status: 'done', response}` |
-| `useAsyncTask(resultPath, taskId)` (async) | `GET <result path>?full_response=true` every `ASYNC_POLL_INTERVAL` (2 s) until `completed` or `failed` | `{status, response, done, error}`; `replayedResponse(response)` |
+| `useRelatedItem` | `GET path?filter=pk=<id>\|pk=<id>…&page[limit]=<n>`, one for the items of the resource asked for together | the item of the list (to show its label), null when the user may not view it |
+| `useCreate` | `POST path` | `mutate(document)` |
+| `useUpdate` | `PATCH path{id}/` | `mutate({id, document})` |
+| `useDestroy` | `DELETE path{id}/` | `mutate(id)`; the queries of the item are removed |
+| `useRelationship` | `POST`/`PATCH`/`DELETE path{id}/relationships/{field}` | `mutate({id, field, operation, data})` |
+| `useRefreshItem` | the queries of the item (`['bazis', path, 'item', id]`) | a function that refetches the item, its schemas and its GET actions, after a change made to it through another resource (a related item added: `RelatedList` in a card calls that of the card) |
+| `useResourceForm` | the schema of the create (no id) or of the update of the item, the item, then `POST` or `PATCH` | a form, below |
+| `useAction`, `useItemAction` | `POST path{name}/`, `POST path{id}/{name}/` (`client.action`, `client.itemAction`) | `mutate(body)`, `mutate({id, body})`: the response of the custom action, typed by its OpenAPI; `errors`, those of its body by field (`ApiError.bodyErrors()`); the queries of the resource refetched unless `invalidate: false` |
+| `useActionQuery`, `useItemActionQuery` | `GET path{name}/?<query>`, `GET path{id}/{name}/?<query>` (`client.action`, `client.itemAction` with `method: 'get'`) | a query of a custom action declared with GET (a summary, a report, a check, the content a screen shows) with its query parameters, typed by its OpenAPI (`query` required with a required parameter): its response, typed by its OpenAPI, `error` the `ApiError`; no request while `id` or `query` is null; refetched with the queries of its resource |
+| `useApi`, `useSessionKey` | | the client; the session of the provider |
+| `useTransits` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
+| `useTransit` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
+| `useUpload` (uploadable) | `POST path`, multipart, with XMLHttpRequest | the created item, null when aborted, with its progress |
+| `SocketProvider`, `useSocket` (ws) | the socket of bazis-ws | the state of the socket |
+| `useChannel` (ws) | | every message of the channels of the session, parsed |
+| `useLiveQueries` (ws) | refetches | the queries of a resource that a message says changed, of a task of bazis-async-background, of the notifications of bazis-notify (their resource, `CAPABILITIES.notify.resource`), and all after a reconnect |
+| `useNotifications` (ws) | | the notifications received in the session |
+| `useInbox` (notify) | `GET path?page[limit]=50`, `GET path unread_count/`; `PATCH path{id}/` (`read_at`), `POST path read_all/`, `POST path clear/` | the stored notifications (`inboxNotification`), refetched after a change; `deleteAll` deletes them for good |
+| `useDownload` | `GET path{id}/download/` (`client.download`) | `mutate(id)`: the file saved under its name (`saveFile`), resolves to the name |
+| `useDownloadUrl` | `GET path{id}/download/`, once (`keys.download`, outside `['bazis']`: never invalidated, not on focus) | the content as an object URL (revoked with the component), null while `id` is null |
+| `useBgTask` (bg) | `GET path{id}/` every `BG_POLL_INTERVAL` (2 s) until `done` | `BgTask` (`bgTask(document)`) |
+| `useAsyncRequest` (async) | `method path` with `X-Async-Background` | queued with the id of the task, or done with the response |
+| `useAsyncTask` (async) | `GET <result path>?full_response=true` every `ASYNC_POLL_INTERVAL` (2 s) until `completed` or `failed` | the task; `replayedResponse(response)` |
 
 Pagination is read with the functions of the client: `nextPage(list.data)`,
 `prevPage(list.data)`, `pagination(list.data)` (with `meta: ['pagination']`).
@@ -152,15 +158,15 @@ every product (it uses the hooks for the language of the profile). No i18next: f
 dictionaries by language with stable keys, `src/i18n/messages/en.ts` and `ru.ts` (the texts of
 the components), and `Intl` for the plural forms, the dates and the numbers.
 
-- `createLanguageStore({languages, fallback, storage?, preferred?})`: the language, one of
+- `createLanguageStore`: the language, one of
   `LANGUAGES` of the contract, resolved from the choice kept in localStorage
   (`bazis.language`), else `navigator.languages` (the same code, else the same base code:
   `ru-RU` is `ru`), else `fallback` (`LANGUAGE`, the default of the backend; a code out of
   `languages` is matched by its base code, else the first language: `defaultLanguage`); `get()`,
   `set(code)` (a language of `languages` only; kept in the storage), `subscribe(listener)`.
-- `LanguageProvider({store?, messages?, children})` and `useLanguage()`:
-  `{language, languages, setLanguage, t}`; `messages` are the dictionaries of the product by
-  language, merged over those of the package. Without a provider: English, fixed.
+- `LanguageProvider` and `useLanguage()`: the language, the languages, its change and `t`;
+  `messages` are the dictionaries of the product by language, merged over those of the
+  package. Without a provider: English, fixed.
 - `t(key, params?)`: the text of the first dictionary that has the key (the product's and
   the package's of the language, of its base language, of the default language, then
   English), `{name}` replaced by `params.name` (a number formatted in the language); with a
@@ -172,8 +178,8 @@ the components), and `Intl` for the plural forms, the dates and the numbers.
   the backend, `2026-10-08`, is that day wherever the user is), `formatDateTime`,
   `formatTime`: `Intl` in the language of the interface.
 - The language of the profile: with `profile_language` of the capability `users` (a text
-  field `language` of the user model), `followProfileLanguage(store, api, {path, type},
-  token)` finds the user of the session token (`sub` of its JWT, `filter=username=<sub>`),
+  field `language` of the user model), `followProfileLanguage` finds the user of the session
+  token (`sub` of its JWT, `filter=username=<sub>`),
   adopts the language of his profile and saves every change of the language by the user
   (`PATCH` of the attribute `language`); a change made while the profile loads wins over
   it, and a profile without a language is never written at a login. The template calls it
@@ -221,8 +227,7 @@ to-many relationship outside a form. `status` is
 status and the permissions `…item.transit.<selector>.<status>.<transit>`), each a
 `TransitActionSchema`: the endpoint with the JSON Schema of the body `{transit, payload}`
 (the id of the transit is the default of `transit`), the errors of its validators
-(`restricts`) and hints. A `Transit` is `{id, allowed, restricts, payload, hint, hintTitle,
-hintAction, resource, related}`: `allowed` is false when a validator restricts it,
+(`restricts`) and hints. In a `Transit`, `allowed` is false when a validator restricts it,
 `payload` the JSON Schema of the payload its actions take (with its `$defs`), null when it
 takes none (`dict | None`); an entry that is a list is a transit with the transits of
 related items (`related`). The names of the transits are in `TRANSITS` of `contract.ts`.

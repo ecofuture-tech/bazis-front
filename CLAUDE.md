@@ -359,7 +359,7 @@ npm run api-reference     # the API reference of the guide, after a change of an
   product: `LanguageProvider`, `useLanguage`, `t`, the dictionaries `messages/en.ts` and
   `messages/ru.ts`, the `Intl` formats (`formatDecimal`: a `DecimalField`, a string of the
   API, formatted exactly), the language of the profile; the components import
-  it as `@/bazis/i18n`, aliased in the configs of `ui`). `README.md` documents the API, the keys and the protocol facts they
+  it as `@/bazis/i18n`, aliased in the configs of `ui`). `README.md` documents the requests, the keys and the protocol facts they
   rely on. The tests of the socket use a fake WebSocket (`test/socket.ts`; the components
   have theirs in `testing`).
 - They import `@/bazis/client` and `@/bazis/generated/schema` as a product does; in this
@@ -404,7 +404,9 @@ npm run api-reference     # the API reference of the guide, after a change of an
   the support of the contract tests (its `Backend` also answers the uploads of the client,
   `xhr`; `FakeSocket` is the WebSocket of the tests of the socket); `ui/shadcn/` the shadcn/ui components they use (style
   new-york-v4 with the aliases of `components.json`, their MIT notice in the header of each
-  file), each an asset copied to `src/components/ui/`. `README.md` documents them.
+  file), each an asset copied to `src/components/ui/`. `README.md` documents their marks and
+  behaviour; the signatures of the hooks and the props of the components are those of the
+  API reference of the guide, never copied into a README.
 - The contract tests are copied into products and run there by `npm test` (jsdom, set in
   `vite.config.ts` of the template): they are package data, and must pass against any
   product. They use the route set `ITEMS` of `testing` (of no product) and the documents

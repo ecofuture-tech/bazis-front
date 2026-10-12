@@ -59,48 +59,47 @@ sample (`tests/test_design.py` checks it; write it again with
 
 ## The components
 
-| Component | Props | `data-bz` | Requires |
+Their props and signatures are in the API reference of the guide (the sections "API: the
+components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources).
+
+| Component | Exports | `data-bz` | Requires |
 |---|---|---|---|
-| `state-panel` | `StatePanel({state, error?, message?, description?, onRetry?, inline?, skeleton?, children})`; `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell({title, navigation?: 'sidebar' \| 'topbar', items: [{screen, label, to, end?, icon?, requires?: {path, can?: 'view' \| 'add', filters?}}], session: {user?, onLogout} \| null, tools?, children})`; `Screen({id, title?, description?, actions?, children})`; `ListCardLayout({list, mode?})`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
-| `login-form` | `LoginForm({onLogin?(credentials), methods?: [{id, label, onLogin(signal)}], onSuccess?, title?, description?})` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList({path, entity, columns, filters?, filter?, sort?, search?, pageSize?, onOpen?, selected?, actions?, rowActions?, cells?, rowTone?, rowToneLabel?, emptyMessage?, layout?, compactColumns?})` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
-| `resource-card` | `ResourceCard({path, id, sections: [{id, title?, fields}], title?, badge?, edit?, actions?, values?, children?: node \| (item, meta) => node, forms?})`; `RelatedList({path, entity, relation, item, itemPath, columns, title?, add?: {id, label, fields?, title?, icon?, onSaved?}, onOpen?, rowActions?, cells?, emptyMessage?, sort?, pageSize?, layout?, forms?})` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>`, `action:<add.id>` | |
-| `resource-form` | `ResourceForm({path, id?, fields?, fixed?, onSaved?, onCancel?, submitLabel?})`; `FormSurface({open, onClose, title, description?, mode?, children})` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
-| `status-badge` | `StatusBadge({resource})`; `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | capability `statusy` |
-| `status-history` | `StatusHistory({resource, label?})` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
-| `transit-bar` | `TransitBar({path, id, onDone?})`; `payloadErrors(error, names)` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
-| `file-field` | `FileFieldProvider({accept?, maxSize?, resources?, children})`; `FileField(props)` (the control of a file field of `FieldInput`, with `maxSize?`, `accept?`, `path?`); `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
-| `live-query` | `LiveQuery({routes?, notifications?})` (`ROUTES` and `CAPABILITIES.notify.resource` by default); the texts `socket.<status>` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
-| `notification-center` | `NotificationCenter({notifications, onOpen?(notification), toasts?, onDeleteAll?})`: `notifications` is `useInbox(path)` (bazis-notify) or `useNotifications()` (bazis-ws); `CenterNotification`, `NotificationSource` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications`, `action:delete-notifications`, `action:confirm-delete-notifications` | none (its source) |
-| `task-progress` | `TaskProgress({id, path?, title?, onDone?, children?: (task) => node})`; `taskView(task)`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
-| `async-result` | `AsyncResult({start, path?, title?, onDone?, children?: (response) => node})`; `asyncResult(status, response)`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
-| `map` | `ResourceMap({path, entity, field, filter?, sort?, pageSize?, onOpen?, selected?, me?, emptyMessage?})`; `MapProvider({tiles?, points?, children})`, `OSM_TILES`, `useMapTiles`; `LeafletMap({markers, selected?, onOpen?, onPick?, me?})`, `MapPointControl`; `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`; the texts `map.<text>` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; the map of a point field `map:<field>`, `action:locate-<field>` | npm `leaflet` (`add` sets it in package.json) |
+| `state-panel` | `StatePanel`; `errorState`, `queryState`, `SkeletonLines`; `toast`, `Toaster` | `state:<state>`, `action:retry` | |
+| `app-shell` | `AppShell`; `Screen`; `ListCardLayout`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
+| `login-form` | `LoginForm` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
+| `resource-list` | `ResourceList` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-card` | `ResourceCard`; `RelatedList` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>`, `action:<add.id>` | |
+| `resource-form` | `ResourceForm`; `FormSurface` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
+| `status-badge` | `StatusBadge`; `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | capability `statusy` |
+| `status-history` | `StatusHistory` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
+| `transit-bar` | `TransitBar`; `payloadErrors` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
+| `file-field` | `FileFieldProvider`; `FileField` (the control of a file field of `FieldInput`); `accepts`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
+| `live-query` | `LiveQuery` (the routes of `ROUTES` and the notifications of `CAPABILITIES.notify.resource` by default); the texts `socket.<status>` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
+| `notification-center` | `NotificationCenter`: `notifications` is `useInbox` (bazis-notify) or `useNotifications` (bazis-ws); `CenterNotification`, `NotificationSource` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications`, `action:delete-notifications`, `action:confirm-delete-notifications` | none (its source) |
+| `task-progress` | `TaskProgress`; `taskView`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
+| `async-result` | `AsyncResult`; `asyncResult`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
+| `map` | `ResourceMap`; `MapProvider`, `OSM_TILES`, `useMapTiles`; `LeafletMap`, `MapPointControl`; `nearFilter`, `nearSort`, `useGeolocation`; the texts `map.<text>` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; the map of a point field `map:<field>`, `action:locate-<field>` | npm `leaflet` (`add` sets it in package.json) |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it; the choices of a field are a
-select of their labels), `FieldValue` (with
-`formatValue(field, value, {language, t}?)`: the value in the language of the interface, a
-choice by its label; `choiceOptions(field)`: the choices as options of a filter),
-`RelationPicker({relation, value, onChange, label?, placeholder?, nullable?, disabled?, path?, searchable?})`,
-`RelationListPicker({relation, value, onChange, ...})` (the ids of the items of a to-many relationship) and
-`RelationLabel({relation, id, path?})` (the related resource by its route in `ROUTES`, or
-`path`; `hasSearch(type)`: whether the contract gives the resource search fields),
-`useListFields`/`useItemFields` (the titles and types of the list, retrieve and
-update schemas, `has(name)`: whether the schema of the user has the field),
-`permitted(meta, action, id?)` (the permission meta of bazis-permit; allowed when the
-backend does not report it), the points (`pointOf`, `geoJsonPoint`, `formatPoint`,
+select of their labels), `FieldValue` (with `formatValue`: the value in the language of the
+interface, a choice by its label; `choiceOptions`: the choices as options of a filter),
+`RelationPicker`, `RelationListPicker` (the ids of the items of a to-many relationship) and
+`RelationLabel` (the related resource by its route in `ROUTES`, or `path`; `hasSearch`:
+whether the contract gives the resource search fields), `useListFields`/`useItemFields`
+(the titles and types of the list, retrieve and update schemas, `has`: whether the schema
+of the user has the field), `permitted` (the permission meta of bazis-permit; allowed when
+the backend does not report it), the points (`pointOf`, `geoJsonPoint`, `formatPoint`,
 `parsePoint`, `POINT_FIELDS`: the point fields of the contract by the path of their route
-set, and `PointsProvider({control, fields?})`, which gives `FieldInput` the control of the
-point fields: the map of `MapProvider`), the files of bazis-uploadable (`FilesProvider({control,
-resources?})`, which gives `FieldInput` the control of the file fields; `FileValue({relation,
-id, path?, preview?})`, `FileView`, `isFile`, `formatSize(bytes, {language, t}?)`, `FILE_RESOURCES`: the resources
-of `uploadable` of the contract), and the hooks with plain paths for the bodies of the
-components. `testing` is the support of the contract tests: a backend for the mocked
-`fetch` of the client (each request with the language it asked for, `calls[].language`),
-the documents and runtime schemas of Bazis, `renderWithBazis` (in English, or in the
-language of `testLanguages(...)`), and `getByTestId` reading `data-bz`, and `FakeSocket`,
-the WebSocket of the page in a test.
+set, and `PointsProvider`, which gives `FieldInput` the control of the point fields: the
+map of `MapProvider`), the files of bazis-uploadable (`FilesProvider`, which gives
+`FieldInput` the control of the file fields; `FileValue`, `FileView`, `isFile`,
+`formatSize`, `FILE_RESOURCES`: the resources of `uploadable` of the contract), and the
+hooks with plain paths for the bodies of the components. `testing` is the support of the
+contract tests: a backend for the mocked `fetch` of the client (each request with the
+language it asked for, `calls[].language`), the documents and runtime schemas of Bazis,
+`renderWithBazis` (in English, or in the language of `testLanguages`), and `getByTestId`
+reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 
 - **`state-panel`** is the only place where an error of the backend becomes a state: 401
   and 403 are `forbidden`, 404 `not_found`, 422 `invalid`, any other `error`.
