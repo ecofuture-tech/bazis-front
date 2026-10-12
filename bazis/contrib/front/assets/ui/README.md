@@ -248,9 +248,7 @@ the WebSocket of the page in a test.
   closes), `action:read-notifications` marks them all read, `action:clear-notifications`
   forgets them when the source can (`clear` of `useNotifications`); the stored ones are
   deleted only with `onDeleteAll` (`deleteAll` of `useInbox`), after
-  `action:delete-notifications` and `action:confirm-delete-notifications`. Without its
-  `notifications` (the props of an older version) it shows no bell and says so in the
-  console. Each new unread notification is a toast once in the page, whatever the
+  `action:delete-notifications` and `action:confirm-delete-notifications`. Each new unread notification is a toast once in the page, whatever the
   number of centers (`success` and `error` of bazis-notify in their tone, else `info`);
   those there when the notifications were first read, or that came while the list was open,
   are not. It needs no package: its

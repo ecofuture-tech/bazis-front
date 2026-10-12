@@ -122,22 +122,17 @@ export function formatSize(bytes: number, { language, t }: Pick<LanguageContextV
 export interface UploadedFile {
   name: string;
   size: number | null;
-  /**
-   * @deprecated The URL of the file on the media host, which serves it to anyone who has it:
-   * never link it (`FileView` does not); download the file with `useDownload`.
-   */
-  url?: string | null | undefined;
 }
 
 /** The attributes of an item of a resource of the uploaded files. */
 export function uploadedFile(item: ResourceObject): UploadedFile {
   const { file, name, size } = item.attributes ?? {};
-  const url = typeof file === 'string' && file ? file : null;
+  // the name of the upload, else that of the stored file (the last part of its media URL,
+  // which is never linked: the file is downloaded with the token, `useDownload`)
+  const stored = typeof file === 'string' && file ? file.split('/').pop() : undefined;
   return {
-    // the name of the upload, else that of the stored file
-    name: typeof name === 'string' && name ? name : (url?.split('/').pop() ?? item.id),
+    name: typeof name === 'string' && name ? name : (stored ?? item.id),
     size: typeof size === 'number' ? size : null,
-    url,
   };
 }
 

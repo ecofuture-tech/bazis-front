@@ -171,14 +171,6 @@ describe('NotificationCenter', () => {
     expect(handle.clear).not.toHaveBeenCalled();
   });
 
-  it('shows no bell without its notifications, and says why', () => {
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    renderWithBazis(<NotificationCenter />, new Backend());
-    expect(screen.queryByTestId('action:notifications')).toBeNull();
-    expect(String(logged.mock.calls[0]?.[0])).toContain('notifications={useInbox(');
-    logged.mockRestore();
-  });
-
   it('toasts no notification that came while the list was open', () => {
     const { Center, handle } = source([]);
     renderWithBazis(<Center />, new Backend());

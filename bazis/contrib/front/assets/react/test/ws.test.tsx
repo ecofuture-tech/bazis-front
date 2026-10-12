@@ -90,7 +90,6 @@ describe('the messages', () => {
       resource: 'tasks.task',
       id: sample.ws_notification.data.id,
       time,
-      received: time,
       read: false,
     });
     // a notification about an item: the item changed

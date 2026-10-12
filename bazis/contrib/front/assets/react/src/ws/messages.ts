@@ -39,8 +39,6 @@ export interface Notification {
   id: string | null;
   /** When it was received. */
   time: Date;
-  /** @deprecated The same as `time` (its name before the source of `NotificationCenter`); use `time`. */
-  received: Date;
   read: boolean;
 }
 
@@ -76,7 +74,6 @@ export function notificationOf(message: unknown, key: number, time: Date): Notif
     resource: typeof data.resource === 'string' ? data.resource : null,
     id: identifier(data.id),
     time,
-    received: time,
     read: false,
   };
 }

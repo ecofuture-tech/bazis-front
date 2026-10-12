@@ -2621,18 +2621,18 @@ are replaced without conflicts; wrap them in the product code instead.
 
 ### Migrating the code of the product
 
-`tsc` shows what a new version changes in the API of the copies; the changes so far:
+`tsc` shows what a new version changes in the API of the copies (a name removed from them
+is an error there); the changes so far:
 
-- `NotificationCenter` takes its notifications: `notifications={useInbox(ROUTES['notify.notification'])}`
+- `NotificationCenter` requires its notifications: `notifications={useInbox(ROUTES['notify.notification'])}`
   with bazis-notify (its `onOpen` gets an `InboxNotification`: open `route`), else
-  `notifications={useNotifications()}`; without it the bell is not shown and the console
-  says so. The list is no longer read when it opens: a click marks a notification read,
-  `action:read-notifications` all of them. The backend notifies with bazis-notify only (no
-  second message of bazis-ws).
-- `Notification.received` of `@/bazis/react/ws` is `time` (`received` is kept, deprecated).
+  `notifications={useNotifications()}`. The list is no longer read when it opens: a click
+  marks a notification read, `action:read-notifications` all of them. The backend notifies
+  with bazis-notify only (no second message of bazis-ws).
+- `Notification.received` of `@/bazis/react/ws` is removed: read `time`.
 - `FileView` shows the name of a file as a button that downloads it with the token
-  (`onDownload`, `useDownload`), not a link: `UploadedFile.url` (the media URL) is
-  deprecated, never link it; the file of a task of bazis-bg is `action:download` of
+  (`onDownload`, `useDownload`), not a link: `UploadedFile.url` (the media URL) is removed,
+  never link a file; the file of a task of bazis-bg is `action:download` of
   `TaskProgress`.
 - A custom action has its button only when `custom_actions` allows it (see
   [Custom actions and background work](#custom-actions-and-background-work)), not a meta
@@ -3303,7 +3303,6 @@ The hooks copied with a package (`frontend/src/bazis/react/<package>/`), and the
 - `resource: string | null`: The JSON:API type and the id of the item it is about.
 - `id: string | null`
 - `time: Date`: When it was received.
-- `received: Date`
 - `read: boolean`
 
 #### LiveQueriesOptions
@@ -3962,12 +3961,12 @@ Its props, `ResourceMapProps`:
 
 #### NotificationCenter
 
-`NotificationCenter<T extends CenterNotification>(props: NotificationCenterProps<T>): Element | null`: The bell of the notifications with their list.
+`NotificationCenter<T extends CenterNotification>(props: NotificationCenterProps<T>): Element`: The bell of the notifications with their list.
 
 
 Its props, `NotificationCenterProps`:
 
-- `notifications?: NotificationSource<T> | undefined`: The notifications: `useInbox(ROUTES['notify.notification'])` or `useNotifications()`.
+- `notifications: NotificationSource<T>`: The notifications: `useInbox(ROUTES['notify.notification'])` or `useNotifications()`.
 - `onOpen?: (notification: T) => void`: Opens what a notification is about (its card, `route` of a notification of bazis-notify); the list closes.
 - `toasts?: boolean`: A toast for each new notification (not for those there when it was mounted).
 - `onDeleteAll?: (() => void) | undefined`: Deletes all the notifications (`deleteAll` of `useInbox`: irreversible), offered as `action:delete-notifications` and done after `action:confirm-delete-notifications`; none without it.
@@ -4166,7 +4165,6 @@ Its props, `FileViewProps`:
 
 - `name: string`
 - `size: number | null`
-- `url?: string | null | undefined`
 
 #### formatPoint
 

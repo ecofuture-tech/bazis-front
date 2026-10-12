@@ -62,12 +62,8 @@ export interface NotificationSource<T extends CenterNotification> {
 }
 
 export interface NotificationCenterProps<T extends CenterNotification> {
-  /**
-   * The notifications: `useInbox(ROUTES['notify.notification'])` or `useNotifications()`.
-   * Required (a center of an older version took the notifications of the socket itself):
-   * without it the bell is not shown and the console says so.
-   */
-  notifications?: NotificationSource<T> | undefined;
+  /** The notifications: `useInbox(ROUTES['notify.notification'])` or `useNotifications()`. */
+  notifications: NotificationSource<T>;
   /**
    * Opens what a notification is about (its card, `route` of a notification of bazis-notify);
    * the list closes. A click on a notification marks it read in any case.
@@ -82,9 +78,6 @@ export interface NotificationCenterProps<T extends CenterNotification> {
    */
   onDeleteAll?: (() => void) | undefined;
 }
-
-/** A center without its source: no bell (the props of an older version). */
-const NONE = { items: [], unread: 0, markRead: () => undefined } as const;
 
 // the notifications shown as a toast: each is toasted once in the page, whatever center saw
 // it first
@@ -127,24 +120,13 @@ export function NotificationCenter<T extends CenterNotification>({
   toasts = true,
   onDeleteAll,
 }: NotificationCenterProps<T>) {
-  const missing = notifications === undefined;
-  const { items, unread, status = 'ready', error = null, retry, markRead, clear }: NotificationSource<T> =
-    notifications ?? NONE;
+  const { items, unread, status = 'ready', error = null, retry, markRead, clear } = notifications;
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { t } = useLanguage();
   // what is there when the notifications are first read is not new: no toast for it
   const [known, setKnown] = useState<ReadonlySet<string> | null>(null);
   if (known === null && status === 'ready') setKnown(new Set(items.map((it) => String(it.key))));
-
-  useEffect(() => {
-    if (missing) {
-      console.error(
-        'NotificationCenter needs its notifications: notifications={useInbox(ROUTES[\'notify.notification\'])} ' +
-          '(bazis-notify) or notifications={useNotifications()} (bazis-ws); see "Migrating" in the guide of bazis-front.',
-      );
-    }
-  }, [missing]);
 
   useEffect(() => {
     if (!toasts || known === null) return;
@@ -165,7 +147,6 @@ export function NotificationCenter<T extends CenterNotification>({
     }
   }, [items, toasts, open, known]);
 
-  if (missing) return null;
   const label = unread > 0 ? t('notifications.unread', { count: unread }) : t('notifications.title');
   let list;
   if (status === 'loading') {
