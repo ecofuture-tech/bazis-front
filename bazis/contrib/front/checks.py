@@ -130,11 +130,7 @@ def check_e2e(app_configs, **kwargs):
     from .vendor import lock as frontend_lock
 
     frontend = frontend_lock.frontend_dir()
-    try:
-        lock = frontend_lock.read(frontend)
-    except frontend_lock.LockError:
-        # front.W001 reports it
-        return []
+    lock = frontend_lock.read_valid(frontend)
     if lock is None or 'e2e' not in lock:
         return []
     root = Path(settings.BASE_DIR)
@@ -166,11 +162,7 @@ def check_update(app_configs, **kwargs):
     from .vendor import update
 
     frontend = frontend_lock.frontend_dir()
-    try:
-        lock = frontend_lock.read(frontend)
-    except frontend_lock.LockError:
-        # front.W001 reports it
-        return []
+    lock = frontend_lock.read_valid(frontend)
     if lock is None:
         return []
     if problems := update.stale(Path(settings.BASE_DIR), frontend, lock):
@@ -199,11 +191,7 @@ def check_changed_copies(app_configs, **kwargs):
     from .vendor import update
 
     frontend = frontend_lock.frontend_dir()
-    try:
-        lock = frontend_lock.read(frontend)
-    except frontend_lock.LockError:
-        # front.W001 reports it
-        return []
+    lock = frontend_lock.read_valid(frontend)
     if lock is None:
         return []
     if copies := update.changed(frontend, lock):
@@ -240,11 +228,7 @@ def check_design(app_configs, **kwargs):
     from .vendor import registry
 
     frontend = frontend_lock.frontend_dir()
-    try:
-        lock = frontend_lock.read(frontend)
-    except frontend_lock.LockError:
-        # front.W001 reports it
-        return []
+    lock = frontend_lock.read_valid(frontend)
     if lock is None:
         return []
     if 'design' not in lock:

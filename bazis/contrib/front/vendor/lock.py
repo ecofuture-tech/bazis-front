@@ -100,6 +100,17 @@ def read(frontend: Path) -> dict | None:
     return lock
 
 
+def read_valid(frontend: Path) -> dict | None:
+    """
+    The lock of the frontend; None also when it cannot be read, which the system check
+    `front.W001` reports: the other checks of the frontend skip it.
+    """
+    try:
+        return read(frontend)
+    except LockError:
+        return None
+
+
 def write(frontend: Path, lock: dict) -> None:
     (frontend / LOCK_FILE).write_text(dumps(lock), encoding='utf-8', newline='\n')
 

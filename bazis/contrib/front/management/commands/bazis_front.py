@@ -52,6 +52,22 @@ def contract_capabilities() -> set[str]:
     return set(contract_data.get('capabilities', {}))
 
 
+def require_lock(frontend: Path) -> dict:
+    """
+    The lock of the frontend made by `init`; fails when it has none or it cannot be read.
+    """
+    try:
+        lock = frontend_lock.read(frontend)
+    except frontend_lock.LockError as err:
+        raise CommandError(str(err)) from err
+    if lock is None:
+        raise CommandError(
+            f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
+            '`manage.py bazis_front init`.'
+        )
+    return lock
+
+
 #: the generated files of a frontend, by the key of their hashes in the lock: the TypeScript
 #: of the contract (`contract`), the theme (`design`), the end-to-end tests (`e2e`)
 GENERATED = {'contract': 'generated', 'design': 'design', 'e2e': 'e2e'}
@@ -276,15 +292,7 @@ class Command(BaseCommand):
 
     def handle_add(self, assets, **options):
         frontend = frontend_lock.frontend_dir()
-        try:
-            lock = frontend_lock.read(frontend)
-        except frontend_lock.LockError as err:
-            raise CommandError(str(err)) from err
-        if lock is None:
-            raise CommandError(
-                f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
-                '`manage.py bazis_front init`.'
-            )
+        lock = require_lock(frontend)
         try:
             added = copy.add_assets(frontend, lock, assets, contract_capabilities)
         except copy.CopyError as err:
@@ -311,15 +319,7 @@ class Command(BaseCommand):
 
     def handle_update(self, assets, check=False, **options):
         frontend = frontend_lock.frontend_dir()
-        try:
-            lock = frontend_lock.read(frontend)
-        except frontend_lock.LockError as err:
-            raise CommandError(str(err)) from err
-        if lock is None:
-            raise CommandError(
-                f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
-                '`manage.py bazis_front init`.'
-            )
+        lock = require_lock(frontend)
         root = Path(settings.BASE_DIR)
         try:
             plan = update.plan(root, frontend, lock, assets, contract_capabilities)
@@ -442,15 +442,7 @@ class Command(BaseCommand):
 
     def handle_e2e(self, check=False, **options):
         frontend = frontend_lock.frontend_dir()
-        try:
-            lock = frontend_lock.read(frontend)
-        except frontend_lock.LockError as err:
-            raise CommandError(str(err)) from err
-        if lock is None:
-            raise CommandError(
-                f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
-                '`manage.py bazis_front init`.'
-            )
+        lock = require_lock(frontend)
         root = Path(settings.BASE_DIR)
         result = spec_validate.validate(root)
         if result.errors:
@@ -479,15 +471,7 @@ class Command(BaseCommand):
 
     def handle_design(self, check=False, **options):
         frontend = frontend_lock.frontend_dir()
-        try:
-            lock = frontend_lock.read(frontend)
-        except frontend_lock.LockError as err:
-            raise CommandError(str(err)) from err
-        if lock is None:
-            raise CommandError(
-                f'{frontend} has no {frontend_lock.LOCK_FILE}: create the frontend with '
-                '`manage.py bazis_front init`.'
-            )
+        lock = require_lock(frontend)
         if check:
             rendered = self.render_theme()
             if problems := design_theme.stale(Path(settings.BASE_DIR), frontend, lock, rendered):
@@ -505,9 +489,7 @@ class Command(BaseCommand):
         """
         result = spec_validate.validate(Path(settings.BASE_DIR), ('design',))
         if errors := [it for it in result.errors if it.layer == 'design']:
-            for issue in errors:
-                self.stdout.write(f'{issue.location}: {issue.code} {issue.severity}: {issue.message}')
-                self.stdout.write(f'    {issue.hint}')
+            self.write_issue_lines(errors)
             raise CommandError(
                 f'The design has {len(errors)} errors: the theme is generated from a design '
                 'that `bazis_front check` accepts.'
@@ -523,11 +505,8 @@ class Command(BaseCommand):
         from bazis.core.app import app  # noqa: F401  the contract is compared with its routes
 
         frontend = frontend_lock.frontend_dir()
-        try:
-            lock = frontend_lock.read(frontend)
-        except frontend_lock.LockError:
-            # front.W001 reports it
-            lock = None
+        # an unreadable lock is the issue front.W001
+        lock = frontend_lock.read_valid(frontend)
         issues = [
             {
                 'id': message.id,
@@ -569,10 +548,13 @@ class Command(BaseCommand):
                 self.stdout.write(f'    {issue["hint"]}')
         self.stdout.write(f'{len(issues)} issues.' if issues else 'No issues.')
 
-    def write_issues(self, result):
-        for issue in result.issues:
+    def write_issue_lines(self, issues):
+        for issue in issues:
             self.stdout.write(f'{issue.location}: {issue.code} {issue.severity}: {issue.message}')
             self.stdout.write(f'    {issue.hint}')
+
+    def write_issues(self, result):
+        self.write_issue_lines(result.issues)
         if not result.contract:
             self.stdout.write(
                 f'The specs are not checked against the backend: {spec_validate.CONTRACT_FILE} '
