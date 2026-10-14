@@ -238,6 +238,9 @@ of null (reading 'edgesOut')` once vitest has a release newer than the one of
 `package.json`. A frontend made before the override gets it from `bazis_front update`; never
 work around the error with `legacy-peer-deps` or `--force`, which hide the real conflicts of
 the peer dependencies.
+If the product already has its own `overrides`, `update` (a line-by-line merge) leaves two keys: JSON
+parsers take the last and the rule is lost silently; add `"vite": "$vite"` to the product's `overrides`
+by hand and check that `grep -c '"overrides"' package.json` is 1.
 
 ```bash
 python manage.py bazis_front status         # the copies, the generated files, every stale or changed one

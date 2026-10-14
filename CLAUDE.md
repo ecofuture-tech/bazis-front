@@ -467,7 +467,10 @@ npm run api-reference     # the API reference of the guide, after a change of an
   and one vite for every package (`overrides`: `$vite`; without it npm 10 resolves the
   optional peers of vitest with the latest vite, whose `@vitejs/devtools` peers come back to
   `vitest@*`, and fails with `Cannot read properties of null (reading 'edgesOut')` once vitest
-  has a release newer than the pinned one; `tests/test_assets.py`),
+  has a release newer than the pinned one; `tests/test_assets.py`; `update` merges `package.json`
+  line by line, so if a product has its own `overrides`, after `update` add `"vite": "$vite"` to it by
+  hand and check that `grep -c '"overrides"' package.json` is 1: a second key is read by JSON
+  parsers as the last one and the rule is lost silently),
   `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`, the jsdom of the
   tests, the npm libraries that every page loads in chunks of their own, `manualChunks`), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,
