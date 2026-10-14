@@ -232,6 +232,13 @@ it is the prettier pinned in `package.json` with the style of the template (`pre
 and leaves the copies, the generated files and `e2e/fixtures/` (uploaded byte for byte) alone; `npx prettier` downloads another
 version with other defaults, and its output no longer matches the copies and the template.
 
+`overrides` of `package.json` keeps the vite of the template for every package
+(`"vite": "$vite"`): keep it. Without it npm 10 (Node 22) fails with `Cannot read properties
+of null (reading 'edgesOut')` once vitest has a release newer than the one of
+`package.json`. A frontend made before the override gets it from `bazis_front update`; never
+work around the error with `legacy-peer-deps` or `--force`, which hide the real conflicts of
+the peer dependencies.
+
 ```bash
 python manage.py bazis_front status         # the copies, the generated files, every stale or changed one
 python manage.py bazis_front status --json  # {bazis_front, frontend, assets, generated, issues}

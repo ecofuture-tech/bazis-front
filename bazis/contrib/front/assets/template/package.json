@@ -50,6 +50,9 @@
     "vite": "7.3.7",
     "vitest": "5.0.3"
   },
+  "overrides": {
+    "vite": "$vite"
+  },
   "prettier": {
     "singleQuote": true,
     "printWidth": 120
