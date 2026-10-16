@@ -218,11 +218,8 @@ def test_the_npm_dependencies_of_the_components_are_declared():
 
 def test_the_template_has_one_vite():
     """
-    Every package of the frontend runs on the vite of the template (`overrides`: a `$`
-    reference to its own version). Without it npm 10 resolves the optional peers of vitest
-    with the latest vite (8: `@vitejs/devtools` -> `@vitejs/devtools-vitest` -> `vitest@*`) and
-    `npm install` fails with `Cannot read properties of null (reading 'edgesOut')` as soon as
-    the vitest of the template is not the latest one.
+    Every package runs on the vite of the template (`overrides`: `$vite`); without it npm 10
+    takes the latest vite for the peers of vitest and `npm install` fails (`edgesOut`).
     """
     template = json.loads((ASSETS / 'template' / 'package.json').read_text(encoding='utf-8'))
     assert template['overrides'] == {'vite': '$vite'}

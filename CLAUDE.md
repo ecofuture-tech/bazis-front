@@ -464,13 +464,9 @@ npm run api-reference     # the API reference of the guide, after a change of an
   (prettier among them, with the style of the template in its `prettier` key: `npm run format`
   formats the code of the product, `.prettierignore` leaves out the copies, the generated
   files and the files that the end-to-end tests upload (`e2e/fixtures/`); the `frontend` job checks that the template is formatted, `prettier --check`)
-  and one vite for every package (`overrides`: `$vite`; without it npm 10 resolves the
-  optional peers of vitest with the latest vite, whose `@vitejs/devtools` peers come back to
-  `vitest@*`, and fails with `Cannot read properties of null (reading 'edgesOut')` once vitest
-  has a release newer than the pinned one; `tests/test_assets.py`; `update` merges `package.json`
-  line by line, so if a product has its own `overrides`, after `update` add `"vite": "$vite"` to it by
-  hand and check that `grep -c '"overrides"' package.json` is 1: a second key is read by JSON
-  parsers as the last one and the rule is lost silently),
+  and one vite for every package (`overrides`: `$vite`, without which `npm install` of npm 10
+  fails on the optional peers of vitest; why, and the product's own `overrides` after
+  `update`: the guide and `tests/test_assets.py`),
   `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`, the jsdom of the
   tests, the npm libraries that every page loads in chunks of their own, `manualChunks`), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,
