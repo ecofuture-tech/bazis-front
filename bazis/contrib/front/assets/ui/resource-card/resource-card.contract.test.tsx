@@ -109,6 +109,34 @@ describe('ResourceCard', () => {
     expect(screen.queryByTestId('action:edit')).toBeNull();
   });
 
+  it('is headed by the name of its item, else by the values of its label fields, not by its id', async () => {
+    const fields = runtimeSchema({
+      count: { attribute: { type: 'integer', title: 'Count' } },
+      year: { attribute: { type: 'integer', title: 'Year' } },
+      done: { attribute: { type: 'boolean', title: 'Done' } },
+    });
+    const server = new Backend()
+      .on('GET', `${ITEM}schema_retrieve/`, fields)
+      .on('GET', ITEM, { data: resource(ITEM_ID, { count: 12000, year: 1877, done: true }), meta: {} });
+    // the first two fields of the sections
+    const { unmount } = renderWithBazis(
+      <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['count', 'year', 'done'] }]} display={{ year: 'plain' }} />,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('12,000 · 1877');
+    expect(screen.getByTestId('field:year').textContent).toBe('1877');
+    unmount();
+    // the label fields of the entity that have a value
+    renderWithBazis(
+      <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['count', 'year'] }]} label={['done', 'missing']} />,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Yes');
+    expect(screen.getByTestId('field:year').textContent).toBe('1,877');
+  });
+
   it('is in the language of the interface: the backend is asked in it, the values are formatted in it', async () => {
     const languages = testLanguages('ru', 'en');
     const server = backend({ crud_actions: ['view', 'change'] });

@@ -79,6 +79,15 @@ describe('ResourceList', () => {
     expect(onOpen).toHaveBeenLastCalledWith('a');
   });
 
+  it('shows a number of `display: plain` without the separators of its thousands', async () => {
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'count']} display={{ count: 'plain' }} layout="table" />,
+      backend(listDocument([resource('a', { title: 'First', count: 1877 })])),
+    );
+    await screen.findByTestId('state:loaded');
+    expect(within(screen.getByTestId('row:a')).getByTestId('cell:count').textContent).toBe('1877');
+  });
+
   it('marks an empty list, a forbidden one and an error', async () => {
     const { unmount } = renderWithBazis(
       <ResourceList path={ITEMS as never} entity="item" columns={['title']} />,
@@ -194,6 +203,36 @@ describe('ResourceList', () => {
     fireEvent.change(control, { target: { value: 'done' } });
     await waitFor(() => {
       expect(requested(server, 'filter=state=done')).toBe(true);
+    });
+  });
+
+  it('filters a boolean field by the chips of its values, under the title of the field', async () => {
+    // a calculated field without a title of the backend: its name as words, not an identifier
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, runtimeSchema({ is_late: { attribute: { type: 'boolean' } } }, { list: true }))
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'is_late', py_type: 'boolean' }] })
+      .on('GET', ITEMS, listDocument(rows));
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} filters={['is_late']} />, server);
+    const group = await screen.findByTestId('field:is_late');
+    expect(group.getAttribute('aria-label')).toBe('Is late');
+    const [yes, no] = within(group).getAllByRole('button');
+    if (!yes || !no) throw new Error('two chips');
+    fireEvent.click(yes);
+    expect(yes.getAttribute('aria-pressed')).toBe('true');
+    await waitFor(() => {
+      expect(requested(server, 'filter=is_late=true')).toBe(true);
+    });
+    fireEvent.click(no);
+    expect(yes.getAttribute('aria-pressed')).toBe('false');
+    await waitFor(() => {
+      expect(requested(server, 'filter=is_late=false')).toBe(true);
+    });
+    // pressed again: every item
+    const count = server.requests('GET').length;
+    fireEvent.click(no);
+    expect(no.getAttribute('aria-pressed')).toBe('false');
+    await waitFor(() => {
+      expect(server.requests('GET').slice(count).some((it) => it.startsWith(`GET ${ITEMS}?`) && !it.includes('filter'))).toBe(true);
     });
   });
 

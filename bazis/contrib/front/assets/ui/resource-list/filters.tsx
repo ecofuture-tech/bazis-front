@@ -24,6 +24,7 @@ import { ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
 import { RelationPicker, useAnyFilterFields } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -148,14 +149,36 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
     );
   }
   const value = values[field] ?? '';
+  if (type === 'boolean' && !filter.options) {
+    // a chip for each value, pressed again to show every item
+    return (
+      <div role="group" aria-label={label} data-bz={`field:${field}`} className="flex items-center gap-2">
+        <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
+          {label}
+        </span>
+        {(['true', 'false'] as const).map((it) => (
+          <Button
+            key={it}
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-pressed={value === it}
+            className="rounded-full aria-pressed:border-primary aria-pressed:bg-primary-soft aria-pressed:text-primary-ink"
+            onClick={() => {
+              onChange(field, value === it ? '' : it);
+            }}
+          >
+            {t(it === 'true' ? 'value.yes' : 'value.no')}
+          </Button>
+        ))}
+      </div>
+    );
+  }
   const relation = relationOf(type);
   const relationType = relation === null ? undefined : typeOfPath(relation);
   let control;
-  if (filter.options || type === 'boolean') {
-    const options = filter.options ?? [
-      { value: 'true', label: t('value.yes') },
-      { value: 'false', label: t('value.no') },
-    ];
+  if (filter.options) {
+    const { options } = filter;
     control = (
       <NativeSelect
         id={id}

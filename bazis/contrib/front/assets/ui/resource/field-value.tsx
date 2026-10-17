@@ -15,20 +15,33 @@
 import { useLanguage } from '@/bazis/i18n';
 import type { FormField } from '@/bazis/react';
 
-import { formatValue } from './fields.js';
+import { formatValue, statusName, statusyModel, type FieldDisplay } from './fields.js';
 import { FileValue, isFile, useFiles } from './files.js';
 import { text } from './hooks.js';
 import { RelationLabel } from './relation.js';
 
+export interface FieldValueProps {
+  field: FormField | undefined;
+  value: unknown;
+  /** The JSON:API type of the item: the `status` of an item of a statusy model is named by the contract. */
+  type?: string;
+  /** How the value is shown (`display` of the field of the entity of the specs). */
+  display?: FieldDisplay | undefined;
+}
+
 /**
- * The value of a field for reading: an attribute formatted by its type and format, the
- * labels of the related items of a relationship, an uploaded file (`FileValue`).
+ * The value of a field for reading: an attribute formatted by its type, its format and
+ * `display`, the labels of the related items of a relationship (the status of an item of
+ * bazis-statusy by its name), an uploaded file (`FileValue`).
  */
-export function FieldValue({ field, value }: { field: FormField | undefined; value: unknown }) {
+export function FieldValue({ field, value, type, display }: FieldValueProps) {
   const { resources } = useFiles();
   const language = useLanguage();
   if (isFile(field, resources) && value !== null && value !== undefined) {
     return <FileValue relation={field.relation} id={text(value)} />;
+  }
+  if (field?.kind === 'relation' && field.name === 'status' && typeof value === 'string' && type && statusyModel(type)) {
+    return <>{statusName(type, value, language.language)}</>;
   }
   if (field?.kind === 'relation' && value !== null && value !== undefined) {
     const ids = Array.isArray(value) ? (value as unknown[]).map(text) : [text(value)];
@@ -44,5 +57,5 @@ export function FieldValue({ field, value }: { field: FormField | undefined; val
       </>
     );
   }
-  return <>{formatValue(field, value, language)}</>;
+  return <>{formatValue(field, value, language, display)}</>;
 }

@@ -19,7 +19,7 @@
 // `state:<state>` (the loading one is the skeleton of the card), its values `field:<name>`.
 
 import { Lock, Pencil } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 
 import type { PermitMeta } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
@@ -31,9 +31,11 @@ import {
   isLongText,
   isNumeric,
   itemLabel,
+  itemName,
   permitted,
   useAnyItem,
   useItemFields,
+  type FieldDisplay,
   type Fields,
   type ResourceObject,
 } from '@/bazis/ui/resource';
@@ -64,8 +66,16 @@ export interface ResourceCardProps {
   path: ItemPath;
   id: string;
   sections: readonly CardSection[];
-  /** The heading; the label of the item (its name, title...) by default. */
+  /**
+   * The heading; by default the name of the item (`itemName`: its name, title...), else the
+   * values of its `label` fields (its id only when none has a value).
+   */
   title?: (item: ResourceObject) => ReactNode;
+  /**
+   * The fields whose values head an item without a name (`label` of the entity of the specs:
+   * a loan by its book and its reader); the first two fields of the sections by default.
+   */
+  label?: readonly string[];
   /** Next to the heading: the status of the item (`StatusBadge` of status-badge). */
   badge?: (item: ResourceObject) => ReactNode;
   /** An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the sections. */
@@ -73,6 +83,8 @@ export interface ResourceCardProps {
   actions?: readonly CardAction[];
   /** The values of fields, instead of the formatted value. */
   values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>;
+  /** How the values of fields are shown (`display` of the fields of the entity of the specs). */
+  display?: Readonly<Record<string, FieldDisplay>>;
   /**
    * Under the heading: the transits of the item (`TransitBar` of transit-bar), its status
    * history (`StatusHistory` of status-history, which takes the item), a section of the
@@ -110,6 +122,7 @@ interface SectionsProps {
   item: ResourceObject;
   fields: Fields;
   values: Readonly<Record<string, (item: ResourceObject) => ReactNode>>;
+  display: Readonly<Record<string, FieldDisplay>>;
   /** Whether the edit changes a field; null: no marks (no edit, or its schema is not loaded). */
   editable: ((name: string) => boolean) | null;
 }
@@ -119,7 +132,7 @@ interface SectionsProps {
  * section without any is left out. With `editable`, the fields that the edit does not change
  * are marked read-only.
  */
-function Sections({ sections, item, fields, values, editable }: SectionsProps) {
+function Sections({ sections, item, fields, values, display, editable }: SectionsProps) {
   const { t } = useLanguage();
   return sections.map((section) => {
     const names = section.fields.filter((name) => fields.has(name));
@@ -152,7 +165,9 @@ function Sections({ sections, item, fields, values, editable }: SectionsProps) {
                   data-bz={`field:${name}`}
                   className={cn('break-words', isLongText(field) && 'whitespace-pre-line', isNumeric(field) && 'tabular-nums')}
                 >
-                  {values[name]?.(item) ?? <FieldValue field={field} value={fieldValue(item, name)} />}
+                  {values[name]?.(item) ?? (
+                    <FieldValue field={field} value={fieldValue(item, name)} type={item.type} display={display[name]} />
+                  )}
                 </dd>
               </div>
             );
@@ -171,16 +186,46 @@ function EditableSections({ path, id, ...props }: Omit<SectionsProps, 'editable'
   );
 }
 
+/**
+ * The heading of an item without a name: the values of its fields of `names` that the user
+ * sees and that have a value; its id when none has.
+ */
+function ItemHeading({
+  item,
+  names,
+  fields,
+  display,
+}: {
+  item: ResourceObject;
+  names: readonly string[];
+  fields: Fields;
+  display: Readonly<Record<string, FieldDisplay>>;
+}) {
+  const shown = names.filter((name) => {
+    const value = fieldValue(item, name);
+    return fields.has(name) && value !== null && value !== undefined && value !== '';
+  });
+  if (!shown.length) return <>{itemLabel(item)}</>;
+  return shown.map((name, index) => (
+    <Fragment key={name}>
+      {index > 0 && ' · '}
+      <FieldValue field={fields.fields.get(name)} value={fieldValue(item, name)} type={item.type} display={display[name]} />
+    </Fragment>
+  ));
+}
+
 /** The card of an item, with its states, sections, actions and edit. */
 export function ResourceCard({
   path,
   id,
   sections,
   title,
+  label,
   badge,
   edit = false,
   actions = [],
   values = {},
+  display = {},
   children,
   forms,
 }: ResourceCardProps) {
@@ -203,7 +248,16 @@ export function ResourceCard({
 
   const { data, meta } = document;
   const changeable = edit && permitted(meta, 'change');
-  const label = title ? title(data) : itemLabel(data);
+  const heading = title
+    ? title(data)
+    : (itemName(data) ?? (
+        <ItemHeading
+          item={data}
+          names={label ?? sections.flatMap((section) => section.fields).slice(0, 2)}
+          fields={fields}
+          display={display}
+        />
+      ));
   return (
     <article data-bz="state:loaded" className="grid gap-(--space-section)">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -215,7 +269,7 @@ export function ResourceCard({
               THEME.preset === 'portal' ? 'text-3xl md:text-4xl' : 'text-2xl',
             )}
           >
-            {label}
+            {heading}
           </h2>
           {badge?.(data)}
         </div>
@@ -250,15 +304,15 @@ export function ResourceCard({
       </header>
       {typeof children === 'function' ? children(data, meta) : children}
       {changeable ? (
-        <EditableSections path={path} id={id} sections={sections} item={data} fields={fields} values={values} />
+        <EditableSections path={path} id={id} sections={sections} item={data} fields={fields} values={values} display={display} />
       ) : (
-        <Sections sections={sections} item={data} fields={fields} values={values} editable={null} />
+        <Sections sections={sections} item={data} fields={fields} values={values} display={display} editable={null} />
       )}
       {changeable && (
         <FormSurface
           open={editing}
           {...(forms === undefined ? {} : { mode: forms })}
-          title={typeof label === 'string' ? t('card.edit_item', { item: label }) : <>{t('card.edit')} {label}</>}
+          title={typeof heading === 'string' ? t('card.edit_item', { item: heading }) : <>{t('card.edit')} {heading}</>}
           onClose={() => {
             setEditing(false);
           }}

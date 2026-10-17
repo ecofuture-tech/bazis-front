@@ -83,12 +83,15 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it; the choices of a field are a
 select of their labels), `FieldValue` (with `formatValue`: the value in the language of the
-interface, a choice by its label; `choiceOptions`: the choices as options of a filter),
+interface, a choice by its label, a number of `display: plain` without the separators of its
+thousands, the `status` of an item of a statusy model by its name in the contract,
+`statusName`; `choiceOptions`: the choices as options of a filter),
 `RelationPicker`, `RelationListPicker` (the ids of the items of a to-many relationship) and
 `RelationLabel` (the related resource by its route in `ROUTES`, or `path`; `hasSearch`:
 whether the contract gives the resource search fields), `useListFields`/`useItemFields`
-(the titles and types of the list, retrieve and update schemas, `has`: whether the schema
-of the user has the field), `permitted` (the permission meta of bazis-permit; allowed when
+(the titles and types of the list, retrieve and update schemas, a title that is the name
+of its field as words, `is_overdue` as `Is overdue`; `has`: whether the schema of the user
+has the field), `permitted` (the permission meta of bazis-permit; allowed when
 the backend does not report it), the points (`pointOf`, `geoJsonPoint`, `formatPoint`,
 `parsePoint`, `POINT_FIELDS`: the point fields of the contract by the path of their route
 set, and `PointsProvider`, which gives `FieldInput` the control of the point fields: the
@@ -106,7 +109,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 - **`resource-list`** reads the list with `useList` (`meta`: `pagination`, `for_create`,
   `for_change`, `for_delete`), the titles of the columns from `schema_list/`, the types of
   the filters from `route_filter_fields/` (a relation: the picker of the related resource; a
-  date: a range; a string: `<field>__$search`; on a phone, below the breakpoint `sm`, each
+  date: a range; a string: `<field>__$search`; a boolean: a chip for each value, pressed
+  again for every item, `aria-pressed`, in the group `field:<field>`; on a phone, below the breakpoint `sm`, each
   filter is a row of the full width, its control taking the rest of it; `options` for choices such as the statuses,
   those of the list schema by their labels for a field with choices;
   no control for a field that the backend does not list for the user; the inline
@@ -125,7 +129,9 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   in its place (`pages`).
   `Screen` hosts a form page of `FormSurface`, which takes the place of its content.
 - **`resource-card`** reads the item with `crud_actions` and `custom_actions` and its fields from
-  `schema_retrieve/` of the item; with `edit`, an edit button (when the backend allows the
+  `schema_retrieve/` of the item; its heading is the name of the item (`itemName`), else the
+  values of its `label` fields (the first two fields of the sections by default), never its
+  id while one of them has a value; with `edit`, an edit button (when the backend allows the
   change) opens the form of the update of their fields in a dialog or as a page
   (`FormSurface`). `RelatedList` is a related section of a card: the list of a related
   resource filtered by its to-one relationship to the item (`Filter.where(relation, item)`)

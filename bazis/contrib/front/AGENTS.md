@@ -1133,7 +1133,7 @@ export function TaskCardScreen() {
         path={TASKS}
         id={id}
         edit
-        sections={[{ id: 'main', title: 'Details', fields: ['title', 'status', 'assignee'] }, { id: 'report', title: 'Report', fields: ['report'] }]}
+        sections={[{ id: 'main', title: 'Details', fields: ['title', 'assignee'] }, { id: 'report', title: 'Report', fields: ['report'] }]}
         badge={(item) => <StatusBadge resource={item} />}
         actions={[{
           id: 'delete', label: 'Delete', permission: 'delete', variant: 'destructive',
@@ -1246,7 +1246,9 @@ The props of every component are in the `API:` sections (the `Props` types of
   (`t('booking.of', {name})`: `{name}` is the parameter `name`), `itemLabel` of
   `@/bazis/ui/resource` of `useRelatedItem(ROUTES[type], id).data`;
 - a status: `StatusBadge` in `cells` of a list and in `badge` of a card, the options of its
-  filter `statusOptions(type)`, as in the example above;
+  filter `statusOptions(type)`, as in the example above; not also in the sections of the
+  card, where `status` is its name (`statusName` of the contract, never its id) without
+  the tone;
 - a form of your own (a step of the form of a wizard): `useResourceForm(path, {id?, fixed?})`
   with a `FieldInput` of `@/bazis/ui/resource` per field (`field`, `value`, `onChange`,
   `errors`: the control by the type, the choices by their labels, the picker of a
@@ -1330,7 +1332,8 @@ see [The socket](#the-socket)) and `useLiveQueries` refetches its resource.
 
 **The filters of a list** (`filters`): a control per field, by its type in
 `route_filter_fields/` (`py_type`): a select of `options` (the statuses:
-`statusOptions(type)`; the choices of a field with choices by default) or of yes/no for a boolean, the picker of a relationship, a range
+`statusOptions(type)`; the choices of a field with choices by default), the chips yes and
+no for a boolean (under the title of the field; pressed again: every item), the picker of a relationship, a range
 of dates (`<field>__gte`, `<field>__lte`) for a date or a date-time, a number, else a text
 whose every word must be in the field (`<field>__$search`); one `filter` expression
 (`filterOf`). A field that the backend does not list for the user (hidden by his field
@@ -3967,7 +3970,7 @@ Its props, `NotificationCenterProps`:
 
 - `NotificationCenterProps`: the props of `NotificationCenter`, listed with it
 
-## API: the components: resource, resource-card, resource-form
+## API: the components: resource, resource-card
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -3990,7 +3993,15 @@ Its props, `FieldInputProps`:
 
 #### FieldValue
 
-`FieldValue(props: { field: FormField | undefined; value: unknown; }): Element`: The value of a field for reading: an attribute formatted by its type and format, the labels of the related items of a relationship, an uploaded file (`FileValue`).
+`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display`, the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), an uploaded file (`FileValue`).
+
+
+Its props, `FieldValueProps`:
+
+- `field: FormField | undefined`
+- `value: unknown`
+- `type?: string`: The JSON:API type of the item: the `status` of an item of a statusy model is named by the contract.
+- `display?: FieldDisplay | undefined`: How the value is shown (`display` of the field of the entity of the specs).
 
 #### choiceOptions
 
@@ -4002,7 +4013,7 @@ Its props, `FieldInputProps`:
 
 #### formatValue
 
-`formatValue(field: FormField | undefined, value: unknown, options?: Pick<LanguageContextValue, 'language' | 't'>): string`: The text of the value of an attribute, in the language of the interface (`useLanguage()`; English by default): a choice by its label (`enumDict` of the backend, the choices of an array each), else by its type and format, the numbers and the dates with `Intl`, a point (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
+`formatValue(field: FormField | undefined, value: unknown, options?: Pick<LanguageContextValue, 'language' | 't'>, display?: FieldDisplay): string`: The text of the value of an attribute, in the language of the interface (`useLanguage()`; English by default): a choice by its label (`enumDict` of the backend, the choices of an array each), else by its type and format, the numbers (as `display` says) and the dates with `Intl`, a point (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
 
 #### fromLocalDateTime
 
@@ -4026,7 +4037,15 @@ Its props, `FieldInputProps`:
 
 #### itemLabel
 
-`itemLabel(resource: ResourceObject): string`: The label of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first and the last name, `title`, `username`, `email`, `slug`, `code`), or its id.
+`itemLabel(resource: ResourceObject): string`: The label of an item: its name (`itemName`), or its id.
+
+#### itemName
+
+`itemName(resource: ResourceObject): string | null`: The name of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first and the last name, `title`, `username`, `email`, `slug`, `code`), null without any.
+
+#### localizedName
+
+`localizedName(item: ContractName | undefined, id: string, language: string): string`: A name of the contract in a language: that of the language, of its base language, of the default language of the backend; its id without any.
 
 #### permitted
 
@@ -4035,6 +4054,14 @@ Its props, `FieldInputProps`:
 #### routeOf
 
 `routeOf(type: string): string | undefined`: The path of the route set of a JSON:API type (`ROUTES` of the contract), if it has one.
+
+#### statusName
+
+`statusName(type: string, status: string, language?: string): string`: The name of a status of the model in a language (`useLanguage().language`; the default language of the backend without it); its id when the contract does not have it.
+
+#### statusyModel
+
+`statusyModel(type: string): StatusyModel | undefined`: The statusy model of a JSON:API type, undefined for a type that is not one.
 
 #### useItemFields
 
@@ -4049,7 +4076,7 @@ Its props, `FieldInputProps`:
 `interface Fields`: The fields of a runtime schema by name, and the state of its query.
 
 - `fields: ReadonlyMap<string, FormField>`
-- `title: (name: string) => string`: The title of a field in the language of the backend, its name until the schema loads.
+- `title: (name: string) => string`: The title of a field in the language of the backend, its name until the schema loads; a title that is the name itself (a calculated field without one: S018 of `check`) without its underscores, never shown as an identifier.
 - `ready: boolean`: Whether the schema is loaded (or failed: the names stand for the titles then).
 - `loaded: boolean`: Whether the schema is loaded (not failed).
 - `has: (name: string) => boolean`: Whether the schema has the field: bazis-permit leaves out the fields that the user may not see (or change, in the schema of an update); every field while the schema is not loaded.
@@ -4248,6 +4275,8 @@ Its props, `RelationPickerProps`:
 #### The types and the constants of `@/bazis/ui/resource`
 
 - `FieldInputProps`: the props of `FieldInput`, listed with it
+- `FieldValueProps`: the props of `FieldValue`, listed with it
+- `type FieldDisplay = 'plain'`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a year, a code).
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
@@ -4301,11 +4330,13 @@ Its props, `ResourceCardProps`:
 - `path: ItemPath`: The route set (`ROUTES` of the contract); for `edit`, one with the update.
 - `id: string`
 - `sections: readonly CardSection[]`
-- `title?: (item: ResourceObject) => ReactNode`: The heading; the label of the item (its name, title...) by default.
+- `title?: (item: ResourceObject) => ReactNode`: The heading; by default the name of the item (`itemName`: its name, title...), else the values of its `label` fields (its id only when none has a value).
+- `label?: readonly string[]`: The fields whose values head an item without a name (`label` of the entity of the specs: a loan by its book and its reader); the first two fields of the sections by default.
 - `badge?: (item: ResourceObject) => ReactNode`: Next to the heading: the status of the item (`StatusBadge` of status-badge).
 - `edit?: boolean`: An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the sections.
 - `actions?: readonly CardAction[]`
 - `values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>`: The values of fields, instead of the formatted value.
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
 - `children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode)`: Under the heading: the transits of the item (`TransitBar` of transit-bar), its status history (`StatusHistory` of status-history, which takes the item), a section of the product, given the permission meta of the item (`crud_actions`: `permitted(meta, 'change')`; `custom_actions`: `permitted(meta, 'action_report')`, the button of a custom action of the item) without a request of its own.
 - `forms?: 'dialog' | 'page'`: The edit in a dialog or as a page; `composition.forms` of the theme by default.
 
@@ -4331,6 +4362,10 @@ Its props, `ResourceCardProps`:
 
 - `RelatedListProps`: the props of `RelatedList`, listed with it
 - `ResourceCardProps`: the props of `ResourceCard`, listed with it
+
+## API: the components: resource-form, resource-list, state-panel, status-badge, status-history, task-progress, transit-bar
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/resource-form`
 
@@ -4378,10 +4413,6 @@ Its props, `ResourceFormProps`:
 - `FormSurfaceProps`: the props of `FormSurface`, listed with it
 - `ResourceFormProps`: the props of `ResourceForm`, listed with it
 
-## API: the components: resource-list, state-panel, status-badge, status-history, task-progress, transit-bar
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
-
 ### `@/bazis/ui/resource-list`
 
 #### filterOf
@@ -4416,6 +4447,7 @@ Its props, `ResourceListProps`:
 - `actions?: readonly ListAction[]`
 - `rowActions?: readonly RowAction[]`
 - `cells?: Readonly<Record<string, (row: ResourceObject) => ReactNode>>`: The content of the cells of a column, instead of the formatted value.
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
 - `rowTone?: (row: ResourceObject) => Tone | undefined`: The tone of the theme that highlights a row (`list.highlight` of the spec), undefined for none: its soft color and a bar of the tone, marked `data-tone`.
 - `rowToneLabel?: (row: ResourceObject) => string | undefined`: What the tone of a highlighted row means, in words (`label` of `list.highlight`): its `aria-description`, so that the highlight is not told by its color alone.
 - `emptyMessage?: ReactNode`: The message of the empty list.

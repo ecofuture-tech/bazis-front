@@ -15,6 +15,7 @@
 export { FieldInput } from './field-input.js';
 export type { FieldInputProps } from './field-input.js';
 export { FieldValue } from './field-value.js';
+export type { FieldValueProps } from './field-value.js';
 export {
   choiceOptions,
   fieldValue,
@@ -25,12 +26,16 @@ export {
   isNumeric,
   isReverse,
   itemLabel,
+  itemName,
+  localizedName,
   permitted,
   routeOf,
+  statusName,
+  statusyModel,
   useItemFields,
   useListFields,
 } from './fields.js';
-export type { Fields, ResourceObject } from './fields.js';
+export type { FieldDisplay, Fields, ResourceObject } from './fields.js';
 export {
   FILE_RESOURCES,
   FilesProvider,

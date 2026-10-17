@@ -17,8 +17,8 @@
 // resources of the contract and the permission meta of bazis-permit.
 
 import { can, type CustomActionName, type PermitMeta } from '@/bazis/client';
-import { RESOURCES, ROUTES } from '@/bazis/generated/contract';
-import { ENGLISH, formatDate, formatDateTime, formatNumber, type LanguageContextValue } from '@/bazis/i18n';
+import { LANGUAGE, RESOURCES, ROUTES, TRANSITS } from '@/bazis/generated/contract';
+import { baseLanguage, ENGLISH, formatDate, formatDateTime, formatNumber, type LanguageContextValue } from '@/bazis/i18n';
 import { choiceLabel, resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
 
 import { text, useAnySchema } from './hooks.js';
@@ -36,7 +36,11 @@ export interface ResourceObject {
 /** The fields of a runtime schema by name, and the state of its query. */
 export interface Fields {
   fields: ReadonlyMap<string, FormField>;
-  /** The title of a field in the language of the backend, its name until the schema loads. */
+  /**
+   * The title of a field in the language of the backend, its name until the schema loads; a
+   * title that is the name itself (a calculated field without one: S018 of `check`) without
+   * its underscores, never shown as an identifier.
+   */
   title: (name: string) => string;
   /** Whether the schema is loaded (or failed: the names stand for the titles then). */
   ready: boolean;
@@ -50,12 +54,19 @@ export interface Fields {
   has: (name: string) => boolean;
 }
 
+/** A title that is the name of its field (`is_overdue`) as words (`Is overdue`); another as it is. */
+function readable(title: string, name: string): string {
+  if (title !== name) return title;
+  const words = name.replace(/_+/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function fieldsOf(query: { data?: JsonSchema | undefined; isPending: boolean }): Fields {
   const schema = query.data;
   const fields = new Map((schema ? resourceSchema(schema).fields : []).map((it) => [it.name, it]));
   return {
     fields,
-    title: (name) => fields.get(name)?.title ?? name,
+    title: (name) => readable(fields.get(name)?.title ?? name, name),
     ready: !query.isPending,
     loaded: schema !== undefined,
     has: (name) => schema === undefined || fields.has(name),
@@ -141,10 +152,10 @@ const LABELS: readonly (readonly string[])[] = [
 ];
 
 /**
- * The label of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first
- * and the last name, `title`, `username`, `email`, `slug`, `code`), or its id.
+ * The name of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first
+ * and the last name, `title`, `username`, `email`, `slug`, `code`), null without any.
  */
-export function itemLabel(resource: ResourceObject): string {
+export function itemName(resource: ResourceObject): string | null {
   for (const names of LABELS) {
     const label = names
       .map((name) => resource.attributes?.[name])
@@ -154,7 +165,46 @@ export function itemLabel(resource: ResourceObject): string {
       .join(' ');
     if (label) return label;
   }
-  return resource.id;
+  return null;
+}
+
+/** The label of an item: its name (`itemName`), or its id. */
+export function itemLabel(resource: ResourceObject): string {
+  return itemName(resource) ?? resource.id;
+}
+
+/** A name of the contract in every language of the backend (`{en, ru}`): a status, a transit. */
+interface ContractName {
+  id: string;
+  name: Readonly<Record<string, string>>;
+}
+
+/**
+ * A name of the contract in a language: that of the language, of its base language, of the
+ * default language of the backend; its id without any.
+ */
+export function localizedName(item: ContractName | undefined, id: string, language: string): string {
+  const names = item?.name ?? {};
+  return names[language] ?? names[baseLanguage(language)] ?? names[LANGUAGE] ?? Object.values(names)[0] ?? id;
+}
+
+/** A statusy model of bazis-statusy: its statuses and its transits (`TRANSITS` of the contract). */
+interface StatusyModel {
+  statuses: readonly ContractName[];
+  transits: readonly (ContractName & { dst?: string })[];
+}
+
+/** The statusy model of a JSON:API type, undefined for a type that is not one. */
+export function statusyModel(type: string): StatusyModel | undefined {
+  return (TRANSITS as Readonly<Record<string, StatusyModel | undefined>>)[type];
+}
+
+/**
+ * The name of a status of the model in a language (`useLanguage().language`; the default
+ * language of the backend without it); its id when the contract does not have it.
+ */
+export function statusName(type: string, status: string, language: string = LANGUAGE): string {
+  return localizedName(statusyModel(type)?.statuses.find((it) => it.id === status), status, language);
 }
 
 /**
@@ -233,15 +283,22 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
 }
 
 /**
+ * How the value of a field is shown (`display` of the field of an entity of the specs):
+ * `plain`, a number without the separators of its thousands (a year, a code).
+ */
+export type FieldDisplay = 'plain';
+
+/**
  * The text of the value of an attribute, in the language of the interface (`useLanguage()`;
  * English by default): a choice by its label (`enumDict` of the backend, the choices of an
- * array each), else by its type and format, the numbers and the dates with `Intl`, a point
- * (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
+ * array each), else by its type and format, the numbers (as `display` says) and the dates
+ * with `Intl`, a point (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
  */
 export function formatValue(
   field: FormField | undefined,
   value: unknown,
   { language, t }: Pick<LanguageContextValue, 'language' | 't'> = ENGLISH,
+  display?: FieldDisplay,
 ): string {
   if (value === null || value === undefined || value === '') return '—';
   const label = choiceLabel(field, value);
@@ -250,7 +307,7 @@ export function formatValue(
     return value.length ? value.map((it) => choiceLabel(field, it) ?? text(it)).join(', ') : '—';
   }
   if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
-  if (typeof value === 'number') return formatNumber(value, language);
+  if (typeof value === 'number') return formatNumber(value, language, display === 'plain' ? { useGrouping: false } : undefined);
   if (typeof value === 'string') {
     const format = field?.kind === 'attribute' ? field.format : null;
     if (format === 'date-time') return formatDateTime(value, language);

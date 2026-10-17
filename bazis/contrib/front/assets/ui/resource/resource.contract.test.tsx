@@ -22,6 +22,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { TRANSITS } from '@/bazis/generated/contract';
 import type { FormField } from '@/bazis/react';
 import {
   choiceOptions,
@@ -32,10 +33,12 @@ import {
   formatSize,
   formatValue,
   itemLabel,
+  itemName,
   parsePoint,
   permitted,
   PointsProvider,
   RelationLabel,
+  statusName,
   useAnyRelated,
   type FileControlProps,
 } from '@/bazis/ui/resource';
@@ -405,6 +408,43 @@ describe('FieldValue', () => {
     expect(screen.getByTestId('field:day').textContent).toMatch(/^8 окт\. 2026\sг\.$/);
     expect(formatSize(1536, { language: 'ru', t: (key, params) => `${key}:${String(params?.size)}` })).toBe('size.kb:1,5');
   });
+
+  it('shows a number of `display: plain` without the separators of its thousands', () => {
+    const year = attribute('year', 'integer');
+    expect(formatValue(year, 18770)).toBe('18,770');
+    expect(formatValue(year, 18770, undefined, 'plain')).toBe('18770');
+    render(<FieldValue field={year} value={1877} display="plain" />);
+    expect(screen.getByText('1877')).toBeTruthy();
+  });
+
+  it('shows the status of a model that is not statusy as a related item', () => {
+    // the status of a model that the contract does not have, or a relationship of another
+    // resource named so: the label of the related item
+    const status = { ...base, kind: 'relation', name: 'status', title: 'Status', relation: 'test.status', many: false } as FormField;
+    render(
+      <span data-bz="field:status">
+        <FieldValue field={status} value="draft" type="test.item" />
+      </span>,
+    );
+    expect(screen.getByTestId('field:status').textContent).toBe('draft');
+  });
+
+  // a status of a statusy model of the product, if it has one
+  const statusy = Object.entries(TRANSITS as Readonly<Record<string, { statuses: readonly { id: string }[] }>>).flatMap(
+    ([type, { statuses }]) => statuses.map(({ id }) => ({ type, id })),
+  )[0];
+  it.runIf(statusy)('names a status of a statusy model of the contract', () => {
+    if (!statusy) return;
+    const { type, id } = statusy;
+    const status = { ...base, kind: 'relation', name: 'status', title: 'Status', relation: 'test.status', many: false } as FormField;
+    render(
+      <span data-bz="field:status">
+        <FieldValue field={status} value={id} type={type} />
+      </span>,
+    );
+    // in the language of the interface, English without a provider
+    expect(screen.getByTestId('field:status').textContent).toBe(statusName(type, id, 'en'));
+  });
 });
 
 describe('permitted', () => {
@@ -432,6 +472,8 @@ describe('the label of a related item', () => {
     expect(itemLabel(resource('1', { name: '', title: 'Plan', username: 'ann' }))).toBe('Plan');
     expect(itemLabel(resource('1', { slug: 's', code: 'C' }))).toBe('s');
     expect(itemLabel(resource('7', { size: 3 }))).toBe('7');
+    expect(itemName(resource('7', { size: 3 }))).toBeNull();
+    expect(itemName(resource('1', { title: 'Plan' }))).toBe('Plan');
   });
 
   it('is the display name of a person before his username and e-mail', () => {

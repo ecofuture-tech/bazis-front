@@ -37,6 +37,7 @@ import {
   permitted,
   useAnyList,
   useListFields,
+  type FieldDisplay,
   type Fields,
   type ResourceObject,
 } from '@/bazis/ui/resource';
@@ -107,6 +108,8 @@ export interface ResourceListProps {
   rowActions?: readonly RowAction[];
   /** The content of the cells of a column, instead of the formatted value. */
   cells?: Readonly<Record<string, (row: ResourceObject) => ReactNode>>;
+  /** How the values of fields are shown (`display` of the fields of the entity of the specs). */
+  display?: Readonly<Record<string, FieldDisplay>>;
   /**
    * The tone of the theme that highlights a row (`list.highlight` of the spec), undefined
    * for none: its soft color and a bar of the tone, marked `data-tone`.
@@ -186,6 +189,7 @@ interface BodyProps {
   columns: readonly string[];
   fields: Fields;
   cells: Readonly<Record<string, (row: ResourceObject) => ReactNode>>;
+  display: Readonly<Record<string, FieldDisplay>>;
   onOpen: ((id: string) => void) | undefined;
   selected: string | undefined;
   rowActions: (row: ResourceObject) => ReactNode;
@@ -194,7 +198,11 @@ interface BodyProps {
 }
 
 function cell(props: BodyProps, row: ResourceObject, name: string): ReactNode {
-  return props.cells[name]?.(row) ?? <FieldValue field={props.fields.fields.get(name)} value={fieldValue(row, name)} />;
+  return (
+    props.cells[name]?.(row) ?? (
+      <FieldValue field={props.fields.fields.get(name)} value={fieldValue(row, name)} type={row.type} display={props.display[name]} />
+    )
+  );
 }
 
 const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
@@ -398,6 +406,7 @@ export function ResourceList({
   actions = [],
   rowActions = [],
   cells = {},
+  display = {},
   rowTone = () => undefined,
   rowToneLabel = () => undefined,
   emptyMessage,
@@ -482,6 +491,7 @@ export function ResourceList({
     columns: shown,
     fields,
     cells,
+    display,
     onOpen,
     selected,
     rowTone,
