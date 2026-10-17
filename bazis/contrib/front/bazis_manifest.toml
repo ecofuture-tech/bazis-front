@@ -58,6 +58,14 @@ text = "a copy of bazis-front changed in frontend/ (a file of src/bazis/ or e2e/
 check = "front.W007"
 
 [[pitfalls]]
+text = "frontend/e2e/generated/shots.ts is written by `bazis_front shots` from the specs, never by hand: take the screenshots again after a change of the screens, the scenarios or the design"
+check = "front.W008"
+
+[[pitfalls]]
+text = "the screens are done when `bazis_front shots` (the backend and the frontend running, E2E_PASSWORD set) reports no error in frontend/.scratch/shots/report.json (a page that scrolls sideways on a phone, a raw name or a UUID shown, a text without contrast, a screen not reached) and the screenshots pass the checklist of the guide: fix the specs, the screens or the backend and take them again, at most three rounds; the errors left after them, or screenshots never taken (no report), are the warning front.W009, not a stale part of the frontend; .scratch/ is never committed"
+check = "front.W009"
+
+[[pitfalls]]
 text = "bazis-ws keeps nothing: a message published before the page subscribed is lost; publish after the commit, and the hooks refetch every query after a reconnect; the notifications of bazis-ws alone are those of the session, the stored ones are bazis-notify (notify of bazis.contrib.notify.service, which delivers them live itself: never publish them a second time with bazis-ws; the bell lists them with useInbox)"
 
 [[pitfalls]]

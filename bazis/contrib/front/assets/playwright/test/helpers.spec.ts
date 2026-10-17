@@ -996,6 +996,13 @@ test.describe('loginAs', () => {
       .toBe(true);
   });
 
+  test('logs in when the logout is in a menu hidden on a phone', async ({ page }) => {
+    await serve(page, { '/login': login.replace('<button data-bz="action:logout">', '<button data-bz="action:logout" hidden>') });
+    process.env.E2E_PASSWORD = 'secret';
+    await loginAs(page, PRODUCT, 'manager');
+    await expect(page.locator(bz('action', 'logout'))).toBeHidden();
+  });
+
   test('reports a failed login', async ({ page }) => {
     await serve(page, { '/login': login });
     process.env.E2E_PASSWORD = 'wrong';

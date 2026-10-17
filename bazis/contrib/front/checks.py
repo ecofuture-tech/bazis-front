@@ -260,6 +260,61 @@ def check_design(app_configs, **kwargs):
     return []
 
 
+@register()
+def check_shots(app_configs, **kwargs):
+    """
+    The screenshots of the frontend (when its lock records them: the product takes them with
+    `bazis_front shots`): `shots.ts` is that of the specs (the comparison of `shots --check`,
+    without Node and without the database; specs with errors are not compared, `front.W002`
+    reports them: `front.W008`), and the report of the last screenshots has no error
+    (`front.W009`: not stale, what the screens render, which no command brings up to date; also
+    when there is no report that can be read: the screenshots were not taken).
+    """
+    from django.conf import settings
+
+    from .spec import shots, validate
+    from .vendor import lock as frontend_lock
+
+    frontend = frontend_lock.frontend_dir()
+    lock = frontend_lock.read_valid(frontend)
+    if lock is None or 'shots' not in lock:
+        return []
+    root = Path(settings.BASE_DIR)
+    result = validate.validate(root)
+    if result.errors:
+        return []
+    issues = []
+    if problems := shots.stale(root, frontend, lock, shots.render(result.specs)):
+        issues.append(
+            Warning(
+                ' '.join(problems),
+                hint='Take them again with `manage.py bazis_front shots`; never edit shots.ts.',
+                id='front.W008',
+            )
+        )
+    report = shots.read_report(frontend)
+    if report is None:
+        issues.append(
+            Warning(
+                'The screenshots were not taken: run `manage.py bazis_front shots`.',
+                hint='Run it with the backend and the frontend of the end-to-end tests and look at the '
+                'screenshots (AGENTS.md, "The visual check").',
+                id='front.W009',
+            )
+        )
+    elif report.get('errors'):
+        issues.append(
+            Warning(
+                f'The report of the last screenshots, {frontend / shots.OUTPUT_DIR / shots.REPORT}, has '
+                f'{report["errors"]} errors.',
+                hint='Fix them in the specs, the screens or the backend and take the screenshots '
+                'again with `manage.py bazis_front shots` (AGENTS.md, "The visual check").',
+                id='front.W009',
+            )
+        )
+    return issues
+
+
 #: the subcommand of `bazis_front` that brings up to date what a check reports stale (its
 #: `--check` makes the same comparison): `command` of the issues of `bazis_front status`
 COMMANDS = {
@@ -267,6 +322,7 @@ COMMANDS = {
     'front.W003': 'e2e',
     'front.W004': 'update',
     'front.W005': 'design',
+    'front.W008': 'shots',
 }
 
 #: the checks of the state of the frontend, in the order of `bazis_front status`
@@ -278,4 +334,5 @@ STATUS = (
     check_changed_copies,
     check_design,
     check_e2e,
+    check_shots,
 )

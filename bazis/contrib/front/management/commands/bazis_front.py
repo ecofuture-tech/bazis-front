@@ -27,6 +27,7 @@ from bazis.contrib.front.contract import generated
 from bazis.contrib.front.contract.openapi import dumps
 from bazis.contrib.front.spec import create as spec_create
 from bazis.contrib.front.spec import e2e
+from bazis.contrib.front.spec import shots as spec_shots
 from bazis.contrib.front.spec import theme as design_theme
 from bazis.contrib.front.spec import validate as spec_validate
 from bazis.contrib.front.spec.issues import Issues
@@ -69,8 +70,9 @@ def require_lock(frontend: Path) -> dict:
 
 
 #: the generated files of a frontend, by the key of their hashes in the lock: the TypeScript
-#: of the contract (`contract`), the theme (`design`), the end-to-end tests (`e2e`)
-GENERATED = {'contract': 'generated', 'design': 'design', 'e2e': 'e2e'}
+#: of the contract (`contract`), the theme (`design`), the end-to-end tests (`e2e`), the
+#: screenshots (`shots`)
+GENERATED = {'contract': 'generated', 'design': 'design', 'e2e': 'e2e', 'shots': 'shots'}
 
 
 class Command(BaseCommand):
@@ -237,6 +239,30 @@ class Command(BaseCommand):
             help='Write nothing; exit with 1 if the theme differs from the design.',
         )
 
+        shots_parser = subcommands.add_parser(
+            'shots',
+            help='Take the screenshots of the screens and check what they render.',
+            description=(
+                'Generate frontend/e2e/generated/shots.ts from the specs (every screen as the '
+                'first of its roles, in each color mode of the theme; the screen of an item through '
+                'the first item of a screen that opens it), then run it with Playwright '
+                '(playwright.shots.config.ts: the widths of a desktop and a phone, against the '
+                'frontend and the backend of the end-to-end tests, E2E_PASSWORD set) and gather the '
+                'checks of what each screen renders into frontend/.scratch/shots/report.json, next to '
+                'the screenshots: the codes V0xx of AGENTS.md. Exit with 1 if the report has errors, '
+                'with 2 if no screen could be shot (no Node, no browser, no frontend or backend '
+                'running). The specs must have no errors (`bazis_front check`).'
+            ),
+        )
+        shots_parser.add_argument(
+            '--check',
+            action='store_true',
+            help='Write nothing and take no screenshot; exit with 1 if shots.ts differs from the specs.',
+        )
+        shots_parser.add_argument(
+            '--no-run', action='store_true', help='Generate shots.ts only: take no screenshot.'
+        )
+
         status = subcommands.add_parser(
             'status',
             help='Show the state of the frontend: its copies and what is generated or stale.',
@@ -247,7 +273,9 @@ class Command(BaseCommand):
                 'bazis-front: an outdated package (front.W006), a stale contract or generated '
                 'file (front.W001; the database must be migrated), the issues of the specs '
                 '(front.W002), stale or changed copies (front.W004, front.W007), a stale theme '
-                '(front.W005) or stale end-to-end tests (front.W003). Writes nothing and exits '
+                '(front.W005), stale end-to-end tests (front.W003), a stale test of the '
+                'screenshots (front.W008), a report of the screenshots with errors (front.W009). '
+                'Writes nothing and exits '
                 'with 0: the `--check` of each subcommand fails on its own state.'
             ),
         )
@@ -470,6 +498,66 @@ class Command(BaseCommand):
             'Run them with `npm run e2e` in frontend/ against the running backend, migrated '
             'and with the data of `manage.py e2e_data`, and E2E_PASSWORD set.'
         )
+
+    def handle_shots(self, check=False, no_run=False, **options):
+        frontend = frontend_lock.frontend_dir()
+        lock = require_lock(frontend)
+        root = Path(settings.BASE_DIR)
+        result = spec_validate.validate(root)
+        if result.errors:
+            self.write_issues(result)
+            raise CommandError(
+                f'The specs have {len(result.errors)} errors: the screenshots are taken of specs '
+                'that `bazis_front check` accepts.'
+            )
+        rendered = spec_shots.render(result.specs)
+        if check:
+            if problems := spec_shots.stale(root, frontend, lock, rendered):
+                raise CommandError(
+                    '\n'.join(problems) + '\nGenerate it with `manage.py bazis_front shots`; never edit it.'
+                )
+            self.stdout.write(f'The screenshots of {frontend} are up to date.')
+            return
+        spec_shots.write(root, frontend, lock, rendered)
+        self.stdout.write(f'Generated {frontend / spec_shots.SHOTS_TS}.')
+        if no_run:
+            return
+        self.stdout.flush()
+        try:
+            spec_shots.run(frontend)
+        except spec_shots.NodeMissingError as err:
+            raise CommandError(
+                f'{err}: install Node 22, run `npm install` and `npx playwright install chromium` in '
+                f'{frontend}, then `manage.py bazis_front shots` again.',
+                returncode=2,
+            ) from err
+        report = spec_shots.collect(frontend, result.specs)
+        path = frontend / spec_shots.OUTPUT_DIR / spec_shots.REPORT
+        for shot in report['shots']:
+            for issue in shot['issues']:
+                if issue['severity'] == 'error':
+                    self.stdout.write(
+                        f'{shot["screen"]} {shot["role"]} {shot["mode"]} {shot["width"]}: {issue["code"]} '
+                        f'{issue["selector"]}: {issue["message"]}'
+                    )
+        taken = [it for it in report['shots'] if it['file'] is not None]
+        summary = (
+            f'{len(taken)} screenshots of {len(report["shots"])}, {report["errors"]} errors, '
+            f'{report["warnings"]} warnings: {path}.'
+        )
+        if not taken:
+            raise CommandError(
+                f'{summary} No screen was shot: run the backend (migrated, with the data of '
+                '`manage.py e2e_data`) and set E2E_PASSWORD, and see the output of Playwright '
+                '(`npx playwright install chromium` without a browser).',
+                returncode=2,
+            )
+        if report['errors']:
+            raise CommandError(
+                f'{summary} Fix the errors in the specs, the screens or the backend and take the '
+                'screenshots again; look at the screenshots too (AGENTS.md, "The visual check").'
+            )
+        self.stdout.write(f'{summary} Look at the screenshots (AGENTS.md, "The visual check").')
 
     def handle_design(self, check=False, **options):
         frontend = frontend_lock.frontend_dir()

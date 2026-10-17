@@ -159,6 +159,10 @@ job of CI.
   the error `C004` of `check`). `front.W002`: an
   issue of the specs (see below). `front.W003`: stale end-to-end tests (`e2e --check`,
   without the database; only when the lock has `e2e` and the specs have no errors).
+  `front.W008`: a stale `shots.ts` (`shots --check`, only when the lock has `shots` and
+  the specs have no errors); `front.W009`: a report of the last screenshots with errors, or
+  none that can be read (not stale: no command in `COMMANDS`, so `front_status` of bazis-mcp
+  lists it apart).
   `front.W004`: copies of another version (`update --check`: `update.stale`, without Node
   and the database). `front.W007`: copies changed in the frontend (`update.changed`: a file
   of a vendored asset or a component whose hash differs from the lock, not the template;
@@ -231,6 +235,19 @@ job of CI.
   `assets/playwright/generated/` (the fixture of the helpers: write it again with
   `BAZIS_FRONT_WRITE_FIXTURES=1 python -m pytest ../tests/test_e2e.py` after a change of the
   generator or of the specs of the sample).
+- `spec/shots.py` (`bazis_front shots`) renders `frontend/e2e/generated/shots.ts` from specs
+  without errors (every screen as the first of its roles, in each color mode of the theme;
+  the screen of an item through the first item of a screen that opens it), checked and
+  locked like the end-to-end tests (`--check`, `front.W008`, the lock `shots`; the errors of
+  the last report are `front.W009`), runs it with
+  `npx playwright test --config playwright.shots.config.ts` (`BAZIS_SHOTS_DIR` set to
+  `frontend/.scratch/shots/`) and gathers the results that the helper `shoot` writes there
+  into `report.json` (`collect`: a shot without a result is V001); exit 1 on errors, 2 when
+  nothing was shot or without Node. It is not a `.spec.ts`, so `npm run e2e` never runs it.
+  `tests/test_shots.py` compares the shots of the sample with
+  `assets/playwright/shots/shots.ts` (write it again with `BAZIS_FRONT_WRITE_FIXTURES=1`) and
+  replaces Node and Playwright for the run; the codes `V0xx` are `CODES` of
+  `assets/playwright/bazis/shots.ts`, each with a row in the table of the guide (tested).
 
 ### The frontend of a product
 
@@ -471,7 +488,11 @@ npm run api-reference     # the API reference of the guide, after a change of an
   `RelationListPicker`, the page
   `assets/ui/test/browser/` served by Vite with the aliases of the components (where Radix
   puts the focus, the display of an empty list: what jsdom does not have; only the rules of
-  the Tailwind utilities it relies on); `test/types.typecheck.ts` has the type tests. The template declares
+  the Tailwind utilities it relies on); `test/types.typecheck.ts` has the type tests.
+- `bazis/shots.ts` (copied with them) is `shoot`, the screenshot of a screen with the checks
+  of what it renders (`check`, run in the page: the colors computed by the browser, converted
+  to sRGB by a canvas; no axe-core), and their codes (`CODES`); `test/shots.spec.ts` runs
+  the checks against pages that have what each one finds and pages without it. The template declares
   `@playwright/test` with the version of this workspace.
 
 ### The template (`assets/template`)
@@ -496,7 +517,9 @@ npm run api-reference     # the API reference of the guide, after a change of an
   `playwright.config.ts` (`npm run e2e`: `e2e/generated/` and `e2e/custom/`, one worker,
   `E2E_BASE_URL` or a dev server of its own on `E2E_PORT`, never one already running, ready
   when the backend of `BAZIS_API_URL` answers through its proxy; the browser in UTC and in
-  `LANGUAGE` of the contract, `tests/test_assets.py`) and `AGENTS.md`, which points the
+  `LANGUAGE` of the contract, `tests/test_assets.py`), `playwright.shots.config.ts` (the
+  screenshots of `bazis_front shots`: that config with the projects of a desktop and a phone),
+  `.gitignore` (with `.scratch/`, the screenshots) and `AGENTS.md`, which points the
   agents of a product to the sections of the guide of the package. The versions of React and
   TanStack Query in the workspace of the hooks are those of its package.json.
 - Its package.json is the product's, every file of it is copied: it is not a workspace and

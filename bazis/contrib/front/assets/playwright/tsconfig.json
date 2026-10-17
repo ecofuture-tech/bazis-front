@@ -22,6 +22,7 @@
   "include": [
     "bazis",
     "generated",
+    "shots",
     "test",
     "playwright.config.ts"
   ]

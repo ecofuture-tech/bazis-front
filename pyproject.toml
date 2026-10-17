@@ -25,9 +25,11 @@ include-package-data = true
 "bazis.contrib.front.assets.ui.test.fixtures" = ["*"]
 "bazis.contrib.front.assets.ui.test.browser" = ["*"]
 # the helpers of the end-to-end tests: `generated/` holds what `bazis_front e2e` renders from
-# the specs of the sample, for their type check and tests here
+# the specs of the sample, `shots/` what `bazis_front shots` renders, for their type check and
+# tests here
 "bazis.contrib.front.assets.playwright" = ["package.json", "tsconfig.json", "playwright.config.ts"]
 "bazis.contrib.front.assets.playwright.generated" = ["*"]
+"bazis.contrib.front.assets.playwright.shots" = ["*"]
 "bazis.contrib.front.assets.playwright.fixtures" = ["*"]
 "bazis.contrib.front.assets.playwright.test" = ["*"]
 

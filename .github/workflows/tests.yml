@@ -360,6 +360,10 @@ jobs:
           cp -R frontend-overlay/e2e/. "$BS_BASE_DIR/frontend/e2e/"
           python manage.py bazis_front e2e
           python manage.py bazis_front e2e --check
+          # the screenshots of the screens: shots.ts of the specs, compiled and linted with the
+          # frontend (the agents take the screenshots: `bazis_front shots`)
+          python manage.py bazis_front shots --no-run
+          python manage.py bazis_front shots --check
           # the theme of the design of the sample
           python manage.py bazis_front design --check
 

@@ -158,24 +158,30 @@ def render_scenario(scenario: dict, steps: list[Step]) -> str:
     return '\n'.join(lines) + '\n'
 
 
-def render_product(specs: Specs) -> str:
+#: the documentation of `PRODUCT`, the part of the specs that the helpers read
+PRODUCT_DOC = (
+    f'What the helpers of e2e/bazis/ read of the specs: the user that a test logs in as for '
+    f'each role of {PRODUCT_FILE} (`test_user`, null without one; `anonymous`: none, the test '
+    f'does not log in), and the route of each screen of {SPEC_DIR}/screens/.'
+)
+
+
+def product(specs: Specs) -> dict:
+    """
+    `PRODUCT` of the helpers (`Product` of e2e/bazis/): the test users of the roles and the
+    routes of the screens.
+    """
     roles = {}
     for role in specs.product.get('roles', []):
         roles[role['id']] = {'username': role.get('test_user', {}).get('username')}
         if role.get('anonymous'):
             roles[role['id']]['anonymous'] = True
     screens = {screen_id: {'route': screen['route']} for screen_id, screen in specs.screens.items()}
-    return '\n'.join([
-        header(f'{SPEC_DIR}/'),
-        constant(
-            f'What the helpers of e2e/bazis/ read of the specs: the user that a test logs in as '
-            f'for each role of {PRODUCT_FILE} (`test_user`, null without one; '
-            f'`anonymous`: none, the test does not log in), and the route of each screen of '
-            f'{SPEC_DIR}/screens/.',
-            'PRODUCT',
-            {'roles': roles, 'screens': screens},
-        ),
-    ])
+    return {'roles': roles, 'screens': screens}
+
+
+def render_product(specs: Specs) -> str:
+    return '\n'.join([header(f'{SPEC_DIR}/'), constant(PRODUCT_DOC, 'PRODUCT', product(specs))])
 
 
 def render(specs: Specs) -> dict[str, str]:

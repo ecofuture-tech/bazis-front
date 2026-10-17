@@ -647,8 +647,10 @@ export async function stubForeignImages(page: Page): Promise<void> {
 /**
  * Opens the application as the test user of the role (`test_user` of spec/product.yaml,
  * the password of the environment variable E2E_PASSWORD) through the login screen, the images
- * of other origins stubbed (`stubForeignImages`). Without bazis-users there is no login: the
- * application is open; an anonymous role (`anonymous` of the role) does not log in either.
+ * of other origins stubbed (`stubForeignImages`), until the application has its logout
+ * (`action:logout`, also in a menu hidden at the width of a phone). Without bazis-users there is
+ * no login: the application is open; an anonymous role (`anonymous` of the role) does not log in
+ * either.
  */
 export async function loginAs<P extends Product>(page: Page, product: P, role: Role<P>): Promise<App<P>> {
   await stubForeignImages(page);
@@ -668,7 +670,7 @@ export async function loginAs<P extends Product>(page: Page, product: P, role: R
   await app.fill({ username, password });
   await form.locator(bz('action', 'submit')).click();
   const failed = form.locator(FAILED);
-  await expect(page.locator(bz('action', 'logout')).or(failed).first()).toBeVisible();
+  await expect(page.locator(bz('action', 'logout')).or(failed).first()).toBeAttached();
   if ((await failed.count()) > 0) {
     throw new Error(`${username} cannot log in: ${await failed.first().innerText()}`);
   }

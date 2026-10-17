@@ -67,7 +67,10 @@ in `frontend/` never need to be read.
 8. Generate the end-to-end tests, `python manage.py bazis_front e2e`, and run them with
    `npm run e2e` against the migrated backend with the data of `e2e_data`: "The end-to-end
    tests".
-9. Check the frontend in `frontend/`: `npx tsc --noEmit`, `npm run lint`, `npm test` and
+9. Take the screenshots, `python manage.py bazis_front shots` (the backend running as for
+   `npm run e2e`), read `frontend/.scratch/shots/report.json` and look at the screenshots,
+   fix every error and take them again, at most three rounds: "The visual check".
+10. Check the frontend in `frontend/`: `npx tsc --noEmit`, `npm run lint`, `npm test` and
    `npm run build`; `python manage.py bazis_front status` lists what is stale.
 
 Later, after `pip install -U bazis-front`: "Updating the copies".
@@ -104,6 +107,9 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
   change of the scenarios or the screens of the specs and keep `npm run e2e` green against
   the migrated backend with the data of `manage.py e2e_data`; write the other tests in
   `frontend/e2e/custom/`.
+- **Look at the screens, not only at the tests.** After the screens, `bazis_front shots`
+  checks what they render on a desktop and a phone, in the light and the dark mode; fix its
+  errors and the checklist of the screenshots before the screens are done.
 
 ### The sections
 
@@ -124,6 +130,7 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | The socket | bazis-ws: the live updates, the notifications and the bell, the protocol of the socket |
 | The design | the presets, the tokens, the brand, the dark mode, the tones of the statuses, the classes of the theme |
 | The end-to-end tests | `bazis_front e2e`, the steps and their helpers, `e2e_data`, `npm run e2e` and its ports, the tests of your own |
+| The visual check | `bazis_front shots`: the screenshots, their report and its codes (`V…`), the checklist of the screenshots, when the screens are done |
 | The client | a request that the hooks do not cover, the filters, the errors of a form, the permission meta, the uploads |
 | The hooks | the data of the backend in a screen: lists, items, forms, schemas, permissions, transits, uploads, the socket, tasks |
 | The language | the languages, the dictionaries and `t()`, the formats of dates and numbers, the language of the profile |
@@ -206,7 +213,8 @@ them:
 | `frontend/src/bazis/ui/<component>/` | 3. Components (`assets/ui`) | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies those that the template requires (`state-panel`, `app-shell`, `login-form`, `dashboard`), `manage.py bazis_front add` the others (`add map` also sets Leaflet in `package.json`: `npm install` then) | the product, keeping the contract tests passing |
 | `frontend/src/components/ui/`, `frontend/src/lib/` | 3. Components | shadcn/ui components: those of the components copied by bazis-front, others with `npx shadcn add <name>` | the product |
 | `spec/` (in the product root) | 4. Specs | the specs: `product.yaml` (roles, entities, access, scenarios), `screens/<id>.yaml`, `design/`; validated against the contract, its scenarios generate the end-to-end tests and its design the theme | the product; checked by `manage.py bazis_front check` |
-| `frontend/e2e/generated/` | 4. Specs | the end-to-end tests of the scenarios of `spec/product.yaml`, and `product.ts` (the test users and the routes of the specs) | only `manage.py bazis_front e2e` |
+| `frontend/e2e/generated/` | 4. Specs | the end-to-end tests of the scenarios of `spec/product.yaml`, and `product.ts` (the test users and the routes of the specs); `shots.ts`, the screenshots of the screens | only `manage.py bazis_front e2e` (`shots`: `bazis_front shots`) |
+| `frontend/.scratch/shots/` | 4. Specs | the screenshots and `report.json` of the last `bazis_front shots`; ignored by Git | only `manage.py bazis_front shots` |
 | `frontend/e2e/bazis/` | 4. Specs | the helpers of the end-to-end tests (Playwright, through `data-bz`) | bazis-front; not edited |
 | `frontend/e2e/custom/` | 4. Specs | the end-to-end tests written by hand | the product |
 | `frontend/src/app/` | App (the template, `assets/template`) | providers (query cache, `BazisProvider`), session, router (the layout and the navigation), errors | the product; merged with a new version by `update` |
@@ -251,15 +259,19 @@ python manage.py bazis_front status --json  # {bazis_front, frontend, assets, ge
 
 `status` writes nothing and exits with 0: it shows the installed bazis-front, the assets of
 the lock with their versions, which generated files the frontend has (`contract`: the
-TypeScript of the contract; `design`: the theme; `e2e`: the end-to-end tests), and the
+TypeScript of the contract; `design`: the theme; `e2e`: the end-to-end tests; `shots`: the
+screenshots), and the
 issues of the checks of bazis-front, each with its id, level, message, hint and `command`,
 the subcommand that brings up to date what it reports stale (`contract`, `update`, `design`,
-`e2e`; null for the others):
+`e2e`, `shots`; null for the others):
 `front.W006` (an outdated package), `front.W001` (a stale contract or generated file; the
 database must be migrated, else `front.I001`), `front.W002` (an issue of the specs),
 `front.W004` (stale copies), `front.W007` (changed copies), `front.W005` (a stale theme),
-`front.W003` (stale end-to-end tests). The `--check` of `contract`, `update`, `design`
-and `e2e`, and `check`, fail on their own state in CI. No subcommand of `bazis_front` runs
+`front.W003` (stale end-to-end tests), `front.W008` (a stale `shots.ts`), `front.W009` (a
+report of the screenshots with errors, or none: the screenshots were not taken; not stale,
+its `command` is null). The `--check` of
+`contract`, `update`, `design`, `e2e` and `shots`, and `check`, fail on their own state in
+CI. No subcommand of `bazis_front` runs
 the system checks of Django (`manage.py check` and `bazis_doctor` do): their warnings never
 mix with its output.
 
@@ -2394,6 +2406,102 @@ For what they do not cover, `app.page`, `app.screen()` (the current screen), `ap
 (the open form) and `bz(kind, id)` of `../bazis` (the selector of a mark): a transit that a
 validator restricts is disabled, with the errors of the validators next to it,
 `await expect(app.screen().locator(bz('transit', 'reopen'))).toBeDisabled()`.
+
+## The visual check
+
+The scenarios check what the screens do; the screenshots check how they look. `shots` takes
+a screenshot of every screen of the specs and checks what each one renders, so that an agent
+fixes what it would not see in the code: a page wider than a phone, a raw name, a text without
+contrast.
+
+```bash
+python manage.py bazis_front shots           # e2e/generated/shots.ts, the screenshots and .scratch/shots/report.json
+python manage.py bazis_front shots --no-run  # shots.ts only
+python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI: no Node, no database)
+```
+
+### What it shoots
+
+- Every screen as the first of its `roles` (the first role of the product for a screen
+  without), in each color mode of the theme (`mode`, and the tokens of the dark mode), at the
+  width of a desktop (1280×800) and of a phone (390×844): the projects `desktop` and `phone`
+  of `frontend/playwright.shots.config.ts`. The screen of an item is reached through the
+  first item of a screen that opens it (`open` of a list, of a board or a calendar, of the
+  last items of a dashboard: the first item of that part, `recent:<id>`), one of a role of
+  the screen of the item, which is shot as the first of its roles that one is for: a list
+  first, all the items before a report (a list with a `filter` of its own); a screen that
+  none opens is not shot, listed at the top of `shots.ts` (`// Not shot: …`).
+- It runs as `npm run e2e` does (the same `playwright.config.ts`, which the config of the
+  shots extends): the backend running, migrated and with the data of `manage.py e2e_data`,
+  `E2E_PASSWORD` set, a dev server of its own on `E2E_PORT` or a running frontend at
+  `E2E_BASE_URL`, and Chromium (`npx playwright install chromium` in `frontend/`). A screen
+  with no item (an empty list before its card) cannot be shot: the data of `e2e_data` has
+  one.
+- It writes `frontend/.scratch/shots/<screen>-<role>-<mode>-<width>.png` and `report.json`,
+  after it emptied the directory. `.scratch/` is in the `.gitignore` of the frontend: never
+  commit it.
+- It exits with 0 when the report has no error, 1 when it has errors, 2 when no screen could
+  be shot (no Node, no browser, no backend or frontend, no `E2E_PASSWORD`: the output of
+  Playwright says which).
+- `shots.ts` is generated like the end-to-end tests: never edited, the hashes of the specs
+  and of the file in the lock (`shots`), `--check`; the system check `front.W008` reports a
+  stale `shots.ts`, `front.W009` a report with errors or no report that can be read (the
+  screenshots not taken yet; a warning, CI has none). It is not a `.spec.ts`: `npm run e2e`
+  does not run it.
+
+### The report
+
+```json
+{"errors": 1, "warnings": 1,
+ "shots": [{"screen": "task-list", "role": "manager", "mode": "dark", "width": 390,
+            "file": "task-list-manager-dark-390.png",
+            "issues": [{"code": "V002", "severity": "error", "selector": "[data-bz=\"list:task\"]",
+                        "message": "The page is 812 px wide at 390 px."},
+                       {"code": "V009", "severity": "warning", "selector": "[data-bz=\"action:edit\"] button",
+                        "message": "3 controls are smaller than 44×44 px: [data-bz=\"action:edit\"] button 24×24, …"}]}]}
+```
+
+`selector` is the nearest `data-bz` mark of the element (with its tag when the element is
+inside it): the component or the cell to fix. A code reports at most ten elements of a
+screenshot, the last with the number of the others; V009 is one issue for the screenshot,
+with the number of the small controls and the first five of them.
+
+### The codes of the report
+
+| Code | Severity | Meaning, and what to do |
+|---|---|---|
+| `V001` | error | the screen was not shot: the login, the route, the item to open or the run failed (the message says which); run the backend with the data of `e2e_data`, give the role its `test_user`, render the marks of the screen |
+| `V002` | error | the page scrolls sideways at the width of a phone: a list shown as a table, a fixed width, a long word; show the cards of the list on a phone (the components do), let the texts wrap |
+| `V003` | warning | a part of the page scrolls sideways at the width of a phone: a table where cards would fit (a board, `board:<entity>`, scrolls its columns: it is not reported) |
+| `V004` | error | a label shows a raw name: a column, a term of a card, a label of a field or a filter, a heading that is a snake_case name, an id or a key of the translations; give the field its title in the backend (S018) or the text its key in `src/i18n/` |
+| `V005` | error | the screen shows a UUID, the id of an item instead of its label: show a related item by its label (`RelationLabel`, the `label` of the entity) |
+| `V006` | error | a text has a contrast below 4.5:1 (3:1 for a large text) on its background, as rendered: a literal color, or a text color of the tokens on a background it was not made for; use the pairs of the tokens (`text-foreground` on `bg-background`, `text-<tone>-ink` on `bg-<tone>-soft`) |
+| `V007` | warning | a light surface in the dark mode: a literal color that ignores the tokens of the theme; use the classes of the tokens |
+| `V008` | warning | an empty state without a text, or without the action that creates an item when the user may create one: put the create action in the empty state |
+| `V009` | warning | controls smaller than 44×44 px at the width of a phone, one issue for the screenshot with their number: give them the size of the components (an icon button of shadcn/ui is `size="icon"`) |
+| `V010` | warning | a text cut by an ellipsis without its whole text in a title or a tooltip: give it `title`, or let it wrap |
+
+### The checklist of the screenshots
+
+Open the screenshots (the PNG files) and look at what no check measures:
+
+- one `h1` per screen, the subtitles and the secondary texts muted;
+- the first column of a list is the label of its items, the numbers aligned right, a status
+  a badge in its tone, the dates and numbers in the format of the language;
+- an empty state says what is missing and offers to create it;
+- on a phone: the list as cards, the actions within reach, no text cut or overlapping;
+- in the dark mode: no light surface, the same hierarchy as in the light one;
+- the icon of every entity, the tones of the statuses by their meaning, no raw name or id.
+
+### When the screens are done
+
+A screen is done when `shots` reports no error for it, its screenshots pass the checklist
+and its scenarios pass (`npm run e2e`). Fix in the specs, the screens, the design or the
+backend (the labels of the fields are titles of the backend, S018), never in `shots.ts` or
+the report, and take the screenshots again: at most three rounds; after the third, report
+what is left with the codes and the screenshots. The errors left, or
+screenshots never taken, are the warning `front.W009` of `status`, not a stale part of the
+frontend.
 
 ## The client
 
@@ -5416,7 +5524,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 
 #### loginAs
 
-`loginAs<P extends Product>(page: Page, product: P, role: Role<P>): Promise<App<P>>`: Opens the application as the test user of the role (`test_user` of spec/product.yaml, the password of the environment variable E2E_PASSWORD) through the login screen, the images of other origins stubbed (`stubForeignImages`).
+`loginAs<P extends Product>(page: Page, product: P, role: Role<P>): Promise<App<P>>`: Opens the application as the test user of the role (`test_user` of spec/product.yaml, the password of the environment variable E2E_PASSWORD) through the login screen, the images of other origins stubbed (`stubForeignImages`), until the application has its logout (`action:logout`, also in a menu hidden at the width of a phone).
 
 #### Product
 

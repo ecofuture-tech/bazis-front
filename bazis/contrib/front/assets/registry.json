@@ -176,7 +176,8 @@
       "source": "playwright/bazis",
       "target": "e2e/bazis",
       "files": [
-        "index.ts"
+        "index.ts",
+        "shots.ts"
       ]
     },
     {
@@ -1018,6 +1019,7 @@
         "index.html",
         "package.json",
         "playwright.config.ts",
+        "playwright.shots.config.ts",
         "src/app/errors.test.tsx",
         "src/app/errors.tsx",
         "src/app/language.test.ts",

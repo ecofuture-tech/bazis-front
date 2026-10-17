@@ -5,3 +5,5 @@ dist/
 .env.*.local
 test-results/
 playwright-report/
+# the screenshots of `manage.py bazis_front shots` and the other files of the agents
+.scratch/
