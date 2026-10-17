@@ -64,7 +64,7 @@ classifiers = [
     "Framework :: FastAPI",
 ]
 dependencies = [
-    "bazis>=2.15.0",
+    "bazis>=2.16.0",
     # the validation of the specs (`bazis_front check`): YAML files and JSON Schema 2020-12
     "PyYAML>=6.0.1",
     "jsonschema>=4.18",
@@ -72,17 +72,17 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "bazis-test-utils>=2.5.1",
+    "bazis-test-utils>=2.5.2",
     # the sample project has the capabilities of the contract: users, authing, permit,
     # statusy, uploadable, ws, notify, bg (with bazis-author), async_background, async_request
-    "bazis-users>=2.8.0",
-    "bazis-authing>=2.6.0",
+    "bazis-users>=2.9.0",
+    "bazis-authing>=2.7.0",
     "bazis-permit>=2.11.0",
     "bazis-statusy>=2.12.0",
     "bazis-uploadable>=2.7.0",
-    "bazis-ws>=2.6.0",
+    "bazis-ws>=2.7.0",
     "bazis-notify>=0.1.0",
-    "bazis-author>=2.4.2",
+    "bazis-author>=2.5.0",
     "bazis-bg>=2.6.0",
     # the fixture of the hooks: a task is queued as pending, the 202 has async_request_id only
     "bazis-async-background>=2.5.0",

@@ -5,7 +5,7 @@ framework on Django + FastAPI + Pydantic. A product built on Bazis gets a React 
 TypeScript + Vite frontend whose contract is generated from its own backend and whose
 protocol code is copied from this package.
 
-**Status: pre-release.** Nothing is published to PyPI yet; the API may change.
+**Status: first release (0.1.0).** The API may change in the minor versions.
 
 bazis-front is a Python package (`pip install bazis-front`, module `bazis.contrib.front`),
 released together with the other Bazis packages. It has no npm packages: its TypeScript

@@ -536,8 +536,7 @@ lines in pull requests. Set `git config user.name "Ilya Kharyn"` and
 
 ## Releasing
 
-The package is not released yet. A release will be the tag `vX.Y.Z` on `main`, like the
-other Bazis packages: the Build and Publish workflow builds the package (the version comes
+A release is the tag `vX.Y.Z` on `main`, like the other Bazis packages: the Build and Publish workflow builds the package (the version comes
 from the tag through setuptools-scm) and publishes it to PyPI (pre-releases
 `-alphaN`/`-betaN`/`-rcN` go to Test PyPI) and creates the GitHub release.
 
