@@ -439,10 +439,12 @@ npm run api-reference     # the API reference of the guide, after a change of an
   whatever the theme of the product. The root eslint applies the
   rules of the hooks of the template to them.
 - The npm dependencies of the components are in `package.json` of the template, with the
-  versions of the workspace; an optional library of one component (Leaflet of `map`) is
-  `npm` of its asset instead, which `add` sets in the `package.json` of a product
-  (`tests/test_assets.py` checks every import of the components against both). The contract
-  test of `map` replaces Leaflet with a fake (`vi.mock`).
+  versions of the workspace; an optional library of one component (Leaflet of `map`,
+  recharts of `charts`, react-day-picker of the shadcn/ui `calendar` of `date-picker`,
+  @dnd-kit of `board-dnd`) is `npm` of its asset instead, which `add` sets in the
+  `package.json` of a product (`tests/test_assets.py` checks every import of the components
+  against both), loaded lazily with its first view. The contract tests of `map`, `charts` and
+  `board-dnd` replace their library with a fake (`vi.mock`).
 - Colors, radii and fonts only through the tokens of the generated theme (Tailwind classes
   such as `bg-primary`, `bg-success-soft`), the spacing through the variables of the
   density (`p-(--space-card)`), no literal colors (the shadcn/ui files keep theirs); every
@@ -506,7 +508,8 @@ npm run api-reference     # the API reference of the guide, after a change of an
   against the contract), `design --check`, `add` of every component, then `tsc --noEmit`, lint, tests (the
   contract tests of the components) and build of the generated frontend, whose chunks
   loaded with the entry `scripts/check_chunks.py` checks (none over 400 kB, the budget that
-  leaves a product 100 kB under the warning of Vite; Leaflet and the file field lazy). Its variant
+  leaves a product 100 kB under the warning of Vite; Leaflet, recharts, react-day-picker, @dnd-kit
+  and the file field lazy). Its variant
   `empty` is a new product before its first model: the sample with the settings of
   `bazis new` (only `bazis.contrib.front` installed, the default router, the user model of
   Django: environment variables over `sample/project.env`), whose contract has no

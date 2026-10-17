@@ -205,7 +205,9 @@ jobs:
           python manage.py bazis_front check
           # the theme that init compiled from the starters of the design
           python manage.py bazis_front design --check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress async-result map
+          # every component: the template copies dashboard and stat-card, the components the
+          # shadcn/ui ones they require; the others of shadcn/ui are named
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress async-result map charts date-picker resource-board board-dnd resource-calendar avatar scroll-area separator switch tooltip
 
       - name: Check and build the frontend
         if: ${{ !matrix.empty }}
@@ -225,7 +227,8 @@ jobs:
           test -f src/bazis/ui/task-progress/task-progress.contract.test.tsx
           test -f src/bazis/ui/async-result/async-result.contract.test.tsx
           test -f src/bazis/ui/map/map.contract.test.tsx
-          # the npm dependency that `add map` set in package.json (Leaflet)
+          # the npm dependencies that `add` set in package.json (Leaflet, recharts,
+          # react-day-picker, @dnd-kit)
           npm install
           npx tsc --noEmit
           npm run lint
@@ -234,7 +237,7 @@ jobs:
           # the contract tests of the components with the tests of the template
           npm test
           npm run build -- --manifest
-          # the chunks loaded with the entry: within the budget, Leaflet not among them
+          # the chunks loaded with the entry: within the budget, the lazy libraries not among them
           python "$GITHUB_WORKSPACE/scripts/check_chunks.py" dist
 
       # the overrides of the settings of sample/project.env: no app of the sample, the
@@ -259,7 +262,7 @@ jobs:
           python manage.py bazis_front check
           python manage.py bazis_front design --check
           # the components that need no capability
-          python manage.py bazis_front add resource-list resource-card resource-form notification-center map
+          python manage.py bazis_front add resource-list resource-card resource-form notification-center map charts date-picker resource-calendar avatar scroll-area separator switch tooltip
 
       - name: Check and build the frontend of a product without resources
         if: ${{ matrix.empty }}
@@ -351,7 +354,7 @@ jobs:
           python manage.py bazis_front init
           python manage.py bazis_front contract
           python manage.py bazis_front check
-          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress map
+          python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress map charts date-picker resource-board board-dnd resource-calendar
           # the screens of the sample, product code, and the files that its scenarios upload
           cp -R frontend-overlay/src/. "$BS_BASE_DIR/frontend/src/"
           cp -R frontend-overlay/e2e/. "$BS_BASE_DIR/frontend/e2e/"
@@ -363,12 +366,13 @@ jobs:
       - name: Check and build the frontend
         working-directory: ${{ env.BS_BASE_DIR }}/frontend
         run: |
-          # the npm dependency that `add map` set in package.json (Leaflet)
+          # the npm dependencies that `add` set in package.json (Leaflet, recharts,
+          # react-day-picker, @dnd-kit)
           npm install
           npx tsc --noEmit
           npm run lint
           npm run build -- --manifest
-          # Leaflet and the file field are chunks of their own, not in the main chunk, and the
+          # the lazy libraries and the file field are chunks of their own, not in the main chunk, and the
           # chunks loaded with the entry are within the budget with the screens of the sample
           python "$GITHUB_WORKSPACE/scripts/check_chunks.py" dist
 

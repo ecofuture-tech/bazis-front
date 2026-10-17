@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { FilePen, House, ListChecks } from 'lucide-react';
+import { CalendarDays, FilePen, House, ListChecks, SquareKanban } from 'lucide-react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
@@ -25,6 +25,7 @@ import { useApi } from '@/bazis/react';
 import { useInbox, type InboxNotification } from '@/bazis/react/notify';
 import { SocketProvider } from '@/bazis/react/ws';
 import { AppShell, ListCardLayout, type NavItem } from '@/bazis/ui/app-shell';
+import { DatePickerProvider } from '@/bazis/ui/date-picker';
 import { FileFieldProvider } from '@/bazis/ui/file-field';
 import { LiveQuery } from '@/bazis/ui/live-query';
 import { MapProvider } from '@/bazis/ui/map';
@@ -34,6 +35,10 @@ import { NotificationCenter } from '@/bazis/ui/notification-center';
 const DraftTasksScreen = lazyScreen(() => import('@/screens/draft-tasks').then((module) => module.DraftTasksScreen));
 const HomeScreen = lazyScreen(() => import('@/screens/home').then((module) => module.HomeScreen));
 const LoginScreen = lazyScreen(() => import('@/screens/login').then((module) => module.LoginScreen));
+const TaskBoardScreen = lazyScreen(() => import('@/screens/task-board').then((module) => module.TaskBoardScreen));
+const TaskCalendarScreen = lazyScreen(() =>
+  import('@/screens/task-calendar').then((module) => module.TaskCalendarScreen),
+);
 const TaskCardScreen = lazyScreen(() => import('@/screens/task-card').then((module) => module.TaskCardScreen));
 const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
 
@@ -46,6 +51,14 @@ const NAVIGATION: readonly (NavItem & { label: string })[] = [
   { screen: 'home', label: 'nav.home', to: '/', end: true, icon: House },
   { screen: 'task-list', label: 'nav.tasks', to: '/tasks', icon: ListChecks, requires: { path: ROUTES['tasks.task'] } },
   { screen: 'draft-tasks', label: 'nav.drafts', to: '/drafts', icon: FilePen, requires: { path: ROUTES['tasks.task'] } },
+  { screen: 'task-board', label: 'nav.board', to: '/board', icon: SquareKanban, requires: { path: ROUTES['tasks.task'] } },
+  {
+    screen: 'task-calendar',
+    label: 'nav.calendar',
+    to: '/calendar',
+    icon: CalendarDays,
+    requires: { path: ROUTES['tasks.task'] },
+  },
 ];
 
 /**
@@ -106,32 +119,37 @@ export function AppRouter() {
   return (
     <SocketProvider path={CAPABILITIES.ws?.path ?? null} token={token}>
       {/* the file fields of the forms upload their files (bazis-uploadable), the point fields
-          are placed on a map, and the maps draw the tiles of the product */}
+          are placed on a map, the maps draw the tiles of the product, and the dates are
+          picked in a calendar */}
       <FileFieldProvider>
         <MapProvider tiles={MAP_TILES}>
-          <BrowserRouter>
-            <Routes>
-              {LOGIN_ENABLED && (
-                <Route
-                  path="/login"
-                  element={
-                    <ErrorBoundary>
-                      <LoginScreen />
-                    </ErrorBoundary>
-                  }
-                />
-              )}
-              <Route element={<RequireSession />}>
-                <Route index element={<HomeScreen />} />
-                {/* the card next to the list or in its place (`composition.list_card` of the theme) */}
-                <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
-                  <Route path=":id" element={<TaskCardScreen />} />
+          <DatePickerProvider>
+            <BrowserRouter>
+              <Routes>
+                {LOGIN_ENABLED && (
+                  <Route
+                    path="/login"
+                    element={
+                      <ErrorBoundary>
+                        <LoginScreen />
+                      </ErrorBoundary>
+                    }
+                  />
+                )}
+                <Route element={<RequireSession />}>
+                  <Route index element={<HomeScreen />} />
+                  {/* the card next to the list or in its place (`composition.list_card` of the theme) */}
+                  <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
+                    <Route path=":id" element={<TaskCardScreen />} />
+                  </Route>
+                  <Route path="drafts" element={<DraftTasksScreen />} />
+                  <Route path="board" element={<TaskBoardScreen />} />
+                  <Route path="calendar" element={<TaskCalendarScreen />} />
                 </Route>
-                <Route path="drafts" element={<DraftTasksScreen />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </BrowserRouter>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
+          </DatePickerProvider>
         </MapProvider>
       </FileFieldProvider>
     </SocketProvider>

@@ -15,8 +15,10 @@
 """
 Checks the build of a frontend (its `dist/`, built with `vite build --manifest`): the
 entry chunk and the chunks it imports statically do not have what the components load
-with the first map or file field shown (Leaflet, `leaflet-map.tsx`, `upload-field.tsx`), so
-that the main chunk of a product does not carry them, and none of them is larger than
+with the first map, file field, chart, calendar of a date picker or board with drag and drop
+shown (Leaflet, recharts, react-day-picker, @dnd-kit and the views of the components that
+import them, `upload-field.tsx`), so that the main chunk of a product does not carry them,
+and none of them is larger than
 `BUDGET`, which leaves a product 100 kB of its own code under the limit of the warning of
 Vite (500 kB; the npm libraries are chunks of their own, `manualChunks` of `vite.config.ts`
 of the template). Run by the frontend job of CI on the frontend of every preset and by the
@@ -29,9 +31,20 @@ from pathlib import Path
 
 
 #: the sources that only a dynamic import may load
-LAZY = ('node_modules/leaflet/', '/ui/map/leaflet-map.tsx', '/ui/file-field/upload-field.tsx')
-#: a text of the code of Leaflet, which may be bundled into a chunk without a key of its own
-LEAFLET = 'leaflet-container'
+LAZY = (
+    'node_modules/leaflet/',
+    'node_modules/recharts/',
+    'node_modules/react-day-picker/',
+    'node_modules/@dnd-kit/',
+    '/ui/map/leaflet-map.tsx',
+    '/ui/charts/chart-view.tsx',
+    '/ui/date-picker/calendar-view.tsx',
+    '/ui/board-dnd/dnd-view.tsx',
+    '/ui/file-field/upload-field.tsx',
+)
+#: a text of the code of each of these libraries, which may be bundled into a chunk without
+#: a key of its own: Leaflet, recharts, react-day-picker (its classes) and @dnd-kit
+MARKERS = ('leaflet-container', 'recharts-wrapper', 'rdp-', 'DndDescribedBy')
 #: the largest chunk loaded with the entry, in bytes (the kB of Vite are 1000 bytes)
 BUDGET = 400_000
 
@@ -57,7 +70,7 @@ def main(dist: str) -> int:
     eager = sorted(key for key in static if any(it in f'/{key}' for it in LAZY))
     eager += sorted(
         manifest[key]['file'] for key in static
-        if LEAFLET in (Path(dist) / manifest[key]['file']).read_text(encoding='utf-8')
+        if any(it in (Path(dist) / manifest[key]['file']).read_text(encoding='utf-8') for it in MARKERS)
     )
     sizes = {manifest[key]['file']: (Path(dist) / manifest[key]['file']).stat().st_size for key in static}
     large = sorted(f'{file} ({size / 1000:.2f} kB)' for file, size in sizes.items() if size > BUDGET)

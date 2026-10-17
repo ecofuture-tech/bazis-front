@@ -14,11 +14,12 @@
 
 // spec/screens/task-list.yaml: the tasks with the number of each status, their count by a
 // background task (the custom action `count` of the route set, followed by `TaskProgress`),
-// the tasks with a location on a map (`list.map`), and the creation of a task in a dialog or
-// on a page (`composition.forms` of the theme); the open task is selected, next to the list
+// the tasks with a location on a map (`list.map`), the selected tasks started one by one
+// (`list.bulk`: the transit `start`), and the creation of a task in a dialog or on a page
+// (`composition.forms` of the theme); the open task is selected, next to the list
 // (`composition.list_card`).
 
-import { Calculator, Plus } from 'lucide-react';
+import { Calculator, Play, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -26,6 +27,7 @@ import { Filter, pagination } from '@/bazis/client';
 import { ROUTES, TRANSITS } from '@/bazis/generated/contract';
 import { formatNumber, useLanguage } from '@/bazis/i18n';
 import { useAction, useCan, useList } from '@/bazis/react';
+import { useItemsTransit } from '@/bazis/react/statusy';
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceMap } from '@/bazis/ui/map';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
@@ -111,6 +113,7 @@ export function TaskListScreen() {
   const { id } = useParams();
   const [creating, setCreating] = useState(false);
   const { language, t } = useLanguage();
+  const transit = useItemsTransit(TASKS);
   return (
     <Screen id="task-list" title={t('tasks.title')} description={t('tasks.description')}>
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -149,6 +152,16 @@ export function TaskListScreen() {
             onClick: () => {
               setCreating(true);
             },
+          },
+        ]}
+        // `list.bulk`: the transit without a payload of each selected task, refused by the
+        // backend for a task that is no longer a draft
+        bulk={[
+          {
+            id: 'start-all',
+            label: t('tasks.start_all'),
+            icon: Play,
+            run: (task) => transit.mutateAsync({ id: task, transit: 'start' }),
           },
         ]}
         cells={{ status: (row) => <StatusBadge resource={row} /> }}

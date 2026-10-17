@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// spec/screens/task-card.yaml: a task with its status, its transits, its edit and its
-// deletion, and its steps (`card.related`), after the fields of the card, added here with the
-// task fixed while the user may change the task (the card is read again after a step is
-// added: `e2e/custom/related.spec.ts`).
+// spec/screens/task-card.yaml: a task with its status, its transits (above the tabs), its edit
+// and its deletion, in tabs (`card.tabs`): its fields, its steps (`card.related`, added here
+// with the task fixed while the user may change the task; the card is read again after a step
+// is added: `e2e/custom/related.spec.ts`) and its status history.
 
 import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
-import { useDestroy, useItem } from '@/bazis/react';
+import { useDestroy } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
 import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
@@ -39,8 +39,6 @@ export function TaskCardScreen() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const destroy = useDestroy(TASKS);
-  // the query of the card (the same key): the meta of the task for the steps after it
-  const task = useItem(TASKS, id, { meta: ['crud_actions', 'custom_actions'] });
   const { language, t } = useLanguage();
   return (
     <Screen
@@ -65,6 +63,29 @@ export function TaskCardScreen() {
         ]}
         badge={(item) => <StatusBadge resource={item} />}
         values={{ status: (item) => statusName(item.type, statusOf(item) ?? '', language) }}
+        tabs={[
+          { id: 'details', title: t('task.details'), sections: ['main', 'report'] },
+          {
+            id: 'steps',
+            title: t('task.steps'),
+            // a step is added while the task may be changed
+            content: (_, meta) => (
+              <RelatedList
+                path={STEPS}
+                entity="step"
+                relation="task"
+                item={id}
+                itemPath={TASKS}
+                title={t('task.steps')}
+                columns={['title', 'dt_created']}
+                add={permitted(meta, 'change') ? { id: 'add-step', label: t('task.add_step'), fields: ['title'] } : undefined}
+                emptyMessage={t('task.no_steps')}
+              />
+            ),
+          },
+          // `history: true` of the screen
+          { id: 'history', title: t('task.history'), content: (item) => <StatusHistory resource={item} /> },
+        ]}
         actions={[
           {
             id: 'delete',
@@ -82,35 +103,15 @@ export function TaskCardScreen() {
           },
         ]}
       >
-        {(item) => (
-          <>
-            {/* null: the user can no longer view the task */}
-            <TransitBar
-              path={TASKS}
-              id={id}
-              onDone={(done) => {
-                if (done === null) void navigate('/tasks');
-              }}
-            />
-            {/* `history: true` of the screen */}
-            <StatusHistory resource={item} />
-          </>
-        )}
-      </ResourceCard>
-      {/* `card.related` of the screen: a step is added while the task may be changed */}
-      {task.data && (
-        <RelatedList
-          path={STEPS}
-          entity="step"
-          relation="task"
-          item={id}
-          itemPath={TASKS}
-          title={t('task.steps')}
-          columns={['title', 'dt_created']}
-          add={permitted(task.data.meta, 'change') ? { id: 'add-step', label: t('task.add_step'), fields: ['title'] } : undefined}
-          emptyMessage={t('task.no_steps')}
+        {/* null: the user can no longer view the task */}
+        <TransitBar
+          path={TASKS}
+          id={id}
+          onDone={(done) => {
+            if (done === null) void navigate('/tasks');
+          }}
         />
-      )}
+      </ResourceCard>
     </Screen>
   );
 }
