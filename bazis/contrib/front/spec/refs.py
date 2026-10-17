@@ -615,15 +615,18 @@ def check_screens(
             )
         routes.setdefault(data['route'], stem)
         _check_screen(doc, product, screens, contract, issues)
-    _check_home(docs, routes, issues)
+    if product and product.entities:
+        _check_home(docs, routes, issues)
     return screens
 
 
 def _check_home(docs: list[Document], routes: dict[str, str], issues: Issues) -> None:
     """
-    The home of the frontend (S026, a warning): the screen at `/`, a dashboard with tiles;
-    without it the template shows its overview, the counts of the resources. A product
-    without screens yet, or with a screen that does not follow its schema, is not told.
+    The home of the frontend (S026, a warning) of a product that declares entities: the
+    screen at `/`, a dashboard with tiles; without it the template shows its overview, the
+    counts of the resources. A product without entities (the starter home of `init` has no
+    tile: there is nothing to count yet), without screens, or with a screen that does not
+    follow its schema, is not told.
     """
     hint = (
         f'Give the product a dashboard at `{HOME_ROUTE}` (`spec/screens/home.yaml`): tiles that '

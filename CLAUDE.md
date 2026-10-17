@@ -171,7 +171,9 @@ job of CI.
 - `spec/schemas/*.schema.json` (Draft 2020-12) are the formats: `product`
   (`bazis-product/1`), `screen` (`bazis-screen/1`), `design` (`bazis-design/1`, theme.yaml)
   and `tokens` (a subset of DTCG). They are package data, copied to `spec/schema/` of a
-  product by `init` (`spec/create.py`, with the starters of `spec/starters/`). The
+  product by `init` (`spec/create.py`, with the starters of `spec/starters/`: `product.yaml`,
+  the home `screens/home.yaml`, a dashboard without tiles, which S026 leaves alone until
+  `product.yaml` declares entities, and the design of the preset). The
   `packages` enum of the product schema is `capabilities.CAPABILITIES` (tested).
 - `spec/validate.py` loads the files (YAML with the implicit types of YAML 1.2: no
   timestamps, only true/false booleans; JSON), checks their

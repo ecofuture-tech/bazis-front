@@ -902,6 +902,19 @@ def test_the_starters_are_valid(sample_app, tmp_path):
     assert out == '0 errors, 0 warnings (checked against contract/contract.json).\n'
 
 
+def test_the_starter_home_once_the_product_has_entities(contract):
+    """
+    The starter home of `init` follows the schema of the screens and has no tile: once the
+    product declares entities, `check` warns that it is to be filled (S026), and only that.
+    """
+    root = contract.parent.parent
+    starter = Path(design.__file__).parent / 'starters' / 'screens' / 'home.yaml'
+    shutil.copyfile(starter, root / HOME)
+    # the scenario of the home of the sample expects its tiles
+    edit(root, PRODUCT, lambda d: [d['scenarios'].pop(12)])
+    assert issues(root) == [('S026', f'{HOME}#/dashboard')]
+
+
 def test_a_missing_product_spec(root):
     (root / 'spec' / 'product.yaml').unlink()
     assert issues(root) == [('P001', PRODUCT)]

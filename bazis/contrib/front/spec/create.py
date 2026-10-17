@@ -14,9 +14,10 @@
 
 """
 The specs of a new product (`bazis_front init`): the copies of the JSON Schemas for the
-editors in `spec/schema/`, and starters of `product.yaml` and of the design. There are no
-starters of screens: the agent writes them. `bazis_front update` brings the copies of the
-JSON Schemas to the installed version (`schema_updates`).
+editors in `spec/schema/`, and starters of `product.yaml`, of the home (`screens/home.yaml`,
+a dashboard at `/` without tiles: the product has no entity to count yet) and of the design.
+The agent writes the other screens. `bazis_front update` brings the copies of the JSON
+Schemas to the installed version (`schema_updates`).
 """
 
 import os
@@ -32,7 +33,7 @@ from .validate import SCHEMA_DIR, SPEC_DIR, schema_files
 
 #: the starters, by their path in spec/; those of the design are of a preset
 #: (`spec/starters/design/<preset>/`)
-STARTERS = ('product.yaml', 'design/theme.yaml', 'design/tokens.json')
+STARTERS = ('product.yaml', 'screens/home.yaml', 'design/theme.yaml', 'design/tokens.json')
 
 #: the presets of the starters of the design, the first by default
 PRESETS = tuple(design.PRESET_TOKENS)

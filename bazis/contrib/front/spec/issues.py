@@ -98,7 +98,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S023': (ERROR, 'a calendar is not by a date or a date-time field, or its tone is not by a boolean field'),
     'S024': (ERROR, 'the tabs of a card are inconsistent: a tab names an unknown section or related section, or is empty; a section or a related section is in no tab or in two; the history is in no tab, or a tab has a history that the card does not have'),
     'S025': (ERROR, 'a bulk action of a list runs a transition that its entity does not have (or has no workflow), or one with a payload'),
-    'S026': (WARNING, 'the home of the frontend is the overview of the template: no screen has the route `/`, it is not a dashboard, or a dashboard has no tile'),
+    'S026': (WARNING, 'the home of the frontend is the overview of the template: the product declares entities, and no screen has the route `/`, it is not a dashboard, or a dashboard has no tile'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

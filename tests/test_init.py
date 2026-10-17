@@ -167,8 +167,10 @@ def test_init_creates_the_specs(product):
     assert theme.startswith('# yaml-language-server: $schema=../schema/design.schema.json\n')
     tokens = json.loads((spec / 'design' / 'tokens.json').read_text(encoding='utf-8'))
     assert tokens['$schema'] == '../schema/tokens.schema.json'
-    # no starters of screens: the agent writes them
-    assert not (spec / 'screens').exists()
+    # of the screens only the home, a dashboard at `/`: the agent writes the others
+    assert [it.name for it in (spec / 'screens').iterdir()] == ['home.yaml']
+    home = (spec / 'screens' / 'home.yaml').read_text(encoding='utf-8')
+    assert home.startswith('# yaml-language-server: $schema=../schema/screen.schema.json\n')
 
 
 def test_init_with_the_preset_portal(product):

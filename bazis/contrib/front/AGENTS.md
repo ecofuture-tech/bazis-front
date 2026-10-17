@@ -46,8 +46,8 @@ in `frontend/` never need to be read.
 2. Describe the product top down: `spec/product.yaml` (the roles with their `test_user`, or
    `anonymous: true` for the users who do not log in, the entities with their fields,
    workflows and access, the scenarios, the languages), "The
-   specs"; then a file `spec/screens/<id>.yaml` per screen (the home, `/`, a dashboard) and
-   the design, "The specs of the screens and the design".
+   specs"; then a file `spec/screens/<id>.yaml` per screen (the home, `/`, a dashboard:
+   fill the starter of `init`) and the design, "The specs of the screens and the design".
 3. Build the backend to satisfy the specs: the models and route sets, the roles with their
    permissions in `roles.py`, the workflows in `workflow.py`, the `e2e_data` command, "The
    backend of a product" (and the guides of bazis-permit and bazis-statusy).
@@ -148,8 +148,9 @@ screen that lists the resources of the contract. It never overwrites an existing
 
 - `spec/` next to `manage.py`, when the product has none (an existing one is kept): the
   JSON Schemas of the specs in `spec/schema/` (for the editors) and starters of
-  `spec/product.yaml`, `spec/design/theme.yaml` and `spec/design/tokens.json` (those of the
-  preset of `--preset`); see [The specs](#the-specs);
+  `spec/product.yaml`, `spec/screens/home.yaml` (the home, a dashboard at `/` without
+  tiles: the product has no entity to count yet) and `spec/design/theme.yaml` and
+  `spec/design/tokens.json` (those of the preset of `--preset`); see [The specs](#the-specs);
 - the theme of the frontend, `src/bazis/generated/fonts.css`, `theme.css` and `theme.ts`, compiled from
   `spec/design/` as `bazis_front design` does (see [The design](#the-design)); a design with
   errors is reported and the theme is left to `bazis_front design`;
@@ -620,9 +621,10 @@ list:
 **The home of the frontend is a dashboard**, `spec/screens/home.yaml` at the route `/`: the
 counts that matter to the users (tiles by the statuses and the dates of the entities with a
 workflow or dates), the last items of the main entity, the create forms of the entities.
-Without it the frontend shows the overview of the template, and `check` warns (S026: no
-screen at `/`, another primitive there, or a dashboard without tiles). A dashboard has no
-`entity`: each part names its own.
+Without it the frontend shows the overview of the template. `init` writes it without tiles,
+and `check` warns once `product.yaml` declares entities (S026: no screen at `/`, another
+primitive there, or a dashboard without tiles): fill it then. A dashboard has no `entity`:
+each part names its own.
 
 ```yaml
 spec: bazis-screen/1
@@ -853,7 +855,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S023` | error | a calendar is not by a `date` or `datetime` field (`field`, `end`), or its `tone` is not by a boolean field |
 | `S024` | error | the tabs of a card are inconsistent: a tab names an unknown section or related section, or is empty, or is declared twice; a section or a related section is in no tab or in two; the history is in no tab, or a tab has a history that the card does not have |
 | `S025` | error | a bulk action of a list runs a transition that its entity does not have (or has no workflow), or one with a payload |
-| `S026` | warning | the home of the frontend is the overview of the template: no screen has the route `/`, the screen there is not a dashboard, or a dashboard has no tile |
+| `S026` | warning | the home of the frontend is the overview of the template: the product declares entities, and no screen has the route `/`, the screen there is not a dashboard, or a dashboard has no tile |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
