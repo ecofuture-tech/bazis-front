@@ -15,4 +15,5 @@
 export { RelatedList } from './related-list.js';
 export type { RelatedAdd, RelatedListProps } from './related-list.js';
 export { ResourceCard } from './resource-card.js';
+export type { CardTab } from './card-tabs.js';
 export type { CardAction, CardSection, ResourceCardProps } from './resource-card.js';

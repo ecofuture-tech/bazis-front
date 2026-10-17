@@ -28,6 +28,7 @@ import {
   formatDecimal,
   formatNumber,
   formatTime,
+  isoDate,
   LanguageProvider,
   matchLanguage,
   MESSAGES,
@@ -35,6 +36,7 @@ import {
   tokenSubject,
   translate,
   useLanguage,
+  weekStart,
   type LanguageStore,
 } from '../src/i18n/index.js';
 import { Backend, BASE } from './support.js';
@@ -186,6 +188,12 @@ describe('LanguageProvider', () => {
 });
 
 describe('the formats', () => {
+  it('give the first day of the week of a language and the day of a date', () => {
+    expect(weekStart('ru')).toBe(1);
+    expect(weekStart('en-US')).toBe(7);
+    expect(isoDate(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05');
+  });
+
   it('are those of the language of the interface', () => {
     expect(formatNumber(1234.5, 'en')).toBe('1,234.5');
     expect(formatNumber(1234.5, 'ru')).toMatch(/^1\s234,5$/);

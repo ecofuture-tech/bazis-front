@@ -15,22 +15,19 @@
 // The transits that the user may run on an item now (`useTransits`), a button
 // `transit:<id>` each, disabled with the errors of its validators when they restrict it; a
 // transit to a status of the tone `danger` is a destructive button. A transit whose action
-// takes a typed payload opens a dialog with its fields (`FieldInput`, `field:<name>`,
-// `error:<name>`, `action:submit`). A toast tells the status the item moved to.
+// takes a typed payload opens a dialog with its fields (`useRunTransit`). A toast tells the
+// status the item moved to.
 
 import { ArrowRight, LoaderCircle } from 'lucide-react';
-import { useState } from 'react';
 
-import { ApiError } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { objectFields } from '@/bazis/react';
-import { useTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
-import { FieldInput } from '@/bazis/ui/resource';
-import { statusName, statusTone, transitName, transitTarget } from '@/bazis/ui/status-badge';
-import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
+import { useTransits, type TransitPath } from '@/bazis/react/statusy';
+import { statusTone, transitName, transitTarget } from '@/bazis/ui/status-badge';
+import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+import { useRunTransit } from './run-transit.js';
 
 export interface TransitBarProps {
   /** The route set of the statusy model (`ROUTES` of the contract). */
@@ -40,47 +37,10 @@ export interface TransitBarProps {
   onDone?: (item: unknown) => void;
 }
 
-const PAYLOAD_POINTER = /^\/payload\/([^/]+)/;
-
-/**
- * The errors of a transit: those of the fields of its payload by name (`source.pointer`
- * `/payload/<name>`, a name of `names`), and the others (its validators, a field that the
- * dialog does not show, an error that is not of the backend).
- */
-export function payloadErrors(
-  error: unknown,
-  names: readonly string[],
-): { fields: Record<string, string[]>; others: string[] } {
-  const fields: Record<string, string[]> = {};
-  const others: string[] = [];
-  if (!(error instanceof ApiError)) {
-    if (error instanceof Error) others.push(error.message);
-    return { fields, others };
-  }
-  for (const item of error.errors) {
-    const name = PAYLOAD_POINTER.exec(item.source?.pointer ?? '')?.[1];
-    const message = item.detail ?? item.title ?? item.code ?? '';
-    if (name !== undefined && names.includes(name)) (fields[name] ??= []).push(message);
-    else others.push(name === undefined ? message : `${name}: ${message}`);
-  }
-  if (!others.length && !Object.keys(fields).length) others.push(error.message);
-  return { fields, others };
-}
-
-function defaults(transit: Transit): Record<string, unknown> {
-  const values: Record<string, unknown> = {};
-  for (const field of objectFields(transit.payload ?? {})) {
-    if ('default' in field.schema) values[field.name] = field.schema.default;
-  }
-  return values;
-}
-
 /** The transits of an item, with the dialog of their payloads. */
 export function TransitBar({ path, id, onDone }: TransitBarProps) {
   const transits = useTransits(path, id);
-  const mutation = useTransit(path, id);
-  const [open, setOpen] = useState<Transit | null>(null);
-  const [values, setValues] = useState<Record<string, unknown>>({});
+  const { start, mutation, open, dialog } = useRunTransit(path, onDone);
   const { language, t } = useLanguage();
 
   if (transits.isPending) {
@@ -100,40 +60,6 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
   if (transits.isError) return <StatePanel inline state={errorState(transits.error)} error={transits.error} />;
   if (!transits.data.length) return null;
 
-  function run(transit: Transit, payload?: Record<string, unknown>) {
-    mutation.mutate(
-      { transit: transit.id, ...(payload === undefined ? {} : { payload }) },
-      {
-        onSuccess: (item) => {
-          setOpen(null);
-          const target = transitTarget(transit.resource.type, transit.id);
-          toast({
-            title: transitName(transit.resource.type, transit.id, language),
-            ...(target === null
-              ? {}
-              : { description: t('transit.done', { status: statusName(transit.resource.type, target, language) }) }),
-          });
-          onDone?.(item);
-        },
-      },
-    );
-  }
-
-  function start(transit: Transit) {
-    mutation.reset();
-    if (transit.payload === null) {
-      run(transit);
-      return;
-    }
-    setValues(defaults(transit));
-    setOpen(transit);
-  }
-
-  const fields = open ? objectFields(open.payload ?? {}) : [];
-  const errors = payloadErrors(
-    mutation.error,
-    fields.map((it) => it.name),
-  );
   return (
     <div className="grid gap-3 rounded-xl border bg-card px-(--space-card) py-3 text-card-foreground shadow-xs">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -151,7 +77,7 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
                   disabled={!transit.allowed || mutation.isPending}
                   aria-describedby={transit.allowed ? undefined : `restricts-${transit.id}`}
                   onClick={() => {
-                    start(transit);
+                    start(id, transit);
                   }}
                 >
                   {mutation.isPending && mutation.variables.transit === transit.id ? (
@@ -174,65 +100,7 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
       {open === null && mutation.isError && (
         <StatePanel inline state={errorState(mutation.error)} error={mutation.error} message={mutation.error.message} />
       )}
-      <Dialog
-        open={open !== null}
-        onOpenChange={(next) => {
-          if (!next) setOpen(null);
-        }}
-      >
-        {open && (
-          <DialogContent>
-            <form
-              noValidate
-              className="grid gap-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                run(open, values);
-              }}
-            >
-              <DialogHeader>
-                <DialogTitle>{transitName(open.resource.type, open.id, language)}</DialogTitle>
-                <DialogDescription>{open.hint ?? t('transit.fill')}</DialogDescription>
-              </DialogHeader>
-              {mutation.isError && errors.others.length > 0 && (
-                <StatePanel
-                  inline
-                  state={errorState(mutation.error)}
-                  error={mutation.error}
-                  message={errors.others.join(' ')}
-                />
-              )}
-              {fields.map((field) => (
-                <FieldInput
-                  key={field.name}
-                  field={field}
-                  value={values[field.name]}
-                  errors={errors.fields[field.name]}
-                  disabled={mutation.isPending}
-                  onChange={(value) => {
-                    setValues({ ...values, [field.name]: value });
-                  }}
-                />
-              ))}
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  data-bz="action:cancel"
-                  onClick={() => {
-                    setOpen(null);
-                  }}
-                >
-                  {t('action.cancel')}
-                </Button>
-                <Button type="submit" data-bz="action:submit" disabled={mutation.isPending}>
-                  {transitName(open.resource.type, open.id, language)}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        )}
-      </Dialog>
+      {dialog}
     </div>
   );
 }

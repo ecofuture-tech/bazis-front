@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 
-import { useCan, useFilterFields, useItem, useList, useSchema } from '../src/index.js';
+import { useCan, useFilterFields, useItem, useList, useLists, useSchema } from '../src/index.js';
 import sample from './fixtures/sample.json' with { type: 'json' };
 import { Backend, cachedKeys, PARENT, render } from './support.js';
 
@@ -129,6 +129,31 @@ describe('useList', () => {
       ['bazis', PARENT, 'list', {}, 's1'],
       ['bazis', PARENT, 'list', {}, 's1:en'],
       ['bazis', PARENT, 'list', {}, 's1:ru'],
+    ]);
+  });
+});
+
+describe('useLists', () => {
+  it('requests a list per query, keyed as useList keys them', async () => {
+    const draft = `${PARENT}?filter=status%3Ddraft&page%5Blimit%5D=1&meta=pagination`;
+    const done = `${PARENT}?filter=status%3Ddone&page%5Blimit%5D=1&meta=pagination`;
+    const backend = new Backend().on('GET', draft, page(['1'])).on('GET', done, page(['2']));
+    const query = (status: string) =>
+      ({ filter: Filter.where('status', status), page: { limit: 1 }, meta: ['pagination'] }) as const;
+    const { result, queryClient } = render(() => useLists(PARENT, [query('draft'), query('done')]), backend);
+
+    await waitFor(() => {
+      expect(result.current.every((it) => it.isSuccess)).toBe(true);
+    });
+    expect(result.current.map((it) => it.data?.data[0]?.id)).toEqual(['1', '2']);
+    expect(backend.requests().sort()).toEqual([`GET ${done}`, `GET ${draft}`]);
+    // the key of useList for the same query: they share the cache
+    expect(cachedKeys(queryClient)).toContainEqual([
+      'bazis',
+      PARENT,
+      'list',
+      { filter: 'status=draft', page: { limit: 1 }, meta: ['pagination'] },
+      's1',
     ]);
   });
 });

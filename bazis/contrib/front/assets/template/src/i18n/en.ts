@@ -22,6 +22,6 @@ import type { Messages } from '@/bazis/i18n';
 export const en: Messages = {
   'nav.home': 'Home',
   'home.title': 'Overview',
-  'home.description': 'The resources of the backend and the items you can see.',
+  'home.description': 'Where to start: the sections of the product and what is in them.',
   'home.unavailable': 'Not available',
 };

@@ -28,6 +28,7 @@ import {
   useFilterFields,
   useItem,
   useList,
+  useLists,
   useRelatedItem,
   useResourceForm,
   useSchema,
@@ -67,6 +68,12 @@ export const useAnyList = useList as unknown as (
   path: string,
   query?: Omit<QueryOptions, 'include'>,
 ) => UseQueryResult<ListDocument>;
+
+/** `useLists(path, queries)`: several lists of a route set, a query each. */
+export const useAnyLists = useLists as unknown as (
+  path: string,
+  queries: readonly Omit<QueryOptions, 'include'>[],
+) => UseQueryResult<ListDocument>[];
 
 /** `useItem(path, id, query)`. */
 export const useAnyItem = useItem as unknown as (

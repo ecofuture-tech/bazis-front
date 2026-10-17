@@ -18,7 +18,8 @@
 // the titles of the list schema, the actions the backend allows (`action:<id>`), search,
 // filters (only those the backend offers the user) and pages, the filter of the screen, the
 // tone of a highlighted row (`data-tone`), its first columns only next to an open card, cards
-// on a phone, the rows selected (`select:<id>`, `select:all`), the view (`action:view`: the
+// on a phone, the rows selected (`select:<id>`, `select:all`) and their bulk actions
+// (`bulk:<id>`, `action:confirm-bulk`, `action:clear-selection`), the view (`action:view`: the
 // columns hidden, `toggle:<column>`, and the density, `density:<density>`), the badge of a
 // status, the empty state with the creation of an item. Keep it passing when the component
 // is changed.
@@ -661,6 +662,41 @@ describe('ResourceList', () => {
     await screen.findByTestId('state:loaded');
     expect(screen.queryByTestId('select:all')).toBeNull();
     expect(screen.queryByTestId('select:a')).toBeNull();
+  });
+
+  it('runs a bulk action on the selected rows the backend allows, after its confirmation, and keeps those that failed', async () => {
+    const run = vi.fn((id: string) => (id === 'b' ? Promise.reject(new Error('refused')) : Promise.resolve(id)));
+    const items = [...rows, resource('c', { title: 'Third', done: false, count: 2 })];
+    renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title']}
+        layout="table"
+        bulk={[{ id: 'archive', label: 'Archive', permission: 'change', run }]}
+      />,
+      // the user may not change the third
+      backend(listDocument(items, { meta: { for_change: ['a', 'b'] } })),
+    );
+    await screen.findByTestId('state:loaded');
+    // the bar once a row is selected
+    expect(screen.queryByTestId('bulk:archive')).toBeNull();
+    fireEvent.click(screen.getByTestId('select:all'));
+    fireEvent.click(screen.getByTestId('bulk:archive'));
+    expect(run).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('action:confirm-bulk'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('action:confirm-bulk')).toBeNull();
+    });
+    // one request after the other, for the rows the backend allows
+    expect(run.mock.calls.map(([id]) => id)).toEqual(['a', 'b']);
+    // the row that the backend refused stays selected, the bar tells it with the error
+    expect(screen.getByTestId('select:b').getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByTestId('error:bulk').textContent).toContain('refused');
+    expect(screen.getByTestId('select:a').getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByTestId('action:clear-selection'));
+    expect(screen.getByTestId('select:b').getAttribute('aria-checked')).toBe('false');
+    expect(screen.queryByTestId('bulk:archive')).toBeNull();
   });
 
   it('hides the columns that the user hides, keeping their cells, but the first', async () => {

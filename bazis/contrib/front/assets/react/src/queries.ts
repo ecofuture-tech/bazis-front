@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { queryOptions, useQueries, useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 import {
   ApiError,
@@ -58,6 +58,29 @@ export function useList<P extends ListPath>(
       const key = previousQuery?.queryKey;
       return key?.[1] === path && key.at(-1) === scope ? previous : undefined;
     },
+  });
+}
+
+/**
+ * Several lists of a route set at once, a query each, keyed as `useList` keys them (the same
+ * request shares its cache): the numbers of the items of the statuses of a workflow, or of
+ * the weeks of a date (`page: {limit: 1}`, `meta: ['pagination']`, the `filter` of each),
+ * the columns of a board.
+ */
+export function useLists<P extends ListPath>(
+  path: P,
+  queries: readonly ListQuery<P>[],
+): UseQueryResult<ListResponse<P>>[] {
+  const { api, scope } = useBazis();
+  return useQueries({
+    queries: queries.map((query) => {
+      const options = query as QueryOptions;
+      return {
+        queryKey: keys.list(path, options, scope),
+        queryFn: ({ signal }: { signal: AbortSignal }) =>
+          loose(api).list(path, { ...options, signal }) as Promise<ListResponse<P>>,
+      };
+    }),
   });
 }
 

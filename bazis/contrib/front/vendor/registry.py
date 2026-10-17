@@ -32,12 +32,13 @@ from importlib.resources.abc import Traversable
 #: copied with the version stamp, kept pristine in `.bazis/base/`, hashed in the lock and
 #: updated from the package; `init` copies them all (those the capabilities allow)
 VENDORED = 'vendored'
-#: a component: copied as a vendored asset, but by `add` (by `init` with `init: true`), and
-#: owned and changed by the product; its contract test comes with it
+#: a component: copied as a vendored asset, but by `add` (by `init` and `update` when the
+#: template requires it), and owned and changed by the product; its contract test comes with it
 UI = 'ui'
 #: the frontend itself, copied by `init` as it is (without the stamp: JSON, HTML, CSS,
 #: configs), kept pristine in `.bazis/base/`, hashed in the lock and updated from the package
-#: like the vendored assets; the product owns and changes it, `update` merges the new version
+#: like the vendored assets; the product owns and changes it, `update` merges the new version;
+#: the components its files import are its `requires`
 TEMPLATE = 'template'
 
 
@@ -55,8 +56,6 @@ class Asset:
     capabilities: tuple[str, ...] = ()
     #: the assets it imports, copied before it
     assets: tuple[str, ...] = ()
-    #: a component that `init` copies
-    init: bool = False
     #: the npm packages it imports that the template does not declare, `{section: {package:
     #: version}}` (the versions of the workspace of this repository)
     npm: dict[str, dict[str, str]] = field(default_factory=dict, hash=False)
@@ -91,7 +90,6 @@ def load() -> dict[str, Asset]:
             it['name'], it['kind'], it['source'], it['target'], tuple(it['files']),
             tuple(it.get('requires', {}).get('capabilities', ())),
             tuple(it.get('requires', {}).get('assets', ())),
-            it.get('init', False),
             it.get('npm', {}),
         )
         for it in data['assets']

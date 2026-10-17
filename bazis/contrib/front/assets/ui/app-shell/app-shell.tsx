@@ -122,6 +122,12 @@ export function useWide(): boolean {
 }
 
 const ShellContext = createContext<Navigation | null>(null);
+const ItemsContext = createContext<readonly NavItem[]>([]);
+
+/** The links of the navigation of the layout (`items` of `AppShell`), none outside it. */
+export function useNavItems(): readonly NavItem[] {
+  return useContext(ItemsContext);
+}
 
 /** The mark of the product: the first letter of its name on the primary color. */
 function Brand({ title }: { title: ReactNode }) {
@@ -147,8 +153,16 @@ const useAnyFilterFields = useFilterFields as unknown as (
   path: string,
 ) => UseQueryResult<{ fields: readonly { name: string }[] }>;
 
-/** Its children once the backend allows the user what the link requires; nothing until then. */
-function Allowed({ requirement, children }: { requirement: NavRequirement; children: ReactNode }) {
+/**
+ * Its children once the backend allows the user what a link requires (`requires` of a
+ * `NavItem`), nothing until then; at once without a requirement: the links of the navigation,
+ * the quick links of a dashboard.
+ */
+export function Allowed({ requirement, children }: { requirement: NavRequirement | undefined; children: ReactNode }) {
+  return requirement ? <Permitted requirement={requirement}>{children}</Permitted> : children;
+}
+
+function Permitted({ requirement, children }: { requirement: NavRequirement; children: ReactNode }) {
   const allowed = useAnyCan(requirement.path, requirement.can ?? 'view');
   if (allowed !== true) return null;
   const { filters = [] } = requirement;
@@ -200,12 +214,10 @@ function Navigation({ items, vertical, onNavigate }: { items: readonly NavItem[]
               </NavLink>
             </li>
           );
-          return item.requires ? (
+          return (
             <Allowed key={item.screen} requirement={item.requires}>
               {link}
             </Allowed>
-          ) : (
-            link
           );
         })}
       </ul>
@@ -330,7 +342,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
             </div>
           </header>
           <main className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-4 py-8 md:px-(--space-page-x) md:py-12">
-            {children}
+            <ItemsContext value={items}>{children}</ItemsContext>
           </main>
           <Toaster />
         </div>
@@ -368,7 +380,9 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
               <ColorModeToggle />
             </div>
           </header>
-          <main className="min-w-0 flex-1 px-(--bleed) pt-(--space-section) pb-(--space-page-y)">{children}</main>
+          <main className="min-w-0 flex-1 px-(--bleed) pt-(--space-section) pb-(--space-page-y)">
+            <ItemsContext value={items}>{children}</ItemsContext>
+          </main>
         </div>
         <Toaster />
       </div>

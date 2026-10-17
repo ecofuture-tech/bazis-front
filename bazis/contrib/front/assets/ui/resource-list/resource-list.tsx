@@ -50,6 +50,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
+import { BulkBar, type BulkAction } from './bulk.js';
 import { CardsSkeleton, CardsView } from './cards.js';
 import { ViewMenu } from './columns.js';
 import { EVERY, FilterBar, type ListFilter } from './filters.js';
@@ -144,6 +145,12 @@ export interface ResourceListProps {
    * of the page): called with the ids selected, also those of other pages.
    */
   onSelectionChange?: (ids: readonly string[]) => void;
+  /**
+   * The actions on the selected rows (`list.bulk` of the spec), in a bar over them once a row
+   * is selected (`bulk:<id>`): the rows are selectable, the list keeping their selection
+   * unless `onSelectionChange` does.
+   */
+  bulk?: readonly BulkAction[];
   /**
    * The columns of the table while it is next to an open card (`ListCardLayout`, `split`):
    * the first two by default; the others are hidden (their cells stay, for the scenarios).
@@ -323,8 +330,9 @@ export function ResourceList({
   layout = THEME.composition.list,
   phoneLayout = THEME.composition.list_phone,
   density = THEME.density,
-  selection = [],
+  selection: selectionProp = [],
   onSelectionChange,
+  bulk = [],
   compactColumns = columns.slice(0, 2),
 }: ResourceListProps) {
   const besideCard = useBesideCard();
@@ -332,6 +340,10 @@ export function ResourceList({
   const { t } = useLanguage();
   const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(new Set());
   const [rowDensity, setRowDensity] = useState(density);
+  // the selection of the bulk actions, kept here when the screen does not keep it
+  const [ownSelection, setOwnSelection] = useState<readonly string[]>([]);
+  const selection = onSelectionChange ? selectionProp : ownSelection;
+  const select = onSelectionChange ?? setOwnSelection;
   const fields = useListFields(path);
   const order = orderLabels(path);
   const [filter, setFilter] = useState<Filter | undefined>();
@@ -392,7 +404,7 @@ export function ResourceList({
   // the user hides any column but the first, the name of a row
   const hideable = shown.slice(1);
   const viewMenu = view === 'table' || hideable.length > 0;
-  const selectionSet = onSelectionChange ? new Set(selection) : undefined;
+  const selectionSet = onSelectionChange || bulk.length ? new Set(selection) : undefined;
   // the actions that create an item are those of the empty state of a list without items
   const empty = state === 'empty' && !filtered;
   const creates = empty ? toolbar.filter((action) => action.permission === 'add') : [];
@@ -436,7 +448,7 @@ export function ResourceList({
     selection: selectionSet,
     onSelect: (ids, on) => {
       const others = selection.filter((id) => !ids.includes(id));
-      onSelectionChange?.(on ? [...others, ...ids] : others);
+      select(on ? [...others, ...ids] : others);
     },
     rowActions: (row) =>
       rowActions
@@ -548,6 +560,9 @@ export function ResourceList({
             {toolbar.filter((action) => !creates.includes(action)).map(actionButton)}
           </div>
         </div>
+      )}
+      {bulk.length > 0 && selection.length > 0 && (
+        <BulkBar actions={bulk} selection={selection} page={new Set(rows.map((it) => it.id))} meta={meta} onSelect={select} />
       )}
       {state === 'empty' ? (
         <EmptyState

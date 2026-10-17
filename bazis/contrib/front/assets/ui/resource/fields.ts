@@ -145,6 +145,11 @@ export function routeOf(type: string): string | undefined {
   return (ROUTES as Readonly<Record<string, string | undefined>>)[type];
 }
 
+/** The JSON:API type of the route set of a path (`ROUTES` of the contract), as `routeOf` the other way. */
+export function typeAt(path: string): string | undefined {
+  return Object.entries(ROUTES as Readonly<Record<string, string>>).find(([, it]) => it === path)?.[0];
+}
+
 /**
  * Whether the route set of a JSON:API type searches (`search`): it has search fields in the
  * contract (`search` of its resource). The core answers a search of a route set without
@@ -233,13 +238,31 @@ export function localizedName(item: ContractName | undefined, id: string, langua
 
 /** A statusy model of bazis-statusy: its statuses and its transits (`TRANSITS` of the contract). */
 interface StatusyModel {
+  initial?: string;
   statuses: readonly ContractName[];
-  transits: readonly (ContractName & { dst?: string })[];
+  transits: readonly (ContractName & { src?: string; dst?: string })[];
 }
 
 /** The statusy model of a JSON:API type, undefined for a type that is not one. */
 export function statusyModel(type: string): StatusyModel | undefined {
   return (TRANSITS as Readonly<Record<string, StatusyModel | undefined>>)[type];
+}
+
+/**
+ * The statuses of a statusy model in the order of its workflow (the contract sorts them by
+ * id): the initial one, then those its transits reach, in the order of the transits; the
+ * statuses no transit reaches last. None for a type that is not a statusy model.
+ */
+export function workflowStatuses(type: string): readonly string[] {
+  const model = statusyModel(type);
+  if (!model) return [];
+  const order = model.initial ? [model.initial] : [];
+  for (let index = 0; index < order.length; index += 1) {
+    for (const transit of model.transits) {
+      if (transit.src === order[index] && transit.dst && !order.includes(transit.dst)) order.push(transit.dst);
+    }
+  }
+  return [...order, ...model.statuses.map((it) => it.id).filter((it) => !order.includes(it))];
 }
 
 /**

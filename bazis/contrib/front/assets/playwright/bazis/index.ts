@@ -171,7 +171,8 @@ export class App<P extends Product = Product> {
   /**
    * Moves the item of the board of the current screen that `openItem` would open to the
    * column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it
-   * is in the column `column:<status>` or an error is shown.
+   * is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or
+   * another error shown), with the error.
    */
   async move({ where, to }: { where: Values; to: string }): Promise<void> {
     const row = await this.row(where);
@@ -184,6 +185,11 @@ export class App<P extends Product = Product> {
     await expect
       .poll(async () => (await moved.count()) > 0 || (await failed.count()) > 0, { message: `the item is moved to ${to} or shows an error` })
       .toBe(true);
+    if ((await moved.count()) === 0) {
+      // the first: the mark of the refusal holds the state of its error
+      const shown = (await failed.first().innerText()).replace(/\s+/g, ' ').trim();
+      throw new Error(`The item ${mark} was not moved to ${to}: ${shown || 'an error is shown'}.`);
+    }
   }
 
   /** Runs an action of the current screen, `action:<id>` (in the tab of a card that has it). */

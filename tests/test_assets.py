@@ -143,11 +143,14 @@ def test_the_required_assets_exist():
         assert set(assets[name].assets) <= set(order[:index]), name
 
 
-def test_the_components_of_init_need_no_capability():
+def test_the_components_of_the_template_need_no_capability():
+    """
+    `init` and `update` copy the components that the template requires (and those they
+    require): every product has them.
+    """
     assets = registry.load()
-    initial = [it.name for it in assets.values() if it.init]
-    assert initial == ['state-panel', 'app-shell', 'login-form']
-    for asset in registry.resolve(initial, assets):
+    assert assets['template'].assets == ('app-shell', 'dashboard', 'login-form', 'state-panel')
+    for asset in registry.resolve(['template'], assets)[:-1]:
         assert asset.kind in (registry.UI, registry.VENDORED) and not asset.capabilities, asset.name
 
 
@@ -170,12 +173,13 @@ UI_IMPORT = re.compile(r"""(?:from|import) ["']@/(?:bazis|components)/ui/([^/"']
 
 def test_the_components_require_the_components_they_import():
     """
-    `requires.assets` of a component names the components and the shadcn/ui components that
-    its files (its contract test too: it is copied into products) import, and no other.
+    `requires.assets` of a component (and of the template) names the components and the
+    shadcn/ui components that its files (its contract test too: it is copied into products)
+    import, and no other.
     """
     assets = registry.load()
     for asset in assets.values():
-        if asset.kind != registry.UI:
+        if asset.kind == registry.VENDORED:
             continue
         imported = {
             name

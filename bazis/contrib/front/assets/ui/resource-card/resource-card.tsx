@@ -45,6 +45,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
+import { CardTabs, type CardTab } from './card-tabs.js';
+
 /** A section of the card: its fields in this order. */
 export interface CardSection {
   id: string;
@@ -94,6 +96,11 @@ export interface ResourceCardProps {
    * action of the item) without a request of its own.
    */
   children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode);
+  /**
+   * The sections and the related content in tabs (`card.tabs` of the specs), under the
+   * children; the sections one under the other without.
+   */
+  tabs?: readonly CardTab[];
   /** The edit in a dialog or as a page; `composition.forms` of the theme by default. */
   forms?: 'dialog' | 'page';
 }
@@ -228,6 +235,7 @@ export function ResourceCard({
   values = {},
   display = {},
   children,
+  tabs = [],
   forms,
 }: ResourceCardProps) {
   const item = useAnyItem(path, id, { meta: ['crud_actions', 'custom_actions'] });
@@ -259,6 +267,12 @@ export function ResourceCard({
           display={display}
         />
       ));
+  const body = (shown: readonly CardSection[]) =>
+    changeable ? (
+      <EditableSections path={path} id={id} sections={shown} item={data} fields={fields} values={values} display={display} />
+    ) : (
+      <Sections sections={shown} item={data} fields={fields} values={values} display={display} editable={null} />
+    );
   return (
     <article data-bz="state:loaded" className="grid gap-(--space-section)">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -304,11 +318,7 @@ export function ResourceCard({
         </div>
       </header>
       {typeof children === 'function' ? children(data, meta) : children}
-      {changeable ? (
-        <EditableSections path={path} id={id} sections={sections} item={data} fields={fields} values={values} display={display} />
-      ) : (
-        <Sections sections={sections} item={data} fields={fields} values={values} display={display} editable={null} />
-      )}
+      {tabs.length ? <CardTabs tabs={tabs} sections={sections} item={data} meta={meta} render={body} /> : body(sections)}
       {changeable && (
         <FormSurface
           open={editing}

@@ -203,7 +203,7 @@ them:
 | `frontend/src/bazis/generated/` | 0. Contract | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API); `fonts.css`, `theme.css` and `theme.ts` (the design: the fonts, the tokens as CSS variables, `THEME`) | only `manage.py bazis_front contract`; the theme only `manage.py bazis_front design` |
 | `frontend/src/bazis/client/` | 1. Protocol (`assets/client`) | the client of the Bazis protocol | bazis-front, copied by `init`; not edited, wrapped in `src/app/` |
 | `frontend/src/bazis/react/` | 2. Hooks (`assets/react`) | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy, `uploadable/` (`@/bazis/react/uploadable`) when it has bazis-uploadable, `ws/` with bazis-ws, `bg/` with bazis-bg, `async/` with bazis-async-background | bazis-front, copied; not edited |
-| `frontend/src/bazis/ui/<component>/` | 3. Components (`assets/ui`) | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies `state-panel`, `app-shell`, `login-form`, `manage.py bazis_front add` the others (`add map` also sets Leaflet in `package.json`: `npm install` then) | the product, keeping the contract tests passing |
+| `frontend/src/bazis/ui/<component>/` | 3. Components (`assets/ui`) | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies those that the template requires (`state-panel`, `app-shell`, `login-form`, `dashboard`), `manage.py bazis_front add` the others (`add map` also sets Leaflet in `package.json`: `npm install` then) | the product, keeping the contract tests passing |
 | `frontend/src/components/ui/`, `frontend/src/lib/` | 3. Components | shadcn/ui components: those of the components copied by bazis-front, others with `npx shadcn add <name>` | the product |
 | `spec/` (in the product root) | 4. Specs | the specs: `product.yaml` (roles, entities, access, scenarios), `screens/<id>.yaml`, `design/`; validated against the contract, its scenarios generate the end-to-end tests and its design the theme | the product; checked by `manage.py bazis_front check` |
 | `frontend/e2e/generated/` | 4. Specs | the end-to-end tests of the scenarios of `spec/product.yaml`, and `product.ts` (the test users and the routes of the specs) | only `manage.py bazis_front e2e` |
@@ -604,9 +604,9 @@ card:
 A list acts on the rows that the user selects with `bulk`: a transition of the workflow of
 the entity (one without a payload, S025; one with a payload is run on the card of each
 item) or the deletion, `primitive: destroy`. The screen runs it on each selected item in
-turn (a transit or a delete per item, bazis-bulk is not needed), only on those the backend
-allows (`state_actions` and the permission meta of each row), after a confirmation, and keeps
-selected those that fail:
+turn (a transit or a delete per item, bazis-bulk is not needed) after a confirmation; it
+reads nothing per item first: the backend refuses an item it does not allow (a transition
+its status does not have now), which stays selected, with the error shown (`error:bulk`):
 
 ```yaml
 list:
@@ -1183,7 +1183,11 @@ differ from the backend; `--check` does the same in CI.
 
 ```bash
 python manage.py bazis_front add resource-list resource-card resource-form   # the core
-python manage.py bazis_front add stat-card                                   # the figures of a dashboard
+python manage.py bazis_front add stat-card                                   # the figures of a dashboard (`dashboard` is copied by init)
+python manage.py bazis_front add charts                                      # the charts of a dashboard (recharts): then `npm install`
+python manage.py bazis_front add resource-board board-dnd                    # a board, with bazis-statusy; its drag and drop (@dnd-kit): then `npm install`
+python manage.py bazis_front add resource-calendar                           # a calendar
+python manage.py bazis_front add date-picker                                 # the dates picked in a calendar (react-day-picker): then `npm install`
 python manage.py bazis_front add status-badge status-history transit-bar     # with bazis-statusy
 python manage.py bazis_front add file-field                                  # with bazis-uploadable
 python manage.py bazis_front add notification-center                         # with bazis-notify (or bazis-ws)
@@ -1208,12 +1212,15 @@ tabs tooltip` copies them the same way, never the shadcn CLI. It needs neither t
 the shadcn CLI. The template declares the npm dependencies of the components (`radix-ui`,
 `class-variance-authority`, `lucide-react`, and `@testing-library/react` with `jsdom` for
 their tests); an optional component that brings a library of its own, `map` (Leaflet),
-sets it in `package.json` when it is added (`leaflet`, `@types/leaflet`, recorded in its
-entry of the lock): run `npm install` then, as `add` says. `update` brings these
+`charts` (recharts), `date-picker` (react-day-picker, of its shadcn/ui `calendar`) or
+`board-dnd` (@dnd-kit), sets it in `package.json` when it is added (`leaflet`,
+`@types/leaflet`, recorded in its entry of the lock): run `npm install` then, as `add` says.
+Each library is loaded with the first view that draws with it, in a chunk of its own. `update` brings these
 dependencies to the versions of the new release without a conflict in `package.json`.
 
 - A component of a package needs its capability in `contract/contract.json` (export the
-  contract first): `transit-bar`, `status-badge` and `status-history` need `statusy`,
+  contract first): `transit-bar`, `status-badge`, `status-history`, `resource-board` and
+  `board-dnd` need `statusy`,
   `file-field` needs `uploadable`, `live-query` needs `ws`,
   `task-progress` needs `bg`, `async-result` needs `async_background`; `add` fails with the
   missing capability and copies nothing.
@@ -1259,15 +1266,21 @@ the names of the statuses and transits of the contract (in every language), and 
 | `state-panel` | `StatePanel` (the state of a screen or of a part of it, `inline`, with a `skeleton` while it loads), `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below | `nav:<screen>` (the navigation and the link of `parent`), `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
-| `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page` | |
+| `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `ItemValue` (a field of an item as a cell: the status of a statusy model as its badge), `workflowStatuses(type)` (the statuses of a workflow, the initial one first, then in the order of its transits), `DateInput` with `DatesProvider` (the control of the dates, the calendar of `date-picker`), `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
+| `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects (the count of the pagination of a list of one item), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded), `state:<loading\|loaded\|error\|forbidden>` | |
-| `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
+| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`) | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
+| `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
+| `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
+| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
+| `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
+| `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`, `add`: `{id, label, onAdd(day)}`) | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
+| `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`; `tabs`: `{id, title, sections, content}`, `content` a node or `(item, meta) => node`, the children above them); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>`; `tab:<id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
-| `transit-bar` | `TransitBar`: the transits of an item | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
+| `transit-bar` | `TransitBar`: the transits of an item; `useRunTransit(path)`: a transit of any item with the dialog of its payload | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`): `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
 | `live-query` | `LiveQuery`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` and `CAPABILITIES.notify.resource` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter`: a bell with the count of the unread notifications, their list (a click marks one read and opens it, `onOpen`), mark all read, a toast for each new one (`toasts`); `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only, which also has `clear`: forget those of the session); the stored notifications are deleted only with `onDeleteAll={inbox.deleteAll}`, after a confirmation | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` (`useNotifications`), `action:delete-notifications` and `action:confirm-delete-notifications` (`onDeleteAll`) | none (its source: `notify` or `ws`) |
@@ -1296,7 +1309,8 @@ are not shown.
 ## Writing the screens
 
 The screens are written in `frontend/src/screens/<id>/`, from their specs; nothing
-generates them. A screen is one primitive (`list`, `card` or `form`) over an entity:
+generates them. A screen is one primitive (`list`, `card`, `form`, `board` or `calendar`) over an
+entity, or a `dashboard`:
 implement it with the route of its spec, from the components of `src/bazis/ui/` (their
 `data-bz` in [The components](#the-components), their props in the `API:` sections), and
 render every state that it lists. The components decide nothing: pass them the field ids
@@ -1315,6 +1329,12 @@ of the specs and the paths of `ROUTES`.
 | a field `type: file` (bazis-uploadable) | shown by the components (its name downloads it, a thumbnail of an image, both read with the token from its download route); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes ("Files, points and maps") |
 | a field `type: point`, `list.map: {field}` | shown as its coordinates (`55.7558, 37.6173`) and edited as them in the forms, on a map too once `MapProvider` of `@/bazis/ui/map` wraps the routes; `ResourceMap` of `@/bazis/ui/map` beside the `ResourceList` of the screen, with its `filter` ("Files, points and maps") |
 | an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
+| `card.tabs` | `tabs` of `ResourceCard`: `{id, title, sections: [...]}`, a related section or the history as its `content` (`(item, meta) => <RelatedList …/>`, `(item) => <StatusHistory resource={item} />`); the `TransitBar` in the `children`, above the tabs |
+| `list.bulk` (a transition, a deletion) | `bulk` of `ResourceList`: `{id, label, run: (id) => transit.mutateAsync({id, transit: '<transit>'})}` with `const transit = useItemsTransit(path)` of `@/bazis/react/statusy`, or `run: (id) => destroy.mutateAsync(id)` with `permission: 'delete'` |
+| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
+| `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`title` and `fields` of `card`, `badge`, `columns`, `filters`, `move` for `move: true`, `onOpen`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
+| `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (day) => …}}`: the create form in `FormSurface` with the day as `fixed={{<field>: day}}` of `ResourceForm`, shown read-only when `fields` names it) |
+| the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | an action of the card (`permission: 'delete'`) calling `useDestroy` |
@@ -2261,7 +2281,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `open_item: {where, in}` | `openItem({where, in})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `select: {where}` | `select({where})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
   | `bulk: <id>` | `bulk(id)`: `bulk:<id>` of the screen, then `action:confirm-bulk` of its confirmation; waits until it is no longer offered (the selection is cleared) or an error is shown (`error:bulk`) |
-  | `move: {where, to}` | `move({where, to})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>`; waits until it is in `column:<to>` or an error is shown |
+  | `move: {where, to}` | `move({where, to})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>`; waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
@@ -2888,8 +2908,10 @@ and the file of the frontend:
 - The stamp line `// bazis-front <version> asset <asset>` never conflicts: the three are
   compared at the new version, and every written file has the new stamp.
 - The assets that a new version requires and the frontend lacks are copied as `add` copies
-  them (a component of a package needs its capability in the contract); `update <asset>`
-  also updates the assets it requires.
+  them (a component of a package needs its capability in the contract), each reported as
+  `<asset>: copied (<version>), required by a new version.`: also the components that a new
+  template requires (its home is a `Dashboard`: `dashboard`); `update <asset>` also updates
+  the assets it requires.
 - Then the pristine copies of the new version replace the old ones in `.bazis/base/`, the
   lock records the new version and hashes, and the copies of the JSON Schemas in
   `spec/schema/` (when the product has it) are those of the package.
@@ -3409,6 +3431,10 @@ Its props, `BazisProviderProps`:
 
 `useList<P extends ListPath>(path: P, query?: ListQuery<P>): UseQueryResult<ListResponse<P>>`: A page of a list: `filter`, `search`, `sort`, `page`, `fields` and `meta` as in `api.list`.
 
+#### useLists
+
+`useLists<P extends ListPath>(path: P, queries: readonly ListQuery<P>[]): UseQueryResult<ListResponse<P>>[]`: Several lists of a route set at once, a query each, keyed as `useList` keys them (the same request shares its cache): the numbers of the items of the statuses of a workflow, or of the weeks of a date (`page: {limit: 1}`, `meta: ['pagination']`, the `filter` of each), the columns of a board.
+
 #### useSchema
 
 `useSchema<K extends CollectionSchemaKind>(path: SchemaPath<K>, kind: K): UseQueryResult<JsonSchema>`: The runtime schema of an action for the current user: `list` and `create` of the route set, `retrieve`, `update` and `transit` (bazis-statusy) of an item.
@@ -3530,6 +3556,10 @@ The hooks copied with a package (`frontend/src/bazis/react/<package>/`), and the
 
 `transits(document: { meta?: { state_actions?: readonly (StateAction | readonly StateAction[])[] | null; } | null; }): readonly Transit[]`: The transits of `meta.state_actions` of a retrieve.
 
+#### useItemsTransit
+
+`useItemsTransit<P extends TransitPath>(path: P): UseMutationResult<TransitResponse<P> | null, Error, { id: string; transit: string; payload?: unknown; }>`: Runs a transit of any item of the route set, `mutate({id, transit, payload})`: those of the rows that the user selects in a list (its bulk actions), as `useTransit` runs that of one.
+
 #### useTransit
 
 `useTransit<P extends TransitPath>(path: P, id: string): UseMutationResult<TransitResponse<P> | null, Error, { transit: string; payload?: unknown; }>`: Runs a transit of the item: `mutate({transit, payload})`.
@@ -3537,6 +3567,10 @@ The hooks copied with a package (`frontend/src/bazis/react/<package>/`), and the
 #### useTransits
 
 `useTransits(path: TransitPath, id: string): UseQueryResult<readonly Transit[]>`: The transits that the current user may run on the item now, from `meta: ['state_actions']` of its retrieve (the query of `useItem` with this meta).
+
+#### useTransitsOf
+
+`useTransitsOf(path: TransitPath): (id: string) => Promise<readonly Transit[]>`: Reads the transits of any item of the route set when asked (the drop of an item on a column of a board): the query of `useTransits`, fetched again unless it is fresh.
 
 #### Transit
 
@@ -3829,6 +3863,14 @@ Its props, `SocketProviderProps`:
 
 `formatTime(value: Date, language: string): string`: The time of a Date: hours and minutes.
 
+#### isoDate
+
+`isoDate(date: Date): string`: The day of a Date in the time zone of the browser as the backend writes a date: `2026-10-07`.
+
+#### weekStart
+
+`weekStart(language: string): number`: The first day of the week in a language, `1` (Monday) to `7` (Sunday), as `Intl.Locale` gives it (`7` in American English); Monday where the browser does not tell.
+
 #### baseLanguage
 
 `baseLanguage(code: string): string`: The base code of a language code: `pt` of `pt-BR`.
@@ -3938,11 +3980,15 @@ Its props, `LanguageProviderProps`:
 - `type Params = Readonly<Record<string, string | number>>`: The parameters of a text: `{name}` in the text is replaced by `params.name`.
 - `type Translate = (key: string, params?: Params) => string`: A translation of a key with its parameters in the current language: `t('list.page', {from, to})`.
 
-## API: the components: app-shell, async-result, empty-state, file-field, live-query, login-form, map, notification-center
+## API: the components: app-shell, async-result, board-dnd, charts, dashboard, date-picker, empty-state, file-field, live-query, login-form, map
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/app-shell`
+
+#### Allowed
+
+`Allowed(props: { requirement: NavRequirement | undefined; children: ReactNode; }): string | number | bigint | boolean | Element | Iterable<ReactNode> | Promise<AwaitedReactNode> | null | undefined`: Its children once the backend allows the user what a link requires (`requires` of a `NavItem`), nothing until then; at once without a requirement: the links of the navigation, the quick links of a dashboard.
 
 #### AppShell
 
@@ -3971,6 +4017,10 @@ Its props, `ScreenProps`:
 - `description?: ReactNode`: Under the title: what the screen is for.
 - `actions?: ReactNode`: Next to the title: the actions of the screen.
 - `children: ReactNode`
+
+#### useNavItems
+
+`useNavItems(): readonly NavItem[]`: The links of the navigation of the layout (`items` of `AppShell`), none outside it.
 
 #### useScreenPage
 
@@ -4091,6 +4141,139 @@ Its props, `AsyncResultProps`:
 - `RESULT_PATH: string | null`: The result path of the tasks (`result_path` of `CAPABILITIES.async_background`); null when it is not routed.
 - `AsyncResultProps`: the props of `AsyncResult`, listed with it
 - `type ResultView = 'pending' | 'processing' | 'completed' | 'failed'`
+
+### `@/bazis/ui/board-dnd`
+
+#### BoardDnd
+
+`BoardDnd(props: { children: ReactNode; }): Element`: The boards below it move their cards by drag and drop too.
+
+### `@/bazis/ui/charts`
+
+#### Chart
+
+`Chart(props: ChartProps): Element`: A chart of values in a card: its title, the drawing, the values as text.
+
+
+Its props, `ChartProps`:
+
+- `id: string`: The id of the chart in the specs: `chart:<id>`.
+- `label: ReactNode`
+- `kind?: ChartKind`
+- `values: readonly ChartValue[]`
+- `series?: boolean`: A color of the series per value (the statuses); one color for all by default (the periods).
+- `state?: ViewState`: The state of what it shows: `empty` when every value is 0.
+- `error?: unknown`
+- `className?: string`
+
+#### StatusChart
+
+`StatusChart(props: StatusChartProps): Element`: The number of the items of a statusy model by status: a list of one item per status.
+
+
+Its props, `StatusChartProps`:
+
+- `id: string`
+- `path: ListPath`: The route set of a statusy model (`ROUTES` of the contract).
+- `label: ReactNode`
+- `kind?: ChartKind`: A ring by default.
+- `filter?: Filter | undefined`: The items it counts; every item that the user may view without.
+- `statuses?: readonly string[] | undefined`: The statuses it shows, in this order; all of the workflow by default.
+- `className?: string`
+
+#### TimeChart
+
+`TimeChart(props: TimeChartProps): Element`: The number of the items by period of a date field, the last periods to the current one: a list of one item per period (`<field>__gte` its first day, `<field>__lt` the next one; the first moment of a day in the time zone of the browser for a date-time).
+
+
+Its props, `TimeChartProps`:
+
+- `id: string`
+- `path: ListPath`
+- `field: string`: The date or date-time field whose periods it counts (`dt_created`, `due_date`).
+- `label: ReactNode`
+- `kind?: ChartKind`: Bars by default.
+- `bucket?: ChartBucket`: A week by default (from the first day of the week of the language).
+- `last?: number`: The number of the periods, the current one the last: 12 by default.
+- `filter?: Filter | undefined`
+- `now?: Date | undefined`: The current moment (the tests); the moment of the first render by default.
+- `className?: string`
+
+#### ChartValue
+
+`interface ChartValue`: A value of a chart.
+
+- `key: string`: Its key: `value:<key>` (a status, the first day of a period `2026-10-05`).
+- `label: string`
+- `value: number`
+
+#### The types and the constants of `@/bazis/ui/charts`
+
+- `type ChartBucket = 'day' | 'week' | 'month'`: The period of a value of `TimeChart`.
+- `type ChartKind = 'donut' | 'bar' | 'line'`: A ring of the shares (`donut`), bars, or a line.
+- `ChartProps`: the props of `Chart`, listed with it
+- `StatusChartProps`: the props of `StatusChart`, listed with it
+- `TimeChartProps`: the props of `TimeChart`, listed with it
+
+### `@/bazis/ui/dashboard`
+
+#### Dashboard
+
+`Dashboard(props: DashboardProps): Element`: The home of a product: its numbers, its links, its charts and its last items, in this order.
+
+
+Its props, `DashboardProps`:
+
+- `id?: string`: The id of the screen in the specs: `screen:<id>`; `home` by default.
+- `title?: ReactNode`
+- `description?: ReactNode`: What the product is for (`summary` of the product, under the title of a hero).
+- `actions?: ReactNode`: The actions of the screen, such as the forms that create an item (`action:<id>`).
+- `hero?: boolean`: The title, the description and the actions as a hero: a portal (`preset` of the theme) by default.
+- `tiles?: readonly StatCardProps[]`
+- `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`.
+- `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`.
+- `recent?: readonly RecentListProps[]`
+
+#### RecentList
+
+`RecentList(props: RecentListProps): Element`: The last items of a route set: a row each, its first field as its title.
+
+
+Its props, `RecentListProps`:
+
+- `id: string`: The id of the list in the specs: `recent:<id>`.
+- `path: ListPath`: The route set of its items (`ROUTES` of the contract).
+- `label: ReactNode`
+- `columns: readonly string[]`: The fields it shows, the first as the title of a row.
+- `sort?: readonly string[] | undefined`: Its order: the last created first (`['-dt_created']`), say.
+- `limit?: number`: The number of its items: 5 by default.
+- `filter?: Filter | undefined`
+- `display?: Readonly<Record<string, FieldDisplay>>`: How a field is shown (`display` of the entity of the specs).
+- `onOpen?: ((id: string) => void) | undefined`: Opens an item (`open` of the specs): a click on its row.
+- `className?: string`
+
+#### The types and the constants of `@/bazis/ui/dashboard`
+
+- `DashboardProps`: the props of `Dashboard`, listed with it
+- `RecentListProps`: the props of `RecentList`, listed with it
+
+### `@/bazis/ui/date-picker`
+
+#### DatePicker
+
+`DatePicker(props: DateInputProps): Element`: The input of a date and its calendar: the button of the calendar in the input (the picker of the browser hidden where it can be), none when the input is read-only.
+
+
+Its props, `DateInputProps`:
+
+- and the members of `Omit<ComponentProps<'input'>, 'type' | 'value' | 'onChange'>`
+- `value: string`: `2026-10-07`, or the empty string for none.
+- `onChange: (value: string) => void`
+- `'data-bz'?: string | undefined`
+
+#### DatePickerProvider
+
+`DatePickerProvider(props: { children: ReactNode; }): Element`: The dates of the forms and of the filters below it are picked in a calendar (`DatePicker`).
 
 ### `@/bazis/ui/empty-state`
 
@@ -4292,6 +4475,10 @@ Its props, `ResourceMapProps`:
 - `LeafletMapProps`: the props of `LeafletMap`, listed with it
 - `ResourceMapProps`: the props of `ResourceMap`, listed with it
 
+## API: the components: notification-center, resource
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
 ### `@/bazis/ui/notification-center`
 
 #### NotificationCenter
@@ -4333,11 +4520,27 @@ Its props, `NotificationCenterProps`:
 
 - `NotificationCenterProps`: the props of `NotificationCenter`, listed with it
 
-## API: the components: resource
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
-
 ### `@/bazis/ui/resource`
+
+#### DateInput
+
+`DateInput(props: DateInputProps): Element`: The input of a date: the control of `DatesProvider`, else `<input type="date">`.
+
+
+Its props, `DateInputProps`:
+
+- and the members of `Omit<ComponentProps<'input'>, 'type' | 'value' | 'onChange'>`
+- `value: string`: `2026-10-07`, or the empty string for none.
+- `onChange: (value: string) => void`
+- `'data-bz'?: string | undefined`
+
+#### DatesProvider
+
+`DatesProvider(props: { control: ComponentType<DateInputProps> | null; children: ReactNode; }): Element`: Gives the inputs of the dates below it their control (`DatePickerProvider` of date-picker).
+
+#### useDates
+
+`useDates(): Dates`: The inputs of the dates: their control of `DatesProvider`.
 
 #### FieldInput
 
@@ -4365,6 +4568,18 @@ Its props, `FieldValueProps`:
 - `value: unknown`
 - `type?: string`: The JSON:API type of the item: the `status` of an item of a statusy model is named by the contract.
 - `display?: FieldDisplay | undefined`: How the value is shown (`display` of the field of the entity of the specs).
+
+#### ItemValue
+
+`ItemValue(props: ItemValueProps): Element`: The value of a field of an item as a cell shows it: the status of an item of a statusy model as a badge of its tone (`status:<id>`), any other field as `FieldValue`.
+
+
+Its props, `ItemValueProps`:
+
+- `item: ResourceObject`
+- `name: string`: The name of the field.
+- `fields: Fields`: The fields of the item's route set (`useListFields`, `useItemFields`).
+- `display?: FieldDisplay | undefined`
 
 #### choiceOptions
 
@@ -4430,6 +4645,10 @@ Its props, `FieldValueProps`:
 
 `statusyModel(type: string): StatusyModel | undefined`: The statusy model of a JSON:API type, undefined for a type that is not one.
 
+#### typeAt
+
+`typeAt(path: string): string | undefined`: The JSON:API type of the route set of a path (`ROUTES` of the contract), as `routeOf` the other way.
+
 #### useItemFields
 
 `useItemFields(path: string, id: string, kind?: 'retrieve' | 'update'): Fields`: The fields that the current user may see in an item (`schema_retrieve/`, by default), or may set in its update (`schema_update/`: those they may not change now are `readOnly`), for this item: the field permissions of bazis-permit depend on the item (its selectors, its status).
@@ -4437,6 +4656,10 @@ Its props, `FieldValueProps`:
 #### useListFields
 
 `useListFields(path: string): Fields`: The fields of a list (`schema_list/`): their titles and types.
+
+#### workflowStatuses
+
+`workflowStatuses(type: string): readonly string[]`: The statuses of a statusy model in the order of its workflow (the contract sorts them by id): the initial one, then those its transits reach, in the order of the transits; the statuses no transit reaches last.
 
 #### Fields
 
@@ -4656,8 +4879,10 @@ Its props, `RelationPickerProps`:
 
 #### The types and the constants of `@/bazis/ui/resource`
 
+- `DateInputProps`: the props of `DateInput`, listed with it
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
+- `ItemValueProps`: the props of `ItemValue`, listed with it
 - `type FieldDisplay = 'plain' | 'phone' | { currency: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a year, a code); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum.
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
@@ -4665,6 +4890,7 @@ Its props, `RelationPickerProps`:
 - `useAnyFilterFields: (path: string) => UseQueryResult<FilterFieldsDocument>`: `useFilterFields(path)`.
 - `useAnyItem: (path: string, id: string, query?: Pick<QueryOptions, "include" | "fields" | "meta"> | undefined) => UseQueryResult<ItemDocument>`: `useItem(path, id, query)`.
 - `useAnyList: (path: string, query?: Omit<QueryOptions, "include"> | undefined) => UseQueryResult<ListDocument>`: `useList(path, query)`.
+- `useAnyLists: (path: string, queries: readonly Omit<QueryOptions, "include">[]) => UseQueryResult<ListDocument>[]`: `useLists(path, queries)`: several lists of a route set, a query each.
 - `useAnyRelated: (path: string, id: string) => UseQueryResult<ResourceObject | null>`: `useRelatedItem(path, id)`: null when the user may not view the item.
 - `useAnyResourceForm: (path: string, options: { id?: string | undefined; fixed?: Readonly<Record<string, unknown>> | undefined; }) => ResourceForm<SavedDocument>`: `useResourceForm(path, {id, fixed})`: a create without an id.
 - `useAnySchema: (path: string, kind: "list" | "create" | "retrieve" | "update" | "transit", id?: string | undefined) => UseQueryResult<Readonly<Record<string, unknown>>>`: `useSchema(path, kind)` of the route set, `useSchema(path, kind, id)` of an item.
@@ -4674,9 +4900,91 @@ Its props, `RelationPickerProps`:
 - `RelationListPickerProps`: the props of `RelationListPicker`, listed with it
 - `RelationPickerProps`: the props of `RelationPicker`, listed with it
 
-## API: the components: resource-card, resource-form, resource-list, stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
+## API: the components: resource-board, resource-calendar, resource-card, resource-form, resource-list, stat-card, state-panel, status-badge, status-history
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
+### `@/bazis/ui/resource-board`
+
+#### BoardDragProvider
+
+`BoardDragProvider(props: { drag: BoardDrag; children: ReactNode; }): Element`: Gives the boards below it their drag and drop (`BoardDnd` of board-dnd).
+
+#### useBoardDrag
+
+`useBoardDrag(move: boolean): BoardDrag`: The drag and drop of a board whose cards `move`: none without `BoardDragProvider`, or when they do not.
+
+#### BoardDrag
+
+`interface BoardDrag`: The parts of the drag and drop of a board.
+
+- `Area: ComponentType<{ onDrop: (id: string, status: string) => void; children: ReactNode; }>`: The board: `onDrop` gets the id of a card dropped on another column, and the status of that one.
+- `Column: ComponentType<{ status: string; children: ReactNode; }>`: A column, where a card is dropped.
+- `Card: ComponentType<{ id: string; children: ReactNode; }>`: A card, which is dragged.
+
+#### ResourceBoard
+
+`ResourceBoard(props: ResourceBoardProps): Element`: The board of the items of a statusy model by status, with their moves.
+
+
+Its props, `ResourceBoardProps`:
+
+- `path: TransitPath`: The route set of a statusy model (`ROUTES` of the contract).
+- `entity: string`: The entity of the screen: `board:<entity>`.
+- `columns?: readonly string[]`: The statuses of the columns, in this order; those of the workflow by default.
+- `title: string`: The field that titles a card (`card.title` of the spec).
+- `fields?: readonly string[]`: The other fields of a card (`card.fields`).
+- `badge?: string`: A boolean field: a badge of its title on a card while it is true (`card.badge`, such as `is_overdue`).
+- `badgeTone?: Tone`: The tone of the badge; warning by default.
+- `filter?: Filter | undefined`: The items of the board (the filter of the screen); every item that the user may view without.
+- `filters?: readonly (string | ListFilter)[]`: The filters of the user, as those of a list (`FilterBar` of resource-list), above the columns.
+- `sort?: readonly string[]`: The order of the cards in a column.
+- `move?: boolean`: Whether a card moves to another column by a transit (`move: true` of the spec); not by default.
+- `onOpen?: (id: string) => void`: Called with the id of the card the user opens.
+- `pageSize?: number`: The cards of a column at first, and the more shown each time.
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
+- `emptyMessage?: ReactNode`: The message of an empty board, with the icon of the entity.
+- `icon?: ComponentType<{ className?: string; }>`
+
+#### The types and the constants of `@/bazis/ui/resource-board`
+
+- `ResourceBoardProps`: the props of `ResourceBoard`, listed with it
+
+### `@/bazis/ui/resource-calendar`
+
+#### ResourceCalendar
+
+`ResourceCalendar(props: ResourceCalendarProps): Element`: The calendar of the items of a route set by day, with the list of the selected day.
+
+
+Its props, `ResourceCalendarProps`:
+
+- `path: ListPath`: The route set (`ROUTES` of the contract).
+- `entity: string`: The entity of the screen: `calendar:<entity>`.
+- `field: string`: The date or date-time field of the day of an item.
+- `end?: string | undefined`: The date or date-time field of the last day of an item that spans days.
+- `label?: readonly string[] | undefined`: The fields that an item shows; the label of the resource of the contract by default.
+- `tone?: { field: string; tone: Tone; } | undefined`: The items whose boolean field is true, in a tone of the theme.
+- `views?: readonly CalendarView[]`: The views the user switches between, the first shown at first: a month by default.
+- `filter?: Filter | undefined`: The items of the calendar (the filter of the screen).
+- `onOpen?: ((id: string) => void) | undefined`: Called with the id of the item the user opens.
+- `add?: CalendarAdd | undefined`
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
+- `now?: Date | undefined`: The current moment (the tests); the moment of the first render by default.
+
+#### CalendarAdd
+
+`interface CalendarAdd`: The action that creates an item on the selected day, a button `action:<id>`, shown when the user may create.
+
+- `id: string`
+- `label: ReactNode`
+- `onAdd: (day: string) => void`: Called with the selected day (`YYYY-MM-DD`): the form of the screen fills the field with it.
+- `icon?: ComponentType<{ className?: string; }>`
+
+#### The types and the constants of `@/bazis/ui/resource-calendar`
+
+- `type CalendarView = 'month' | 'week'`: A month or a week at a time.
+- `ResourceCalendarProps`: the props of `ResourceCalendar`, listed with it
 
 ### `@/bazis/ui/resource-card`
 
@@ -4726,7 +5034,17 @@ Its props, `ResourceCardProps`:
 - `values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>`: The values of fields, instead of the formatted value.
 - `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
 - `children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode)`: Under the heading: the transits of the item (`TransitBar` of transit-bar), its status history (`StatusHistory` of status-history, which takes the item), a section of the product, given the permission meta of the item (`crud_actions`: `permitted(meta, 'change')`; `custom_actions`: `permitted(meta, 'action_report')`, the button of a custom action of the item) without a request of its own.
+- `tabs?: readonly CardTab[]`: The sections and the related content in tabs (`card.tabs` of the specs), under the children; the sections one under the other without.
 - `forms?: 'dialog' | 'page'`: The edit in a dialog or as a page; `composition.forms` of the theme by default.
+
+#### CardTab
+
+`interface CardTab`: A tab of a card: `tab:<id>`.
+
+- `id: string`
+- `title: ReactNode`
+- `sections?: readonly string[]`: The ids of the sections it shows (`sections` of the card).
+- `content?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode)`: What it shows after them, given the item and its permission meta, as the children of the card.
 
 #### CardAction
 
@@ -4799,6 +5117,30 @@ Its props, `ResourceFormProps`:
 
 ### `@/bazis/ui/resource-list`
 
+#### BulkAction
+
+`interface BulkAction`: An action on the selected rows: `bulk:<id>`.
+
+- `id: string`
+- `label: ReactNode`
+- `icon?: ComponentType<{ className?: string; }>`: Its icon, such as an icon of lucide-react.
+- `permission?: 'change' | 'delete'`: What the backend must allow on a row of the page (`for_change`, `for_delete` of its meta): the others are left out.
+- `variant?: 'default' | 'outline' | 'destructive'`
+- `run: (id: string) => Promise<unknown>`: Runs the action on an item, rejected when its request fails: `useItemsTransit(path)` of `@/bazis/react/statusy` (`mutateAsync({id, transit})`), `useDestroy(path)`.
+
+#### FilterBar
+
+`FilterBar(props: FilterBarProps): Element`: The controls of the filters of a list (their types from `route_filter_fields/`), but for the fields that the backend does not offer the user to filter by; the state of the error when the filter fields cannot be read (not every filter hidden in silence).
+
+
+Its props, `FilterBarProps`:
+
+- `path: string`
+- `filters: readonly ListFilter[]`
+- `ready?: boolean`: Whether the titles of the fields are loaded: until then, and until the types of the filters are, a skeleton.
+- `title: (name: string) => string`: The titles of the fields.
+- `onFilter: (filter: Filter | undefined) => void`: Called with the expression of the filters when a value changes.
+
 #### filterOf
 
 `filterOf(filters: readonly ListFilter[], values: FilterValues, types: ReadonlyMap<string, FieldType>): Filter | undefined`: The `filter` expression of the values, or undefined without any.
@@ -4841,6 +5183,7 @@ Its props, `ResourceListProps`:
 - `density?: Theme['density']`: The density of the rows of the table, which the user may change; that of the theme by default.
 - `selection?: readonly string[]`: The ids of the selected rows (`selection` of `onSelectionChange`).
 - `onSelectionChange?: (ids: readonly string[]) => void`: Makes the rows selectable, a checkbox each (`select:<id>`, and `select:all` for the rows of the page): called with the ids selected, also those of other pages.
+- `bulk?: readonly BulkAction[]`: The actions on the selected rows (`list.bulk` of the spec), in a bar over them once a row is selected (`bulk:<id>`): the rows are selectable, the list keeping their selection unless `onSelectionChange` does.
 - `compactColumns?: readonly string[]`: The columns of the table while it is next to an open card (`ListCardLayout`, `split`): the first two by default; the others are hidden (their cells stay, for the scenarios).
 
 #### ListAction
@@ -4864,6 +5207,7 @@ Its props, `ResourceListProps`:
 
 #### The types and the constants of `@/bazis/ui/resource-list`
 
+- `FilterBarProps`: the props of `FilterBar`, listed with it
 - `type FilterValues = Readonly<Record<string, string>>`: The values of the filters by field; a date range is `<field>__gte` and `<field>__lte`.
 - `ResourceListProps`: the props of `ResourceList`, listed with it
 
@@ -4989,6 +5333,10 @@ Its props, `StatusHistoryProps`:
 
 - `StatusHistoryProps`: the props of `StatusHistory`, listed with it
 
+## API: the components: task-progress, transit-bar
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
 ### `@/bazis/ui/task-progress`
 
 #### TaskProgress
@@ -5019,6 +5367,19 @@ Its props, `TaskProgressProps`:
 #### payloadErrors
 
 `payloadErrors(error: unknown, names: readonly string[]): { fields: Record<string, string[]>; others: string[]; }`: The errors of a transit: those of the fields of its payload by name (`source.pointer` `/payload/<name>`, a name of `names`), and the others (its validators, a field that the dialog does not show, an error that is not of the backend).
+
+#### useRunTransit
+
+`useRunTransit(path: TransitPath, onDone?: (item: unknown) => void): TransitRun`: Runs the transits of the items of a route set (of an item, of the cards of a board); `onDone` gets the item after one (null when the user can no longer view it).
+
+#### TransitRun
+
+`interface TransitRun`: The run of the transits of the items of a route set: `start` one, the `dialog` of its payload to render.
+
+- `start: (id: string, transit: Transit) => void`: Runs a transit of an item, once the dialog has its payload when it takes one.
+- `mutation: ReturnType<typeof useItemsTransit>`
+- `open: { id: string; transit: Transit; } | null`: The transit whose payload the dialog asks for, and its item; null while it is closed.
+- `dialog: ReactNode`
 
 #### TransitBar
 
@@ -5075,7 +5436,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `openItem(options: { where: Values; in?: string; }): Promise<void>`: Opens the first item of the current screen whose cells `cell:<name>` have exactly these texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search; fails when no page has it.
 - `select(options: { where: Values; }): Promise<void>`: Selects the row of the list of the current screen that `openItem` would open, its checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
 - `bulk(id: string): Promise<void>`: Runs a bulk action of the list of the current screen on the selected rows, `bulk:<id>`, confirmed in its dialog (`action:confirm-bulk`), and waits until it is done (the action is no longer offered: the selection is cleared) or shows an error (`error:bulk`).
-- `move(options: { where: Values; to: string; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it is in the column `column:<status>` or an error is shown.
+- `move(options: { where: Values; to: string; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
 - `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false.
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.

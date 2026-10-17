@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { AppShell, Screen, useScreenPage, useWide } from './app-shell.js';
+export { Allowed, AppShell, Screen, useNavItems, useScreenPage, useWide } from './app-shell.js';
 export type {
   AppShellProps,
   Navigation,

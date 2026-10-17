@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { filterOf } from './filters.js';
-export type { FilterValues, ListFilter } from './filters.js';
+export type { BulkAction } from './bulk.js';
+export { FilterBar, filterOf } from './filters.js';
+export type { FilterBarProps, FilterValues, ListFilter } from './filters.js';
 export { ResourceList } from './resource-list.js';
 export type { ListAction, ResourceListProps, RowAction } from './resource-list.js';

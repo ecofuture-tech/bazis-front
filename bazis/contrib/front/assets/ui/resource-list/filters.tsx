@@ -22,9 +22,8 @@
 import { useState } from 'react';
 
 import { Filter } from '@/bazis/client';
-import { ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
-import { RelationPicker, useAnyFilterFields } from '@/bazis/ui/resource';
+import { DateInput, RelationPicker, typeAt, useAnyFilterFields } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -111,11 +110,6 @@ export function filterOf(
   return parts.length ? Filter.and(...parts) : undefined;
 }
 
-/** The JSON:API type of the route set of a path (`ROUTES` of the contract). */
-function typeOfPath(path: string): string | undefined {
-  return Object.entries(ROUTES as Readonly<Record<string, string>>).find(([, it]) => it === path)?.[0];
-}
-
 interface FilterControlProps {
   filter: ListFilter;
   label: string;
@@ -140,15 +134,14 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
         </span>
         <div className="flex min-w-0 grow items-center gap-1.5 sm:grow-0">
           {(['gte', 'lte'] as const).map((bound) => (
-            <Input
+            <DateInput
               key={bound}
-              type="date"
               className="h-9 w-36 min-w-0 flex-1 sm:flex-none"
               aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
               data-bz={`field:${field}__${bound}`}
               value={values[`${field}__${bound}`] ?? ''}
-              onChange={(event) => {
-                onChange(`${field}__${bound}`, event.target.value);
+              onChange={(value) => {
+                onChange(`${field}__${bound}`, value);
               }}
             />
           ))}
@@ -212,7 +205,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
     );
   }
   const relation = relationOf(type);
-  const relationType = relation === null ? undefined : typeOfPath(relation);
+  const relationType = relation === null ? undefined : typeAt(relation);
   let control;
   if (relationType !== undefined) {
     control = (
@@ -255,7 +248,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
   );
 }
 
-interface FilterBarProps {
+export interface FilterBarProps {
   path: string;
   filters: readonly ListFilter[];
   /** Whether the titles of the fields are loaded: until then, and until the types of the filters are, a skeleton. */

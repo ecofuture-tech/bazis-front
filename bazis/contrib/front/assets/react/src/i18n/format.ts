@@ -19,6 +19,24 @@ const DATE: Intl.DateTimeFormatOptions = { dateStyle: 'medium' };
 const DATE_TIME: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' };
 const TIME: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
 
+/**
+ * The first day of the week in a language, `1` (Monday) to `7` (Sunday), as `Intl.Locale`
+ * gives it (`7` in American English); Monday where the browser does not tell.
+ */
+export function weekStart(language: string): number {
+  const locale = new Intl.Locale(language) as Intl.Locale & {
+    getWeekInfo?: () => { firstDay: number };
+    weekInfo?: { firstDay: number };
+  };
+  return (locale.getWeekInfo?.() ?? locale.weekInfo)?.firstDay ?? 1;
+}
+
+/** The day of a Date in the time zone of the browser as the backend writes a date: `2026-10-07`. */
+export function isoDate(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 /** A number: `1,234.5` in English, `1 234,5` in Russian. */
 export function formatNumber(value: number, language: string, options?: Intl.NumberFormatOptions): string {
   return value.toLocaleString(language, options);

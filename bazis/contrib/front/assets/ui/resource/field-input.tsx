@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { cn } from '@/lib/utils';
 
+import { DateInput } from './dates.js';
 import { fromLocalDateTime, toLocalDateTime } from './fields.js';
 import { isFile, useFiles, type ControlProps } from './files.js';
 import { text } from './hooks.js';
@@ -162,7 +163,21 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
         />
       );
     }
-    const type = { date: 'date', time: 'time', email: 'email', uri: 'url' }[field.format ?? ''];
+    if (field.format === 'date') {
+      return (
+        <DateInput
+          {...control}
+          value={current}
+          readOnly={readOnly}
+          disabled={disabled}
+          onChange={(next) => {
+            // an empty date is no date: null, or the empty string of a field that allows it (`blank`)
+            onChange(next === '' && !field.blank ? empty(field) : next);
+          }}
+        />
+      );
+    }
+    const type = { time: 'time', email: 'email', uri: 'url' }[field.format ?? ''];
     // a text field of the model has no maximal length: several lines
     if (type === undefined && field.format === null && field.schema.maxLength === undefined) {
       return (
@@ -188,7 +203,7 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
         disabled={disabled}
         onChange={(event) => {
           const next = event.target.value;
-          // an empty URL, e-mail or date is no value of its format: null, or the empty string
+          // an empty URL, e-mail or time is no value of its format: null, or the empty string
           // of a field that allows it (`blank`)
           onChange(next === '' && type !== undefined && !field.blank ? empty(field) : next);
         }}

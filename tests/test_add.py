@@ -41,10 +41,7 @@ def test_add_copies_a_component_with_what_it_requires(product):
     frontend = product / 'frontend'
     assets = registry.load()
     # the components it requires that init did not copy, after them the component
-    added = [
-        'empty-state', 'badge', 'native-select', 'popover', 'resource', 'checkbox', 'dropdown-menu', 'select',
-        'table', 'resource-list',
-    ]
+    added = ['empty-state', 'checkbox', 'dialog', 'dropdown-menu', 'select', 'table', 'resource-list']
     assert [line.split()[1] for line in out.splitlines() if line.startswith('Added ')] == added
     assert 'npm test' in out
     lock = read_lock(product)
@@ -219,7 +216,7 @@ def test_add_copies_the_hooks_of_a_package_installed_after_init(tmp_path, monkey
 
         out = add('transit-bar')
         assert [line.split()[1] for line in out.splitlines() if line.startswith('Added ')] == [
-            'react-statusy', 'badge', 'native-select', 'popover', 'resource', 'status-badge', 'dialog', 'transit-bar',
+            'react-statusy', 'status-badge', 'dialog', 'transit-bar',
         ]
         assert (tmp_path / 'frontend' / 'src' / 'bazis' / 'react' / 'statusy' / 'index.ts').is_file()
         # the hooks alone

@@ -237,7 +237,8 @@ job of CI.
 - `vendor/registry.py` reads `assets/registry.json`, the only list of the files that an
   asset copies (`vendored`: stamped, kept pristine in `.bazis/base/`, hashed in the lock,
   copied by `init`; `ui`: the components and the shadcn/ui components they use, copied the
-  same way by `add`, and by `init` with `init: true`; `template`: copied by `init` and
+  same way by `add`, and by `init` and `update` when the template requires them (its
+  `requires`, the components its files import); `template`: copied by `init` and
   tracked as the vendored ones, but without the stamp, `copy.copied`). `npm` of an asset
   (`{section: {package: version}}`, the versions of the workspace of the components: the
   map and Leaflet) is the npm dependency it brings that the template does not declare:
@@ -489,7 +490,7 @@ npm run api-reference     # the API reference of the guide, after a change of an
   `RELOAD_WINDOW`, the time of the reload in sessionStorage, which a screen that loads never
   clears: two screens of a route load together; then it is loaded again by the retry of
   `ErrorBoundary`), errors),
-  `src/screens/` (login with `LoginForm`, home with the counts of `useList`),
+  `src/screens/` (login with `LoginForm`, home with the `Dashboard` of the links of the layout),
   `playwright.config.ts` (`npm run e2e`: `e2e/generated/` and `e2e/custom/`, one worker,
   `E2E_BASE_URL` or a dev server of its own on `E2E_PORT`, never one already running, ready
   when the backend of `BAZIS_API_URL` answers through its proxy; the browser in UTC and in

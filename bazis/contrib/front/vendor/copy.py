@@ -127,8 +127,8 @@ def copy_asset(asset: Asset, frontend: Path, version: str) -> dict[str, str]:
 
 def create_frontend(frontend: Path, capabilities: Iterable[str]) -> None:
     """
-    Creates the frontend from the template, the vendored assets of the registry that the
-    capabilities of the product allow and the components marked `init` (with the assets they
+    Creates the frontend from the template with the components it requires, the vendored
+    assets of the registry that the capabilities of the product allow (with the assets they
     require), each with its pristine copy, and its lock. The frontend must not exist: it is
     built in a temporary directory next to it and renamed, so that a failure leaves nothing
     behind.
@@ -139,14 +139,13 @@ def create_frontend(frontend: Path, capabilities: Iterable[str]) -> None:
     if unknown := [it.name for it in registry.values() if it.kind not in (TEMPLATE, VENDORED, UI)]:
         raise ValueError(f'unknown kind of the assets {unknown}')
     selected = resolve(
-        [it.name for it in registry.values() if it.kind == VENDORED or (it.kind == UI and it.init)],
-        registry,
+        ['template', *(it.name for it in registry.values() if it.kind == VENDORED)], registry,
     )
     temporary = frontend.with_name(f'.{frontend.name}.init-{os.getpid()}')
     temporary.mkdir()
     try:
         assets = {}
-        for asset in [registry['template'], *selected]:
+        for asset in selected:
             if asset.wanted(capabilities):
                 assets[asset.name] = lock_entry(asset, version, copy_asset(asset, temporary, version))
         lock = {

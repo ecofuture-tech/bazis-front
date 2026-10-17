@@ -21,15 +21,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 
 import type { Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
-import {
-  FieldValue,
-  fieldValue,
-  StatusLabel,
-  statusyModel,
-  type FieldDisplay,
-  type Fields,
-  type ResourceObject,
-} from '@/bazis/ui/resource';
+import { ItemValue, type FieldDisplay, type Fields, type ResourceObject } from '@/bazis/ui/resource';
 import { Checkbox } from '@/components/ui/checkbox';
 
 export interface BodyProps {
@@ -55,12 +47,7 @@ export interface BodyProps {
 export function cell(props: BodyProps, row: ResourceObject, name: string): ReactNode {
   const custom = props.cells[name];
   if (custom) return custom(row);
-  const field = props.fields.fields.get(name);
-  const value = fieldValue(row, name);
-  if (field?.kind === 'relation' && name === 'status' && typeof value === 'string' && statusyModel(row.type)) {
-    return <StatusLabel type={row.type} status={value} />;
-  }
-  return <FieldValue field={field} value={value} type={row.type} display={props.display[name]} />;
+  return <ItemValue item={row} name={name} fields={props.fields} display={props.display[name]} />;
 }
 
 export const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';

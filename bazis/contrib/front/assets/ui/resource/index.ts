@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export { DateInput, DatesProvider, useDates } from './dates.js';
+export type { DateInputProps } from './dates.js';
 export { FieldInput } from './field-input.js';
 export type { FieldInputProps } from './field-input.js';
-export { FieldValue } from './field-value.js';
-export type { FieldValueProps } from './field-value.js';
+export { FieldValue, ItemValue } from './field-value.js';
+export type { FieldValueProps, ItemValueProps } from './field-value.js';
 export {
   choiceOptions,
   fieldValue,
@@ -33,8 +35,10 @@ export {
   routeOf,
   statusName,
   statusyModel,
+  typeAt,
   useItemFields,
   useListFields,
+  workflowStatuses,
 } from './fields.js';
 export type { FieldDisplay, Fields, ResourceObject } from './fields.js';
 export {
@@ -64,6 +68,7 @@ export {
   useAnyFilterFields,
   useAnyItem,
   useAnyList,
+  useAnyLists,
   useAnyRelated,
   useAnyResourceForm,
   useAnySchema,

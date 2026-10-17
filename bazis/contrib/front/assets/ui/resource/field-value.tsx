@@ -15,10 +15,11 @@
 import { useLanguage } from '@/bazis/i18n';
 import type { FormField } from '@/bazis/react';
 
-import { formatValue, statusName, statusyModel, type FieldDisplay } from './fields.js';
+import { fieldValue, formatValue, statusName, statusyModel, type FieldDisplay, type Fields, type ResourceObject } from './fields.js';
 import { FileValue, isFile, useFiles } from './files.js';
 import { text } from './hooks.js';
 import { RelationLabel } from './relation.js';
+import { StatusLabel } from './status.js';
 
 export interface FieldValueProps {
   field: FormField | undefined;
@@ -98,4 +99,26 @@ export function FieldValue({ field, value, type, display }: FieldValueProps) {
     return <Bar value={value} max={display.bar} text={shown} label={field?.title ?? shown} />;
   }
   return <>{shown}</>;
+}
+
+export interface ItemValueProps {
+  item: ResourceObject;
+  /** The name of the field. */
+  name: string;
+  /** The fields of the item's route set (`useListFields`, `useItemFields`). */
+  fields: Fields;
+  display?: FieldDisplay | undefined;
+}
+
+/**
+ * The value of a field of an item as a cell shows it: the status of an item of a statusy model
+ * as a badge of its tone (`status:<id>`), any other field as `FieldValue`.
+ */
+export function ItemValue({ item, name, fields, display }: ItemValueProps) {
+  const field = fields.fields.get(name);
+  const value = fieldValue(item, name);
+  if (field?.kind === 'relation' && name === 'status' && typeof value === 'string' && statusyModel(item.type)) {
+    return <StatusLabel type={item.type} status={value} />;
+  }
+  return <FieldValue field={field} value={value} type={item.type} display={display} />;
 }

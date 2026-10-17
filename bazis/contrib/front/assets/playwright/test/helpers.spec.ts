@@ -721,6 +721,34 @@ test('move moves an item by its menu and waits until it is in its column', async
   expect(await page.locator(`${bz('column', 'in_progress')} ${bz('row', '1')}`).count()).toBe(1);
 });
 
+test('move fails at once with the refusal of the move', async ({ page }) => {
+  await show(page, '/board',
+    html(
+      `<section data-bz="screen:task-board"><div data-bz="state:loaded">
+        <div data-bz="column:draft"><div data-bz="row:1"><span data-bz="cell:title">A</span><button id="menu" data-bz="action:move">Move</button></div></div>
+        <div data-bz="column:in_progress"></div></div></section>`,
+      `document.getElementById('menu').addEventListener('click', () => {
+         document.body.insertAdjacentHTML('beforeend', '<div role="menu"><button id="to" data-bz="move:in_progress">In progress</button></div>');
+         document.getElementById('to').addEventListener('click', () => {
+           document.querySelector('[role=menu]').remove();
+           setTimeout(() => {
+             document.querySelector('[data-bz="screen:task-board"]').insertAdjacentHTML('afterbegin',
+               '<div data-bz="error:move"><div data-bz="state:forbidden">You may not start it.</div></div>');
+           }, 300);
+         });
+       });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-board');
+  const started = Date.now();
+  await expect(app.move({ where: { title: 'A' }, to: 'in_progress' })).rejects.toThrow(
+    'The item row:1 was not moved to in_progress: You may not start it.',
+  );
+  // not after the timeout of the expectations
+  expect(Date.now() - started).toBeLessThan(3000);
+});
+
 test.describe('expectTile', () => {
   const tiles = loading('home', '<div data-bz="state:loaded"><div data-bz="tile:review" data-value="3">Review 3</div></div>');
 

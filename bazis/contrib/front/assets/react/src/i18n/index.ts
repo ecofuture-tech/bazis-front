@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { formatDate, formatDateTime, formatDecimal, formatNumber, formatTime } from './format.js';
+export { formatDate, formatDateTime, formatDecimal, formatNumber, formatTime, isoDate, weekStart } from './format.js';
 export {
   baseLanguage,
   createLanguageStore,

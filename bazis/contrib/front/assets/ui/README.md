@@ -7,8 +7,9 @@ Tailwind 4 over the hooks (`assets/react`). Status: pre-release.
 The components are not an npm package: `manage.py bazis_front add <component>...` copies
 them into the frontend of a product, to `frontend/src/bazis/ui/<component>/` (imported as
 `@/bazis/ui/<component>`), with the assets they require, their pristine copies in
-`.bazis/base/` and their hashes in the lock; `init` copies `state-panel`, `app-shell` and
-`login-form`, which the template uses. Unlike the client and the hooks, the product owns the
+`.bazis/base/` and their hashes in the lock; `init` copies `state-panel`, `app-shell`,
+`login-form` and `dashboard` (with what they require), which the template uses and requires
+(`update` copies those that a new template requires). Unlike the client and the hooks, the product owns the
 copies and changes them freely; each component comes with its contract test
 (`<component>.contract.test.tsx`), which checks the `data-bz` marks and the states that the
 scenarios of the specs rely on: keep it passing.
@@ -18,11 +19,15 @@ The shadcn/ui components they use (`button`, `input`, `label`, `native-select`, 
 `skeleton`) are assets as well, copied into `src/components/ui/` as
 `components.json` of the template places them, so that `add` needs neither the network nor
 the shadcn CLI; so are the others on Radix for the screens of a product (`tabs`, `tooltip`,
-`switch`, `avatar`, `separator`, `scroll-area`), copied by `add <name>`. Their npm dependencies (`radix-ui`, `class-variance-authority`,
+`switch`, `avatar`, `separator`, `scroll-area`), copied by `add <name>`; `calendar` (on
+react-day-picker) is that of `date-picker`. Their npm dependencies (`radix-ui`, `class-variance-authority`,
 `lucide-react`) and those of the contract tests (`@testing-library/react`, `jsdom`) are in
-the `package.json` of the template. The library of an optional component (Leaflet of `map`)
-is `npm` of its asset in the registry: `add` sets it in the `package.json` of the product
-(keeping a version that the product set itself) and `update` brings it to each release.
+the `package.json` of the template. The library of an optional component (Leaflet of `map`,
+recharts of `charts`, react-day-picker of `calendar`, @dnd-kit of `board-dnd`) is `npm` of
+its asset in the registry: `add` sets it in the `package.json` of the product (keeping a
+version that the product set itself) and `update` brings it to each release. Each is loaded
+lazily, in a chunk of its own, with the first view that draws with it (`scripts/check_chunks.py`
+of CI checks the build).
 
 The labels of the data come from the backend (the titles of the runtime schemas, in the
 language it answers in; the names of the statuses and transits of `contract.ts`, in every
@@ -72,14 +77,20 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | `state-panel` | `StatePanel`; `errorState`, `queryState`, `SkeletonLines`; `toast`, `Toaster` | `state:<state>`, `action:retry` | |
 | `app-shell` | `AppShell`; `Screen` (`parent`: the link back to the screen it was opened from); `ListCardLayout`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage`; `useWide` | `nav:<screen>` (also the link of `parent`), `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` and its checkbox `select:<id>` (`select:all`), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:view` (`menu:view` with `toggle:<column>` and `density:<density>`), `action:prev-page`, `action:next-page` | |
+| `resource-list` | `ResourceList`; `FilterBar`; `BulkAction` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` and its checkbox `select:<id>` (`select:all`), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:view` (`menu:view` with `toggle:<column>` and `density:<density>`), `action:prev-page`, `action:next-page`; the bulk actions `bulk:<id>`, `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState` | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard` | `tile:<id>` (its number in `data-value`), `state:<loading\|loaded\|error\|forbidden>` | |
-| `resource-card` | `ResourceCard`; `RelatedList` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>`, `action:<add.id>` | |
+| `dashboard` | `Dashboard`; `RecentList` | `screen:<id>` (`state:loaded`), the `tile:<id>` of `stat-card`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, `state:<loading\|empty\|loaded\|error\|forbidden>` of each list | |
+| `charts` | `Chart`, `StatusChart`, `TimeChart` | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
+| `date-picker` | `DatePicker`, `DatePickerProvider` | the input of the field it replaces (`field:<name>`) | npm `react-day-picker` (of `calendar`) |
+| `resource-board` | `ResourceBoard`; `BoardDragProvider`, `useBoardDrag` | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move`: `action:move` (`move:<status>`) and `error:move`; `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>` | capability `statusy` |
+| `board-dnd` | `BoardDnd` | `state:loading` until @dnd-kit is loaded, then the marks of the board | npm `@dnd-kit/core` |
+| `resource-calendar` | `ResourceCalendar` | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<month\|week>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
+| `resource-card` | `ResourceCard`; `RelatedList`; `CardTab` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>`, `action:<add.id>`; `tab:<id>` (`role="tab"`) | |
 | `resource-form` | `ResourceForm`; `FormSurface` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge`; `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | capability `statusy` |
 | `status-history` | `StatusHistory` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
-| `transit-bar` | `TransitBar`; `payloadErrors` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
+| `transit-bar` | `TransitBar`; `useRunTransit`; `payloadErrors` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
 | `file-field` | `FileFieldProvider`; `FileField` (the control of a file field of `FieldInput`); `accepts`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
 | `live-query` | `LiveQuery` (the routes of `ROUTES` and the notifications of `CAPABILITIES.notify.resource` by default); the texts `socket.<status>` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
 | `notification-center` | `NotificationCenter`: `notifications` is `useInbox` (bazis-notify) or `useNotifications` (bazis-ws); `CenterNotification`, `NotificationSource` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications`, `action:delete-notifications`, `action:confirm-delete-notifications` | none (its source) |
@@ -142,7 +153,16 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `select:all`, in the header of the table or above the cards), which never opens it; the ids of other pages stay selected. `filter` (the filter of the screen) is combined (AND) with
   those of the user; `rowTone(row)` highlights a row in a tone of the theme (`Tone` of the
   generated theme: its soft color and a bar of the tone) and `rowToneLabel(row)` is its
-  `aria-description`, the meaning in words.
+  `aria-description`, the meaning in words. With `bulk` (`list.bulk` of the specs) the rows
+  are selectable without `onSelectionChange` too, and a bar above them, while rows are
+  selected, has their number, a button per action (`bulk:<id>`; with `permission`, run only
+  on the rows of the page that the meta allows) and `action:clear-selection`; an action asks
+  to confirm (`action:confirm-bulk`), then runs on each item in turn (`run`, a request each:
+  the core has no bulk endpoint; a transit without a payload, `useItemsTransit` of
+  `@/bazis/react/statusy`, or a deletion; nothing is read per row first, the backend refuses
+  a row it does not allow), shows its progress, clears the selection when all succeeded (a
+  toast) and keeps the refused rows selected with `error:bulk` otherwise (how many, and the
+  errors).
 - **`app-shell`**: a link with `requires` is shown once the backend allows the user what it
   requires (`useCan` of the hooks: the runtime schema of the list or of the create of
   `path`; `filters`: those fields in `route_filter_fields/` of the user), never before.
@@ -160,6 +180,63 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   item of `path` with its `filter` (the core has no aggregates), `tile:<id>` with the number
   in `data-value` once loaded, the states of the list; `onOpen` makes the whole tile a
   button named by its label.
+- **`dashboard`** (`primitive: dashboard`, the home of the template): its title in the header
+  of the screen, or as a hero (`data-slot="hero"`, the default of a portal), the tiles of
+  `stat-card`, the links to the other screens of the navigation (`link:<screen>`, each once
+  the backend allows what it `requires`; the numbers are those of the tiles), the
+  charts it is given and the last items of route sets (`RecentList`, `recent:<id>`: a list
+  of `limit` items in the order of `sort`, a row `row:<id>` with a cell `cell:<field>` each, a
+  button when it opens). Never a path of the API or the name of a resource; the screen is
+  marked `state:loaded`, so that a dashboard of links only has a state too.
+- **`charts`**: the number of the items of a route set per status (`StatusChart`, the
+  statuses of the workflow by default, the initial one first, `workflowStatuses` of
+  `resource`) or per day, week or month of a date field (`TimeChart`, the last periods to
+  the current one; the bounds `<field>__gte` and `<field>__lt` in the format of the field, the
+  first moment of a day in the time zone of the browser for a date-time), a list of one item
+  each with its pagination (the core has no aggregates), drawn by recharts (`chart-view.tsx`,
+  lazy) as a ring, bars or a line in the colors of the series of the theme (`--chart-1` …
+  `--chart-6`); `chart:<id>` with the states of its lists (`empty` when every value is 0) and
+  each value as text, `value:<key>` with its number in `data-value` (the legend of a ring, a
+  list for the screen readers under bars and a line).
+- **`date-picker`**: under `DatePickerProvider`, the date fields of the forms and the ranges
+  of the date filters (`DateInput` of `resource`, a plain `<input type="date">` without it)
+  are the input of the browser, marked as the input it replaces (a scenario fills it with
+  `2026-10-07`), with a button that opens the month of the date in a popover (`calendar` of
+  shadcn/ui on react-day-picker, `calendar-view.tsx`, lazy; the names of the months and the
+  days of `Intl`, the first day of the week of the language). A read-only input has no
+  button.
+- **`resource-board`** (`primitive: board`, a statusy model): a column `column:<status>` per
+  status (`columns`, those of the workflow by default; the number of its items in
+  `data-count`), a list of one page per column filtered by its status (`action:more` adds a
+  page), the filters of the user as those of a list (`FilterBar`); a card `row:<id>` with its
+  title (the button that opens it: the whole card), its fields `cell:<field>`, a badge of a
+  boolean field while it is true (`badge`) and, with `move` (not by default), its menu `action:move`: the
+  transits that the user may run on it now (read when the menu opens), `move:<status>` (the
+  status the transit leads to; the transit itself when the contract does not know it),
+  disabled when restricted. A click on the menu never opens the card. A transit whose action
+  takes a payload asks for it in the dialog of `useRunTransit` of `transit-bar`; the columns
+  are read again after it. The refusal of a transit run without the dialog (by the menu or a
+  drop) is shown above the columns, `error:move`. **`board-dnd`** (`BoardDnd` around a board
+  with `move`): a card dragged with
+  the mouse (8 px) or a long touch onto a column runs the transit of the item that leads to
+  its status, if the user may run it now (a toast otherwise); @dnd-kit is a chunk of its
+  own (`dnd-view.tsx`), the boards below it in the loading state until it is loaded (shown
+  without it first, they would be mounted again, losing an open menu and their filters).
+- **`resource-calendar`** (`primitive: calendar`): the items of a route set on the days of a
+  date or a date-time field (to the day of `end`, an item that spans days; the days of a
+  date-time in the time zone of the browser), a month (whole weeks from the first day of
+  the week of the language) or a week at a time (`views`, `view:<view>`): `calendar:<entity>`
+  with the days it shows in `data-from` and `data-to`, `action:previous-period`,
+  `action:next-period` and `action:today`. A day `day:<YYYY-MM-DD>` has the number of all its
+  items in `data-count` and its first three items in a month (all in a week), `row:<id>` with
+  a cell `cell:<field>` per field of `label` (the `label` of the resource of the contract by
+  default), in a tone of the theme while the boolean field of `tone` is true; a click on a
+  day selects it, and the list of the selected day (today at first) has all its items,
+  `row:<id>` again (below `md` the days of a month have a dot and only the list has the items,
+  so that no hidden copy of a row is in the page). One
+  list of the period (`<field>__gte`, `<field>__lt`; the first 500 items, a warning when
+  there are more), `state:empty` with the days still shown. `add` is the button
+  `action:<id>` (when the backend allows the create) that gives the screen the selected day.
 - **`resource-card`** reads the item with `crud_actions` and `custom_actions` and its fields from
   `schema_retrieve/` of the item; its heading is the name of the item (`itemName`), else the
   values of its `label` fields (the first two fields of the sections by default), never its
@@ -172,6 +249,12 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   reads the item of the card again (`useRefreshItem(itemPath, item)` of the hooks: its query
   keys, so in the `children` of the card or after it alike). `children` may be a function of the item and its permission meta
   (`StatusHistory` takes the item; `permitted(meta, 'change')` for a section of the product).
+  With `tabs` (`card.tabs` of the specs) the sections are in tabs of Radix (`tab:<id>`,
+  `role="tab"` with `aria-controls`), each with its sections and its `content` (a related
+  section, the history: a function of the item and its meta, as `children`), a section that
+  no tab names in the first one; `children` (the transits) stay above them. Every panel stays
+  in the page, hidden while its tab is not selected, so that a scenario finds what it acts
+  on (the helpers of the end-to-end tests select its tab first).
 - **The field permissions of bazis-permit** (`<app>.<model>.field.<operation>.<selector>…
   .<field>.<restriction>`, restrictions `enable`, `readonly`, `disable`, …) are read from
   what the backend returns, never from the roles: a field that the user may not see is left
@@ -320,7 +403,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 - **`transit-bar`** shows the transits of `meta.state_actions` (disabled with the errors of
   their validators when restricted); a transit whose action takes a typed payload opens a
   dialog with its fields, and the errors of a 422 (`/payload/<name>`) are shown by field.
-  `onDone(null)`: the user can no longer view the item.
+  `onDone(null)`: the user can no longer view the item. `useRunTransit(path)` runs the
+  transit of any item of the route set with this dialog (the board).
 
 ## A screen
 

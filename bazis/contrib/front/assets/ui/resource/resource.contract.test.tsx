@@ -27,6 +27,7 @@ import { THEME } from '@/bazis/generated/theme';
 import type { FormField } from '@/bazis/react';
 import {
   choiceOptions,
+  DatesProvider,
   FieldInput,
   FieldValue,
   FilesProvider,
@@ -45,6 +46,8 @@ import {
   statusTone,
   useAnyRelated,
   useListFields,
+  workflowStatuses,
+  type DateInputProps,
   type FileControlProps,
 } from '@/bazis/ui/resource';
 import { Backend, errors, ITEMS, renderWithBazis, resource, runtimeSchema, testLanguages } from '@/bazis/ui/testing';
@@ -57,7 +60,9 @@ const base = { required: false, readOnly: false, nullable: false };
 const CONTRACT: Readonly<
   Record<string, { path: string; label?: readonly string[]; fields: Readonly<Record<string, { readonly [key: string]: unknown; title?: string }>> }>
 > = RESOURCES;
-const STATUSY: Readonly<Record<string, { statuses: readonly { id: string }[] }>> = TRANSITS;
+const STATUSY: Readonly<
+  Record<string, { initial: string; statuses: readonly { id: string }[]; transits: readonly { src: string; dst: string }[] }>
+> = TRANSITS;
 
 function attribute(name: string, type: string, extra: Partial<FormField> = {}): FormField {
   return { ...base, kind: 'attribute', name, title: name, type, format: null, enum: null, labels: null, blank: false, schema: {}, ...extra } as FormField;
@@ -125,6 +130,33 @@ describe('FieldInput', () => {
     expect(onChange).toHaveBeenLastCalledWith('');
     fireEvent.change(screen.getByTestId('field:link'), { target: { value: '' } });
     expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('edits a date with the input of the browser, or the control of DatesProvider', () => {
+    const onChange = vi.fn();
+    const due = attribute('due', 'string', { format: 'date', nullable: true });
+    const { unmount } = render(<FieldInput field={due} value="2030-03-04" onChange={onChange} />);
+    const native = screen.getByTestId<HTMLInputElement>('field:due');
+    expect([native.type, native.value]).toEqual(['date', '2030-03-04']);
+    fireEvent.change(native, { target: { value: '' } });
+    expect(onChange).toHaveBeenLastCalledWith(null);
+    unmount();
+
+    function Picker({ value, onChange: change, ...rest }: DateInputProps) {
+      const pick = () => {
+        change('2030-03-09');
+      };
+      return <button type="button" {...(rest as object)} data-value={value} onClick={pick} />;
+    }
+    render(
+      <DatesProvider control={Picker}>
+        <FieldInput field={due} value="2030-03-04" onChange={onChange} />
+      </DatesProvider>,
+    );
+    const picker = screen.getByTestId('field:due');
+    expect([picker.tagName, picker.getAttribute('data-value')]).toEqual(['BUTTON', '2030-03-04']);
+    fireEvent.click(picker);
+    expect(onChange).toHaveBeenLastCalledWith('2030-03-09');
   });
 
   it('offers the choices of a field by their labels and gives their values', () => {
@@ -533,6 +565,22 @@ describe('StatusLabel', () => {
     // the tone of `statuses` of the theme, neutral for a status it does not name
     for (const [status, it] of Object.entries(THEME.statuses)) expect(statusTone(status)).toBe(it);
     expect(statusTone('a-status-of-no-theme')).toBe('neutral');
+  });
+});
+
+describe('workflowStatuses', () => {
+  it('orders the statuses of a model by its workflow: the initial one, then those its transits reach', () => {
+    for (const [type, model] of Object.entries(STATUSY)) {
+      const order = workflowStatuses(type);
+      expect([...order].sort()).toEqual(model.statuses.map((it) => it.id).sort());
+      expect(order[0]).toBe(model.initial);
+      // a status that a transit reaches comes after the source of one of its transits
+      for (const status of order.slice(1)) {
+        const sources = model.transits.filter((it) => it.dst === status).map((it) => order.indexOf(it.src));
+        if (sources.length) expect(Math.min(...sources)).toBeLessThan(order.indexOf(status));
+      }
+    }
+    expect(workflowStatuses('test.item')).toEqual([]);
   });
 });
 

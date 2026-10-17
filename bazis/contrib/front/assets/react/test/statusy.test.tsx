@@ -16,7 +16,7 @@ import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { useItem, useList } from '../src/index.js';
-import { transits, useTransit, useTransits } from '../src/statusy/index.js';
+import { transits, useItemsTransit, useTransit, useTransits, useTransitsOf } from '../src/statusy/index.js';
 import sample from './fixtures/sample.json' with { type: 'json' };
 import { Backend, cachedKeys, PARENT, render } from './support.js';
 
@@ -142,5 +142,53 @@ describe('useTransit', () => {
     expect(backend.calls[0]?.body).toEqual({ transit: 'start' });
     expect(backend.requests()).toEqual([`POST ${PARENT}7/transit/`, `GET ${PARENT}`]);
     expect(cachedKeys(queryClient)).toEqual([['bazis', PARENT, 'list', {}, 's1']]);
+  });
+});
+
+describe('useItemsTransit', () => {
+  it('posts the transit of the item it is given and refetches the resource', async () => {
+    const backend = new Backend()
+      .on('GET', PARENT, { data: [], links: {}, meta: {} })
+      .on('POST', `${PARENT}8/transit/`, inProgress)
+      .on('POST', `${PARENT}9/transit/`, undefined, 204);
+    const { result, queryClient } = render(() => ({ list: useList(PARENT), transit: useItemsTransit(PARENT) }), backend);
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true);
+    });
+    backend.calls.length = 0;
+
+    await act(async () => {
+      await result.current.transit.mutateAsync({ id: '8', transit: 'start' });
+      await result.current.transit.mutateAsync({ id: '9', transit: 'start' });
+    });
+    expect(backend.calls.map((it) => it.body)).toContainEqual({ transit: 'start' });
+    expect(backend.requests().filter((it) => it.startsWith('POST'))).toEqual([
+      `POST ${PARENT}8/transit/`,
+      `POST ${PARENT}9/transit/`,
+    ]);
+    expect(backend.requests()).toContain(`GET ${PARENT}`);
+    // the item that the user can no longer view: its queries removed, the list kept
+    expect(cachedKeys(queryClient)).toEqual([['bazis', PARENT, 'list', {}, 's1']]);
+  });
+});
+
+describe('useTransitsOf', () => {
+  it('reads the transits of an item when asked, by the query of useTransits', async () => {
+    const backend = new Backend().on('GET', `${PARENT}7/${META}`, draft);
+    const { result } = render(() => ({ of: useTransitsOf(PARENT), transits: useTransits(PARENT, '7') }), backend);
+    await waitFor(() => {
+      expect(result.current.transits.data).toEqual(transits(draft));
+    });
+    backend.on('GET', `${PARENT}7/${META}`, inProgress);
+    let read: unknown;
+    await act(async () => {
+      read = await result.current.of('7');
+    });
+    // fetched again, and given to useTransits
+    expect(read).toEqual(transits(inProgress));
+    await waitFor(() => {
+      expect(result.current.transits.data).toEqual(transits(inProgress));
+    });
+    expect(backend.requests()).toEqual([`GET ${PARENT}7/${META}`, `GET ${PARENT}7/${META}`]);
   });
 });

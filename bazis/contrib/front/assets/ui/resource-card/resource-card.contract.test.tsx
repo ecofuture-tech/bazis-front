@@ -19,7 +19,8 @@
 // edit (`action:edit`, then the form, in a dialog or as a page); a related section
 // (`RelatedList`): the related items of the item, `action:<id>` that adds one with the
 // relationship fixed to the item and reads the item of the card again (in the children of the
-// card or after it), the actions of its rows. Keep it passing when the component is changed.
+// card or after it), the actions of its rows; the tabs `tab:<id>` of its sections and its
+// content. Keep it passing when the component is changed.
 
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -93,6 +94,43 @@ describe('ResourceCard', () => {
     expect(screen.getByTestId('field:mine').textContent).toBe('Report change report');
     const reads = server.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`));
     expect(reads).toEqual([`GET ${ITEM}?meta=crud_actions%2Ccustom_actions`]);
+  });
+
+  it('shows its sections and its content in tabs, the first one shown, every one mounted', async () => {
+    const tabbed = [
+      { id: 'main', title: 'Main', fields: ['title'] },
+      { id: 'numbers', title: 'Numbers', fields: ['count'] },
+    ];
+    renderWithBazis(
+      <ResourceCard
+        path={ITEMS as never}
+        id={ITEM_ID}
+        sections={tabbed}
+        tabs={[
+          { id: 'details', title: 'Details' },
+          { id: 'more', title: 'More', sections: ['numbers'], content: (item) => <span data-bz="list:parts">{item.id}</span> },
+        ]}
+      >
+        <span data-bz="transit:start" />
+      </ResourceCard>,
+      backend({ crud_actions: ['view'] }),
+    );
+    await screen.findByTestId('state:loaded');
+    const details = screen.getByTestId('tab:details');
+    const more = screen.getByTestId('tab:more');
+    expect([details.getAttribute('aria-selected'), more.getAttribute('aria-selected')]).toEqual(['true', 'false']);
+    // a section that no tab names is in the first one; the others in theirs, hidden
+    const panel = (tab: HTMLElement) => document.getElementById(tab.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(panel(details).contains(screen.getByTestId('field:title'))).toBe(true);
+    expect(panel(more).contains(screen.getByTestId('field:count'))).toBe(true);
+    expect(panel(more).contains(screen.getByTestId('list:parts'))).toBe(true);
+    expect(panel(more).getAttribute('data-state')).toBe('inactive');
+    // the children above the tabs
+    expect(panel(details).contains(screen.getByTestId('transit:start'))).toBe(false);
+    fireEvent.mouseDown(more, { button: 0 });
+    expect(more.getAttribute('aria-selected')).toBe('true');
+    expect(panel(more).getAttribute('data-state')).toBe('active');
+    expect(screen.getByTestId('list:parts').textContent).toBe(ITEM_ID);
   });
 
   it('shows the fields of its sections', async () => {

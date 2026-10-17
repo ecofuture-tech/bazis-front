@@ -22,6 +22,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type UseMutationResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
@@ -125,6 +126,26 @@ export function useTransits(
 }
 
 /**
+ * Reads the transits of any item of the route set when asked (the drop of an item on a column
+ * of a board): the query of `useTransits`, fetched again unless it is fresh.
+ */
+export function useTransitsOf(path: TransitPath): (id: string) => Promise<readonly Transit[]> {
+  const { api, scope } = useBazis();
+  const queryClient = useQueryClient();
+  return (id) =>
+    queryClient.query({
+      ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id, { meta: ['state_actions'] }, scope),
+      select: transits,
+    });
+}
+
+/** What a transit does to the queries: those of an item it hides removed, those of its resource refetched. */
+function transited(queryClient: QueryClient, path: string, id: string, item: unknown): Promise<void> {
+  if (item === null) queryClient.removeQueries({ queryKey: keys.item(path, id) });
+  return invalidateResource(queryClient, path);
+}
+
+/**
  * Runs a transit of the item: `mutate({transit, payload})`. Resolves to the item, or to
  * null when the user can no longer view it (204): its queries are removed then, leave its
  * screen. The queries of the resource are refetched.
@@ -138,9 +159,22 @@ export function useTransit<P extends TransitPath>(
   return useMutation({
     mutationFn: ({ transit: name, payload }) =>
       loose(api).transit(path, id, name, payload) as Promise<TransitResponse<P> | null>,
-    onSuccess: (item) => {
-      if (item === null) queryClient.removeQueries({ queryKey: keys.item(path, id) });
-      return invalidateResource(queryClient, path);
-    },
+    onSuccess: (item) => transited(queryClient, path, id, item),
+  });
+}
+
+/**
+ * Runs a transit of any item of the route set, `mutate({id, transit, payload})`: those of the
+ * rows that the user selects in a list (its bulk actions), as `useTransit` runs that of one.
+ */
+export function useItemsTransit<P extends TransitPath>(
+  path: P,
+): UseMutationResult<TransitResponse<P> | null, Error, { id: string; transit: string; payload?: unknown }> {
+  const { api } = useBazis();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, transit: name, payload }) =>
+      loose(api).transit(path, id, name, payload) as Promise<TransitResponse<P> | null>,
+    onSuccess: (item, { id }) => transited(queryClient, path, id, item),
   });
 }

@@ -359,14 +359,20 @@ def test_update_never_overwrites_a_file_of_the_product(product):
     assert files(product) == before
 
 
+def remove_asset(root, name):
+    """The frontend without the copy of an asset, as one made before the asset was."""
+    frontend = root / 'frontend'
+    lock = read_lock(root)
+    for path in lock['assets'].pop(name)['files']:
+        (frontend / path).unlink()
+    shutil.rmtree(base_dir(frontend, name, __version__))
+    write_lock(root, lock)
+
+
 def test_update_copies_what_a_new_version_requires(product):
     frontend = product / 'frontend'
     # the version OLD of state-panel did not require testing
-    lock = read_lock(product)
-    for path in lock['assets'].pop('testing')['files']:
-        (frontend / path).unlink()
-    shutil.rmtree(base_dir(frontend, 'testing', __version__))
-    write_lock(product, lock)
+    remove_asset(product, 'testing')
     downgrade(product, 'state-panel')
     assert w004()[0].msg.endswith(f'The frontend lacks testing, required by bazis-front {__version__}.')
 
@@ -379,6 +385,61 @@ def test_update_copies_what_a_new_version_requires(product):
         assert (frontend / testing.target_path(relative)).read_bytes() == copied(
             testing, relative, __version__,
         )
+
+
+#: the components that only the home of the template (`Dashboard`) requires
+def home_components():
+    assets = registry.load()
+    others = {
+        it.name for it in registry.resolve(
+            [*(name for name in assets['template'].assets if name != 'dashboard'),
+             *(it.name for it in assets.values() if it.kind == registry.VENDORED)],
+            assets,
+        )
+    }
+    return [it.name for it in registry.resolve(['dashboard'], assets) if it.name not in others]
+
+
+HOME = 'src/screens/home/index.tsx'
+OLD_HOME = 'export function HomeScreen() {\n  return null;\n}\n'
+
+
+def test_update_copies_the_components_that_a_new_template_requires(product):
+    """
+    A frontend of a version whose home was not a `Dashboard` gets `dashboard` (and what it
+    requires) with the new home.
+    """
+    frontend = product / 'frontend'
+    added = home_components()
+    assert added[-1] == 'dashboard'
+    for name in added:
+        remove_asset(product, name)
+    downgrade(product, 'template', lambda path, text: OLD_HOME if path == HOME else text)
+    assert w004()[0].msg.endswith(
+        f'The frontend lacks {", ".join(added)}, required by bazis-front {__version__}.'
+    )
+
+    out = update()
+    for name in added:
+        assert f'{name}: copied ({__version__}), required by a new version.\n' in out
+        assert_updated(product, name)
+    assert (frontend / HOME).read_text(encoding='utf-8') == upstream(HOME)
+    assert_updated(product, 'template')
+    assert w004() == []
+
+
+def test_update_copies_no_component_for_a_frontend_without_the_template(product):
+    """A lock without the template (the product's frontend) is never given its components."""
+    for name in home_components():
+        remove_asset(product, name)
+    lock = read_lock(product)
+    del lock['assets']['template']
+    write_lock(product, lock)
+    assert w004() == []
+
+    out = update()
+    assert 'dashboard' not in out
+    assert 'dashboard' not in read_lock(product)['assets']
 
 
 def test_update_needs_the_capabilities_of_a_new_requirement(product):
