@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { Suspense, type ReactNode } from 'react';
+import { startTransition, Suspense, useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ErrorBoundary } from '@/app/errors';
@@ -46,13 +46,14 @@ function chunk<T>() {
 // a screen that suspends renders again once its chunk is loaded: in an awaited `act`
 async function route(children: ReactNode) {
   await act(async () => {
-    render(
-      <ErrorBoundary>
-        <Suspense fallback={<p>loading</p>}>{children}</Suspense>
-      </ErrorBoundary>,
-    );
+    render(<ErrorBoundary>{children}</ErrorBoundary>);
     await Promise.resolve();
   });
+}
+
+/** The loading state of the screens shown, `state:loading`. */
+function loading(): string | null {
+  return screen.getByRole('status').getAttribute('data-bz');
 }
 
 async function settled(callback: () => void) {
@@ -67,6 +68,43 @@ describe('lazyScreen', () => {
     const Screen = lazyScreen(() => Promise.resolve(Card));
     await route(<Screen name="Ann" />);
     expect(await screen.findByText('card Ann')).toBeTruthy();
+  });
+
+  it('shows its loading state at once when a transition opens it, not the previous screen', async () => {
+    const card = chunk<typeof Card>();
+    const CardScreen = lazyScreen(card.load);
+    function Routes() {
+      const [open, setOpen] = useState(false);
+      if (open) return <CardScreen name="Ann" />;
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            startTransition(() => {
+              setOpen(true);
+            });
+          }}
+        >
+          list
+        </button>
+      );
+    }
+    // a navigation of React Router is a transition: a boundary above the routes keeps the list
+    await route(
+      <Suspense fallback={<p>outer</p>}>
+        <Routes />
+      </Suspense>,
+    );
+    await settled(() => {
+      fireEvent.click(screen.getByText('list'));
+    });
+    expect(screen.queryByText('list')).toBeNull();
+    expect(loading()).toBe('state:loading');
+    await settled(() => {
+      card.resolve(Card);
+    });
+    expect(screen.getByText('card Ann')).toBeTruthy();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('reloads the page once when a chunk fails, whatever the other screens load', async () => {
@@ -90,7 +128,7 @@ describe('lazyScreen', () => {
     });
     expect(reload).toHaveBeenCalledTimes(1);
     // loading until the page is reloaded, no error shown
-    expect(screen.getByText('loading')).toBeTruthy();
+    expect(loading()).toBe('state:loading');
     expect(screen.queryByRole('alert')).toBeNull();
     cleanup();
 

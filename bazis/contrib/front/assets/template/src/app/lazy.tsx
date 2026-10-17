@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { use, type ComponentType, type JSX } from 'react';
+import { Suspense, use, type ComponentType, type JSX } from 'react';
+
+import { StatePanel } from '@/bazis/ui/state-panel';
 
 /**
  * The time of the last reload after a screen failed to load (`Date.now()`), in
@@ -59,7 +61,10 @@ function reloadOnce(reload: () => void): boolean {
 
 /**
  * A screen loaded with its own chunk when it is first rendered, like `React.lazy`, under the
- * `Suspense` and the `ErrorBoundary` of its route. A chunk that cannot be loaded (another
+ * `ErrorBoundary` of its route. Until the chunk is loaded the screen shows the loading state
+ * of the screens in its own `Suspense`: a navigation of React Router is a transition, which
+ * keeps showing the previous screen while a boundary above the routes waits, so a row opened
+ * in a list would seem not to open. A chunk that cannot be loaded (another
  * version deployed since the page was opened: its old chunks are gone) reloads the page, at
  * most once per `RELOAD_WINDOW` (`reload`: `window.location.reload` by default); otherwise
  * the boundary shows the `ScreenLoadError`, and its retry loads the chunk again
@@ -75,7 +80,7 @@ export function lazyScreen<Props extends object>(
   const reset = () => {
     screen = undefined;
   };
-  return function LazyScreen(props: Props) {
+  function Loaded(props: Props) {
     screen ??= load().catch((error: unknown) => {
       // the page is reloaded: the screen stays loading until then
       if (reloadOnce(reload)) return new Promise<never>(() => undefined);
@@ -83,5 +88,12 @@ export function lazyScreen<Props extends object>(
     });
     const Screen = use(screen);
     return <Screen {...props} />;
+  }
+  return function LazyScreen(props: Props) {
+    return (
+      <Suspense fallback={<StatePanel state="loading" />}>
+        <Loaded {...props} />
+      </Suspense>
+    );
   };
 }

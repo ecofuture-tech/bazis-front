@@ -1168,9 +1168,11 @@ export function TaskCardScreen() {
 
 Add the routes of the screens to `src/app/router.tsx` (inside `RequireSession`), each screen
 imported with `lazyScreen` of `src/app/lazy.tsx` as those of the template (its own chunk,
-loaded when its route is first shown, under the `Suspense` and the `ErrorBoundary` of the
-layout: a static import puts every screen and the libraries it uses, a map, in the one
-bundle that every page loads). A chunk that fails to load (a new version deployed since the
+loaded when its route is first shown, under the `ErrorBoundary` of the layout: a static
+import puts every screen and the libraries it uses, a map, in the one bundle that every page
+loads). Until its chunk is loaded a screen shows the loading state of the screens in a
+`Suspense` of its own: a navigation of React Router is a transition, which a `Suspense`
+above the routes would keep on the previous screen, a row opened with no sign of it. A chunk that fails to load (a new version deployed since the
 page was opened) reloads the page, at most once in 30 s (the time of the reload in
 `sessionStorage`; never when the storage is blocked), else shows the error, whose retry loads
 it again:
@@ -1182,7 +1184,7 @@ const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((modu
 The screens of the users who do not log in (an `anonymous` role of the specs) are routes
 outside `RequireSession`, which sends a user without a session to the login: in a layout of
 their own, `AppShell` with their links and `session={null}` (a link to `/login` in its
-`tools`), its `ErrorBoundary` and `Suspense` as in `RequireSession`, and their screens
+`tools`), its `ErrorBoundary` as in `RequireSession`, and their screens
 read only what the backend gives anonymous users (a 401/403 of another route is the
 `forbidden` state of a screen, never a redirect).
 

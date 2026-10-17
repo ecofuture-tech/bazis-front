@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import { FilePen, House, ListChecks } from 'lucide-react';
-import { Suspense } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
@@ -30,7 +29,6 @@ import { FileFieldProvider } from '@/bazis/ui/file-field';
 import { LiveQuery } from '@/bazis/ui/live-query';
 import { MapProvider } from '@/bazis/ui/map';
 import { NotificationCenter } from '@/bazis/ui/notification-center';
-import { StatePanel } from '@/bazis/ui/state-panel';
 
 /** The screens, each loaded with its own chunk when its route is first shown. */
 const DraftTasksScreen = lazyScreen(() => import('@/screens/draft-tasks').then((module) => module.DraftTasksScreen));
@@ -38,9 +36,6 @@ const HomeScreen = lazyScreen(() => import('@/screens/home').then((module) => mo
 const LoginScreen = lazyScreen(() => import('@/screens/login').then((module) => module.LoginScreen));
 const TaskCardScreen = lazyScreen(() => import('@/screens/task-card').then((module) => module.TaskCardScreen));
 const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
-
-/** What a route shows while the chunk of its screen loads: the loading state of the screens. */
-const loading = <StatePanel state="loading" />;
 
 /**
  * The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon;
@@ -98,9 +93,7 @@ function RequireSession() {
       }
     >
       <ErrorBoundary resetKey={location.pathname}>
-        <Suspense fallback={loading}>
-          <Outlet />
-        </Suspense>
+        <Outlet />
       </ErrorBoundary>
     </AppShell>
   );
@@ -123,9 +116,7 @@ export function AppRouter() {
                   path="/login"
                   element={
                     <ErrorBoundary>
-                      <Suspense fallback={loading}>
-                        <LoginScreen />
-                      </Suspense>
+                      <LoginScreen />
                     </ErrorBoundary>
                   }
                 />

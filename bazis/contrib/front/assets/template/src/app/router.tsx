@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import { House } from 'lucide-react';
-import { Suspense } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
@@ -23,18 +22,14 @@ import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
 import { AppShell, type NavItem } from '@/bazis/ui/app-shell';
-import { StatePanel } from '@/bazis/ui/state-panel';
 
 /**
- * The screens, each loaded with its own chunk when its route is first shown (`lazyScreen`), so that
- * the bundle of the application does not grow with every screen: a screen added here is
- * imported the same way, never statically.
+ * The screens, each loaded with its own chunk when its route is first shown (`lazyScreen`, the
+ * loading state of the screens until then), so that the bundle of the application does not
+ * grow with every screen: a screen added here is imported the same way, never statically.
  */
 const HomeScreen = lazyScreen(() => import('@/screens/home').then((module) => module.HomeScreen));
 const LoginScreen = lazyScreen(() => import('@/screens/login').then((module) => module.LoginScreen));
-
-/** What a route shows while the chunk of its screen loads: the loading state of the screens. */
-const loading = <StatePanel state="loading" />;
 
 /**
  * The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon;
@@ -72,9 +67,7 @@ function RequireSession() {
       session={LOGIN_ENABLED ? { onLogout } : null}
     >
       <ErrorBoundary resetKey={location.pathname}>
-        <Suspense fallback={loading}>
-          <Outlet />
-        </Suspense>
+        <Outlet />
       </ErrorBoundary>
     </AppShell>
   );
@@ -89,9 +82,7 @@ export function AppRouter() {
             path="/login"
             element={
               <ErrorBoundary>
-                <Suspense fallback={loading}>
-                  <LoginScreen />
-                </Suspense>
+                <LoginScreen />
               </ErrorBoundary>
             }
           />

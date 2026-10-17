@@ -471,7 +471,8 @@ npm run api-reference     # the API reference of the guide, after a change of an
   tests, the npm libraries that every page loads in chunks of their own, `manualChunks`), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,
   session with its number for the query keys, router with the layout `AppShell` and the
-  screens loaded by `lazyScreen` (`lazy.tsx`: a chunk that fails reloads the page at most once per
+  screens loaded by `lazyScreen` (`lazy.tsx`: each screen in a `Suspense` of its own with the
+  loading state of the screens, shown at once although the navigation is a transition; a chunk that fails reloads the page at most once per
   `RELOAD_WINDOW`, the time of the reload in sessionStorage, which a screen that loads never
   clears: two screens of a route load together; then it is loaded again by the retry of
   `ErrorBoundary`), errors),
