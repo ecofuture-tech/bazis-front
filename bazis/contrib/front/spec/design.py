@@ -282,6 +282,13 @@ def google(family: str) -> dict:
     }}
 
 
+def named_layer(kind: str, name: str | dict) -> dict:
+    """
+    The tokens of the layer that theme.yaml names: a starter, or a family of Google Fonts.
+    """
+    return google(name['google']) if isinstance(name, dict) else layer(LAYERS[kind], name)
+
+
 def effective_tokens(theme: dict | None, tokens: dict | None) -> dict[str, Entry]:
     """
     The tokens of a product, its layers merged: those of the preset, of the starters that
@@ -292,10 +299,9 @@ def effective_tokens(theme: dict | None, tokens: dict | None) -> dict[str, Entry
     """
     named = theme or {'preset': 'workspace', **WITHOUT_THEME}
     layered = tokens_of(layer(PRESET_LAYER, named['preset']), 'preset')
-    for kind, directory in LAYERS.items():
+    for kind in LAYERS:
         if (name := named.get(kind)) is not None:
-            data = google(name['google']) if isinstance(name, dict) else layer(directory, name)
-            layered.update(tokens_of(data, kind))
+            layered.update(tokens_of(named_layer(kind, name), kind))
     if tokens is None:
         return layered
     defined = tokens_of(tokens)
@@ -451,6 +457,29 @@ def check_icons(theme: Document, entities: set[str], issues: Issues) -> None:
         )
 
 
+def check_hidden_layers(theme: Document, tokens: Document | None, issues: Issues) -> None:
+    """
+    tokens.json replaces no more than half of the tokens of a layer that theme.yaml names (a
+    brand over a palette); more hides the layer, as a tokens.json of 0.1.0 that defines every
+    color and font.
+    """
+    defined = tokens_of(tokens.data) if tokens is not None else {}
+    for kind in LAYERS:
+        if (name := theme.data.get(kind)) is None:
+            continue
+        given = tokens_of(named_layer(kind, name))
+        hidden = sorted(it for it in given if it in defined)
+        if len(hidden) * 2 > len(given):
+            shown = name['google'] if isinstance(name, dict) else name
+            issues.add(
+                theme, (kind,), 'D012',
+                f'spec/design/tokens.json replaces {len(hidden)} of the {len(given)} tokens of `{kind}: {shown}`: '
+                f'{", ".join(f"`{it}`" for it in hidden)}.',
+                f'Remove these tokens from spec/design/tokens.json to take them from the layer (keep there '
+                f'only what the product changes, such as its brand), or remove `{kind}` from theme.yaml.',
+            )
+
+
 def source(name: str, values: dict[str, str]) -> str:
     """
     The variable that gives a variable its value through its default (`--card-foreground` is
@@ -508,8 +537,9 @@ def check(
 ) -> None:
     """
     The design: the tokens of its layers (checked only when its files follow their schemas),
-    the tokens that its preset requires, its mode, the statuses of theme.yaml and the icons of
-    the entities of the product that have a screen (`entities`).
+    the tokens that its preset requires, its mode, the layers that tokens.json hides, the
+    statuses of theme.yaml and the icons of the entities of the product that have a screen
+    (`entities`).
     """
     usable = (theme is None or theme.valid) and (tokens is None or tokens.valid) and (theme or tokens) is not None
     defined = effective_tokens(theme and theme.data, tokens and tokens.data) if usable else {}
@@ -523,6 +553,7 @@ def check(
     check_icons(theme, entities, issues)
     if not usable:
         return
+    check_hidden_layers(theme, tokens, issues)
     preset = theme.data['preset']
     for name, kind in PRESET_TOKENS[preset].items():
         if name not in defined:

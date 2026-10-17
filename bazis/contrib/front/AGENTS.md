@@ -796,8 +796,9 @@ preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$va
 start from (D004). `bazis_front design` compiles them into the theme of the frontend (see
 [The design](#the-design)); `check` reports the statuses of `statuses` that the contract
 does not have (D008), the text colors below the contrast of WCAG AA (D009), `mode: dark`
-without the values of the dark mode (D010) and an entity with a screen and no icon
-(D011).
+without the values of the dark mode (D010), an entity with a screen and no icon
+(D011) and a layer of theme.yaml that `tokens.json` hides, replacing more than half of its
+tokens (D012).
 
 ## The issues of check
 
@@ -879,6 +880,7 @@ warning there, never blocking `migrate` or `contract`.
 | `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode |
 | `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
+| `D012` | warning | spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows; the issue names the tokens |
 
 ## The backend of a product
 
@@ -2183,7 +2185,7 @@ The palettes are OKLCH (`oklch(L C H)`): keep the lightness and the chroma of th
 change the hue for a consistent brand; `check` reports a text color that loses its contrast
 (D009). A token of `tokens.json` replaces that of the layers: a `tokens.json` that defines
 every color (that of an older version) hides the palette, so remove the colors it should
-take from the palette. Set `density` for the spacing.
+take from the palette (`check` reports a layer whose tokens it mostly replaces, D012). Set `density` for the spacing.
 
 ### Icons
 
@@ -3137,7 +3139,10 @@ From 0.1.0 to 0.2.0 (nothing of the API of the copies is removed):
 - `src/index.css` imports `src/bazis/generated/fonts.css`, which `bazis_front design`
   writes: run `design` after `update` (the build fails without the file, `tsc` on
   `list_phone` of a theme of 0.1.0). `theme.yaml` may name the layers of its tokens (see
-  [The design](#the-design)); a design that names none keeps its look.
+  [The design](#the-design)); a design that names none keeps its look. The `tokens.json` of
+  0.1.0 defines every color, font and radius, which hide the layers named over it (D012):
+  remove the colors and the fonts from `tokens.json` (and the radius, with a `shape`),
+  keeping there only what the product changes, such as its brand.
 - `contract.json` is of format 5 (the titles of the fields, the labels of the resources):
   export the contract again, `check` reports `C002` until then. The components read the
   titles and the labels from it; `check` then reports the fields without a title (S018), the

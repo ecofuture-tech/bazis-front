@@ -110,6 +110,7 @@ CODES: dict[str, tuple[str, str]] = {
     'D009': (WARNING, 'a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode'),
     'D010': (ERROR, '`mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`)'),
     'D011': (WARNING, 'an entity with a screen has no icon in `icons` of theme.yaml'),
+    'D012': (WARNING, 'spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows'),
 }
 
 

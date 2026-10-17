@@ -797,8 +797,20 @@ CASES = [
         {THEME: lambda d: d.update(mode='dark'), TOKENS: lambda d: [d.pop('dark')]},
         [('D010', f'{THEME}#/mode')],
     ),
-    ('D010', {THEME: lambda d: d.update(mode='dark', palette='slate')}, []),
+    # the dark mode of the palette, under a tokens.json without colors (with them, D012)
+    (
+        'D010',
+        {THEME: lambda d: d.update(mode='dark', palette='slate'), TOKENS: lambda d: [d.pop('dark'), d.pop('color')]},
+        [],
+    ),
     ('D011', {THEME: lambda d: [d['icons'].pop('task')]}, [('D011', f'{THEME}#/icons')]),
+    (
+        'D012',
+        # the layers under a tokens.json that defines every color, font and radius (of 0.1.0);
+        # the surface, whose shadows it leaves, shows (the brand over a palette: the D009 above)
+        {THEME: lambda d: d.update(palette='forest', fonts='inter', shape='soft', surface='flat')},
+        [('D012', f'{THEME}#/palette'), ('D012', f'{THEME}#/fonts'), ('D012', f'{THEME}#/shape')],
+    ),
 ]
 
 
