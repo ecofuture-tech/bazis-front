@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The filters of a list: a control per field by its type in `route_filter_fields/`, and the
-// one `filter` expression of Bazis that they make (`Filter` of the client). The fields are
+// The filters of a list: a control per field by its type in `route_filter_fields/` (a select
+// of the choices named by the field, the picker of a relation, a range of dates, chips of a
+// boolean, an input), and the one `filter` expression of Bazis that they make (`Filter` of
+// the client). The fields are
 // those of the user: the core answers a filter by a field it does not list for him (hidden
 // by his field permissions, bazis-permit) with 400, so such a filter has no control.
 
@@ -27,7 +29,7 @@ import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /** A filter of a list: a field of `route_filter_fields/`, its label and its choices. */
@@ -53,6 +55,12 @@ export type FilterValues = Readonly<Record<string, string>>;
  * JSON field).
  */
 type FieldType = string;
+
+/**
+ * The value of the option of every item in a select of Radix, whose options cannot be empty;
+ * marked `data-value=""`, the option that the helpers of the end-to-end tests choose for null.
+ */
+export const EVERY = '$every';
 
 /** The numeric types; a `Decimal` is sent as it is written, not as a float. */
 const NUMBERS = new Set(['integer', 'number', 'Decimal']);
@@ -174,29 +182,39 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
       </div>
     );
   }
+  if (filter.options) {
+    const { options } = filter;
+    // a chip of the toolbar named by the field: its label, then the choice
+    return (
+      <Select
+        value={value || EVERY}
+        onValueChange={(next) => {
+          onChange(field, next === EVERY ? '' : next);
+        }}
+      >
+        <SelectTrigger data-bz={`field:${field}`} aria-label={label} className="w-full bg-card sm:w-auto">
+          <span aria-hidden="true" className="text-muted-foreground">
+            {label}
+          </span>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" align="start">
+          <SelectItem value={EVERY} data-value="">
+            {t('filter.all')}
+          </SelectItem>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
   const relation = relationOf(type);
   const relationType = relation === null ? undefined : typeOfPath(relation);
   let control;
-  if (filter.options) {
-    const { options } = filter;
-    control = (
-      <NativeSelect
-        id={id}
-        data-bz={`field:${field}`}
-        value={value}
-        onChange={(event) => {
-          onChange(field, event.target.value);
-        }}
-      >
-        <NativeSelectOption value="">{t('filter.all')}</NativeSelectOption>
-        {options.map((option) => (
-          <NativeSelectOption key={option.value} value={option.value}>
-            {option.label}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
-    );
-  } else if (relationType !== undefined) {
+  if (relationType !== undefined) {
     control = (
       <RelationPicker
         id={id}

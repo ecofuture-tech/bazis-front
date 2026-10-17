@@ -17,11 +17,11 @@
 // require a permission shown once the backend allows it), the session
 // (the user and the logout, `action:logout`), the language (`action:language`, with more
 // than one language), the color mode, the tools of the product (the notifications), the
-// toasts, and the screens, each wrapped in `Screen` (`screen:<id>`) with its title and its
-// actions.
+// toasts, and the screens, each wrapped in `Screen` (`screen:<id>`) with its title, its
+// actions and the link back to the screen it was opened from (`nav:<screen>`).
 
 import type { UseQueryResult } from '@tanstack/react-query';
-import { LogOut, Menu } from 'lucide-react';
+import { ArrowLeft, ChevronRight, LogOut, Menu } from 'lucide-react';
 import {
   createContext,
   useCallback,
@@ -32,7 +32,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from 'react';
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
 
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
@@ -113,8 +113,11 @@ function subscribeWide(listener: () => void) {
   };
 }
 
-/** Whether the sidebar is shown (wide when the browser cannot tell, as in jsdom). */
-function useWide(): boolean {
+/**
+ * Whether the screen is at least the breakpoint `md` of Tailwind wide: the sidebar is shown,
+ * and a list is not the one of a phone (true when the browser cannot tell, as in jsdom).
+ */
+export function useWide(): boolean {
   return useSyncExternalStore(subscribeWide, () => typeof window.matchMedia !== 'function' || window.matchMedia(WIDE).matches);
 }
 
@@ -390,10 +393,23 @@ export function useScreenPage(): ScreenPage | null {
   return useContext(PageContext);
 }
 
+/** The screen that a screen was opened from, such as the list of a card. */
+export interface ScreenParent {
+  /** Its id in the specs: the link back to it is `nav:<screen>`. */
+  screen: string;
+  label: ReactNode;
+  to: string;
+}
+
 export interface ScreenProps {
   /** The id of the screen in the specs: `screen:<id>`. */
   id: string;
   title?: ReactNode;
+  /**
+   * The screen it was opened from: before the title, a breadcrumb to it on a wide screen
+   * (`xl`), a button back to it below.
+   */
+  parent?: ScreenParent;
   /** Under the title: what the screen is for. */
   description?: ReactNode;
   /** Next to the title: the actions of the screen. */
@@ -401,12 +417,30 @@ export interface ScreenProps {
   children: ReactNode;
 }
 
+/** The link back to the parent of a screen: an arrow below `xl`, its label and a chevron from it. */
+function Breadcrumb({ parent }: { parent: ScreenParent }) {
+  const { t } = useLanguage();
+  return (
+    <nav aria-label={t('screen.breadcrumb')} className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
+      <Link
+        to={parent.to}
+        data-bz={`nav:${parent.screen}`}
+        className="-ml-2 inline-flex size-9 items-center justify-center gap-1 rounded-md outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 xl:ml-0 xl:size-auto xl:px-1.5 xl:py-1"
+      >
+        <ArrowLeft className="size-4 xl:hidden" aria-hidden="true" />
+        <span className="max-xl:sr-only">{parent.label}</span>
+      </Link>
+      <ChevronRight className="hidden size-4 opacity-60 xl:block" aria-hidden="true" />
+    </nav>
+  );
+}
+
 /**
- * A screen of the specs: `screen:<id>`, its header (the title and the actions; in a working
- * application it stays at the top while the screen scrolls, `--sticky-top` high), its
- * description and its content.
+ * A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title and
+ * the actions; in a working application it stays at the top while the screen scrolls,
+ * `--sticky-top` high), its description and its content.
  */
-export function Screen({ id, title, description, actions, children }: ScreenProps) {
+export function Screen({ id, title, parent, description, actions, children }: ScreenProps) {
   const navigation = useContext(ShellContext);
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [pages, setPages] = useState(0);
@@ -422,7 +456,7 @@ export function Screen({ id, title, description, actions, children }: ScreenProp
       <PageContext value={page}>
         {/* `contents`: the header is laid out in the section, which it sticks in */}
         <div className={pages > 0 ? 'hidden' : 'contents'}>
-          {(title !== undefined || actions !== undefined) && (
+          {(title !== undefined || parent !== undefined || actions !== undefined) && (
             <header
               data-slot="screen-header"
               className={cn(
@@ -431,16 +465,19 @@ export function Screen({ id, title, description, actions, children }: ScreenProp
                   '-mx-(--bleed) bg-background px-(--bleed) md:sticky md:border-b md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:h-(--sticky-top) md:flex-nowrap',
               )}
             >
-              {title !== undefined && (
-                <h1
-                  className={cn(
-                    'min-w-0 truncate font-semibold tracking-tight',
-                    portal ? 'text-2xl md:text-3xl' : 'text-xl',
-                  )}
-                >
-                  {title}
-                </h1>
-              )}
+              <div className="flex min-w-0 items-center gap-1">
+                {parent !== undefined && <Breadcrumb parent={parent} />}
+                {title !== undefined && (
+                  <h1
+                    className={cn(
+                      'min-w-0 truncate font-semibold tracking-tight',
+                      portal ? 'text-2xl md:text-3xl' : 'text-xl',
+                    )}
+                  >
+                    {title}
+                  </h1>
+                )}
+              </div>
               {actions !== undefined && <div className="ml-auto flex shrink-0 flex-wrap gap-2">{actions}</div>}
             </header>
           )}

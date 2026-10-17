@@ -13,24 +13,26 @@
 // limitations under the License.
 
 // A list of a resource over `useList`: the columns of the screen with the titles of the list
-// schema, search, filters and the actions in a toolbar, sort, pages and the actions the
-// backend allows; a table or a grid of cards (`composition.list` of the theme). Marked
-// `list:<entity>` (`aria-busy` until its rows are those of its search and its page, their
-// search in `data-search`), its rows `row:<id>` (with `data-tone` and the label of the tone
-// as their `aria-description` when highlighted) with their cells `cell:<column>`, its states
-// `state:<state>` (the loading one is the skeleton of the rows).
+// schema, search, filters, the view (the columns shown, the density of the rows) and the
+// actions in a toolbar, sort, pages and the actions the backend allows; a table or a grid of
+// cards (`composition.list` of the theme), cards on a phone; the rows that the user selects.
+// Marked `list:<entity>` (`aria-busy` until its rows are those of its search and its page,
+// their search in `data-search`), its rows `row:<id>` (with `data-tone` and the label of the
+// tone as their `aria-description` when highlighted) with their cells `cell:<column>` and
+// their checkboxes `select:<id>` (`select:all` for the page), its states `state:<state>` (the
+// loading one is the skeleton of the rows, the empty one with the creation of an item).
 
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search } from 'lucide-react';
-import { useEffect, useState, type ComponentType, type KeyboardEvent, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search, SearchX } from 'lucide-react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 
 import { Filter, nextPage, pagination, prevPage } from '@/bazis/client';
-import { THEME, type Tone } from '@/bazis/generated/theme';
+import { THEME, type Theme, type Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
-import { useBesideCard } from '@/bazis/ui/app-shell';
+import { useBesideCard, useWide } from '@/bazis/ui/app-shell';
+import { EmptyState } from '@/bazis/ui/empty-state';
 import {
   choiceOptions,
-  FieldValue,
   fieldValue,
   isNumeric,
   permitted,
@@ -38,18 +40,20 @@ import {
   useAnyList,
   useListFields,
   type FieldDisplay,
-  type Fields,
   type ResourceObject,
 } from '@/bazis/ui/resource';
 import { queryState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-import { FilterBar, type ListFilter } from './filters.js';
+import { CardsSkeleton, CardsView } from './cards.js';
+import { ViewMenu } from './columns.js';
+import { EVERY, FilterBar, type ListFilter } from './filters.js';
+import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps } from './rows.js';
 
 /** An action of the list, a button `action:<id>`; `add` shows it when the user may create. */
 export interface ListAction {
@@ -122,8 +126,24 @@ export interface ResourceListProps {
   rowToneLabel?: (row: ResourceObject) => string | undefined;
   /** The message of the empty list. */
   emptyMessage?: ReactNode;
+  /** The icon of the entity (such as an icon of lucide-react), in the empty state. */
+  icon?: ComponentType<{ className?: string }>;
   /** A table or a grid of cards; `composition.list` of the theme by default. */
   layout?: 'table' | 'cards';
+  /**
+   * The list on a phone, below the breakpoint `md` (cards, where a table would scroll
+   * sideways); `composition.list_phone` of the theme by default.
+   */
+  phoneLayout?: 'table' | 'cards';
+  /** The density of the rows of the table, which the user may change; that of the theme by default. */
+  density?: Theme['density'];
+  /** The ids of the selected rows (`selection` of `onSelectionChange`). */
+  selection?: readonly string[];
+  /**
+   * Makes the rows selectable, a checkbox each (`select:<id>`, and `select:all` for the rows
+   * of the page): called with the ids selected, also those of other pages.
+   */
+  onSelectionChange?: (ids: readonly string[]) => void;
   /**
    * The columns of the table while it is next to an open card (`ListCardLayout`, `split`):
    * the first two by default; the others are hidden (their cells stay, for the scenarios).
@@ -152,54 +172,6 @@ const ROW_TONES: Readonly<Record<Tone, string>> = {
   danger: 'bg-danger-soft shadow-[inset_3px_0_0_var(--color-danger)]',
 };
 
-/** The colors of a highlighted card of a grid, by its tone. */
-const CARD_TONES: Readonly<Record<Tone, string>> = {
-  neutral: 'border-neutral bg-neutral-soft',
-  primary: 'border-primary bg-primary-soft',
-  info: 'border-info bg-info-soft',
-  success: 'border-success bg-success-soft',
-  warning: 'border-warning bg-warning-soft',
-  danger: 'border-danger bg-danger-soft',
-};
-
-/** The props of a row that opens its item, by a click or Enter. */
-function opener(id: string, onOpen: ((id: string) => void) | undefined) {
-  if (!onOpen) return {};
-  return {
-    tabIndex: 0,
-    onClick: () => {
-      onOpen(id);
-    },
-    onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-      // not the Enter of a control of the row (its actions), which bubbles
-      if (event.key === 'Enter' && event.target === event.currentTarget) onOpen(id);
-    },
-  };
-}
-
-interface BodyProps {
-  rows: readonly ResourceObject[];
-  columns: readonly string[];
-  fields: Fields;
-  cells: Readonly<Record<string, (row: ResourceObject) => ReactNode>>;
-  display: Readonly<Record<string, FieldDisplay>>;
-  onOpen: ((id: string) => void) | undefined;
-  selected: string | undefined;
-  rowActions: (row: ResourceObject) => ReactNode;
-  rowTone: (row: ResourceObject) => Tone | undefined;
-  rowToneLabel: (row: ResourceObject) => string | undefined;
-}
-
-function cell(props: BodyProps, row: ResourceObject, name: string): ReactNode {
-  return (
-    props.cells[name]?.(row) ?? (
-      <FieldValue field={props.fields.fields.get(name)} value={fieldValue(row, name)} type={row.type} display={props.display[name]} />
-    )
-  );
-}
-
-const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
-
 function SortButton({ label, direction, onClick }: { label: ReactNode; direction: 'ascending' | 'descending' | undefined; onClick: () => void }) {
   const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ChevronsUpDown;
   return (
@@ -219,24 +191,27 @@ function SortButton({ label, direction, onClick }: { label: ReactNode; direction
 
 /**
  * The rows as a table in its own scroll area (as high as the screen under its header): its
- * header stays at the top of it, and a table wider than the screen (a phone, the list next to
- * a card) scrolls sideways instead of losing columns.
+ * header stays at the top of it, and a table wider than the screen (the list next to a card)
+ * scrolls sideways instead of losing columns.
  */
 function TableView(
   props: BodyProps & {
     header: (name: string) => ReactNode;
     sorted: (name: string) => 'ascending' | 'descending' | undefined;
     actionsColumn: boolean;
-    /** Whether a column is hidden (next to an open card). */
-    hidden: (name: string) => boolean;
   },
 ) {
-  const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden } = props;
+  const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden, selection } = props;
   const { t } = useLanguage();
   return (
     <table data-slot="table" className="w-full caption-bottom text-sm">
       <TableHeader>
         <TableRow className="hover:bg-transparent">
+          {selection && (
+            <TableHead className="sticky top-0 z-10 w-10 bg-muted px-(--space-cell-x)">
+              <PageCheckbox rows={rows} selection={selection} onSelect={props.onSelect} />
+            </TableHead>
+          )}
           {columns.map((name) => (
             <TableHead
               key={name}
@@ -276,6 +251,11 @@ function TableView(
               )}
               {...opener(row.id, onOpen)}
             >
+              {selection && (
+                <TableCell className="w-10 px-(--space-cell-x) py-(--space-cell-y)">
+                  <RowCheckbox id={row.id} selection={selection} onSelect={props.onSelect} />
+                </TableCell>
+              )}
               {columns.map((name, index) => {
                 const field = fields.fields.get(name);
                 return (
@@ -303,73 +283,9 @@ function TableView(
   );
 }
 
-/** The rows as a grid of cards: the first column is the title, the others pairs of a label and a value. */
-function CardsView(props: BodyProps) {
-  const { rows, columns, fields, onOpen, selected } = props;
-  const [first, ...rest] = columns;
-  return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {rows.map((row) => {
-        const tone = props.rowTone(row);
-        return (
-          <li key={row.id} className="flex">
-            <article
-              data-bz={`row:${row.id}`}
-              data-state={row.id === selected ? 'selected' : undefined}
-              data-tone={tone}
-              aria-description={tone && props.rowToneLabel(row)}
-              className={cn(
-                'flex w-full flex-col gap-4 rounded-2xl border bg-card p-(--space-card) text-card-foreground shadow-xs transition-[box-shadow,border-color]',
-                tone && CARD_TONES[tone],
-                'data-[state=selected]:border-primary',
-                onOpen && cn('cursor-pointer hover:border-primary/40 hover:shadow-md', FOCUS, 'focus-visible:ring-offset-0'),
-              )}
-              {...opener(row.id, onOpen)}
-            >
-              {first !== undefined && (
-                <h3 data-bz={`cell:${first}`} className="font-display text-lg leading-snug font-semibold">
-                  {cell(props, row, first)}
-                </h3>
-              )}
-              {rest.length > 0 && (
-                <dl className="grid gap-2 text-sm">
-                  {rest.map((name) => (
-                    <div key={name} className="flex items-center justify-between gap-4">
-                      <dt className="text-muted-foreground first-letter:uppercase">{fields.title(name)}</dt>
-                      <dd
-                        data-bz={`cell:${name}`}
-                        className={cn('min-w-0 truncate text-right', isNumeric(fields.fields.get(name)) && 'tabular-nums')}
-                      >
-                        {cell(props, row, name)}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-              <div className="mt-auto flex justify-end gap-1 empty:hidden">{props.rowActions(row)}</div>
-            </article>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 /** The skeleton of the rows while the list loads. */
 function ListSkeleton({ layout, columns }: { layout: 'table' | 'cards'; columns: number }) {
-  if (layout === 'cards') {
-    return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
-        {[0, 1, 2].map((it) => (
-          <div key={it} className="grid gap-4 rounded-2xl border bg-card p-(--space-card)">
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  if (layout === 'cards') return <CardsSkeleton />;
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-xs" aria-hidden="true">
       <div className="h-10 border-b bg-muted/60" />
@@ -384,7 +300,7 @@ function ListSkeleton({ layout, columns }: { layout: 'table' | 'cards'; columns:
   );
 }
 
-/** A list of a resource, with its states, filters, sort, pages and actions. */
+/** A list of a resource, with its states, filters, sort, view, selection, pages and actions. */
 export function ResourceList({
   path,
   entity,
@@ -403,11 +319,19 @@ export function ResourceList({
   rowTone = () => undefined,
   rowToneLabel = () => undefined,
   emptyMessage,
+  icon,
   layout = THEME.composition.list,
+  phoneLayout = THEME.composition.list_phone,
+  density = THEME.density,
+  selection = [],
+  onSelectionChange,
   compactColumns = columns.slice(0, 2),
 }: ResourceListProps) {
   const besideCard = useBesideCard();
+  const view = useWide() ? layout : phoneLayout;
   const { t } = useLanguage();
+  const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(new Set());
+  const [rowDensity, setRowDensity] = useState(density);
   const fields = useListFields(path);
   const order = orderLabels(path);
   const [filter, setFilter] = useState<Filter | undefined>();
@@ -465,6 +389,23 @@ export function ResourceList({
     (name) => fields.has(name) && (rows.length === 0 || rows.some((row) => fieldValue(row, name) !== undefined)),
   );
   const sortable = shown.filter((name) => order.has(name));
+  // the user hides any column but the first, the name of a row
+  const hideable = shown.slice(1);
+  const viewMenu = view === 'table' || hideable.length > 0;
+  const selectionSet = onSelectionChange ? new Set(selection) : undefined;
+  // the actions that create an item are those of the empty state of a list without items
+  const empty = state === 'empty' && !filtered;
+  const creates = empty ? toolbar.filter((action) => action.permission === 'add') : [];
+
+  function actionButton(action: ListAction) {
+    const Icon = action.icon;
+    return (
+      <Button key={action.id} type="button" data-bz={`action:${action.id}`} onClick={action.onClick}>
+        {Icon && <Icon />}
+        {action.label}
+      </Button>
+    );
+  }
 
   function toggle(name: string) {
     const label = order.get(name);
@@ -489,6 +430,14 @@ export function ResourceList({
     selected,
     rowTone,
     rowToneLabel,
+    // next to an open card, a table shows only its compact columns
+    hidden: (name) =>
+      (name !== shown[0] && hiddenColumns.has(name)) || (view === 'table' && besideCard && !compactColumns.includes(name)),
+    selection: selectionSet,
+    onSelect: (ids, on) => {
+      const others = selection.filter((id) => !ids.includes(id));
+      onSelectionChange?.(on ? [...others, ...ids] : others);
+    },
     rowActions: (row) =>
       rowActions
         .filter((action) => !action.permission || permitted(meta, action.permission, row.id))
@@ -518,7 +467,7 @@ export function ResourceList({
       aria-busy={list.isPlaceholderData || searchText.trim() !== search || undefined}
       className="grid grid-cols-[minmax(0,1fr)] gap-4"
     >
-      {(searchable || filterList.length > 0 || actions.length > 0 || (layout === 'cards' && sortable.length > 0)) && (
+      {(searchable || filterList.length > 0 || actions.length > 0 || viewMenu) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           {searchable && (
             <div className="relative w-full sm:w-72">
@@ -548,89 +497,105 @@ export function ResourceList({
               }}
             />
           )}
-          {layout === 'cards' && sortable.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground" aria-hidden="true">
-                {t('list.sort')}
-              </span>
-              <NativeSelect
-                aria-label={t('list.sort')}
-                value={sort[0] ?? ''}
-                onChange={(event) => {
-                  setSort(event.target.value ? [event.target.value] : []);
-                  setOffset(0);
-                }}
-              >
-                <NativeSelectOption value="">{t('list.sort_default')}</NativeSelectOption>
+          {view === 'cards' && sortable.length > 0 && (
+            <Select
+              value={sort[0] ?? EVERY}
+              onValueChange={(next) => {
+                setSort(next === EVERY ? [] : [next]);
+                setOffset(0);
+              }}
+            >
+              <SelectTrigger aria-label={t('list.sort')} className="bg-card">
+                <span aria-hidden="true" className="text-muted-foreground">
+                  {t('list.sort')}
+                </span>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" align="start">
+                <SelectItem value={EVERY} data-value="">
+                  {t('list.sort_default')}
+                </SelectItem>
                 {sortable.flatMap((name) => {
                   const label = order.get(name) ?? name;
                   return [
-                    <NativeSelectOption key={label} value={label}>
+                    <SelectItem key={label} value={label}>
                       {fields.title(name)} ↑
-                    </NativeSelectOption>,
-                    <NativeSelectOption key={`-${label}`} value={`-${label}`}>
+                    </SelectItem>,
+                    <SelectItem key={`-${label}`} value={`-${label}`}>
                       {fields.title(name)} ↓
-                    </NativeSelectOption>,
+                    </SelectItem>,
                   ];
                 })}
-              </NativeSelect>
-            </div>
+              </SelectContent>
+            </Select>
           )}
           <div className="ml-auto flex gap-2">
-            {toolbar.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Button key={action.id} type="button" data-bz={`action:${action.id}`} onClick={action.onClick}>
-                  {Icon && <Icon />}
-                  {action.label}
-                </Button>
-              );
-            })}
+            {viewMenu && (
+              <ViewMenu
+                columns={hideable}
+                title={fields.title}
+                hidden={hiddenColumns}
+                onHide={(name, hide) => {
+                  const next = new Set(hiddenColumns);
+                  if (hide) next.add(name);
+                  else next.delete(name);
+                  setHiddenColumns(next);
+                }}
+                density={view === 'table' ? rowDensity : undefined}
+                onDensity={setRowDensity}
+              />
+            )}
+            {toolbar.filter((action) => !creates.includes(action)).map(actionButton)}
           </div>
         </div>
       )}
-      <StatePanel
-        state={state}
-        error={list.error}
-        {...(state === 'empty'
-          ? filtered
-            ? { message: t('list.no_match'), description: t('list.no_match_hint') }
-            : { message: emptyMessage }
-          : {})}
-        onRetry={() => void list.refetch()}
-        skeleton={<ListSkeleton layout={layout} columns={columns.length} />}
-      >
-        <div className={cn('transition-opacity', list.isPlaceholderData && 'opacity-60')}>
-          {layout === 'cards' ? (
-            <CardsView {...body} />
-          ) : (
-            <div
-              data-slot="table-scroll"
-              className="max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto rounded-xl border bg-card shadow-xs"
-            >
-              <TableView
-                {...body}
-                actionsColumn={rowActions.length > 0}
-                sorted={direction}
-                hidden={(name) => besideCard && !compactColumns.includes(name)}
-                header={(name) =>
-                  order.has(name) ? (
-                    <SortButton
-                      label={fields.title(name)}
-                      direction={direction(name)}
-                      onClick={() => {
-                        toggle(name);
-                      }}
-                    />
-                  ) : (
-                    <span className="inline-block first-letter:uppercase">{fields.title(name)}</span>
-                  )
-                }
-              />
-            </div>
-          )}
-        </div>
-      </StatePanel>
+      {state === 'empty' ? (
+        <EmptyState
+          icon={filtered ? SearchX : icon}
+          title={filtered ? t('list.no_match') : emptyMessage}
+          {...(filtered ? { description: t('list.no_match_hint') } : {})}
+        >
+          {creates.length > 0 ? creates.map(actionButton) : undefined}
+        </EmptyState>
+      ) : (
+        <StatePanel
+          state={state}
+          error={list.error}
+          onRetry={() => void list.refetch()}
+          skeleton={<ListSkeleton layout={view} columns={columns.length} />}
+        >
+          <div className={cn('transition-opacity', list.isPlaceholderData && 'opacity-60')}>
+            {view === 'cards' ? (
+              <CardsView {...body} />
+            ) : (
+              <div
+                data-slot="table-scroll"
+                data-density={rowDensity}
+                className="max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto rounded-xl border bg-card shadow-xs"
+              >
+                <TableView
+                  {...body}
+                  actionsColumn={rowActions.length > 0}
+                  sorted={direction}
+                  header={(name) =>
+                    order.has(name) ? (
+                      <SortButton
+                        label={fields.title(name)}
+                        direction={direction(name)}
+                        onClick={() => {
+                          toggle(name);
+                        }}
+                      />
+                    ) : (
+                      <span className="inline-block first-letter:uppercase">{fields.title(name)}</span>
+                    )
+                  }
+                />
+              </div>
+            )}
+          </div>
+        </StatePanel>
+      )}
       {document && rows.length > 0 && (
         <nav aria-label={t('list.pages')} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
           <span className="tabular-nums">

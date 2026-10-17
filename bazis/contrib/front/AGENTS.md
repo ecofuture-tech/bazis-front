@@ -1023,6 +1023,7 @@ differ from the backend; `--check` does the same in CI.
 
 ```bash
 python manage.py bazis_front add resource-list resource-card resource-form   # the core
+python manage.py bazis_front add stat-card                                   # the figures of a dashboard
 python manage.py bazis_front add status-badge status-history transit-bar     # with bazis-statusy
 python manage.py bazis_front add file-field                                  # with bazis-uploadable
 python manage.py bazis_front add notification-center                         # with bazis-notify (or bazis-ws)
@@ -1038,9 +1039,12 @@ shadcn/ui and Tailwind 4 over the hooks, in `frontend/src/bazis/ui/<component>/`
 hooks (stamped, with
 their pristine copies in `.bazis/base/` and their hashes in the lock), with the assets
 they require: the other components, the hooks, and the shadcn/ui components they use
-(`button`, `input`, `label`, `native-select`, `table`, `badge`, `card`, `dialog`, `popover`,
-`sheet`, `skeleton`) in
-`src/components/ui/`, where `components.json` puts them. It needs neither the network nor
+(`button`, `input`, `label`, `native-select`, `select`, `checkbox`, `dropdown-menu`, `table`,
+`badge`, `card`, `dialog`, `popover`, `sheet`, `skeleton`) in
+`src/components/ui/`, where `components.json` puts them. The other shadcn/ui components on
+Radix that the template already has the npm package of (`tabs`, `tooltip`, `switch`,
+`avatar`, `separator`, `scroll-area`) are assets too, for the screens of the product: `add
+tabs tooltip` copies them the same way, never the shadcn CLI. It needs neither the network nor
 the shadcn CLI. The template declares the npm dependencies of the components (`radix-ui`,
 `class-variance-authority`, `lucide-react`, and `@testing-library/react` with `jsdom` for
 their tests); an optional component that brings a library of its own, `map` (Leaflet),
@@ -1093,10 +1097,12 @@ the names of the statuses and transits of the contract (in every language), and 
 | Component | What | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel` (the state of a screen or of a part of it, `inline`, with a `skeleton` while it loads), `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
+| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below | `nav:<screen>` (the navigation and the link of `parent`), `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
-| `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `compactColumns`: next to a card), `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
+| `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page` | |
+| `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
+| `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects (the count of the pagination of a list of one item), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded), `state:<loading\|loaded\|error\|forbidden>` | |
 | `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
@@ -1138,8 +1144,8 @@ of the specs and the paths of `ROUTES`.
 
 | Spec | Component |
 |---|---|
-| a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell`; the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
-| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control; `display` of the entity) |
+| a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell` (a card: `parent`, the link back to its list); the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
+| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control; `display` of the entity; the `status` of a statusy model is its badge, no `cells` needed; the icon of the entity in `icon`) |
 | `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only; `label` and `display` of the entity), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
 | `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card`: `path`, `entity`, `relation`, `item={id}`, `itemPath` (the `path` of the card), `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). In the `children` of the card it is drawn under the heading, above the sections of fields; a list that follows the fields goes after the card ("Composing beyond the specs"). Both read the card again after an add |
@@ -1157,7 +1163,7 @@ of the specs and the paths of `ROUTES`.
 ```tsx
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
 import { ROUTES } from '@/bazis/generated/contract';
 import { useDestroy } from '@/bazis/react';
@@ -1170,7 +1176,6 @@ import { toast } from '@/bazis/ui/state-panel';
 import { StatusBadge, statusOptions } from '@/bazis/ui/status-badge';
 import { StatusHistory } from '@/bazis/ui/status-history';
 import { TransitBar } from '@/bazis/ui/transit-bar';
-import { Button } from '@/components/ui/button';
 
 const TASKS = ROUTES['tasks.task'];
 
@@ -1191,7 +1196,6 @@ export function TaskListScreen() {
         selected={id}
         onOpen={(task) => void navigate(`/tasks/${task}`)}
         actions={[{ id: 'create', label: 'New task', icon: Plus, permission: 'add', onClick: () => { setCreating(true); } }]}
-        cells={{ status: (row) => <StatusBadge resource={row} /> }}
       />
       {/* a dialog or a page, as `composition.forms` of the theme says */}
       <FormSurface open={creating} title="New task" description="The task is created as a draft." onClose={() => { setCreating(false); }}>
@@ -1212,7 +1216,7 @@ export function TaskCardScreen() {
   const navigate = useNavigate();
   const destroy = useDestroy(TASKS);
   return (
-    <Screen id="task-card" title="Task" actions={<Button asChild variant="ghost" size="sm"><Link to="/tasks">All tasks</Link></Button>}>
+    <Screen id="task-card" title="Task" parent={{ screen: 'task-list', label: 'Tasks', to: '/tasks' }}>
       <ResourceCard
         path={TASKS}
         id={id}
@@ -1331,8 +1335,9 @@ The props of every component are in the `API:` sections (the `Props` types of
   its display name, else an identifier (see "The label of an item" below); as a text
   (`t('booking.of', {name})`: `{name}` is the parameter `name`), `itemLabel` of
   `@/bazis/ui/resource` of `useRelatedItem(ROUTES[type], id).data`;
-- a status: `StatusBadge` in `cells` of a list and in `badge` of a card, the options of its
-  filter `statusOptions(type)`, as in the example above; not also in the sections of the
+- a status: the column `status` of a list is its badge (no `cells`), `StatusBadge` in
+  `badge` of a card, the options of its filter `statusOptions(type)`, as in the example
+  above; not also in the sections of the
   card, where `status` is its name (`statusName` of the contract, never its id) without
   the tone;
 - a form of your own (a step of the form of a wizard): `useResourceForm(path, {id?, fixed?})`
@@ -1417,7 +1422,8 @@ see [The socket](#the-socket)) and `useLiveQueries` refetches its resource.
 ### The filters of a list
 
 **The filters of a list** (`filters`): a control per field, by its type in
-`route_filter_fields/` (`py_type`): a select of `options` (the statuses:
+`route_filter_fields/` (`py_type`): a select of `options` (the select of Radix, named by
+the title of the field, its option of every item `data-value=""`; the statuses:
 `statusOptions(type)`; the choices of a field with choices by default), the chips yes and
 no for a boolean (under the title of the field; pressed again: every item), the picker of a relationship, a range
 of dates (`<field>__gte`, `<field>__lte`) for a date or a date-time, a number, else a text
@@ -1887,7 +1893,9 @@ The generated files are never edited. The design must have no errors
   with dashes: `radius` is `--radius`, `font.body` `--font-body`, `shadow.md` `--shadow-md`,
   `spacing.gutter` `--spacing-gutter`), the variables of the dark mode, the spacing of the density
   (`--space-page-x`, `--space-section`, `--space-card`, `--space-cell-x`, `--space-cell-y`,
-  `--space-field`), the Tailwind theme over them (a color utility for every color token:
+  `--space-field`; and `--space-cell-x`, `--space-cell-y` of each density under
+  `[data-density]`, the rows of a table whose density the user chooses in the view of a
+  list), the Tailwind theme over them (a color utility for every color token:
   `bg-primary`, `text-muted-foreground`, `bg-<token>` of a token of the product; the soft
   colors of the tones, `bg-success-soft text-success-ink`; `font-sans` is `font.body`,
   `font-display` `font.heading`, `font-mono` `font.mono`; `rounded-sm` … `rounded-2xl` from
@@ -2092,7 +2100,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
+  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
@@ -2108,7 +2116,8 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
 **A form of your own** is driven by the steps through the marks that `ResourceForm`
 renders: the helpers take as the open form the `<form>` that has the submit button
 `action:submit` (`app.form()`), its controls by `field:<name>` (an input, a select, a
-checkbox, a picker: `role="combobox"` with its popup in `aria-controls`), the errors of a
+checkbox, a picker or a select of Radix: `role="combobox"` with its popup in
+`aria-controls`), the errors of a
 submit by `error:<name>` and the states of a failure (`state:invalid`, `state:error`,
 `state:forbidden`, `state:not_found`); a submit that saves closes the form or leads to
 another screen. Render each field with `FieldInput` (it gives the marks of the control and
@@ -3764,7 +3773,7 @@ Its props, `LanguageProviderProps`:
 - `type Params = Readonly<Record<string, string | number>>`: The parameters of a text: `{name}` in the text is replaced by `params.name`.
 - `type Translate = (key: string, params?: Params) => string`: A translation of a key with its parameters in the current language: `t('list.page', {from, to})`.
 
-## API: the components: app-shell, async-result, file-field, live-query, login-form, map, notification-center
+## API: the components: app-shell, async-result, empty-state, file-field, live-query, login-form, map, notification-center
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -3786,13 +3795,14 @@ Its props, `AppShellProps`:
 
 #### Screen
 
-`Screen(props: ScreenProps): Element`: A screen of the specs: `screen:<id>`, its header (the title and the actions; in a working application it stays at the top while the screen scrolls, `--sticky-top` high), its description and its content.
+`Screen(props: ScreenProps): Element`: A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title and the actions; in a working application it stays at the top while the screen scrolls, `--sticky-top` high), its description and its content.
 
 
 Its props, `ScreenProps`:
 
 - `id: string`: The id of the screen in the specs: `screen:<id>`.
 - `title?: ReactNode`
+- `parent?: ScreenParent`: The screen it was opened from: before the title, a breadcrumb to it on a wide screen (`xl`), a button back to it below.
 - `description?: ReactNode`: Under the title: what the screen is for.
 - `actions?: ReactNode`: Next to the title: the actions of the screen.
 - `children: ReactNode`
@@ -3800,6 +3810,10 @@ Its props, `ScreenProps`:
 #### useScreenPage
 
 `useScreenPage(): ScreenPage | null`: The page of the current screen, null outside a `Screen`.
+
+#### useWide
+
+`useWide(): boolean`: Whether the screen is at least the breakpoint `md` of Tailwind wide: the sidebar is shown, and a list is not the one of a phone (true when the browser cannot tell, as in jsdom).
 
 #### NavItem
 
@@ -3826,6 +3840,14 @@ Its props, `ScreenProps`:
 
 - `target: HTMLElement | null`
 - `claim: (open: boolean) => void`: A form page opens (true) or closes (false).
+
+#### ScreenParent
+
+`interface ScreenParent`: The screen that a screen was opened from, such as the list of a card.
+
+- `screen: string`: Its id in the specs: the link back to it is `nav:<screen>`.
+- `label: ReactNode`
+- `to: string`
 
 #### ShellSession
 
@@ -3904,6 +3926,25 @@ Its props, `AsyncResultProps`:
 - `RESULT_PATH: string | null`: The result path of the tasks (`result_path` of `CAPABILITIES.async_background`); null when it is not routed.
 - `AsyncResultProps`: the props of `AsyncResult`, listed with it
 - `type ResultView = 'pending' | 'processing' | 'completed' | 'failed'`
+
+### `@/bazis/ui/empty-state`
+
+#### EmptyState
+
+`EmptyState(props: EmptyStateProps): Element`: Nothing to show, with what fills it: `state:empty`.
+
+
+Its props, `EmptyStateProps`:
+
+- `icon?: ComponentType<{ className?: string; }>`: The icon of the entity, such as an icon of lucide-react; an empty tray by default.
+- `title?: ReactNode`: The title; the text `state.empty.title` by default.
+- `description?: ReactNode`: The hint under the title; the text `state.empty.hint` by default.
+- `children?: ReactNode`: The actions, buttons marked `action:<id>`: what the user may do to fill it.
+- `className?: string`
+
+#### The types and the constants of `@/bazis/ui/empty-state`
+
+- `EmptyStateProps`: the props of `EmptyState`, listed with it
 
 ### `@/bazis/ui/file-field`
 
@@ -4127,7 +4168,7 @@ Its props, `NotificationCenterProps`:
 
 - `NotificationCenterProps`: the props of `NotificationCenter`, listed with it
 
-## API: the components: resource, resource-card
+## API: the components: resource
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -4401,6 +4442,21 @@ Its props, `FileViewProps`:
 
 `RelationLabel(props: { relation: string; id: string; path?: string | undefined; }): Element`: The label of a related item: read from its resource when the contract has a route for it (`useRelatedItem`: the items of a resource shown together are read with one request, and cached), else the start of its id; a skeleton marked `state:loading` while it is read.
 
+#### StatusLabel
+
+`StatusLabel(props: StatusLabelProps): Element`: A status by its id: its name in a badge of its tone, `status:<id>` with `data-tone`.
+
+
+Its props, `StatusLabelProps`:
+
+- `type: string`: The JSON:API type of the model, whose statuses name it.
+- `status: string`: The id of the status.
+- `className?: string`
+
+#### statusTone
+
+`statusTone(status: string): Tone`: The tone of a status: `statuses` of the theme, neutral for another.
+
 #### RelationListPicker
 
 `RelationListPicker(props: RelationListPickerProps): Element`: The picker of the related items of a to-many relationship: a button with the labels of the items (`role="combobox"`, the marks given to it) that opens the list of the related resource (`aria-multiselectable`) as `RelationPicker` does (the labels of the first 8 items, then `+N`, the others not read); a click or Enter adds or removes an item and keeps the list open, the option with the placeholder (`data-value=""`) removes them all, Escape and Tab close it.
@@ -4447,9 +4503,15 @@ Its props, `RelationPickerProps`:
 - `useAnyRelated: (path: string, id: string) => UseQueryResult<ResourceObject | null>`: `useRelatedItem(path, id)`: null when the user may not view the item.
 - `useAnyResourceForm: (path: string, options: { id?: string | undefined; fixed?: Readonly<Record<string, unknown>> | undefined; }) => ResourceForm<SavedDocument>`: `useResourceForm(path, {id, fixed})`: a create without an id.
 - `useAnySchema: (path: string, kind: "list" | "create" | "retrieve" | "update" | "transit", id?: string | undefined) => UseQueryResult<Readonly<Record<string, unknown>>>`: `useSchema(path, kind)` of the route set, `useSchema(path, kind, id)` of an item.
+- `SOFT_TONES: Readonly<Record<Tone, string>>`: The soft colors of each tone that the theme derives from the tokens: a background and the text on it.
+- `StatusLabelProps`: the props of `StatusLabel`, listed with it
 - `PICKER_PAGE: 20`: How many items a page of the picker reads; `Load more` reads the next one.
 - `RelationListPickerProps`: the props of `RelationListPicker`, listed with it
 - `RelationPickerProps`: the props of `RelationPicker`, listed with it
+
+## API: the components: resource-card, resource-form, resource-list, stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/resource-card`
 
@@ -4524,10 +4586,6 @@ Its props, `ResourceCardProps`:
 - `RelatedListProps`: the props of `RelatedList`, listed with it
 - `ResourceCardProps`: the props of `ResourceCard`, listed with it
 
-## API: the components: resource-form, resource-list, state-panel, status-badge, status-history, task-progress, transit-bar
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
-
 ### `@/bazis/ui/resource-form`
 
 #### FormSurface
@@ -4590,7 +4648,7 @@ Its props, `ResourceFormProps`:
 
 #### ResourceList
 
-`ResourceList(props: ResourceListProps): Element`: A list of a resource, with its states, filters, sort, pages and actions.
+`ResourceList(props: ResourceListProps): Element`: A list of a resource, with its states, filters, sort, view, selection, pages and actions.
 
 
 Its props, `ResourceListProps`:
@@ -4612,7 +4670,12 @@ Its props, `ResourceListProps`:
 - `rowTone?: (row: ResourceObject) => Tone | undefined`: The tone of the theme that highlights a row (`list.highlight` of the spec), undefined for none: its soft color and a bar of the tone, marked `data-tone`.
 - `rowToneLabel?: (row: ResourceObject) => string | undefined`: What the tone of a highlighted row means, in words (`label` of `list.highlight`): its `aria-description`, so that the highlight is not told by its color alone.
 - `emptyMessage?: ReactNode`: The message of the empty list.
+- `icon?: ComponentType<{ className?: string; }>`: The icon of the entity (such as an icon of lucide-react), in the empty state.
 - `layout?: 'table' | 'cards'`: A table or a grid of cards; `composition.list` of the theme by default.
+- `phoneLayout?: 'table' | 'cards'`: The list on a phone, below the breakpoint `md` (cards, where a table would scroll sideways); `composition.list_phone` of the theme by default.
+- `density?: Theme['density']`: The density of the rows of the table, which the user may change; that of the theme by default.
+- `selection?: readonly string[]`: The ids of the selected rows (`selection` of `onSelectionChange`).
+- `onSelectionChange?: (ids: readonly string[]) => void`: Makes the rows selectable, a checkbox each (`select:<id>`, and `select:all` for the rows of the page): called with the ids selected, also those of other pages.
 - `compactColumns?: readonly string[]`: The columns of the table while it is next to an open card (`ListCardLayout`, `split`): the first two by default; the others are hidden (their cells stay, for the scenarios).
 
 #### ListAction
@@ -4638,6 +4701,28 @@ Its props, `ResourceListProps`:
 
 - `type FilterValues = Readonly<Record<string, string>>`: The values of the filters by field; a date range is `<field>__gte` and `<field>__lte`.
 - `ResourceListProps`: the props of `ResourceList`, listed with it
+
+### `@/bazis/ui/stat-card`
+
+#### StatCard
+
+`StatCard(props: StatCardProps): Element`: The number of the items that a filter selects, as a tile.
+
+
+Its props, `StatCardProps`:
+
+- `id: string`: The id of the tile in the specs: `tile:<id>`.
+- `path: ListPath`: The route set whose items it counts (`ROUTES` of the contract).
+- `filter?: Filter | undefined`: The items it counts (`filter` of the tile); every item that the user may view without.
+- `label: ReactNode`
+- `tone?: Tone`: The tone of the theme of its icon; neutral by default.
+- `icon?: ComponentType<{ className?: string; }>`: Its icon, such as the icon of the entity (lucide-react).
+- `onOpen?: () => void`: Opens what it counts (`open` of the tile): a click anywhere on it.
+- `className?: string`
+
+#### The types and the constants of `@/bazis/ui/stat-card`
+
+- `StatCardProps`: the props of `StatCard`, listed with it
 
 ### `@/bazis/ui/state-panel`
 
@@ -4824,7 +4909,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `open(screen: ScreenId<P>): Promise<void>`: Opens a screen by its route (one without the id of an item) and waits for its state.
 - `openItem(options: { where: Values; }): Promise<void>`: Opens the first row of the list of the current screen whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search; fails when no page has it.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>`.
-- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option; a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox by true or false.
+- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false.
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).
 - `transit(id: string, payload?: Values): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog, and waits until it is done (the transit is no longer offered) or shows an error.

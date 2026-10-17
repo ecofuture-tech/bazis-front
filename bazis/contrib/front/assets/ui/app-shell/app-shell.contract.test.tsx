@@ -16,7 +16,8 @@
 // `aria-current="page"`; a link that `requires` a permission only once the backend allows
 // it), `screen:<id>`, the logout `action:logout` with a session only, the
 // color mode, the language (`action:language`, with more than one language), the tools of the
-// product mounted once; and the list with its card (`ListCardLayout`), side by side or one at a time.
+// product mounted once, the link of a screen back to its parent (`nav:<screen>`); and the list
+// with its card (`ListCardLayout`), side by side or one at a time.
 // Keep it passing when the component is changed.
 
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
@@ -241,6 +242,33 @@ describe('AppShell', () => {
     expect(header.className).toContain('--screen-lift');
     expect(header.className).toContain('md:h-(--sticky-top)');
     expect(header.textContent).not.toContain('The overview');
+  });
+
+  it('links a screen back to the screen it was opened from', () => {
+    renderWithBazis(
+      <Routes>
+        <Route
+          path="/tasks/:id"
+          element={
+            <Screen id="task-card" title="A task" parent={{ screen: 'task-list', label: 'Tasks', to: '/tasks' }}>
+              card
+            </Screen>
+          }
+        />
+        <Route path="/tasks" element={<Screen id="task-list">list</Screen>} />
+      </Routes>,
+      new Backend(),
+      { route: '/tasks/1' },
+    );
+    const back = screen.getByTestId('nav:task-list');
+    // in the header, before the title, named by the parent also where only its arrow shows
+    const header = screen.getByTestId('screen:task-card').querySelector('header');
+    expect(header?.contains(back)).toBe(true);
+    expect(back.compareDocumentPosition(screen.getByRole('heading', { level: 1 })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(back.textContent).toBe('Tasks');
+    expect(back.closest('nav')).not.toBeNull();
+    fireEvent.click(back);
+    expect(screen.getByTestId('screen:task-list')).toBeTruthy();
   });
 
   it('switches the color mode when the tokens have a dark mode', () => {

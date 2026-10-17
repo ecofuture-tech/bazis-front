@@ -21,7 +21,8 @@ compiled into `frontend/src/bazis/generated/`:
 - `theme.css`, imported by `src/index.css` after Tailwind: the
   tokens as CSS variables of `:root` and of the dark mode (the class `dark` of `<html>`, or
   the system's unless it has the class `light`; with `mode: light` or `dark` the one mode
-  in `:root`), the spacing of the density, the Tailwind theme over them (`bg-primary`,
+  in `:root`), the spacing of the density (and that of the rows of a table whose density
+  the user chooses, `data-density`), the Tailwind theme over them (`bg-primary`,
   `bg-success-soft text-success-ink`, `font-display`, `rounded-lg`, `shadow-md`) and the
   base styles of the preset;
 - `theme.ts`, `THEME`: the options of the preset (navigation, density, composition, the
@@ -87,6 +88,10 @@ DENSITY = {
         '--space-field': '0.875rem',
     },
 }
+
+#: the spacing of the rows of a table, which the user chooses (`data-density` of the table of
+#: resource-list) over the density of the theme
+ROW_SPACING = ('--space-cell-x', '--space-cell-y')
 
 #: the base styles of each preset, after those of both
 PRESET_BASE = {
@@ -231,6 +236,11 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         '',
         block(':root', {**first, **DENSITY[settings['density']]}),
         '',
+        '/* The density of the rows of a table that the user chooses: `data-density`. */',
+        *(
+            block(f"[data-density='{name}']", {it: spacing[it] for it in ROW_SPACING}) + '\n'
+            for name, spacing in DENSITY.items()
+        ),
     ]
     if night is not None:
         parts += [

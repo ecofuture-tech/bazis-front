@@ -316,6 +316,66 @@ test('fill chooses the item of a combobox by its label, null by the option that 
   await expect(trigger).toHaveAttribute('data-value', '');
 });
 
+test('fill chooses the option of a select of Radix by its label, null by the option that clears it', async ({ page }) => {
+  // the select of Radix (`Select` of shadcn/ui): a combobox whose popup, named by
+  // `aria-controls` once open, is the listbox of all its options, without a search; its
+  // option of null is `data-value=""` (the other options have no `data-value`)
+  const option = (value: string, label: string, mark = '') => `<div role="option" data-v="${value}"${mark}>${label}</div>`;
+  const listbox = `<div id="choices" role="listbox">${
+    option('', 'All', ' data-value=""') + option('high', 'High priority') + option('low', 'High')
+  }</div>`;
+  await show(page, '/tasks',
+    html(
+      `<section data-bz="screen:task-list"><div data-bz="state:loaded">Tasks</div></section>
+       <form><button type="button" role="combobox" data-bz="field:priority" data-v="">All</button>
+       <button type="submit" data-bz="action:submit">Create</button></form>`,
+      `const trigger = document.querySelector('[role="combobox"]');
+       trigger.addEventListener('click', () => setTimeout(() => {
+         document.body.insertAdjacentHTML('beforeend', ${JSON.stringify(listbox)});
+         trigger.setAttribute('aria-controls', 'choices');
+         const popup = document.getElementById('choices');
+         popup.addEventListener('click', (event) => {
+           const chosen = event.target.closest('[role="option"]');
+           trigger.dataset.v = chosen.dataset.v;
+           trigger.textContent = chosen.textContent;
+           trigger.removeAttribute('aria-controls');
+           popup.remove();
+         });
+       }, 200));`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-list');
+  const trigger = page.locator(bz('field', 'priority'));
+  // the option of the whole label, not one that contains it
+  await app.fill({ priority: 'High' });
+  await expect(trigger).toHaveAttribute('data-v', 'low');
+  await expect(page.locator('#choices')).toHaveCount(0);
+  await app.fill({ priority: null });
+  await expect(trigger).toHaveAttribute('data-v', '');
+});
+
+test('fill sets a checkbox and a switch of Radix', async ({ page }) => {
+  // buttons with the role and `aria-checked`, as `Checkbox` and `Switch` of shadcn/ui
+  const toggle = (name: string, role: string) =>
+    `<button type="button" role="${role}" aria-checked="false" data-bz="field:${name}"
+      onclick="this.setAttribute('aria-checked', String(this.getAttribute('aria-checked') !== 'true'))"></button>`;
+  await show(page, '/tasks',
+    html(
+      `<section data-bz="screen:task-list"><div data-bz="state:loaded">Tasks</div></section>
+       <form>${toggle('urgent', 'checkbox')}${toggle('public', 'switch')}<button type="submit" data-bz="action:submit">Save</button></form>`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-list');
+  await app.fill({ urgent: true, public: true });
+  await expect(page.locator(bz('field', 'urgent'))).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator(bz('field', 'public'))).toHaveAttribute('aria-checked', 'true');
+  await app.fill({ public: false });
+  await expect(page.locator(bz('field', 'public'))).toHaveAttribute('aria-checked', 'false');
+  await expect(page.locator(bz('field', 'urgent'))).toHaveAttribute('aria-checked', 'true');
+});
+
 test('fill reads the pages of a combobox without a search until the item is listed', async ({ page }) => {
   // a route set without search fields: the popup has no search, the next page is the option
   // without `data-value`, and it loads after a delay

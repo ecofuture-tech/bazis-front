@@ -15,14 +15,15 @@
 // The contract of the fields: the control of every field is `field:<name>`, its errors
 // `error:<name>`, a read-only field cannot be changed; a file field (a to-one relationship to
 // the uploaded files) is edited by the control of `FilesProvider` and shown as a file; a point
-// field (GeoJSON) is edited and shown as its coordinates. Keep it passing when the component
-// is changed.
+// field (GeoJSON) is edited and shown as its coordinates; a status is a badge of its tone,
+// `status:<id>`. Keep it passing when the component is changed.
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { RESOURCES, TRANSITS } from '@/bazis/generated/contract';
+import { THEME } from '@/bazis/generated/theme';
 import type { FormField } from '@/bazis/react';
 import {
   choiceOptions,
@@ -38,7 +39,10 @@ import {
   permitted,
   PointsProvider,
   RelationLabel,
+  SOFT_TONES,
+  StatusLabel,
   statusName,
+  statusTone,
   useAnyRelated,
   useListFields,
   type FileControlProps,
@@ -514,6 +518,21 @@ describe('FieldValue', () => {
     );
     // in the language of the interface, English without a provider
     expect(screen.getByTestId('field:status').textContent).toBe(statusName(type, id, 'en'));
+  });
+});
+
+describe('StatusLabel', () => {
+  it('marks a status with its tone, in the soft colors of the tone', () => {
+    render(<StatusLabel type="test.item" status="draft" />);
+    const badge = screen.getByTestId('status:draft');
+    // a model that the contract does not have: the id of the status
+    expect(badge.textContent).toBe('draft');
+    const tone = statusTone('draft');
+    expect(badge.getAttribute('data-tone')).toBe(tone);
+    for (const name of SOFT_TONES[tone].split(' ')) expect(badge.classList.contains(name)).toBe(true);
+    // the tone of `statuses` of the theme, neutral for a status it does not name
+    for (const [status, it] of Object.entries(THEME.statuses)) expect(statusTone(status)).toBe(it);
+    expect(statusTone('a-status-of-no-theme')).toBe('neutral');
   });
 });
 

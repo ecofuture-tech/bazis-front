@@ -13,10 +13,12 @@ copies and changes them freely; each component comes with its contract test
 (`<component>.contract.test.tsx`), which checks the `data-bz` marks and the states that the
 scenarios of the specs rely on: keep it passing.
 
-The shadcn/ui components they use (`button`, `input`, `label`, `native-select`, `table`,
-`badge`, `card`, `dialog`, `popover`, `sheet`, `skeleton`) are assets as well, copied into `src/components/ui/` as
+The shadcn/ui components they use (`button`, `input`, `label`, `native-select`, `select`,
+`checkbox`, `dropdown-menu`, `table`, `badge`, `card`, `dialog`, `popover`, `sheet`,
+`skeleton`) are assets as well, copied into `src/components/ui/` as
 `components.json` of the template places them, so that `add` needs neither the network nor
-the shadcn CLI. Their npm dependencies (`radix-ui`, `class-variance-authority`,
+the shadcn CLI; so are the others on Radix for the screens of a product (`tabs`, `tooltip`,
+`switch`, `avatar`, `separator`, `scroll-area`), copied by `add <name>`. Their npm dependencies (`radix-ui`, `class-variance-authority`,
 `lucide-react`) and those of the contract tests (`@testing-library/react`, `jsdom`) are in
 the `package.json` of the template. The library of an optional component (Leaflet of `map`)
 is `npm` of its asset in the registry: `add` sets it in the `package.json` of the product
@@ -43,7 +45,8 @@ The components look as the design of the product says (`spec/design/`, compiled 
   apply everywhere; the spacing of the density through its variables (`p-(--space-card)`,
   `py-(--space-cell-y)`);
 - the defaults of the composition from `THEME` (`@/bazis/generated/theme`): the navigation
-  of `AppShell`, the table or the cards of `ResourceList` (`layout`), the list with its card
+  of `AppShell`, the table or the cards of `ResourceList` (`layout`; cards on a phone,
+  `phoneLayout`) and the density of its rows (`density`), the list with its card
   of `ListCardLayout` (`mode`), the dialog or the page of `FormSurface` and of the edit of
   `ResourceCard` (`mode`, `forms`); a prop overrides it, which the contract tests use to
   check both;
@@ -51,7 +54,9 @@ The components look as the design of the product says (`spec/design/`, compiled 
   `aria-busy`; the other states an icon, a title and a hint (the texts
   `state.<state>.title` and `state.<state>.hint`); a change that succeeded shows a toast (`toast`, the `Toaster` of
   `AppShell`);
-- the tone of a status badge is `statuses` of the theme (`statusTone`), neutral by default.
+- the tone of a status badge is `statuses` of the theme (`statusTone`), neutral by default;
+  a status is shown by `StatusLabel` of `resource` (the badge of `StatusBadge` and of the
+  column `status` of a list), the soft colors of a tone by `SOFT_TONES`.
 
 In this repository `@/bazis/generated/theme` is `test/fixtures/theme.ts`, the theme of the
 sample (`tests/test_design.py` checks it; write it again with
@@ -65,9 +70,11 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | Component | Exports | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel`; `errorState`, `queryState`, `SkeletonLines`; `toast`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell`; `Screen`; `ListCardLayout`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage` | `nav:<screen>`, `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
+| `app-shell` | `AppShell`; `Screen` (`parent`: the link back to the screen it was opened from); `ListCardLayout`, `useBesideCard`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage`; `useWide` | `nav:<screen>` (also the link of `parent`), `screen:<id>`, `action:logout`, `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource-list` | `ResourceList` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:prev-page`, `action:next-page` | |
+| `resource-list` | `ResourceList` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` and its checkbox `select:<id>` (`select:all`), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:view` (`menu:view` with `toggle:<column>` and `density:<density>`), `action:prev-page`, `action:next-page` | |
+| `empty-state` | `EmptyState` | `state:empty`, the `action:<id>` of its actions | |
+| `stat-card` | `StatCard` | `tile:<id>` (its number in `data-value`), `state:<loading\|loaded\|error\|forbidden>` | |
 | `resource-card` | `ResourceCard`; `RelatedList` | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>`, `action:<add.id>` | |
 | `resource-form` | `ResourceForm`; `FormSurface` | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge`; `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | capability `statusy` |
@@ -120,7 +127,19 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   no control for a field that the backend does not list for the user; the inline
   `state:error` when they cannot be read), the sort labels from
   `RESOURCES` of the contract. An action with `permission` is shown only when the
-  permission meta allows it. `filter` (the filter of the screen) is combined (AND) with
+  permission meta allows it; those with `permission: 'add'` of a list without items are in
+  its empty state (`EmptyState`, with the `icon` of the entity), not in the toolbar, so that
+  each is once on the screen. A filter of `options` is the select of Radix (`Select` of
+  shadcn/ui), named by the title of the field, its option of every item `data-value=""`.
+  Below the breakpoint `md` (`useWide` of `app-shell`) the rows are cards (`phoneLayout`,
+  `composition.list_phone` of the theme), a table there scrolling sideways. The column `status` of an item of a statusy model is the
+  badge of its status (`status:<id>`, the tone of the theme). The menu of its view
+  (`action:view`) hides the columns but the first (their cells stay, hidden, for the
+  scenarios that find a row by them) and sets the density of the rows of the table
+  (`data-density` of its scroll area, whose spacing of the cells the theme gives each
+  density; `density` of the theme by default). With
+  `onSelectionChange` each row has a checkbox (`select:<id>`, the rows of the page
+  `select:all`, in the header of the table or above the cards), which never opens it; the ids of other pages stay selected. `filter` (the filter of the screen) is combined (AND) with
   those of the user; `rowTone(row)` highlights a row in a tone of the theme (`Tone` of the
   generated theme: its soft color and a bar of the tone) and `rowToneLabel(row)` is its
   `aria-description`, the meaning in words.
@@ -131,7 +150,16 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   screen of its card: next to the list on a wide screen (`split`; the list keeps its state
   and shows only its `compactColumns`, the first two by default, while the card is open) or
   in its place (`pages`).
-  `Screen` hosts a form page of `FormSurface`, which takes the place of its content.
+  `Screen` hosts a form page of `FormSurface`, which takes the place of its content; its
+  `parent` is a link back before its title (`nav:<screen>`): a breadcrumb from the
+  breakpoint `xl`, an arrow named by the parent below it.
+- **`empty-state`**: nothing to show, with the actions that fill it (`state:empty`); the
+  icon of the entity, a title and a hint (`state.empty.title`, `state.empty.hint` by
+  default).
+- **`stat-card`** (a figure of a dashboard): the count of the pagination of a list of one
+  item of `path` with its `filter` (the core has no aggregates), `tile:<id>` with the number
+  in `data-value` once loaded, the states of the list; `onOpen` makes the whole tile a
+  button named by its label.
 - **`resource-card`** reads the item with `crud_actions` and `custom_actions` and its fields from
   `schema_retrieve/` of the item; its heading is the name of the item (`itemName`), else the
   values of its `label` fields (the first two fields of the sections by default), never its
@@ -302,7 +330,7 @@ import { useNavigate } from 'react-router';
 import { ROUTES } from '@/bazis/generated/contract';
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceList } from '@/bazis/ui/resource-list';
-import { StatusBadge, statusOptions } from '@/bazis/ui/status-badge';
+import { statusOptions } from '@/bazis/ui/status-badge';
 
 const TASKS = ROUTES['tasks.task'];
 
@@ -318,7 +346,6 @@ export function TaskListScreen() {
         sort={['-dt_created']}
         search
         onOpen={(id) => void navigate(`/tasks/${id}`)}
-        cells={{ status: (row) => <StatusBadge resource={row} /> }}
       />
     </Screen>
   );

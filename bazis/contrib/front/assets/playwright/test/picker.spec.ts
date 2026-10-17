@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The helpers against the real `RelationPicker` and `RelationListPicker` in a browser: a page of the components
+// The helpers against the real `RelationPicker`, `RelationListPicker` and the select of Radix in a browser: a page of the components
 // (`assets/ui/test/browser/`) served by Vite with the aliases of the components, its backend
 // the routes of the test with the delays of a server. What jsdom cannot tell: where Radix
 // puts the focus, and that an empty list is not displayed.
@@ -147,4 +147,20 @@ test.describe('fill of a to-many relationship', () => {
     await page.goto(`${origin}/?searchable=false&nullable=false`);
     await expect(new App(page, PRODUCT).fill({ owner: ['Item 1'] })).rejects.toThrow('the picker of a to-one relationship');
   });
+});
+
+test('fill chooses the option of a select of Radix by its label, null by its option of null', async ({ page }) => {
+  await page.goto(`${origin}/?select=true`);
+  const app = new App(page, PRODUCT);
+  const trigger = page.locator('[data-bz="field:priority"]');
+  // the option of the whole label, not one that contains it
+  await app.fill({ priority: 'High' });
+  await expect(page.getByTestId('value')).toHaveText('low');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(trigger).toHaveText('High');
+  await app.fill({ priority: 'High priority' });
+  await expect(page.getByTestId('value')).toHaveText('high');
+  await app.fill({ priority: null });
+  await expect(page.getByTestId('value')).toHaveText('');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
 });

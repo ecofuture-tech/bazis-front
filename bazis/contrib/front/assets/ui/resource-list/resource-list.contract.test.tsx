@@ -17,18 +17,54 @@
 // `cell:<column>` (the end-to-end tests find a row by them; a filter is `field:<name>`),
 // the titles of the list schema, the actions the backend allows (`action:<id>`), search,
 // filters (only those the backend offers the user) and pages, the filter of the screen, the
-// tone of a highlighted row (`data-tone`), its first columns only next to an open card. Keep
-// it passing when the component is changed.
+// tone of a highlighted row (`data-tone`), its first columns only next to an open card, cards
+// on a phone, the rows selected (`select:<id>`, `select:all`), the view (`action:view`: the
+// columns hidden, `toggle:<column>`, and the density, `density:<density>`), the badge of a
+// status, the empty state with the creation of an item. Keep it passing when the component
+// is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { Route, Routes } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
+import { TRANSITS } from '@/bazis/generated/contract';
 import { ListCardLayout } from '@/bazis/ui/app-shell';
+import { statusName } from '@/bazis/ui/resource';
 import { filterOf, ResourceList } from '@/bazis/ui/resource-list';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+
+// the menus and the selects are positioned with ResizeObserver and scroll their options into
+// view, which jsdom does not have
+beforeAll(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
+/** Opens a menu or a select of Radix with the keyboard (jsdom has no pointer events). */
+function open(trigger: HTMLElement) {
+  fireEvent.keyDown(trigger, { key: 'Enter' });
+}
+
+/** Runs a test on the width of a phone, below the breakpoint `md` (jsdom has no `matchMedia`). */
+function onPhone(test: () => Promise<void>) {
+  return async () => {
+    window.matchMedia = () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+    try {
+      await test();
+    } finally {
+      Reflect.deleteProperty(window, 'matchMedia');
+    }
+  };
+}
 
 const schema = runtimeSchema(
   {
@@ -193,16 +229,27 @@ describe('ResourceList', () => {
     await waitFor(() => {
       expect(within(screen.getByTestId('row:a')).getByTestId('cell:state').textContent).toBe('Finished');
     });
-    const control = await screen.findByTestId<HTMLSelectElement>('field:state');
-    // the first option is every item
-    expect([...control.options].map((it) => [it.value, it.value ? it.textContent : ''])).toEqual([
-      ['', ''],
-      ['new', 'New'],
-      ['done', 'Finished'],
-    ]);
-    fireEvent.change(control, { target: { value: 'done' } });
+    // a select named by the field, whose first option, every item, is `data-value=""`
+    const control = await screen.findByTestId('field:state');
+    expect(control.getAttribute('role')).toBe('combobox');
+    expect(control.getAttribute('aria-label')).toBe('State');
+    open(control);
+    const listbox = await screen.findByRole('listbox');
+    expect(control.getAttribute('aria-controls')).toBe(listbox.id);
+    const options = within(listbox).getAllByRole('option');
+    expect(options.map((it) => it.getAttribute('data-value'))).toEqual(['', null, null]);
+    expect(options.slice(1).map((it) => it.textContent)).toEqual(['New', 'Finished']);
+    fireEvent.click(within(listbox).getByRole('option', { name: 'Finished' }));
     await waitFor(() => {
       expect(requested(server, 'filter=state=done')).toBe(true);
+    });
+    expect(control.textContent).toContain('Finished');
+    // every item again
+    const count = server.requests('GET').length;
+    open(control);
+    fireEvent.click((await screen.findAllByRole('option'))[0] as HTMLElement);
+    await waitFor(() => {
+      expect(server.requests('GET').slice(count).some((it) => it.startsWith(`GET ${ITEMS}?`) && !it.includes('filter'))).toBe(true);
     });
   });
 
@@ -542,5 +589,174 @@ describe('ResourceList', () => {
     );
     const loaded = await screen.findByTestId('state:loaded');
     expect([...loaded.querySelectorAll('th')].some((it) => it.classList.contains('hidden'))).toBe(false);
+  });
+
+  it(
+    'shows the rows as cards on a phone, a table there only when asked',
+    onPhone(async () => {
+      const { unmount } = renderWithBazis(
+        <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done']} layout="table" phoneLayout="cards" />,
+        backend(listDocument(rows)),
+      );
+      await screen.findByTestId('state:loaded');
+      expect(screen.getByTestId('row:a').tagName).toBe('ARTICLE');
+      expect(within(screen.getByTestId('row:a')).getByTestId('cell:done')).toBeTruthy();
+      expect(screen.getByTestId('state:loaded').querySelector('table')).toBeNull();
+      unmount();
+      renderWithBazis(
+        <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done']} layout="table" phoneLayout="table" />,
+        backend(listDocument(rows)),
+      );
+      await screen.findByTestId('state:loaded');
+      expect(screen.getByTestId('row:a').tagName).toBe('TR');
+    }),
+  );
+
+  for (const layout of ['table', 'cards'] as const) {
+    it(`selects rows as ${layout}, without opening them`, async () => {
+      const onOpen = vi.fn();
+      const changes: (readonly string[])[] = [];
+      function Selectable() {
+        const [selection, setSelection] = useState<readonly string[]>(['z']);
+        return (
+          <ResourceList
+            path={ITEMS as never}
+            entity="item"
+            columns={['title']}
+            layout={layout}
+            onOpen={onOpen}
+            selection={selection}
+            onSelectionChange={(ids) => {
+              changes.push(ids);
+              setSelection(ids);
+            }}
+          />
+        );
+      }
+      renderWithBazis(<Selectable />, backend(listDocument(rows)));
+      await screen.findByTestId('state:loaded');
+      const a = screen.getByTestId('select:a');
+      expect(screen.getByTestId('row:a').contains(a)).toBe(true);
+      fireEvent.click(a);
+      expect(a.getAttribute('aria-checked')).toBe('true');
+      expect(onOpen).not.toHaveBeenCalled();
+      // an item of another page stays selected
+      expect(changes.at(-1)).toEqual(['z', 'a']);
+      // the rows of the page: in the header of the table, above the cards
+      const all = screen.getByTestId('select:all');
+      expect(all.getAttribute('aria-checked')).toBe('mixed');
+      fireEvent.click(all);
+      expect(changes.at(-1)).toEqual(['z', 'a', 'b']);
+      expect(all.getAttribute('aria-checked')).toBe('true');
+      fireEvent.click(all);
+      expect(changes.at(-1)).toEqual(['z']);
+      fireEvent.click(a);
+      fireEvent.click(a);
+      expect(changes.at(-1)).toEqual(['z']);
+    });
+  }
+
+  it('has no checkboxes without onSelectionChange', async () => {
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} layout="table" />, backend(listDocument(rows)));
+    await screen.findByTestId('state:loaded');
+    expect(screen.queryByTestId('select:all')).toBeNull();
+    expect(screen.queryByTestId('select:a')).toBeNull();
+  });
+
+  it('hides the columns that the user hides, keeping their cells, but the first', async () => {
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title', 'done', 'count']} layout="table" />,
+      backend(listDocument(rows)),
+    );
+    const loaded = await screen.findByTestId('state:loaded');
+    open(screen.getByTestId('action:view'));
+    const menu = await screen.findByTestId('menu:view');
+    expect(within(menu).queryByTestId('toggle:title')).toBeNull();
+    const done = within(menu).getByTestId('toggle:done');
+    expect(done.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(done);
+    // the menu stays open while columns are chosen
+    expect(done.getAttribute('aria-checked')).toBe('false');
+    expect([...loaded.querySelectorAll('th')].map((it) => it.classList.contains('hidden'))).toEqual([false, true, false]);
+    const cell = within(screen.getByTestId('row:a')).getByTestId('cell:done');
+    expect(cell.classList.contains('hidden')).toBe(true);
+    fireEvent.click(done);
+    expect(cell.classList.contains('hidden')).toBe(false);
+  });
+
+  it('has the density of the theme or of the prop, which the user changes', async () => {
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} layout="table" density="comfortable" />,
+      backend(listDocument(rows)),
+    );
+    const area = (await screen.findByTestId('state:loaded')).querySelector('[data-slot="table-scroll"]');
+    expect(area?.getAttribute('data-density')).toBe('comfortable');
+    open(screen.getByTestId('action:view'));
+    const compact = await screen.findByTestId('density:compact');
+    expect(compact.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(compact);
+    expect(area?.getAttribute('data-density')).toBe('compact');
+  });
+
+  it('offers the creation of the first item in the empty state, with the icon of the entity', async () => {
+    const create = vi.fn();
+    function Icon({ className }: { className?: string }) {
+      return <svg data-bz="icon:item" className={className} />;
+    }
+    const server = backend(listDocument([], { meta: { for_create: true } }));
+    renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title']}
+        search
+        icon={Icon}
+        actions={[
+          { id: 'create', label: 'Create', onClick: create, permission: 'add' },
+          { id: 'export', label: 'Export', onClick: vi.fn() },
+        ]}
+      />,
+      server,
+    );
+    const empty = await screen.findByTestId('state:empty');
+    expect(within(empty).getByTestId('icon:item')).toBeTruthy();
+    // once on the screen: in the empty state, not in the toolbar
+    expect(screen.getAllByTestId('action:create')).toHaveLength(1);
+    fireEvent.click(within(empty).getByTestId('action:create'));
+    expect(create).toHaveBeenCalledOnce();
+    expect(within(empty).queryByTestId('action:export')).toBeNull();
+    expect(screen.getByTestId('action:export')).toBeTruthy();
+    // nothing matches a search: the creation goes back to the toolbar
+    fireEvent.change(screen.getByTestId('field:$search'), { target: { value: 'word' } });
+    await waitFor(() => {
+      expect(within(screen.getByTestId('state:empty')).queryByTestId('action:create')).toBeNull();
+    });
+    expect(screen.getAllByTestId('action:create')).toHaveLength(1);
+  });
+
+  // a status of a statusy model of the product, if it has one
+  const statusy = Object.entries(TRANSITS as Readonly<Record<string, { statuses: readonly { id: string }[] }>>).flatMap(
+    ([type, { statuses }]) => statuses.map(({ id }) => ({ type, id })),
+  )[0];
+  it.runIf(statusy)('shows the status of an item of a statusy model as its badge', async () => {
+    if (!statusy) return;
+    const { type, id } = statusy;
+    const server = new Backend()
+      .on(
+        'GET',
+        `${ITEMS}schema_list/`,
+        runtimeSchema(
+          { title: { attribute: { type: 'string', title: 'Title' } }, status: { relation: 'test.status', title: 'Status' } },
+          { list: true },
+        ),
+      )
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [] })
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'First' }, { status: { type: 'test.status', id } }, type)]));
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'status']} layout="table" />, server);
+    const cell = await within(await screen.findByTestId('row:a')).findByTestId('cell:status');
+    const badge = within(cell).getByTestId(`status:${id}`);
+    expect(badge.getAttribute('data-tone')).toBeTruthy();
+    expect(badge.className).toContain(`bg-${String(badge.getAttribute('data-tone'))}-soft`);
+    expect(badge.textContent).toBe(statusName(type, id, 'en'));
   });
 });

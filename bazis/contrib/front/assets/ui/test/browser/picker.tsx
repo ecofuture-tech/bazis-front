@@ -16,7 +16,9 @@
 // browser (`assets/playwright/test/picker.spec.ts`, served by Vite with the aliases of
 // `vitest.config.ts`): the focus of Radix and the display of an empty list, which jsdom does
 // not have. The query sets `searchable` and `nullable`, and `multiple` (`RelationListPicker`,
-// `field:owners`, its value the ids separated by commas); the backend is the route of the test.
+// `field:owners`, its value the ids separated by commas), or `select` (the select of Radix of
+// shadcn/ui, `field:priority`, with the option of null `data-value=""`, as the filters of a
+// list have it); the backend is the route of the test.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -27,9 +29,13 @@ import { LanguageProvider } from '@/bazis/i18n';
 import type { paths } from '@/bazis/generated/schema';
 import { BazisProvider } from '@/bazis/react';
 import { RelationListPicker, RelationPicker } from '@/bazis/ui/resource';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 /** The route set that the test answers. */
 const ITEMS = '/api/test/item/';
+
+/** The value of the option of null of the select (Radix refuses an empty one). */
+const NONE = '$none';
 
 const query = new URLSearchParams(window.location.search);
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -45,7 +51,25 @@ function Page() {
         event.preventDefault();
       }}
     >
-      {query.get('multiple') === 'true' ? (
+      {query.get('select') === 'true' ? (
+        <Select
+          value={value ?? NONE}
+          onValueChange={(next) => {
+            setValue(next === NONE ? null : next);
+          }}
+        >
+          <SelectTrigger data-bz="field:priority" aria-label="Priority">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectItem value={NONE} data-value="">
+              —
+            </SelectItem>
+            <SelectItem value="high">High priority</SelectItem>
+            <SelectItem value="low">High</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : query.get('multiple') === 'true' ? (
         <RelationListPicker
           relation="test.item"
           path={ITEMS}

@@ -15,13 +15,12 @@
 // The statuses and the transits of bazis-statusy by the JSON:API type of their model, from
 // `TRANSITS` of the contract (`statusyModel` of resource): their names in every language of
 // the backend (`{en, ru}`), read in the language of the interface; and the tone of a status,
-// from `statuses` of spec/design/theme.yaml (`THEME` of the generated theme).
+// from `statuses` of spec/design/theme.yaml (`statusTone` of resource).
 
 import { LANGUAGE } from '@/bazis/generated/contract';
-import { THEME, type Tone } from '@/bazis/generated/theme';
 import { fieldValue, localizedName, statusyModel, type ResourceObject } from '@/bazis/ui/resource';
 
-export { statusName } from '@/bazis/ui/resource';
+export { statusName, statusTone } from '@/bazis/ui/resource';
 
 /** The status of an item of a statusy model: the id of its relationship `status`. */
 export function statusOf(resource: ResourceObject): string | null {
@@ -37,11 +36,6 @@ export function transitName(type: string, transit: string, language: string = LA
 /** The statuses of the model as the options of a filter (`filters` of resource-list), named in a language. */
 export function statusOptions(type: string, language: string = LANGUAGE): { value: string; label: string }[] {
   return (statusyModel(type)?.statuses ?? []).map((it) => ({ value: it.id, label: localizedName(it, it.id, language) }));
-}
-
-/** The tone of a status: `statuses` of the theme, neutral for another. */
-export function statusTone(status: string): Tone {
-  return THEME.statuses[status] ?? 'neutral';
 }
 
 /** The status that a transit of the model leads to; null when the contract does not have it. */

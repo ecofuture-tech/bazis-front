@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { AppShell, Screen, useScreenPage } from './app-shell.js';
-export type { AppShellProps, Navigation, NavItem, NavRequirement, ScreenPage, ScreenProps, ShellSession } from './app-shell.js';
+export { AppShell, Screen, useScreenPage, useWide } from './app-shell.js';
+export type {
+  AppShellProps,
+  Navigation,
+  NavItem,
+  NavRequirement,
+  ScreenPage,
+  ScreenParent,
+  ScreenProps,
+  ShellSession,
+} from './app-shell.js';
 export { ColorModeToggle, initColorMode, setColorMode } from './color-mode.js';
 export type { ColorMode } from './color-mode.js';
 export { LanguageToggle } from './language.js';

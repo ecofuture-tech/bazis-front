@@ -174,6 +174,17 @@ def test_the_defaults_of_a_preset_without_a_design():
     assert root_block(css, ':root')['--space-cell-y'] == theme.DENSITY['compact']['--space-cell-y']
 
 
+def test_the_density_that_the_user_chooses():
+    # the rows of a table marked with a density (`data-density`, the view of a list) have its
+    # spacing, whatever the density of the theme
+    for density in theme.DENSITY:
+        css = theme.render(Specs(theme={'spec': 'bazis-design/1', 'preset': 'workspace', 'density': density}))[theme.THEME_CSS]
+        assert root_block(css, ':root')['--space-cell-y'] == theme.DENSITY[density]['--space-cell-y']
+        for name, spacing in theme.DENSITY.items():
+            assert root_block(css, f"[data-density='{name}']") == {it: spacing[it] for it in theme.ROW_SPACING}
+    assert theme.DENSITY['compact']['--space-cell-y'] != theme.DENSITY['comfortable']['--space-cell-y']
+
+
 def test_the_surface_gives_the_shadow_of_the_cards():
     # the cards, the tables and the fields have `shadow-xs`: the token of the surface
     shadows = {}

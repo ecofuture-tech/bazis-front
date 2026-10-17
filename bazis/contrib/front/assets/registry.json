@@ -259,6 +259,7 @@
           "i18n",
           "react",
           "testing",
+          "badge",
           "input",
           "label",
           "native-select",
@@ -277,7 +278,8 @@
         "relation-picker.contract.test.tsx",
         "relation-picker.tsx",
         "relation.tsx",
-        "resource.contract.test.tsx"
+        "resource.contract.test.tsx",
+        "status.tsx"
       ]
     },
     {
@@ -305,6 +307,23 @@
       ]
     },
     {
+      "name": "empty-state",
+      "kind": "ui",
+      "source": "ui/empty-state",
+      "target": "src/bazis/ui/empty-state",
+      "requires": {
+        "assets": [
+          "i18n",
+          "testing"
+        ]
+      },
+      "files": [
+        "empty-state.contract.test.tsx",
+        "empty-state.tsx",
+        "index.ts"
+      ]
+    },
+    {
       "name": "resource-list",
       "kind": "ui",
       "source": "ui/resource-list",
@@ -313,22 +332,28 @@
         "assets": [
           "i18n",
           "app-shell",
+          "empty-state",
           "resource",
           "state-panel",
           "testing",
           "button",
+          "checkbox",
+          "dropdown-menu",
           "input",
           "label",
-          "native-select",
+          "select",
           "table",
           "skeleton"
         ]
       },
       "files": [
+        "cards.tsx",
+        "columns.tsx",
         "filters.tsx",
         "index.ts",
         "resource-list.contract.test.tsx",
-        "resource-list.tsx"
+        "resource-list.tsx",
+        "rows.tsx"
       ]
     },
     {
@@ -357,6 +382,26 @@
       ]
     },
     {
+      "name": "stat-card",
+      "kind": "ui",
+      "source": "ui/stat-card",
+      "target": "src/bazis/ui/stat-card",
+      "requires": {
+        "assets": [
+          "i18n",
+          "resource",
+          "state-panel",
+          "testing",
+          "skeleton"
+        ]
+      },
+      "files": [
+        "index.ts",
+        "stat-card.contract.test.tsx",
+        "stat-card.tsx"
+      ]
+    },
+    {
       "name": "status-badge",
       "kind": "ui",
       "source": "ui/status-badge",
@@ -368,8 +413,7 @@
         "assets": [
           "i18n",
           "resource",
-          "testing",
-          "badge"
+          "testing"
         ]
       },
       "files": [
@@ -588,6 +632,15 @@
       ]
     },
     {
+      "name": "avatar",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "avatar.tsx"
+      ]
+    },
+    {
       "name": "badge",
       "kind": "ui",
       "source": "ui/shadcn",
@@ -615,6 +668,15 @@
       ]
     },
     {
+      "name": "checkbox",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "checkbox.tsx"
+      ]
+    },
+    {
       "name": "dialog",
       "kind": "ui",
       "source": "ui/shadcn",
@@ -627,6 +689,15 @@
       },
       "files": [
         "dialog.tsx"
+      ]
+    },
+    {
+      "name": "dropdown-menu",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "dropdown-menu.tsx"
       ]
     },
     {
@@ -666,6 +737,33 @@
       ]
     },
     {
+      "name": "scroll-area",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "scroll-area.tsx"
+      ]
+    },
+    {
+      "name": "select",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "select.tsx"
+      ]
+    },
+    {
+      "name": "separator",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "separator.tsx"
+      ]
+    },
+    {
       "name": "sheet",
       "kind": "ui",
       "source": "ui/shadcn",
@@ -689,12 +787,39 @@
       ]
     },
     {
+      "name": "switch",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "switch.tsx"
+      ]
+    },
+    {
       "name": "table",
       "kind": "ui",
       "source": "ui/shadcn",
       "target": "src/components/ui",
       "files": [
         "table.tsx"
+      ]
+    },
+    {
+      "name": "tabs",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "tabs.tsx"
+      ]
+    },
+    {
+      "name": "tooltip",
+      "kind": "ui",
+      "source": "ui/shadcn",
+      "target": "src/components/ui",
+      "files": [
+        "tooltip.tsx"
       ]
     },
     {

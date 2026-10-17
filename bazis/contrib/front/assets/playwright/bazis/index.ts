@@ -167,22 +167,24 @@ export class App<P extends Product = Product> {
 
   /**
    * Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a
-   * choice) by the label of its option; a combobox (the picker of a relationship) by the
+   * choice) by the label of its option, the native one of the browser or that of Radix (a
+   * combobox whose popup is its listbox), null by its option that clears the value
+   * (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the
    * label of the item, searched in its popup, null by its option that clears the value; the
    * picker of a to-many relationship by the list of the labels of its items, which replace
-   * those it had (`[]`: none); a checkbox by true or false.
+   * those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by
+   * true or false.
    */
   async fill(values: FormValues): Promise<void> {
     const form = this.form();
     for (const [name, value] of Object.entries(values)) {
       const control = form.locator(bz('field', name));
-      const kind = await control.evaluate((element) =>
-        element.getAttribute('role') === 'combobox'
-          ? 'combobox'
-          : element instanceof HTMLInputElement
-            ? element.type
-            : element.tagName.toLowerCase(),
-      );
+      const kind = await control.evaluate((element) => {
+        const role = element.getAttribute('role');
+        if (role === 'combobox') return 'combobox';
+        if (role === 'checkbox' || role === 'switch') return 'checkbox';
+        return element instanceof HTMLInputElement ? element.type : element.tagName.toLowerCase();
+      });
       if (typeof value === 'object' && value !== null) {
         if (kind !== 'combobox') throw new Error(`The field ${name} is not the picker of a to-many relationship.`);
         await this.chooseAll(name, control, value);
@@ -195,12 +197,14 @@ export class App<P extends Product = Product> {
 
   /**
    * Chooses an item in a combobox: opens its popup (`aria-controls`), finds the option of the
-   * label (`option`) and clicks it, or the option that clears the value (`data-value=""`);
+   * label (`option`; in a select of Radix, whose popup is the listbox of its options, the
+   * option itself) and clicks it, or the option that clears the value (`data-value=""`);
    * waits until the popup is closed.
    */
   private async choose(control: Locator, value: string | number | boolean | null): Promise<void> {
     const popup = await this.openPopup(control);
     if (value === null) await popup.locator('[role="option"][data-value=""]').click();
+    else if ((await popup.getAttribute('role')) === 'listbox') await popup.getByRole('option', { name: exactly(value) }).click();
     else await (await this.option(popup, value)).click();
     await expect(popup).toHaveCount(0);
   }
@@ -229,9 +233,10 @@ export class App<P extends Product = Product> {
     await expect(popup).toHaveCount(0);
   }
 
-  /** Opens the popup of a combobox (`aria-controls`). */
+  /** Opens the popup of a combobox (`aria-controls`, which a select of Radix has only while it is open). */
   private async openPopup(control: Locator): Promise<Locator> {
     await control.click();
+    await expect(control).toHaveAttribute('aria-controls', /./);
     return this.page.locator(`[id=${JSON.stringify((await control.getAttribute('aria-controls')) ?? '')}]`);
   }
 
