@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "IBM Plex Sans for the text, IBM Plex Serif for the headings: technical and editorial.",
+  "font": {
+    "body": {"$type": "fontFamily", "$value": ["IBM Plex Sans Variable", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"], "$extensions": {"bazis": {"import": "@fontsource-variable/ibm-plex-sans"}}},
+    "heading": {"$type": "fontFamily", "$value": ["IBM Plex Serif", "ui-serif", "Georgia", "serif"], "$extensions": {"bazis": {"import": "@fontsource/ibm-plex-serif/600.css"}}},
+    "tracking-heading": {"$type": "dimension", "$value": "-0.01em"}
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "The tokens of the preset workspace, below the layers of theme.yaml: none, the defaults."
+}

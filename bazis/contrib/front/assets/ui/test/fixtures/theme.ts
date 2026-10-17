@@ -13,6 +13,8 @@ export interface Theme {
   readonly composition: {
     /** A list as a table or a grid of cards. */
     readonly list: 'table' | 'cards';
+    /** A list on a phone: cards, or the table of a wide screen, scrolled sideways. */
+    readonly list_phone: 'table' | 'cards';
     /** split: the list and the card side by side on a wide screen; pages: the card replaces the list. */
     readonly list_card: 'split' | 'pages';
     /** Forms in a dialog, or in place of the content of the screen. */
@@ -20,7 +22,9 @@ export interface Theme {
   };
   /** The tone of the badge of a status by its id; neutral for another. */
   readonly statuses: Readonly<Record<string, Tone>>;
-  /** Whether tokens.json has the values of a dark mode (the group `dark`). */
+  /** The name of the lucide icon of each entity, by the id of the entity. */
+  readonly icons: Readonly<Record<string, string>>;
+  /** Whether the user switches to a dark mode: tokens of the group `dark` and `mode: both`. */
   readonly dark: boolean;
 }
 
@@ -30,9 +34,15 @@ export const THEME: Theme = {
     forms: "dialog",
     list: "table",
     list_card: "split",
+    list_phone: "cards",
   },
   dark: true,
   density: "comfortable",
+  icons: {
+    step: "list-checks",
+    task: "square-check",
+    user: "users",
+  },
   navigation: "sidebar",
   preset: "workspace",
   statuses: {

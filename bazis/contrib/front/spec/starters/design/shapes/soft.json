@@ -1,0 +1,5 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Medium radii: the classic look of the preset workspace.",
+  "radius": {"$type": "dimension", "$value": "0.5rem"}
+}

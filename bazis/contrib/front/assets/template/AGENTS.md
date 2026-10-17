@@ -30,7 +30,7 @@ in `src/bazis/` and `e2e/bazis/` need not be read. This file only says where to 
 | the socket, the live updates and the notifications | The socket |
 | the texts (`src/i18n/`), the dates and the numbers | The language |
 | the login (`src/app/session.ts`) | Logins with bazis-authing |
-| the theme (`../spec/design/`, `src/bazis/generated/theme.*`) | The design |
+| the theme (`../spec/design/`, `src/bazis/generated/fonts.css` and `theme.*`) | The design |
 | `e2e/` | The end-to-end tests |
 | `manage.py bazis_front update` and its conflicts | Updating the copies |
 

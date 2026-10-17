@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Manrope for the text and the headings: rounded, friendly, bold headings.",
+  "font": {
+    "body": {"$type": "fontFamily", "$value": ["Manrope Variable", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"], "$extensions": {"bazis": {"import": "@fontsource-variable/manrope"}}},
+    "heading": {"$type": "fontFamily", "$value": "{font.body}"},
+    "weight-heading": {"$type": "fontWeight", "$value": 700},
+    "tracking-heading": {"$type": "dimension", "$value": "-0.015em"}
+  }
+}

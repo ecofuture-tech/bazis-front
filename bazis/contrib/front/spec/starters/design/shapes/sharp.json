@@ -1,0 +1,5 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Small radii: precise, dense.",
+  "radius": {"$type": "dimension", "$value": "0.25rem"}
+}

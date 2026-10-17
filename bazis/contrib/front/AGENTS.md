@@ -61,8 +61,9 @@ in `frontend/` never need to be read.
    the specs"; by topic "Choices, filters, permissions and relationships", "Files, points and
    maps", "Custom actions and background work", "The socket" and "The language"; the data
    through "The hooks" and "The client".
-7. Brand the design and generate the theme, `python manage.py bazis_front design`: "The
-   design".
+7. Design the product: choose the palette, the fonts, the shape and the surface of
+   `spec/design/theme.yaml` for its domain, the icon of every entity and the tones of the
+   statuses, then generate the theme, `python manage.py bazis_front design`: "The design".
 8. Generate the end-to-end tests, `python manage.py bazis_front e2e`, and run them with
    `npm run e2e` against the migrated backend with the data of `e2e_data`: "The end-to-end
    tests".
@@ -149,7 +150,7 @@ screen that lists the resources of the contract. It never overwrites an existing
   JSON Schemas of the specs in `spec/schema/` (for the editors) and starters of
   `spec/product.yaml`, `spec/design/theme.yaml` and `spec/design/tokens.json` (those of the
   preset of `--preset`); see [The specs](#the-specs);
-- the theme of the frontend, `src/bazis/generated/theme.css` and `theme.ts`, compiled from
+- the theme of the frontend, `src/bazis/generated/fonts.css`, `theme.css` and `theme.ts`, compiled from
   `spec/design/` as `bazis_front design` does (see [The design](#the-design)); a design with
   errors is reported and the theme is left to `bazis_front design`;
 
@@ -198,7 +199,7 @@ them:
 | Path | Layer | What | Changed by |
 |---|---|---|---|
 | `contract/` (in the product root) | 0. Contract | the OpenAPI and `contract.json` (see [The contract](#the-contract)) | only `manage.py bazis_front contract` |
-| `frontend/src/bazis/generated/` | 0. Contract | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API); `theme.css` and `theme.ts` (the design: the tokens as CSS variables, `THEME`) | only `manage.py bazis_front contract`; the theme only `manage.py bazis_front design` |
+| `frontend/src/bazis/generated/` | 0. Contract | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API); `fonts.css`, `theme.css` and `theme.ts` (the design: the fonts, the tokens as CSS variables, `THEME`) | only `manage.py bazis_front contract`; the theme only `manage.py bazis_front design` |
 | `frontend/src/bazis/client/` | 1. Protocol (`assets/client`) | the client of the Bazis protocol | bazis-front, copied by `init`; not edited, wrapped in `src/app/` |
 | `frontend/src/bazis/react/` | 2. Hooks (`assets/react`) | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy, `uploadable/` (`@/bazis/react/uploadable`) when it has bazis-uploadable, `ws/` with bazis-ws, `bg/` with bazis-bg, `async/` with bazis-async-background | bazis-front, copied; not edited |
 | `frontend/src/bazis/ui/<component>/` | 3. Components (`assets/ui`) | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies `state-panel`, `app-shell`, `login-form`, `manage.py bazis_front add` the others (`add map` also sets Leaflet in `package.json`: `npm install` then) | the product, keeping the contract tests passing |
@@ -594,27 +595,43 @@ your own renders them itself.
 # theme.yaml
 spec: bazis-design/1
 preset: workspace          # workspace (a working application) | portal (a public shell)
+palette: forest            # indigo | forest | ember | slate | ocean | plum
+fonts: inter               # system | inter | manrope | ibm-plex | geist | source-serif-display,
+                           # or a family of Google Fonts: {google: "Inter:wght@400..700"}
+shape: soft                # sharp | soft | round
+surface: elevated          # flat | bordered | elevated
+mode: both                 # both (switched by the user) | light | dark
 navigation: sidebar        # sidebar | topbar
 density: comfortable       # comfortable | compact
 composition:
   list: table              # table | cards
+  list_phone: cards        # cards | table (scrolled sideways)
   list_card: split         # split (the list and the card side by side) | pages
   forms: dialog            # dialog | page
+icons:                     # the lucide icon of each entity, by its id
+  book: book-open
+  reader: users
+  loan: clipboard-list
 statuses:                  # the tone of the badge of each status of bazis-statusy
   draft: neutral           # neutral | primary | info | success | warning | danger
   in_progress: info
   done: success
 ```
 
-`spec/design/` is optional (without it the theme is that of the starter of `workspace`);
-when `theme.yaml` exists, `tokens.json` must define the tokens of its preset. An option of
-`theme.yaml` that is left out is that of the preset. `tokens.json` is a subset of the DTCG
-format: groups of tokens with `$value` and `$type` (`color`, `dimension` in `px`/`rem`,
-`fontFamily`, `fontWeight`, `number`, `duration` in `ms`) on every token, and references
+`spec/design/` is optional (without it the theme is that of the starter of `workspace`
+before the layers: the palette `indigo`, the fonts of the system, the shape `soft`). The
+tokens are layers: those of the starters that `palette`, `fonts`, `shape` and `surface`
+name, then `tokens.json` over them, which is optional; together they must define the
+tokens of the preset (D005). An option of `theme.yaml` that is left out is that of the
+preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$value` and
+`$type` (`color`, `dimension` in `px`/`rem`/`em`, `fontFamily`, `fontWeight`, `number`,
+`duration` in `ms`, `shadow`, `cubicBezier`) on every token, and references
 `{group.token}` to a token of the same type (D006), never coming back to the token they
 start from (D004). `bazis_front design` compiles them into the theme of the frontend (see
 [The design](#the-design)); `check` reports the statuses of `statuses` that the contract
-does not have (D008) and the text colors below the contrast of WCAG AA (D009).
+does not have (D008), the text colors below the contrast of WCAG AA (D009), `mode: dark`
+without the values of the dark mode (D010) and an entity with a screen and no icon
+(D011).
 
 ## The issues of check
 
@@ -688,6 +705,8 @@ warning there, never blocking `migrate` or `contract`.
 | `D007` | error | a token of the dark mode (the group `dark`) overrides no token of the same name and type |
 | `D008` | warning | a status of `statuses` in theme.yaml is not a status of the contract |
 | `D009` | warning | a text color has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode |
+| `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
+| `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 
 ## The backend of a product
 
@@ -1844,12 +1863,14 @@ function Notifications() {
 ## The design
 
 ```bash
-python manage.py bazis_front design           # frontend/src/bazis/generated/theme.css and theme.ts from spec/design/
+python manage.py bazis_front design           # frontend/src/bazis/generated/fonts.css, theme.css and theme.ts from spec/design/
 python manage.py bazis_front design --check   # write nothing; exit 1 if the theme differs from the design
 ```
 
 The design layer is what makes the products look designed rather than like a bare admin
-panel: one preset, a few options and the tokens of a brand, compiled into the frontend.
+panel: one preset, the layers of its tokens (a palette, a pair of fonts, a shape and a
+surface, starters of the package named in `theme.yaml`), the tokens of a brand over them
+and a few options, compiled into the frontend.
 `init` generates the theme; generate it again after every change of `spec/design/` (and
 after `bazis_front update`). The text depends on the design only: `--check` and the system
 check `front.W005` (when the lock has `design`; without Node and the database) render it
@@ -1858,21 +1879,28 @@ no theme (an `init` whose design had errors).
 The generated files are never edited. The design must have no errors
 (`bazis_front check --layer design`).
 
-- `src/bazis/generated/theme.css`, imported by `src/index.css` of the template: every token
+- `src/bazis/generated/fonts.css`, imported first by `src/index.css` of the template: the
+  imports of the fonts of the design, only those of its pair (an `@import` after a rule is
+  dropped, so a stylesheet of Google Fonts goes before Tailwind).
+- `src/bazis/generated/theme.css`, imported by `src/index.css` after Tailwind: every token
   as a CSS variable of `:root` (`color.<name>` is `--<name>`, any other token its dotted name
-  with dashes: `radius` is `--radius`, `font.body` `--font-body`, `spacing.gutter`
-  `--spacing-gutter`), the variables of the dark mode, the spacing of the density
+  with dashes: `radius` is `--radius`, `font.body` `--font-body`, `shadow.md` `--shadow-md`,
+  `spacing.gutter` `--spacing-gutter`), the variables of the dark mode, the spacing of the density
   (`--space-page-x`, `--space-section`, `--space-card`, `--space-cell-x`, `--space-cell-y`,
   `--space-field`), the Tailwind theme over them (a color utility for every color token:
   `bg-primary`, `text-muted-foreground`, `bg-<token>` of a token of the product; the soft
   colors of the tones, `bg-success-soft text-success-ink`; `font-sans` is `font.body`,
-  `font-display` `font.heading`; `rounded-sm` … `rounded-2xl` from `radius`) and the base
-  styles of the preset.
+  `font-display` `font.heading`, `font-mono` `font.mono`; `rounded-sm` … `rounded-2xl` from
+  `radius`; `shadow-xs`, `shadow-sm`, `shadow-md`, `shadow-lg` from `shadow.*`; `ease-standard` and the
+  duration and the curve of every `transition` from `motion.*`) and the base styles of the
+  preset (`h1`–`h3` in `font.heading` with `font.weight-heading` and
+  `font.tracking-heading`).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
-  `density`, `composition: {list, list_card, forms}`, `statuses`, `dark`), which the
-  components read for their defaults.
+  `density`, `composition: {list, list_phone, list_card, forms}`, `statuses`, `icons`, and
+  `dark`: whether the user switches to a dark mode), which the components read for their
+  defaults.
 
-| Token | Type | CSS variable | When tokens.json does not define it |
+| Token | Type | CSS variable | When no layer defines it |
 |---|---|---|---|
 | `color.background`, `color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`, `color.muted-foreground`, `color.border`, `color.destructive` | color | `--background`, `--foreground`, `--primary`, … (the name in the group) | required by both presets |
 | `radius` | dimension | `--radius` | required by both presets |
@@ -1883,7 +1911,15 @@ The generated files are never edited. The design must have no errors
 | `color.card`, `color.card-foreground`, `color.popover`, `color.popover-foreground`, `color.secondary`, `color.secondary-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | color | the name in the group | the background, the foreground, the card, `muted`, the border, the primary (`spec/design.py`, `DEFAULTS`) |
 | `color.success`, `color.warning`, `color.info` | color | `--success`, `--warning`, `--info` (the tones of the statuses) | a green, an amber and a blue of both modes |
 | `color.sidebar-primary`, `color.sidebar-accent`, … | color | the variables of the sidebar of shadcn/ui | from the primary and the sidebar |
-| `color.chart-1` … `color.chart-5` | color | `--chart-1` … `--chart-5` (the charts of shadcn/ui) | the primary, info, success, warning, destructive |
+| `color.chart-1` … `color.chart-6` | color | `--chart-1` … `--chart-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
+| `font.mono` | fontFamily | `--font-mono` (`font-mono`) | the monospace fonts of Tailwind |
+| `font.weight-heading`, `font.tracking-heading` | fontWeight, dimension | `--font-weight-heading`, `--font-tracking-heading` (`h1`–`h3`) | 600; `0em` (`-0.02em` for `portal`) |
+| `shadow.xs`, `shadow.sm`, `shadow.md`, `shadow.lg` | shadow | `--shadow-xs` … (`shadow-xs` of the cards, the tables and the fields, `shadow-md` of the popovers, `shadow-lg` of the dialogs) | the shadows of Tailwind |
+| `motion.fast`, `motion.base`, `motion.slow`, `motion.ease` | duration, cubicBezier | `--motion-fast` … (`duration-(--motion-fast)`, `ease-standard`; `motion.base` and `motion.ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
+
+The defaults keep the look of a design that names no layer, such as one of an older version
+of bazis-front: `update` and `design` add the new tokens without changing it until
+`theme.yaml` names a palette, fonts, a shape or a surface.
 
 ### Presets
 
@@ -1894,33 +1930,84 @@ toolbar, the card next to the list on a wide screen (`list_card: split`; the lis
 mounted and keeps its search, filters and page, and shows its first two columns next to the
 card, `compactColumns` of `ResourceList`), forms in dialogs. A table scrolls in its own
 area as high as the screen, with its header at the top: a wide table scrolls sideways
-instead of losing columns.
+instead of losing columns. On a phone a list shows cards (`composition.list_phone: cards`,
+the default of both presets; `table` keeps the table scrolled sideways).
 `portal` is a public shell: a top bar, larger type and more air, lists as grids of cards,
 the card in place of the list, forms in place of the content of the screen, softer shapes
-(the radius of its starter). Both have a light and a dark mode, focus rings, and work down
-to the width of a phone.
+(the shape `round` of its starter). Both have a light and a dark mode, focus rings, and work
+down to the width of a phone.
+
+### The layers: palette, fonts, shape, surface
+
+**The layers.** Choose the look in `theme.yaml`, never by writing colors: each option names a
+starter of tokens of the package (`init` names those of the preset: `indigo`, `inter`,
+`soft`, `elevated` for `workspace`; `ocean`, `source-serif-display`, `round`, `elevated` for
+`portal`), and `tokens.json` defines only what the product adds over them. Every palette has
+both modes and reaches the contrast of WCAG AA with every pair of fonts, shape and surface.
+
+| Option | Starters |
+|---|---|
+| `palette` | `indigo` (cool, neutral), `forest` (book-cloth green on warm paper), `ember` (burnt orange, warm), `slate` (quiet blue-grey), `ocean` (deep teal on warm neutrals), `plum` (plum on rosy neutrals) |
+| `fonts` | `inter` (Inter), `manrope` (Manrope, bold headings), `ibm-plex` (IBM Plex Sans, headings in IBM Plex Serif), `geist` (Geist), `source-serif-display` (Source Sans 3, headings in Source Serif 4), `system` (the fonts of the system, nothing to load) |
+| `shape` | `sharp` (0.25rem), `soft` (0.5rem), `round` (0.875rem) |
+| `surface` | the shadows (`shadow.*`, the cards with `shadow.xs`): `flat` (borders, no shadow on the cards and almost none elsewhere), `bordered` (borders with the light shadows of Tailwind), `elevated` (soft layered shadows) |
+
+Choose them for the domain of the product, one decision for the whole product:
+
+| Domain | Palette | Fonts | Shape |
+|---|---|---|---|
+| finance, law, government, internal tools of a company | `slate`, `indigo` | `ibm-plex`, `inter` | `sharp`, `soft` |
+| library, education, publishing, culture | `forest`, `plum` | `source-serif-display`, `ibm-plex` | `soft`, `round` |
+| health, travel, logistics, the sea | `ocean` | `manrope`, `inter` | `round` |
+| retail, food, hospitality, events | `ember` | `manrope` | `round` |
+| developer tools, analytics | `slate`, `indigo` | `geist` | `sharp` |
+
+### Fonts
+
+**Fonts.** The pairs are shipped with the frontend: the template declares their
+`@fontsource` packages (OFL), and `fonts.css` imports only those of the pair it names, so
+nothing is downloaded at run time and the frontend works offline. `fonts: {google:
+"Inter:wght@400..700"}` loads a family of Google Fonts from its stylesheet instead (online
+only). A font of the product is a token of `tokens.json` with its import:
+`"body": {"$type": "fontFamily", "$value": ["Brand Sans", "ui-sans-serif", "sans-serif"],
+"$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}}` (an npm package
+that the product installs, or the `https://` URL of a stylesheet).
 
 ### Brand
 
-**Brand.** Change `color.primary` and `color.primary-foreground` (and their values of the
-dark mode): the focus rings, the current link, the selected row and the soft tints are
-derived from the primary in CSS (`color-mix`), so one color brands the product. The starters
-are OKLCH (`oklch(L C H)`): keep the lightness and the chroma of the starter and change the
-hue for a consistent brand; `check` reports a text color that loses its contrast (D009). Set
-`radius` for the shapes and `density` for the spacing. The fonts are system stacks by
-default; for a web font, load it in `index.html` (a `<link>` of Google Fonts) or with an npm
-package of the font imported in `src/main.tsx`, and put its name first in `font.body` (or
-`font.heading`): `["Inter", "ui-sans-serif", "system-ui", "sans-serif"]`.
+**Brand.** The brand of a customer goes over the palette, in `tokens.json`: change
+`color.primary` and `color.primary-foreground` (and their values of the dark mode,
+`dark.color.primary`): the focus rings, the current link, the selected row and the soft
+tints are derived from the primary in CSS (`color-mix`), so one color brands the product.
+The palettes are OKLCH (`oklch(L C H)`): keep the lightness and the chroma of the palette and
+change the hue for a consistent brand; `check` reports a text color that loses its contrast
+(D009). A token of `tokens.json` replaces that of the layers: a `tokens.json` that defines
+every color (that of an older version) hides the palette, so remove the colors it should
+take from the palette. Set `density` for the spacing.
+
+### Icons
+
+**Icons.** `icons` gives every entity with a screen the name of a lucide icon
+([lucide.dev](https://lucide.dev), kebab-case; `check` reports an entity without one, D011);
+the components and the screens read it from `THEME.icons[entity]` (the navigation, the
+empty states, the dashboard). Choose by the meaning of the entity: people `users` (one
+person `user`), a document `file-text`, money `wallet`, a deadline or a booking
+`calendar-clock`, a task `square-check`, a book `book-open`, a loan or a request
+`clipboard-list`, an order `shopping-cart`, a product `package`, a place `map-pin`, a company
+`building-2`, a message `message-square`, a report `chart-column`.
 
 ### Dark mode
 
-**Dark mode.** The tokens of the group `dark` are the values of the dark mode: each
-overrides the token of the same name (`dark.color.background`; D007 when there is none of
-that name and type), the others keep their value. The theme applies them to the class `dark`
+**Dark mode.** The tokens of the group `dark` are the values of the dark mode (every palette
+has them): each overrides the token of the same name (`dark.color.background`; D007 when
+there is none of that name and type), the others keep their value. The theme applies them to the class `dark`
 of `<html>` and, until the application starts, to a dark system (unless `<html>` has the
 class `light`); `initColorMode()` of `app-shell` (called by `src/main.tsx`) sets the class
 from the choice of the user (system, light or dark, kept in the storage of the browser, the
 button of `AppShell`). Without the group `dark` there is no dark mode (`THEME.dark` is false).
+`mode: light` keeps the light mode only; `mode: dark` puts the values of the dark mode in
+`:root` and turns the variant `dark:` on for every element (D010 without them): neither has
+the button, `THEME.dark` is false.
 
 ### Statuses
 
@@ -1928,7 +2015,9 @@ button of `AppShell`). Without the group `dark` there is no dark mode (`THEME.da
 id of the status: bazis-statusy has one table of statuses for every model, so an id is the
 same status everywhere (`draft` of the tasks is `draft` of the orders). It
 draws the `StatusBadge` in the soft colors of the tone, the transits to a status of the tone
-`danger` are destructive buttons; a status without a tone is `neutral`.
+`danger` are destructive buttons; a status without a tone is `neutral`. Give the tones by
+meaning: the initial status `neutral`, in progress `info`, done or accepted `success`,
+waiting or near a deadline `warning`, refused, cancelled or overdue `danger`.
 
 ### The theme in the screens
 

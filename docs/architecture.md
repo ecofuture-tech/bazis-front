@@ -223,10 +223,13 @@ The design layer keeps generated products from looking like a bare admin panel: 
 choose a preset (`workspace`, a working application: a sidebar, tables, the card next to the
 list, forms in dialogs; `portal`, a public shell: a top bar, larger type, grids of cards,
 forms on pages) with its options (navigation, density, composition, the tones of the
-statuses), and the tokens of a brand (DTCG, with the values of a dark mode in the group
-`dark`). `bazis_front design` (`spec/theme.py`, also run by `init`) compiles them into
-`frontend/src/bazis/generated/`: `theme.css`, imported by the `src/index.css` of the
-template (the tokens as CSS variables of the light and the dark mode, the spacing of the
+statuses, the icons of the entities), the layers of its tokens (a palette, a pair of fonts,
+a shape and a surface: starters of the package that `theme.yaml` names), and the tokens of a
+brand over them (DTCG, with the values of a dark mode in the group `dark`). `bazis_front
+design` (`spec/theme.py`, also run by `init`) compiles them into
+`frontend/src/bazis/generated/`: `fonts.css`, the imports of the fonts of the design (the
+`@fontsource` packages of the template, or a stylesheet of Google Fonts), imported first by
+the `src/index.css` of the template, `theme.css`, imported after Tailwind (the tokens as CSS variables of the light and the dark mode, the spacing of the
 density, the Tailwind theme over the variables, the base styles of the preset), and
 `theme.ts` (`THEME`, the options the components read for their defaults). Like the
 end-to-end tests, the theme depends on the specs only: the lock records the hashes, `--check`

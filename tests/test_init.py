@@ -97,7 +97,7 @@ def test_init_creates_the_frontend(product):
         'assets': {name: {'version': __version__} for name in [*vendored, 'template']},
     }
     assert sorted(design['spec']) == ['spec/design/theme.yaml', 'spec/design/tokens.json']
-    assert sorted(design['generated']) == [theme.THEME_CSS, theme.THEME_TS]
+    assert sorted(design['generated']) == [theme.FONTS_CSS, theme.THEME_CSS, theme.THEME_TS]
     for path, value in design['generated'].items():
         assert digest((frontend / path).read_bytes()) == value
     # the template as it is, without the stamp, with its pristine copy for the merge of the
@@ -130,7 +130,7 @@ def test_init_creates_the_frontend(product):
     assert (frontend / 'e2e' / 'bazis' / 'index.ts').is_file()
     assert (frontend / 'e2e' / 'custom' / 'README.md').is_file()
     # only the theme is generated: the contract needs the database
-    assert sorted(it.name for it in (frontend / 'src' / 'bazis' / 'generated').iterdir()) == ['theme.css', 'theme.ts']
+    assert sorted(it.name for it in (frontend / 'src' / 'bazis' / 'generated').iterdir()) == ['fonts.css', 'theme.css', 'theme.ts']
     assert 'Generated the theme' in out
     assert not (frontend / 'e2e' / 'generated').exists()
 

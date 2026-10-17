@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Geist for the text and the headings: crisp and modern, tight headings.",
+  "font": {
+    "body": {"$type": "fontFamily", "$value": ["Geist Variable", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"], "$extensions": {"bazis": {"import": "@fontsource-variable/geist"}}},
+    "heading": {"$type": "fontFamily", "$value": "{font.body}"},
+    "tracking-heading": {"$type": "dimension", "$value": "-0.025em"}
+  }
+}

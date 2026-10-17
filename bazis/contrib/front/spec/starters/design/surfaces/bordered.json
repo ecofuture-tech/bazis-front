@@ -1,0 +1,4 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "The borders with the light shadows of Tailwind: the classic look (the defaults of the shadows)."
+}

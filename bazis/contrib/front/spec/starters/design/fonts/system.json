@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "The fonts of the system: nothing to load.",
+  "font": {
+    "body": {"$type": "fontFamily", "$value": ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"]},
+    "heading": {"$type": "fontFamily", "$value": "{font.body}"}
+  }
+}

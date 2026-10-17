@@ -660,6 +660,21 @@ CASES = [
         {TOKENS: lambda d: d['color']['muted-foreground'].update({'$value': 'oklch(0.8 0 0)'})},
         [('D009', f'{TOKENS}#/color/muted-foreground')] * 4,
     ),
+    (
+        'D009',
+        # over a palette, at the token of tokens.json that loses the contrast
+        {THEME: lambda d: d.update(palette='forest', fonts='inter', shape='soft'),
+         TOKENS: lambda d: {'color': {'muted-foreground': {'$type': 'color', '$value': 'oklch(0.8 0 0)'}}}},
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 4,
+    ),
+    (
+        'D010',
+        # the dark mode only, and no tokens of the dark mode
+        {THEME: lambda d: d.update(mode='dark'), TOKENS: lambda d: [d.pop('dark')]},
+        [('D010', f'{THEME}#/mode')],
+    ),
+    ('D010', {THEME: lambda d: d.update(mode='dark', palette='slate')}, []),
+    ('D011', {THEME: lambda d: [d['icons'].pop('task')]}, [('D011', f'{THEME}#/icons')]),
 ]
 
 
@@ -1114,23 +1129,34 @@ def test_the_packages_are_the_capabilities():
 PACKAGE = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front'
 
 
-def test_the_starter_tokens_define_every_preset():
+def starters(directory: str) -> list[str]:
+    """
+    The names of the starters of a layer of the design (`spec/starters/design/<directory>/`).
+    """
+    return sorted(it.stem for it in (PACKAGE / 'spec' / 'starters' / 'design' / directory).glob('*.json'))
+
+
+def test_the_starters_define_every_preset():
+    # a palette, fonts and a shape give every token of a preset, without tokens.json
     for preset, required in design.PRESET_TOKENS.items():
-        tokens = design.tokens_of(design.starter(preset))
-        assert {name: tokens[name][1]['$type'] for name in required} == required, preset
+        for palette in starters('palettes'):
+            for fonts in starters('fonts'):
+                data = {'preset': preset, 'palette': palette, 'fonts': fonts, 'shape': 'soft'}
+                defined = design.effective_tokens(data, None)
+                assert {name: defined[name].token['$type'] for name in required} == required, data
 
 
-@pytest.mark.parametrize('preset', list(design.PRESET_TOKENS))
-def test_the_starters_have_the_contrast_of_wcag_aa(preset):
-    # every text color of the starter on its background, in the light and the dark mode
-    defined = design.tokens_of(design.starter(preset))
+@pytest.mark.parametrize('palette', starters('palettes'))
+def test_the_palettes_have_the_contrast_of_wcag_aa(palette):
+    # every text color of the palette on its background, in the light and the dark mode
+    defined = design.tokens_of(design.layer('palettes', palette))
     assert design.has_dark(defined)
     for dark in (False, True):
         values = design.variables(defined, dark=dark)
         for text, background in design.CONTRAST:
             first, second = color.parse(values[text], values), color.parse(values[background], values)
             assert first is not None and second is not None, (text, background)
-            assert color.contrast(first, second) >= color.AA, (preset, dark, text, background)
+            assert color.contrast(first, second) >= color.AA, (palette, dark, text, background)
 
 
 def test_the_contrast_of_the_dark_mode(root):

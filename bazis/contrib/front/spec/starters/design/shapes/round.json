@@ -1,0 +1,5 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Large radii: soft and friendly, the classic look of the preset portal.",
+  "radius": {"$type": "dimension", "$value": "0.875rem"}
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "A burnt orange primary on warm neutrals. The colors of the light and the dark mode.",
+  "color": {
+    "background": {"$type": "color", "$value": "oklch(0.982 0.002 60)"},
+    "foreground": {"$type": "color", "$value": "oklch(0.21 0.016 60)"},
+    "card": {"$type": "color", "$value": "oklch(1 0 0)"},
+    "primary": {"$type": "color", "$value": "oklch(0.53 0.16 48)"},
+    "primary-foreground": {"$type": "color", "$value": "oklch(0.99 0.003 48)"},
+    "muted": {"$type": "color", "$value": "oklch(0.96 0.004 60)"},
+    "muted-foreground": {"$type": "color", "$value": "oklch(0.5 0.016 60)"},
+    "accent": {"$type": "color", "$value": "oklch(0.955 0.03 48)"},
+    "accent-foreground": {"$type": "color", "$value": "oklch(0.38 0.13 48)"},
+    "border": {"$type": "color", "$value": "oklch(0.915 0.006 60)"},
+    "input": {"$type": "color", "$value": "oklch(0.88 0.007 60)"},
+    "destructive": {"$type": "color", "$value": "oklch(0.54 0.21 27)"},
+    "success": {"$type": "color", "$value": "oklch(0.52 0.13 152)"},
+    "warning": {"$type": "color", "$value": "oklch(0.58 0.13 65)"},
+    "info": {"$type": "color", "$value": "oklch(0.52 0.15 245)"},
+    "sidebar": {"$type": "color", "$value": "oklch(0.965 0.005 60)"},
+    "sidebar-foreground": {"$type": "color", "$value": "oklch(0.32 0.016 60)"}
+  },
+  "dark": {
+    "color": {
+      "background": {"$type": "color", "$value": "oklch(0.17 0.006 60)"},
+      "foreground": {"$type": "color", "$value": "oklch(0.95 0.004 60)"},
+      "card": {"$type": "color", "$value": "oklch(0.205 0.008 60)"},
+      "primary": {"$type": "color", "$value": "oklch(0.76 0.14 48)"},
+      "primary-foreground": {"$type": "color", "$value": "oklch(0.18 0.04 48)"},
+      "muted": {"$type": "color", "$value": "oklch(0.245 0.008 60)"},
+      "muted-foreground": {"$type": "color", "$value": "oklch(0.72 0.012 60)"},
+      "accent": {"$type": "color", "$value": "oklch(0.27 0.06 48)"},
+      "accent-foreground": {"$type": "color", "$value": "oklch(0.88 0.052 48)"},
+      "border": {"$type": "color", "$value": "oklch(0.28 0.008 60)"},
+      "input": {"$type": "color", "$value": "oklch(0.33 0.01 60)"},
+      "destructive": {"$type": "color", "$value": "oklch(0.7 0.18 24)"},
+      "success": {"$type": "color", "$value": "oklch(0.74 0.14 152)"},
+      "warning": {"$type": "color", "$value": "oklch(0.8 0.13 75)"},
+      "info": {"$type": "color", "$value": "oklch(0.74 0.12 240)"},
+      "sidebar": {"$type": "color", "$value": "oklch(0.155 0.006 60)"},
+      "sidebar-foreground": {"$type": "color", "$value": "oklch(0.86 0.008 60)"}
+    }
+  }
+}

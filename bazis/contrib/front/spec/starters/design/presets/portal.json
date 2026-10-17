@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "The tokens of the preset portal, below the layers of theme.yaml: tighter headings.",
+  "font": {
+    "tracking-heading": {"$type": "dimension", "$value": "-0.02em"}
+  }
+}

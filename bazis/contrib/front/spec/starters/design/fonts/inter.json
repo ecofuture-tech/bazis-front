@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Inter for the text and the headings, tight headings.",
+  "font": {
+    "body": {"$type": "fontFamily", "$value": ["Inter Variable", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"], "$extensions": {"bazis": {"import": "@fontsource-variable/inter"}}},
+    "heading": {"$type": "fontFamily", "$value": "{font.body}"},
+    "tracking-heading": {"$type": "dimension", "$value": "-0.02em"}
+  }
+}

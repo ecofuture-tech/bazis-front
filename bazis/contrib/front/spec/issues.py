@@ -102,6 +102,8 @@ CODES: dict[str, tuple[str, str]] = {
     'D007': (ERROR, 'a token of the dark mode (the group `dark`) overrides no token of the same name and type'),
     'D008': (WARNING, 'a status of `statuses` in theme.yaml is not a status of the contract'),
     'D009': (WARNING, 'a text color has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode'),
+    'D010': (ERROR, '`mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`)'),
+    'D011': (WARNING, 'an entity with a screen has no icon in `icons` of theme.yaml'),
 }
 
 

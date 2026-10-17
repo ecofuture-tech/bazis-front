@@ -218,12 +218,14 @@ class Command(BaseCommand):
             'design',
             help='Generate the theme of the frontend from spec/design/.',
             description=(
-                'Compile spec/design/theme.yaml and spec/design/tokens.json into '
-                'frontend/src/bazis/generated/theme.css (the tokens as CSS variables of the '
-                'light and the dark mode, the spacing of the density, the Tailwind theme and the '
-                'base styles of the preset) and theme.ts (THEME: the navigation, the density, '
-                'the composition, the tones of the statuses, read by the components); the lock '
-                'records the hashes of the design and of the files. Without spec/design/, the '
+                'Compile spec/design/theme.yaml (with the starters of the tokens it names: the '
+                'palette, the fonts, the shape, the surface) and spec/design/tokens.json into '
+                'frontend/src/bazis/generated/fonts.css (the imports of the fonts), theme.css '
+                '(the tokens as CSS variables of the light and the dark mode, the spacing of the '
+                'density, the Tailwind theme and the base styles of the preset) and theme.ts '
+                '(THEME: the navigation, the density, the composition, the tones of the statuses, '
+                'the icons, read by the components); the lock records the hashes of the design '
+                'and of the files. Without spec/design/, the '
                 'theme of the starter of the preset workspace. The design must have no errors '
                 '(`bazis_front check --layer design`). `init` runs it; the generated files are '
                 'never edited.'

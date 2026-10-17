@@ -178,10 +178,16 @@ job of CI.
   shape, then calls `refs.py` (the references, the comparison with contract.json),
   `scenarios.py` (the scenarios followed screen by screen), `access.py` (`access` compiled to the permissions
   of bazis-permit; the grammar is in its docstring, from bazis-permit and bazis-statusy)
-  and `design.py` (the tokens of the presets and their defaults, the CSS variables of the
-  tokens, the dark mode of the group `dark`, the tones of the statuses, the contrast of the
-  text colors computed by `color.py`: `tests/test_spec.py` checks that the starters of both
-  presets, `spec/starters/design/<preset>/`, reach WCAG AA). Only the documents valid against their
+  and `design.py` (the tokens of the presets and their defaults, the layers of the tokens:
+  the preset, then the starters that theme.yaml names, `spec/starters/design/{palettes,
+  fonts,shapes,surfaces}/<name>.json`, then tokens.json; the CSS variables of the tokens,
+  the dark mode of the group `dark` and `mode`, the tones of the statuses, the icons of the
+  entities with a screen, the contrast of the text colors computed by `color.py`:
+  `tests/test_spec.py` checks that every palette reaches WCAG AA in both modes, and
+  `tests/test_design.py` that every combination of the starters of both presets has no
+  issue). The defaults of the tokens keep the look of a design that names no layer (one
+  of an older version): the shadows, the transitions and the monospace fonts of
+  Tailwind. Only the documents valid against their
   schema are checked further, so that one broken file does not cascade.
 - `spec/issues.py` has the codes (`CODES`, with their severity); a code never changes its
   meaning. A new code gets a case in `tests/test_spec.py` (`CASES` must cover every code)
@@ -206,7 +212,10 @@ job of CI.
   calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the table of the steps in `bazis/contrib/front/AGENTS.md`.
 - `spec/theme.py` (`bazis_front design`, also run by `init`) compiles the design into
-  `frontend/src/bazis/generated/theme.css` (the variables of the tokens and of the dark mode,
+  `frontend/src/bazis/generated/fonts.css` (the imports of the fonts of the tokens, their
+  `$extensions` `bazis.import`: the `@fontsource` packages of the template or a stylesheet
+  of Google Fonts, imported first by `src/index.css`, because an @import after a rule is
+  dropped), `theme.css` (the variables of the tokens and of the dark mode,
   the density, the Tailwind theme, the base styles of the preset) and `theme.ts` (`THEME`,
   read by the components) from a design without errors; the text depends on the design
   only, so `--check` and `front.W005` render again and compare byte for byte, and the lock

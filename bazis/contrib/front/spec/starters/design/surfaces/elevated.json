@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Soft layered shadows tinted by the text color: the cards rest on the page, the popovers and the dialogs float above it; darker shadows in the dark mode.",
+  "shadow": {
+    "xs": {"$type": "shadow", "$value": "0 1px 2px color-mix(in srgb, var(--foreground) 6%, transparent), 0 2px 6px -2px color-mix(in srgb, var(--foreground) 8%, transparent)"},
+    "sm": {"$type": "shadow", "$value": "0 1px 2px color-mix(in srgb, var(--foreground) 6%, transparent)"},
+    "md": {"$type": "shadow", "$value": "0 2px 8px -2px color-mix(in srgb, var(--foreground) 10%, transparent)"},
+    "lg": {"$type": "shadow", "$value": "0 12px 32px -8px color-mix(in srgb, var(--foreground) 18%, transparent)"}
+  },
+  "dark": {
+    "shadow": {
+      "xs": {"$type": "shadow", "$value": "0 1px 2px rgb(0 0 0 / 0.3), 0 2px 6px -2px rgb(0 0 0 / 0.35)"},
+      "sm": {"$type": "shadow", "$value": "0 1px 2px rgb(0 0 0 / 0.3)"},
+      "md": {"$type": "shadow", "$value": "0 2px 8px -2px rgb(0 0 0 / 0.45)"},
+      "lg": {"$type": "shadow", "$value": "0 12px 32px -8px rgb(0 0 0 / 0.6)"}
+    }
+  }
+}

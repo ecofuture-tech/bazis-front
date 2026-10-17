@@ -16,11 +16,15 @@
 
 /*
   Tailwind 4 with shadcn/ui. The theme is generated from spec/design/ by
-  `manage.py bazis_front design` (`src/bazis/generated/theme.css`): the tokens as CSS
-  variables of the light and the dark mode, the Tailwind theme over them (`bg-primary`,
-  `text-muted-foreground`, `bg-success-soft`) and the base styles of the preset. Change the
-  design there, not here; add the styles of the product below.
+  `manage.py bazis_front design`: `src/bazis/generated/fonts.css`, the fonts of the design
+  (only those it names, from the `@fontsource` packages of package.json; first, as the
+  stylesheet of Google Fonts must precede every rule), and `src/bazis/generated/theme.css`,
+  the tokens as CSS variables of the light and the dark mode, the Tailwind theme over them
+  (`bg-primary`, `text-muted-foreground`, `bg-success-soft`, `shadow-md`) and the base
+  styles of the preset. Change the design there, not here; add the styles of the product
+  below.
 */
+@import './bazis/generated/fonts.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './bazis/generated/theme.css';

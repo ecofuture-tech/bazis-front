@@ -12,3 +12,7 @@ statuses:
   draft: neutral
   in_progress: info
   done: success
+icons:
+  task: square-check
+  user: users
+  step: list-checks

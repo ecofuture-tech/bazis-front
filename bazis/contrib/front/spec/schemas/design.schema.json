@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:bazis-front:spec:design:1",
   "title": "bazis-design/1: spec/design/theme.yaml",
-  "description": "The design of the frontend: the preset of its shell and its options; an option that is not given is that of the preset. The tokens of spec/design/tokens.json must define every token that the preset requires. `manage.py bazis_front design` compiles both into frontend/src/bazis/generated/theme.css and theme.ts.",
+  "description": "The design of the frontend: the preset of its shell and its options; an option that is not given is that of the preset. The tokens are layers: those of the starters that `palette`, `fonts`, `shape` and `surface` name, then those of spec/design/tokens.json over them; together they must define every token that the preset requires. `manage.py bazis_front design` compiles both into frontend/src/bazis/generated/theme.css and theme.ts.",
   "type": "object",
   "additionalProperties": false,
   "required": ["spec", "preset"],
@@ -12,6 +12,31 @@
       "description": "workspace: the shell of a working application (a sidebar, dense tables, forms in dialogs); portal: a public shell (a top bar, larger type, cards, forms on pages).",
       "enum": ["workspace", "portal"]
     },
+    "palette": {
+      "description": "The colors of both modes, a starter of the package: indigo, forest (green on warm paper), ember (warm orange), slate (quiet blue-grey), ocean (teal), plum.",
+      "enum": ["indigo", "forest", "ember", "slate", "ocean", "plum"]
+    },
+    "fonts": {
+      "description": "The fonts of the text and of the headings, a pair of the package shipped with the frontend (system: the fonts of the system), or a family of Google Fonts loaded from its stylesheet: {google: \"Inter:wght@400..700\"}.",
+      "oneOf": [
+        {"enum": ["system", "inter", "manrope", "ibm-plex", "geist", "source-serif-display"]},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["google"],
+          "properties": {"google": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9 ]*(:[A-Za-z0-9,.@;]+)?$"}}
+        }
+      ]
+    },
+    "shape": {"description": "The radius of the corners: sharp 0.25rem, soft 0.5rem, round 0.875rem.", "enum": ["sharp", "soft", "round"]},
+    "surface": {
+      "description": "The shadows of the cards, the popovers and the dialogs: flat (almost none), bordered (the borders with the light shadows of Tailwind), elevated (soft layered shadows).",
+      "enum": ["flat", "bordered", "elevated"]
+    },
+    "mode": {
+      "description": "both: the light and the dark mode, switched by the user (the default; the light mode only without tokens of the group `dark`); light or dark: that mode only.",
+      "enum": ["both", "light", "dark"]
+    },
     "navigation": {"description": "workspace: sidebar; portal: topbar.", "enum": ["sidebar", "topbar"]},
     "density": {"description": "The spacing of the pages, the cards and the rows of the tables (comfortable by default).", "enum": ["comfortable", "compact"]},
     "composition": {
@@ -19,6 +44,7 @@
       "additionalProperties": false,
       "properties": {
         "list": {"description": "A list as a table (workspace) or a grid of cards (portal).", "enum": ["table", "cards"]},
+        "list_phone": {"description": "A list on a phone: cards (the default), or as on a wide screen (a table scrolls sideways).", "enum": ["table", "cards"]},
         "list_card": {"description": "split: the list and the card side by side on a wide screen (workspace); pages: the card replaces the list (portal).", "enum": ["split", "pages"]},
         "forms": {"description": "Forms in a dialog (workspace) or in place of the content of the screen (portal).", "enum": ["dialog", "page"]}
       }
@@ -28,6 +54,12 @@
       "type": "object",
       "propertyNames": {"minLength": 1},
       "additionalProperties": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]}
+    },
+    "icons": {
+      "description": "The icon of each entity, by the id of the entity: the name of a lucide icon (lucide.dev), in kebab-case.",
+      "type": "object",
+      "propertyNames": {"minLength": 1},
+      "additionalProperties": {"type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"}
     }
   }
 }

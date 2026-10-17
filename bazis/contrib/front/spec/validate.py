@@ -301,7 +301,11 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     product = refs.check_product(product_doc, contract, issues)
     screens = refs.check_screens(screen_docs, product, contract, issues)
     walked = scenarios.check(product_doc, product, screens, issues)
-    design.check(theme_doc, tokens_doc, contract, issues)
+    screened = {
+        data['entity'] for data in screens.values()
+        if data is not None and product is not None and data.get('entity') in product.entities
+    }
+    design.check(theme_doc, tokens_doc, screened, contract, issues)
 
     return Result(
         [it for it in issues.items if it.layer in layers or it.layer == CONTRACT],

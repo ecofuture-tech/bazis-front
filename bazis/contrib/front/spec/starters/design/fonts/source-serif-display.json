@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../schemas/tokens.schema.json",
+  "$description": "Source Sans 3 for the text, Source Serif 4 for the headings: a reading, editorial look for a portal.",
+  "font": {
+    "body": {"$type": "fontFamily", "$value": ["Source Sans 3 Variable", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"], "$extensions": {"bazis": {"import": "@fontsource-variable/source-sans-3"}}},
+    "heading": {"$type": "fontFamily", "$value": ["Source Serif 4 Variable", "ui-serif", "Georgia", "serif"], "$extensions": {"bazis": {"import": "@fontsource-variable/source-serif-4"}}},
+    "tracking-heading": {"$type": "dimension", "$value": "-0.01em"}
+  }
+}
