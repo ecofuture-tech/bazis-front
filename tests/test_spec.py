@@ -165,7 +165,8 @@ def user_card(data, transitions=False):
 #: the specs has a case, each checked against the contract of the sample
 CASES = [
     ('C001', {CONTRACT: lambda d: '{'}, [('C001', CONTRACT)]),
-    ('C002', {CONTRACT: lambda d: {**d, 'format': 1}}, [('C002', f'{CONTRACT}#/format')]),
+    # a contract of another format: of bazis-front 0.1.0 (4), without the titles and the labels
+    ('C002', {CONTRACT: lambda d: {**d, 'format': 4}}, [('C002', f'{CONTRACT}#/format')]),
     (
         'C004',
         # the installed bazis-ws is older than the one whose protocol the hooks follow
@@ -426,6 +427,12 @@ CASES = [
             ('P030', f'{PRODUCT}#/entities/0/access/public/view'),
         ],
     ),
+    (
+        'P031',
+        # the label of the steps names a field that the step does not declare
+        {PRODUCT: lambda d: d['entities'][2].update(label=['task', 'rank'])},
+        [('P031', f'{PRODUCT}#/entities/2/label/1')],
+    ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
     (
@@ -540,8 +547,8 @@ CASES = [
         # a label that the LIST schema does not filter by (a calculated field) is not a search
         # field: not reported
         {CONTRACT: lambda d: [d['project']['resources']['users.user']['fields'].update(
-                                  full_name={'type': 'string'}),
-                              d['project']['resources']['users.user'].update(search=['username'])]},
+                                  full_name={'title': 'Full name', 'type': 'string'}),
+                              d['project']['resources']['users.user'].update(label=['full_name'], search=['username'])]},
         [],
     ),
     (
@@ -555,6 +562,50 @@ CASES = [
         # the steps of the card by their date, not by their relationship to the task
         {CARD: lambda d: d['card']['related'][0].update(relation='dt_created')},
         [('S015', f'{CARD}#/card/related/0/relation')],
+    ),
+    (
+        'S018',
+        # the backend titles a field by its name: a calculated field without a title of its
+        # route set, a field whose `verbose_name` is its name
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['report'].update(title='report'),
+                              d['project']['resources']['users.user']['fields']['username'].update(title='username')]},
+        [('S018', f'{PRODUCT}#/entities/0/fields/1'), ('S018', f'{PRODUCT}#/entities/1/fields/0')],
+    ),
+    (
+        'S018',
+        # a title other than the name, and a field titled by its name that no entity declares
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['report'].update(title='Report text'),
+                              d['project']['resources']['tasks.task']['fields']['dt_updated'].update(title='dt_updated')]},
+        [],
+    ),
+    (
+        'S019',
+        # the steps have no attribute of a label: shown by their id
+        {CONTRACT: lambda d: d['project']['resources']['tasks.step'].update(label=[])},
+        [('S019', f'{PRODUCT}#/entities/2')],
+    ),
+    (
+        'S019',
+        # the entity names the fields of its label
+        {CONTRACT: lambda d: d['project']['resources']['tasks.step'].update(label=[]),
+         PRODUCT: lambda d: d['entities'][2].update(label=['task', 'dt_created'])},
+        [],
+    ),
+    (
+        'S020',
+        # a bar of a string, a number of a relationship, a phone of a long text
+        {PRODUCT: lambda d: [task(d)['fields'][0].update(display={'bar': 100}),
+                             task(d)['fields'][1].update(display='phone'),
+                             task(d)['fields'][3].update(display='plain')]},
+        [('S020', f'{PRODUCT}#/entities/0/fields/0/display'), ('S020', f'{PRODUCT}#/entities/0/fields/1/display'),
+         ('S020', f'{PRODUCT}#/entities/0/fields/3/display')],
+    ),
+    (
+        'S020',
+        # a phone is a string, and so is a sum of a DecimalField
+        {PRODUCT: lambda d: [task(d)['fields'][0].update(display='phone'),
+                             d['entities'][1]['fields'][0].update(display={'currency': 'RUB'})]},
+        [],
     ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),
@@ -854,7 +905,7 @@ def test_the_system_check(root, tmp_path):
     (root / 'contract').mkdir()
     (root / 'contract' / 'contract.json').write_text(
         json.dumps({'format': CONTRACT_FORMAT, 'capabilities': {'permit': {'roles': []}, 'statusy': {'models': {}}},
-                    'project': {'resources': {'users.user': {'fields': {}}}}}),
+                    'project': {'resources': {'users.user': {'fields': {}, 'label': []}}}}),
         encoding='utf-8',
     )
     messages = check_spec(None)

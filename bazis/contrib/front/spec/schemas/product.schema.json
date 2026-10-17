@@ -117,11 +117,30 @@
         "id": {"$ref": "#/$defs/field_id"},
         "type": {"$ref": "#/$defs/type"},
         "relation": {"$ref": "#/$defs/id"},
-        "many": {"type": "boolean"}
+        "many": {"type": "boolean"},
+        "display": {"$ref": "#/$defs/display"}
       },
       "if": {"required": ["relation"]},
       "then": {"not": {"required": ["type"]}},
       "else": {"required": ["type"], "not": {"required": ["many"]}}
+    },
+    "display": {
+      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a year, a code); `{currency: <ISO 4217 code>}`, a sum in the currency; `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`.",
+      "oneOf": [
+        {"enum": ["plain", "phone"]},
+        {
+          "type": "object", "additionalProperties": false, "required": ["currency"],
+          "properties": {"currency": {"type": "string", "pattern": "^[A-Z]{3}$"}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["unit"],
+          "properties": {"unit": {"type": "string", "minLength": 1}}
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["bar"],
+          "properties": {"bar": {"type": "number", "exclusiveMinimum": 0}}
+        }
+      ]
     },
     "payload_field": {
       "type": "object",
@@ -247,6 +266,13 @@
           "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$"
         },
         "title": {"type": "string"},
+        "label": {
+          "description": "The fields that label an item (the book and the reader of a loan: `[book, reader]`), when its resource has no attribute of a label in the contract (`label`: a `name`, a `title`...; S019): the screens give them to the components, which show an item by them, not by its id.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/field_id"}
+        },
         "fields": {"type": "array", "items": {"$ref": "#/$defs/field"}},
         "workflow": {"$ref": "#/$defs/workflow"},
         "access": {"$ref": "#/$defs/access"}

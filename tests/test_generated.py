@@ -124,8 +124,9 @@ def test_contract_ts_is_rendered_from_the_contract():
         '/** The JSON:API type of a resource. */',
         'export type ResourceType = keyof typeof ROUTES;',
         '',
-        '/** The resources: model, route set, path, actions, fields (type, relation, '
-        'filter and order labels) and search fields (none: no search). */',
+        '/** The resources: model, route set, path, actions, fields (title, type, relation, '
+        'filter and order labels), the attributes that label an item (none: its id) and '
+        'search fields (none: no search). */',
         'export const RESOURCES = {',
         '  "shop.item": {',
         '    fields: {},',

@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from bazis.contrib.front.capabilities import CAPABILITIES
-from bazis.contrib.front.spec.refs import LABEL_FIELDS
+from bazis.contrib.front.contract.resources import LABEL_FIELDS
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor.copy import stamp
 
@@ -151,10 +151,11 @@ def test_the_components_of_init_need_no_capability():
         assert asset.kind in (registry.UI, registry.VENDORED) and not asset.capabilities, asset.name
 
 
-def test_the_labels_of_the_components_are_those_of_the_check_of_the_specs():
+def test_the_labels_of_the_components_are_those_of_the_contract():
     """
     `LABELS` of the components (the label of an item, `itemLabel`) and `LABEL_FIELDS` of the
-    specs (the search fields that S017 asks for) are the same groups in the same order.
+    contract (`label` of a resource: the search fields that S017 asks for, S019) are the same
+    groups in the same order.
     """
     source = (ASSETS / 'ui' / 'resource' / 'fields.ts').read_text(encoding='utf-8')
     labels = re.search(r'const LABELS: [^=]+= \[(.*?)\n\];', source, re.S).group(1)

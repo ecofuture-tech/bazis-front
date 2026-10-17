@@ -40,12 +40,21 @@ from bazis.core.utils.query_complex import QueryScope, route_search_fields
 #: order of preference
 FIELDS_KINDS = ('item', 'collection')
 
+#: the attributes that name an item, in the order of `itemLabel` of the components
+#: (`LABELS` of `assets/ui/resource/fields.ts`, the same groups: `tests/test_assets.py`): the
+#: first group that the resource has gives its label
+LABEL_FIELDS = (
+    ('name',), ('full_name',), ('first_name', 'last_name'), ('title',), ('username',),
+    ('email',), ('slug',), ('code',),
+)
+
 
 def resources(openapi: dict) -> dict:
     """
-    `{type: {model, route_set, path, actions, fields, search[, other_routes]}}`. A resource
-    is described by the route set the core uses as the default route of its model (the last
-    one declared); other route sets of the same model are listed in `other_routes`.
+    `{type: {model, route_set, path, actions, fields, label, search[, other_routes]}}`. A
+    resource is described by the route set the core uses as the default route of its model
+    (the last one declared); other route sets of the same model are listed in
+    `other_routes`.
     """
     route_sets = _route_sets(openapi)
     models = {it['resource']: it['model'] for it in models_info()}
@@ -62,12 +71,14 @@ def resources(openapi: dict) -> dict:
         main, others = items[0], items[1:]
         main_cls = default_cls if main['route_set'] == default else pydoc.locate(main['route_set'])
         scope = _scope(main_cls)
+        fields = _fields(openapi, main['operations'], scope, models.get(resource))
         entry = {
             'model': models.get(resource),
             'route_set': main['route_set'],
             'path': main['path'],
             'actions': main['actions'],
-            'fields': _fields(openapi, main['operations'], scope, models.get(resource)),
+            'fields': fields,
+            'label': label(fields),
             # the search fields that its LIST schema reaches, as declared: those the core
             # searches (`bazis.W007` reports the others); none, a `search` is 400
             'search': route_search_fields(main_cls) if scope is not None else [],
@@ -148,12 +159,14 @@ def _scope(route_cls) -> QueryScope | None:
 def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, model: str | None) -> dict:
     """
     The attributes and relationships of the resource in the response of the item route
-    (else of the list route): `{name: {type[, format] | relation, many[, reverse][, filter][,
-    order]}}`. `reverse: true` is a relation of the model whose foreign key or many-to-many
-    field is on the other model (the reverse side of a foreign key or of a many-to-many
-    field, by its `related_name`): written in a create or an update, the core sets it to the
-    items of the document, and deletes the unlinked items of a reverse foreign key that is not
-    null.
+    (else of the list route): `{name: {title, type[, format] | relation, many[, reverse][,
+    filter][, order]}}`. `title` is the title of the field in the OpenAPI, in the language
+    of the export: that of the route set (`SchemaField(title=...)`), else the `verbose_name`
+    of the model field, else its name (a calculated field without a title).
+    `reverse: true` is a relation of the model whose foreign key or many-to-many field is on
+    the other model (the reverse side of a foreign key or of a many-to-many field, by its
+    `related_name`): written in a create or an update, the core sets it to the items of the
+    document, and deletes the unlinked items of a reverse foreign key that is not null.
     `filter` and `order` are the labels of the field in `filter` and `sort` (the
     `filterLabel` and `orderLabel` of the schema), absent when the scope of the route set
     does not take them (a field the LIST schema does not have, or cannot filter or order
@@ -172,7 +185,7 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, mod
     fields = {}
     for name, prop in _resolve(openapi, props.get('attributes', {})).get('properties', {}).items():
         schema = _not_null(openapi, prop)
-        fields[name] = {'type': schema.get('type', 'object')}
+        fields[name] = {'title': prop['title'], 'type': schema.get('type', 'object')}
         if 'format' in schema:
             fields[name]['format'] = schema['format']
         elif fields[name]['type'] == 'object' and _is_point(model, prop.get('filterLabel', name)):
@@ -183,11 +196,25 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, mod
         many = data.get('type') == 'array'
         identifiers = _alternatives(openapi, data['items'] if many else data)
         types = sorted({it.get('properties', {}).get('type', {}).get('default') for it in identifiers} - {None})
-        fields[name] = {'relation': types[0] if len(types) == 1 else types, 'many': many}
+        fields[name] = {
+            'title': prop['title'], 'relation': types[0] if len(types) == 1 else types, 'many': many,
+        }
         if _is_reverse(model, name, prop.get('filterLabel', name)):
             fields[name]['reverse'] = True
         fields[name].update(_labels(prop, scope))
     return fields
+
+
+def label(fields: dict) -> list[str]:
+    """
+    The attributes that give the label of the items of a resource, the first group of
+    `LABEL_FIELDS` that it has (a part of a group too: the first name alone); none, the
+    components label an item by its id.
+    """
+    for group in LABEL_FIELDS:
+        if present := [it for it in group if 'type' in fields.get(it, {})]:
+            return present
+    return []
 
 
 def _is_point(model: str | None, name: str) -> bool:

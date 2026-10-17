@@ -41,6 +41,16 @@ FORMATS = {'date': 'date', 'datetime': 'date-time', 'time': 'time'}
 #: the format of the GeoJSON object of a point field in the contract (the type `point`)
 POINT = 'point'
 
+#: the types of the fields that each `display` of a field fits (a DecimalField, a sum, is a
+#: `string` of its exact digits)
+DISPLAY_TYPES = {
+    'plain': ('integer', 'number'),
+    'currency': ('integer', 'number', 'string'),
+    'unit': ('integer', 'number', 'string'),
+    'bar': ('integer', 'number'),
+    'phone': ('string',),
+}
+
 
 @dataclass
 class Entity:
@@ -183,7 +193,8 @@ def _entity(doc: Document, data: dict, path: tuple, issues: Issues) -> Entity:
 
 def _check_entity(doc: Document, entity: Entity, product: Product, issues: Issues) -> None:
     """
-    The references inside product.yaml: relations, the workflow and the access.
+    The references inside product.yaml: relations, the label, the displays, the workflow and
+    the access.
     """
     path = entity.path
     for i, item in enumerate(entity.data['fields']):
@@ -192,6 +203,16 @@ def _check_entity(doc: Document, entity: Entity, product: Product, issues: Issue
                 doc, (*path, 'fields', i, 'relation'), 'P005',
                 f'The field `{item["id"]}` references the unknown entity `{item["relation"]}`.',
                 'Declare the entity in `entities`, with its resource.',
+            )
+        if 'display' in item:
+            _check_display(doc, (*path, 'fields', i, 'display'), item, issues)
+    for i, name in enumerate(entity.data.get('label', [])):
+        if name not in entity.fields:
+            issues.add(
+                doc, (*path, 'label', i), 'P031',
+                f'The label of `{entity.data["id"]}` names `{name}`, which is not a field of the '
+                'entity.',
+                'Name fields of the entity in `label`, or declare the field in `fields`.',
             )
 
     workflow = entity.workflow
@@ -213,6 +234,25 @@ def _check_entity(doc: Document, entity: Entity, product: Product, issues: Issue
             )
         for operation, grant in grants.items():
             _check_grant(doc, entity, (*role_path, operation), operation, grant, issues)
+
+
+def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> None:
+    """
+    The `display` of a field fits its type: a number is `plain`, a `bar` (of an integer or
+    a number), a sum in a `currency` or a quantity in a `unit` (also of a DecimalField, a
+    `string`); a `phone` is a string; a relationship has none.
+    """
+    display = item['display']
+    kind = display if isinstance(display, str) else next(iter(display))
+    if item.get('type') in DISPLAY_TYPES[kind]:
+        return
+    declared = f'the type `{item["type"]}`' if 'type' in item else 'a relationship'
+    issues.add(
+        doc, path, 'S020',
+        f'The display `{kind}` of the field `{item["id"]}` does not fit {declared}.',
+        f'Give `{kind}` to a field of the type {" or ".join(f"`{it}`" for it in DISPLAY_TYPES[kind])}, '
+        'or remove it.',
+    )
 
 
 def _unknown_status(doc: Document, path: tuple, status: str, issues: Issues) -> None:
@@ -369,6 +409,16 @@ def _check_entity_contract(
     for i, item in enumerate(data['fields']):
         if entity.fields.get(item['id']) is item:
             _check_field(doc, (*path, 'fields', i), item, data['resource'], resource, product, contract, issues)
+    if not resource['label'] and 'label' not in data:
+        issues.add(
+            doc, path, 'S019',
+            f'The items of `{data["resource"]}` have no attribute that labels them in the '
+            'contract (`label`: a `name`, a `title`, the names of a person...), and the entity '
+            'no `label`: the frontend shows an item by its id.',
+            'Give the entity the fields that label its items, `label: [...]` (the book and the '
+            'reader of a loan: `[book, reader]`), which the screens give to the components; or '
+            f'give its route set an attribute of a label, and {EXPORT_HINT}.',
+        )
     if entity.workflow is not None:
         _check_workflow(doc, entity, contract, issues)
     if data.get('access'):
@@ -388,6 +438,16 @@ def _check_field(
             f'the spec; then {EXPORT_HINT}.',
         )
         return
+    if actual['title'] == item['id']:
+        issues.add(
+            doc, path, 'S018',
+            f'The title of the field `{item["id"]}` of `{name}` in the contract is its name: the '
+            'frontend shows the name as the label of the field, in every language.',
+            "Give the field a label in the backend: `SchemaField(title=_('...'))` in "
+            '`SchemaFields(include=...)` of the fields of its route set (a calculated field, a '
+            'reverse relationship, a field of a package), or a `verbose_name` other than its '
+            f'name (a field of the model); then {EXPORT_HINT}.',
+        )
     if 'relation' in item:
         target = product.entities.get(item['relation'])
         if target is None:
@@ -960,24 +1020,10 @@ def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues:
             )
 
 
-#: the attributes that name an item, in the order of `itemLabel` of the components
-#: (`LABELS` of `assets/ui/resource/fields.ts`, the same groups: `tests/test_assets.py`): the
-#: first group that the resource has gives its label
-LABEL_FIELDS = (
-    ('name',), ('full_name',), ('first_name', 'last_name'), ('title',), ('username',),
-    ('email',), ('slug',), ('code',),
-)
-
-
 def label_fields(resource: dict) -> list[str]:
     """
     The attributes of the contract that give the label of the items of a resource in the
-    pickers (the first group of `LABEL_FIELDS` that it has), those that its LIST schema can
-    filter by (`filter`): a calculated field without it is never a search field.
+    pickers (its `label`), those that its LIST schema can filter by (`filter`): a calculated
+    field without it is never a search field.
     """
-    fields = resource['fields']
-    for group in LABEL_FIELDS:
-        present = [it for it in group if 'type' in fields.get(it, {})]
-        if present:
-            return [it for it in present if 'filter' in fields[it]]
-    return []
+    return [it for it in resource['label'] if 'filter' in resource['fields'][it]]

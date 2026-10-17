@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bazis-front sample\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-11 22:54+0000\n"
+"POT-Creation-Date: 2026-10-17 12:56+0000\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -40,8 +40,8 @@ msgid "Priority"
 msgstr "Приоритет"
 
 #: tasks/models.py:45
-msgid "assignee"
-msgstr "исполнитель"
+msgid "Assignee"
+msgstr "Исполнитель"
 
 #: tasks/models.py:50
 msgid "Attachment"

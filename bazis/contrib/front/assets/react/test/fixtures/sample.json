@@ -164,7 +164,7 @@
             ],
             "default": null,
             "nullable": true,
-            "title": "assignee"
+            "title": "Assignee"
           },
           "attachment": {
             "anyOf": [
@@ -462,7 +462,7 @@
             ],
             "default": null,
             "nullable": true,
-            "title": "assignee"
+            "title": "Assignee"
           },
           "attachment": {
             "anyOf": [
@@ -715,7 +715,7 @@
             ],
             "default": null,
             "nullable": true,
-            "title": "assignee"
+            "title": "Assignee"
           },
           "attachment": {
             "anyOf": [
@@ -1185,7 +1185,7 @@
             ],
             "default": null,
             "nullable": true,
-            "title": "assignee"
+            "title": "Assignee"
           },
           "attachment": {
             "anyOf": [
@@ -1521,7 +1521,7 @@
             ],
             "default": null,
             "nullable": true,
-            "title": "assignee"
+            "title": "Assignee"
           },
           "attachment": {
             "anyOf": [
@@ -2046,7 +2046,7 @@
             ],
             "default": null,
             "nullable": true,
-            "title": "assignee"
+            "title": "Assignee"
           },
           "attachment": {
             "anyOf": [

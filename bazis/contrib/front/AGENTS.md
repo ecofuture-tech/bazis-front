@@ -365,7 +365,29 @@ relationship to a resource of the uploaded files of bazis-uploadable (`resources
 capability `uploadable`; P013 otherwise): declare such a relationship as a `file`, not as
 a `relation`; it needs no entity. A payload of a transit has no `file`. What is required, writable or
 visible for the current user is not in the spec: the runtime schemas of the backend
-decide it.
+decide it. The label of a field is not in the spec either: it is its title in the backend
+(`title` of the field in the contract; S018 when it is the name of the field, see "The
+labels of the fields").
+
+#### Display
+
+**Display** (optional) of an attribute says how the screens show its value, the only
+place where the spec speaks of it: `plain`, a number without the separators of its
+thousands (a year, a code: `1877`, not `1,877`); `{currency: RUB}`, a sum in the currency
+(ISO 4217); `{unit: pcs}`, a quantity followed by its unit; `{bar: 100}`, a number as a bar
+of its share of the maximum (a progress); `phone`, a phone number to call. `plain` and
+`bar` are of an `integer` or a `number`, `currency` and `unit` also of a `string` (a
+DecimalField), `phone` of a `string` (S020). The screen gives it to the components, as
+it gives them the columns of a list: a number without `display` is grouped by thousands.
+
+#### Label
+
+**Label** (optional) of an entity names its fields that label an item (the book and the
+reader of a loan: `label: [book, reader]`, fields of the entity, P031), for a resource
+that has no attribute of a label in the contract (`label` of the resource: a `name`, a
+`title`, the names of a person...; see "The label of an item"): `check` warns of an
+entity without either (S019), whose items the frontend would show by their id. The screen
+gives them to the components, which title its card by them.
 
 #### Workflow
 
@@ -630,6 +652,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P028` | error | `packages` has `ws`, and the contract has no path of the socket: the socket of bazis-ws is not routed where the export sees it (the router module) |
 | `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages` |
 | `P030` | error | an anonymous role is not what bazis-permit gives the users who do not log in: its permit role is not `for_anonymous`, it has `access` without a permit role, or a selector of its access is not `all` |
+| `P031` | error | the `label` of an entity names a field that the entity does not declare |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -647,6 +670,9 @@ warning there, never blocking `migrate` or `contract`.
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
+| `S018` | warning | the title of a field of an entity in the contract is its name (`is_overdue`): the backend gives the field no label (a calculated field without a title), or one that reads as its name; give it one in the backend (see "The labels of the fields"), never in the dictionaries of the frontend |
+| `S019` | warning | the resource of an entity has no attribute that labels its items in the contract (`label`: a `name`, a `title`, the names of a person…), and the entity has no `label`: the frontend shows an item by its id |
+| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, none of a relationship |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -755,6 +781,27 @@ runtime schemas give them (`enumDict`) in the language of the request, and the f
 shows, offers and filters a choice by them. A field that only names a few values needs no
 model of its own for its labels.
 
+### The labels of the fields
+
+**The labels of the fields** are their titles in the backend, which the runtime schemas
+give in the language of the request and the contract in `LANGUAGE_CODE`: the
+`verbose_name` of a model field (`_('Assignee')`, other than the name of the field), and the
+title of a calculated field (`calc_property`, an annotation) in the fields of its route set,
+which the core otherwise titles by its name (`is_overdue`):
+
+```python
+fields = {None: SchemaFields(include={
+    'available': SchemaField(title=_('Available')),
+    'is_overdue': SchemaField(title=_('Overdue')),
+})}
+```
+
+A reverse relationship (the books of an author), which has no `verbose_name`, and a field
+of a package (the username of Django, whose `verbose_name` is its name in English) get
+their titles the same way, in the route set of the product. `check` warns of a field of
+the specs whose title is its name (S018): give it a label in the backend, with its
+translations in the catalogs of the project, never in the dictionaries of the frontend.
+
 ### The labels of the payload of a transit
 
 **The labels of the payload of a transit** are the titles of the fields of its payload
@@ -831,7 +878,7 @@ differ from the backend; `--check` does the same in CI.
 
 ```json
 {
-  "format": 4,
+  "format": 5,
   "generated_by": {"bazis": "2.5.0", "bazis-front": "0.1.0", "bazis-permit": "2.4.1"},
   "project": {
     "language": "en",
@@ -841,10 +888,11 @@ differ from the backend; `--check` does the same in CI.
         "model": "tasks.Task", "route_set": "tasks.routes.TaskRouteSet", "path": "/api/v1/tasks/task/",
         "actions": {"action_list": "collection", "action_retrieve": "item", "action_transit": "other"},
         "fields": {
-          "title": {"type": "string", "filter": "title", "order": "title"},
-          "dt_created": {"type": "string", "format": "date-time", "filter": "dt_created", "order": "dt_created"},
-          "assignee": {"relation": "users.user", "many": false, "filter": "assignee", "order": "assignee"}
+          "title": {"title": "Title", "type": "string", "filter": "title", "order": "title"},
+          "dt_created": {"title": "Creation time", "type": "string", "format": "date-time", "filter": "dt_created", "order": "dt_created"},
+          "assignee": {"title": "Assignee", "relation": "users.user", "many": false, "filter": "assignee", "order": "assignee"}
         },
+        "label": ["title"],
         "search": ["title"]
       }
     }
@@ -882,7 +930,9 @@ differ from the backend; `--check` does the same in CI.
   set that the core uses as the default route of its model; other route sets of the model
   are listed in `other_routes`. `actions` maps the name of each route to its `kind` (a custom action of the route set is
   `other`: `client.action`).
-  `fields` are the attributes and relationships of the item response: `type` (and
+  `fields` are the attributes and relationships of the item response: `title`, the title
+  of the field in the OpenAPI in `LANGUAGE_CODE` (that of the route set, else the
+  `verbose_name` of the model field, else the name of the field: S018), `type` (and
   `format`) of an attribute (`format: point` for a `PointField` of the model, whose GeoJSON
   object is that of any geometry), `relation` (the JSON:API type) and `many` of a
   relationship, and `reverse: true` for one whose foreign key or many-to-many field is on
@@ -890,6 +940,10 @@ differ from the backend; `--check` does the same in CI.
   written in a create or an update, the core sets it to the items sent and deletes the
   unlinked items of a reverse foreign key that is not null, so a form edits it only when it
   names it;
+  `label` lists the attributes that label an item, the first group of `name`,
+  `full_name`, `first_name` and `last_name`, `title`, `username`, `email`, `slug`, `code`
+  that the resource has (as `itemLabel` of the components reads them; empty: an item is
+  shown by its id, S019);
   `filter` and `order` are the labels for `filter` and `sort`, absent when the field cannot
   be filtered or sorted: they are those the core takes (bazis 2.9), the fields of the LIST
   schema of the route set that can filter or order (`query_fields`), so a field of the item

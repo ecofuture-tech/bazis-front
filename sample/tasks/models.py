@@ -42,7 +42,7 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     # request, which the frontend shows, offers and filters by (`manager-sets-the-priority`)
     priority = models.CharField(_('Priority'), max_length=10, choices=Priority.choices, default=Priority.NORMAL)
     assignee = models.ForeignKey(
-        settings.AUTH_USER_MODEL, verbose_name=_('assignee'), blank=True, null=True,
+        settings.AUTH_USER_MODEL, verbose_name=_('Assignee'), blank=True, null=True,
         on_delete=models.SET_NULL,
     )
     # an uploaded file of bazis-uploadable: the relationship to `uploadable.file_upload`

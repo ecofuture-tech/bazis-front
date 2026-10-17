@@ -54,7 +54,7 @@ describe('resourceSchema', () => {
           readOnly: false, nullable: false, relation: 'statusy.status', many: false,
         },
         {
-          kind: 'relation', name: 'assignee', title: 'assignee', required: false, readOnly: false,
+          kind: 'relation', name: 'assignee', title: 'Assignee', required: false, readOnly: false,
           nullable: true, relation: 'users.user', many: false,
         },
         // a file of bazis-uploadable: a relationship to its uploaded files
@@ -139,7 +139,7 @@ describe('resourceSchema', () => {
         ['location', 'Location', false],
         ['status', 'Current status', false],
         ['status_author', 'status author', false],
-        ['assignee', 'assignee', false],
+        ['assignee', 'Assignee', false],
         ['attachment', 'Attachment', false],
         ['watchers', 'Watchers', false],
       ]);

@@ -45,7 +45,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 4
+    assert data['format'] == 5
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -94,21 +94,25 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert 'other_routes' not in task
 
     fields = task['fields']
-    assert fields['title'] == {'type': 'string', 'filter': 'title', 'order': 'title'}
+    assert fields['title'] == {'title': 'Title', 'type': 'string', 'filter': 'title', 'order': 'title'}
     # a field with choices is an attribute: its labels are in the runtime schemas
-    assert fields['priority'] == {'type': 'string', 'filter': 'priority', 'order': 'priority'}
+    assert fields['priority'] == {'title': 'Priority', 'type': 'string', 'filter': 'priority', 'order': 'priority'}
     assert fields['dt_created']['format'] == 'date-time'
     assert fields['assignee'] == {
-        'relation': 'users.user', 'many': False, 'filter': 'assignee', 'order': 'assignee'
+        'title': 'Assignee', 'relation': 'users.user', 'many': False, 'filter': 'assignee', 'order': 'assignee'
     }
     assert fields['status']['relation'] == 'statusy.status'
+    assert fields['status']['title'] == 'Current status'
     # a PointField: the GeoJSON object of every geometry, a point by its model field
-    assert fields['location'] == {'type': 'object', 'format': 'point', 'filter': 'location', 'order': 'location'}
+    assert fields['location'] == {
+        'title': 'Location', 'type': 'object', 'format': 'point', 'filter': 'location', 'order': 'location'
+    }
     # another object (a JSONField) has no format
     assert 'format' not in resources['bg.task']['fields']['kwargs']
     # a file of bazis-uploadable: a relationship to its uploaded files
     assert fields['attachment'] == {
-        'relation': 'uploadable.file_upload', 'many': False, 'filter': 'attachment', 'order': 'attachment'
+        'title': 'Attachment', 'relation': 'uploadable.file_upload', 'many': False, 'filter': 'attachment',
+        'order': 'attachment',
     }
     files = resources['uploadable.file_upload']
     assert files['route_set'] == 'bazis.contrib.uploadable.routes.FileUploadRouteSet'
@@ -123,11 +127,36 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert resources['users.user']['route_set'] == 'users.routes.UserRouteSet'
     assert resources['users.user']['search'] == ['username', 'first_name', 'last_name']
     # a to-many relationship of the model (a many-to-many field)
-    assert fields['watchers'] == {'relation': 'users.user', 'many': True, 'filter': 'watchers', 'order': 'watchers'}
+    assert fields['watchers'] == {
+        'title': 'Watchers', 'relation': 'users.user', 'many': True, 'filter': 'watchers', 'order': 'watchers'
+    }
     assert files['search'] == []
     assert resources['bg.task']['search'] == []
-    # a write-only attribute can be neither filtered nor sorted
-    assert resources['users.user']['fields']['raw_password'] == {'type': 'string'}
+    # a write-only attribute can be neither filtered nor sorted; without a title of its route
+    # set, a calculated field is titled by its name
+    assert resources['users.user']['fields']['raw_password'] == {'title': 'raw_password', 'type': 'string'}
+    assert resources['notify.notification']['fields']['is_read']['title'] == 'is_read'
+    # the title that the route set gives a field of the model (the username of Django)
+    assert resources['users.user']['fields']['username']['title'] == 'Username'
+
+    # the attributes that label the items: the first group of `LABEL_FIELDS` that the
+    # resource has (the first and the last name of a user before his username); none
+    assert task['label'] == ['title']
+    assert resources['users.user']['label'] == ['first_name', 'last_name']
+    assert files['label'] == ['name']
+    assert resources['bg.task']['label'] == ['name']
+    assert resources['notify.notification']['label'] == ['title']
+
+
+def test_the_label_is_the_first_group_of_label_fields_that_the_resource_has():
+    from bazis.contrib.front.contract.resources import label
+
+    text = {'type': 'string'}
+    assert label({'code': text, 'title': text}) == ['title']
+    # a part of a group, an attribute only (a relationship named `name` labels nothing)
+    assert label({'last_name': text, 'email': text}) == ['last_name']
+    assert label({'name': {'relation': 'users.user', 'many': False}, 'slug': text}) == ['slug']
+    assert label({'book': {'relation': 'library.book', 'many': False}}) == []
 
 
 def test_a_point_is_a_point_field_of_the_model():
@@ -167,13 +196,15 @@ def test_a_nested_union_is_flattened():
     openapi = {'components': {'schemas': {'Empty': {'type': 'string', 'maxLength': 0}}}}
     assert _not_null(openapi, nested) == {'type': 'string', 'maxLength': 0}
 
-    resource = {'properties': {'attributes': {'properties': {'site': url, 'name': {'type': 'string'}}}}}
+    resource = {'properties': {'attributes': {'properties': {'site': url, 'name': {'type': 'string', 'title': 'Name'}}}}}
     openapi = {'components': {'schemas': {}}}
     operation = {
         'x-bazis': {'kind': 'item'},
         'responses': {'200': {'content': {'application/vnd.api+json': {'schema': {'properties': {'data': resource}}}}}},
     }
-    assert _fields(openapi, [operation], None, None) == {'site': {'type': 'string', 'format': 'uri'}, 'name': {'type': 'string'}}
+    assert _fields(openapi, [operation], None, None) == {
+        'site': {'title': 'Site', 'type': 'string', 'format': 'uri'}, 'name': {'title': 'Name', 'type': 'string'},
+    }
 
 
 def test_a_resource_is_described_by_the_default_route_of_its_model(sample_app):
@@ -197,6 +228,7 @@ def test_a_resource_is_described_by_the_default_route_of_its_model(sample_app):
             'path': '/api/v1/tasks/task/',
             'actions': {'action_retrieve': 'item'},
             'fields': {},
+            'label': [],
             'search': ['title'],
             'other_routes': [{'path': '/api/v1/archive/task/', 'route_set': 'archive.TaskRouteSet'}],
         },
@@ -235,8 +267,8 @@ def test_the_labels_are_those_of_the_list_schema(sample_app, monkeypatch):
         TaskRouteSet.schema_factories, CrudApiAction.LIST, TaskRouteSet.build_schema_factory(CrudApiAction.LIST),
     )
     fields = resources(sample_app.openapi())['tasks.task']['fields']
-    assert fields['report'] == {'type': 'string'}
-    assert fields['title'] == {'type': 'string', 'filter': 'title', 'order': 'title'}
+    assert fields['report'] == {'title': 'Report', 'type': 'string'}
+    assert fields['title'] == {'title': 'Title', 'type': 'string', 'filter': 'title', 'order': 'title'}
 
 
 @pytest.mark.django_db
@@ -464,9 +496,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0010_watchers')
+    unapply('tasks', '0011_assignee_label')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0010_watchers.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0011_assignee_label.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -474,12 +506,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0010_watchers' in messages[0].msg
+    assert 'tasks.0011_assignee_label' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0010_watchers')
+    unapply('tasks', '0011_assignee_label')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )

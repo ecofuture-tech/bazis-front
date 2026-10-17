@@ -13,10 +13,11 @@
 # limitations under the License.
 
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 from bazis.contrib.users.models_abstract import UserMixin
 from bazis.contrib.users.routes import UserRouteSet as UserRouteSetBase
-from bazis.core.schemas import CrudAccessAction
+from bazis.core.schemas import CrudAccessAction, SchemaField, SchemaFields
 from bazis.core.schemas.enums import RouteKind
 
 
@@ -37,6 +38,10 @@ class UserRouteSet(UserRouteSetBase):
     """
 
     search_fields = ['username', 'first_name', 'last_name']
+
+    # the `verbose_name` of the username of Django is its name in English: the title of the
+    # field in the contract would be its name (S018)
+    fields = {None: SchemaFields(include={'username': SchemaField(title=_('Username'))})}
 
     @classmethod
     def restrict_queryset(cls, qs, access_action, user=None, **kwargs):
