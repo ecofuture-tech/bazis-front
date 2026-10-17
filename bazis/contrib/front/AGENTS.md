@@ -378,7 +378,11 @@ thousands (a year, a code: `1877`, not `1,877`); `{currency: RUB}`, a sum in the
 of its share of the maximum (a progress); `phone`, a phone number to call. `plain` and
 `bar` are of an `integer` or a `number`, `currency` and `unit` also of a `string` (a
 DecimalField), `phone` of a `string` (S020). The screen gives it to the components, as
-it gives them the columns of a list: a number without `display` is grouped by thousands.
+it gives them the columns of a list: `display={{year: 'plain', price: {currency: 'RUB'}}}`
+of `ResourceList` and `ResourceCard` (`display` of `FieldValue` for a value of its own); a
+number without `display` is grouped by thousands. A phone is a link to call it (a number
+written without separators shown in groups, `+7 916 123-45-67`), a bar a `meter` next to
+the number.
 
 #### Label
 
@@ -387,7 +391,9 @@ reader of a loan: `label: [book, reader]`, fields of the entity, P031), for a re
 that has no attribute of a label in the contract (`label` of the resource: a `name`, a
 `title`, the names of a person...; see "The label of an item"): `check` warns of an
 entity without either (S019), whose items the frontend would show by their id. The screen
-gives them to the components, which title its card by them.
+gives them to the card, `label={['book', 'reader']}` of `ResourceCard`, which is headed by
+their values (`Idiot · Ann Lee`); without it, a card of an item without a label attribute is
+headed by the values of the first two fields of its sections.
 
 #### Workflow
 
@@ -670,7 +676,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
-| `S018` | warning | the title of a field of an entity in the contract is its name (`is_overdue`): the backend gives the field no label (a calculated field without a title), or one that reads as its name; give it one in the backend (see "The labels of the fields"), never in the dictionaries of the frontend |
+| `S018` | warning | the title of a field of an entity in the contract is its name (`is_overdue`) or the default `verbose_name` of Django (`status author`): the backend gives the field no label (a calculated field without a title), or one that reads as its name; give it one in the backend (see "The labels of the fields"), never in the dictionaries of the frontend |
 | `S019` | warning | the resource of an entity has no attribute that labels its items in the contract (`label`: a `name`, a `title`, the names of a person…), and the entity has no `label`: the frontend shows an item by its id |
 | `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, none of a relationship |
 | `D001` | error | a design file is not valid YAML or JSON |
@@ -799,8 +805,13 @@ fields = {None: SchemaFields(include={
 A reverse relationship (the books of an author), which has no `verbose_name`, and a field
 of a package (the username of Django, whose `verbose_name` is its name in English) get
 their titles the same way, in the route set of the product. `check` warns of a field of
-the specs whose title is its name (S018): give it a label in the backend, with its
-translations in the catalogs of the project, never in the dictionaries of the frontend.
+the specs whose title is its name, or the default `verbose_name` of Django (`status author`
+of a field `status_author` without one: it is in English only), S018: give it a label in the
+backend, with its translations in the catalogs of the project, never in the dictionaries of
+the frontend. Until then the components show such a title as words (`is_overdue` as
+`Is overdue`, `status author` as `Status author`), never
+as an identifier; a field that the runtime schema does not title has the title of the
+contract.
 
 ### The labels of the payload of a transit
 
@@ -1109,9 +1120,9 @@ of the specs and the paths of `ROUTES`.
 | Spec | Component |
 |---|---|
 | a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell`; the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
-| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control) |
+| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control; `display` of the entity) |
 | `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
-| `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
+| `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only; `label` and `display` of the entity), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
 | `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card`: `path`, `entity`, `relation`, `item={id}`, `itemPath` (the `path` of the card), `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). In the `children` of the card it is drawn under the heading, above the sections of fields; a list that follows the fields goes after the card ("Composing beyond the specs"). Both read the card again after an add |
 | a field with choices (a column, a field of a card or a form, a filter) | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
 | the notifications and the live updates (bazis-notify, bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` (its `notifications`: `useInbox` with bazis-notify, else `useNotifications`) and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` ("The socket") |
@@ -1457,8 +1468,9 @@ show its id (the start of a long one); never request it otherwise.
 identifier: the first non-empty of `name`, `full_name`, the first and the last name
 together (`first_name` and `last_name`, as `get_full_name()` of the users of Django and
 bazis-users: a user with names is `Ann Lee`, one without them his username), `title`,
-`username`, `email`, `slug`, `code` (`itemLabel` of `@/bazis/ui/resource`), else its id
-(the start of a long one). Show these attributes in the LIST schema of the related route
+`username`, `email`, `slug`, `code` (`itemLabel` of `@/bazis/ui/resource`: the attributes
+of `label` of its resource in the contract, these names for a type that the contract does
+not label or an item without a value of them), else its id (the start of a long one). Show these attributes in the LIST schema of the related route
 set (the user route set of bazis-users shows the names), and give it `search_fields` that
 cover them (`['username', 'first_name', 'last_name']`: every word of a search is in one of
 the fields; `check` warns of a picker whose search does not cover them, S017): the pickers
@@ -4049,7 +4061,7 @@ Its props, `FieldInputProps`:
 
 #### FieldValue
 
-`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display`, the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), an uploaded file (`FileValue`).
+`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), an uploaded file (`FileValue`).
 
 
 Its props, `FieldValueProps`:
@@ -4069,7 +4081,7 @@ Its props, `FieldValueProps`:
 
 #### formatValue
 
-`formatValue(field: FormField | undefined, value: unknown, options?: Pick<LanguageContextValue, 'language' | 't'>, display?: FieldDisplay): string`: The text of the value of an attribute, in the language of the interface (`useLanguage()`; English by default): a choice by its label (`enumDict` of the backend, the choices of an array each), else by its type and format, the numbers (as `display` says) and the dates with `Intl`, a point (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
+`formatValue(field: FormField | undefined, value: unknown, options?: Pick<LanguageContextValue, 'language' | 't'>, display?: FieldDisplay): string`: The text of the value of an attribute, in the language of the interface (`useLanguage()`; English by default): a choice by its label (`enumDict` of the backend, the choices of an array each), else by its type and format, the numbers, the sums, the quantities and the phones as `display` says and the dates with `Intl`, a point (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
 
 #### fromLocalDateTime
 
@@ -4097,7 +4109,7 @@ Its props, `FieldValueProps`:
 
 #### itemName
 
-`itemName(resource: ResourceObject): string | null`: The name of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first and the last name, `title`, `username`, `email`, `slug`, `code`), null without any.
+`itemName(resource: ResourceObject): string | null`: The name of an item: the values of the attributes of `label` of its resource in the contract, the backend's own; for a type that the contract does not label, or an item without a value of them (a user without his names), its first non-empty name of `LABELS` (`name`, `full_name`, the first and the last name, `title`, `username`, `email`, `slug`, `code`); null without any.
 
 #### localizedName
 
@@ -4106,6 +4118,10 @@ Its props, `FieldValueProps`:
 #### permitted
 
 `permitted(meta: PermitMeta | null | undefined, action: 'add' | 'change' | 'delete' | CustomActionName, id?: string): boolean`: Whether the backend allows an action now, from the permission meta of bazis-permit (`can()` of the client): `add` from `for_create` of a list or `crud_actions` of an item, `change` and `delete` of an item of a list from `for_change`/`for_delete` with its id, a custom action (`'action_<name>'`, `action` of `x-bazis`) from `custom_actions` (bazis-permit 2.11; by what the action declares, not the checks of its own code).
+
+#### resourceAt
+
+`resourceAt(path: string): ContractResource | undefined`: The resource of the contract whose route set has this path, if it has one.
 
 #### routeOf
 
@@ -4132,7 +4148,7 @@ Its props, `FieldValueProps`:
 `interface Fields`: The fields of a runtime schema by name, and the state of its query.
 
 - `fields: ReadonlyMap<string, FormField>`
-- `title: (name: string) => string`: The title of a field in the language of the backend, its name until the schema loads; a title that is the name itself (a calculated field without one: S018 of `check`) without its underscores, never shown as an identifier.
+- `title: (name: string) => string`: The title of a field in the language of the backend; its title in the contract (in the default language of the backend) until the schema loads or when the schema does not have it; a title that is the name itself (a calculated field without one) or the default `verbose_name` of Django (`status author`), S018 of `check`, as words (`Status author`), never shown as an identifier.
 - `ready: boolean`: Whether the schema is loaded (or failed: the names stand for the titles then).
 - `loaded: boolean`: Whether the schema is loaded (not failed).
 - `has: (name: string) => boolean`: Whether the schema has the field: bazis-permit leaves out the fields that the user may not see (or change, in the schema of an update); every field while the schema is not loaded.
@@ -4332,7 +4348,7 @@ Its props, `RelationPickerProps`:
 
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
-- `type FieldDisplay = 'plain'`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a year, a code).
+- `type FieldDisplay = 'plain' | 'phone' | { currency: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a year, a code); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum.
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
@@ -4387,7 +4403,7 @@ Its props, `ResourceCardProps`:
 - `id: string`
 - `sections: readonly CardSection[]`
 - `title?: (item: ResourceObject) => ReactNode`: The heading; by default the name of the item (`itemName`: its name, title...), else the values of its `label` fields (its id only when none has a value).
-- `label?: readonly string[]`: The fields whose values head an item without a name (`label` of the entity of the specs: a loan by its book and its reader); the first two fields of the sections by default.
+- `label?: readonly string[]`: The fields whose values head an item without a name (`label` of the entity of the specs: a loan by its book and its reader); the first two fields of the sections by default, or when it is empty.
 - `badge?: (item: ResourceObject) => ReactNode`: Next to the heading: the status of the item (`StatusBadge` of status-badge).
 - `edit?: boolean`: An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the sections.
 - `actions?: readonly CardAction[]`

@@ -128,13 +128,21 @@ describe('ResourceCard', () => {
     expect(screen.getByTestId('field:year').textContent).toBe('1877');
     unmount();
     // the label fields of the entity that have a value
-    renderWithBazis(
+    const labelled = renderWithBazis(
       <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['count', 'year'] }]} label={['done', 'missing']} />,
       server,
     );
     await screen.findByTestId('state:loaded');
     expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Yes');
     expect(screen.getByTestId('field:year').textContent).toBe('1,877');
+    labelled.unmount();
+    // an empty label: the first two fields of the sections, never an empty heading
+    renderWithBazis(
+      <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['count', 'year'] }]} label={[]} />,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('12,000 · 1,877');
   });
 
   it('is in the language of the interface: the backend is asked in it, the values are formatted in it', async () => {

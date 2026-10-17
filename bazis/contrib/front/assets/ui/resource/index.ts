@@ -29,6 +29,7 @@ export {
   itemName,
   localizedName,
   permitted,
+  resourceAt,
   routeOf,
   statusName,
   statusyModel,

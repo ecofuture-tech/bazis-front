@@ -24,7 +24,6 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search }
 import { useEffect, useState, type ComponentType, type KeyboardEvent, type ReactNode } from 'react';
 
 import { Filter, nextPage, pagination, prevPage } from '@/bazis/client';
-import { RESOURCES } from '@/bazis/generated/contract';
 import { THEME, type Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
@@ -35,6 +34,7 @@ import {
   fieldValue,
   isNumeric,
   permitted,
+  resourceAt,
   useAnyList,
   useListFields,
   type FieldDisplay,
@@ -131,16 +131,9 @@ export interface ResourceListProps {
   compactColumns?: readonly string[];
 }
 
-interface ContractResource {
-  path: string;
-  fields: Readonly<Record<string, { order?: string }>>;
-}
-
 /** The sort labels of the fields of the route set (`order` in the contract). */
 function orderLabels(path: string): ReadonlyMap<string, string> {
-  const resource = Object.values(RESOURCES as Readonly<Record<string, ContractResource>>).find(
-    (it) => it.path === path,
-  );
+  const resource = resourceAt(path);
   return new Map(
     Object.entries(resource?.fields ?? {}).flatMap(([name, field]) => (field.order ? [[name, field.order]] : [])),
   );

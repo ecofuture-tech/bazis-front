@@ -573,6 +573,14 @@ CASES = [
     ),
     (
         'S018',
+        # the default `verbose_name` of Django (the name with spaces), and a relationship titled
+        # by its name (a reverse one has no `verbose_name`): reported alike
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['dt_created'].update(title='dt created'),
+                              d['project']['resources']['tasks.task']['fields']['assignee'].update(title='assignee')]},
+        [('S018', f'{PRODUCT}#/entities/0/fields/2'), ('S018', f'{PRODUCT}#/entities/0/fields/3')],
+    ),
+    (
+        'S018',
         # a title other than the name, and a field titled by its name that no entity declares
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['report'].update(title='Report text'),
                               d['project']['resources']['tasks.task']['fields']['dt_updated'].update(title='dt_updated')]},

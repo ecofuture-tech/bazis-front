@@ -83,15 +83,19 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it; the choices of a field are a
 select of their labels), `FieldValue` (with `formatValue`: the value in the language of the
-interface, a choice by its label, a number of `display: plain` without the separators of its
-thousands, the `status` of an item of a statusy model by its name in the contract,
-`statusName`; `choiceOptions`: the choices as options of a filter),
+interface, a choice by its label, a value by its `display`: `plain` without the separators
+of its thousands, `phone` a link to call it, `{currency}`, `{unit}`, `{bar}` a `meter` of its
+share; the `status` of an item of a statusy model by its name in the contract,
+`statusName`; `choiceOptions`: the choices as options of a filter; `itemName`/`itemLabel`:
+the `label` attributes of the resource in the contract, the names of `LABELS` for a type
+that the contract does not label or an item without a value of them),
 `RelationPicker`, `RelationListPicker` (the ids of the items of a to-many relationship) and
 `RelationLabel` (the related resource by its route in `ROUTES`, or `path`; `hasSearch`:
 whether the contract gives the resource search fields), `useListFields`/`useItemFields`
-(the titles and types of the list, retrieve and update schemas, a title that is the name
-of its field as words, `is_overdue` as `Is overdue`; `has`: whether the schema of the user
-has the field), `permitted` (the permission meta of bazis-permit; allowed when
+(the titles and types of the list, retrieve and update schemas, the title of the contract
+without them, a title that is the name of its field or the default `verbose_name` of Django
+as words, `is_overdue` as `Is overdue`, `status author` as `Status author`;
+`has`: whether the schema of the user has the field), `permitted` (the permission meta of bazis-permit; allowed when
 the backend does not report it), the points (`pointOf`, `geoJsonPoint`, `formatPoint`,
 `parsePoint`, `POINT_FIELDS`: the point fields of the contract by the path of their route
 set, and `PointsProvider`, which gives `FieldInput` the control of the point fields: the

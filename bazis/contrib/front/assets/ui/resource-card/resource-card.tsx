@@ -73,7 +73,8 @@ export interface ResourceCardProps {
   title?: (item: ResourceObject) => ReactNode;
   /**
    * The fields whose values head an item without a name (`label` of the entity of the specs:
-   * a loan by its book and its reader); the first two fields of the sections by default.
+   * a loan by its book and its reader); the first two fields of the sections by default, or
+   * when it is empty.
    */
   label?: readonly string[];
   /** Next to the heading: the status of the item (`StatusBadge` of status-badge). */
@@ -253,7 +254,7 @@ export function ResourceCard({
     : (itemName(data) ?? (
         <ItemHeading
           item={data}
-          names={label ?? sections.flatMap((section) => section.fields).slice(0, 2)}
+          names={label?.length ? label : sections.flatMap((section) => section.fields).slice(0, 2)}
           fields={fields}
           display={display}
         />

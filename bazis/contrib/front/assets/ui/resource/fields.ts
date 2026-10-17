@@ -18,7 +18,15 @@
 
 import { can, type CustomActionName, type PermitMeta } from '@/bazis/client';
 import { LANGUAGE, RESOURCES, ROUTES, TRANSITS } from '@/bazis/generated/contract';
-import { baseLanguage, ENGLISH, formatDate, formatDateTime, formatNumber, type LanguageContextValue } from '@/bazis/i18n';
+import {
+  baseLanguage,
+  ENGLISH,
+  formatDate,
+  formatDateTime,
+  formatDecimal,
+  formatNumber,
+  type LanguageContextValue,
+} from '@/bazis/i18n';
 import { choiceLabel, resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
 
 import { text, useAnySchema } from './hooks.js';
@@ -37,9 +45,11 @@ export interface ResourceObject {
 export interface Fields {
   fields: ReadonlyMap<string, FormField>;
   /**
-   * The title of a field in the language of the backend, its name until the schema loads; a
-   * title that is the name itself (a calculated field without one: S018 of `check`) without
-   * its underscores, never shown as an identifier.
+   * The title of a field in the language of the backend; its title in the contract (in the
+   * default language of the backend) until the schema loads or when the schema does not have
+   * it; a title that is the name itself (a calculated field without one) or the default
+   * `verbose_name` of Django (`status author`), S018 of `check`, as words (`Status author`),
+   * never shown as an identifier.
    */
   title: (name: string) => string;
   /** Whether the schema is loaded (or failed: the names stand for the titles then). */
@@ -54,19 +64,43 @@ export interface Fields {
   has: (name: string) => boolean;
 }
 
-/** A title that is the name of its field (`is_overdue`) as words (`Is overdue`); another as it is. */
+/**
+ * A resource of the contract (`RESOURCES`), read as plain records: the contract of a product
+ * without resources is empty.
+ */
+interface ContractResource {
+  readonly path: string;
+  readonly fields: Readonly<Record<string, { readonly title?: string; readonly order?: string; readonly reverse?: boolean }>>;
+  /** The attributes that label an item (none: its id). */
+  readonly label?: readonly string[];
+  readonly search?: readonly string[];
+}
+
+const CONTRACT_RESOURCES = RESOURCES as Readonly<Record<string, ContractResource | undefined>>;
+
+/** The resource of the contract whose route set has this path, if it has one. */
+export function resourceAt(path: string): ContractResource | undefined {
+  return Object.values(CONTRACT_RESOURCES).find((it) => it?.path === path);
+}
+
+/**
+ * A title that is the name of its field (`is_overdue`), or the default `verbose_name` of
+ * Django (`status author`: S018 of `check` reports both), as words (`Is overdue`); another
+ * as it is.
+ */
 function readable(title: string, name: string): string {
-  if (title !== name) return title;
+  if (title !== name && title !== name.replaceAll('_', ' ')) return title;
   const words = name.replace(/_+/g, ' ').trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-function fieldsOf(query: { data?: JsonSchema | undefined; isPending: boolean }): Fields {
+function fieldsOf(path: string, query: { data?: JsonSchema | undefined; isPending: boolean }): Fields {
   const schema = query.data;
   const fields = new Map((schema ? resourceSchema(schema).fields : []).map((it) => [it.name, it]));
+  const contract = resourceAt(path)?.fields;
   return {
     fields,
-    title: (name) => readable(fields.get(name)?.title ?? name, name),
+    title: (name) => readable(fields.get(name)?.title ?? contract?.[name]?.title ?? name, name),
     ready: !query.isPending,
     loaded: schema !== undefined,
     has: (name) => schema === undefined || fields.has(name),
@@ -80,7 +114,7 @@ function fieldsOf(query: { data?: JsonSchema | undefined; isPending: boolean }):
  * an item leaves them out.
  */
 export function useListFields(path: string): Fields {
-  return fieldsOf(useAnySchema(path, 'list'));
+  return fieldsOf(path, useAnySchema(path, 'list'));
 }
 
 /**
@@ -90,7 +124,7 @@ export function useListFields(path: string): Fields {
  * its status).
  */
 export function useItemFields(path: string, id: string, kind: 'retrieve' | 'update' = 'retrieve'): Fields {
-  return fieldsOf(useAnySchema(path, kind, id));
+  return fieldsOf(path, useAnySchema(path, kind, id));
 }
 
 /**
@@ -117,8 +151,7 @@ export function routeOf(type: string): string | undefined {
  * them with 400 `ERR_FILTER`; a type the contract does not know has no search.
  */
 export function hasSearch(type: string): boolean {
-  const resource = (RESOURCES as Readonly<Record<string, { readonly search?: readonly string[] } | undefined>>)[type];
-  return (resource?.search?.length ?? 0) > 0;
+  return (CONTRACT_RESOURCES[type]?.search?.length ?? 0) > 0;
 }
 
 /**
@@ -128,17 +161,16 @@ export function hasSearch(type: string): boolean {
  * is not null. A form edits it only when its `fields` name it.
  */
 export function isReverse(type: string, name: string): boolean {
-  const resources = RESOURCES as Readonly<
-    Record<string, { readonly fields?: Readonly<Record<string, { readonly reverse?: boolean }>> } | undefined>
-  >;
-  return resources[type]?.fields?.[name]?.reverse === true;
+  return CONTRACT_RESOURCES[type]?.fields[name]?.reverse === true;
 }
 
 /**
  * The attributes that name an item, in this order: a display name first (`name`, `full_name`,
  * the first and the last name together, as `get_full_name()` of the users of Django and
  * bazis-users, `title`), then the identifiers (`username`, `email`, `slug`, `code`).
- * `LABEL_FIELDS` of `spec/refs.py` of bazis-front is the same list (S017), compared by its tests.
+ * `LABEL_FIELDS` of `contract/resources.py` of bazis-front, which gives the `label` of the
+ * resources of the contract, is the same list, compared by its tests: it names an item of a
+ * type that the contract does not label, or one without a value of its label attributes.
  */
 const LABELS: readonly (readonly string[])[] = [
   ['name'],
@@ -151,19 +183,30 @@ const LABELS: readonly (readonly string[])[] = [
   ['code'],
 ];
 
+/** The non-empty values of these attributes of an item, joined; empty without any. */
+function joined(resource: ResourceObject, names: readonly string[]): string {
+  return names
+    .map((name) => resource.attributes?.[name])
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
 /**
- * The name of an item: its first non-empty name of `LABELS` (`name`, `full_name`, the first
- * and the last name, `title`, `username`, `email`, `slug`, `code`), null without any.
+ * The name of an item: the values of the attributes of `label` of its resource in the
+ * contract, the backend's own; for a type that the contract does not label, or an item
+ * without a value of them (a user without his names), its first non-empty name of `LABELS`
+ * (`name`, `full_name`, the first and the last name, `title`, `username`, `email`, `slug`,
+ * `code`); null without any.
  */
 export function itemName(resource: ResourceObject): string | null {
+  const label = CONTRACT_RESOURCES[resource.type]?.label ?? [];
+  const named = joined(resource, label);
+  if (named) return named;
   for (const names of LABELS) {
-    const label = names
-      .map((name) => resource.attributes?.[name])
-      .filter((value): value is string => typeof value === 'string')
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .join(' ');
-    if (label) return label;
+    const name = joined(resource, names);
+    if (name) return name;
   }
   return null;
 }
@@ -284,15 +327,30 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
 
 /**
  * How the value of a field is shown (`display` of the field of an entity of the specs):
- * `plain`, a number without the separators of its thousands (a year, a code).
+ * `plain`, a number without the separators of its thousands (a year, a code); `phone`, a
+ * phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity
+ * followed by its unit; `{bar}`, a number with a bar of its share of the maximum.
  */
-export type FieldDisplay = 'plain';
+export type FieldDisplay = 'plain' | 'phone' | { currency: string } | { unit: string } | { bar: number };
+
+/**
+ * A phone number written without separators (`+79161234567`, 7 to 15 digits) in groups
+ * from its end (`+7 916 123-45-67`); one written with them as it is.
+ */
+function formatPhone(value: string): string {
+  const match = /^(\+?)(\d{7,15})$/.exec(value.trim());
+  if (!match) return value.trim();
+  const [, plus = '', digits = ''] = match;
+  const groups = [digits.slice(0, -10), digits.slice(-10, -7), `${digits.slice(-7, -4)}-${digits.slice(-4, -2)}-${digits.slice(-2)}`];
+  return plus + groups.filter(Boolean).join(' ');
+}
 
 /**
  * The text of the value of an attribute, in the language of the interface (`useLanguage()`;
  * English by default): a choice by its label (`enumDict` of the backend, the choices of an
- * array each), else by its type and format, the numbers (as `display` says) and the dates
- * with `Intl`, a point (GeoJSON) as its coordinates (`formatPoint`); `—` for no value.
+ * array each), else by its type and format, the numbers, the sums, the quantities and the
+ * phones as `display` says and the dates with `Intl`, a point (GeoJSON) as its coordinates
+ * (`formatPoint`); `—` for no value.
  */
 export function formatValue(
   field: FormField | undefined,
@@ -307,8 +365,20 @@ export function formatValue(
     return value.length ? value.map((it) => choiceLabel(field, it) ?? text(it)).join(', ') : '—';
   }
   if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
+  // a sum or a quantity: a number, or a DecimalField (its exact digits)
+  if (typeof display === 'object' && !('bar' in display) && (typeof value === 'number' || typeof value === 'string')) {
+    if ('currency' in display) {
+      try {
+        return formatDecimal(value, language, { style: 'currency', currency: display.currency });
+      } catch {
+        // a code that `Intl` refuses (not of ISO 4217): after the number, as a unit
+      }
+    }
+    return `${formatDecimal(value, language)} ${'currency' in display ? display.currency : display.unit}`;
+  }
   if (typeof value === 'number') return formatNumber(value, language, display === 'plain' ? { useGrouping: false } : undefined);
   if (typeof value === 'string') {
+    if (display === 'phone') return formatPhone(value);
     const format = field?.kind === 'attribute' ? field.format : null;
     if (format === 'date-time') return formatDateTime(value, language);
     if (format === 'date') return formatDate(value, language);

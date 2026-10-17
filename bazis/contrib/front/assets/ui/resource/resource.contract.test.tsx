@@ -22,7 +22,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { TRANSITS } from '@/bazis/generated/contract';
+import { RESOURCES, TRANSITS } from '@/bazis/generated/contract';
 import type { FormField } from '@/bazis/react';
 import {
   choiceOptions,
@@ -40,11 +40,20 @@ import {
   RelationLabel,
   statusName,
   useAnyRelated,
+  useListFields,
   type FileControlProps,
 } from '@/bazis/ui/resource';
-import { Backend, errors, ITEMS, renderWithBazis, resource, testLanguages } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, renderWithBazis, resource, runtimeSchema, testLanguages } from '@/bazis/ui/testing';
 
 const base = { required: false, readOnly: false, nullable: false };
+
+// the contract of the product as plain records, never by a cast: empty (a product before its
+// first model), its literal maps are `{}`, and a cast of them is one the lint finds unnecessary;
+// a field with other keys only (a relationship of a contract without titles) is one of them
+const CONTRACT: Readonly<
+  Record<string, { path: string; label?: readonly string[]; fields: Readonly<Record<string, { readonly [key: string]: unknown; title?: string }>> }>
+> = RESOURCES;
+const STATUSY: Readonly<Record<string, { statuses: readonly { id: string }[] }>> = TRANSITS;
 
 function attribute(name: string, type: string, extra: Partial<FormField> = {}): FormField {
   return { ...base, kind: 'attribute', name, title: name, type, format: null, enum: null, labels: null, blank: false, schema: {}, ...extra } as FormField;
@@ -417,6 +426,67 @@ describe('FieldValue', () => {
     expect(screen.getByText('1877')).toBeTruthy();
   });
 
+  it('shows a phone (`display: phone`) in groups, as a link to call it', () => {
+    const phone = attribute('phone', 'string');
+    expect(formatValue(phone, '+79161234567', undefined, 'phone')).toBe('+7 916 123-45-67');
+    expect(formatValue(phone, '9161234567', undefined, 'phone')).toBe('916 123-45-67');
+    // written with separators: as it is
+    expect(formatValue(phone, '+44 20 7946 0958', undefined, 'phone')).toBe('+44 20 7946 0958');
+    const { unmount } = render(<FieldValue field={phone} value="+7 (916) 123-45-67" display="phone" />);
+    expect(screen.getByRole('link').getAttribute('href')).toBe('tel:+79161234567');
+    unmount();
+    // without a digit: a text, never a link to call nothing
+    render(<FieldValue field={phone} value="ask the office" display="phone" />);
+    expect(screen.getByText('ask the office')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('shows a sum in its currency (`display: {currency}`), a quantity with its unit (`{unit}`)', () => {
+    const price = attribute('price', 'string');
+    // a DecimalField: its exact digits
+    expect(formatValue(price, '45000.10', undefined, { currency: 'EUR' })).toBe('€45,000.10');
+    expect(formatValue(attribute('total', 'number'), 12, undefined, { currency: 'EUR' })).toBe('€12.00');
+    expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1,200 pcs');
+    expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50 kg');
+    expect(formatValue(price, null, undefined, { unit: 'kg' })).toBe('—');
+    // a code that is not of ISO 4217: after the number, as a unit, never an error of the render
+    expect(formatValue(price, '45000.10', undefined, { currency: 'euro' })).toBe('45,000.10 euro');
+    render(<FieldValue field={price} value="12.5" display={{ currency: 'euro' }} />);
+    expect(screen.getByText('12.5 euro')).toBeTruthy();
+  });
+
+  it('shows a number with a bar of its share of the maximum (`display: {bar}`)', () => {
+    const progress = attribute('progress', 'integer', { title: 'Progress' });
+    const { unmount } = render(<FieldValue field={progress} value={50} display={{ bar: 200 }} />);
+    const meter = screen.getByRole('meter', { name: 'Progress' });
+    expect([meter.getAttribute('aria-valuenow'), meter.getAttribute('aria-valuemax'), meter.getAttribute('aria-valuetext')]).toEqual([
+      '50',
+      '200',
+      '50',
+    ]);
+    expect((meter.firstElementChild as HTMLElement).style.width).toBe('25%');
+    unmount();
+    // over the maximum: a full bar, the value of the meter within its range, the real one in its text
+    const over = render(<FieldValue field={progress} value={300} display={{ bar: 200 }} />);
+    const full = screen.getByRole('meter');
+    expect((full.firstElementChild as HTMLElement).style.width).toBe('100%');
+    expect([full.getAttribute('aria-valuenow'), full.getAttribute('aria-valuetext')]).toEqual(['200', '300']);
+    over.unmount();
+    render(<FieldValue field={progress} value={-5} display={{ bar: 200 }} />);
+    expect(screen.getByRole('meter').getAttribute('aria-valuenow')).toBe('0');
+  });
+
+  it('shows a decimal (a string of the API) of `display: {bar}` as its text, without a bar', () => {
+    // `check` refuses it (S020: a bar is of an integer or a number); the value stays readable
+    render(
+      <span data-bz="field:share">
+        <FieldValue field={attribute('share', 'string', { title: 'Share' })} value="12.50" display={{ bar: 50 }} />
+      </span>,
+    );
+    expect(screen.getByTestId('field:share').textContent).toBe('12.50');
+    expect(screen.queryByRole('meter')).toBeNull();
+  });
+
   it('shows the status of a model that is not statusy as a related item', () => {
     // the status of a model that the contract does not have, or a relationship of another
     // resource named so: the label of the related item
@@ -430,7 +500,7 @@ describe('FieldValue', () => {
   });
 
   // a status of a statusy model of the product, if it has one
-  const statusy = Object.entries(TRANSITS as Readonly<Record<string, { statuses: readonly { id: string }[] }>>).flatMap(
+  const statusy = Object.entries(STATUSY).flatMap(
     ([type, { statuses }]) => statuses.map(({ id }) => ({ type, id })),
   )[0];
   it.runIf(statusy)('names a status of a statusy model of the contract', () => {
@@ -444,6 +514,68 @@ describe('FieldValue', () => {
     );
     // in the language of the interface, English without a provider
     expect(screen.getByTestId('field:status').textContent).toBe(statusName(type, id, 'en'));
+  });
+});
+
+describe('the titles of the fields', () => {
+  it('titles a field without a title of its own, or with the default of Django, by its name as words', async () => {
+    function Titles() {
+      const fields = useListFields(ITEMS);
+      const names = ['is_late', 'status_author', 'due_on'];
+      return <span data-bz="field:title">{fields.ready ? names.map((name) => fields.title(name)).join('|') : ''}</span>;
+    }
+    const schema = runtimeSchema(
+      {
+        is_late: { attribute: { type: 'boolean' } },
+        // the `verbose_name` that Django gives a field without one
+        status_author: { attribute: { type: 'string', title: 'status author' } },
+        due_on: { attribute: { type: 'string', title: 'due on (UTC)' } },
+      },
+      { list: true },
+    );
+    renderWithBazis(<Titles />, new Backend().on('GET', `${ITEMS}schema_list/`, schema));
+    await waitFor(() => {
+      expect(screen.getByTestId('field:title').textContent).toBe('Is late|Status author|due on (UTC)');
+    });
+  });
+});
+
+describe('the contract', () => {
+  // a resource of the product with its label attributes, a field with a title of its own
+  // a resource of the product labelled by other attributes than `name`, the first of `LABELS`
+  const labelled = Object.entries(CONTRACT).find(([, it]) => (it.label?.length ?? 0) > 0 && !it.label?.includes('name'));
+  const titled = Object.values(CONTRACT).flatMap((resource) =>
+    Object.entries(resource.fields).flatMap(([name, field]) =>
+      // a title of its own: neither its name nor the default `verbose_name` of Django
+      field.title && field.title !== name && field.title !== name.replaceAll('_', ' ') ? [{ path: resource.path, name, title: field.title }] : [],
+    ),
+  )[0];
+
+  it.runIf(labelled)('names an item by the label attributes of its resource, before the names of LABELS', () => {
+    if (!labelled) return;
+    const [type, { label = [] }] = labelled;
+    // `name` (the first of LABELS) would name it otherwise
+    const item = resource('1', { name: 'Other', ...Object.fromEntries(label.map((name, index) => [name, `N${String(index)}`])) }, {}, type);
+    expect(itemName(item)).toBe(label.map((_, index) => `N${String(index)}`).join(' '));
+    // without a value of them (a user without his names): by LABELS
+    expect(itemName(resource('1', { name: 'Other' }, {}, type))).toBe('Other');
+  });
+
+  it('names an item of a type that the contract does not label by LABELS', () => {
+    expect(itemName(resource('1', { title: 'Second', name: 'First' }, {}, 'test.unlabelled'))).toBe('First');
+    expect(itemName(resource('1', { title: ' ' }, {}, 'test.unlabelled'))).toBeNull();
+  });
+
+  it.runIf(titled)('titles a field by the contract while its schema cannot be read', async () => {
+    if (!titled) return;
+    function Title() {
+      const fields = useListFields(titled?.path ?? '');
+      return <span data-bz="field:title">{fields.ready ? fields.title(titled?.name ?? '') : ''}</span>;
+    }
+    renderWithBazis(<Title />, new Backend().on('GET', `${titled.path}schema_list/`, errors(500), 500));
+    await waitFor(() => {
+      expect(screen.getByTestId('field:title').textContent).toBe(titled.title);
+    });
   });
 });
 

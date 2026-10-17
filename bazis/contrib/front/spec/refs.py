@@ -438,7 +438,8 @@ def _check_field(
             f'the spec; then {EXPORT_HINT}.',
         )
         return
-    if actual['title'] == item['id']:
+    # its name, or the default `verbose_name` of Django (`status author`): in English only
+    if actual['title'] in (item['id'], item['id'].replace('_', ' ')):
         issues.add(
             doc, path, 'S018',
             f'The title of the field `{item["id"]}` of `{name}` in the contract is its name: the '
