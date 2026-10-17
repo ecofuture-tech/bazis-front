@@ -2,10 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:bazis-front:spec:screen:1",
   "title": "bazis-screen/1: spec/screens/<id>.yaml",
-  "description": "A screen of the frontend: one primitive (list, card or form) over an entity of spec/product.yaml, its actions and the states it renders. The screen marks its elements with `data-bz` attributes: screen:<id>, state:<loading|empty|loaded|error|forbidden|not_found|invalid>, list:<entity>, row:<id>, field:<field>, error:<field>, action:<id>, transit:<id>, status:<id>, nav:<screen>. The required states of a primitive: list loading, empty, error, forbidden; card loading, error, forbidden, not_found; form loading, error, forbidden, invalid.",
+  "description": "A screen of the frontend: one primitive (list, card, form, dashboard, board or calendar) over an entity of spec/product.yaml (a dashboard has none: each of its parts names its own), its actions and the states it renders. The screen marks its elements with `data-bz` attributes: screen:<id>, state:<loading|empty|loaded|error|forbidden|not_found|invalid>, list:<entity>, row:<id>, cell:<field>, field:<field>, error:<field>, action:<id>, transit:<id>, status:<id>, nav:<screen>; select:<id> and bulk:<id> (the bulk actions of a list), tab:<id> (the tabs of a card), tile:<id>, chart:<id> and recent:<id> (a dashboard), column:<status> and move:<status> (a board), day:<date> (a calendar). The required states of a primitive: list loading, empty, error, forbidden; card loading, error, forbidden, not_found; form loading, error, forbidden, invalid; dashboard loading, error; board and calendar loading, empty, error, forbidden.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["spec", "id", "route", "entity", "primitive", "states"],
+  "required": ["spec", "id", "route", "primitive", "states"],
   "properties": {
     "spec": {"const": "bazis-screen/1"},
     "id": {"description": "The id of the screen, also the name of its file.", "$ref": "#/$defs/id"},
@@ -15,14 +15,14 @@
       "type": "string",
       "pattern": "^/[A-Za-z0-9_./:-]*$"
     },
-    "entity": {"description": "The id of an entity of spec/product.yaml.", "$ref": "#/$defs/id"},
+    "entity": {"description": "The id of an entity of spec/product.yaml; none on a dashboard.", "$ref": "#/$defs/id"},
     "roles": {
       "description": "The roles that use the screen in the scenarios; the backend decides the access (and the navigation shows the link of the screen to the users it allows: `NavItem.requires`).",
       "type": "array",
       "uniqueItems": true,
       "items": {"$ref": "#/$defs/id"}
     },
-    "primitive": {"enum": ["list", "card", "form"]},
+    "primitive": {"enum": ["list", "card", "form", "dashboard", "board", "calendar"]},
     "list": {
       "type": "object",
       "additionalProperties": false,
@@ -30,20 +30,12 @@
       "properties": {
         "columns": {"$ref": "#/$defs/fields", "minItems": 1},
         "filters": {"description": "Fields that the contract can filter by.", "$ref": "#/$defs/fields"},
-        "sort": {
-          "description": "The default order: fields that the contract can sort by, `-` for descending.",
-          "type": "array",
-          "uniqueItems": true,
-          "items": {"type": "string", "pattern": "^-?[A-Za-z_][A-Za-z0-9_]*$"}
-        },
+        "sort": {"$ref": "#/$defs/sort"},
         "search": {"description": "A full-text search field (`search`).", "type": "boolean"},
         "open": {"description": "The card screen that a row opens.", "$ref": "#/$defs/id"},
         "filter": {
           "description": "The filter of the screen itself, a report of some of the items: each field (that the contract can filter by) equal to its value, combined (AND) with the filters and the search of the user (`ResourceList` `filter`).",
-          "type": "object",
-          "minProperties": 1,
-          "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
-          "additionalProperties": {"type": ["string", "number", "boolean"]}
+          "$ref": "#/$defs/filter"
         },
         "map": {
           "description": "A map of the items of the list beside it (`ResourceMap` of the component map): a marker for each item with a point in `field` (a field of the entity with `type: point`, S016), which opens the card of `open`.",
@@ -61,8 +53,24 @@
           "required": ["field", "tone"],
           "properties": {
             "field": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
-            "tone": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]},
+            "tone": {"$ref": "#/$defs/tone"},
             "label": {"type": "string", "minLength": 1}
+          }
+        },
+        "bulk": {
+          "description": "The actions on the rows that the user selects (`select:<id>`), each item in turn: a transition of the workflow of the entity (one without a payload, S025) or the deletion; the button `bulk:<id>`, shown while rows are selected, asks to confirm (`action:confirm-bulk`).",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "transit": {"description": "The id of a transition of the workflow.", "$ref": "#/$defs/id"},
+              "primitive": {"const": "destroy"}
+            },
+            "oneOf": [{"required": ["transit"]}, {"required": ["primitive"]}]
           }
         }
       }
@@ -119,6 +127,23 @@
               }
             }
           }
+        },
+        "tabs": {
+          "description": "The card in tabs (`tab:<id>`): each section, each related section and the history in exactly one tab (S024); without `tabs` they are one below the other. The transits stay above the tabs.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "title"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "title": {"type": "string", "minLength": 1},
+              "sections": {"description": "The ids of sections of the card.", "$ref": "#/$defs/ids"},
+              "related": {"description": "The ids of related sections of the card.", "$ref": "#/$defs/ids"},
+              "history": {"description": "The status history of the item (`history` of the card).", "type": "boolean"}
+            }
+          }
         }
       }
     },
@@ -130,6 +155,140 @@
         "mode": {"enum": ["create", "update"]},
         "fields": {"description": "The fields of the form; all the writable fields of its runtime schema when omitted.", "$ref": "#/$defs/fields"},
         "then": {"description": "The screen shown after a submit.", "$ref": "#/$defs/id"}
+      }
+    },
+    "dashboard": {
+      "description": "An overview of the entities: tiles that count the items of a filter, charts of the items by status or by date, the last items of an entity and the create forms of entities. A count is a list of one item of the API, with its pagination (the core has no aggregates).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tiles": {
+          "description": "The count of the items of an entity with the `filter` of a list (`tile:<id>`, the number in `data-value`); a click opens the list `open`.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "entity", "label"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "entity": {"$ref": "#/$defs/id"},
+              "filter": {"$ref": "#/$defs/filter"},
+              "tone": {"$ref": "#/$defs/tone"},
+              "label": {"$ref": "#/$defs/label"},
+              "open": {"description": "The list screen of the entity that the tile opens.", "$ref": "#/$defs/id"}
+            }
+          }
+        },
+        "charts": {
+          "description": "The items of an entity by its status (`status` of an entity with a workflow: a count for each status) or by a date or a date-time field (a count for each `bucket`, the `last` ones up to the current one), `chart:<id>`.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "entity", "by", "kind", "label"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "entity": {"$ref": "#/$defs/id"},
+              "by": {"$ref": "#/$defs/field"},
+              "kind": {"enum": ["donut", "bar", "line"]},
+              "bucket": {"enum": ["day", "week", "month"]},
+              "last": {"type": "integer", "minimum": 1},
+              "label": {"$ref": "#/$defs/label"}
+            }
+          }
+        },
+        "recent": {
+          "description": "The last items of an entity by `sort` (`recent:<id>`, its rows `row:<id>` with their cells `cell:<column>`), each opening the card `open`.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "entity", "columns", "label"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "entity": {"$ref": "#/$defs/id"},
+              "columns": {"$ref": "#/$defs/fields", "minItems": 1},
+              "sort": {"$ref": "#/$defs/sort"},
+              "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+              "open": {"description": "The card screen of the entity that a row opens.", "$ref": "#/$defs/id"},
+              "label": {"$ref": "#/$defs/label"}
+            }
+          }
+        },
+        "actions": {
+          "description": "The create forms of entities, `action:<id>`.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "primitive", "entity", "mode"],
+            "properties": {
+              "id": {"$ref": "#/$defs/id"},
+              "primitive": {"const": "form"},
+              "entity": {"$ref": "#/$defs/id"},
+              "mode": {"const": "create"},
+              "fields": {"$ref": "#/$defs/fields"},
+              "then": {"description": "The screen shown after the form.", "$ref": "#/$defs/id"}
+            }
+          }
+        }
+      }
+    },
+    "board": {
+      "description": "The items of the entity in a column for each status of its workflow (`column:<status>`, a list filtered by the status, its items `row:<id>` with their cells `cell:<field>`); with `move`, an item moves to the column of a status that a transit of the item leads to (its menu `action:move`, `move:<status>`).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["by", "card"],
+      "properties": {
+        "by": {"description": "The status of the workflow (bazis-statusy), the only field of the columns.", "const": "status"},
+        "columns": {
+          "description": "The statuses of the columns, in their order; all those of the workflow by default.",
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "card": {
+          "description": "An item in its column: its title, its fields, and a badge while its boolean field `badge` is true.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title"],
+          "properties": {
+            "title": {"$ref": "#/$defs/field"},
+            "fields": {"$ref": "#/$defs/fields"},
+            "badge": {"$ref": "#/$defs/field"}
+          }
+        },
+        "filters": {"description": "Fields that the contract can filter by.", "$ref": "#/$defs/fields"},
+        "move": {"description": "The items move between the columns by the transits that the backend allows them.", "type": "boolean"},
+        "open": {"description": "The card screen that an item opens.", "$ref": "#/$defs/id"}
+      }
+    },
+    "calendar": {
+      "description": "The items of the entity on the days of a date or a date-time field, a month or a week at a time (`day:<YYYY-MM-DD>`, the number of its items in `data-count`, its items `row:<id>` with their cells `cell:<field>`).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field"],
+      "properties": {
+        "field": {"description": "The date or date-time field of the day of an item.", "$ref": "#/$defs/field"},
+        "end": {"description": "The date or date-time field of the last day of an item that spans days.", "$ref": "#/$defs/field"},
+        "label": {"description": "The fields that an item shows; the label of the entity by default.", "$ref": "#/$defs/fields"},
+        "tone": {
+          "description": "The items whose boolean field is true, in a tone of the theme.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field", "tone"],
+          "properties": {"field": {"$ref": "#/$defs/field"}, "tone": {"$ref": "#/$defs/tone"}}
+        },
+        "views": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"enum": ["month", "week"]}},
+        "open": {"description": "The card screen that an item opens.", "$ref": "#/$defs/id"},
+        "add": {
+          "description": "The action `id` opens the create form of the entity, its `fields` (all the writable fields when omitted), `field` filled with the day selected (today by default).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id"],
+          "properties": {"id": {"$ref": "#/$defs/id"}, "fields": {"$ref": "#/$defs/fields"}}
+        }
       }
     },
     "actions": {
@@ -145,24 +304,56 @@
   "allOf": [
     {
       "if": {"properties": {"primitive": {"const": "list"}}},
-      "then": {"required": ["list"], "properties": {"card": false, "form": false}}
+      "then": {"required": ["entity", "list"], "properties": {"card": false, "form": false, "dashboard": false, "board": false, "calendar": false}}
     },
     {
       "if": {"properties": {"primitive": {"const": "card"}}},
-      "then": {"required": ["card"], "properties": {"list": false, "form": false}}
+      "then": {"required": ["entity", "card"], "properties": {"list": false, "form": false, "dashboard": false, "board": false, "calendar": false}}
     },
     {
       "if": {"properties": {"primitive": {"const": "form"}}},
-      "then": {"required": ["form"], "properties": {"list": false, "card": false}}
+      "then": {"required": ["entity", "form"], "properties": {"list": false, "card": false, "dashboard": false, "board": false, "calendar": false}}
+    },
+    {
+      "if": {"properties": {"primitive": {"const": "dashboard"}}},
+      "then": {
+        "required": ["dashboard"],
+        "properties": {"entity": false, "actions": false, "list": false, "card": false, "form": false, "board": false, "calendar": false}
+      }
+    },
+    {
+      "if": {"properties": {"primitive": {"const": "board"}}},
+      "then": {"required": ["entity", "board"], "properties": {"list": false, "card": false, "form": false, "dashboard": false, "calendar": false}}
+    },
+    {
+      "if": {"properties": {"primitive": {"const": "calendar"}}},
+      "then": {"required": ["entity", "calendar"], "properties": {"list": false, "card": false, "form": false, "dashboard": false, "board": false}}
     }
   ],
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+    "ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "field": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
     "fields": {
       "type": "array",
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}
+      "items": {"$ref": "#/$defs/field"}
     },
+    "sort": {
+      "description": "The order: fields that the contract can sort by, `-` for descending.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^-?[A-Za-z_][A-Za-z0-9_]*$"}
+    },
+    "filter": {
+      "description": "Each field (that the contract can filter by) equal to its value.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+      "additionalProperties": {"type": ["string", "number", "boolean"]}
+    },
+    "tone": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]},
+    "label": {"description": "A key of the dictionaries of the frontend, or a text: never the color alone.", "type": "string", "minLength": 1},
     "action": {
       "description": "`form`: a form of the entity (create on a list or a card, update on a card); `destroy`: the deletion of the item of a card.",
       "type": "object",

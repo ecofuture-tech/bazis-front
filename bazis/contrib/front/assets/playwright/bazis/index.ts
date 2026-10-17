@@ -135,34 +135,62 @@ export class App<P extends Product = Product> {
   }
 
   /**
-   * Opens the first row of the list of the current screen whose cells `cell:<name>` have
-   * exactly these texts: on the page shown, else searched with the search of the list
-   * (`field:$search`), each text of `where` in turn, else on the next pages
-   * (`action:next-page`) of the list without a search; fails when no page has it. A list
-   * that grows with every run (the items that the scenarios create) is searched, never read
-   * on its first page only.
+   * Opens the first item of the current screen whose cells `cell:<name>` have exactly these
+   * texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen,
+   * of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page
+   * shown, else searched with the search of the list (`field:$search`), each text of `where`
+   * in turn, else on the next pages (`action:next-page`) of the list without a search; fails
+   * when no page has it. A list that grows with every run (the items that the scenarios
+   * create) is searched, never read on its first page only.
    */
-  async openItem({ where }: { where: Values }): Promise<void> {
-    await this.settled();
-    const lists = this.screen().locator('[data-bz^="list:"]');
-    const list = (await lists.count()) > 0 ? lists.first() : this.screen();
-    if (await this.openRow(list, where)) return;
-    const search = list.locator(bz('field', '$search'));
-    if ((await search.count()) > 0) {
-      const texts = Object.values(where).flatMap((it) => (typeof it === 'string' || typeof it === 'number' ? [String(it).trim()] : []));
-      for (const text of new Set(texts.filter(Boolean))) {
-        await this.searchList(list, search, text);
-        if (await this.openRowOnPages(list, where)) return;
-      }
-      await this.searchList(list, search, '');
-    }
-    if (await this.openRowOnPages(list, where)) return;
-    throw new Error(`No row of the list of the screen ${String(this.current)} has the texts ${JSON.stringify(where)}.`);
+  async openItem({ where, in: recent }: { where: Values; in?: string }): Promise<void> {
+    await (await this.row(where, recent)).click();
   }
 
-  /** Runs an action of the current screen, `action:<id>`. */
+  /**
+   * Selects the row of the list of the current screen that `openItem` would open, its
+   * checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
+   */
+  async select({ where }: { where: Values }): Promise<void> {
+    await (await this.row(where)).locator('[data-bz^="select:"]').check();
+  }
+
+  /**
+   * Runs a bulk action of the list of the current screen on the selected rows, `bulk:<id>`,
+   * confirmed in its dialog (`action:confirm-bulk`), and waits until it is done (the action
+   * is no longer offered: the selection is cleared) or shows an error (`error:bulk`).
+   */
+  async bulk(id: string): Promise<void> {
+    const button = this.screen().locator(bz('bulk', id));
+    await this.seen(this.page.locator('body'));
+    await button.click();
+    await this.page.locator(bz('action', 'confirm-bulk')).click();
+    await this.until(button, this.page.locator(NEW_FAILED), `the bulk action ${id} is done or shows an error`);
+  }
+
+  /**
+   * Moves the item of the board of the current screen that `openItem` would open to the
+   * column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it
+   * is in the column `column:<status>` or an error is shown.
+   */
+  async move({ where, to }: { where: Values; to: string }): Promise<void> {
+    const row = await this.row(where);
+    const mark = (await row.getAttribute('data-bz')) ?? '';
+    await this.seen(this.page.locator('body'));
+    await row.locator(bz('action', 'move')).click();
+    await this.page.locator(bz('move', to)).click();
+    const moved = this.screen().locator(`${bz('column', to)} [data-bz=${JSON.stringify(mark)}]`);
+    const failed = this.page.locator(NEW_FAILED);
+    await expect
+      .poll(async () => (await moved.count()) > 0 || (await failed.count()) > 0, { message: `the item is moved to ${to} or shows an error` })
+      .toBe(true);
+  }
+
+  /** Runs an action of the current screen, `action:<id>` (in the tab of a card that has it). */
   async action(id: string): Promise<void> {
-    await this.screen().locator(bz('action', id)).click();
+    const button = this.screen().locator(bz('action', id));
+    await this.reveal(button);
+    await button.click();
   }
 
   /**
@@ -179,6 +207,7 @@ export class App<P extends Product = Product> {
     const form = this.form();
     for (const [name, value] of Object.entries(values)) {
       const control = form.locator(bz('field', name));
+      await this.reveal(control);
       const kind = await control.evaluate((element) => {
         const role = element.getAttribute('role');
         if (role === 'combobox') return 'combobox';
@@ -367,7 +396,9 @@ export class App<P extends Product = Product> {
     const screen = this.screen();
     const edit = screen.locator(bz('action', 'edit'));
     if ((await edit.count()) === 0) {
-      await expect(screen.locator(bz('field', field)).first()).toBeVisible();
+      const value = screen.locator(bz('field', field)).first();
+      await this.reveal(value);
+      await expect(value).toBeVisible();
       return;
     }
     await edit.click();
@@ -394,7 +425,9 @@ export class App<P extends Product = Product> {
   async expectValues(values: Readonly<Record<string, string>>): Promise<void> {
     await this.settled();
     for (const [name, value] of Object.entries(values)) {
-      await expect(this.screen().locator(bz('field', name)).first()).toContainText(value);
+      const field = this.screen().locator(bz('field', name)).first();
+      await this.reveal(field);
+      await expect(field).toContainText(value);
     }
   }
 
@@ -402,6 +435,32 @@ export class App<P extends Product = Product> {
   async expectRows(count: number): Promise<void> {
     await this.settled();
     await expect(this.screen().locator('[data-bz^="row:"]')).toHaveCount(count);
+  }
+
+  /** The tile of the current dashboard counts this number of items, `tile:<id>` (its `data-value`). */
+  async expectTile(id: string, count: number): Promise<void> {
+    await this.settled();
+    await expect(this.screen().locator(bz('tile', id))).toHaveAttribute('data-value', String(count));
+  }
+
+  /**
+   * The day of the calendar of the current screen has this number of items, `day:<date>` (its
+   * `data-count`): the calendar (`calendar:<entity>`, the days it shows from `data-from` to
+   * `data-to`) is first moved to the period of the day (`action:previous-period`,
+   * `action:next-period`).
+   */
+  async expectDay(date: string, count: number): Promise<void> {
+    await this.settled();
+    const calendar = this.screen().locator('[data-bz^="calendar:"]');
+    for (;;) {
+      const from = (await calendar.getAttribute('data-from')) ?? '';
+      const to = (await calendar.getAttribute('data-to')) ?? '';
+      if (date >= from && date <= to) break;
+      await calendar.locator(bz('action', date < from ? 'previous-period' : 'next-period')).click();
+      await expect(calendar).not.toHaveAttribute('data-from', from);
+      await this.settled();
+    }
+    await expect(calendar.locator(bz('day', date))).toHaveAttribute('data-count', String(count));
   }
 
   /** A field shows a validation error, `error:<name>`. */
@@ -446,30 +505,52 @@ export class App<P extends Product = Product> {
     if ((await control.count()) > 0) await expect(control).not.toBeEditable();
   }
 
-  /** Clicks the first row of the list on its page whose cells have the texts; whether there is one. */
-  private async openRow(list: Locator, where: Values): Promise<boolean> {
+  /** The item that `openItem` opens. */
+  private async row(where: Values, recent?: string): Promise<Locator> {
+    await this.settled();
+    const lists = this.screen().locator('[data-bz^="list:"]');
+    const list =
+      recent !== undefined ? this.screen().locator(bz('recent', recent)) : (await lists.count()) > 0 ? lists.first() : this.screen();
+    const shown = await this.rowOnPage(list, where);
+    if (shown) return shown;
+    const search = list.locator(bz('field', '$search'));
+    if ((await search.count()) > 0) {
+      const texts = Object.values(where).flatMap((it) => (typeof it === 'string' || typeof it === 'number' ? [String(it).trim()] : []));
+      for (const text of new Set(texts.filter(Boolean))) {
+        await this.searchList(list, search, text);
+        const found = await this.rowOnPages(list, where);
+        if (found) return found;
+      }
+      await this.searchList(list, search, '');
+    }
+    const found = await this.rowOnPages(list, where);
+    if (found) return found;
+    throw new Error(`No row of the list of the screen ${String(this.current)} has the texts ${JSON.stringify(where)}.`);
+  }
+
+  /** The first row of the list on its page whose cells have the texts, or null. */
+  private async rowOnPage(list: Locator, where: Values): Promise<Locator | null> {
     let rows = list.locator('[data-bz^="row:"]');
     for (const [name, value] of Object.entries(where)) {
       rows = rows.filter({ has: this.page.locator(bz('cell', name)).filter({ hasText: exactly(value) }) });
     }
-    if ((await rows.count()) === 0) return false;
-    await rows.first().click();
-    return true;
+    return (await rows.count()) > 0 ? rows.first() : null;
   }
 
-  /** The row on the page of the list or on its next pages; whether there is one. */
-  private async openRowOnPages(list: Locator, where: Values): Promise<boolean> {
+  /** The row on the page of the list or on its next pages, or null. */
+  private async rowOnPages(list: Locator, where: Values): Promise<Locator | null> {
     const first = list.locator('[data-bz^="row:"]').first();
     const next = list.locator(bz('action', 'next-page'));
-    while (!(await this.openRow(list, where))) {
-      if ((await next.count()) === 0 || (await next.isDisabled())) return false;
+    for (;;) {
+      const row = await this.rowOnPage(list, where);
+      if (row) return row;
+      if ((await next.count()) === 0 || (await next.isDisabled())) return null;
       const shown = await first.getAttribute('data-bz');
       await next.click();
       // the rows of the next page, loaded
       await expect.poll(() => first.getAttribute('data-bz'), { message: 'the next page of the list' }).not.toBe(shown);
       await this.listSettled(list);
     }
-    return true;
   }
 
   /**
@@ -493,6 +574,22 @@ export class App<P extends Product = Product> {
   private async settled(): Promise<void> {
     await expect(this.screen().locator('[data-bz^="state:"]').first()).toBeAttached();
     await expect(this.page.locator(bz('state', 'loading'))).toHaveCount(0);
+  }
+
+  /**
+   * Shows the tab of the card that has the element when it is in a hidden tab panel: the tab
+   * (`tab:<id>`, `role="tab"`) whose `aria-controls` is the panel, until it is selected. The
+   * panels of the tabs stay in the page while they are hidden, so that a step finds what it
+   * acts on whatever the tab shown.
+   */
+  private async reveal(element: Locator): Promise<void> {
+    const first = element.first();
+    await expect(first).toBeAttached();
+    const panel = first.locator('xpath=ancestor::*[@role="tabpanel"][1]');
+    if ((await panel.count()) === 0 || (await panel.isVisible())) return;
+    const tab = this.page.locator(`[role="tab"][aria-controls=${JSON.stringify((await panel.getAttribute('id')) ?? '')}]`);
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**

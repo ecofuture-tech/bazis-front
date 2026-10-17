@@ -21,6 +21,10 @@ card:
       relation: task
       columns: [title, dt_created]
       add: {id: add-step, fields: [title]}
+  tabs:
+    - {id: details, title: Details, sections: [main, report]}
+    - {id: steps, title: Steps, related: [steps]}
+    - {id: history, title: History, history: true}
 actions:
   - {id: delete, primitive: destroy, then: task-list}
 states: [loading, error, forbidden, not_found]

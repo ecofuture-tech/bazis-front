@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# The tasks on the days they were created.
+spec: bazis-screen/1
+id: task-calendar
+title: Calendar
+route: /calendar
+entity: task
+roles: [manager, viewer]
+primitive: calendar
+calendar:
+  field: dt_created
+  label: [title]
+  views: [month, week]
+  open: task-card
+states: [loading, empty, error, forbidden]

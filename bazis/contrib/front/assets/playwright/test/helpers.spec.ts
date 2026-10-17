@@ -645,6 +645,155 @@ test('transit fills its payload and waits until it is done', async ({ page }) =>
   await app.expectStatus('done');
 });
 
+test('openItem opens a row of the last items of a dashboard', async ({ page }) => {
+  const recent = (id: string) => `<div data-bz="recent:${id}"><table><tbody>
+    <tr data-bz="row:${id}" onclick="document.body.dataset.opened = '${id}'"><td data-bz="cell:title">Plan</td></tr>
+  </tbody></table></div>`;
+  await serve(page, { '/': loading('home', `<div data-bz="state:loaded">${recent('other')}${recent('last-tasks')}</div>`) });
+  const app = new App(page, PRODUCT);
+  await app.open('home');
+  await app.openItem({ where: { title: 'Plan' }, in: 'last-tasks' });
+  await expect(page.locator('body')).toHaveAttribute('data-opened', 'last-tasks');
+});
+
+test.describe('select and bulk', () => {
+  /** A list whose bulk action, once confirmed, ends after a delay with `done`. */
+  function list(done: string): string {
+    return html(
+      `<section data-bz="screen:task-list"><div data-bz="list:task"><div data-bz="state:loaded">
+        <button id="bulk" data-bz="bulk:start-all" hidden>Start</button><table><tbody>
+        <tr data-bz="row:1"><td><input type="checkbox" data-bz="select:1"></td><td data-bz="cell:title">A</td></tr>
+        <tr data-bz="row:2"><td><input type="checkbox" data-bz="select:2"></td><td data-bz="cell:title">B</td></tr>
+      </tbody></table></div></div></section>`,
+      `const bulk = document.getElementById('bulk');
+       document.querySelector('tbody').addEventListener('change', () => { bulk.hidden = !document.querySelector('input:checked'); });
+       bulk.addEventListener('click', () => {
+         document.body.insertAdjacentHTML('beforeend', '<div role="alertdialog"><button id="confirm" data-bz="action:confirm-bulk">Start 1</button></div>');
+         document.getElementById('confirm').addEventListener('click', () => {
+           document.body.dataset.started = [...document.querySelectorAll('input:checked')].map((it) => it.dataset.bz).join(' ');
+           document.querySelector('[role=alertdialog]').remove();
+           setTimeout(() => { ${done} }, 300);
+         });
+       });`,
+    );
+  }
+
+  test('select checks the box of the row, and bulk waits until the selection is cleared', async ({ page }) => {
+    await show(page, '/tasks', list("bulk.remove();"));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    await app.select({ where: { title: 'B' } });
+    await expect(page.locator(bz('select', '2'))).toBeChecked();
+    await expect(page.locator(bz('select', '1'))).not.toBeChecked();
+    await app.bulk('start-all');
+    await expect(page.locator('body')).toHaveAttribute('data-started', 'select:2');
+    expect(await page.locator(bz('bulk', 'start-all')).count()).toBe(0);
+  });
+
+  test('bulk returns when the action shows an error', async ({ page }) => {
+    await show(page, '/tasks', list(`document.body.insertAdjacentHTML('beforeend', '<p data-bz="error:bulk">Not allowed</p>');`));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    await app.select({ where: { title: 'A' } });
+    await app.bulk('start-all');
+    await app.expectError('bulk');
+  });
+});
+
+test('move moves an item by its menu and waits until it is in its column', async ({ page }) => {
+  await show(page, '/board',
+    html(
+      `<section data-bz="screen:task-board"><div data-bz="state:loaded">
+        <div data-bz="column:draft"><div data-bz="row:1"><span data-bz="cell:title">A</span><button id="menu" data-bz="action:move">Move</button></div></div>
+        <div data-bz="column:in_progress"></div></div></section>`,
+      `document.getElementById('menu').addEventListener('click', () => {
+         document.body.insertAdjacentHTML('beforeend', '<div role="menu"><button id="to" data-bz="move:in_progress">In progress</button></div>');
+         document.getElementById('to').addEventListener('click', () => {
+           document.querySelector('[role=menu]').remove();
+           setTimeout(() => { document.querySelector('[data-bz="column:in_progress"]').append(document.querySelector('[data-bz="row:1"]')); }, 300);
+         });
+       });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-board');
+  await app.move({ where: { title: 'A' }, to: 'in_progress' });
+  expect(await page.locator(`${bz('column', 'in_progress')} ${bz('row', '1')}`).count()).toBe(1);
+});
+
+test.describe('expectTile', () => {
+  const tiles = loading('home', '<div data-bz="state:loaded"><div data-bz="tile:review" data-value="3">Review 3</div></div>');
+
+  test('waits for the count of the tile', async ({ page }) => {
+    await serve(page, { '/': tiles });
+    const app = new App(page, PRODUCT);
+    await app.open('home');
+    await app.expectTile('review', 3);
+  });
+
+  test('fails for another count', async ({ page }) => {
+    await serve(page, { '/': tiles });
+    const app = new App(page, PRODUCT);
+    await app.open('home');
+    await expect(app.expectTile('review', 2)).rejects.toThrow();
+  });
+});
+
+test('expectDay moves the calendar to the period of the day', async ({ page }) => {
+  // the month shown, and the one before it once the calendar goes back
+  const october = '<div data-bz="day:2026-10-07" data-count="1"><a data-bz="row:1"><span data-bz="cell:title">A</span></a></div>';
+  const september = '<div data-bz="day:2026-09-15" data-count="2"></div>';
+  await show(page, '/calendar',
+    html(
+      `<section data-bz="screen:task-calendar"><div data-bz="state:loaded"><div data-bz="calendar:task" data-from="2026-10-01" data-to="2026-10-31">
+        <button id="previous" data-bz="action:previous-period">Previous</button><button data-bz="action:next-period">Next</button>
+        <div id="days">${october}</div></div></div></section>`,
+      `document.getElementById('previous').addEventListener('click', () => {
+         setTimeout(() => {
+           const calendar = document.querySelector('[data-bz="calendar:task"]');
+           calendar.dataset.from = '2026-09-01';
+           calendar.dataset.to = '2026-09-30';
+           document.getElementById('days').innerHTML = ${JSON.stringify(september)};
+         }, 300);
+       });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-calendar');
+  await app.expectDay('2026-10-07', 1);
+  await app.expectDay('2026-09-15', 2);
+  await expect(app.expectDay('2026-09-16', 1)).rejects.toThrow();
+});
+
+test('the steps show the tab of the card that has what they act on', async ({ page }) => {
+  // the panels of the tabs stay in the page, hidden; a tab shows its panel
+  await show(page, '/tasks/1',
+    html(
+      `<section data-bz="screen:task-card"><article data-bz="state:loaded"><div role="tablist">
+        <button role="tab" id="t1" aria-controls="p1" aria-selected="true" data-bz="tab:details">Details</button>
+        <button role="tab" id="t2" aria-controls="p2" aria-selected="false" data-bz="tab:steps">Steps</button></div>
+        <div role="tabpanel" id="p1"><dd data-bz="field:title">Plan</dd></div>
+        <div role="tabpanel" id="p2" hidden><dd data-bz="field:report">Done</dd>
+          <button data-bz="action:add-step" onclick="document.body.dataset.added = '1'">Add</button></div></article></section>`,
+      `for (const tab of document.querySelectorAll('[role=tab]')) {
+         tab.addEventListener('click', () => {
+           for (const other of document.querySelectorAll('[role=tab]')) {
+             other.setAttribute('aria-selected', String(other === tab));
+             document.getElementById(other.getAttribute('aria-controls')).hidden = other !== tab;
+           }
+         });
+       }`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-card');
+  await app.action('add-step');
+  await expect(page.locator('body')).toHaveAttribute('data-added', '1');
+  await app.expectValues({ title: 'Plan' });
+  await expect(page.locator('#t1')).toHaveAttribute('aria-selected', 'true');
+  await app.expectValues({ report: 'Done' });
+});
+
 test.describe('expectActionAbsent', () => {
   const loaded = `<div data-bz="state:loaded"><button data-bz="action:create">Create</button></div>`;
 

@@ -34,6 +34,7 @@ import yaml
 
 from bazis.contrib.front.checks import check_e2e
 from bazis.contrib.front.spec import e2e
+from bazis.contrib.front.spec.scenarios import Step
 from bazis.contrib.front.spec.validate import validate
 from bazis.contrib.front.vendor.lock import digest
 
@@ -55,6 +56,10 @@ PLACES = 'e2e/generated/manager-places-a-task.spec.ts'
 PRIORITY = 'e2e/generated/manager-sets-the-priority.spec.ts'
 STEP = 'e2e/generated/manager-adds-a-step.spec.ts'
 WATCHER = 'e2e/generated/manager-adds-a-watcher.spec.ts'
+HOME = 'e2e/generated/manager-starts-from-the-home.spec.ts'
+BOARD = 'e2e/generated/manager-moves-a-task-on-the-board.spec.ts'
+BULK = 'e2e/generated/manager-starts-tasks-at-once.spec.ts'
+CALENDAR = 'e2e/generated/viewer-reads-the-calendar.spec.ts'
 
 
 def generate(*args) -> str:
@@ -147,6 +152,21 @@ def test_a_notification_is_expected_after_the_other_keys():
         '  });\n'
         '});\n'
     )
+
+
+def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions():
+    """The new steps are calls of their helpers; a count of a tile or of a day is a call each."""
+    where = {'where': {'title': 'A'}}
+    assert e2e.calls(Step('open_item', {'in': 'last-tasks', **where}, then='task-card')) == [
+        "app.openItem({ in: 'last-tasks', where: { title: 'A' } })", "app.expectScreen('task-card')",
+    ]
+    assert e2e.calls(Step('select', where)) == ["app.select({ where: { title: 'A' } })"]
+    assert e2e.calls(Step('bulk', 'start-all')) == ["app.bulk('start-all')"]
+    assert e2e.calls(Step('move', {**where, 'to': 'done'})) == ["app.move({ where: { title: 'A' }, to: 'done' })"]
+    assert e2e.calls(Step('expect', {'day': {'2026-10-07': 1, '2026-10-08': 0}, 'tile': {'in-progress': 2}, 'screen': 'home'})) == [
+        "app.expectScreen('home')", "app.expectTile('in-progress', 2)",
+        "app.expectDay('2026-10-07', 1)", "app.expectDay('2026-10-08', 0)",
+    ]
 
 
 def test_the_steps_follow_the_walk_of_the_scenario(tmp_path):
@@ -283,7 +303,7 @@ def test_a_refused_submit_leads_to_no_other_screen(tmp_path):
 
     edit_product(tmp_path, scenario)
     found = [(it.code, it.location) for it in validate(tmp_path).issues]
-    assert found == [('P022', 'spec/product.yaml#/scenarios/12/steps/4/expect/screen')]
+    assert found == [('P022', 'spec/product.yaml#/scenarios/16/steps/4/expect/screen')]
 
 
 def test_the_product_module():
@@ -313,10 +333,13 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     out = generate()
     frontend = root / 'frontend'
     files = rendered(root)
-    assert sorted(files) == [STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PLACES, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS]
+    assert sorted(files) == [
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, BOARD, PLACES, PRIORITY, HOME, BULK,
+        e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS,
+    ]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 12 end-to-end tests' in out
+    assert 'Generated 16 end-to-end tests' in out
     # a to-many relationship is filled with the list of the labels of its items, in the step
     # and in its title
     assert "test.step('fill: {watchers: []}'" in files[WATCHER]
@@ -327,7 +350,8 @@ def test_e2e_writes_the_tests_and_the_lock(root):
         'spec': {
             path: digest((root / path).read_bytes())
             for path in [
-                'spec/product.yaml', 'spec/screens/draft-tasks.yaml', 'spec/screens/task-card.yaml',
+                'spec/product.yaml', 'spec/screens/draft-tasks.yaml', 'spec/screens/home.yaml',
+                'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml', 'spec/screens/task-card.yaml',
                 'spec/screens/task-list.yaml',
             ]
         },
@@ -362,7 +386,8 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
     assert sorted(read_lock(root)['e2e']['generated']) == [
-        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PLACES, PRIORITY, e2e.PRODUCT_TS, DRAFTS,
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, BOARD, PLACES, PRIORITY, HOME, BULK,
+        e2e.PRODUCT_TS, CALENDAR, DRAFTS,
     ]
     generate('--check')
 
@@ -384,7 +409,8 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     generate()
     assert {path: (frontend / path).read_bytes() for path in others} == before
     assert sorted(read_lock(root)['e2e']['generated']) == [
-        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, PLACES, PRIORITY, e2e.PRODUCT_TS, VIEWER, DRAFTS,
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, MANAGER, NOTIFIED, BOARD, PLACES, PRIORITY, HOME, BULK,
+        e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS,
     ]
 
 

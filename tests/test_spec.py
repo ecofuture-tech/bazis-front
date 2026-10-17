@@ -125,6 +125,7 @@ def steps(data, scenario):
 
 PRODUCT, LIST, CARD = 'spec/product.yaml', 'spec/screens/task-list.yaml', 'spec/screens/task-card.yaml'
 DRAFTS = 'spec/screens/draft-tasks.yaml'
+HOME, BOARD, CALENDAR = 'spec/screens/home.yaml', 'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml'
 THEME, TOKENS, CONTRACT = 'spec/design/theme.yaml', 'spec/design/tokens.json', 'contract/contract.json'
 LOCK = 'frontend/bazis-front.lock.json'
 
@@ -283,6 +284,8 @@ CASES = [
         [
             ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/0/payload'),
             ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload'),
+            # the bulk action of the list starts the tasks without a payload
+            ('S025', f'{LIST}#/list/bulk/0/transit'),
             # the scenarios give `start` no payload, and `finish` one it does not declare
             ('P024', f'{PRODUCT}#/scenarios/0/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/0/steps/6/transit/payload/report'),
@@ -290,6 +293,8 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/6/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/report'),
             ('P024', f'{PRODUCT}#/scenarios/9/steps/9/transit'),
+            # the board moves a task to in_progress, which only `start` leads to
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/6/move/to'),
         ],
     ),
     (
@@ -318,7 +323,7 @@ CASES = [
     ),
     (
         'P021',
-        {PRODUCT: lambda d: steps(d, 0).__setitem__(0, {'open': 'task-board'})},
+        {PRODUCT: lambda d: steps(d, 0).__setitem__(0, {'open': 'task-gantt'})},
         [('P021', f'{PRODUCT}#/scenarios/0/steps/0/open')],
     ),
     (
@@ -387,7 +392,8 @@ CASES = [
         # user; the guest of no scenario does not
         {PRODUCT: lambda d: [d['roles'][1].pop('test_user'),
                              d['roles'].append({'id': 'guest', 'permit': 'guest'})]},
-        [('P025', f'{PRODUCT}#/scenarios/1/role'), ('P025', f'{PRODUCT}#/scenarios/7/role')],
+        [('P025', f'{PRODUCT}#/scenarios/1/role'), ('P025', f'{PRODUCT}#/scenarios/7/role'),
+         ('P025', f'{PRODUCT}#/scenarios/15/role')],
     ),
     (
         'P026',
@@ -463,8 +469,12 @@ CASES = [
     (
         'S008',
         {CONTRACT: remove_labels},
-        # the filter of the drafts (a report) is by the status too
+        # the filter of the drafts (a report) is by the status too, and so are the tiles of the
+        # home, its chart by status and the columns of the board; its last tasks are sorted
         [('S008', f'{DRAFTS}#/list/filter/status'), ('S008', f'{DRAFTS}#/list/sort/0'),
+         ('S008', f'{HOME}#/dashboard/tiles/0/filter/status'), ('S008', f'{HOME}#/dashboard/tiles/1/filter/status'),
+         ('S008', f'{HOME}#/dashboard/tiles/2/filter/status'), ('S008', f'{HOME}#/dashboard/charts/0/by'),
+         ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{BOARD}#/board/by'),
          ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0')],
     ),
     ('S009', {LIST: lambda d: d['states'].remove('empty')}, [('S009', f'{LIST}#/states')]),
@@ -477,11 +487,12 @@ CASES = [
     ('S011', {'spec/screens/user-card.yaml': lambda d: user_card(d, transitions=True)}, [('S011', 'spec/screens/user-card.yaml#/card/transitions')]),
     (
         'S012',
-        # the users have no search: the pickers of the assignee (a filter, a form, the card)
-        # and of the watchers (a form, the card)
+        # the users have no search: the pickers of the assignee (the filters of a list and of
+        # the board, a form, the card) and of the watchers (a form, the card)
         {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=[])},
         [
             ('S012', f'{DRAFTS}#/list/filters/0'),
+            ('S012', f'{BOARD}#/board/filters/0'),
             ('S012', f'{CARD}#/card/sections/0/fields/2'),
             ('S012', f'{CARD}#/card/sections/0/fields/3'),
             ('S012', f'{LIST}#/list/filters/1'),
@@ -505,8 +516,9 @@ CASES = [
         # the filter of the screen by a field that the contract cannot filter by
         {LIST: lambda d: d['list'].update(filter={'dt_created': '2026-01-01'}),
          CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['dt_created'].pop('filter')]},
-        # and the filter of the user by it
-        [('S008', f'{LIST}#/list/filters/3'), ('S008', f'{LIST}#/list/filter/dt_created')],
+        # and the filter of the user by it, the chart of the home by week and the days of the calendar
+        [('S008', f'{HOME}#/dashboard/charts/1/by'), ('S008', f'{CALENDAR}#/calendar/field'),
+         ('S008', f'{LIST}#/list/filters/3'), ('S008', f'{LIST}#/list/filter/dt_created')],
     ),
     (
         'S014',
@@ -531,10 +543,12 @@ CASES = [
     (
         'S017',
         # the users are searched by their username only, and shown by their names: the pickers
-        # of the assignee (a filter, a form, the card) and of the watchers (a form, the card)
+        # of the assignee (the filters of a list and of the board, a form, the card) and of the
+        # watchers (a form, the card)
         {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=['username', 'last_name'])},
         [
             ('S017', f'{DRAFTS}#/list/filters/0'),
+            ('S017', f'{BOARD}#/board/filters/0'),
             ('S017', f'{CARD}#/card/sections/0/fields/2'),
             ('S017', f'{CARD}#/card/sections/0/fields/3'),
             ('S017', f'{LIST}#/list/filters/1'),
@@ -614,6 +628,116 @@ CASES = [
         {PRODUCT: lambda d: [task(d)['fields'][0].update(display='phone'),
                              d['entities'][1]['fields'][0].update(display={'currency': 'RUB'})]},
         [],
+    ),
+    (
+        'S021',
+        # a chart by a text, a week of the statuses, and the statuses of an entity without a workflow
+        {HOME: lambda d: [d['dashboard']['charts'][0].update(by='title'),
+                          d['dashboard']['charts'][1].update(by='status'),
+                          d['dashboard']['charts'].append({'id': 'users', 'entity': 'user', 'by': 'status',
+                                                           'kind': 'donut', 'label': 'Users'})]},
+        [('S021', f'{HOME}#/dashboard/charts/0/by'), ('S021', f'{HOME}#/dashboard/charts/1/bucket'),
+         ('S021', f'{HOME}#/dashboard/charts/1/last'), ('S021', f'{HOME}#/dashboard/charts/2/by')],
+    ),
+    (
+        'S022',
+        # a column of no status of the workflow, a badge by a text
+        {BOARD: lambda d: [d['board'].update(columns=['draft', 'archived']),
+                           d['board']['card'].update(badge='title')]},
+        # the scenario of the board moves a task to a status that is no longer a column
+        [('S022', f'{BOARD}#/board/columns/1'), ('S022', f'{BOARD}#/board/card/badge'),
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/6/move/to')],
+    ),
+    (
+        'S022',
+        # the steps have no workflow; a step opens no card of a task
+        {BOARD: lambda d: [d.update(entity='step'), d['board'].update(card={'title': 'title'}),
+                           d['board'].pop('filters'), d['board'].pop('open')]},
+        # the scenario of the board opens a step that opens nothing
+        [('S022', f'{BOARD}#/board/by'), ('P022', f'{PRODUCT}#/scenarios/13/steps/7/open_item')],
+    ),
+    (
+        'S023',
+        # the days of a text, the end of a choice, a tone by a text
+        {CALENDAR: lambda d: d['calendar'].update(field='title', end='priority',
+                                                  tone={'field': 'title', 'tone': 'danger'})},
+        [('S023', f'{CALENDAR}#/calendar/field'), ('S023', f'{CALENDAR}#/calendar/end'),
+         ('S023', f'{CALENDAR}#/calendar/tone/field')],
+    ),
+    (
+        'S024',
+        # an unknown section, a section in two tabs, the history in none
+        {CARD: lambda d: [d['card']['tabs'][0]['sections'].append('extra'),
+                          d['card']['tabs'].__setitem__(2, {'id': 'more', 'title': 'More', 'sections': ['report']})]},
+        [('S024', f'{CARD}#/card/tabs/0/sections/2'), ('S024', f'{CARD}#/card/tabs/2/sections/0'),
+         ('S024', f'{CARD}#/card/tabs')],
+    ),
+    (
+        'S024',
+        # the history of a card without it, a tab declared twice and empty, a section in no tab
+        {CARD: lambda d: [d['card'].update(history=False), d['card']['tabs'][0].update(sections=['main']),
+                          d['card']['tabs'].append({'id': 'steps', 'title': 'Empty'})]},
+        [('S024', f'{CARD}#/card/tabs/2/history'), ('S024', f'{CARD}#/card/tabs/3/id'),
+         ('S024', f'{CARD}#/card/tabs/3'), ('S024', f'{CARD}#/card/tabs')],
+    ),
+    (
+        'S025',
+        # a transition with a payload, an unknown one; a bulk action declared twice
+        {LIST: lambda d: d['list']['bulk'].extend([{'id': 'finish-all', 'transit': 'finish'},
+                                                   {'id': 'archive-all', 'transit': 'archive'},
+                                                   {'id': 'start-all', 'primitive': 'destroy'}])},
+        [('S025', f'{LIST}#/list/bulk/1/transit'), ('S025', f'{LIST}#/list/bulk/2/transit'),
+         ('S010', f'{LIST}#/list/bulk/3/id')],
+    ),
+    (
+        'S025',
+        # the users have no workflow
+        {'spec/screens/user-list.yaml': lambda d: {
+            'spec': 'bazis-screen/1', 'id': 'user-list', 'route': '/users', 'entity': 'user', 'primitive': 'list',
+            'list': {'columns': ['username'], 'bulk': [{'id': 'start-all', 'transit': 'start'}]},
+            'states': ['loading', 'empty', 'error', 'forbidden'],
+        }},
+        [('S025', 'spec/screens/user-list.yaml#/list/bulk/0/transit')],
+    ),
+    # no screen at `/`: the template shows its overview
+    ('S026', {HOME: lambda d: d.update(route='/home')}, [('S026', 'spec/screens')]),
+    (
+        'S026',
+        # a list at `/`, a dashboard without tiles (whose tile the scenario of the home expects)
+        {HOME: lambda d: [d.update(route='/home'), d['dashboard'].pop('tiles')],
+         LIST: lambda d: d.update(route='/')},
+        [('S026', f'{HOME}#/dashboard'), ('S026', f'{LIST}#/primitive'),
+         ('P022', f'{PRODUCT}#/scenarios/12/steps/1/expect/tile/review')],
+    ),
+    (
+        'S004',
+        # the parts of a dashboard name their entity
+        {HOME: lambda d: d['dashboard']['tiles'][0].update(entity='ticket')},
+        [('S004', f'{HOME}#/dashboard/tiles/0/entity')],
+    ),
+    (
+        'S006',
+        # a tile opens a list of its entity, a row of the last items a card of it
+        {HOME: lambda d: [d['dashboard']['tiles'][0].update(open='task-card'),
+                          d['dashboard']['recent'][0].update(open='task-list'),
+                          d['dashboard']['tiles'][1].update(entity='step', filter={'title': 'Book'}, open='draft-tasks')]},
+        [('S006', f'{HOME}#/dashboard/tiles/0/open'), ('S006', f'{HOME}#/dashboard/recent/0/open'),
+         ('S006', f'{HOME}#/dashboard/tiles/1/open')],
+    ),
+    (
+        'S007',
+        # the fields of the parts of a dashboard are those of their entity
+        {HOME: lambda d: [d['dashboard']['tiles'][0].update(filter={'rank': 1}),
+                          d['dashboard']['recent'][0]['columns'].append('rank'),
+                          d['dashboard']['actions'][0]['fields'].append('rank')]},
+        [('S007', f'{HOME}#/dashboard/tiles/0/filter/rank'), ('S007', f'{HOME}#/dashboard/recent/0/columns/3'),
+         ('S007', f'{HOME}#/dashboard/actions/0/fields/1')],
+    ),
+    (
+        'S014',
+        # the filter of a tile by a value of another type
+        {HOME: lambda d: d['dashboard']['tiles'][3].update(filter={'title': True})},
+        [('S014', f'{HOME}#/dashboard/tiles/3/filter/title')],
     ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),
@@ -847,6 +971,58 @@ def test_the_related_sections_of_a_card(contract):
     # the list of the steps is filtered by their task: a field that the contract filters by
     edit(root, CONTRACT, lambda d: [d['project']['resources']['tasks.step']['fields']['task'].pop('filter')])
     assert ('S008', f'{CARD}#/card/related/0/relation') in issues(root)
+
+
+@pytest.mark.django_db
+def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(contract):
+    """
+    The steps of the new primitives are checked on the screen they act on: the tiles and the
+    days of a dashboard and a calendar, an item of a dashboard opened `in` its last items, the
+    rows of a list selected before its bulk action, an item moved to a column of the board that
+    a transition without a payload leads to.
+    """
+    root = contract.parent.parent
+    where = {'where': {'title': 'Review the plan'}}
+    edit(root, PRODUCT, lambda d: d['scenarios'].append({'id': 'manager-tries-the-steps', 'role': 'manager', 'steps': [
+        {'open': 'home'},
+        {'expect': {'tile': {'overdue': 1}}},
+        {'expect': {'day': {'2026-10-07': 1}}},
+        {'open_item': where},
+        {'open': 'draft-tasks'},
+        {'select': where},
+        {'open': 'task-list'},
+        {'bulk': 'start-all'},
+        {'select': {'where': {'rank': 1}}},
+        {'bulk': 'finish-all'},
+        {'open': 'task-board'},
+        {'move': {**where, 'to': 'done'}},
+        {'move': {**where, 'to': 'archived'}},
+        {'open': 'task-calendar'},
+        {'expect': {'day': {'2026-10-07': 1}}},
+        {'open_item': {**where, 'in': 'last-tasks'}},
+    ]}))
+    steps = f'{PRODUCT}#/scenarios/16/steps'
+    assert issues(root) == [
+        ('P022', f'{steps}/1/expect/tile/overdue'),
+        ('P022', f'{steps}/2/expect/day'),
+        ('P022', f'{steps}/3/open_item'),
+        ('P022', f'{steps}/5/select'),
+        ('P022', f'{steps}/7/bulk'),
+        ('P023', f'{steps}/8/select/where/rank'),
+        ('P022', f'{steps}/9/bulk'),
+        ('P024', f'{steps}/11/move/to'),
+        ('P024', f'{steps}/12/move/to'),
+        ('P022', f'{steps}/15/open_item'),
+    ]
+
+
+def test_the_entity_of_a_screen(root):
+    """
+    Every primitive has an entity but the dashboard, whose parts name theirs.
+    """
+    edit(root, HOME, lambda d: d.update(entity='task'))
+    edit(root, BOARD, lambda d: d.pop('entity'))
+    assert issues(root) == [('S002', HOME), ('S002', BOARD)]
 
 
 @pytest.mark.django_db

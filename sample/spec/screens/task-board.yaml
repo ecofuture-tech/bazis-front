@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# The tasks in a column for each status, moved by the transits that the backend allows.
+spec: bazis-screen/1
+id: task-board
+title: Board
+route: /board
+entity: task
+roles: [manager, viewer]
+primitive: board
+board:
+  by: status
+  card: {title: title, fields: [assignee, priority]}
+  filters: [assignee]
+  move: true
+  open: task-card
+states: [loading, empty, error, forbidden]

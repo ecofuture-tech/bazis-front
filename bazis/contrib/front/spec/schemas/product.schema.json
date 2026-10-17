@@ -321,11 +321,29 @@
       "properties": {
         "open": {"description": "Open a screen by its route.", "$ref": "#/$defs/id"},
         "open_item": {
-          "description": "On a list screen, open the row whose fields have these values (the screen of `list.open`).",
+          "description": "Open the item whose fields have these values: a row of a list (the screen of `list.open`), an item of a board or a calendar (its `open`), a row of the last items `in` of a dashboard (their `open`).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["where"],
+          "properties": {
+            "where": {"$ref": "#/$defs/values"},
+            "in": {"description": "The last items of the dashboard (the id of one of its `recent`).", "$ref": "#/$defs/id"}
+          }
+        },
+        "select": {
+          "description": "On a list with `bulk`, select the row whose fields have these values (`select:<id>`).",
           "type": "object",
           "additionalProperties": false,
           "required": ["where"],
           "properties": {"where": {"$ref": "#/$defs/values"}}
+        },
+        "bulk": {"description": "Run a bulk action of the list on the selected rows, confirmed.", "$ref": "#/$defs/id"},
+        "move": {
+          "description": "On a board with `move`, move the item whose fields have these values to the column of a status, by its menu.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["where", "to"],
+          "properties": {"where": {"$ref": "#/$defs/values"}, "to": {"$ref": "#/$defs/status_id"}}
         },
         "action": {"description": "Run an action of the current screen.", "$ref": "#/$defs/id"},
         "fill": {"description": "Fill fields of the open form.", "$ref": "#/$defs/form_values"},
@@ -362,7 +380,21 @@
             "values": {"description": "Fields of the current card whose shown values contain these texts (a file: its name).", "$ref": "#/$defs/texts"},
             "rows": {"description": "The number of rows of the current list.", "type": "integer", "minimum": 0},
             "error": {"description": "A field with a validation error.", "$ref": "#/$defs/field_id"},
-            "notification": {"description": "A notification of the user (bazis-notify or bazis-ws: `packages` has `notify` or `ws`) whose text contains this text, in the list of the notifications.", "type": "string", "minLength": 1}
+            "notification": {"description": "A notification of the user (bazis-notify or bazis-ws: `packages` has `notify` or `ws`) whose text contains this text, in the list of the notifications.", "type": "string", "minLength": 1},
+            "tile": {
+              "description": "The counts of tiles of the current dashboard, by the id of the tile.",
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {"$ref": "#/$defs/id"},
+              "additionalProperties": {"type": "integer", "minimum": 0}
+            },
+            "day": {
+              "description": "The numbers of the items of days of the current calendar, by the day (YYYY-MM-DD).",
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {"pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+              "additionalProperties": {"type": "integer", "minimum": 0}
+            }
           }
         }
       }

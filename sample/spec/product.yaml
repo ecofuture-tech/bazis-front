@@ -209,3 +209,50 @@ scenarios:
       - fill: {watchers: []}
       - submit: {}
       - expect: {values: {title: Watch the release, watchers: '—'}}
+  # the home: a tile counted by the API, a task created from here and opened in the last ones
+  - id: manager-starts-from-the-home
+    role: manager
+    steps:
+      - open: home
+      - expect: {tile: {review: 1}}
+      - action: create
+      - fill: {title: Plan from the home}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - open: home
+      - open_item: {in: last-tasks, where: {title: Plan from the home}}
+      - expect: {screen: task-card, status: draft}
+  # a board: a task moved to the column of the status that a transit leads to, by its menu
+  - id: manager-moves-a-task-on-the-board
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Move on the board}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - open: task-board
+      - move: {where: {title: Move on the board}, to: in_progress}
+      - open_item: {where: {title: Move on the board}}
+      - expect: {screen: task-card, status: in_progress}
+  # a bulk action: the selected rows started at once
+  - id: manager-starts-tasks-at-once
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Start at once}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - open: task-list
+      - select: {where: {title: Start at once}}
+      - bulk: start-all
+      - open_item: {where: {title: Start at once}}
+      - expect: {screen: task-card, status: in_progress}
+  # a calendar: the task of `manage.py e2e_data`, created today, on its day
+  - id: viewer-reads-the-calendar
+    role: viewer
+    steps:
+      - open: task-calendar
+      - open_item: {where: {title: Review the plan}}
+      - expect: {screen: task-card, status: draft}

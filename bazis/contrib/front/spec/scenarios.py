@@ -23,7 +23,7 @@ Playwright helpers.
 from dataclasses import dataclass
 
 from .issues import Document, Issues
-from .refs import Entity, Product, related_fields, related_sections
+from .refs import Entity, Product, related_fields, related_sections, screen_actions
 
 
 #: the package whose users log in: the role of a scenario then needs a `test_user`
@@ -76,14 +76,15 @@ class _State:
     """
     Where a scenario is: the current screen (None when it cannot be known: an unknown or
     broken screen, after which the steps are not checked until the next `open`), whether a
-    form is open on it (the action that opened it, or the screen itself) and whether the
-    edit of a card is open.
+    form is open on it (the action that opened it, or the screen itself), whether the edit
+    of a card is open and whether rows of a list are selected.
     """
 
     screen: dict | None = None
     known: bool = False
     form: dict | None = None
     editing: bool = False
+    selected: bool = False
 
 
 def check(doc: Document, product: Product | None, screens: dict, issues: Issues) -> dict[str, list[Step]]:
@@ -148,12 +149,13 @@ class _Scenario:
     def entity(self) -> Entity | None:
         """
         The entity that the step acts on: that of the open form of "add here" of a related
-        section of a card, else that of the screen.
+        section of a card or of a create form of a dashboard, else that of the screen (none on
+        a dashboard).
         """
         screen, form = self.state.screen, self.state.form
         if form is not None and 'entity' in form:
             return self.product.entities.get(form['entity'])
-        return self.product.entities.get(screen['entity']) if screen else None
+        return self.product.entities.get(screen.get('entity')) if screen else None
 
     def go(self, path, screen_id) -> None:
         """
@@ -192,12 +194,12 @@ class _Scenario:
             return False
         return True
 
-    def fields(self, items, form: dict | None = None) -> None:
+    def fields(self, items, form: dict | None = None, entity: Entity | None = None) -> None:
         """
-        Checks that the entity of the screen has the fields of `(path, name)` items, and
-        the form, when it lists its fields.
+        Checks that the entity of the screen (or the given one) has the fields of
+        `(path, name)` items, and the form, when it lists its fields.
         """
-        entity = self.entity
+        entity = entity or self.entity
         if entity is None:
             return
         for path, name in items:
@@ -230,24 +232,85 @@ class _Scenario:
             )
 
     def step_open_item(self, path, value):
-        screen = self.state.screen
-        if not self.require(
-            path, bool(screen) and screen['primitive'] == 'list' and 'open' in screen['list'],
-            'Only a list whose rows open a card (`list.open`) opens an item.',
-        ):
+        """
+        Opens an item of a list, a board or a calendar whose items open a card (`open`), or a
+        row of the last items `in` of a dashboard that open one.
+        """
+        screen = self.state.screen or {}
+        primitive = screen.get('primitive')
+        if primitive == 'dashboard':
+            parts = {it['id']: it for it in screen['dashboard'].get('recent', [])}
+            part = parts.get(value.get('in'))
+            possible = part is not None and 'open' in part
+            message = 'On a dashboard an item is opened `in` its last items (`recent`) that open a card.'
+        else:
+            part = screen.get(primitive)
+            possible = primitive in ('list', 'board', 'calendar') and 'open' in part and 'in' not in value
+            message = (
+                'Only a list, a board or a calendar whose items open a card (`open`), or the last '
+                'items `in` of a dashboard, open an item.'
+            )
+        if not self.require(path, bool(screen) and possible, message):
             self.state.known = False
             return
+        entity = self.product.entities.get(part.get('entity', screen.get('entity')))
+        self.fields((((*path, 'where', name), name) for name in value['where']), entity=entity)
+        self.lead(path, part['open'])
+
+    def step_select(self, path, value):
+        screen = self.state.screen
+        if self.require(
+            path, bool(screen) and screen['primitive'] == 'list' and 'bulk' in screen['list'],
+            'Only a list with bulk actions (`list.bulk`) selects rows.',
+        ):
+            self.fields(((*path, 'where', name), name) for name in value['where'])
+            self.state.selected = True
+
+    def step_bulk(self, path, action_id):
+        screen = self.state.screen
+        actions = {it['id'] for it in screen['list'].get('bulk', [])} if screen and screen['primitive'] == 'list' else set()
+        if self.require(path, action_id in actions, f'The screen has no bulk action `{action_id}`.'):
+            self.require(path, self.state.selected, 'No row is selected: `select` the rows first.')
+            self.state.selected = False
+
+    def step_move(self, path, value):
+        screen = self.state.screen
+        if not self.require(
+            path, bool(screen) and screen['primitive'] == 'board' and screen['board'].get('move', False),
+            'Items move on a board with `move: true`.',
+        ):
+            return
         self.fields(((*path, 'where', name), name) for name in value['where'])
-        self.lead(path, screen['list']['open'])
+        entity, to = self.entity, value['to']
+        if entity is None or entity.workflow is None:
+            return
+        columns = screen['board'].get('columns', entity.workflow['statuses'])
+        if to not in entity.workflow['statuses']:
+            self.add(
+                (*path, 'to'), 'P024', f'The entity `{entity.data["id"]}` has no status `{to}`.',
+                'Use a status of the workflow of the entity.',
+            )
+        elif to not in columns:
+            self.add((*path, 'to'), 'P022', f'The board has no column `{to}`.', 'Move the item to a column of the board.')
+        elif not any(it['to'] == to and 'payload' not in it for it in entity.transitions.values()):
+            self.add(
+                (*path, 'to'), 'P024', f'No transition without a payload leads to `{to}`.',
+                'Move the item to a status that a transition without a payload leads to; run one '
+                'with a payload on the card (`transit`).',
+            )
 
     def actions(self) -> dict[str, dict]:
         """
-        The actions of the current screen by id, and the forms of "add here" of its related
-        sections: a create form of the related entity, its relationship to the item fixed,
-        that keeps the card open.
+        The actions of the current screen by id (the create forms of a dashboard, of their
+        entity), the forms of "add here" of its related sections (a create form of the related
+        entity, its relationship to the item fixed, that keeps the card open) and the form of
+        "add" of a calendar.
         """
         screen = self.state.screen or {}
-        actions = {it['id']: it for it in screen.get('actions', [])}
+        actions = {it['id']: it for _, it in screen_actions(screen)} if screen else {}
+        if screen.get('primitive') == 'calendar' and 'add' in screen['calendar']:
+            add = screen['calendar']['add']
+            actions[add['id']] = {'primitive': 'form', **({'fields': add['fields']} if 'fields' in add else {})}
         for section in related_sections(screen) if screen else []:
             if 'add' in section:
                 # an unknown entity is reported with its screen (S004): its fields are not checked
@@ -272,15 +335,24 @@ class _Scenario:
     def shown(self) -> set[str] | None:
         """
         The fields that the current screen shows: those of its open form (None for every
-        field of the entity), else the columns of a list or the fields of the sections of a
-        card (the edit of a card has them too).
+        field of the entity), else the columns of a list, the fields of the sections of a card
+        (the edit of a card has them too), of the items of a board or of a calendar (its label,
+        None for the label of the entity); none on a dashboard.
         """
         form, screen = self.state.form, self.state.screen
         if form is not None:
             return set(form['fields']) if 'fields' in form else None
-        if screen['primitive'] == 'list':
+        primitive = screen['primitive']
+        if primitive == 'list':
             return set(screen['list']['columns'])
-        return {name for section in screen['card']['sections'] for name in section['fields']}
+        if primitive == 'card':
+            return {name for section in screen['card']['sections'] for name in section['fields']}
+        if primitive == 'board':
+            card = screen['board']['card']
+            return {card['title'], *card.get('fields', []), *([card['badge']] if 'badge' in card else [])}
+        if primitive == 'calendar':
+            return set(screen['calendar']['label']) if 'label' in screen['calendar'] else None
+        return set()
 
     def editing(self, path) -> bool:
         """
@@ -405,6 +477,21 @@ class _Scenario:
                     'Use the fields of the payload of the transition.',
                 )
 
+    def expect_items(self, path, value):
+        """
+        The expectations of the items of a screen: the rows of a list, the counts of the tiles
+        of a dashboard, the items of the days of a calendar.
+        """
+        screen = self.state.screen or {}
+        primitive = screen.get('primitive')
+        if 'rows' in value:
+            self.require((*path, 'rows'), primitive == 'list', 'Only a list has rows.')
+        tiles = {it['id'] for it in screen['dashboard'].get('tiles', [])} if primitive == 'dashboard' else set()
+        for tile in value.get('tile', {}):
+            self.require((*path, 'tile', tile), tile in tiles, f'The screen has no tile `{tile}`.')
+        if 'day' in value:
+            self.require((*path, 'day'), primitive == 'calendar', 'Only a calendar has days.')
+
     def step_expect(self, path, value):
         packages = self.doc.data.get('packages', [])
         if 'notification' in value and not any(it in packages for it in NOTIFY_PACKAGES):
@@ -426,10 +513,7 @@ class _Scenario:
         if 'screen' in value and not (self.refused and value['screen'] == current):
             self.go((*path, 'screen'), value['screen'])
         screen = self.state.screen
-        if 'rows' in value:
-            self.require(
-                (*path, 'rows'), bool(screen) and screen['primitive'] == 'list', 'Only a list has rows.'
-            )
+        self.expect_items(path, value)
         if 'action_absent' in value:
             actions = self.actions()
             self.require(

@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# The home: the tasks by status and by week, the last ones, and a task created from here.
+spec: bazis-screen/1
+id: home
+title: Home
+route: /
+roles: [manager, viewer]
+primitive: dashboard
+dashboard:
+  tiles:
+    - {id: drafts, entity: task, filter: {status: draft}, label: Drafts, open: draft-tasks}
+    - {id: in-progress, entity: task, filter: {status: in_progress}, tone: info, label: In progress}
+    - {id: done, entity: task, filter: {status: done}, tone: success, label: Done}
+    # the task that `manage.py e2e_data` creates: one at every run
+    - {id: review, entity: task, filter: {title: Review the plan}, tone: warning, label: To review}
+  charts:
+    - {id: by-status, entity: task, by: status, kind: donut, label: By status}
+    - {id: created-by-week, entity: task, by: dt_created, bucket: week, last: 12, kind: bar, label: Created by week}
+  recent:
+    - {id: last-tasks, entity: task, columns: [title, status, dt_created], sort: [-dt_created], limit: 5, open: task-card, label: The last tasks}
+  actions:
+    - {id: create, primitive: form, entity: task, mode: create, fields: [title], then: task-card}
+states: [loading, error]

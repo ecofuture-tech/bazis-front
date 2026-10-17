@@ -38,7 +38,8 @@ from .validate import PRODUCT_FILE, SPEC_DIR, Specs, screen_files
 GENERATED_DIR = 'e2e/generated'
 PRODUCT_TS = f'{GENERATED_DIR}/product.ts'
 
-#: the keys of an `expect` step, in the order of their checks, with their helper
+#: the keys of an `expect` step, in the order of their checks, with their helper (called
+#: once for each entry of the keys of `EXPECT_ENTRIES`)
 EXPECT = (
     ('screen', 'expectScreen'),
     ('status', 'expectStatus'),
@@ -48,9 +49,12 @@ EXPECT = (
     ('field_absent', 'expectFieldAbsent'),
     ('values', 'expectValues'),
     ('rows', 'expectRows'),
+    ('tile', 'expectTile'),
+    ('day', 'expectDay'),
     ('error', 'expectError'),
     ('notification', 'expectNotification'),
 )
+EXPECT_ENTRIES = ('tile', 'day')
 
 
 def header(source: str) -> str:
@@ -104,10 +108,11 @@ def calls(step: Step) -> list[str]:
     result = ["app.action('edit')"] if step.edit else []
     if name == 'open':
         result.append(f'app.open({string(value)})')
-    elif name == 'open_item':
-        result.append(f'app.openItem({{ where: {literal(value["where"])} }})')
-    elif name == 'action':
-        result.append(f'app.action({string(value)})')
+    elif name in ('open_item', 'select', 'move'):
+        helper = 'openItem' if name == 'open_item' else name
+        result.append(f'app.{helper}({literal(value)})')
+    elif name in ('action', 'bulk'):
+        result.append(f'app.{name}({string(value)})')
     elif name == 'fill':
         result.append(f'app.fill({literal(value)})')
     elif name == 'upload':
@@ -120,7 +125,11 @@ def calls(step: Step) -> list[str]:
         payload = f', {literal(transit["payload"])}' if 'payload' in transit else ''
         result.append(f'app.transit({string(transit["id"])}{payload})')
     elif name == 'expect':
-        result += [f'app.{helper}({literal(value[key])})' for key, helper in EXPECT if key in value]
+        for key, helper in EXPECT:
+            if key in EXPECT_ENTRIES:
+                result += [f'app.{helper}({string(it)}, {literal(count)})' for it, count in value.get(key, {}).items()]
+            elif key in value:
+                result.append(f'app.{helper}({literal(value[key])})')
     else:
         raise ValueError(f'unknown step {name}')
     if step.then is not None:

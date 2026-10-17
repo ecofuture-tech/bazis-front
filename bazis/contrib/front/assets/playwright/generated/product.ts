@@ -15,6 +15,15 @@ export const PRODUCT = {
     "draft-tasks": {
       route: "/drafts",
     },
+    home: {
+      route: "/",
+    },
+    "task-board": {
+      route: "/board",
+    },
+    "task-calendar": {
+      route: "/calendar",
+    },
     "task-card": {
       route: "/tasks/:id",
     },

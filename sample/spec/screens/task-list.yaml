@@ -13,6 +13,8 @@ list:
   search: true
   open: task-card
   map: {field: location}          # the tasks with a location on a map beside the list
+  bulk:
+    - {id: start-all, transit: start}   # the selected drafts started one by one
 actions:
   - {id: create, primitive: form, mode: create, fields: [title, assignee, priority, watchers], then: task-card}
 states: [loading, empty, error, forbidden]

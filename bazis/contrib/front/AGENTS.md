@@ -46,8 +46,8 @@ in `frontend/` never need to be read.
 2. Describe the product top down: `spec/product.yaml` (the roles with their `test_user`, or
    `anonymous: true` for the users who do not log in, the entities with their fields,
    workflows and access, the scenarios, the languages), "The
-   specs"; then a file `spec/screens/<id>.yaml` per screen and the design, "The specs of the
-   screens and the design".
+   specs"; then a file `spec/screens/<id>.yaml` per screen (the home, `/`, a dashboard) and
+   the design, "The specs of the screens and the design".
 3. Build the backend to satisfy the specs: the models and route sets, the roles with their
    permissions in `roles.py`, the workflows in `workflow.py`, the `e2e_data` command, "The
    backend of a product" (and the guides of bazis-permit and bazis-statusy).
@@ -111,7 +111,7 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 |---|---|
 | The frontend | you create the frontend (`init`), need the files of `frontend/` and who changes them, the npm commands, the lock, `status` |
 | The specs | you write `spec/product.yaml`: the roles, entities, fields, workflows, access (with the permissions it requires), scenarios and their steps |
-| The specs of the screens and the design | you write `spec/screens/<id>.yaml` (list, card, form, `card.related`, `list.filter`, `list.map`), the `data-bz` marks, `spec/design/theme.yaml` |
+| The specs of the screens and the design | you write `spec/screens/<id>.yaml` (list, card, form, dashboard, board, calendar, `card.related`, `card.tabs`, `list.filter`, `list.map`, `list.bulk`), which primitive a part of the product takes, the `data-bz` marks, `spec/design/theme.yaml` |
 | The issues of check | `bazis_front check` reports a code (`C…`, `P…`, `S…`, `D…`) |
 | The backend of a product | you build the backend the frontend relies on: the declared roles and workflows, the test data, the changes and the notifications, the invariants, the labels |
 | The contract | you export the contract or read `contract.json` and `contract.ts` (`ROUTES`, `CAPABILITIES`, the sections of the capabilities) |
@@ -447,7 +447,12 @@ the permission (P019). Never leave a grant out of the spec to silence a warning.
 
 **Scenarios** are the end-to-end tests of the product: steps over the screens, each one
 key: `open: <screen>`, `open_item: {where: {field: value}}` (a row of the current list,
-which opens the screen of its `list.open`), `action: <action of the screen>`,
+which opens the screen of its `list.open`; an item of a board or a calendar, its `open`; on a
+dashboard a row of its last items, `open_item: {in: <recent>, where: {...}}`),
+`select: {where: {...}}` and `bulk: <id>` (rows of a list with `bulk` selected, then a bulk
+action run on them; P022 without a selection), `move: {where: {...}, to: <status>}` (an item
+of a board with `move: true` moved to a column that a transition without a payload leads to:
+P024), `action: <action of the screen>`,
 `fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
 `edit: true`; a `file` field is uploaded, a file of `e2e/fixtures/` of the frontend,
 never filled: P022; a to-many relationship, `many: true`, is filled with the list of the
@@ -457,6 +462,8 @@ had, `[]` for none: P022 for one value), `submit: {}`, `transit: <id>` or `{id, 
 `field_readonly`, `field_absent` (a field the screen shows that the user may not see:
 not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
 current card, without an open form, show these texts; a file its name), `rows`,
+`tile` (`{<tile>: count}`: the counts of tiles of the current dashboard), `day`
+(`{2026-10-07: count}`: the items of days of the current calendar),
 `error`, `notification` (a notification of the user whose text contains the text, in the
 list of the notifications; the product has bazis-notify or bazis-ws, `packages` has
 `notify` or `ws`: P027). The
@@ -492,7 +499,7 @@ title: Tasks
 route: /tasks
 entity: task
 roles: [manager, viewer]         # the roles of the scenarios; the backend decides access (and the links: `requires`)
-primitive: list                  # list | card | form, with its section of the same name
+primitive: list                  # list | card | form | dashboard | board | calendar, with its section of the same name
 list:
   columns: [title, status, assignee, dt_created]
   filters: [status, assignee]    # fields with `filter` in the contract
@@ -569,10 +576,146 @@ card:
 ```
 
 A `form` screen has `form: {mode: create | update, fields, then}`. Actions are `form`
-(`mode: create` on a list or a card, `mode: update` on a card) and `destroy` (on a card).
-The states that a primitive must render are required: list `loading, empty, error,
-forbidden`; card `loading, error, forbidden, not_found`; form `loading, error, forbidden,
-invalid`.
+(`mode: create` on a list, a card, a board or a calendar, `mode: update` on a card) and
+`destroy` (on a card). The states that a primitive must render are required (S009): list
+`loading, empty, error, forbidden`; card `loading, error, forbidden, not_found`; form
+`loading, error, forbidden, invalid`; dashboard `loading, error`; board and calendar
+`loading, empty, error, forbidden`.
+
+#### Tabs and bulk actions
+
+A card with many parts is in tabs, `card.tabs`: each section, each related section and the
+history (`history: true`, of a card with `history`) in exactly one tab (S024); the transits
+stay above the tabs. Without `tabs` the parts are one below the other. The scenarios do not
+name the tabs: the helpers of the tests show the tab of what a step acts on.
+
+```yaml
+card:
+  sections: [{id: main, fields: [full_name, card_number, phone]}, {id: notes, fields: [notes]}]
+  history: true
+  related: [{id: loans, entity: loan, relation: reader, columns: [book, due_date, status], open: loan-card, add: {id: issue}}]
+  tabs:
+    - {id: details, title: Details, sections: [main, notes]}
+    - {id: loans, title: Loans, related: [loans]}
+    - {id: history, title: History, history: true}
+```
+
+A list acts on the rows that the user selects with `bulk`: a transition of the workflow of
+the entity (one without a payload, S025; one with a payload is run on the card of each
+item) or the deletion, `primitive: destroy`. The screen runs it on each selected item in
+turn (a transit or a delete per item, bazis-bulk is not needed), only on those the backend
+allows (`state_actions` and the permission meta of each row), after a confirmation, and keeps
+selected those that fail:
+
+```yaml
+list:
+  columns: [book, reader, due_date, status]
+  bulk:
+    - {id: return-all, transit: return}
+    - {id: delete, primitive: destroy}
+```
+
+#### Dashboard, board and calendar
+
+**The home of the frontend is a dashboard**, `spec/screens/home.yaml` at the route `/`: the
+counts that matter to the users (tiles by the statuses and the dates of the entities with a
+workflow or dates), the last items of the main entity, the create forms of the entities.
+Without it the frontend shows the overview of the template, and `check` warns (S026: no
+screen at `/`, another primitive there, or a dashboard without tiles). A dashboard has no
+`entity`: each part names its own.
+
+```yaml
+spec: bazis-screen/1
+id: home
+title: Library
+route: /
+roles: [librarian, reader]
+primitive: dashboard
+dashboard:
+  tiles:                         # tile:<id>, the count in data-value; a click opens the list `open`
+    - {id: on-hand, entity: loan, filter: {status: issued}, tone: info, label: tiles.on_hand}
+    - {id: overdue, entity: loan, filter: {is_overdue: true}, tone: danger, label: tiles.overdue, open: overdue-loans}
+    - {id: books, entity: book, label: tiles.books, open: book-list}
+  charts:                        # chart:<id>: by the status of a workflow, or by a date per bucket
+    - {id: by-status, entity: loan, by: status, kind: donut, label: charts.by_status}
+    - {id: issued-by-week, entity: loan, by: dt_issued, bucket: week, last: 12, kind: bar, label: charts.issued}
+  recent:                        # recent:<id>, its rows row:<id> with their cells cell:<column>
+    - {id: last-loans, entity: loan, columns: [book, reader, due_date, status], sort: [-dt_issued], limit: 5, open: loan-card, label: recent.loans}
+  actions:                       # action:<id>, a create form of its entity
+    - {id: issue, primitive: form, entity: loan, mode: create, fields: [book, reader, due_date], then: loan-card}
+states: [loading, error]
+```
+
+The `label` of a part is a key of the dictionaries of the frontend or a text. A tile counts
+the items of its entity with its `filter` (as `list.filter`: S008, S014); `open` is a list
+of the entity, that of a row of the last items a card of it (S006). A chart is by `status`
+(an entity with a workflow: a count for each status) or by a field `date` or `datetime`, a
+count for each `bucket` (`day`, `week`, `month`; a week by default), the `last` ones up to the
+current one (12 by default) (S021).
+
+**The data of a dashboard, a board and a calendar comes from the lists of the API**: the
+core has no aggregates, and none is needed. A count is a list of one item with its
+pagination, `GET <path>?page[limit]=1&meta=pagination&filter=<filter>`, its
+`meta.pagination.count` (`useList` and `pagination` of the hooks); a chart by status is one
+count per status of the workflow (`filter=status=<id>`, the statuses of
+`CAPABILITIES.statusy.models`), a chart by date one count per bucket
+(`filter=<field>__gte=<start>&<field>__lt=<end>`); the last items are a list sorted by
+`sort` with `page[limit]`; a board lists each column with `filter=status=<id>` (more items
+by its pagination), a calendar the items of the period shown with a range of its field (a
+month in one list of up to 500 items). A dashboard over thousands of items is a few count
+requests, which the cache of the queries keeps and the live updates refresh; a sum
+(`sum(amount)`) needs a custom action of the backend, read with `useActionQuery`. The fields
+they filter and sort by are those of the contract (S008).
+
+A board shows the items of an entity with a workflow (S022) in a column for each status of
+`columns` (the statuses of the workflow, all of them in their order by default); an item
+shows its `card.title`, its `card.fields` and a badge while its boolean field `card.badge` is
+true (S022). With `move: true` an item moves to the column of a status that a transit
+allowed to it leads to (the transits of the item, `useTransits`); a transit with a payload
+opens its dialog, a column without a transit takes nothing.
+
+```yaml
+primitive: board
+entity: loan
+board:
+  by: status                     # the status of the workflow, the only field of the columns
+  columns: [issued, returned]
+  card: {title: book, fields: [reader, due_date], badge: is_overdue}
+  filters: [reader]
+  move: true
+  open: loan-card
+states: [loading, empty, error, forbidden]
+```
+
+A calendar shows the items of an entity on the days of a field `date` or `datetime`
+(`field`; `end`, a second one, for the items that span days), a month or a week at a time
+(`views`), each item by its `label` fields (the label of the entity by default), in the tone
+of `tone` while its boolean field is true (S023). `add` is the create form of the entity,
+the action `add.id`, with `field` filled with the day selected (today by default).
+
+```yaml
+primitive: calendar
+entity: loan
+calendar:
+  field: due_date
+  label: [book, reader]
+  tone: {field: is_overdue, tone: danger}
+  views: [month, week]
+  open: loan-card
+  add: {id: issue, fields: [book, reader, due_date]}
+states: [loading, empty, error, forbidden]
+```
+
+#### Which primitive
+
+| The product has | The screens |
+|---|---|
+| any entity | the home, a `dashboard` at `/`: tiles by the statuses and the dates, the last items of the main entity |
+| an entity | a `list` and its `card` |
+| an entity with a workflow | a `board` too, its columns the statuses, `move: true` |
+| a date or a date-time field of a term (`due_*`, a planned `*_at`) | a `calendar` too, by that field |
+| a card with two related sections or more, or a history | `card.tabs` |
+| a list whose items are transited | `list.bulk` with the transitions without a payload |
 
 #### `data-bz`
 
@@ -582,7 +725,16 @@ invalid`.
 `error:<field>`, `upload:<field>` (a file field, `aria-busy` while its file uploads; the
 input of the file is its `field:<field>`), `file:unavailable` (a file the user may not
 read), `action:<id>`, `transit:<id>`, `status:<id>`,
-`nav:<screen>`, `map:<entity>` with `marker:<id>` (`list.map`); of the components of the
+`nav:<screen>`, `map:<entity>` with `marker:<id>` (`list.map`); `select:<id>` (a row,
+`select:all` the rows of the page), `bulk:<id>`, its confirmation `action:confirm-bulk` and
+its failures `error:bulk` (`list.bulk`); `tab:<id>` (`role="tab"`, its panel, `role="tabpanel"`
+named by its `aria-controls`, kept in the page, hidden, while another tab is shown:
+`card.tabs`); `tile:<id>` (its count in `data-value`), `chart:<id>`, `recent:<id>` (a
+dashboard); `board:<entity>`, `column:<status>`, the menu of an item `action:move` with
+`move:<status>` (a board); `calendar:<entity>` (the days shown, `data-from` and `data-to`,
+`YYYY-MM-DD`; `action:previous-period`, `action:next-period`), `day:<YYYY-MM-DD>` (the
+number of its items in `data-count`) (a calendar); the items of a board, a calendar and the
+last items are `row:<id>` with their cells `cell:<field>`, without a `list:<entity>`; of the components of the
 packages `socket:<status>` (the socket of bazis-ws), `list:notifications` with
 `notification:<key>` (opened by `action:notifications`), `bg:<state>` (a task of
 bazis-bg) with `action:download`, `async:<status>` (a background result). The components
@@ -689,13 +841,19 @@ warning there, never blocking `migrate` or `contract`.
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
-| `S014` | error | a value of the filter of a list does not fit the type of its field in the contract, or its highlight is not by a boolean field or has no label |
+| `S014` | error | a value of the filter of a list or a tile does not fit the type of its field in the contract, or the highlight of a list is not by a boolean field or has no label |
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
 | `S018` | warning | the title of a field of an entity in the contract is its name (`is_overdue`) or the default `verbose_name` of Django (`status author`): the backend gives the field no label (a calculated field without a title), or one that reads as its name; give it one in the backend (see "The labels of the fields"), never in the dictionaries of the frontend |
 | `S019` | warning | the resource of an entity has no attribute that labels its items in the contract (`label`: a `name`, a `title`, the names of a person…), and the entity has no `label`: the frontend shows an item by its id |
 | `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, none of a relationship |
+| `S021` | error | a chart of a dashboard is neither by the `status` of an entity with a workflow nor by a `date` or `datetime` field, or has a `bucket` or `last` without a date |
+| `S022` | error | a board is of an entity without a workflow, has a column that is not a status of its workflow, or a `badge` that is not a boolean field |
+| `S023` | error | a calendar is not by a `date` or `datetime` field (`field`, `end`), or its `tone` is not by a boolean field |
+| `S024` | error | the tabs of a card are inconsistent: a tab names an unknown section or related section, or is empty, or is declared twice; a section or a related section is in no tab or in two; the history is in no tab, or a tab has a history that the card does not have |
+| `S025` | error | a bulk action of a list runs a transition that its entity does not have (or has no workflow), or one with a payload |
+| `S026` | warning | the home of the frontend is the overview of the template: no screen has the route `/`, the screen there is not a dashboard, or a dashboard has no tile |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -2098,18 +2256,23 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   |---|---|
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
-  | `open_item: {where}` | `openItem({where})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
+  | `open_item: {where, in}` | `openItem({where, in})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
+  | `select: {where}` | `select({where})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
+  | `bulk: <id>` | `bulk(id)`: `bulk:<id>` of the screen, then `action:confirm-bulk` of its confirmation; waits until it is no longer offered (the selection is cleared) or an error is shown (`error:bulk`) |
+  | `move: {where, to}` | `move({where, to})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>`; waits until it is in `column:<to>` or an error is shown |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, count)` (`data-value` of `tile:<id>`, once for each tile), `expectDay(date, count)` (`data-count` of `day:<date>`, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
   the same code (`spec/scenarios.py`). `expectFieldReadonly` passes when the open form has
   the field read-only or disabled (or not at all), and on a card when it has no edit or its
-  edit has the field read-only (it opens the edit and cancels it).
+  edit has the field read-only (it opens the edit and cancels it). On a card in tabs,
+  `action`, `fill`, `expectValues` and `expectFieldReadonly` first show the tab of the mark
+  they act on (the tab whose `aria-controls` is the hidden panel that has it).
 
 #### A form of your own
 
@@ -4907,8 +5070,11 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `screen(): Locator`: The current screen, `screen:<id>`.
 - `form(): Locator`: The open form.
 - `open(screen: ScreenId<P>): Promise<void>`: Opens a screen by its route (one without the id of an item) and waits for its state.
-- `openItem(options: { where: Values; }): Promise<void>`: Opens the first row of the list of the current screen whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search; fails when no page has it.
-- `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>`.
+- `openItem(options: { where: Values; in?: string; }): Promise<void>`: Opens the first item of the current screen whose cells `cell:<name>` have exactly these texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search; fails when no page has it.
+- `select(options: { where: Values; }): Promise<void>`: Selects the row of the list of the current screen that `openItem` would open, its checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
+- `bulk(id: string): Promise<void>`: Runs a bulk action of the list of the current screen on the selected rows, `bulk:<id>`, confirmed in its dialog (`action:confirm-bulk`), and waits until it is done (the action is no longer offered: the selection is cleared) or shows an error (`error:bulk`).
+- `move(options: { where: Values; to: string; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it is in the column `column:<status>` or an error is shown.
+- `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
 - `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false.
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).
@@ -4921,6 +5087,8 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `expectFieldAbsent(field: string): Promise<void>`: The user may not see the field: the current screen, once loaded, has no `field:<name>` (a card, the open form) and no cell `cell:<name>` (a list).
 - `expectValues(values: Readonly<Record<string, string>>): Promise<void>`: The fields of the current card show these texts: the text of each `field:<name>` contains its text (a file: its name).
 - `expectRows(count: number): Promise<void>`: The list of the current screen has this number of rows, `row:<id>`.
+- `expectTile(id: string, count: number): Promise<void>`: The tile of the current dashboard counts this number of items, `tile:<id>` (its `data-value`).
+- `expectDay(date: string, count: number): Promise<void>`: The day of the calendar of the current screen has this number of items, `day:<date>` (its `data-count`): the calendar (`calendar:<entity>`, the days it shows from `data-from` to `data-to`) is first moved to the period of the day (`action:previous-period`, `action:next-period`).
 - `expectError(field: string): Promise<void>`: A field shows a validation error, `error:<name>`.
 - `expectNotification(text: string): Promise<void>`: The user has a notification whose text contains this text: the bell (`action:notifications`) opens the list of the notifications (`list:notifications`), which waits for it (`notification:<key>`), and is closed again.
 - `language(code: string): Promise<void>`: Switches the language of the interface to a language of the backend (`LANGUAGES` of the contract): the button of the layout, `action:language`, until its `data-value` is the code.

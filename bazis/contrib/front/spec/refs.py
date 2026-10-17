@@ -34,7 +34,16 @@ REQUIRED_STATES = {
     'list': ('loading', 'empty', 'error', 'forbidden'),
     'card': ('loading', 'error', 'forbidden', 'not_found'),
     'form': ('loading', 'error', 'forbidden', 'invalid'),
+    'dashboard': ('loading', 'error'),
+    'board': ('loading', 'empty', 'error', 'forbidden'),
+    'calendar': ('loading', 'empty', 'error', 'forbidden'),
 }
+
+#: the route of the home of the frontend
+HOME_ROUTE = '/'
+
+#: the types of the fields of the days of a calendar and of the charts by date
+DATES = ('date', 'datetime')
 
 #: the format of a string attribute of the contract by the type of the specs
 FORMATS = {'date': 'date', 'datetime': 'date-time', 'time': 'time'}
@@ -606,7 +615,35 @@ def check_screens(
             )
         routes.setdefault(data['route'], stem)
         _check_screen(doc, product, screens, contract, issues)
+    _check_home(docs, routes, issues)
     return screens
+
+
+def _check_home(docs: list[Document], routes: dict[str, str], issues: Issues) -> None:
+    """
+    The home of the frontend (S026, a warning): the screen at `/`, a dashboard with tiles;
+    without it the template shows its overview, the counts of the resources. A product
+    without screens yet, or with a screen that does not follow its schema, is not told.
+    """
+    hint = (
+        f'Give the product a dashboard at `{HOME_ROUTE}` (`spec/screens/home.yaml`): tiles that '
+        'count the items by their statuses and dates, the last items of its main entity.'
+    )
+    if docs and all(it.valid for it in docs) and HOME_ROUTE not in routes:
+        folder = Document('screens', Path(docs[0].file).parent.as_posix())
+        issues.add(folder, (), 'S026', f'No screen has the route `{HOME_ROUTE}`.', hint)
+    for doc in docs:
+        if not doc.valid:
+            continue
+        data = doc.data
+        if data['route'] == HOME_ROUTE and data['primitive'] != 'dashboard':
+            issues.add(doc, ('primitive',), 'S026', f'The home `{HOME_ROUTE}` is a {data["primitive"]}.', hint)
+        if data['primitive'] == 'dashboard' and not data['dashboard'].get('tiles'):
+            issues.add(
+                doc, ('dashboard',), 'S026', 'The dashboard has no tile.',
+                'Count the items of the entities in `tiles`: by their statuses, their dates, '
+                'what needs the attention of the user.',
+            )
 
 
 def _check_screen(
@@ -621,6 +658,8 @@ def _check_screen(
             f'Add {", ".join(missing)} to `states` and render them (`data-bz="state:<state>"`).',
         )
     _check_screen_refs(doc, screens, issues)
+    if primitive == 'card' and 'tabs' in data['card']:
+        _check_tabs(doc, issues)
     if product is None:
         return
     for i, role in enumerate(data.get('roles', [])):
@@ -629,48 +668,144 @@ def _check_screen(
                 doc, ('roles', i), 'S005', f'The role `{role}` is not in spec/product.yaml.',
                 'Use the id of a role of `roles`.',
             )
-    entity = product.entities.get(data['entity'])
+    if primitive == 'dashboard':
+        _check_dashboard(doc, product, screens, contract, issues)
+        return
+    entity = _screen_entity(doc, ('entity',), data['entity'], product, issues)
+    if entity is None:
+        return
+    _check_fields(doc, entity, _screen_fields(data), issues)
+    section = data[primitive]
+    if 'open' in section:
+        _check_opens(doc, (primitive, 'open'), section['open'], 'card', entity, screens, issues)
+    _check_point_filters(doc, (primitive,), section, entity, issues)
+    checks = {'list': _check_list, 'card': _check_card, 'board': _check_board, 'calendar': _check_calendar}
+    if primitive in checks:
+        checks[primitive](doc, entity, issues)
+    resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
+    if resource is not None:
+        _check_queries(doc, (primitive,), section, entity, resource, issues)
+        _check_search_contract(doc, entity, resource, contract, issues)
+    _check_related_sections(doc, entity, product, screens, contract, issues)
+
+
+def _screen_entity(doc: Document, path: tuple, entity_id: str, product: Product, issues: Issues) -> Entity | None:
+    """
+    The entity of a screen or of a part of a dashboard; None, reported (S004), when
+    product.yaml does not declare it.
+    """
+    entity = product.entities.get(entity_id)
     if entity is None:
         issues.add(
-            doc, ('entity',), 'S004', f'The entity `{data["entity"]}` is not in spec/product.yaml.',
+            doc, path, 'S004', f'The entity `{entity_id}` is not in spec/product.yaml.',
             'Use the id of an entity of `entities`.',
         )
-        return
-    for path, name in _screen_fields(data):
+    return entity
+
+
+def _check_fields(doc: Document, entity: Entity, items, issues: Issues) -> None:
+    """
+    The fields `(path, name)` that a screen references are fields of the entity (S007).
+    """
+    for path, name in items:
         if name not in entity.fields:
             issues.add(
                 doc, path, 'S007', f'The entity `{entity.data["id"]}` has no field `{name}`.',
                 'Declare the field in the entity, or use one of its fields.',
             )
-    target = screens.get(data['list'].get('open')) if primitive == 'list' else None
-    if target is not None and target['primitive'] == 'card' and target['entity'] != data['entity']:
+
+
+def _check_opens(
+    doc: Document, path: tuple, target_id: str, primitive: str, entity: Entity, screens: dict, issues: Issues
+) -> None:
+    """
+    The screen that a part of a screen opens (`open`, a list or a card, checked to exist by
+    `_check_screen_refs`) is of the entity of the part (S006).
+    """
+    target = screens.get(target_id)
+    if target is not None and target['primitive'] == primitive and target['entity'] != entity.data['id']:
         issues.add(
-            doc, ('list', 'open'), 'S006',
-            f'The card `{data["list"]["open"]}` is a card of `{target["entity"]}`, not of '
-            f'`{data["entity"]}`.',
-            'Open a card of the entity of the list.',
+            doc, path, 'S006',
+            f'The {primitive} `{target_id}` is a {primitive} of `{target["entity"]}`, not of '
+            f'`{entity.data["id"]}`.',
+            f'Open a {primitive} of `{entity.data["id"]}`.',
         )
-    if primitive == 'card' and entity.workflow is None:
-        for key in ('transitions', 'history'):
-            if data['card'].get(key):
-                issues.add(
-                    doc, ('card', key), 'S011', f'The entity `{entity.data["id"]}` has no workflow.',
-                    'Declare the workflow of the entity, or remove it from the card.',
-                )
-    if primitive == 'list':
-        _check_list(doc, entity, issues)
-    if contract is not None and primitive == 'list':
-        _check_list_contract(doc, entity, contract, issues)
-    if contract is not None:
-        _check_search_contract(doc, entity, contract, issues)
-    _check_related_sections(doc, entity, product, screens, contract, issues)
+
+
+def _check_dashboard(doc: Document, product: Product, screens: dict, contract: dict | None, issues: Issues) -> None:
+    """
+    The parts of a dashboard, each of its own entity: the fields they reference (S007), the
+    screens they open (S006), the field of a chart (S021); against the contract, their
+    queries (S008, S014) and the pickers of the create forms (S012, S017).
+    """
+    resources = contract['project']['resources'] if contract else {}
+    parts = [
+        (('dashboard', key, i), key, part)
+        for key in ('tiles', 'charts', 'recent', 'actions')
+        for i, part in enumerate(doc.data['dashboard'].get(key, []))
+    ]
+    for path, key, part in parts:
+        entity = _screen_entity(doc, (*path, 'entity'), part['entity'], product, issues)
+        if entity is None:
+            continue
+        _check_fields(doc, entity, (it for keys in PART_REFERENCES for it in _references(part, path, keys)), issues)
+        if 'open' in part:
+            kind = 'list' if key == 'tiles' else 'card'
+            _check_opens(doc, (*path, 'open'), part['open'], kind, entity, screens, issues)
+        if key == 'charts':
+            _check_chart(doc, path, part, entity, issues)
+        resource = resources.get(entity.data['resource'])
+        if resource is None:
+            continue
+        _check_queries(doc, path, part, entity, resource, issues)
+        if key == 'actions':
+            _check_pickers(doc, resource, form_fields(path, part, entity), contract, issues)
+
+
+def _check_chart(doc: Document, path: tuple, chart: dict, entity: Entity, issues: Issues) -> None:
+    """
+    A chart is by the status of an entity with a workflow or by a date or a date-time field
+    (S021, S007 for another field); a bucket and a period are those of the dates.
+    """
+    by = chart['by']
+    dated = entity.fields.get(by, {}).get('type') in DATES
+    hint = (
+        'Chart by `status` (an entity with a workflow: a count for each status) or by a field '
+        'with `type: date` or `type: datetime` (a count for each `bucket`).'
+    )
+    if by == STATUS_FIELD and entity.workflow is None:
+        issues.add(doc, (*path, 'by'), 'S021', f'The entity `{entity.data["id"]}` has no workflow.', hint)
+    elif by not in entity.fields:
+        _check_fields(doc, entity, [((*path, 'by'), by)], issues)
+    elif by != STATUS_FIELD and not dated:
+        issues.add(doc, (*path, 'by'), 'S021', f'The field `{by}` is neither the status nor a date.', hint)
+    for key in ('bucket', 'last'):
+        if key in chart and not dated:
+            issues.add(
+                doc, (*path, key), 'S021', f'`{key}` is that of a chart by a date, not by `{by}`.',
+                f'Remove `{key}`, or chart by a date.',
+            )
+
+
+def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
+    """
+    The transits and the history of a card need the workflow of its entity (S011).
+    """
+    if entity.workflow is not None:
+        return
+    for key in ('transitions', 'history'):
+        if doc.data['card'].get(key):
+            issues.add(
+                doc, ('card', key), 'S011', f'The entity `{entity.data["id"]}` has no workflow.',
+                'Declare the workflow of the entity, or remove it from the card.',
+            )
 
 
 def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
     """
     A list without the contract: its highlight has a label; its map is by a point field of
-    the entity, and no point field is a filter of the user (a point is filtered by its
-    distance, `<field>__near`, which no control of the filters sends).
+    the entity; its bulk actions run transitions of the workflow without a payload (S025),
+    and none is declared twice.
     """
     lst = doc.data['list']
     highlight = lst.get('highlight')
@@ -682,15 +817,6 @@ def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
             'Give it a `label` (a key of the dictionaries of the frontend, `tickets.overdue`, or a '
             'text), which the screen gives `ResourceList` as `rowToneLabel`.',
         )
-    places = [(('list', 'filters', i), name) for i, name in enumerate(lst.get('filters', []))]
-    for path, name in places:
-        if entity.fields.get(name, {}).get('type') == POINT:
-            issues.add(
-                doc, path, 'S016',
-                f'The field `{name}` is a point: no filter of a list takes it.',
-                'Remove it from `filters`; filter by the distance from a point in the screen '
-                '(`nearFilter` of the component map, `<field>__near=<lon>,<lat>,<meters>`).',
-            )
     field = lst.get('map', {}).get('field')
     declared = entity.fields.get(field) if field else None
     if declared is not None and declared.get('type') != POINT:
@@ -700,6 +826,136 @@ def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
             'declare as a point.',
             'Map a field with `type: point` (a PointField of the model).',
         )
+    seen = set()
+    for i, action in enumerate(lst.get('bulk', [])):
+        if action['id'] in seen:
+            issues.add(
+                doc, ('list', 'bulk', i, 'id'), 'S010', f'The bulk action `{action["id"]}` is declared twice.',
+                'Give every bulk action an id of its own.',
+            )
+        seen.add(action['id'])
+        if 'transit' in action:
+            _check_bulk_transit(doc, ('list', 'bulk', i, 'transit'), action['transit'], entity, issues)
+
+
+def _check_bulk_transit(doc: Document, path: tuple, transit: str, entity: Entity, issues: Issues) -> None:
+    """
+    The transition of a bulk action: one of the workflow of the entity, without a payload
+    (the items are transited in turn, with no dialog).
+    """
+    transition = entity.transitions.get(transit)
+    if entity.workflow is None:
+        problem = f'The entity `{entity.data["id"]}` has no workflow.'
+    elif transition is None:
+        problem = f'The workflow of `{entity.data["id"]}` has no transition `{transit}`.'
+    elif 'payload' in transition:
+        problem = f'The transition `{transit}` has a payload: a bulk action asks for none.'
+    else:
+        return
+    issues.add(
+        doc, path, 'S025', problem,
+        'Run a transition of the workflow without a payload; one with a payload is run on the '
+        'card of each item.',
+    )
+
+
+def _check_point_filters(doc: Document, path: tuple, section: dict, entity: Entity, issues: Issues) -> None:
+    """
+    No point field is a filter of the user (a point is filtered by its distance,
+    `<field>__near`, which no control of the filters sends).
+    """
+    for i, name in enumerate(section.get('filters', [])):
+        if entity.fields.get(name, {}).get('type') == POINT:
+            issues.add(
+                doc, (*path, 'filters', i), 'S016',
+                f'The field `{name}` is a point: no filter of a list takes it.',
+                'Remove it from `filters`; filter by the distance from a point in the screen '
+                '(`nearFilter` of the component map, `<field>__near=<lon>,<lat>,<meters>`).',
+            )
+
+
+def _check_board(doc: Document, entity: Entity, issues: Issues) -> None:
+    """
+    A board: its entity has a workflow, its columns are statuses of it, its badge is a
+    boolean field (S022).
+    """
+    board = doc.data['board']
+    hint = 'A board shows the items of an entity with a workflow, a column for each status.'
+    if entity.workflow is None:
+        issues.add(doc, ('board', 'by'), 'S022', f'The entity `{entity.data["id"]}` has no workflow.', hint)
+    else:
+        for i, status in enumerate(board.get('columns', [])):
+            if status not in entity.workflow['statuses']:
+                issues.add(
+                    doc, ('board', 'columns', i), 'S022',
+                    f'The status `{status}` is not a status of the workflow of `{entity.data["id"]}`.', hint,
+                )
+    badge = board['card'].get('badge')
+    if badge in entity.fields and entity.fields[badge].get('type') != 'boolean':
+        issues.add(
+            doc, ('board', 'card', 'badge'), 'S022', f'The badge `{badge}` is not a boolean field.',
+            'Give the badge a boolean field (`is_overdue`): it is shown while the field is true.',
+        )
+
+
+def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
+    """
+    A calendar: its days are those of date or date-time fields, its tone by a boolean field
+    (S023).
+    """
+    calendar = doc.data['calendar']
+    for key in ('field', 'end'):
+        name = calendar.get(key)
+        if name in entity.fields and entity.fields[name].get('type') not in DATES:
+            issues.add(
+                doc, ('calendar', key), 'S023', f'The field `{name}` is not a date or a date-time.',
+                'Show the items on the days of a field with `type: date` or `type: datetime`.',
+            )
+    tone = calendar.get('tone', {}).get('field')
+    if tone in entity.fields and entity.fields[tone].get('type') != 'boolean':
+        issues.add(
+            doc, ('calendar', 'tone', 'field'), 'S023', f'The tone is by `{tone}`, not a boolean field.',
+            'Give the tone a boolean field (`is_overdue`): its items are in the tone while it is true.',
+        )
+
+
+def _check_tabs(doc: Document, issues: Issues) -> None:
+    """
+    The tabs of a card (S024): each names sections and related sections of the card, or its
+    history; each of them is in exactly one tab, and the tabs have no other.
+    """
+    card = doc.data['card']
+    hint = 'Put each section, each related section and the history (`history: true`) in exactly one tab.'
+    declared = {
+        'sections': {it['id'] for it in card['sections']},
+        'related': {it['id'] for it in card.get('related', [])},
+    }
+    placed: dict[tuple[str, str], int] = {}
+    tab_ids = set()
+    for i, tab in enumerate(card['tabs']):
+        path = ('card', 'tabs', i)
+        if tab['id'] in tab_ids:
+            issues.add(doc, (*path, 'id'), 'S024', f'The tab `{tab["id"]}` is declared twice.', hint)
+        tab_ids.add(tab['id'])
+        if not (tab.get('sections') or tab.get('related') or tab.get('history')):
+            issues.add(doc, path, 'S024', f'The tab `{tab["id"]}` is empty.', hint)
+        if tab.get('history') and not card.get('history'):
+            issues.add(doc, (*path, 'history'), 'S024', 'The card has no history (`history: true`).', hint)
+        for key, ids in declared.items():
+            for j, part in enumerate(tab.get(key, [])):
+                if part not in ids:
+                    problem = f'The card has no {"section" if key == "sections" else "related section"} `{part}`.'
+                elif (key, part) in placed:
+                    problem = f'`{part}` is also in the tab `{card["tabs"][placed[key, part]]["id"]}`.'
+                else:
+                    placed[key, part] = i
+                    continue
+                issues.add(doc, (*path, key, j), 'S024', problem, hint)
+    missing = sorted(part for key, ids in declared.items() for part in ids if (key, part) not in placed)
+    if missing:
+        issues.add(doc, ('card', 'tabs'), 'S024', f'In no tab: {", ".join(missing)}.', hint)
+    if card.get('history') and not any(it.get('history') for it in card['tabs']):
+        issues.add(doc, ('card', 'tabs'), 'S024', 'The history of the card is in no tab.', hint)
 
 
 def related_sections(data: dict) -> list[dict]:
@@ -763,13 +1019,8 @@ def _check_related(
             f'Name the relationship of `{related.data["id"]}` that references the item of the card '
             f'(`relation: {entity.data["id"]}`, not many).',
         )
-    target = screens.get(section.get('open'))
-    if target is not None and target['primitive'] == 'card' and target['entity'] != related.data['id']:
-        issues.add(
-            doc, (*path, 'open'), 'S006',
-            f'The card `{section["open"]}` is a card of `{target["entity"]}`, not of `{related.data["id"]}`.',
-            'Open a card of the related entity.',
-        )
+    if 'open' in section:
+        _check_opens(doc, (*path, 'open'), section['open'], 'card', related, screens, issues)
     resource = contract['project']['resources'].get(related.data['resource']) if contract else None
     if resource is None:
         return
@@ -789,32 +1040,60 @@ def _check_related(
         ], contract, issues)
 
 
+#: where the section of each primitive names fields of its entity: the keys of a name, of a
+#: list of names or of a filter (`*`: each item of a list)
+FIELD_REFERENCES = {
+    'list': (('columns',), ('filters',), ('sort',), ('filter',), ('highlight', 'field'), ('map', 'field')),
+    'card': (('sections', '*', 'fields'),),
+    'form': (('fields',),),
+    'board': (('card', 'title'), ('card', 'fields'), ('card', 'badge'), ('filters',)),
+    'calendar': (('field',), ('end',), ('label',), ('tone', 'field'), ('add', 'fields')),
+}
+#: where a part of a dashboard names fields of its entity (the field of a chart: `_check_chart`)
+PART_REFERENCES = (('filter',), ('columns',), ('sort',), ('fields',))
+
+
+def _references(value, path: tuple, keys: tuple):
+    """
+    The names at the keys of a section, with their paths: a name, each name of a list (a
+    field of a sort without its `-`), each field of a filter.
+    """
+    if keys:
+        key, rest = keys[0], keys[1:]
+        if key == '*':
+            for i, item in enumerate(value):
+                yield from _references(item, (*path, i), rest)
+        elif key in value:
+            yield from _references(value[key], (*path, key), rest)
+    elif isinstance(value, str):
+        yield path, value
+    elif isinstance(value, list):
+        for i, name in enumerate(value):
+            yield (*path, i), name.removeprefix('-')
+    else:
+        for name in value:
+            yield (*path, name), name
+
+
 def _screen_fields(data: dict):
     """
-    The fields that a screen references, with their paths.
+    The fields that a screen (not a dashboard) references, with their paths.
     """
-    if data['primitive'] == 'list':
-        for key in ('columns', 'filters'):
-            for i, name in enumerate(data['list'].get(key, [])):
-                yield ('list', key, i), name
-        for i, name in enumerate(data['list'].get('sort', [])):
-            yield ('list', 'sort', i), name.removeprefix('-')
-        for name in data['list'].get('filter', {}):
-            yield ('list', 'filter', name), name
-        if 'highlight' in data['list']:
-            yield ('list', 'highlight', 'field'), data['list']['highlight']['field']
-        if 'map' in data['list']:
-            yield ('list', 'map', 'field'), data['list']['map']['field']
-    elif data['primitive'] == 'card':
-        for i, section in enumerate(data['card']['sections']):
-            for j, name in enumerate(section['fields']):
-                yield ('card', 'sections', i, 'fields', j), name
-    else:
-        for i, name in enumerate(data['form'].get('fields', [])):
-            yield ('form', 'fields', i), name
-    for i, action in enumerate(data.get('actions', [])):
-        for j, name in enumerate(action.get('fields', [])):
-            yield ('actions', i, 'fields', j), name
+    primitive = data['primitive']
+    for keys in FIELD_REFERENCES[primitive]:
+        yield from _references(data[primitive], (primitive,), keys)
+    for path, action in screen_actions(data):
+        yield from _references(action, path, ('fields',))
+
+
+def screen_actions(data: dict) -> list[tuple[tuple, dict]]:
+    """
+    The actions of a screen with their paths: `actions`, or those of a dashboard (the create
+    forms of its entities).
+    """
+    if data['primitive'] == 'dashboard':
+        return [(('dashboard', 'actions', i), it) for i, it in enumerate(data['dashboard'].get('actions', []))]
+    return [(('actions', i), it) for i, it in enumerate(data.get('actions', []))]
 
 
 def _check_screen_refs(doc: Document, screens: dict, issues: Issues) -> None:
@@ -822,93 +1101,115 @@ def _check_screen_refs(doc: Document, screens: dict, issues: Issues) -> None:
     The screens that a screen references, and its actions.
     """
     data = doc.data
-    targets = []
-    if data['primitive'] == 'list' and 'open' in data['list']:
-        targets.append((('list', 'open'), data['list']['open'], 'card'))
-    if data['primitive'] == 'form' and 'then' in data['form']:
-        targets.append((('form', 'then'), data['form']['then'], None))
+    primitive = data['primitive']
     seen = set()
-    for i, action in enumerate(data.get('actions', [])):
-        if 'then' in action:
-            targets.append((('actions', i, 'then'), action['then'], None))
+    for path, action in screen_actions(data):
         problem = None
         if action['id'] in seen:
             problem = f'The action `{action["id"]}` is declared twice.'
-        elif action['primitive'] == 'destroy' and data['primitive'] != 'card':
+        elif action['primitive'] == 'destroy' and primitive != 'card':
             problem = 'An item is destroyed from its card: `destroy` is an action of a card.'
-        elif action.get('mode') == 'update' and data['primitive'] != 'card':
+        elif action.get('mode') == 'update' and primitive != 'card':
             problem = 'An item is updated from its card: an update form is an action of a card.'
         seen.add(action['id'])
         if problem:
-            issues.add(doc, ('actions', i), 'S010', problem, 'Fix or remove the action.')
-    targets += _related_refs(doc, seen, issues)
-    for path, target, primitive in targets:
+            issues.add(doc, path, 'S010', problem, 'Fix or remove the action.')
+    for path, action_id in _added_actions(data):
+        if action_id in seen:
+            issues.add(
+                doc, path, 'S010', f'The action `{action_id}` is declared twice.',
+                'Give the action of "add" an id of its own.',
+            )
+        seen.add(action_id)
+    for path, target, kind in _targets(data):
         if target not in screens:
             issues.add(
                 doc, path, 'S006', f'The screen `{target}` does not exist.',
                 f'Create spec/screens/{target}.yaml or use an existing screen.',
             )
-        elif primitive and screens[target] is not None and screens[target]['primitive'] != primitive:
+        elif kind and screens[target] is not None and screens[target]['primitive'] != kind:
             issues.add(
-                doc, path, 'S006', f'The screen `{target}` is not a {primitive}.',
-                f'Use a {primitive} screen of the entity.',
+                doc, path, 'S006', f'The screen `{target}` is not a {kind}.',
+                f'Use a {kind} screen of the entity.',
             )
 
 
-def _related_refs(doc: Document, actions: set[str], issues: Issues) -> list[tuple]:
+def _added_actions(data: dict) -> list[tuple[tuple, str]]:
     """
-    The related sections of a card: the action of "add here" of each, among the actions of
-    the screen (`actions`, their ids); returns the cards that their rows open.
+    The actions of "add" of a screen, with the paths of their ids: "add here" of the related
+    sections of a card, the add of a calendar.
     """
-    targets = []
-    for i, section in enumerate(related_sections(doc.data)):
-        if 'open' in section:
-            targets.append((('card', 'related', i, 'open'), section['open'], 'card'))
-        if 'add' not in section:
-            continue
-        if section['add']['id'] in actions:
-            issues.add(
-                doc, ('card', 'related', i, 'add', 'id'), 'S010',
-                f'The action `{section["add"]["id"]}` is declared twice.',
-                'Give the action of the related section an id of its own.',
-            )
-        actions.add(section['add']['id'])
+    added = [
+        (('card', 'related', i, 'add', 'id'), section['add']['id'])
+        for i, section in enumerate(related_sections(data)) if 'add' in section
+    ]
+    if data['primitive'] == 'calendar' and 'add' in data['calendar']:
+        added.append((('calendar', 'add', 'id'), data['calendar']['add']['id']))
+    return added
+
+
+def _targets(data: dict) -> list[tuple[tuple, str, str | None]]:
+    """
+    The screens that a screen references, with their paths and their primitive (None: any):
+    the card that its items open, the list of a tile, the card of the rows of the last items
+    or of a related section, the screen after a form or an action.
+    """
+    primitive = data['primitive']
+    section = data[primitive]
+    targets = [((primitive, 'open'), section['open'], 'card')] if 'open' in section else []
+    if primitive == 'form' and 'then' in section:
+        targets.append((('form', 'then'), section['then'], None))
+    targets += [((*path, 'then'), action['then'], None) for path, action in screen_actions(data) if 'then' in action]
+    parts = [('related', 'card')] if primitive == 'card' else []
+    parts += [('tiles', 'list'), ('recent', 'card')] if primitive == 'dashboard' else []
+    for key, kind in parts:
+        for i, part in enumerate(section.get(key, [])):
+            if 'open' in part:
+                targets.append(((primitive, key, i, 'open'), part['open'], kind))
     return targets
 
 
-def _check_list_contract(doc: Document, entity: Entity, contract: dict, issues: Issues) -> None:
-    resource = contract['project']['resources'].get(entity.data['resource'])
-    if resource is None:
-        return
-    lst = doc.data['list']
-    checks = [(('list', 'filters', i), name, 'filter') for i, name in enumerate(lst.get('filters', []))]
-    checks += [(('list', 'filter', name), name, 'filter') for name in lst.get('filter', {})]
-    checks += [(('list', 'sort', i), name.removeprefix('-'), 'order') for i, name in enumerate(lst.get('sort', []))]
-    for path, name, label in checks:
+#: the keys of the sections whose field lists the items by its values: the status of a board,
+#: the days of a calendar, a chart by status or by date
+LISTED_BY = ('by', 'field', 'end')
+
+
+def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, resource: dict, issues: Issues) -> None:
+    """
+    The queries of the items of a list, a board, a calendar or a part of a dashboard (its
+    `section` at `path`) against the resource of the contract: the fields of its filters, of
+    its filter and of the columns, days or bars it lists the items by, filtered by, and of
+    its sort, sorted by (S008); the values of its filter, and the highlight of a list (S014).
+    """
+    checks = [((*path, 'filters', i), name, 'filter') for i, name in enumerate(section.get('filters', []))]
+    checks += [((*path, 'filter', name), name, 'filter') for name in section.get('filter', {})]
+    checks += [((*path, key), section[key], 'filter') for key in LISTED_BY if key in section]
+    checks += [((*path, 'sort', i), name.removeprefix('-'), 'order') for i, name in enumerate(section.get('sort', []))]
+    for field_path, name, label in checks:
         actual = resource['fields'].get(name)
         if actual is not None and label not in actual:
             verb = 'filtered' if label == 'filter' else 'sorted'
             issues.add(
-                doc, path, 'S008',
+                doc, field_path, 'S008',
                 f'The field `{name}` of `{entity.data["resource"]}` cannot be {verb} by: it has no '
                 f'`{label}` in the contract.',
                 f'Remove it, or make the field {verb} by in the route set of the backend.',
             )
-    for name, value in lst.get('filter', {}).items():
+    for name, value in section.get('filter', {}).items():
         actual = resource['fields'].get(name)
         if actual is not None and not filter_value_fits(value, actual):
             issues.add(
-                doc, ('list', 'filter', name), 'S014',
+                doc, (*path, 'filter', name), 'S014',
                 f'The value {value!r} does not fit the field `{name}` of '
                 f'`{entity.data["resource"]}` ({_describe(actual)} in the contract).',
                 'Give the filter a value of the type of the field: a boolean, a number, a '
                 'text, the id of a related item.',
             )
-    highlight = lst.get('highlight')
+    highlight = section.get('highlight')
     actual = resource['fields'].get(highlight['field']) if highlight else None
     if actual is not None and actual.get('type') != 'boolean':
         issues.add(
-            doc, ('list', 'highlight', 'field'), 'S014',
+            doc, (*path, 'highlight', 'field'), 'S014',
             f'The field `{highlight["field"]}` of `{entity.data["resource"]}` is not a boolean '
             f'({_describe(actual)} in the contract): a row is highlighted when its field is true.',
             'Highlight by a boolean field of the resource (a calculated field of the route set '
@@ -935,33 +1236,40 @@ def filter_value_fits(value, field: dict) -> bool:
 def _picker_fields(data: dict, entity: Entity):
     """
     The fields that a screen edits or filters with the picker of a related item, with their
-    paths: the filters of a list, the fields of a form (of the form primitive, of a form
-    action; every field of the entity when it lists none) and of the sections of a card
-    with `edit`. Which of them are relationships is for the contract to say.
+    paths: the filters of a list or a board, the fields of a form (of the form primitive, of
+    a form action, of the form of "add" of a calendar; every field of the entity when it
+    lists none) and of the sections of a card with `edit`. Which of them are relationships is
+    for the contract to say.
     """
-    if data['primitive'] == 'list':
-        for i, name in enumerate(data['list'].get('filters', [])):
-            yield ('list', 'filters', i), name
-    elif data['primitive'] == 'card' and data['card'].get('edit'):
+    primitive = data['primitive']
+    for i, name in enumerate(data[primitive].get('filters', [])):
+        yield (primitive, 'filters', i), name
+    if primitive == 'card' and data['card'].get('edit'):
         for i, section in enumerate(data['card']['sections']):
             for j, name in enumerate(section['fields']):
                 yield ('card', 'sections', i, 'fields', j), name
-    forms = [(('form',), data['form'])] if data['primitive'] == 'form' else []
-    forms += [
-        (('actions', i), action)
-        for i, action in enumerate(data.get('actions', []))
-        if action['primitive'] == 'form'
-    ]
+    forms = [(('form',), data['form'])] if primitive == 'form' else []
+    if primitive == 'calendar' and 'add' in data['calendar']:
+        forms.append((('calendar', 'add'), data['calendar']['add']))
+    forms += [(path, action) for path, action in screen_actions(data) if action['primitive'] == 'form']
     for path, form in forms:
-        if 'fields' in form:
-            for i, name in enumerate(form['fields']):
-                yield (*path, 'fields', i), name
-        else:
-            for name in entity.fields:
-                yield path, name
+        yield from form_fields(path, form, entity)
 
 
-def _check_search_contract(doc: Document, entity: Entity, contract: dict, issues: Issues) -> None:
+def form_fields(path: tuple, form: dict, entity: Entity):
+    """
+    The fields of a form with their paths: its `fields`, or every field of the entity (at
+    the path of the form) when it lists none.
+    """
+    if 'fields' in form:
+        for i, name in enumerate(form['fields']):
+            yield (*path, 'fields', i), name
+    else:
+        for name in entity.fields:
+            yield path, name
+
+
+def _check_search_contract(doc: Document, entity: Entity, resource: dict, contract: dict, issues: Issues) -> None:
     """
     The search of a screen against the search fields of the contract (bazis 2.9: a route
     set without search fields answers a `search` with 400): the search of a list (S013),
@@ -969,9 +1277,6 @@ def _check_search_contract(doc: Document, entity: Entity, contract: dict, issues
     search fields without a search. In a form, a file is edited by the file field: no
     picker.
     """
-    resource = contract['project']['resources'].get(entity.data['resource'])
-    if resource is None:
-        return
     data = doc.data
     if data['primitive'] == 'list' and data['list'].get('search') and not resource['search']:
         issues.add(
@@ -987,7 +1292,7 @@ def _check_search_contract(doc: Document, entity: Entity, contract: dict, issues
 def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues: Issues) -> None:
     """
     The pickers of the related items of the fields `(path, name)` of a resource of the
-    contract, in a filter of a list (a path in `list`) or in a form (where a file is edited by
+    contract, in a filter of a list or a board (a path with `filters`) or in a form (where a file is edited by
     the file field; a to-many relationship has the picker of its items; a form without
     `fields` leaves out the reverse relationships): S012 when the related resource has no
     search fields, S017 when they do not cover the fields of the label of its items.
@@ -997,7 +1302,7 @@ def _check_pickers(doc: Document, resource: dict, items, contract: dict, issues:
         schema = resource['fields'].get(name, {})
         relation = schema.get('relation')
         target = resources.get(relation) if isinstance(relation, str) else None
-        in_form = path[0] != 'list'
+        in_form = 'filters' not in path
         if target is None or (in_form and is_file(schema, contract)):
             continue
         if in_form and schema.get('reverse') and 'fields' not in path:
