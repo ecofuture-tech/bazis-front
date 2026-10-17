@@ -154,8 +154,13 @@ export default function LeafletView({ markers, selected, onOpen, onPick, me, cla
       role="region"
       aria-label={t('map.label')}
       data-bz={mark}
-      // under the popovers and the dialogs of the screen
-      className={cn('z-0 h-72 w-full overflow-hidden rounded-xl border bg-muted sm:h-96', className)}
+      // under the popovers and the dialogs of the screen; the zoom of Leaflet within reach of a
+      // finger (important: the styles of Leaflet are outside the layers of Tailwind)
+      className={cn(
+        'z-0 h-72 w-full overflow-hidden rounded-xl border bg-muted sm:h-96',
+        'pointer-coarse:[&_.leaflet-bar_a]:size-11! pointer-coarse:[&_.leaflet-bar_a]:leading-11!',
+        className,
+      )}
     />
   );
 }

@@ -142,7 +142,9 @@ function Brand({ title }: { title: ReactNode }) {
           {letter}
         </span>
       )}
-      <span className="truncate font-display text-base font-semibold tracking-tight">{title}</span>
+      <span title={typeof title === 'string' ? title : undefined} className="truncate font-display text-base font-semibold tracking-tight">
+        {title}
+      </span>
     </span>
   );
 }
@@ -198,7 +200,7 @@ function Navigation({ items, vertical, onNavigate }: { items: readonly NavItem[]
                   cn(
                     'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
                     vertical
-                      ? 'rounded-md px-3 py-2 text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                      ? 'rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
                       : 'rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                     isActive &&
                       (vertical
@@ -210,7 +212,9 @@ function Navigation({ items, vertical, onNavigate }: { items: readonly NavItem[]
                 {Icon && (
                   <Icon className="size-4 shrink-0 opacity-70 group-aria-[current=page]:text-primary group-aria-[current=page]:opacity-100" />
                 )}
-                <span className="truncate">{item.label}</span>
+                <span title={typeof item.label === 'string' ? item.label : undefined} className="truncate">
+                  {item.label}
+                </span>
               </NavLink>
             </li>
           );
@@ -251,7 +255,9 @@ function Session({ session, compact = false }: { session: ShellSession; compact?
               {letters}
             </span>
           )}
-          <span className="truncate font-medium">{session.user}</span>
+          <span title={typeof session.user === 'string' ? session.user : undefined} className="truncate font-medium">
+            {session.user}
+          </span>
         </span>
       )}
       <Button
@@ -295,7 +301,7 @@ function Drawer({
         <SheetContent side={side} className="w-72 gap-0 bg-sidebar p-0 text-sidebar-foreground">
           <SheetHeader className="h-14 justify-center border-b border-sidebar-border px-4">
             <SheetTitle>
-              <Brand title={title} />
+              <Brand title={typeof title === 'string' ? title : undefined} />
             </SheetTitle>
             <SheetDescription className="sr-only">{t('shell.menu_description')}</SheetDescription>
           </SheetHeader>
@@ -322,7 +328,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
         <div className="flex min-h-dvh flex-col [--bleed:1rem] [--sticky-top:4rem] md:[--bleed:var(--space-page-x)]">
           <header className="sticky top-0 z-30 h-16 border-b bg-background">
             <div className="mx-auto flex h-full w-full max-w-6xl items-center gap-6 px-4 md:px-(--space-page-x)">
-              <Brand title={title} />
+              <Brand title={typeof title === 'string' ? title : undefined} />
               <div className="hidden md:block">
                 <Navigation items={items} vertical={false} />
               </div>
@@ -336,7 +342,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
                   </div>
                 )}
                 <div className="md:hidden">
-                  <Drawer title={title} items={items} session={session} side="right" />
+                  <Drawer title={typeof title === 'string' ? title : undefined} items={items} session={session} side="right" />
                 </div>
               </div>
             </div>
@@ -354,7 +360,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
       <div className="min-h-dvh [--bleed:1rem] [--sticky-top:3.5rem] md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:[--bleed:var(--space-page-x)] md:[--sticky-top:4rem]">
         <aside className="sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
           <div className="flex h-16 shrink-0 items-center px-5">
-            <Brand title={title} />
+            <Brand title={typeof title === 'string' ? title : undefined} />
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">
             <Navigation items={items} vertical />
@@ -372,8 +378,8 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
         </aside>
         <div className="flex min-w-0 flex-col">
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
-            <Drawer title={title} items={items} session={session} side="left" />
-            <Brand title={title} />
+            <Drawer title={typeof title === 'string' ? title : undefined} items={items} session={session} side="left" />
+            <Brand title={typeof title === 'string' ? title : undefined} />
             <div className="ml-auto flex items-center gap-1">
               {!wide && tools}
               <LanguageToggle />
@@ -483,6 +489,7 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
                 {parent !== undefined && <Breadcrumb parent={parent} />}
                 {title !== undefined && (
                   <h1
+                    title={typeof title === 'string' ? title : undefined}
                     className={cn(
                       'min-w-0 truncate font-semibold tracking-tight',
                       portal ? 'text-2xl md:text-3xl' : 'text-xl',

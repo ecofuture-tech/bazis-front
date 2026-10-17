@@ -72,7 +72,7 @@ export function DatePicker({ value, onChange, className, disabled, readOnly, ...
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-auto p-0">
-            <Suspense fallback={<Skeleton aria-busy="true" className="m-3 h-72 w-64" />}>
+            <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="m-3 h-72 w-64" />}>
               <CalendarView
                 value={dateOf(value)}
                 onSelect={(date) => {

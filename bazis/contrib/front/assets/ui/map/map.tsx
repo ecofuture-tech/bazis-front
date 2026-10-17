@@ -169,17 +169,15 @@ const LeafletView = lazy(() => import('./leaflet-map.js'));
  * A Leaflet map with a marker per point (`marker:<id>`, a button with the label as its name and
  * its title when it opens the item: the keyboard reaches it), fitted to them when they change
  * (not when another one is selected); the tiles of `MapProvider`. Leaflet is loaded with the
- * first map shown (`aria-busy` meanwhile).
+ * first map shown (`aria-busy` meanwhile, and the skeleton `state:loading` in it).
  */
 export function LeafletMap(props: LeafletMapProps) {
   return (
     <Suspense
       fallback={
-        <Skeleton
-          data-bz={props['data-bz']}
-          aria-busy="true"
-          className={cn('h-72 w-full rounded-xl sm:h-96', props.className)}
-        />
+        <div data-bz={props['data-bz']} aria-busy="true" className={cn('h-72 w-full sm:h-96', props.className)}>
+          <Skeleton data-bz="state:loading" className="size-full rounded-xl" />
+        </div>
       }
     >
       <LeafletView {...props} />

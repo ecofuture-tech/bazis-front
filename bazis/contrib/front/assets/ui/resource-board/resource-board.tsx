@@ -32,17 +32,18 @@ import { EmptyState } from '@/bazis/ui/empty-state';
 import type { Tone } from '@/bazis/generated/theme';
 import {
   choiceOptions,
+  type FieldDisplay,
+  type Fields,
   fieldValue,
   ItemValue,
+  type ResourceObject,
   SOFT_TONES,
   StatusLabel,
+  titleFromText,
   typeAt,
   useAnyLists,
   useListFields,
   workflowStatuses,
-  type FieldDisplay,
-  type Fields,
-  type ResourceObject,
 } from '@/bazis/ui/resource';
 import { statusName, statusOf, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast, type ViewState } from '@/bazis/ui/state-panel';
@@ -161,7 +162,7 @@ function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }:
           {fields.map((name) => (
             <div key={name} className="flex min-w-0 items-baseline gap-2">
               <dt className="shrink-0 text-muted-foreground first-letter:uppercase">{meta.title(name)}</dt>
-              <dd data-bz={`cell:${name}`} className="min-w-0 truncate">
+              <dd ref={titleFromText} data-bz={`cell:${name}`} className="min-w-0 truncate">
                 <ItemValue item={item} name={name} fields={meta} display={display[name]} />
               </dd>
             </div>

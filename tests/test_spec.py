@@ -1342,10 +1342,22 @@ def test_the_palettes_have_the_contrast_of_wcag_aa(palette):
     assert design.has_dark(defined)
     for dark in (False, True):
         values = design.variables(defined, dark=dark)
-        for text, background in design.CONTRAST:
-            first, second = color.parse(values[text], values), color.parse(values[background], values)
-            assert first is not None and second is not None, (text, background)
-            assert color.contrast(first, second) >= color.AA, (palette, dark, text, background)
+        for text, background, *opacity in design.CONTRAST:
+            ratio = design.pair_contrast(values, text, background, *opacity)
+            assert ratio is not None, (text, background)
+            assert ratio >= color.AA, (palette, dark, text, background, opacity)
+
+
+def test_the_translucent_text_colors_of_the_components_are_checked():
+    # a text color that a component makes translucent is read at its opacity: D009 checks it
+    # as such, so that a palette that passes cannot make the text unreadable
+    checked = {(text[2:], round(opacity[0] * 100)) for text, _, *opacity in design.CONTRAST if opacity}
+    used = set()
+    for path in (PACKAGE / 'assets' / 'ui').rglob('*.tsx'):
+        if 'node_modules' in path.parts or path.name.endswith('.test.tsx'):
+            continue
+        used |= {(name, int(alpha)) for name, alpha in re.findall(r'(?<![\w-])text-([a-z-]+)/(\d+)\b', path.read_text(encoding='utf-8'))}
+    assert used and used <= checked, used - checked
 
 
 def test_the_contrast_of_the_dark_mode(root):

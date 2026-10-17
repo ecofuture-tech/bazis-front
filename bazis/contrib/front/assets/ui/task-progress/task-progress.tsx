@@ -159,7 +159,9 @@ function Task({
       className="grid gap-3 rounded-lg border bg-card p-(--space-card) text-card-foreground"
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate font-medium">{name}</p>
+        <p title={typeof name === 'string' ? name : undefined} className="min-w-0 truncate font-medium">
+          {name}
+        </p>
         <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', TONES[view])}>{t(`bg.${view}`)}</span>
       </div>
       {view === 'running' && (

@@ -88,7 +88,7 @@ export function RecentList({
             const cells = (
               <>
                 {first !== undefined && (
-                  <span data-bz={`cell:${first}`} className="min-w-0 flex-1 truncate font-medium">
+                  <span data-bz={`cell:${first}`} className="min-w-0 flex-[1_1_12rem] font-medium break-words">
                     <ItemValue item={row} name={first} fields={fields} display={display[first]} />
                   </span>
                 )}
@@ -99,7 +99,7 @@ export function RecentList({
                 ))}
               </>
             );
-            const layout = 'flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 text-left';
+            const layout = 'flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 text-left pointer-coarse:min-h-11';
             return (
               <li key={row.id} data-bz={`row:${row.id}`}>
                 {onOpen ? (
@@ -145,7 +145,7 @@ function QuickLink({ item }: { item: NavItem }) {
           <Icon className="size-4" />
         </span>
       )}
-      <span className="min-w-0 flex-1 truncate font-medium">{item.label}</span>
+      <span title={typeof item.label === 'string' ? item.label : undefined} className="min-w-0 flex-1 truncate font-medium">{item.label}</span>
       <ChevronRight
         aria-hidden="true"
         className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
@@ -210,7 +210,7 @@ export function Dashboard({
           </header>
         )}
         {tiles.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {tiles.map((it) => (
               <StatCard key={it.id} {...it} />
             ))}

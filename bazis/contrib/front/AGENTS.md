@@ -876,7 +876,7 @@ warning there, never blocking `migrate` or `contract`.
 | `D006` | error | a token references a token of another type |
 | `D007` | error | a token of the dark mode (the group `dark`) overrides no token of the same name and type |
 | `D008` | warning | a status of `statuses` in theme.yaml is not a status of the contract |
-| `D009` | warning | a text color has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode |
+| `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode |
 | `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 
@@ -2478,7 +2478,7 @@ with the number of the small controls and the first five of them.
 | `V006` | error | a text has a contrast below 4.5:1 (3:1 for a large text) on its background, as rendered: a literal color, or a text color of the tokens on a background it was not made for; use the pairs of the tokens (`text-foreground` on `bg-background`, `text-<tone>-ink` on `bg-<tone>-soft`) |
 | `V007` | warning | a light surface in the dark mode: a literal color that ignores the tokens of the theme; use the classes of the tokens |
 | `V008` | warning | an empty state without a text, or without the action that creates an item when the user may create one: put the create action in the empty state |
-| `V009` | warning | controls smaller than 44×44 px at the width of a phone, one issue for the screenshot with their number: give them the size of the components (an icon button of shadcn/ui is `size="icon"`) |
+| `V009` | warning | controls smaller than 44×44 px at the width of a phone, one issue for the screenshot with their number: give them the size of the components (an icon button of shadcn/ui is `size="icon"`; on a touch screen the components are 44 px at least); the `<label>` around a control and its stretched `::after` count in its size |
 | `V010` | warning | a text cut by an ellipsis without its whole text in a title or a tooltip: give it `title`, or let it wrap |
 
 ### The checklist of the screenshots
@@ -4614,7 +4614,7 @@ Its props, `ResourceMapProps`:
 - `LeafletMapProps`: the props of `LeafletMap`, listed with it
 - `ResourceMapProps`: the props of `ResourceMap`, listed with it
 
-## API: the components: notification-center, resource
+## API: the components: notification-center
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -4658,6 +4658,10 @@ Its props, `NotificationCenterProps`:
 #### The types and the constants of `@/bazis/ui/notification-center`
 
 - `NotificationCenterProps`: the props of `NotificationCenter`, listed with it
+
+## API: the components: resource
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/resource`
 
@@ -4719,6 +4723,10 @@ Its props, `ItemValueProps`:
 - `name: string`: The name of the field.
 - `fields: Fields`: The fields of the item's route set (`useListFields`, `useItemFields`).
 - `display?: FieldDisplay | undefined`
+
+#### titleFromText
+
+`titleFromText(element: HTMLElement | null): (() => void) | undefined`: A ref that gives an element its text as its title, kept as the text changes (the label of a related item read later): the whole text of a value that `truncate` may cut.
 
 #### choiceOptions
 

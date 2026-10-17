@@ -326,7 +326,7 @@ function audit(options: CheckOptions & { max: number }): Found[] {
       '[role="checkbox"], [role="switch"], [role="combobox"], [role="menuitem"]';
     const small: [Element, string][] = [];
     for (const element of document.querySelectorAll(controls)) {
-      const box = element.getBoundingClientRect();
+      const box = target(element);
       // a link in a text, and what only a screen reader reads
       if (getComputedStyle(element).display === 'inline' || box.width < 2 || box.height < 2) continue;
       if (element.closest('[aria-hidden="true"]') || !shown(element)) continue;
@@ -340,6 +340,31 @@ function audit(options: CheckOptions & { max: number }): Found[] {
       const more = small.length > SMALL_LISTED ? `, and ${String(small.length - SMALL_LISTED)} more` : '';
       add('V009', first[0], `${String(small.length)} controls are smaller than 44×44 px: ${listed}${more}.`);
     }
+  }
+
+  /**
+   * What a finger touches to use a control: its box, the `label` around it, or its
+   * `::after` positioned over a larger area (a card that its title opens, the touch area of a
+   * checkbox), whichever is the largest.
+   */
+  function target(element: Element): DOMRect {
+    let best = element.getBoundingClientRect();
+    const larger = (box: DOMRect) => {
+      if (box.width * box.height > best.width * best.height) best = box;
+    };
+    const label = element.closest('label');
+    if (label !== null) larger(label.getBoundingClientRect());
+    const after = getComputedStyle(element, '::after');
+    if (after.content !== 'none' && after.position === 'absolute') {
+      let block: Element | null = element;
+      while (block !== null && block !== document.body && getComputedStyle(block).position === 'static') block = block.parentElement;
+      const around = (block ?? document.body).getBoundingClientRect();
+      const px = (value: string) => parseFloat(value) || 0;
+      const left = around.left + px(after.left);
+      const top = around.top + px(after.top);
+      larger(new DOMRect(left, top, around.right - px(after.right) - left, around.bottom - px(after.bottom) - top));
+    }
+    return best;
   }
 
   // V010: the texts cut without their whole text

@@ -66,11 +66,17 @@ const UploadField = lazy(() => import('./upload-field.js'));
  * The control of a file field: the file of the field (its name downloads it, a thumbnail of an
  * image) with its replace and remove, or a drop zone; the progress of the upload with its
  * cancel. Its chunk is loaded with the first file field shown (`upload:<name>`, `aria-busy`
- * meanwhile).
+ * meanwhile, its skeleton `state:loading`).
  */
 export function FileField(props: FileFieldProps) {
   return (
-    <Suspense fallback={<Skeleton data-bz={`upload:${props.field.name}`} aria-busy="true" className="h-24 w-full rounded-lg" />}>
+    <Suspense
+      fallback={
+        <div data-bz={`upload:${props.field.name}`} aria-busy="true">
+          <Skeleton data-bz="state:loading" className="h-24 w-full rounded-lg" />
+        </div>
+      }
+    >
       <UploadField {...props} />
     </Suspense>
   );

@@ -110,7 +110,9 @@ export function AsyncResult({ start, path = RESULT_PATH, title, onDone, children
   return (
     <section data-bz={`async:${view}`} aria-busy={result === null} className="grid gap-3 rounded-lg border bg-card p-(--space-card) text-card-foreground">
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate font-medium">{title ?? t('async.title')}</p>
+        <p title={typeof title === 'string' ? title : undefined} className="min-w-0 truncate font-medium">
+          {title ?? t('async.title')}
+        </p>
         <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', TONES[view])}>{t(`async.${view}`)}</span>
       </div>
       {result?.message != null && <p className="text-sm text-danger-ink">{result.message}</p>}

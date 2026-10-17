@@ -33,18 +33,19 @@ import { formatNumber, isoDate, useLanguage, weekStart } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
 import { useWide } from '@/bazis/ui/app-shell';
 import {
-  fieldValue,
-  ItemValue,
-  itemLabel,
-  permitted,
-  resourceAt,
-  SOFT_TONES,
-  text,
-  useAnyLists,
-  useListFields,
   type FieldDisplay,
   type Fields,
+  fieldValue,
+  itemLabel,
+  ItemValue,
+  permitted,
+  resourceAt,
   type ResourceObject,
+  SOFT_TONES,
+  text,
+  titleFromText,
+  useAnyLists,
+  useListFields,
 } from '@/bazis/ui/resource';
 import { errorState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -172,12 +173,14 @@ function Item({ item, label, meta, display, tone, onOpen, time, className }: Ite
       {time !== undefined && <span className="shrink-0 text-muted-foreground tabular-nums">{time}</span>}
       {label.length > 0 ? (
         label.map((name) => (
-          <span key={name} data-bz={`cell:${name}`} className="min-w-0 truncate">
+          <span key={name} ref={titleFromText} data-bz={`cell:${name}`} className="min-w-0 truncate">
             <ItemValue item={item} name={name} fields={meta} display={display[name]} />
           </span>
         ))
       ) : (
-        <span className="min-w-0 truncate">{itemLabel(item)}</span>
+        <span title={itemLabel(item)} className="min-w-0 truncate">
+          {itemLabel(item)}
+        </span>
       )}
     </>
   );
@@ -303,8 +306,8 @@ export function ResourceCalendar({
         data-bz={`day:${key}`}
         data-count={dayItems.length}
         className={cn(
-          'grid min-w-0 content-start gap-1 bg-card p-1.5',
-          dot ? 'min-h-16' : view === 'month' ? 'min-h-28' : 'min-h-40',
+          'grid min-w-0 content-start gap-1 bg-card',
+          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : 'min-h-40 p-1.5',
           outside && 'bg-muted text-muted-foreground',
         )}
       >
@@ -321,20 +324,33 @@ export function ResourceCalendar({
             aria-controls={listId}
             className={cn(
               FOCUS,
-              'flex size-7 items-center justify-center rounded-full text-sm tabular-nums transition-colors hover:bg-muted',
-              key === today && 'font-semibold text-primary',
-              isSelected && 'bg-primary text-primary-foreground hover:bg-primary',
+              // a month at the width of a phone: the whole day is the button, with the dot of its items
+              dot ? 'grid w-full justify-items-center gap-1 rounded-md py-1' : 'flex size-7 items-center justify-center rounded-full pointer-coarse:size-11',
+              'text-sm tabular-nums',
             )}
             onClick={() => {
               setSelected(key);
             }}
           >
-            {day.getDate()}
+            <span
+              className={cn(
+                'flex size-7 items-center justify-center rounded-full transition-colors hover:bg-muted',
+                key === today && 'font-semibold text-primary',
+                isSelected && 'bg-primary text-primary-foreground hover:bg-primary',
+              )}
+            >
+              {day.getDate()}
+            </span>
+            {dot && (
+              <span
+                aria-hidden="true"
+                // in the tone of its first item that has one (an overdue item)
+                className={cn('size-1.5 rounded-full', dayItems.length === 0 && 'invisible', SOFT_TONES[dayItems.map(toneOf).find(Boolean) ?? 'primary'], 'bg-current')}
+              />
+            )}
           </button>
         </div>
-        {dot ? (
-          dayItems.length > 0 && <span aria-hidden="true" className="size-1.5 justify-self-center rounded-full bg-primary" />
-        ) : (
+        {dot ? null : (
           <div className="grid min-w-0 gap-1 text-xs">
             {shown.map((item) => (
               <Item key={item.id} item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} />
@@ -398,7 +414,7 @@ export function ResourceCalendar({
             {t('calendar.today')}
           </Button>
         </div>
-        <h2 aria-live="polite" className="min-w-0 flex-1 truncate text-lg font-semibold first-letter:uppercase">
+        <h2 aria-live="polite" className="min-w-0 flex-1 text-lg font-semibold first-letter:uppercase max-sm:order-first max-sm:basis-full">
           {title}
         </h2>
         {views.length > 1 && (
@@ -469,7 +485,7 @@ export function ResourceCalendar({
                   const at = typeof moment === 'string' && dayOf(moment, false) === selected ? time.format(new Date(moment)) : undefined;
                   return (
                     <li key={item.id}>
-                      <Item item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} time={at} className="py-1.5" />
+                      <Item item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} time={at} className="py-1.5 pointer-coarse:min-h-11" />
                     </li>
                   );
                 })}

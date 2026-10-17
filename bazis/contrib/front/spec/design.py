@@ -143,8 +143,10 @@ DERIVED = {
     **{f'--{tone}-ink': f'color-mix(in srgb, var({source}) 72%, var(--foreground))' for tone, source in TONES.items()},
 }
 
-#: the text colors and the background each is read on: their contrast is at least AA
-CONTRAST = [
+#: the text colors and the background each is read on: their contrast is at least AA; a text
+#: color that a component makes translucent (`text-sidebar-foreground/80`) has its opacity, the
+#: color over its background as the browser draws it (`tests/test_design.py` finds them)
+CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     ('--foreground', '--background'),
     ('--card-foreground', '--card'),
     ('--muted-foreground', '--background'),
@@ -154,6 +156,7 @@ CONTRAST = [
     ('--primary', '--card'),
     ('--accent-foreground', '--accent'),
     ('--sidebar-foreground', '--sidebar'),
+    ('--sidebar-foreground', '--sidebar', 0.8),
     ('--sidebar-accent-foreground', '--sidebar-accent'),
     ('--destructive', '--card'),
     *((f'--{tone}-ink', f'--{tone}-soft') for tone in TONES),
@@ -460,6 +463,17 @@ def source(name: str, values: dict[str, str]) -> str:
     return name
 
 
+def pair_contrast(values: dict[str, str], text: str, background: str, alpha: float = 1) -> float | None:
+    """
+    The contrast of the text color on its background (the text at `alpha` over it), None when
+    `color` cannot compute one of them.
+    """
+    first, second = color.parse(values[text], values), color.parse(values[background], values)
+    if first is None or second is None:
+        return None
+    return color.contrast(tuple(alpha * a + (1 - alpha) * b for a, b in zip(first, second, strict=True)), second)
+
+
 def check_contrast(
     theme: Document | None, tokens: Document | None, defined: dict[str, Entry], issues: Issues
 ) -> None:
@@ -473,19 +487,17 @@ def check_contrast(
     dark = {variable(name): it for name, it in defined.items() if name.startswith(f'{DARK}.')}
     for mode in modes(theme.data if theme is not None else None, defined):
         values = variables(defined, dark=mode == DARK)
-        for text, background in CONTRAST:
-            first, second = color.parse(values[text], values), color.parse(values[background], values)
-            if first is None or second is None:
-                continue
-            ratio = color.contrast(first, second)
-            if ratio >= color.AA:
+        for text, background, *opacity in CONTRAST:
+            alpha = opacity[0] if opacity else 1
+            ratio = pair_contrast(values, text, background, alpha)
+            if ratio is None or ratio >= color.AA:
                 continue
             candidates = [source(owners.get(text, text), values), source(owners.get(background, background), values)]
             places = [dark, by_variable] if mode == DARK else [by_variable]
             entry = next((it[name] for name in candidates for it in places if name in it), None)
             issues.add(
                 *(place(theme, tokens, entry) if entry is not None else (tokens or theme, ())), 'D009',
-                f'The text color {text} on {background} has a contrast of {ratio:.2f}:1 in the '
+                f'The text color {text}{f" at {alpha:.0%}" if alpha < 1 else ""} on {background} has a contrast of {ratio:.2f}:1 in the '
                 f'{mode} mode, below {color.AA}:1 (WCAG AA).',
                 'Make the text darker or lighter than its background (the lightness of oklch()).',
             )

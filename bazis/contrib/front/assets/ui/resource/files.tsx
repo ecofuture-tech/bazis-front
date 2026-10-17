@@ -164,6 +164,7 @@ export function FileView({ file, preview, onDownload, downloading = false, faile
           type="button"
           disabled={downloading}
           aria-busy={downloading || undefined}
+          title={file.name}
           className="truncate font-medium text-primary underline-offset-4 hover:underline disabled:opacity-70"
           // the button of a row downloads the file, it does not open the row
           onClick={(event) => {
@@ -174,7 +175,9 @@ export function FileView({ file, preview, onDownload, downloading = false, faile
           {file.name}
         </button>
       ) : (
-        <span className="truncate">{file.name}</span>
+        <span title={file.name} className="truncate">
+          {file.name}
+        </span>
       )}
       {file.size !== null && (
         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatSize(file.size, language)}</span>

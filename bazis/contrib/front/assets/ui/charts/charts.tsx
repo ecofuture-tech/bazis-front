@@ -26,12 +26,13 @@ import { Filter, pagination } from '@/bazis/client';
 import { formatNumber, isoDate, useLanguage, weekStart } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
 import {
+  type ListDocument,
   statusName,
+  titleFromText,
   typeAt,
   useAnyLists,
   useListFields,
   workflowStatuses,
-  type ListDocument,
 } from '@/bazis/ui/resource';
 import { errorState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -99,7 +100,9 @@ export function Chart({
         className,
       )}
     >
-      <h3 className="truncate text-sm font-medium text-muted-foreground">{label}</h3>
+      <h3 ref={titleFromText} className="truncate text-sm font-medium text-muted-foreground">
+        {label}
+      </h3>
       <StatePanel
         state={empty ? 'empty' : state}
         error={error}
@@ -109,7 +112,7 @@ export function Chart({
         <div className={cn('grid gap-4', kind === 'donut' && 'sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center')}>
           {/* the drawing is for the eyes: the values are the text below it */}
           <div aria-hidden="true" className="h-56 min-w-0">
-            <Suspense fallback={<Skeleton className="size-full" />}>
+            <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="size-full" />}>
               <ChartView kind={kind} points={points} />
             </Suspense>
           </div>
@@ -117,7 +120,9 @@ export function Chart({
             {points.map((it) => (
               <li key={it.key} data-bz={`value:${it.key}`} data-value={it.value} className="flex items-center gap-2">
                 <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: it.color }} />
-                <span className="min-w-0 flex-1 truncate">{it.label}</span>
+                <span title={it.label} className="min-w-0 flex-1 truncate">
+                  {it.label}
+                </span>
                 <span className="font-medium tabular-nums">{formatNumber(it.value, language)}</span>
               </li>
             ))}

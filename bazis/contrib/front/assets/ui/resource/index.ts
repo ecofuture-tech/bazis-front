@@ -16,7 +16,7 @@ export { DateInput, DatesProvider, useDates } from './dates.js';
 export type { DateInputProps } from './dates.js';
 export { FieldInput } from './field-input.js';
 export type { FieldInputProps } from './field-input.js';
-export { FieldValue, ItemValue } from './field-value.js';
+export { FieldValue, ItemValue, titleFromText } from './field-value.js';
 export type { FieldValueProps, ItemValueProps } from './field-value.js';
 export {
   choiceOptions,

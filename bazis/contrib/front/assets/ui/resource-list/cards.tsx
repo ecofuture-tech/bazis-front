@@ -17,7 +17,7 @@
 
 import type { Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
-import { isNumeric } from '@/bazis/ui/resource';
+import { isNumeric, titleFromText } from '@/bazis/ui/resource';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -87,6 +87,7 @@ export function CardsView(props: BodyProps) {
                       <div key={name} className={cn('flex items-center justify-between gap-4', hidden(name) && 'hidden')}>
                         <dt className="text-muted-foreground first-letter:uppercase">{fields.title(name)}</dt>
                         <dd
+                          ref={titleFromText}
                           data-bz={`cell:${name}`}
                           className={cn('min-w-0 truncate text-right', isNumeric(fields.fields.get(name)) && 'tabular-nums')}
                         >

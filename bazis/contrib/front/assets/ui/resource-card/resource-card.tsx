@@ -163,7 +163,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
                 <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <span className="first-letter:uppercase">{fields.title(name)}</span>
                   {readOnly && (
-                    <span title={t('card.readonly')} className="inline-flex text-muted-foreground/70">
+                    <span title={t('card.readonly')} className="inline-flex">
                       <Lock className="size-3" aria-hidden="true" />
                       <span className="sr-only">({t('card.readonly')})</span>
                     </span>

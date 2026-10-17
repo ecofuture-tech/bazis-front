@@ -38,6 +38,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
+import { titleFromText } from './field-value.js';
 import { hasSearch, itemLabel, routeOf, type ResourceObject } from './fields.js';
 import { useAnyList } from './hooks.js';
 import { RelationLabel } from './relation.js';
@@ -79,7 +80,7 @@ export interface RelationPickerProps
 }
 
 const TRIGGER =
-  'flex h-9 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 ' +
+  'flex h-9 w-full min-w-0 items-center pointer-coarse:min-h-11 justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 ' +
   'text-left text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring ' +
   'focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 ' +
   'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30';
@@ -273,7 +274,9 @@ function Options({
               ) : (
                 <>
                   <Check className={cn('size-4 shrink-0', !chosen && 'invisible')} aria-hidden="true" />
-                  <span className="min-w-0 truncate">{entry.kind === 'item' ? itemLabel(entry.item) : placeholder}</span>
+                  <span ref={titleFromText} className="min-w-0 truncate">
+                    {entry.kind === 'item' ? itemLabel(entry.item) : placeholder}
+                  </span>
                 </>
               )}
             </li>
@@ -353,7 +356,9 @@ function Picker({
             }
           }}
         >
-          <span className={cn('min-w-0 truncate', !value.length && 'text-muted-foreground')}>{label}</span>
+          <span ref={titleFromText} className={cn('min-w-0 truncate', !value.length && 'text-muted-foreground')}>
+            {label}
+          </span>
           <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden="true" />
         </button>
       </PopoverTrigger>

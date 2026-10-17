@@ -111,6 +111,25 @@ export interface ItemValueProps {
 }
 
 /**
+ * A ref that gives an element its text as its title, kept as the text changes (the label of a
+ * related item read later): the whole text of a value that `truncate` may cut.
+ */
+export function titleFromText(element: HTMLElement | null): (() => void) | undefined {
+  if (element === null) return undefined;
+  const update = () => {
+    const value = element.textContent.replace(/\s+/g, ' ').trim();
+    if (value) element.title = value;
+    else element.removeAttribute('title');
+  };
+  update();
+  const observer = new MutationObserver(update);
+  observer.observe(element, { childList: true, subtree: true, characterData: true });
+  return () => {
+    observer.disconnect();
+  };
+}
+
+/**
  * The value of a field of an item as a cell shows it: the status of an item of a statusy model
  * as a badge of its tone (`status:<id>`), any other field as `FieldValue`.
  */

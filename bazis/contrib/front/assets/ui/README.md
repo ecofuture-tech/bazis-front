@@ -27,7 +27,8 @@ recharts of `charts`, react-day-picker of `calendar`, @dnd-kit of `board-dnd`) i
 its asset in the registry: `add` sets it in the `package.json` of the product (keeping a
 version that the product set itself) and `update` brings it to each release. Each is loaded
 lazily, in a chunk of its own, with the first view that draws with it (`scripts/check_chunks.py`
-of CI checks the build).
+of CI checks the build); until it is loaded the view shows a skeleton marked `state:loading`, so
+that the helpers of the end-to-end tests and the screenshots wait for it.
 
 The labels of the data come from the backend (the titles of the runtime schemas, in the
 language it answers in; the names of the statuses and transits of `contract.ts`, in every
@@ -56,7 +57,9 @@ The components look as the design of the product says (`spec/design/`, compiled 
   `ResourceCard` (`mode`, `forms`); a prop overrides it, which the contract tests use to
   check both;
 - the loading states are skeletons of what loads, still marked `state:loading` with
-  `aria-busy`; the other states an icon, a title and a hint (the texts
+  `aria-busy`;
+- on a touch screen (`pointer-coarse:`) the buttons, the fields, the selects, the tabs and the
+  other targets of a finger are 44 px at least (WCAG 2.5.5), without changing them for a mouse; the other states an icon, a title and a hint (the texts
   `state.<state>.title` and `state.<state>.hint`); a change that succeeded shows a toast (`toast`, the `Toaster` of
   `AppShell`);
 - the tone of a status badge is `statuses` of the theme (`statusTone`), neutral by default;
