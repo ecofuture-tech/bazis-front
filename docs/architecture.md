@@ -15,7 +15,7 @@ with the other Bazis packages and versioned by setuptools-scm, one version for e
 - **Python** does all that needs no Node: contract export, spec validation, copying and
   updating the assets, Django system checks `front.*` (run by `bazis_doctor` and bazis-mcp).
   It is one management command with subcommands, `manage.py bazis_front`
-  (`init`, `contract`, `check`, `design`, `add`, `update`, `e2e`, `status`).
+  (`init`, `contract`, `check`, `design`, `add`, `update`, `e2e`, `shots`, `status`).
 - **TypeScript** is shipped as package data in `bazis/contrib/front/assets/` and copied
   into the product, in the way of shadcn/ui: the protocol client, React hooks, components,
   the project template, Playwright helpers. Only third-party dependencies (React,
@@ -171,7 +171,16 @@ the state of the socket), both in the `tools` of `AppShell`, with bazis-bg
 point on a Leaflet map, and the map of a point field of the forms, given to the input of the
 fields by `MapProvider`, with the tiles of the product). The login form takes the
 logins of bazis-authing: the password through its service `password`, and a button for a
-service whose page opens in a window.
+service whose page opens in a window. The parts of the screens of the other primitives
+are components too: `dashboard` (the home: the tiles of `stat-card`, the counts of filtered
+lists, `page[limit]=1` with `meta=pagination`; the links of the navigation; the charts of
+`charts`; the last items), `resource-board` (a column per status of a workflow, a card moved
+by a transit of bazis-statusy; its drag and drop in `board-dnd`), `resource-calendar` (the
+items on the days of a date field, a month or a week, and the list of a day), the tabs of
+`resource-card` and the bulk actions of `resource-list` (a request per selected row: the core
+has no bulk endpoint), with `empty-state` and `date-picker` (the dates of the forms and the
+filters). The core has no aggregates, so a part reads lists only: one per status, one per
+period.
 They are listed
 in `assets/registry.json` with what they require (`requires.assets`: other components, the
 hooks, the shadcn/ui components; `requires.capabilities`), copied by
@@ -181,8 +190,10 @@ that checks its `data-bz` marks and states, run by `npm test` of the product, so
 keeps working after the product edits it. The shadcn/ui components they use are copied as
 assets too (into `src/components/ui/`), not through the shadcn CLI: `add` needs no network,
 and the template declares the npm dependencies of the components; the library of an
-optional one (Leaflet of `map`) is `npm` of its asset, set by `add` in the `package.json` of
-the product and kept by `update` at the version of each release. The components read
+optional one (Leaflet of `map`, recharts of `charts`, react-day-picker of `date-picker`,
+@dnd-kit of `board-dnd`) is `npm` of its asset, set by `add` in the `package.json` of the
+product and kept by `update` at the version of each release, and loaded in a chunk of its
+own with its first view. The components read
 the fields, their titles and what is read-only from the runtime schemas and the actions
 from the permission meta; they are small explicit APIs over the field ids of the specs,
 and the screens are written by the agent from them: there is no generator of screens.
@@ -192,9 +203,10 @@ and the screens are written by the agent from them: there is no generator of scr
 The product is described in `spec/` of the product root, in layers that reference each
 other by id (a screen the entities and roles, a scenario the screens and transitions; the
 contract knows nothing of them): the product spec (`product.yaml`: roles with their permit
-roles, entities with their resource, fields, workflow and access, and scenarios), the
-screens (`screens/<id>.yaml`: one primitive, `list`, `card` or `form`, over an entity,
-its actions and the states it must render) and the design (`design/theme.yaml`: a preset
+roles, entities with their resource, fields (with their `display`: a phone, a currency, a
+unit, a bar), label, workflow and access, and scenarios), the screens (`screens/<id>.yaml`:
+one primitive, `list`, `card`, `form`, `dashboard`, `board` or `calendar`, its actions and
+the states it must render) and the design (`design/theme.yaml`: a preset
 and its options; `design/tokens.json`: DTCG tokens). The formats are versioned
 (`spec: bazis-product/1`, `bazis-screen/1`, `bazis-design/1`) and described by JSON
 Schemas (Draft 2020-12) in `bazis/contrib/front/spec/schemas/`, which `init` copies to
@@ -257,6 +269,23 @@ without Node. The tests log in as the `test_user` of a role with the password of
 `E2E_PASSWORD`; the users and the data they use are created by the backend (a command or a
 fixture of the product), never by the tests.
 
+### The visual check
+
+`bazis_front shots` (`spec/shots.py`) renders `frontend/e2e/generated/shots.ts` from the
+specs, every screen as the first of its roles in each color mode of the theme (the screen of
+an item through the first item of a screen that opens it), and runs it with the
+`playwright.shots.config.ts` of the template, at the width of a desktop and of a phone. The
+helper `shoot` of the asset `playwright` (`e2e/bazis/shots.ts`) takes the screenshot and
+checks what the page renders, in the browser: a screen not shot (`V001`), a page or a part of
+it wider than a phone (`V002`, `V003`), a raw name or a UUID shown (`V004`, `V005`), the
+contrast of a text as rendered (`V006`), a light surface in the dark mode (`V007`), an empty
+state without its action (`V008`), controls too small to touch (`V009`), a text cut without
+its whole text (`V010`). The results are gathered into `frontend/.scratch/shots/report.json`
+(ignored by Git), for the agent that looks at the screens. Like the end-to-end tests,
+`shots.ts` depends on the specs only: the lock records its hashes, and `shots --check` and
+the system check `front.W008` report it stale without Node; `front.W009` reports a last
+report with errors, which no command brings up to date but the screens.
+
 ## The frontend of a product
 
 `bazis_front init` creates `frontend/` next to `manage.py` from the template
@@ -288,7 +317,8 @@ changed only there is kept, a file changed on both sides is merged by `git merge
 same or adjacent lines the file is
 written with git conflict markers and the command fails. Files added to an asset are added, files removed from it are
 deleted unless the product changed them. The stamp lines are compared at the new version,
-so they never conflict. The assets that a new version requires are copied, the pristine
+so they never conflict. The assets that a new version requires are copied (also the
+components that a new template requires: the `dashboard` of its home), the pristine
 copies of the new version replace the old ones, the lock is updated, and the copies of the
 JSON Schemas in `spec/` are refreshed. Everything is read and merged before anything is
 written. The template (the frontend itself: `package.json`, the configs, `src/app/`, its
@@ -332,4 +362,7 @@ permissions of bazis-permit followed by the components, the picker of a relation
 labels of related items read together and the status history of bazis-statusy, the logins
 of bazis-authing and the files of bazis-uploadable, and the socket of bazis-ws (the
 notifications and the live refetches), the tasks of bazis-bg and the background requests
-of bazis-async-request.
+of bazis-async-request, the layers of the design (palettes, fonts, shapes, surfaces, the
+dark mode), the dashboard, the board and the calendar with the tabs of a card and the bulk
+actions of a list, and the visual check of the screens (`bazis_front shots`, `front.W008`,
+`front.W009`).
