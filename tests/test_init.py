@@ -141,7 +141,7 @@ def test_init_creates_the_frontend(product):
     assert sorted(it.name for it in (frontend / 'src' / 'bazis' / 'generated').iterdir()) == ['fonts.css', 'theme.css', 'theme.ts']
     assert 'Generated the theme' in out
     added = 'badge, native-select, popover, resource, stat-card, dashboard'
-    assert f'Added the components that the screens import: {added}.' in out
+    assert f'Added the components of bazis-front that the generated screens import: {added}.' in out
     assert f'Generated the screens of {frontend} in {spec_screens.GENERATED_DIR}.' in out
     assert not (frontend / 'e2e' / 'generated').exists()
 

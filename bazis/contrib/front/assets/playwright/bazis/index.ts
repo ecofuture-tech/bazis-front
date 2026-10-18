@@ -635,9 +635,18 @@ export class App<P extends Product = Product> {
     await expect(this.page.locator(bz('state', 'loading'))).toHaveCount(0);
   }
 
-  /** Waits until the current screen has rendered a state and nothing on the page loads. */
+  /**
+   * Waits until the current screen has rendered a state and nothing on the page loads. A
+   * custom screen renders the states of its primitive too, as a generated one does.
+   */
   private async settled(): Promise<void> {
-    await expect(this.screen().locator('[data-bz^="state:"]').first()).toBeAttached();
+    await expect(this.screen().locator('[data-bz^="state:"]').first())
+      .toBeAttached()
+      .catch(() => {
+        throw new Error(
+          'The current screen renders no state (data-bz="state:<state>"): render the marks of the states of its primitive, with StatePanel or the components of the resource.',
+        );
+      });
     await expect(this.page.locator(bz('state', 'loading'))).toHaveCount(0);
   }
 

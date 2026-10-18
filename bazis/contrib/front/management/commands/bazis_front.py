@@ -416,22 +416,27 @@ class Command(BaseCommand):
         update.apply(root, frontend, lock, plan)
         if spec_validate.contract_outdated(root):
             self.stdout.write(spec_validate.CONTRACT_OUTDATED)
-        if spec_validate.needs_screens(frontend, lock):
+        needs_screens = spec_validate.needs_screens(frontend, lock)
+        if needs_screens:
             self.stdout.write(spec_screens.NEEDS_SCREENS)
-        install = (
-            f'`npm install` (its {update.PACKAGE_JSON} changed), ' if plan.dependencies_changed else ''
+        install = 'Run `npm install` (its package.json changed). ' if plan.dependencies_changed else ''
+        # `tsc` and the tests import the screens that `screens` writes: red until then
+        verify = (
+            '`npx tsc --noEmit` and `npm test` stay red until `bazis_front screens` generates the '
+            'screens (docs/releases/0.3.0.md, step 8).'
+            if needs_screens
+            else 'Run `npx tsc --noEmit`, `npm run lint` and `npm test` in frontend/.'
         )
         if plan.conflicts:
             raise CommandError(
                 f'Updated to bazis-front {plan.version} with conflicts in {len(plan.conflicts)} '
                 f'files: {", ".join(plan.conflicts)}. Resolve the conflict markers (<<<<<<< '
-                f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them, '
-                f'then run {install}`npx tsc --noEmit` and `npm test` in frontend/.'
+                f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them. '
+                f'{install}{verify}'
             )
         self.stdout.write(
-            f'Updated the copies to bazis-front {plan.version}. Run {install}`npx tsc --noEmit`, '
-            '`npm run lint` and `npm test` in frontend/, and commit the frontend with '
-            f'{frontend_lock.BASE_DIR}/ and the lock.'
+            f'Updated the copies to bazis-front {plan.version}. {install}{verify} Commit the '
+            f'frontend with {frontend_lock.BASE_DIR}/ and the lock.'
         )
 
     def write_plan(self, plan):
@@ -566,7 +571,9 @@ class Command(BaseCommand):
                 added = copy.add_assets(frontend, lock, missing, capabilities_of)
             except copy.CopyError as err:
                 raise CommandError('\n'.join(err.messages)) from err
-            self.stdout.write(f'Added the components that the screens import: {", ".join(added.copied)}.')
+            self.stdout.write(
+                f'Added the components of bazis-front that the generated screens import: {", ".join(added.copied)}.'
+            )
             if added.dependencies:
                 packages = ', '.join(sorted(name for it in added.dependencies.values() for name in it))
                 self.stdout.write(

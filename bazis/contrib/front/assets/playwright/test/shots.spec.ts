@@ -406,4 +406,13 @@ test.describe('shoot', () => {
     expect(result.file).toBeNull();
     expect(result.issues).toMatchObject([{ code: 'V001', severity: 'error', selector: '[data-bz="screen:task-list"]' }]);
   });
+
+  test('writes V001 when the screen renders no state', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    await serve(page, { '/tasks': '<!doctype html><html><body><main data-bz="screen:task-list">Hand-written</main></body></html>' });
+    await expect(shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'dark', via: null, creates: [], variant: null }, info)).rejects.toThrow();
+    const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-dark-1280.json'), 'utf8')) as ShotResult;
+    expect(result.issues).toMatchObject([{ code: 'V001', message: expect.stringContaining('renders no state') }]);
+  });
 });

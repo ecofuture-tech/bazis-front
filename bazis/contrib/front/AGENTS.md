@@ -1004,9 +1004,11 @@ tokens (D012), and the name of an icon that lucide-react does not have (D013).
 An issue is `{layer, file, path, code, severity, message, hint}`: `file` is relative to
 the product root, `path` the JSON Pointer of the value, `hint` the fix. The codes are
 stable. Errors fail `check` (exit 1); warnings do not. When `spec/` exists, the system
-check `front.W002` (run by `bazis_doctor`) reports every issue with its code and severity:
-the system checks run before every management command, so an error of the specs is a
-warning there, never blocking `migrate` or `contract`.
+check `front.W002` (run by `bazis_doctor`) reports each error with its code and place, and
+all the warnings as one message with the count of each code (`25 warnings of the specs (S027
+x14, …)`: every management command prints the system checks); `bazis_front check` lists
+the warnings with their places and fixes. The system checks run before every management
+command, so an error of the specs is a warning there, never blocking `migrate` or `contract`.
 
 | Code | Severity | Meaning |
 |---|---|---|
@@ -2757,7 +2759,7 @@ with the number of the small controls and the first five of them.
 
 | Code | Severity | Meaning, and what to do |
 |---|---|---|
-| `V001` | error | the screen was not shot: the login, the route, the item to open or the run failed (the message says which); run the backend with the data of `e2e_data`, give the role its `test_user`, render the marks of the screen |
+| `V001` | error | the screen was not shot: the login, the route, the item to open or the run failed (the message says which); run the backend with the data of `e2e_data`, give the role its `test_user`, render the marks of the screen and of its states `state:<state>` (a custom screen too) |
 | `V002` | error | the page scrolls sideways at the width of a phone: a list shown as a table, a fixed width, a long word; show the cards of the list on a phone (the components do), let the texts wrap |
 | `V003` | warning | a part of the page scrolls sideways at the width of a phone: a table where cards would fit (a board, `board:<entity>`, scrolls its columns: it is not reported) |
 | `V004` | error | a label shows a raw name: a column, a term of a card, a label of a field or a filter, a heading that is a snake_case name, an id or a key of the translations; give the field its title in the backend (S018) or the text its key in `src/i18n/` |
@@ -3425,8 +3427,8 @@ is an error there); the changes so far:
   see [The frontend](#the-frontend)): `update` merges its files formatted, so a file of the
   template that the product changed (`src/app/router.tsx`: the props of `AppShell`) may get a
   conflict once. Resolve it by taking the lines of the template, adding the changes of the
-  product to them again, then `npm run format`; the links of `NAVIGATION` stay on their
-  line (`// prettier-ignore`).
+  product to them again, then `npm run format` (the router of a product of 0.1.0 is replaced
+  as a whole in the migration to 0.3.0 below, step 2).
 
 A product of 0.1.0 goes to 0.3.0 in one run (0.2.0 was never published, its changes are in 0.3.0),
 with the steps of both versions in this order:
@@ -3446,14 +3448,16 @@ python manage.py bazis_front shots --no-run
 cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
 ```
 
-1. `update` copies the assets that the new version requires and the frontend lacks
-   (`dashboard`, `stat-card`, the shadcn/ui components on Radix, the libraries of charts,
-   dates and drag and drop), merges the template and the copies, and lists the files that
-   conflict. It then ends with exit 1: the files are updated, and a second `update` does not
-   merge again. Run `npm install` at once (the `@fontsource` packages, the new libraries),
-   before `contract`, which generates `schema.d.ts` with the frontend. `npx tsc --noEmit`
-   and `npm test` fail with `TS2307` (`@/screens/generated/*`) until `screens` (step 8):
-   `update` says "run screens".
+1. `update` copies the components that the template of the new version needs and the
+   frontend lacks (the shadcn/ui ones on Radix, such as `select`, `tabs`, `checkbox`,
+   `dropdown-menu`, and `empty-state`), merges the template and the copies, and lists the
+   files that conflict. It does not copy `dashboard`, `stat-card`, the charts or the drag and
+   drop: `screens` adds them with the first screen that uses them (step 8). It then ends
+   with exit 1: the files are updated, and a second `update` does not merge again. Run
+   `npm install` at once (the `@fontsource` packages, the new libraries), before `contract`,
+   which generates `schema.d.ts` with the frontend. `npx tsc --noEmit` and `npm test` fail
+   with `TS2307` (`@/screens/generated/*`) until `screens` (step 8): `update` says so, and
+   asks for them only once they can pass.
 2. A `src/app/router.tsx` that the product changed conflicts: replace the whole file by that
    of the template, `frontend/.bazis/base/template@<version>/src/app/router.tsx`. Taking the
    side of bazis-front in each conflict is not enough: the lines of the product merged
@@ -3469,8 +3473,15 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
    them and says what replaces them. The name of the product is `product.name` of
    `product.yaml` (it replaces `PRODUCT_NAME`). If the product put `MAP_TILES` in
    `product.ts` (the guide of 0.1.0 suggested it), move it to `router.tsx` (or another file)
-   before you delete `product.ts`: the `MapProvider` of the router imports it. Delete the
-   home, or keep it with `custom: true` in `spec/screens/home.yaml`.
+   before you delete `product.ts`: the `MapProvider` of the router imports it; delete the
+   file when `grep -r app/product src` finds nothing (the generated screens read the name
+   from `product.name`). The home was the overview of the resources of the template: delete
+   it (`/` then leads to the first link of the navigation, and `check` warns of the missing
+   dashboard, S026), or replace it by a dashboard of the specs, `spec/screens/home.yaml` with
+   `primitive: dashboard` and its `dashboard.tiles`, not `custom`. A home kept by hand
+   (`custom: true`) must render the states of a dashboard (`state:loading`, `state:error`,
+   with `StatePanel`): `check` reports S009 for a spec without them in `states`, and `shots`
+   V001 for a screen that renders none.
 4. `design` after `update`: `src/index.css` imports `src/bazis/generated/fonts.css`, which
    only `design` writes, and the theme of 0.1.0 lacks `list_phone`. `theme.yaml` may name
    the layers of its tokens (see [The design](#the-design)); a design that names none keeps
@@ -3484,8 +3495,12 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
    `bar`, `phone`, `plain`) of the fields that are money, measures, shares or phones, and
    `label` of an entity whose resource labels nothing (product.yaml).
 5. Give every screen written by hand `custom` in its spec (`true` for
-   `src/screens/<id>/index.tsx`, `{module, export}` otherwise), before `check` and
-   `screens`: every screen of 0.1.0 is one. `screens` refuses a screen that has
+   `src/screens/<id>/index.tsx` exporting `<Id>Screen`, `{module, export}` otherwise, the
+   usual form for 0.1.0, whose screens are by entity: `custom: {module: '@/screens/book',
+   export: BookListScreen}`, the module quoted as YAML reserves `@`), before `check` and
+   `screens`: every screen of 0.1.0 is one. A custom screen keeps the states of its primitive
+   (S009, V001): it renders `state:<state>` as `ResourceList` and `ResourceCard` do, and a
+   screen of bare JSX fails `shots`. `screens` refuses a screen that has
    `src/screens/<id>/index.tsx` and no `custom` (S029) and writes nothing, also on the
    first run; `check` tells it too once the router of the updated template imports the
    generated screens. Then `e2e` and `shots` behave as before. Later, screen by screen, remove
@@ -3496,18 +3511,25 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
    language: a link whose old label was a key of the dictionaries of the product
    (`t('nav.tasks')`) keeps it as `label: nav.tasks` (the dictionaries `src/i18n/*.ts`
    stay), or becomes `{en: …, ru: …}`; so does the `title` of a screen (S027 warns of the
-   texts that miss a language of the product).
+   texts that miss a language of the product), and `product.name` and the `title` of an
+   entity: `name: {ru: Библиотека, en: Library}`, `title: {ru: Автор, en: Author}` (or a key
+   of `src/i18n/*.ts`, `entities.author.title`). S027 is a warning: until the texts are
+   given, the product shows the one it has in every language.
 7. `check` has no errors (S029 is among them while a screen of 0.1.0 has no `custom`). The template renders the screens of the specs
    (`src/screens/generated/`) and has no home of its own: `/` is the screen of the specs at
    `/`, else the first link of the navigation. Once the product declares its entities,
    `check` asks for a screen of the specs at `/` that is a `dashboard` with tiles (S026).
 8. `screens` renders `src/screens/generated/` (`front.W010` until then) and copies the
    components that the generated screens import and the frontend lacks (`calendar` and
-   `date-picker` for the dates of the forms), setting their npm dependencies
-   (`react-day-picker`): run `npm install` again, else `tsc` fails (`TS2307`). From here
-   `npx tsc --noEmit` is green again.
+   `date-picker` for the dates of the forms, `charts`, `stat-card` and `dashboard` for the
+   first dashboard, `board-dnd` for a board), setting their npm dependencies
+   (`react-day-picker`, `recharts`, …): run `npm install` after each `screens` that says so,
+   else `tsc` fails (`TS2307`). From here `npx tsc --noEmit` is green again.
 9. `e2e`, `shots --no-run`, then `tsc`, lint, tests and the build: `tsc` finds the code of
-   the product that uses what changed (below).
+   the product that uses what changed (below). The end-to-end tests (Playwright) and `shots`
+   need the backend of the product: migrated, with `manage.py e2e_data` and `E2E_PASSWORD`,
+   served by the ASGI application of the project (for example `uvicorn app.main:app`), not
+   `runserver`: only the application answers `/api/healthcheck`, which the tests wait for.
 
 The API of the copies that 0.2.0 changed (never published):
 

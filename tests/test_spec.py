@@ -530,6 +530,13 @@ CASES = [
     ),
     ('S009', {LIST: lambda d: d['states'].remove('empty')}, [('S009', f'{LIST}#/states')]),
     (
+        'S009',
+        # a custom screen renders the states of its primitive as a generated one does: the
+        # shots wait for its `state:*` mark, so `custom` does not lift the states
+        {HOME: lambda d: d.update(custom=True, states=[])},
+        [('S009', f'{HOME}#/states'), ('S028', f'{HOME}#/custom')],
+    ),
+    (
         'S010',
         {LIST: lambda d: d['actions'].extend([{'id': 'remove', 'primitive': 'destroy'},
                                               {'id': 'create', 'primitive': 'form', 'mode': 'create'}])},
@@ -1628,7 +1635,12 @@ def test_the_system_check(root, tmp_path):
     assert {it.id for it in messages} == {'front.W002'}
     texts = [it.msg for it in messages]
     assert f'S004 (error) {LIST}#/entity: The entity `job` is not in spec/product.yaml.' in texts
-    assert any(it.startswith(f'P020 (warning) {PRODUCT}#/entities/0/access/manager/view: ') for it in texts)
+    # the warnings are one message with the count of each code, never a line for each: every
+    # management command prints it; `check` lists them
+    assert [it for it in texts if 'warning)' in it] == []
+    summary = messages[-1]
+    assert summary.msg == '6 warnings of the specs (D008 x3, P020 x1, S019 x2).'
+    assert 'bazis_front check' in summary.hint
     assert all(it.hint for it in messages)
     # an error of the specs never blocks a management command (migrate, contract...)
     call_command('check', stdout=StringIO(), stderr=StringIO())

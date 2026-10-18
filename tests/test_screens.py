@@ -25,6 +25,7 @@ CI builds too).
 """
 
 import os
+import re
 import shutil
 from io import StringIO
 from pathlib import Path
@@ -433,7 +434,9 @@ def test_screens_generates_the_screens_with_their_components(frontend, root):
     assert 'resource-list' not in lock['assets']
     out = generate()
     files = rendered(root)
-    assert 'Added the components that the screens import: ' in out
+    assert 'Added the components of bazis-front that the generated screens import: ' in out
+    # the first dashboard and the first board set their libraries: only an `npm install` makes `tsc` green
+    assert re.search(r'Set their npm dependencies \(.*recharts.*\) in package.json: run `npm install` in frontend/\.', out)
     assert f'Generated the screens of {frontend} in {screens.GENERATED_DIR}.' in out
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text, path

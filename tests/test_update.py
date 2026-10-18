@@ -190,6 +190,7 @@ def test_update_replaces_unchanged_copies(product):
     out = update()
     assert f'react: {OLD} -> {__version__} (11 files unchanged in the frontend replaced)\n' in out
     assert f'Updated the copies to bazis-front {__version__}.' in out
+    assert 'Run `npx tsc --noEmit`, `npm run lint` and `npm test` in frontend/.' in out
     for name in ('client', 'react'):
         assert_updated(product, name)
         asset = registry.load()[name]
@@ -455,6 +456,9 @@ def test_update_of_a_frontend_made_before_the_screens(product):
 
     out = update()
     assert out.index(screens.NEEDS_SCREENS) < out.index('Updated the copies')
+    # `tsc` and the tests are red until the screens are generated: the update never asks for them
+    assert '`npx tsc --noEmit` and `npm test` stay red until `bazis_front screens`' in out
+    assert 'Run `npx tsc --noEmit`' not in out
     assert [it.msg for it in checks.check_screens(None)] == [screens.NEEDS_SCREENS]
 
 
@@ -615,7 +619,7 @@ def test_update_merges_the_template(product):
     assert f'  {PACKAGE_JSON}: merged with the changes of the frontend\n' in out
     assert f'  {ROUTER}: kept (changed in the frontend only)\n' in out
     assert '  AGENTS.md: not restored (deleted in the frontend)\n' in out
-    assert 'Run `npm install` (its package.json changed), `npx tsc --noEmit`' in out
+    assert 'Run `npm install` (its package.json changed). Run `npx tsc --noEmit`' in out
     assert (frontend / PLAYWRIGHT_CONFIG).read_text(encoding='utf-8') == upstream(PLAYWRIGHT_CONFIG)
     assert package.read_text(encoding='utf-8') == upstream(PACKAGE_JSON).replace(
         '"private": true,', '"private": true,\n  "description": "mine",'

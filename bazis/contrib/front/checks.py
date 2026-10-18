@@ -16,6 +16,7 @@
 Django system checks of bazis-front (see `manage.py bazis_doctor`).
 """
 
+from collections import Counter
 from pathlib import Path
 
 from django.core.checks import Info, Warning, register
@@ -93,26 +94,36 @@ PACKAGE_CODES = {'C004'}
 def check_spec(app_configs, **kwargs):
     """
     The specs of the product (`spec/`, when it exists) are those that `bazis_front check`
-    accepts: one `front.W002` for each of its issues, with its code and its severity.
-    Errors of the specs are warnings here: the system checks run before every management
-    command, and an error would block `migrate` or `bazis_front contract`, which the
-    fixes of the specs may need; `bazis_front check` fails on them. `C004` (an outdated
+    accepts: one `front.W002` for each error of the specs, with its code and its place, and
+    one for all their warnings, with the count of each code (every management command
+    prints the system checks, and a product keeps warnings for long: `bazis_front check`
+    lists them). Errors of the specs are warnings here: the system checks run before every
+    management command, and an error would block `migrate` or `bazis_front contract`, which
+    the fixes of the specs may need; `bazis_front check` fails on them. `C004` (an outdated
     package) is left out: `front.W006` reports it. Runs without the database.
     """
     from .spec import create, validate
+    from .spec.issues import ERROR
 
     spec = create.spec_dir()
     if not spec.is_dir():
         return []
-    return [
-        Warning(
-            f'{issue.code} ({issue.severity}) {issue.location}: {issue.message}',
-            hint=issue.hint,
-            id='front.W002',
-        )
-        for issue in validate.validate(spec.parent).issues
-        if issue.code not in PACKAGE_CODES
+    found = [it for it in validate.validate(spec.parent).issues if it.code not in PACKAGE_CODES]
+    messages = [
+        Warning(f'{it.code} ({it.severity}) {it.location}: {it.message}', hint=it.hint, id='front.W002')
+        for it in found
+        if it.severity == ERROR
     ]
+    if warnings := Counter(it.code for it in found if it.severity != ERROR):
+        codes = ', '.join(f'{code} x{count}' for code, count in sorted(warnings.items()))
+        messages.append(
+            Warning(
+                f'{sum(warnings.values())} warnings of the specs ({codes}).',
+                hint='List them with their places and fixes: `manage.py bazis_front check`.',
+                id='front.W002',
+            )
+        )
+    return messages
 
 
 @register()

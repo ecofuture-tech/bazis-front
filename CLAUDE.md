@@ -230,9 +230,11 @@ job of CI.
   with the assets of the lock and its generated files, each issue with the subcommand that
   brings up to date what it reports stale (`checks.COMMANDS`, which `front_status` of
   bazis-mcp groups them by); it exits 0. A new check of the state of the frontend is added
-  to `STATUS`. `checks.check_spec` reports every issue as the warning
-  `front.W002`: an error there would block every management command (`migrate`,
-  `contract`) through `SystemCheckError`.
+  to `STATUS`. `checks.check_spec` reports each error as the warning
+  `front.W002`, and all the warnings as one `front.W002` with the count of each code (every
+  management command prints the system checks; `bazis_front check` lists them): an error
+  there would block every management command (`migrate`, `contract`) through
+  `SystemCheckError`.
 - `spec/scenarios.py` is the only reading of the steps of a scenario: its walk reports the
   issues and returns the steps (`Step`: the name, the value, whether it starts the edit of
   a card, the screen it leads to, whether a `submit` is refused: `fails`, the next `expect`
@@ -411,7 +413,10 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   copied into products) and, of the assets, nothing else than the registry and the READMEs
   of their directories. A new asset adds its own entries to `[tool.setuptools.exclude-package-data]`.
   setuptools reuses a stale `build/` directory: delete it before building the wheel locally;
-  it packages the files tracked by Git (`git add` a new file first).
+  it packages the files tracked by Git (`git add` a new file first). Build the wheel only
+  from a Git clone: setuptools-scm takes the version and the list of the asset files from
+  Git, so a `git archive` or a tarball has no version, and with a forced one loses the
+  assets that are not `.py` files without an error.
 - `node_modules/` and `dist/` are ignored by Git and excluded from package discovery in
   `pyproject.toml`, so they never reach the wheel. Check the wheel after changing the
   layout: `python -m build` and list its files.

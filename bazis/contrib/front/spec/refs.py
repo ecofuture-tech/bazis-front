@@ -479,7 +479,8 @@ def _check_field(
             "Give the field a label in the backend: `SchemaField(title=_('...'))` in "
             '`SchemaFields(include=...)` of the fields of its route set (a calculated field, a '
             'reverse relationship, a field of a package), or a `verbose_name` other than its '
-            f'name (a field of the model); then {EXPORT_HINT}.',
+            'name (a field of the model), translated in the catalogs of the project (the frontend '
+            f'shows the title in the language of the user); then {EXPORT_HINT}.',
         )
     if 'relation' in item:
         target = product.entities.get(item['relation'])
