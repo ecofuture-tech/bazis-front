@@ -20,6 +20,7 @@ installed package (`downgrade`).
 """
 
 import json
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -581,6 +582,7 @@ def test_update_of_named_assets(product):
 
 
 PLAYWRIGHT_CONFIG = 'playwright.config.ts'
+VITE_CONFIG = 'vite.config.ts'
 PACKAGE_JSON = 'package.json'
 ROUTER = 'src/app/router.tsx'
 
@@ -589,14 +591,20 @@ def test_update_merges_the_template(product):
     """
     The template is the product's and updated like the copies, from its pristine copy: a
     file that the product did not change is replaced (a fix of playwright.config.ts reaches
-    the frontends made before it), a change of the product is kept, both are merged, a file
-    deleted in the frontend stays deleted; a new package.json asks for `npm install`.
+    the frontends made before it), a change of the product is kept, both are merged (the cache
+    of the dev server of the tests, `cacheDir`, comes into vite.config.ts with the plugins of the
+    product), a file deleted in the frontend stays deleted; a new package.json asks for
+    `npm install`.
     """
     frontend = product / 'frontend'
+    cache = re.compile(r'    // the cache of the optimized dependencies:.*\n.*\n    cacheDir: .*\n')
+    plugins = ('plugins: [react(), tailwindcss()],', 'plugins: [react(), tailwindcss(), mine()],')
 
     def old(path, text):
         if path == PLAYWRIGHT_CONFIG:
             return change_line(text, late(text), '// old\n')
+        if path == VITE_CONFIG:
+            return cache.sub('', text)
         if path == PACKAGE_JSON:
             return text.replace('"react": "', '"react": "0.0.')
         if path == 'AGENTS.md':
@@ -611,6 +619,8 @@ def test_update_merges_the_template(product):
     )
     router = frontend / ROUTER
     router.write_text(router.read_text(encoding='utf-8') + '// mine\n', encoding='utf-8')
+    vite = frontend / VITE_CONFIG
+    vite.write_text(vite.read_text(encoding='utf-8').replace(*plugins), encoding='utf-8')
     (frontend / 'AGENTS.md').unlink()
     assert w004()[0].msg == (
         f'The copies of template {OLD} in the frontend are not those of bazis-front {__version__}.'
@@ -620,6 +630,7 @@ def test_update_merges_the_template(product):
     assert f'template: {OLD} -> {__version__} (1 files unchanged in the frontend replaced)\n' in out
     assert f'  {PACKAGE_JSON}: merged with the changes of the frontend\n' in out
     assert f'  {ROUTER}: kept (changed in the frontend only)\n' in out
+    assert f'  {VITE_CONFIG}: merged with the changes of the frontend\n' in out
     assert '  AGENTS.md: not restored (deleted in the frontend)\n' in out
     assert 'Run `npm install` (its package.json changed). Run `npx tsc --noEmit`' in out
     assert (frontend / PLAYWRIGHT_CONFIG).read_text(encoding='utf-8') == upstream(PLAYWRIGHT_CONFIG)
@@ -627,6 +638,8 @@ def test_update_merges_the_template(product):
         '"private": true,', '"private": true,\n  "description": "mine",'
     )
     assert router.read_text(encoding='utf-8') == upstream(ROUTER) + '// mine\n'
+    assert cache.search(upstream(VITE_CONFIG))
+    assert vite.read_text(encoding='utf-8') == upstream(VITE_CONFIG).replace(*plugins)
     assert not (frontend / 'AGENTS.md').exists()
     assert_updated(product, 'template')
     assert w004() == []

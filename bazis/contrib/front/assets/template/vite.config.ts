@@ -95,5 +95,8 @@ export default defineConfig(({ mode }) => {
     build: { rollupOptions: { output: { manualChunks: vendorChunk } } },
     // e2e/ is Playwright (`npm run e2e`)
     test: { environment: 'jsdom', exclude: ['**/node_modules/**', 'dist/**', '.bazis/**', 'e2e/**'] },
+    // the cache of the optimized dependencies: node_modules/.vite, but that of the dev server of
+    // the end-to-end tests (BAZIS_VITE_CACHE_DIR of playwright.config.ts)
+    cacheDir: env.BAZIS_VITE_CACHE_DIR,
   };
 });

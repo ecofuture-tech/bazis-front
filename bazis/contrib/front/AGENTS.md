@@ -2696,7 +2696,11 @@ creates itself.
   it starts (`--force`): a dependency imported since the last start (the charts of a new
   dashboard) would be optimized once a page imports it, and the server would reload the
   pages of the tests (a login that fails, a blank screenshot); a running frontend of
-  `E2E_BASE_URL` may do so. The browser is in UTC and in the default language
+  `E2E_BASE_URL` may do so. It keeps them in a cache of its own,
+  `frontend/node_modules/.vite-e2e` (`BAZIS_VITE_CACHE_DIR`, the `cacheDir` of
+  `vite.config.ts`), never in that of `npm run dev` (`node_modules/.vite`): a dev server of
+  the developer running beside the tests keeps its modules, and its optimizations never
+  reload the pages of the tests. The browser is in UTC and in the default language
   of the backend (`timezoneId`, `locale`): the times that the scenarios fill and the dates
   they read are in UTC, like the data of `e2e_data`. In CI, an HTML report is written to
   `frontend/playwright-report/`.

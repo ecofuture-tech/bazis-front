@@ -50,11 +50,15 @@ export default defineConfig({
   // health check through the proxy. It optimizes the dependencies again as it starts
   // (`--force`), from every import of the sources: with the cache of a previous server, a
   // dependency that a screen imports since then (a chart, a board) would be optimized only
-  // once a page imports it, and the dev server would reload the pages of the tests then.
+  // once a page imports it, and the dev server would reload the pages of the tests then. Its
+  // cache is its own (BAZIS_VITE_CACHE_DIR, the `cacheDir` of vite.config.ts): `--force`
+  // deletes the cache of the dependencies, and that of `npm run dev` running beside it would
+  // lose the modules of its pages, or its optimization reload the pages of the tests.
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
         command: `npm run dev -- --port ${port} --strictPort --force`,
+        env: { BAZIS_VITE_CACHE_DIR: 'node_modules/.vite-e2e' },
         url: `${baseURL}/api/healthcheck`,
         reuseExistingServer: false,
       },

@@ -252,7 +252,9 @@ def test_the_end_to_end_tests_of_the_template_test_only_their_frontend():
     when the port is taken, so that a server of another app already there is never tested in
     its place; a running frontend is tested only when E2E_BASE_URL names it. The server
     optimizes the dependencies again as it starts, so that it never reloads the pages of the
-    tests once it finds a dependency late. The browser has
+    tests once it finds a dependency late, in a cache of its own (`cacheDir` of vite.config.ts,
+    ignored with node_modules/): the cache of `npm run dev` running beside it is never deleted,
+    nor that of the tests optimized again by it. The browser has
     a fixed time zone and language, so that the dates and the texts of the scenarios do not
     depend on the machine. The frontend job compiles and lints the config, the e2e job runs it.
     """
@@ -260,6 +262,10 @@ def test_the_end_to_end_tests_of_the_template_test_only_their_frontend():
     assert 'reuseExistingServer: false' in config and 'reuseExistingServer: true' not in config
     assert "const port = process.env.E2E_PORT ?? '5173';" in config
     assert 'command: `npm run dev -- --port ${port} --strictPort --force`' in config
+    assert "env: { BAZIS_VITE_CACHE_DIR: 'node_modules/.vite-e2e' }," in config
+    vite = (ASSETS / 'template' / 'vite.config.ts').read_text(encoding='utf-8')
+    assert 'cacheDir: env.BAZIS_VITE_CACHE_DIR,' in vite
+    assert 'node_modules/' in (ASSETS / 'template' / '.gitignore').read_text(encoding='utf-8').splitlines()
     assert 'process.env.E2E_BASE_URL ?? `http://localhost:${port}`' in config
     assert "timezoneId: 'UTC'" in config and 'locale: LANGUAGE' in config
 

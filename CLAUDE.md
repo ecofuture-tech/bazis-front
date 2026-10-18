@@ -578,7 +578,8 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   fails on the optional peers of vitest; why, and the product's own `overrides` after
   `update`: the guide and `tests/test_assets.py`),
   `vite.config.ts` (the `@/` alias, the `/api` proxy to `BAZIS_API_URL`, the jsdom of the
-  tests, the npm libraries that every page loads in chunks of their own, `manualChunks`), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
+  tests, the npm libraries that every page loads in chunks of their own, `manualChunks`, and
+  `cacheDir`, `BAZIS_VITE_CACHE_DIR`: the cache of the dev server of the end-to-end tests), `tsconfig.json`, `eslint.config.js`, shadcn/ui setup (`components.json`,
   `src/index.css`, `src/lib/utils.ts`), `src/app/` (providers with `BazisProvider`,
   session with its number for the query keys, router with the layout `AppShell` and the
   screens loaded by `lazyScreen` (`lazy.tsx`: each screen in a `Suspense` of its own with the
@@ -590,7 +591,8 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   providers and the tools of the layout are generated in `src/screens/generated/`, ignored
   by its prettier and imported by `src/app/router.tsx`),
   `playwright.config.ts` (`npm run e2e`: `e2e/generated/` and `e2e/custom/`, one worker,
-  `E2E_BASE_URL` or a dev server of its own on `E2E_PORT`, never one already running, ready
+  `E2E_BASE_URL` or a dev server of its own on `E2E_PORT` (`--force`, with a cache of its own,
+  `node_modules/.vite-e2e`), never one already running, ready
   when the backend of `BAZIS_API_URL` answers through its proxy; the browser in UTC and in
   `LANGUAGE` of the contract, `tests/test_assets.py`), `playwright.shots.config.ts` (the
   screenshots of `bazis_front shots`: that config with the projects of a desktop and a phone),
