@@ -55,7 +55,9 @@ function Bar({ value, max, text, label }: { value: number; max: number; text: st
  * The value of a field for reading: an attribute formatted by its type, its format and
  * `display` (a phone as a link to call it, a share as a bar), the labels of the related items
  * of a relationship (the status of an item of bazis-statusy by its name), an uploaded file
- * (`FileValue`).
+ * (`FileValue`). A text of the item, of any length (a string without a choice or a format, the
+ * label of a related item), is in an element `data-text`, which the screenshots make long to
+ * check the layout (V015), unlike a date, a number or the label of a choice.
  */
 export function FieldValue({ field, value, type, display }: FieldValueProps) {
   const { resources } = useFiles();
@@ -72,7 +74,7 @@ export function FieldValue({ field, value, type, display }: FieldValueProps) {
     return (
       <>
         {ids.map((id, index) => (
-          <span key={id}>
+          <span key={id} data-text="">
             {index > 0 && ', '}
             <RelationLabel relation={field.relation} id={id} />
           </span>
@@ -98,7 +100,8 @@ export function FieldValue({ field, value, type, display }: FieldValueProps) {
   if (typeof display === 'object' && 'bar' in display && typeof value === 'number') {
     return <Bar value={value} max={display.bar} text={shown} label={field?.title ?? shown} />;
   }
-  return <>{shown}</>;
+  const free = typeof value === 'string' && shown === value && !(field?.kind === 'attribute' && field.format);
+  return free ? <span data-text="">{shown}</span> : <>{shown}</>;
 }
 
 export interface ItemValueProps {

@@ -297,7 +297,8 @@ fixture of the product), never by the tests.
 ### The visual check
 
 `bazis_front shots` (`spec/shots.py`) renders `frontend/e2e/generated/shots.ts` from the
-specs, every screen as the first of its roles in each color mode of the theme (the screen of
+specs, every screen as the first of its roles in each color mode of the theme and as each
+other role in the first one (the screen of
 an item through the first item of a screen that opens it; a list also searched for nothing and
 with its create form open), and runs it with the
 `playwright.shots.config.ts` of the template, at the width of a desktop and of a phone. The

@@ -76,22 +76,31 @@ def test_the_shots_of_the_sample_are_the_fixture_of_the_helpers():
 
 def test_the_shots_of_the_specs(root):
     plan, skipped = shots.plan(specs(root))
-    assert [(it['screen'], it['variant'], it['role'], it['via']) for it in plan] == [
-        ('draft-tasks', None, 'manager', None),
-        ('home', None, 'manager', None),
-        ('task-board', None, 'manager', None),
-        ('task-calendar', None, 'manager', None),
+    every, first = shots.modes(specs(root)), ('light',)
+    assert every == ('light', 'dark')
+    assert [(it['screen'], it['variant'], it['role'], it['via'], it['modes']) for it in plan] == [
+        ('draft-tasks', None, 'manager', None, every),
+        # the screen as its other roles too, in the first color mode only
+        ('draft-tasks', None, 'viewer', None, first),
+        ('home', None, 'manager', None, every),
+        ('home', None, 'viewer', None, first),
+        ('task-board', None, 'manager', None, every),
+        ('task-board', None, 'viewer', None, first),
+        ('task-calendar', None, 'manager', None, every),
+        ('task-calendar', None, 'viewer', None, first),
         # the screen of an item through a list that opens it: all the items, not the report
-        # of the drafts (draft-tasks, first by its id)
-        ('task-card', None, 'manager', {'screen': 'task-list', 'part': None}),
-        ('task-list', None, 'manager', None),
-        # a list searched for nothing (it has a search), and with its create form open; the
-        # drafts have neither
-        ('task-list', 'empty', 'manager', None),
-        ('task-list', 'form', 'manager', None),
+        # of the drafts (draft-tasks, first by its id), for each role
+        ('task-card', None, 'manager', {'screen': 'task-list', 'part': None}, every),
+        ('task-card', None, 'viewer', {'screen': 'task-list', 'part': None}, first),
+        ('task-list', None, 'manager', None, every),
+        ('task-list', None, 'viewer', None, first),
+        # a list searched for nothing (it has a search), and with its create form open, as
+        # its first role only; the drafts have neither
+        ('task-list', 'empty', 'manager', None, every),
+        ('task-list', 'form', 'manager', None, every),
     ]
     assert skipped == {}
-    by_screen = {it['screen']: it for it in plan if it['variant'] is None}
+    by_screen = {it['screen']: it for it in plan if it['variant'] is None and not it['also']}
     # the forms that create an item, which an empty state offers
     assert by_screen['home']['creates'] == ['create']
     assert by_screen['task-card']['creates'] == []
@@ -106,9 +115,10 @@ def test_the_shots_of_the_specs(root):
     edit(root, 'screens/task-list.yaml', lambda d: d.update(roles=['viewer', 'manager']))
     plan, skipped = shots.plan(specs(root))
     assert 'task-edit' not in [it['screen'] for it in plan]
-    assert {(it['screen'], it['variant']): it['role'] for it in plan}[('task-list', None)] == 'viewer'
+    roles = {(it['screen'], it['variant'], it['also']): it['role'] for it in plan}
+    assert (roles[('task-list', None, False)], roles[('task-list', None, True)]) == ('viewer', 'manager')
     # its create form open as the first of its roles that may create a task: not the viewer
-    assert {(it['screen'], it['variant']): it['role'] for it in plan}[('task-list', 'form')] == 'manager'
+    assert roles[('task-list', 'form', False)] == 'manager'
     assert skipped == {'task-edit': 'no list, board, calendar or dashboard of the specs opens its items'}
     # a list of no role that may create: no form open, and said so
     task_list = yaml.safe_load((root / 'spec' / 'screens' / 'task-list.yaml').read_text(encoding='utf-8'))
@@ -144,8 +154,10 @@ def test_the_shots_of_an_item_through_a_dashboard(root):
 
     edit(root, 'screens/home.yaml', recent)
     plan, skipped = shots.plan(specs(root))
-    by_screen = {it['screen']: it for it in plan if it['variant'] is None}
-    # the viewer is not a role of the home, the only screen that opens the summary
+    by_screen = {it['screen']: it for it in plan if it['variant'] is None and not it['also']}
+    # the viewer is not a role of the home, the only screen that opens the summary: not shot
+    # as the viewer
+    assert [it['role'] for it in plan if it['screen'] == 'task-summary'] == ['manager']
     assert by_screen['task-summary']['role'] == 'manager'
     assert by_screen['task-summary']['via'] == {'screen': 'home', 'part': 'recent:summaries'}
     # the card of the tasks: the lists still open it
@@ -177,6 +189,13 @@ def test_the_text_of_the_shots(root):
         '  });\n'
     ) in text
     # the variants of a list, named after it
+    # another role, in the first color mode only
+    assert (
+        "  test('task-card as viewer', async ({ page }, info) => {\n"
+        "    await shoot(page, PRODUCT, { screen: 'task-card', role: 'viewer', mode: 'light', via: { screen: "
+        "'task-list', part: null }, creates: [], variant: null }, info);\n"
+    ) in text
+    assert "role: 'viewer', mode: 'dark'" not in text
     assert (
         "  test('task-list.empty', async ({ page }, info) => {\n"
         "    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'dark', via: null, creates: "
@@ -252,10 +271,12 @@ def fake_playwright(monkeypatch, results: list[dict]) -> list:
     return runs
 
 
-def result(screen: str, mode: str, width: int, *issues: tuple[str, str], variant: str | None = None) -> dict:
+def result(
+    screen: str, mode: str, width: int, *issues: tuple[str, str], variant: str | None = None, role: str = 'manager',
+) -> dict:
     return {
-        'screen': screen, 'role': 'manager', 'mode': mode, 'width': width, 'variant': variant,
-        'file': f'{screen}-{mode}-{width}.png',
+        'screen': screen, 'role': role, 'mode': mode, 'width': width, 'variant': variant,
+        'file': f'{screen}-{role}-{mode}-{width}.png',
         'issues': [
             {'code': code, 'severity': severity, 'selector': f'[data-bz="screen:{screen}"]', 'message': 'Wrong.'}
             for code, severity in issues
@@ -266,9 +287,9 @@ def result(screen: str, mode: str, width: int, *issues: tuple[str, str], variant
 def every_result(root: Path) -> list[dict]:
     plan, _ = shots.plan(specs(root))
     return [
-        result(it['screen'], mode, width, variant=it['variant'])
+        result(it['screen'], mode, width, variant=it['variant'], role=it['role'])
         for it in plan
-        for mode in shots.modes(specs(root))
+        for mode in it['modes']
         for width in (1280, 390)
     ]
 

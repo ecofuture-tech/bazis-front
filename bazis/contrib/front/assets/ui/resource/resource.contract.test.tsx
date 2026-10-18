@@ -433,6 +433,20 @@ describe('FieldValue', () => {
     expect(screen.getByText('Report')).toBeTruthy();
   });
 
+  it('marks a text of the item, not a value short by its nature', () => {
+    const kind = attribute('kind', 'string', { enum: ['offer'], labels: { offer: 'Offer' } });
+    const { container } = render(
+      <>
+        <FieldValue field={attribute('title', 'string')} value="Report" />
+        <FieldValue field={kind} value="offer" />
+        <FieldValue field={attribute('due', 'string', { format: 'date' })} value="2026-10-18" />
+        <FieldValue field={attribute('count', 'integer')} value={3} />
+        <FieldValue field={attribute('done', 'boolean')} value={true} />
+      </>,
+    );
+    expect([...container.querySelectorAll('[data-text]')].map((it) => it.textContent)).toEqual(['Report']);
+  });
+
   it('formats the values in the language of the interface', () => {
     const russian = testLanguages('ru');
     renderWithBazis(

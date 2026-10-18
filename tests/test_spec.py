@@ -1294,6 +1294,8 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
         {'expect': {'day': {'2026-10-07': 1}}},
         {'open_item': {**where, 'in': 'last-tasks'}},
     ]}))
+    # a day from the day of the run, as the dates of `e2e_data`
+    edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'].insert(15, {'expect': {'day': {'today': 1, 'today+3': 0, 'today-1': 0}}}))
     steps = f'{PRODUCT}#/scenarios/16/steps'
     assert issues(root) == [
         ('P022', f'{steps}/1/expect/tile/overdue'),
@@ -1305,8 +1307,10 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
         ('P022', f'{steps}/9/bulk'),
         ('P024', f'{steps}/11/move/to'),
         ('P024', f'{steps}/12/move/to'),
-        ('P022', f'{steps}/15/open_item'),
+        ('P022', f'{steps}/16/open_item'),
     ]
+    edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'][15]['expect']['day'].update({'tomorrow': 1}))
+    assert issues(root) == [('P002', f'{steps}/15/expect/day')]
 
 
 def test_the_entity_of_a_screen(root):

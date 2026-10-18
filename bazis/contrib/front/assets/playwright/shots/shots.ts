@@ -44,24 +44,48 @@ test.describe('light', () => {
     await shoot(page, PRODUCT, { screen: 'draft-tasks', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
+  test('draft-tasks as viewer', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'draft-tasks', role: 'viewer', mode: 'light', via: null, creates: [], variant: null }, info);
+  });
+
   test('home', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'home', role: 'manager', mode: 'light', via: null, creates: ['create'], variant: null }, info);
+  });
+
+  test('home as viewer', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'home', role: 'viewer', mode: 'light', via: null, creates: ['create'], variant: null }, info);
   });
 
   test('task-board', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'task-board', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
+  test('task-board as viewer', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-board', role: 'viewer', mode: 'light', via: null, creates: [], variant: null }, info);
+  });
+
   test('task-calendar', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info);
+  });
+
+  test('task-calendar as viewer', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'viewer', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
   test('task-card', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'task-card', role: 'manager', mode: 'light', via: { screen: 'task-list', part: null }, creates: [], variant: null }, info);
   });
 
+  test('task-card as viewer', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-card', role: 'viewer', mode: 'light', via: { screen: 'task-list', part: null }, creates: [], variant: null }, info);
+  });
+
   test('task-list', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'light', via: null, creates: ['create'], variant: null }, info);
+  });
+
+  test('task-list as viewer', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-list', role: 'viewer', mode: 'light', via: null, creates: ['create'], variant: null }, info);
   });
 
   test('task-list.empty', async ({ page }, info) => {

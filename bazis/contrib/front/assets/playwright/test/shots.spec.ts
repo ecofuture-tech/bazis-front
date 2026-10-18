@@ -24,8 +24,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { check, shoot, type CheckOptions, type ShotResult } from '../bazis/shots';
 import { PRODUCT } from '../generated/product';
 
-const LIGHT: CheckOptions = { phone: false, dark: false, creates: [] };
-const PHONE: CheckOptions = { phone: true, dark: false, creates: [] };
+const LIGHT: CheckOptions = { phone: false, dark: false, creates: [], searched: false };
+const PHONE: CheckOptions = { phone: true, dark: false, creates: [], searched: false };
 
 /** Serves the pages by their path on the base URL of the config. */
 async function serve(page: Page, pages: Record<string, string>): Promise<void> {
@@ -51,7 +51,7 @@ test('a page without issues', async ({ page }) => {
   await show(
     page,
     `<h1>Tasks</h1>
-     <div data-bz="list:task"><table><tr><th>Title</th></tr><tr data-bz="row:1"><td data-bz="cell:title">Write the report</td></tr></table></div>
+     <div data-bz="list:task" style="overflow-x: auto"><table><tr><th>Title</th></tr><tr data-bz="row:1"><td data-bz="cell:title">Write the report</td></tr></table></div>
      <button data-bz="action:create" style="width: 48px; height: 48px">New</button>
      <p>Read the <a href="/help">help</a>.</p>`,
   );
@@ -100,12 +100,21 @@ test('a UUID on the screen', async ({ page }) => {
   expect(issue).toMatchObject({ code: 'V005', selector: '[data-bz="cell:assignee"]' });
 });
 
-test('what scrolls sideways at the width of a phone', async ({ page }) => {
+test('what scrolls sideways at the width of a phone', async ({ page, browser }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await show(page, '<div data-bz="list:task" style="width: 600px">Tasks</div>');
   expect(await found(page, PHONE)).toEqual([['V002', '[data-bz="list:task"]']]);
-  // the same on a desktop
+  // a mobile browser (the phone of the shots), whose window grows to the page
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await show(mobile, '<meta name="viewport" content="width=device-width, initial-scale=1.0"><div data-bz="list:task" style="width: 600px">Tasks</div>');
+  expect(await found(mobile, PHONE)).toEqual([['V002', '[data-bz="list:task"]']]);
+  await mobile.close();
+  // the same on a desktop, where it fits, and wider than a desktop
+  await page.setViewportSize({ width: 1280, height: 800 });
   expect(await found(page, LIGHT)).toEqual([]);
+  await show(page, '<div data-bz="list:task" style="width: 1600px">Tasks</div>');
+  expect(await found(page, LIGHT)).toEqual([['V014', '[data-bz="list:task"]']]);
+  await page.setViewportSize({ width: 390, height: 844 });
   // a table that scrolls in its container: the page does not
   await show(page, '<div data-bz="list:task" style="overflow-x: auto"><table style="width: 800px"><tr><td>Tasks</td></tr></table></div>');
   expect(await found(page, PHONE)).toEqual([['V003', '[data-bz="list:task"]']]);
@@ -113,6 +122,39 @@ test('what scrolls sideways at the width of a phone', async ({ page }) => {
   const column = (status: string) => `<div data-bz="column:${status}" style="min-width: 300px; overflow-x: auto"><p style="width: 400px">Tasks</p></div>`;
   await show(page, `<div data-bz="board:task"><div style="display: flex; overflow-x: auto">${column('draft')}${column('done')}</div></div>`);
   expect(await found(page, PHONE)).toEqual([]);
+});
+
+test('what scrolls sideways once the texts of the items are long', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  // a grid whose implicit column grows to its longest word, and one whose column does not
+  const card = (grid: string) =>
+    `<div style="display: grid; ${grid}"><article data-bz="row:1"><h3 data-bz="cell:title"><span data-text>Write the report</span></h3>` +
+    `<dl><dt>Place</dt><dd data-bz="cell:place" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap"><span data-text>Room 1</span></dd></dl></article></div>`;
+  await show(page, card(''));
+  const [issue, ...others] = await check(page, PHONE);
+  expect(others).toEqual([]);
+  expect(issue).toMatchObject({ code: 'V015', selector: '[data-bz="row:1"]' });
+  expect(issue?.message).toMatch(/^The page is \d+ px wide at 390 px with a text of 120 characters/);
+  // the texts are those of the page again
+  await expect(page.locator('[data-bz="cell:title"]')).toHaveText('Write the report');
+  await expect(page.locator('[data-bz="cell:place"]')).toHaveText('Room 1');
+  await show(page, card('grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere'));
+  expect(await found(page, PHONE)).toEqual([]);
+  // on a desktop too, and never in a form, whose fields hold what the user types
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const nowrap = 'margin-left: 900px; white-space: nowrap';
+  await show(page, `<p data-bz="field:title" style="${nowrap}"><span data-text>Write the report</span></p>`);
+  expect(await found(page, LIGHT)).toEqual([['V015', '[data-bz="field:title"] span']]);
+  await show(page, `<form><p data-bz="field:title" style="${nowrap}"><span data-text>Write the report</span></p></form>`);
+  expect(await found(page, LIGHT)).toEqual([]);
+  // a value short by its nature (a date, a number, the label of a choice or of a status, a
+  // filter): not a text of the item
+  await show(
+    page,
+    `<p data-bz="cell:due" style="${nowrap}">Oct 18, 2026</p><p data-bz="cell:status" style="${nowrap}"><span data-bz="status:draft">Draft</span></p>` +
+      `<button data-bz="field:priority" style="${nowrap}">All</button>`,
+  );
+  expect(await found(page, LIGHT)).toEqual([]);
 });
 
 test('a light surface in the dark mode', async ({ page }) => {
@@ -135,6 +177,33 @@ test('the empty states', async ({ page }) => {
   // the user may not create one
   await show(page, '<div data-bz="state:empty">No tasks yet</div>');
   expect(await found(page, creates)).toEqual([]);
+});
+
+test('the parts of the items that show none', async ({ page }) => {
+  const parts = (rows: string) =>
+    `<div data-bz="list:task"><div data-bz="state:loaded">${rows}</div></div>` +
+    `<div data-bz="board:task"><div data-bz="state:loaded"><section data-bz="column:draft">Draft</section></div></div>` +
+    `<div data-bz="calendar:task"><div data-bz="state:empty">No tasks this month</div></div>` +
+    `<section data-bz="recent:last-tasks"><p data-bz="state:empty">None yet</p></section>` +
+    `<div data-bz="list:step"><div data-bz="state:forbidden">Not allowed</div></div>`;
+  await show(page, parts('<p data-bz="row:1">Write the report</p>'));
+  expect(await found(page, LIGHT)).toEqual([
+    ['V016', '[data-bz="board:task"]'],
+    ['V016', '[data-bz="calendar:task"]'],
+    ['V016', '[data-bz="recent:last-tasks"]'],
+  ]);
+  await show(page, parts(''));
+  expect((await found(page, LIGHT)).map(([, selector]) => selector)).toContain('[data-bz="list:task"]');
+  // a calendar whose month has items, none on the day it lists
+  await show(
+    page,
+    '<div data-bz="calendar:task"><div data-bz="state:loaded"><button data-bz="day:2030-01-01" data-count="0">1</button>' +
+      '<button data-bz="day:2030-01-02" data-count="2">2</button><p>Nothing on this day</p></div></div>',
+  );
+  expect(await found(page, LIGHT)).toEqual([]);
+  // the list searched for nothing
+  await show(page, '<div data-bz="list:task"><div data-bz="state:empty">No task matches</div></div>');
+  expect(await found(page, { ...LIGHT, searched: true })).toEqual([]);
 });
 
 test('the controls too small to touch on a phone', async ({ page }) => {

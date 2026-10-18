@@ -523,7 +523,9 @@ had, `[]` for none: P022 for one value), `submit: {}`, `transit: <id>` or `{id, 
 not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
 current card, without an open form, show these texts; a file its name), `rows`,
 `tile` (`{<tile>: count}`: the counts of tiles of the current dashboard), `day`
-(`{2026-10-07: count}`: the items of days of the current calendar),
+(`{today: count}`, `{today+3: count}`, `{2026-10-07: count}`: the items of days of the
+current calendar; a day from the day of the run, `today±<n>` in UTC, for the dates that
+`e2e_data` sets from the day of the run),
 `error`, `notification` (a notification of the user whose text contains the text, in the
 list of the notifications; the product has bazis-notify or bazis-ws, `packages` has
 `notify` or `ws`: P027). The
@@ -2493,7 +2495,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, count)` (`data-value` of `tile:<id>`, once for each tile), `expectDay(date, count)` (`data-count` of `day:<date>`, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, count)` (`data-value` of `tile:<id>`, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
@@ -2535,7 +2537,13 @@ E2E_PASSWORD=... python manage.py e2e_data
 - it creates only a user per `test_user` of the roles of the specs, with its role (in
   `roles` and `role_current`) and the password of the environment variable
   `E2E_PASSWORD` (it fails without it), and the items that the scenarios open
-  (`open_item`) and need;
+  (`open_item`) and need, and an item at least for each list, board, calendar and part of a
+  dashboard that a role sees, so that the screenshots show them (V016);
+- **its dates are relative to the day of the run** (`timezone.now() + timedelta(days=3)`,
+  some of them in the current month and the next days), never fixed (`2030-03-04`): a
+  calendar opens on the month of today, the last items and the deadlines of a dashboard are
+  those of the next days, and a fixed date leaves them empty once it is past or far. A
+  scenario expects the day of such an item as `today+3` (`expect: {day: {today+3: 1}}`);
 - it never creates a role, a permission, a status or a transit: a role of a `test_user`
   that the migrations did not create is an error of the command;
 - **it runs before every run of the tests and gives the same data every time**: it
@@ -2607,7 +2615,7 @@ validator restricts is disabled, with the errors of the validators next to it,
 The scenarios check what the screens do; the screenshots check how they look. `shots` takes
 a screenshot of every screen of the specs and checks what each one renders, so that an agent
 fixes what it would not see in the code: a page wider than a phone, a raw name, a text without
-contrast.
+contrast, a value of an item longer than the data of the tests.
 
 ```bash
 python manage.py bazis_front shots           # e2e/generated/shots.ts, the screenshots and .scratch/shots/report.json
@@ -2626,6 +2634,11 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
   the screen of the item, which is shot as the first of its roles that one is for: a list
   first, all the items before a report (a list with a `filter` of its own); a screen that
   none opens is not shot, listed at the top of `shots.ts` (`// Not shot: …`).
+- Every screen also as each other of its roles, in the first color mode only (the role that
+  the screens opening an item are not for is not shot on it): `<screen> as <role>` in
+  `shots.ts`, `role` in the report and in the names of the files. What the screen shows to
+  each role (its actions, its moves, its empty parts) is checked once; the other color modes
+  are those of the first role.
 - A list is also shot searched for a text that no item has (its empty state, when it has
   `search`; the empty state of a search offers no creation, so V008 checks its text only)
   and with its first create form open, as the first of its roles that the `access` of the
@@ -2694,6 +2707,9 @@ with the number of the small controls and the first five of them.
 | `V011` | error | an error of the page that nothing caught (`pageerror`): fix the code of the screen that throws it (the message says which) |
 | `V012` | warning | an error written to the console (`console.error`: a warning of React, a failure that the page handles): fix what React warns of (a key, a nested form), and handle the failure without writing it |
 | `V013` | error | a request of the page to the API failed or was answered with an error status, but a 403 or a 404 of a `GET` that a screen shows as its state: a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 405 of an action it does not route |
+| `V014` | error | the page scrolls sideways at the width of a desktop: a fixed width, a grid whose implicit column grows to a long word; give the grid its column (`grid-cols-[minmax(0,1fr)]`), let the texts wrap |
+| `V015` | error | the page scrolls sideways once the texts of its items are long: before the screenshot, for the check only, the texts of the items in their cells and fields (`data-text` of `FieldValue` in `cell:<name>`, `field:<name>`, not in a form: a string without a choice or a format, the label of a related item; not a date, a number or the label of a choice, short by their nature, nor a cell of the product) are made 120 characters long with a word of 40, then given back; the data of `e2e_data` are short, the data of the users are not. Bound the column of the grid that holds them and let them wrap (`wrap-anywhere`) or cut them with their text in a title (`truncate`) |
+| `V016` | warning | a list, a board, a calendar (neither a row nor a day with items) or the last items of a dashboard show no item (but the list searched for nothing): the screenshot does not show them, nor what a long value does there; give `e2e_data` items for them, their dates relative to the day of the run (a calendar opens on the month of today) |
 
 ### The checklist of the screenshots
 
@@ -6006,7 +6022,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `expectValues(values: Readonly<Record<string, string>>): Promise<void>`: The fields of the current card show these texts: the text of each `field:<name>` contains its text (a file: its name).
 - `expectRows(count: number): Promise<void>`: The list of the current screen has this number of rows, `row:<id>`.
 - `expectTile(id: string, count: number): Promise<void>`: The tile of the current dashboard counts this number of items, `tile:<id>` (its `data-value`).
-- `expectDay(date: string, count: number): Promise<void>`: The day of the calendar of the current screen has this number of items, `day:<date>` (its `data-count`): the calendar (`calendar:<entity>`, the days it shows from `data-from` to `data-to`) is first moved to the period of the day (`action:previous-period`, `action:next-period`).
+- `expectDay(day: string, count: number): Promise<void>`: The day of the calendar of the current screen has this number of items, `day:<date>` (its `data-count`): the calendar (`calendar:<entity>`, the days it shows from `data-from` to `data-to`) is first moved to the period of the day (`action:previous-period`, `action:next-period`).
 - `expectError(field: string): Promise<void>`: A field shows a validation error, `error:<name>`.
 - `expectNotification(text: string): Promise<void>`: The user has a notification whose text contains this text: the bell (`action:notifications`) opens the list of the notifications (`list:notifications`), which waits for it (`notification:<key>`), and is closed again.
 - `language(code: string): Promise<void>`: Switches the language of the interface to a language of the backend (`LANGUAGES` of the contract): the button of the layout, `action:language`, until its `data-value` is the code.

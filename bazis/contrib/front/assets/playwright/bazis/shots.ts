@@ -39,6 +39,9 @@ export const CODES = {
   V011: ['error', 'an error of the page that nothing caught (`pageerror`)'],
   V012: ['warning', 'an error written to the console (`console.error`: a warning of React, a failure that the page handles)'],
   V013: ['error', 'a request of the page to the API failed or was answered with an error status, but the refusals that a screen shows as its state'],
+  V014: ['error', 'the page scrolls sideways at the width of a desktop'],
+  V015: ['error', 'the page scrolls sideways once the texts of its items are long: a text of 120 characters with a word of 40 put in their cells and fields (`data-text`, not a date, a number or the label of a choice) for the check, then taken out'],
+  V016: ['warning', 'a list, a board, a calendar or the last items of a dashboard show no item, but the list searched for nothing: the screenshot does not show them'],
 } as const;
 
 /** A code of the checks of a screenshot. */
@@ -133,8 +136,9 @@ export async function shoot<P extends Product>(page: Page, product: P, shot: Sho
     heard = listen(page);
     await reach(page, app, shot);
     // the empty state of a search offers no creation: its text only is checked
-    const creates = shot.variant === 'empty' ? [] : shot.creates;
-    const issues = await check(page, { phone: width <= PHONE, dark: shot.mode === 'dark', creates });
+    const searched = shot.variant === 'empty';
+    const creates = searched ? [] : shot.creates;
+    const issues = await check(page, { phone: width <= PHONE, dark: shot.mode === 'dark', creates, searched });
     await page.screenshot({ path: path.join(directory, `${name}.png`), fullPage: true });
     write({ ...base, file: `${name}.png`, issues: [...issues, ...heard()] });
   } catch (error) {
@@ -228,15 +232,19 @@ async function reach<P extends Product>(page: Page, app: App<P>, shot: Shot<P>):
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
 }
 
-/** What `check` checks: the width of a phone, the dark mode, the actions that create an item. */
+/**
+ * What `check` checks: the width of a phone, the dark mode, the actions that create an item,
+ * whether the list is searched for nothing (its items are not shown on purpose).
+ */
 export interface CheckOptions {
   readonly phone: boolean;
   readonly dark: boolean;
   readonly creates: readonly string[];
+  readonly searched: boolean;
 }
 
 /**
- * The issues of what the page renders (the codes of `CODES`, V002 to V010), at most
+ * The issues of what the page renders (the codes of `CODES`: V002 to V010, V014 to V016), at most
  * `MAX_ISSUES` of each code (`capped`).
  */
 export async function check(page: Page, options: CheckOptions): Promise<ShotIssue[]> {
@@ -327,15 +335,55 @@ function audit(options: CheckOptions): Found[] {
     return result;
   };
 
-  // V002, V003: what scrolls sideways at the width of a phone
-  if (options.phone) {
-    const root = document.documentElement;
-    if (root.scrollWidth > window.innerWidth + 1) {
-      const wide = [...document.body.querySelectorAll('*')].find(
-        (element) => shown(element) && element.getBoundingClientRect().right > window.innerWidth + 1,
-      );
-      add('V002', wide ?? root, `The page is ${String(root.scrollWidth)} px wide at ${String(window.innerWidth)} px.`);
+  // V002, V014: the page scrolls sideways as it is; V015: once the values of the items are long
+  // the width of the layout viewport: a mobile browser widens its window to a wider page
+  const root = document.documentElement;
+  const width = root.clientWidth;
+  const wide = () => root.scrollWidth > width + 1;
+  const outside = (element: Element | null) => element !== null && element.getBoundingClientRect().right > width + 1;
+  /** Whether an ancestor of the element clips it or scrolls it: the page does not grow with it. */
+  const clipped = (element: Element) => {
+    for (let node = element.parentElement; node !== null && node !== document.body; node = node.parentElement) {
+      if (getComputedStyle(node).overflowX !== 'visible') return true;
     }
+    return false;
+  };
+  /**
+   * The page as wide as it is, at the first element that sticks out of an element that does
+   * not, else at the last one whose content sticks out of it (a text that does not wrap).
+   */
+  const sideways = (code: Code, how: string) => {
+    const elements = [...document.body.querySelectorAll('*')].filter((it) => shown(it) && !clipped(it));
+    const element =
+      elements.find((it) => outside(it) && !outside(it.parentElement)) ??
+      elements.reverse().find((it) => it.getBoundingClientRect().left + it.scrollWidth > width + 1);
+    add(code, element ?? root, `The page is ${String(root.scrollWidth)} px wide at ${String(width)} px${how}.`);
+  };
+  if (wide()) {
+    sideways(options.phone ? 'V002' : 'V014', '');
+  } else {
+    // the texts are long for a moment: this function runs at once, no render of the page comes between
+    const long = `${'W'.repeat(40)} ${'and the words of a long value '.repeat(3)}`.slice(0, 120);
+    const kept = new Map<Text, string>();
+    // the texts of the items in their cells and fields (`data-text` of `FieldValue`), of any
+    // length; not a date, a number or the label of a choice, short by their nature; not a form
+    for (const element of document.querySelectorAll('[data-bz^="cell:"] [data-text], [data-bz^="field:"] [data-text]')) {
+      if (element.closest('form, [aria-hidden="true"]')) continue;
+      const texts = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      for (let node = texts.nextNode(); node !== null; node = texts.nextNode()) {
+        if (node instanceof Text && !kept.has(node) && node.data.trim()) kept.set(node, node.data);
+      }
+    }
+    for (const node of kept.keys()) node.data = long;
+    try {
+      if (wide()) sideways('V015', ` with a text of ${String(long.length)} characters in the cells and the fields`);
+    } finally {
+      for (const [node, data] of kept) node.data = data;
+    }
+  }
+
+  // V003: a part that scrolls sideways at the width of a phone
+  if (options.phone) {
     for (const element of document.body.querySelectorAll('*')) {
       // a board scrolls its columns
       if (element.closest('[data-bz^="board:"]')) continue;
@@ -404,6 +452,19 @@ function audit(options: CheckOptions): Found[] {
     if (!text(element)) add('V008', element, 'The empty state has no text.');
     else if (creates.length > 0 && element.querySelector('[data-bz^="action:"]') === null) {
       add('V008', element, `The empty state does not offer ${creates.map((id) => `action:${id}`).join(', ')}.`);
+    }
+  }
+
+  // V016: the parts of the items that show none (their state loaded or empty, not an error);
+  // a calendar shows its items as rows or as the counts of its days (the month of a phone)
+  if (!options.searched) {
+    const items = (element: Element) =>
+      element.querySelector('[data-bz^="row:"]') !== null ||
+      [...element.querySelectorAll('[data-bz^="day:"]')].some((day) => Number(day.getAttribute('data-count')) > 0);
+    for (const element of document.querySelectorAll('[data-bz^="list:"], [data-bz^="board:"], [data-bz^="calendar:"], [data-bz^="recent:"]')) {
+      if (!shown(element) || items(element)) continue;
+      if (element.querySelector('[data-bz="state:loaded"], [data-bz="state:empty"]') === null) continue;
+      add('V016', element, 'It shows no item: the data of the tests have none for it (a calendar: in the month of the day of the run).');
     }
   }
 

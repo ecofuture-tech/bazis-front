@@ -793,6 +793,23 @@ test('expectDay moves the calendar to the period of the day', async ({ page }) =
   await expect(app.expectDay('2026-09-16', 1)).rejects.toThrow();
 });
 
+test('expectDay takes a day from the day of the run', async ({ page }) => {
+  const day = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  await show(page, '/calendar',
+    html(
+      `<section data-bz="screen:task-calendar"><div data-bz="state:loaded"><div data-bz="calendar:task" data-from="${day(-40)}" data-to="${day(40)}">
+        <div data-bz="day:${day(0)}" data-count="1">1</div><div data-bz="day:${day(3)}" data-count="2">2</div><div data-bz="day:${day(-1)}" data-count="0">0</div>
+      </div></div></section>`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-calendar');
+  await app.expectDay('today', 1);
+  await app.expectDay('today+3', 2);
+  await app.expectDay('today-1', 0);
+  await expect(app.expectDay('today+3', 1)).rejects.toThrow();
+});
+
 test('the steps show the tab of the card that has what they act on', async ({ page }) => {
   // the panels of the tabs stay in the page, hidden; a tab shows its panel
   await show(page, '/tasks/1',

@@ -93,7 +93,8 @@ export function RecentList({
                   </span>
                 )}
                 {rest.map((name) => (
-                  <span key={name} data-bz={`cell:${name}`} className="min-w-0 text-sm wrap-anywhere text-muted-foreground">
+                  // a text of the item wraps, a word too long for the row breaks; a date stays whole
+                  <span key={name} data-bz={`cell:${name}`} className="min-w-0 text-sm break-words text-muted-foreground">
                     <ItemValue item={row} name={name} fields={fields} display={display[name]} />
                   </span>
                 ))}

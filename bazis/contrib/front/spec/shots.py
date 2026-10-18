@@ -15,14 +15,14 @@
 """
 The screenshots of the screens (`bazis_front shots`), the visual check of a frontend:
 `frontend/e2e/generated/shots.ts` shoots every screen of the specs as the first of its roles
-(of the product without one), in each color mode of the theme, at the widths of the projects
-of `playwright.shots.config.ts`, with the helper `shoot` of `e2e/bazis/shots.ts`, which checks
+(of the product without one) in each color mode of the theme, and as each other role in the
+first color mode, at the widths of the projects of `playwright.shots.config.ts`, with the helper `shoot` of `e2e/bazis/shots.ts`, which checks
 what each screen renders (the codes `V0xx` of `CODES` there) and writes its screenshot and
 its result into `frontend/.scratch/shots/`; `collect` gathers the results into `report.json`.
 
 A screen of an item (its route has an id) is reached through the first item of a screen
 that opens it (`open` of a list, a board, a calendar; of the last items of a dashboard, in
-their part `recent:<id>`), one for its role: a list first, one without a filter of its own
+their part `recent:<id>`), one for each role (a role that none is for is not shot): a list first, one without a filter of its own
 before a report; one that no such screen opens is not shot. A list is also shot searched for
 a text that no item has (its empty state, with `search`) and with its first create form open,
 as the first of its roles that `access` lets create the items of the form (`variant`:
@@ -90,32 +90,46 @@ def plan(specs: Specs) -> tuple[list[dict], dict[str, str]]:
         (it for it in screens if ':' not in it[1]['route']),
         key=lambda it: (it[1]['primitive'] != 'list', 'filter' in it[1].get('list', {}), it[0]),
     )
+    every, first = modes(specs), modes(specs)[:1]
     shots, skipped = [], {}
     for screen_id, screen in screens:
         candidates = screen.get('roles') or roles or [None]
-        role, via = candidates[0], None
+        # each role of the screen with the screen that opens its items for him (None for a
+        # screen without an id)
+        reached = [(candidate, None) for candidate in candidates]
         if ':' in screen['route']:
             opening = [(parent, data) for parent, data in parents if screen_id in opens(data)]
-            # the first role of the screen that a screen opening its items is for
-            role, via = next(
-                (
-                    (candidate, {'screen': parent, 'part': opens(data)[screen_id]})
-                    for candidate in candidates
-                    for parent, data in opening
-                    if candidate is None or not data.get('roles') or candidate in data['roles']
-                ),
-                (None, None),
-            )
-            if via is None:
+            reached = [
+                (candidate, via)
+                for candidate in candidates
+                if (via := next(
+                    (
+                        {'screen': parent, 'part': opens(data)[screen_id]}
+                        for parent, data in opening
+                        if candidate is None or not data.get('roles') or candidate in data['roles']
+                    ),
+                    None,
+                )) is not None
+            ]
+            if not reached:
                 skipped[screen_id] = (
                     'no list, board, calendar or dashboard of its roles opens its items'
                     if opening
                     else 'no list, board, calendar or dashboard of the specs opens its items'
                 )
                 continue
+        (role, via), others = reached[0], reached[1:]
         forms = [it for _, it in screen_actions(screen) if it.get('primitive') == 'form' and it.get('mode') == 'create']
-        shot = {'screen': screen_id, 'role': role, 'via': via, 'creates': [it['id'] for it in forms]}
+        shot = {
+            'screen': screen_id, 'role': role, 'via': via, 'creates': [it['id'] for it in forms],
+            'modes': every, 'also': False,
+        }
         shots.append({**shot, 'variant': None})
+        # the screen as each other role too, in the first color mode only
+        shots += [
+            {**shot, 'role': other, 'via': other_via, 'variant': None, 'modes': first, 'also': True}
+            for other, other_via in others
+        ]
         if screen['primitive'] != 'list':
             continue
         # a list also searched for nothing (its empty state) and with its create form open,
@@ -152,9 +166,11 @@ def adds(specs: Specs, entity_id: str, role: str | None) -> bool:
 
 def title(shot: dict) -> str:
     """
-    The name of a shot: its screen, and its variant after a dot (`task-list.empty`).
+    The name of a shot: its screen, its variant after a dot (`task-list.empty`), and its role
+    after `as` when it is another role of the screen (`task-list as viewer`).
     """
-    return shot['screen'] if shot['variant'] is None else f'{shot["screen"]}.{shot["variant"]}'
+    name = shot['screen'] if shot['variant'] is None else f'{shot["screen"]}.{shot["variant"]}'
+    return f'{name} as {shot["role"]}' if shot['also'] else name
 
 
 def modes(specs: Specs) -> tuple[str, ...]:
@@ -182,6 +198,8 @@ def render(specs: Specs) -> dict[str, str]:
         lines.append(f'test.describe({e2e.string(mode)}, () => {{')
         lines.append(f'  test.use({{ colorScheme: {e2e.string(mode)} }});')
         for shot in shots:
+            if mode not in shot['modes']:
+                continue
             value = e2e.literal({
                 'screen': shot['screen'], 'role': shot['role'], 'mode': mode, 'via': shot['via'],
                 'creates': shot['creates'], 'variant': shot['variant'],
@@ -270,6 +288,8 @@ def collect(frontend: Path, specs: Specs) -> dict:
     shots, _skipped = plan(specs)
     for mode in modes(specs):
         for shot in shots:
+            if mode not in shot['modes']:
+                continue
             for width in widths:
                 if (shot['screen'], shot['variant'], shot['role'], mode, width) not in done:
                     results.append({

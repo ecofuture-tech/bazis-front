@@ -282,7 +282,8 @@ job of CI.
   the ids (components, entity constants, the states of the actions) are those of
   `spec/names.py`, whose clashes the checks refuse (P032, S033).
 - `spec/shots.py` (`bazis_front shots`) renders `frontend/e2e/generated/shots.ts` from specs
-  without errors (every screen as the first of its roles, in each color mode of the theme;
+  without errors (every screen as the first of its roles, in each color mode of the theme,
+  and as each other role in the first color mode;
   the screen of an item through the first item of a screen that opens it; a list also
   searched for nothing and with its create form open, as the first of its roles that `access`
   lets create), checked and

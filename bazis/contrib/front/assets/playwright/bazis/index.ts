@@ -96,6 +96,16 @@ function exactly(value: string | number | boolean | null): RegExp {
   return new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
 }
 
+/** A day of `expectDay`: `YYYY-MM-DD` as it is, `today`, `today+<n>` or `today-<n>` from the day of the run, in UTC. */
+function dayOfRun(day: string): string {
+  const relative = /^today(?:([+-])(\d+))?$/.exec(day);
+  if (relative === null) return day;
+  const [, sign, days = '0'] = relative;
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + (sign === '-' ? -1 : 1) * Number(days));
+  return date.toISOString().slice(0, 10);
+}
+
 /** The languages that `language` goes through before it gives up. */
 const MAX_LANGUAGES = 20;
 
@@ -479,9 +489,11 @@ export class App<P extends Product = Product> {
    * The day of the calendar of the current screen has this number of items, `day:<date>` (its
    * `data-count`): the calendar (`calendar:<entity>`, the days it shows from `data-from` to
    * `data-to`) is first moved to the period of the day (`action:previous-period`,
-   * `action:next-period`).
+   * `action:next-period`). The day is `YYYY-MM-DD`, or `today`, `today+<n>`, `today-<n>` days
+   * from the day of the run, in UTC as the browser of the tests (`day`).
    */
-  async expectDay(date: string, count: number): Promise<void> {
+  async expectDay(day: string, count: number): Promise<void> {
+    const date = dayOfRun(day);
     await this.settled();
     const calendar = this.screen().locator('[data-bz^="calendar:"]');
     for (;;) {

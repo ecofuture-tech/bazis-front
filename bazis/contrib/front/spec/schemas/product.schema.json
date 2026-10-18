@@ -444,10 +444,10 @@
               "additionalProperties": {"type": "integer", "minimum": 0}
             },
             "day": {
-              "description": "The numbers of the items of days of the current calendar, by the day (YYYY-MM-DD).",
+              "description": "The numbers of the items of days of the current calendar, by the day: YYYY-MM-DD, or today, today+<n>, today-<n> days from the day of the run (in UTC), as the dates of the data of e2e_data.",
               "type": "object",
               "minProperties": 1,
-              "propertyNames": {"pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+              "propertyNames": {"pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2}|today([+-][0-9]{1,4})?)$"},
               "additionalProperties": {"type": "integer", "minimum": 0}
             }
           }
