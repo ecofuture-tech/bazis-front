@@ -37,7 +37,7 @@ const CARD_TONES: Readonly<Record<Tone, string>> = {
  * The columns of the grid of cards by its own width, not that of the page: one in a card next to
  * its list as on a phone, two from 36rem, three from 56rem.
  */
-const GRID = 'grid gap-4 @xl:grid-cols-2 @4xl:grid-cols-3';
+const GRID = 'grid grid-cols-[minmax(0,1fr)] gap-4 @xl:grid-cols-2 @4xl:grid-cols-3';
 
 /**
  * The rows as a grid of cards: the first column is the title, the others pairs of a label and
@@ -48,7 +48,7 @@ export function CardsView(props: BodyProps) {
   const { t } = useLanguage();
   const [first, ...rest] = columns;
   return (
-    <div className="@container grid gap-3">
+    <div className="@container grid grid-cols-[minmax(0,1fr)] gap-3">
       {selection && (
         <label className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
           <PageCheckbox rows={rows} selection={selection} onSelect={props.onSelect} />
@@ -76,7 +76,7 @@ export function CardsView(props: BodyProps) {
                 {(first !== undefined || selection) && (
                   <div className="flex items-start gap-3">
                     {first !== undefined && (
-                      <h3 data-bz={`cell:${first}`} className="min-w-0 flex-1 font-display text-lg leading-snug font-semibold">
+                      <h3 data-bz={`cell:${first}`} className="min-w-0 flex-1 font-display text-lg leading-snug font-semibold wrap-anywhere">
                         {cell(props, row, first)}
                       </h3>
                     )}
@@ -88,7 +88,7 @@ export function CardsView(props: BodyProps) {
                   </div>
                 )}
                 {rest.length > 0 && (
-                  <dl className="grid gap-2 text-sm">
+                  <dl className="grid grid-cols-[minmax(0,1fr)] gap-2 text-sm">
                     {rest.map((name) => (
                       <div key={name} className={cn('flex items-center justify-between gap-4', hidden(name) && 'hidden')}>
                         <dt className="text-muted-foreground first-letter:uppercase">{fields.title(name)}</dt>

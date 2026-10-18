@@ -16,13 +16,15 @@
 // or by day, week or month of a date field (`TimeChart`), each a count of the pagination of a
 // list of one item (the core has no aggregates: a query per value, cached and refreshed by
 // TanStack Query), drawn by recharts (`chart-view.tsx`, loaded with the first chart shown) in
-// the colors of the series of the theme. Marked `chart:<id>` with the states of its lists
+// the colors of the series of the theme, a status in that of its tone (`statuses` of the theme,
+// the color of its badge). Marked `chart:<id>` with the states of its lists
 // (`state:<state>`) and each value `value:<key>` with the number in `data-value`: the
 // legend of a ring, a list for the screen readers under bars or a line.
 
 import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 
 import { Filter, pagination } from '@/bazis/client';
+import { THEME, type Tone } from '@/bazis/generated/theme';
 import { formatNumber, isoDate, useLanguage, weekStart } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
 import {
@@ -50,6 +52,8 @@ export interface ChartValue {
   key: string;
   label: string;
   value: number;
+  /** Its tone (a status: `statuses` of the theme), drawn in the color of the tone rather than of a series. */
+  tone?: Tone | undefined;
 }
 
 /** The colors of the series of the theme, one per value of a ring or of the bars of statuses. */
@@ -89,7 +93,7 @@ export function Chart({
   const { language } = useLanguage();
   const points = values.map((it, index) => ({
     ...it,
-    color: series ? seriesColor(index) : seriesColor(0),
+    color: it.tone ? `var(--color-${it.tone})` : seriesColor(series ? index : 0),
   }));
   const empty = state === 'loaded' && values.every((it) => it.value === 0);
   return (
@@ -199,6 +203,7 @@ export function StatusChart({ id, path, label, kind = 'donut', filter, statuses,
         key: it,
         label: statusName(type, it, language),
         value: values[index] ?? 0,
+        tone: THEME.statuses[it],
       }))}
     />
   );

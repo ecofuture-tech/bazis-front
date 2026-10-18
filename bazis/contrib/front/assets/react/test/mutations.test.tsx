@@ -36,6 +36,7 @@ function screen(backend: Backend) {
     create: useCreate(PARENT),
     update: useUpdate(PARENT),
     destroy: useDestroy(PARENT),
+    leave: useDestroy(PARENT, { leaving: true }),
     relationship: useRelationship(PARENT),
     refresh: useRefreshItem(PARENT, '7'),
   });
@@ -87,15 +88,42 @@ describe('mutations', () => {
     });
   });
 
-  it('destroy removes the queries of the item instead of refetching them', async () => {
+  it('destroy shows the item not found where it is still shown, without reading it again', async () => {
     const backend = new Backend();
-    const { result, queryClient } = await loaded(backend);
+    const { result, queryClient, rerender, unmount } = await loaded(backend);
     backend.on('DELETE', `${PARENT}7/`, undefined, 204);
+    queryClient.setQueryData(['bazis', PARENT, 'item', '8', {}, 's1'], item('8', 'other'));
 
     await act(async () => {
       await result.current.destroy.mutateAsync('7');
     });
+    rerender();
+    // the item shown is not found, as the backend would answer; that of another item is kept
     expect(backend.requests()).toEqual([`DELETE ${PARENT}7/`, `GET ${PARENT}`]);
+    expect(result.current.item.data).toBeUndefined();
+    expect(result.current.item.error).toBeInstanceOf(ApiError);
+    expect((result.current.item.error as ApiError).status).toBe(404);
+    // removed once nothing shows it
+    unmount();
+    expect(cachedKeys(queryClient)).toEqual([
+      ['bazis', PARENT, 'list', {}, 's1'],
+      ['bazis', CHILD, 'list', {}, 's1'],
+      ['bazis', PARENT, 'item', '8', {}, 's1'],
+    ]);
+  });
+
+  it('destroy keeps the item shown until its screen is left (leaving), then removes its queries', async () => {
+    const backend = new Backend();
+    const { result, queryClient, rerender, unmount } = await loaded(backend);
+    backend.on('DELETE', `${PARENT}7/`, undefined, 204);
+
+    await act(async () => {
+      await result.current.leave.mutateAsync('7');
+    });
+    rerender();
+    expect(backend.requests()).toEqual([`DELETE ${PARENT}7/`, `GET ${PARENT}`]);
+    expect(result.current.item.data).toEqual(item('7', 'old'));
+    unmount();
     expect(cachedKeys(queryClient)).toEqual([
       ['bazis', PARENT, 'list', {}, 's1'],
       ['bazis', CHILD, 'list', {}, 's1'],

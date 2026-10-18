@@ -451,7 +451,7 @@ export function ResourceCalendar({
         )}
       </div>
       {state === 'loaded' || state === 'empty' ? (
-        <div data-bz={`state:${state}`} className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <div data-bz={`state:${state}`} className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="grid min-w-0 gap-2">
             {state === 'empty' && <p className="text-sm text-muted-foreground">{t('calendar.empty')}</p>}
             {total !== undefined && total > rows.length && (
@@ -474,12 +474,12 @@ export function ResourceCalendar({
               </div>
             </div>
           </div>
-          <section id={listId} aria-label={fullDay.format(parseDay(selected))} className="grid content-start gap-3 rounded-xl border bg-card p-(--space-card)">
+          <section id={listId} aria-label={fullDay.format(parseDay(selected))} className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 rounded-xl border bg-card p-(--space-card)">
             <h3 className="font-medium first-letter:uppercase">{fullDay.format(parseDay(selected))}</h3>
             {selectedItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('calendar.no_items')}</p>
             ) : (
-              <ul className="grid gap-1.5 text-sm">
+              <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5 text-sm">
                 {selectedItems.map((item) => {
                   const moment = date ? null : fieldValue(item, field);
                   const at = typeof moment === 'string' && dayOf(moment, false) === selected ? time.format(new Date(moment)) : undefined;

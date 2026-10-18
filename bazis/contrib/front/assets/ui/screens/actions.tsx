@@ -202,7 +202,7 @@ export function useDestroyCardAction({
   item,
   then,
 }: DestroyCardActionOptions): DestroyCardAction {
-  const destroy = useDestroy(path);
+  const destroy = useDestroy(path, { leaving: then !== undefined });
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);

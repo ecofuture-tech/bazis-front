@@ -592,7 +592,7 @@ def render_card(product: Product, data: dict) -> str:
         attrs.append(Attr('tabs', Arr(tabs)))
         render_props = []
     else:
-        render_props = [*([history] if history is not None else []), *related.values()]
+        render_props = [*related.values(), *([history] if history is not None else [])]
     card_actions = [
         destroy_action(screen, const, i, it) if it['primitive'] == 'destroy' else update_action(screen, const, i, it)
         for i, it in enumerate(data.get('actions', []))
@@ -603,8 +603,8 @@ def render_card(product: Product, data: dict) -> str:
     header = header_actions(screen)
 
     if render_props:
-        body = Jsx('', [], [*children, *render_props]) if len(children) + len(render_props) > 1 else render_props[0]
-        children = [render_prop(render_props, body)]
+        body = Jsx('', [], render_props) if len(render_props) > 1 else render_props[0]
+        attrs.append(Attr('after', render_prop(render_props, body)))
     card = component(screen, 'ResourceCard', 'ResourceCardProps', '@/bazis/ui/resource-card', attrs, children)
     return screen.write(screen_element(screen, [card], header, product.parent(data)))
 

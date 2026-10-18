@@ -29,6 +29,7 @@ export type {
   ActionVariables,
 } from './actions.js';
 export { useCreate, useDestroy, useRefreshItem, useRelationship, useUpdate } from './mutations.js';
+export type { DestroyOptions } from './mutations.js';
 export type { QueryOptions } from './keys.js';
 export { useCan, useFilterFields, useItem, useList, useLists, useSchema } from './queries.js';
 export type { Can } from './queries.js';

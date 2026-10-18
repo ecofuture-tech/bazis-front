@@ -58,12 +58,13 @@ they make.
 | `useItem` | `GET path{id}/` | the item |
 | `useSchema(path, 'list' \| 'create')`, `useSchema(path, 'retrieve' \| 'update' \| 'transit', id)` | `GET path[{id}/]schema_<kind>/` | the JSON Schema for the current user, not refetched in the session (`staleTime: Infinity`) but after a mutation of the resource |
 | `useFilterFields` | `GET path route_filter_fields/` | `{fields: [{name, py_type}]}`, kept for the session |
-| `useCan(path, 'view' \| 'add')` | the query of `useSchema(path, 'list' \| 'create')` | whether the user may view the items of the route set or add one: undefined while it loads, false on a 403 (bazis-permit, without a permission of the model for the action), else true |
+| `useCan(path, 'view')` | the query of `useSchema(path, 'list')` | whether the user may view the items of the route set: undefined while it loads, false on a 403 (bazis-permit, without a permission of the model for the action), else true |
+| `useCan(path, 'add')` | `GET path?page[limit]=1&meta=for_create`; the query of `useSchema(path, 'create')` without that meta or when the list is refused | whether the user may add an item: undefined while it loads, `for_create` of bazis-permit (no refused request for a user who may only view), else false on a 403 of the create |
 | `useCan(path, 'action_<name>')` | `GET path?page[limit]=1&meta=custom_actions` | whether the user may call a custom action of the collection (`custom_actions` of bazis-permit 2.11; true without the meta, false on a 403) |
 | `useRelatedItem` | `GET path?filter=pk=<id>\|pk=<id>…&page[limit]=<n>`, one for the items of the resource asked for together | the item of the list (to show its label), null when the user may not view it |
 | `useCreate` | `POST path` | `mutate(document)` |
 | `useUpdate` | `PATCH path{id}/` | `mutate({id, document})` |
-| `useDestroy` | `DELETE path{id}/` | `mutate(id)`; the queries of the item are removed |
+| `useDestroy` | `DELETE path{id}/` | `mutate(id)`; the item is not read again: a screen still showing it shows it not found (its queries in the error 404), unless it is left (`{leaving: true}`: they keep its data until then); its queries are removed once nothing shows them |
 | `useRelationship` | `POST`/`PATCH`/`DELETE path{id}/relationships/{field}` | `mutate({id, field, operation, data})` |
 | `useRefreshItem` | the queries of the item (`['bazis', path, 'item', id]`) | a function that refetches the item, its schemas and its GET actions, after a change made to it through another resource (a related item added: `RelatedList` in a card calls that of the card) |
 | `useResourceForm` | the schema of the create (no id) or of the update of the item, the item, then `POST` or `PATCH` | a form, below |

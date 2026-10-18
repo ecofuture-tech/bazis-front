@@ -130,14 +130,14 @@ interface CardProps {
 /** A card of an item: its title (a button that opens it), its badge, its menu of moves and its fields. */
 function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }: CardProps) {
   const heading = (
-    <span data-bz={`cell:${title}`} className="min-w-0 font-medium break-words">
+    <span data-bz={`cell:${title}`} className="min-w-0 font-medium wrap-anywhere">
       <ItemValue item={item} name={title} fields={meta} display={display[title]} />
     </span>
   );
   return (
     <article
       data-bz={`row:${item.id}`}
-      className="relative grid gap-2 rounded-lg border bg-card p-3 text-card-foreground shadow-xs transition-shadow has-[button[data-open]:hover]:shadow-md"
+      className="relative grid grid-cols-[minmax(0,1fr)] gap-2 rounded-lg border bg-card p-3 text-card-foreground shadow-xs transition-shadow has-[button[data-open]:hover]:shadow-md"
     >
       <div className="flex items-start gap-2">
         {onOpen ? (
@@ -159,7 +159,7 @@ function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }:
         {moves}
       </div>
       {fields.length > 0 && (
-        <dl className="grid gap-1 text-sm">
+        <dl className="grid grid-cols-[minmax(0,1fr)] gap-1 text-sm">
           {fields.map((name) => (
             <div key={name} className="flex min-w-0 items-baseline gap-2">
               <dt className="shrink-0 text-muted-foreground first-letter:uppercase">{meta.title(name)}</dt>
@@ -318,7 +318,7 @@ export function ResourceBoard({
                           {t('board.empty_column')}
                         </p>
                       ) : (
-                        <ul className="grid gap-2">
+                        <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                           {items.map((item) => (
                             <li key={item.id}>
                               <Card id={item.id} label={itemName(item)}>

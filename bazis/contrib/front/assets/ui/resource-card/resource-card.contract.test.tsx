@@ -133,6 +133,25 @@ describe('ResourceCard', () => {
     expect(screen.getByTestId('list:parts').textContent).toBe(ITEM_ID);
   });
 
+  it('shows its children under its heading and what comes after under its sections', async () => {
+    renderWithBazis(
+      <ResourceCard
+        path={ITEMS as never}
+        id={ITEM_ID}
+        sections={sections}
+        after={(item, meta) => <p>after {item.id} {meta === undefined ? '' : 'with its meta'}</p>}
+      >
+        <p>children</p>
+      </ResourceCard>,
+      backend({ crud_actions: ['view'] }),
+    );
+    const after = await screen.findByText(`after ${ITEM_ID} with its meta`);
+    const field = screen.getByTestId('field:title');
+    const follows = (a: Node, b: Node) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    expect(follows(screen.getByText('children'), field)).toBe(true);
+    expect(follows(field, after)).toBe(true);
+  });
+
   it('shows the fields of its sections', async () => {
     renderWithBazis(
       <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} badge={() => <span>badge</span>} />,
@@ -406,7 +425,7 @@ describe('RelatedList', () => {
   it('reads the item of the card again once an item is added, in the card or after it', async () => {
     // a part changes what the card shows of the item (a computed field, its transits); the
     // section reads the card by its query keys, wherever the screen places it
-    for (const placement of ['children', 'after'] as const) {
+    for (const placement of ['children', 'after', 'outside'] as const) {
       const server = parts({ for_create: true })
         .on('GET', `${ITEM}schema_retrieve/`, schema)
         .on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report', count: 3 }), meta: { crud_actions: ['view'] } });
@@ -427,6 +446,8 @@ describe('RelatedList', () => {
           <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections}>
             {related}
           </ResourceCard>
+        ) : placement === 'after' ? (
+          <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} after={related} />
         ) : (
           <>
             <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} />

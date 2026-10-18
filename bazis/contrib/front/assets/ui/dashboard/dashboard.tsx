@@ -75,7 +75,7 @@ export function RecentList({
   const rows = list.data?.data ?? [];
   const [first, ...rest] = columns;
   return (
-    <section data-bz={`recent:${id}`} className={cn(CARD, 'grid content-start gap-3 p-(--space-card)', className)}>
+    <section data-bz={`recent:${id}`} className={cn(CARD, 'grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-(--space-card)', className)}>
       <h2 className="text-sm font-medium text-muted-foreground">{label}</h2>
       <StatePanel
         inline
@@ -83,17 +83,17 @@ export function RecentList({
         error={list.error}
         skeleton={<SkeletonLines lines={Math.min(limit, 5)} />}
       >
-        <ul className="-mx-2 grid">
+        <ul className="-mx-2 grid grid-cols-[minmax(0,1fr)]">
           {rows.map((row) => {
             const cells = (
               <>
                 {first !== undefined && (
-                  <span data-bz={`cell:${first}`} className="min-w-0 flex-[1_1_12rem] font-medium break-words">
+                  <span data-bz={`cell:${first}`} className="min-w-0 flex-[1_1_12rem] font-medium wrap-anywhere">
                     <ItemValue item={row} name={first} fields={fields} display={display[first]} />
                   </span>
                 )}
                 {rest.map((name) => (
-                  <span key={name} data-bz={`cell:${name}`} className="shrink-0 text-sm text-muted-foreground">
+                  <span key={name} data-bz={`cell:${name}`} className="min-w-0 text-sm wrap-anywhere text-muted-foreground">
                     <ItemValue item={row} name={name} fields={fields} display={display[name]} />
                   </span>
                 ))}
@@ -242,9 +242,9 @@ export function Dashboard({
             </ul>
           </nav>
         )}
-        {charts !== undefined && <div className="grid gap-4 lg:grid-cols-2">{charts}</div>}
+        {charts !== undefined && <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">{charts}</div>}
         {recent.length > 0 && (
-          <div className={cn('grid gap-4', recent.length > 1 && 'xl:grid-cols-2')}>
+          <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4', recent.length > 1 && 'xl:grid-cols-2')}>
             {recent.map((it) => (
               <RecentList key={it.id} {...it} />
             ))}

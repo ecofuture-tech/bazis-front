@@ -33,6 +33,12 @@ interface Drawn {
   children?: ReactNode;
 }
 
+// the tones of the statuses of the theme, whatever those of the product that runs the test
+vi.mock('@/bazis/generated/theme', async (original) => {
+  const theme = await original<typeof import('@/bazis/generated/theme')>();
+  return { ...theme, THEME: { ...theme.THEME, statuses: { draft: 'neutral', done: 'success' } } };
+});
+
 vi.mock('recharts', () => {
   const chart =
     (name: string) =>
@@ -114,6 +120,24 @@ describe('Chart', () => {
     ]);
   });
 
+  it('draws a value of a tone in the color of the tone, the others in the colors of the series', async () => {
+    render(
+      <Chart
+        id="tones"
+        label="Tones"
+        kind="donut"
+        values={[
+          { key: 'a', label: 'A', value: 2, tone: 'warning' },
+          { key: 'b', label: 'B', value: 5 },
+        ]}
+      />,
+    );
+    expect(await drawn('pie')).toEqual([
+      ['a', 2, 'var(--color-warning)'],
+      ['b', 5, 'var(--chart-2)'],
+    ]);
+  });
+
   it('is empty when every value is 0, and shows the state of what it shows', () => {
     const { unmount } = render(<Chart id="none" label="None" values={[{ key: 'a', label: 'A', value: 0 }]} />);
     expect(within(screen.getByTestId('chart:none')).getByTestId('state:empty')).toBeTruthy();
@@ -160,11 +184,12 @@ describe('StatusChart', () => {
       expect(within(chart).getByTestId('value:draft').getAttribute('data-value')).toBe('3');
     });
     expect(within(chart).getByTestId('value:done').getAttribute('data-value')).toBe('1');
-    // a ring by default, a color per status; the id of a status the contract does not name
+    // a ring by default, a status in the color of its tone (`statuses` of the theme, that of its
+    // badge); the id of a status the contract does not name
     expect(within(chart).getByTestId('value:draft').textContent).toContain('draft');
     expect(await drawn('pie')).toEqual([
-      ['draft', 3, 'var(--chart-1)'],
-      ['done', 1, 'var(--chart-2)'],
+      ['draft', 3, 'var(--color-neutral)'],
+      ['done', 1, 'var(--color-success)'],
     ]);
   });
 

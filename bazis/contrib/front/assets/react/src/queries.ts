@@ -155,38 +155,59 @@ export type Can = 'view' | 'add' | CustomActionName;
 /** The query of the list that tells the custom actions of the collection the user may call. */
 const ACTIONS_QUERY: QueryOptions = { page: { limit: 1 }, meta: ['custom_actions'] };
 
+/** The query of the list that tells whether the user may add an item (`for_create`). */
+const CREATE_QUERY: QueryOptions = { page: { limit: 1 }, meta: ['for_create'] };
+
+/** The query of a list of one item with a meta, read by this hook for its error and its meta. */
+function metaQuery(api: Api, path: string, query: QueryOptions, scope: string) {
+  return queryOptions({
+    queryKey: keys.list(path, query, scope),
+    queryFn: ({ signal }) => loose(api).list(path, { ...query, signal }) as Promise<{ meta?: PermitMeta | null }>,
+  });
+}
+
 /**
  * Whether the backend lets the current user view the items of a route set (`view`) or add
- * one (`add`): the runtime schema of the list or of the create, which bazis-permit refuses
- * with 403 without a permission of the model for the action (`<app>.<model>.item.view|add.*`
- * of his role). It is the query of `useSchema`, so a screen that shows the list or the form
- * of the resource makes no request of its own. A custom action of the collection
- * (`'action_<name>'`, `action` of `x-bazis`: the button of an export) is in `custom_actions` of
- * the list (bazis-permit 2.11, a list of one item with that meta), by what the action
- * declares (`public`, `access_action`; a check in its own code is not reflected); without the
- * meta (no bazis-permit) it is allowed: the backend checks the call. Undefined until the
- * backend answers, false when it refuses, true when it answers anything else (an error is
- * shown by the screen).
+ * one (`add`). `view` is the runtime schema of the list, which bazis-permit refuses with 403
+ * without a permission of the model for the action (`<app>.<model>.item.view.*` of his
+ * role): the query of `useSchema`, so a screen that shows the list makes no request of its
+ * own. `add` is `for_create` of a list of one item (bazis-permit), an answer rather than a
+ * refusal: a user who may view the items and not add one is told so without a 403; without
+ * the meta, or when the list is refused, the runtime schema of the create tells. A custom
+ * action of the collection (`'action_<name>'`, `action` of `x-bazis`: the button of an export)
+ * is in `custom_actions` of the list (bazis-permit 2.11, a list of one item with that meta),
+ * by what the action declares (`public`, `access_action`; a check in its own code is not
+ * reflected); without the meta (no bazis-permit) it is allowed: the backend checks the call.
+ * Undefined until the backend answers, false when it refuses, true when it answers anything
+ * else (an error is shown by the screen).
  */
 export function useCan(path: SchemaPath<'list'>, action: 'view'): boolean | undefined;
 export function useCan(path: SchemaPath<'create'>, action: 'add'): boolean | undefined;
 export function useCan(path: ListPath, action: CustomActionName): boolean | undefined;
 export function useCan(path: string, action: Can): boolean | undefined {
   const { api, scope } = useBazis();
-  const custom = action !== 'view' && action !== 'add';
-  // one query whatever the action: the list of the custom actions has the shape of the
-  // query of a schema for this hook, which reads only its error and its meta
-  const options = custom
-    ? (queryOptions({
-        queryKey: keys.list(path, ACTIONS_QUERY, scope),
-        queryFn: ({ signal }) => loose(api).list(path, { ...ACTIONS_QUERY, signal }),
-      }) as unknown as ReturnType<typeof schemaQuery>)
-    : schemaQuery(api, path, action === 'view' ? 'list' : 'create', undefined, scope);
-  const query = useQuery(options);
+  // the query that tells (the schema of the list, or a list with its meta), then that of the
+  // create when the list does not tell `add`: of another action, the first query again
+  const first =
+    action === 'view'
+      ? (schemaQuery(api, path, 'list', undefined, scope) as unknown as ReturnType<typeof metaQuery>)
+      : metaQuery(api, path, action === 'add' ? CREATE_QUERY : ACTIONS_QUERY, scope);
+  const query = useQuery(first);
+  const meta = query.data?.meta;
+  const asked = action === 'add' && (query.isError || (query.isSuccess && typeof meta?.for_create !== 'boolean'));
+  const create = useQuery(
+    action === 'add'
+      ? { ...(schemaQuery(api, path, 'create', undefined, scope) as unknown as ReturnType<typeof metaQuery>), enabled: asked }
+      : { ...first, enabled: false },
+  );
+  const refused = (result: { error: Error | null }) => result.error instanceof ApiError && result.error.status === 403;
   if (query.isPending) return undefined;
-  if (query.error instanceof ApiError && query.error.status === 403) return false;
-  if (!custom) return true;
-  const meta = (query.data as { meta?: PermitMeta | null } | undefined)?.meta;
+  if (action === 'view') return !refused(query);
+  if (action === 'add') {
+    if (typeof meta?.for_create === 'boolean') return meta.for_create;
+    return create.isFetched ? !refused(create) : undefined;
+  }
+  if (refused(query)) return false;
   return meta?.custom_actions == null || meta.custom_actions.includes(action);
 }
 

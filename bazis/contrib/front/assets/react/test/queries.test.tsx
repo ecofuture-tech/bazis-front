@@ -214,24 +214,50 @@ describe('useSchema and useFilterFields', () => {
 });
 
 describe('useCan', () => {
-  it('reads what the user may do from the runtime schemas, refused with 403', async () => {
+  it('reads whether the user may view from the runtime schema of the list, and add from for_create of a list', async () => {
+    const CREATE = `${PARENT}?page%5Blimit%5D=1&meta=for_create`;
+    for (const forCreate of [true, false]) {
+      const backend = new Backend()
+        .on('GET', `${PARENT}schema_list/`, { title: 'list' })
+        .on('GET', CREATE, { data: [], meta: { for_create: forCreate } });
+      const useHooks = () => ({ view: useCan(PARENT, 'view'), add: useCan(PARENT, 'add'), schema: useSchema(PARENT, 'list') });
+      const { result, queryClient, unmount } = render(useHooks, backend);
+      // unknown until the backend answers
+      expect([result.current.view, result.current.add]).toEqual([undefined, undefined]);
+      await waitFor(() => {
+        expect([result.current.view, result.current.add]).toEqual([true, forCreate]);
+      });
+      // the query of useSchema shared with the screens, and the create not asked for (that of
+      // useSchema, idle until a form reads it)
+      expect(backend.requests()).toEqual([`GET ${PARENT}schema_list/`, `GET ${CREATE}`]);
+      expect(cachedKeys(queryClient)).toEqual([
+        ['bazis', PARENT, 'schema', 'list', 's1'],
+        ['bazis', PARENT, 'list', { page: { limit: 1 }, meta: ['for_create'] }, 's1'],
+        ['bazis', PARENT, 'schema', 'create', 's1'],
+      ]);
+      unmount();
+    }
+  });
+
+  it('reads whether the user may add from the runtime schema of the create without for_create, or when the list is refused', async () => {
+    const CREATE = `${PARENT}?page%5Blimit%5D=1&meta=for_create`;
     const forbidden = { errors: [{ status: 403, code: 'ERR_FORBIDDEN' }] };
-    const backend = new Backend()
-      .on('GET', `${PARENT}schema_list/`, { title: 'list' })
-      .on('GET', `${PARENT}schema_create/`, forbidden, 403);
-    const useHooks = () => ({ view: useCan(PARENT, 'view'), add: useCan(PARENT, 'add'), schema: useSchema(PARENT, 'list') });
-    const { result, queryClient } = render(useHooks, backend);
-    // unknown until the backend answers
-    expect([result.current.view, result.current.add]).toEqual([undefined, undefined]);
-    await waitFor(() => {
-      expect([result.current.view, result.current.add]).toEqual([true, false]);
-    });
-    // the queries of useSchema: one request each, shared with the screens
-    expect(backend.requests()).toEqual([`GET ${PARENT}schema_list/`, `GET ${PARENT}schema_create/`]);
-    expect(cachedKeys(queryClient)).toEqual([
-      ['bazis', PARENT, 'schema', 'list', 's1'],
-      ['bazis', PARENT, 'schema', 'create', 's1'],
-    ]);
+    const cases: [unknown, number, unknown, number, boolean][] = [
+      // no bazis-permit: no meta
+      [{ data: [], meta: {} }, 200, { title: 'create' }, 200, true],
+      // a user who may add an item without viewing the items
+      [forbidden, 403, { title: 'create' }, 200, true],
+      [forbidden, 403, forbidden, 403, false],
+    ];
+    for (const [list, listStatus, schema, schemaStatus, expected] of cases) {
+      const backend = new Backend().on('GET', CREATE, list, listStatus).on('GET', `${PARENT}schema_create/`, schema, schemaStatus);
+      const { result, unmount } = render(() => useCan(PARENT, 'add'), backend);
+      await waitFor(() => {
+        expect(result.current).toBe(expected);
+      });
+      expect(backend.requests()).toEqual([`GET ${CREATE}`, `GET ${PARENT}schema_create/`]);
+      unmount();
+    }
   });
 
   it('reads the custom actions of the collection from the meta of the list (bazis-permit 2.11)', async () => {

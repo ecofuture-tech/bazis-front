@@ -14,8 +14,11 @@
 
 // The layout with the styles of a product (what jsdom does not lay out): the foot of the
 // sidebar holds the tools of the sample (the state of the socket and the bell), the
-// language, the color mode and the session without pushing any of them out, and on a phone
-// the filters of the list of the tasks (a date range among them) fit the width of the page.
+// language, the color mode and the session without pushing any of them out, on a phone
+// the filters of the list of the tasks (a date range among them) fit the width of the page,
+// and a long title (a word without a space among its words) keeps every screen that shows it
+// within the width of the page, of a phone and of a desktop (the task stays: `e2e_data`
+// deletes it before the next run, and the manager may not).
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
@@ -64,4 +67,42 @@ test('a phone shows the filters of a list within its width', async ({ page }) =>
   const box = await to.boundingBox();
   expect(box && box.x + box.width).toBeLessThanOrEqual(390);
   expect(await scrollsSideways(page)).toBe(false);
+});
+
+/** A title longer than any column: a word without a space and words. */
+const LONG = `Pneumonoultramicroscopicsilicovolcanoconiosis-${'x'.repeat(40)} and the words of a title that goes on past the width of a card`;
+
+test('a long title keeps the screens within the width of the page', async ({ page }) => {
+  const app = await loginAs(page, PRODUCT, 'manager');
+  await app.open('task-list');
+  await app.action('create');
+  await app.fill({ title: LONG });
+  await app.submit({ saved: true });
+  await app.openItem({ where: { title: LONG } });
+  await app.expectScreen('task-card');
+  await app.action('add-step');
+  await app.fill({ title: LONG });
+  await app.submit({ saved: true });
+  const wide: string[] = [];
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    // the calendar shows the task on its day, today, and lists it as the selected day
+    for (const screen of ['home', 'task-list', 'task-board', 'task-calendar'] as const) {
+      await app.open(screen);
+      await expect(app.screen().getByText(LONG).first()).toBeAttached();
+      await expect(page.locator(bz('state', 'loading'))).toHaveCount(0);
+      if (await scrollsSideways(page)) wide.push(`${screen} at ${String(width)}`);
+    }
+    await app.open('task-list');
+    await app.openItem({ where: { title: LONG } });
+    await app.expectScreen('task-card');
+    await expect(app.screen().getByText(LONG).first()).toBeAttached();
+    await expect(page.locator(bz('state', 'loading'))).toHaveCount(0);
+    if (await scrollsSideways(page)) wide.push(`task-card at ${String(width)}`);
+    // its step, in the related list of the tab of the steps
+    await app.screen().getByRole('tab', { name: 'Steps' }).click();
+    await expect(app.screen().getByRole('tabpanel').getByText(LONG).first()).toBeVisible();
+    if (await scrollsSideways(page)) wide.push(`the steps of task-card at ${String(width)}`);
+  }
+  expect(wide).toEqual([]);
 });

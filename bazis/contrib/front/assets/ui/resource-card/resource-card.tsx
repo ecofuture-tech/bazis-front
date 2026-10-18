@@ -90,13 +90,18 @@ export interface ResourceCardProps {
   /** How the values of fields are shown (`display` of the fields of the entity of the specs). */
   display?: Readonly<Record<string, FieldDisplay>>;
   /**
-   * Under the heading: the transits of the item (`TransitBar` of transit-bar), its status
-   * history (`StatusHistory` of status-history, which takes the item), a section of the
-   * product, given the permission meta of the item (`crud_actions`: `permitted(meta,
+   * Under the heading: the transits of the item (`TransitBar` of transit-bar), a section of
+   * the product, given the item and its permission meta (`crud_actions`: `permitted(meta,
    * 'change')`; `custom_actions`: `permitted(meta, 'action_report')`, the button of a custom
    * action of the item) without a request of its own.
    */
   children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode);
+  /**
+   * Under the sections (and the tabs), given the item and its permission meta as `children`:
+   * what relates to the item, its related lists (`RelatedList`) and its status history
+   * (`StatusHistory` of status-history, which takes the item), of a card without tabs.
+   */
+  after?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode);
   /**
    * The sections and the related content in tabs (`card.tabs` of the specs), under the
    * children; the sections one under the other without.
@@ -164,7 +169,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
         {section.title !== undefined && (
           <Title className="border-b px-(--space-card) py-3 text-sm font-semibold">{section.title}</Title>
         )}
-        <dl className="grid gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2">
+        <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2">
           {names.map((name) => {
             const field = fields.fields.get(name);
             const readOnly = editable !== null && !editable(name);
@@ -181,7 +186,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
                 </dt>
                 <dd
                   data-bz={`field:${name}`}
-                  className={cn('break-words', isLongText(field) && 'whitespace-pre-line', isNumeric(field) && 'tabular-nums')}
+                  className={cn('wrap-anywhere', isLongText(field) && 'whitespace-pre-line', isNumeric(field) && 'tabular-nums')}
                 >
                   {values[name]?.(item) ?? (
                     <FieldValue field={field} value={fieldValue(item, name)} type={item.type} display={display[name]} />
@@ -245,6 +250,7 @@ export function ResourceCard({
   values = {},
   display = {},
   children,
+  after,
   tabs = [],
   forms,
 }: ResourceCardProps) {
@@ -285,13 +291,13 @@ export function ResourceCard({
       <Sections sections={shown} item={data} fields={fields} values={values} display={display} editable={null} />
     );
   return (
-    <article data-bz="state:loaded" className="grid gap-(--space-section)">
+    <article data-bz="state:loaded" className="grid grid-cols-[minmax(0,1fr)] gap-(--space-section)">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           {/* the item is the subject of its screen: above the title of the screen */}
           <Heading
             className={cn(
-              'font-display font-semibold tracking-tight break-words',
+              'font-display font-semibold tracking-tight wrap-anywhere',
               THEME.preset === 'portal' ? 'text-3xl md:text-4xl' : 'text-2xl',
             )}
           >
@@ -330,6 +336,7 @@ export function ResourceCard({
       </header>
       {typeof children === 'function' ? children(data, meta) : children}
       {tabs.length ? <CardTabs tabs={tabs} sections={sections} item={data} meta={meta} render={body} /> : body(sections)}
+      {typeof after === 'function' ? after(data, meta) : after}
       {changeable && (
         <FormSurface
           open={editing}

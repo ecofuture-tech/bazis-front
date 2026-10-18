@@ -713,8 +713,9 @@ export const extension: ScreenExtension<ResourceListProps, ResourceMapProps> = {
 - **The props merge with those of the spec** (`extended`): the lists of actions and tiles
   (`actions`, `rowActions`, `bulk`, `tiles`) by the `id` of their items — an item with the id
   of a generated one replaces it in its place, the others follow, so that no id is shown twice;
-  the records of the fields (`cells`, `values`, `display`) field by field; `children` (a
-  card's render prop of its item) both, the generated first; any other prop replaces the
+  the records of the fields (`cells`, `values`, `display`) field by field; `children` and
+  `after` (a card's render props of its item, under its heading and under its sections)
+  both, the generated first; any other prop replaces the
   generated one. A merged prop set to `undefined` keeps the generated one.
 - **A dashboard is its screen**: its `props` are those of its parts (`tiles`, `charts`,
   `recent`); its header is `actions` of the extension after the create forms of the spec,
@@ -749,7 +750,8 @@ user may change the item of the card) or `always`.
 
 A card with many parts is in tabs, `card.tabs`: each section, each related section and the
 history (`history: true`, of a card with `history`) in exactly one tab (S024); the transits
-stay above the tabs. Without `tabs` the parts are one below the other. The scenarios do not
+stay above the tabs. Without `tabs` the parts are one below the other: the transits under
+the heading, then the sections, then the related sections and the history. The scenarios do not
 name the tabs: the helpers of the tests show the tab of what a step acts on.
 
 ```yaml
@@ -1450,9 +1452,9 @@ the names of the statuses and transits of the contract (in every language), and 
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects (the count of the pagination of a list of one item), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded), `state:<loading\|loaded\|error\|forbidden>` | |
 | `dashboard` | `Dashboard` (`tiles`: the props of `StatCard`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`) | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
-| `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
+| `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
-| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
+| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (read when it opens) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
 | `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status; the screen readers are told the drag in the language of the interface, by the name of the item and of the status, never an id | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
 | `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`, `add`: `{id, label, onAdd(day)}`) | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
 | `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`; `tabs`: `{id, title, sections, content}`, `content` a node or `(item, meta) => node`, the children above them); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>`; `tab:<id>` | |
@@ -1514,7 +1516,7 @@ of the specs and the paths of `ROUTES`.
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control; `display` of the entity; the `status` of a statusy model is its badge, no `cells` needed; the icon of the entity in `icon`) |
 | `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only; `label` and `display` of the entity), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
-| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card`: `path`, `entity`, `relation`, `item={id}`, `itemPath` (the `path` of the card), `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). In the `children` of the card it is drawn under the heading, above the sections of fields; a list that follows the fields goes after the card ("Composing beyond the specs"). Both read the card again after an add |
+| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card`: `path`, `entity`, `relation`, `item={id}`, `itemPath` (the `path` of the card), `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). In `after` of the card it is drawn under the sections of fields (a card without tabs), in its `children` under the heading, above them; one placed after the card reads it again too ("Composing beyond the specs"). They read the card again after an add |
 | a field with choices (a column, a field of a card or a form, a filter) | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
 | the notifications and the live updates (bazis-notify, bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` (its `notifications`: `useInbox` with bazis-notify, else `useNotifications`) and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` ("The socket") |
 | a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
@@ -1595,12 +1597,8 @@ export function TaskCardScreen() {
         sections={[{ id: 'main', title: 'Details', fields: ['title', 'assignee'] }, { id: 'report', title: 'Report', fields: ['report'] }]}
         badge={(item) => <StatusBadge resource={item} />}
         actions={[destroy.action]}
-      >
-        {(item, meta) => (
+        after={(item, meta) => (
           <>
-            {/* null: the user can no longer view the item */}
-            <TransitBar path={TASKS} id={id} onDone={(done) => { if (done === null) void navigate('/tasks'); }} />
-            <StatusHistory resource={item} />
             {/* `card.related`: the steps of the task, added here with the task fixed */}
             <RelatedList
               path={ROUTES['tasks.step']}
@@ -1612,8 +1610,12 @@ export function TaskCardScreen() {
               columns={['title', 'dt_created']}
               add={permitted(meta, 'change') ? { id: 'add-step', label: 'Add a step', fields: ['title'] } : undefined}
             />
+            <StatusHistory resource={item} />
           </>
         )}
+      >
+        {/* null: the user can no longer view the item */}
+        <TransitBar path={TASKS} id={id} onDone={(done) => { if (done === null) void navigate('/tasks'); }} />
       </ResourceCard>
       {destroy.confirm}
     </Screen>
@@ -1686,11 +1688,12 @@ The props of every component are in the `API:` sections (the `Props` types of
 - a section of your own in a card: `children` of `ResourceCard` is `(item, meta) => …`,
   the item and its permission meta (`permitted(meta, 'change')` of `@/bazis/ui/resource`,
   from `crud_actions`), without a second `useItem`; it is drawn under the heading, above
-  the sections of fields. Sections that follow the fields (the related lists of a long
-  card) go after `ResourceCard` in the `Screen`, with the meta of
+  the sections of fields. `after`, the same render prop, is drawn under the sections (and
+  the tabs): the related lists and the history of a card without tabs. A part placed after
+  `ResourceCard` in the `Screen` takes the meta of
   `useItem(path, id, {meta: ['crud_actions', 'custom_actions']})`: the query of the card
   (the same key, the meta that the card asks for), not a second request; a `RelatedList`
-  there reads the card again after an add as in the `children`;
+  there reads the card again after an add as in the card;
 - the rows of `useList` are typed by `schema.d.ts` (`row.attributes.title`); the rows that
   `ResourceList` gives `cells`, `rowTone` and `onOpen` are plain resource objects: read a
   field there with `fieldValue(row, '<field>')` of `@/bazis/ui/resource` (an attribute, or
@@ -1757,7 +1760,7 @@ of the backend (`fill: {priority: High}`).
 
 **Related items, "add here"**: the items of another resource that reference the item of a
 card by a to-one relationship (the items of a request, the steps of a task) are a related
-section of the card, `RelatedList` in its `children` or after it (`card.related` of the spec): their
+section of the card, `RelatedList` in its `after` (`card.related` of the spec), its `children` or after it: their
 list filtered by the relationship, and `add`, the button `action:<add.id>` that opens the
 create form of the related resource with the relationship fixed to the item
 (`ResourceForm` `fixed={{request: id}}`: the value is sent, never chosen; a fixed field is
@@ -1820,9 +1823,10 @@ product, and `rowToneLabel(row)` says it in words (its `label`, `t(label)`): the
 **The navigation follows the backend**: a link with `requires` is shown once the backend
 allows the user what it requires, never by his role in the frontend: `{path}` (the route
 set of the screen) that he may view its items, `can: 'add'` add one (`useCan(path,
-'view' | 'add')` of `@/bazis/react`: the runtime schema of the list or of the create,
-which bazis-permit refuses with 403 without a permission of the model for the action;
-the screens read the same queries, so no request is made for the links alone), `filters`
+'view' | 'add')` of `@/bazis/react`: the runtime schema of the list, which bazis-permit
+refuses with 403 without a permission of the model, and `for_create` of a list of one item
+(the runtime schema of the create without that meta); the screens read the same schema of
+the list, so a user who may not add is told so without a refused request), `filters`
 that the backend lets him filter its list by these fields (`route_filter_fields/`: a
 report by a field hidden from him). A link without `requires` is always shown.
 
@@ -2841,14 +2845,17 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
 
 - `useList`, `useItem`, `useSchema`, `useFilterFields` read; `useCreate`, `useUpdate`,
   `useDestroy`, `useRelationship` change and then refetch every query of the resource
-  (`['bazis', path]`); `useRelationship` changes a to-many relationship through its
+  (`['bazis', path]`; `useDestroy` reads the deleted item no more: a screen still showing it
+  shows it not found, unless `{leaving: true}` says that it is left, and its queries are
+  removed once nothing shows them); `useRelationship` changes a to-many relationship through its
   relationship endpoint (`add`, `replace`, `remove`). `useSchema` gives the runtime schemas
   for the current user (of the list and the create; of the retrieve, the update and a
   transit of an item), kept for the session; `useFilterFields(path)` the fields a list can
   be filtered by, with their types: those of the user. `useCan(path, 'view' | 'add')` is
   whether the user may view the items
-  of a route set or add one (undefined until the backend answers; false on its 403), read
-  from the runtime schema of the list or of the create; `useCan(path, 'action_<name>')`
+  of a route set or add one (undefined until the backend answers; false on its 403, or
+  `for_create: false`), read from the runtime schema of the list and from `for_create` of a
+  list of one item (the runtime schema of the create without that meta); `useCan(path, 'action_<name>')`
   whether he may call a custom action of the collection (`custom_actions` of a list of one
   item; allowed without the meta): the button of an export is offered to those only; what
   he may do on an item is its meta (`crud_actions`,
@@ -3795,7 +3802,7 @@ Its props, `BazisProviderProps`:
 
 #### useDestroy
 
-`useDestroy(path: DestroyPath): UseMutationResult<void, Error, string>`: Deletes an item: `mutate(id)`.
+`useDestroy(path: DestroyPath, options?: DestroyOptions): UseMutationResult<void, Error, string>`: Deletes an item: `mutate(id)`.
 
 #### useRefreshItem
 
@@ -3808,6 +3815,12 @@ Its props, `BazisProviderProps`:
 #### useUpdate
 
 `useUpdate<P extends UpdatePath>(path: P): UseMutationResult<UpdateResponse<P>, Error, { id: string; document: UpdateDocument<P>; }>`: Updates an item: `mutate({id, document})`.
+
+#### DestroyOptions
+
+`interface DestroyOptions`: The options of `useDestroy`.
+
+- `leaving?: boolean`: The screens of the item are left once it is deleted (a navigation in the callbacks of `mutate`): they keep its data until then.
 
 #### QueryOptions
 
@@ -3823,7 +3836,7 @@ Its props, `BazisProviderProps`:
 
 #### useCan
 
-`useCan(path: SchemaPath<'list'>, action: 'view'): boolean | undefined`: Whether the backend lets the current user view the items of a route set (`view`) or add one (`add`): the runtime schema of the list or of the create, which bazis-permit refuses with 403 without a permission of the model for the action (`<app>.<model>.item.view|add.*` of his role).
+`useCan(path: SchemaPath<'list'>, action: 'view'): boolean | undefined`: Whether the backend lets the current user view the items of a route set (`view`) or add one (`add`).
 
 `useCan(path: SchemaPath<'create'>, action: 'add'): boolean | undefined`
 
@@ -4635,6 +4648,7 @@ Its props, `TimeChartProps`:
 - `key: string`: Its key: `value:<key>` (a status, the first day of a period `2026-10-05`).
 - `label: string`
 - `value: number`
+- `tone?: Tone | undefined`: Its tone (a status: `statuses` of the theme), drawn in the color of the tone rather than of a series.
 
 #### The types and the constants of `@/bazis/ui/charts`
 
@@ -5475,7 +5489,8 @@ Its props, `ResourceCardProps`:
 - `actions?: readonly CardAction[]`
 - `values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>`: The values of fields, instead of the formatted value.
 - `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
-- `children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode)`: Under the heading: the transits of the item (`TransitBar` of transit-bar), its status history (`StatusHistory` of status-history, which takes the item), a section of the product, given the permission meta of the item (`crud_actions`: `permitted(meta, 'change')`; `custom_actions`: `permitted(meta, 'action_report')`, the button of a custom action of the item) without a request of its own.
+- `children?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode)`: Under the heading: the transits of the item (`TransitBar` of transit-bar), a section of the product, given the item and its permission meta (`crud_actions`: `permitted(meta, 'change')`; `custom_actions`: `permitted(meta, 'action_report')`, the button of a custom action of the item) without a request of its own.
+- `after?: ReactNode | ((item: ResourceObject, meta: PermitMeta | null | undefined) => ReactNode)`: Under the sections (and the tabs), given the item and its permission meta as `children`: what relates to the item, its related lists (`RelatedList`) and its status history (`StatusHistory` of status-history, which takes the item), of a card without tabs.
 - `tabs?: readonly CardTab[]`: The sections and the related content in tabs (`card.tabs` of the specs), under the children; the sections one under the other without.
 - `forms?: 'dialog' | 'page'`: The edit in a dialog or as a page; `composition.forms` of the theme by default.
 
@@ -5735,7 +5750,7 @@ Its props, `UpdateFormActionProps`:
 
 #### extended
 
-`extended<P extends object>(props: P, added: ExtensionProps<P> | undefined): P`: The props of the component of a generated screen with those of its extension: the lists of actions and of tiles (`actions`, `rowActions`, `bulk`, `tiles`) by the `id` of their items, the records of the fields (`cells`, `values`, `display`) by field, the `children` of both, the generated ones first; the other props of the extension replace the generated ones (an undefined one too, but of a merged prop, which keeps the generated one).
+`extended<P extends object>(props: P, added: ExtensionProps<P> | undefined): P`: The props of the component of a generated screen with those of its extension: the lists of actions and of tiles (`actions`, `rowActions`, `bulk`, `tiles`) by the `id` of their items, the records of the fields (`cells`, `values`, `display`) by field, the `children` and the `after` of a card of both, the generated ones first; the other props of the extension replace the generated ones (an undefined one too, but of a merged prop, which keeps the generated one).
 
 #### ScreenExtension
 
@@ -5744,7 +5759,7 @@ Its props, `UpdateFormActionProps`:
 - `before?: ReactNode`: In the screen, before the component of its primitive (and the map of a list).
 - `after?: ReactNode`: In the screen, after the component of its primitive (before the forms of its actions).
 - `actions?: ReactNode`: In the header of the screen, after the actions of the specs: on every primitive, a dashboard too.
-- `props?: ExtensionProps<P>`: Props of the component of the primitive, merged with those of the specs (`extended`): the lists of actions and of tiles by their `id`, the records of the fields by field, the `children` of both; the other props replace the generated ones.
+- `props?: ExtensionProps<P>`: Props of the component of the primitive, merged with those of the specs (`extended`): the lists of actions and of tiles by their `id`, the records of the fields by field, the `children` and the `after` of a card of both; the other props replace the generated ones.
 - `map?: Partial<M>`: Props of the map beside a list (`list.map`), merged the same way.
 
 #### The types and the constants of `@/bazis/ui/screens`

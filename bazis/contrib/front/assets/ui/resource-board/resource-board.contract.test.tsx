@@ -151,6 +151,27 @@ describe('ResourceBoard', () => {
     expect(within(screen.getByTestId('column:draft')).getByTestId('row:a')).toBeTruthy();
   });
 
+  it('reads the transits of a card when its menu opens, not with the board', async () => {
+    const server = backend(listDocument([task('a', 'draft'), task('b', 'draft'), task('c', 'draft')]));
+    renderWithBazis(board({ columns: ['draft'], move: true }), server);
+    await screen.findByTestId('row:c');
+    expect(screen.getAllByTestId('action:move')).toHaveLength(3);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const items = () => server.requests('GET').filter((it) => /\/item\/[abc]\//.test(it));
+    expect(items()).toEqual([]);
+    open(within(screen.getByTestId('row:a')).getByTestId('action:move'));
+    expect(await screen.findByTestId('move:start')).toBeTruthy();
+    expect(items()).toEqual([`GET ${ITEMS}a/?meta=state_actions`]);
+  });
+
+  it('says when a card has no transit once its menu opens', async () => {
+    const server = backend(listDocument([task('a', 'draft')])).on('GET', `${ITEMS}a/`, { data: task('a', 'draft'), meta: { state_actions: [] } });
+    renderWithBazis(board({ columns: ['draft'], move: true }), server);
+    open(await within(await screen.findByTestId('row:a')).findByTestId('action:move'));
+    expect(await screen.findByText('No moves now')).toBeTruthy();
+    expect(screen.queryByTestId('move:start')).toBeNull();
+  });
+
   /** A drag and drop that gives the test the drop of the board. */
   function dragOf(): { drag: BoardDrag; drop: (id: string, status: string) => void } {
     let dropped: ((id: string, status: string) => void) | undefined;

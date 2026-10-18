@@ -115,8 +115,8 @@ it uses (`src/i18n/`) and
 `custom/`, the tests of what no scenario says: the custom actions, the downloads, the
 language, the card read again after a step is added in the section after it, a row found by
 the label of a related item read after the rows (`late-labels.spec.ts`), the layout with the styles of a product, `layout.spec.ts`: the foot of the sidebar
-with the tools of the sample, and the filters of the list of the tasks, a date range among
-them, at the width of a phone), copied over a frontend made from the sample by the `e2e`
+with the tools of the sample, the filters of the list of the tasks, a date range among
+them, at the width of a phone, and a long title that no screen lets widen the page), copied over a frontend made from the sample by the `e2e`
 job of CI.
 
 ### The contract export

@@ -51,7 +51,7 @@ export interface ScreenExtension<P extends object, M extends object = object> {
   /**
    * Props of the component of the primitive, merged with those of the specs (`extended`): the
    * lists of actions and of tiles by their `id`, the records of the fields by field, the
-   * `children` of both; the other props replace the generated ones.
+   * `children` and the `after` of a card of both; the other props replace the generated ones.
    */
   props?: ExtensionProps<P>;
   /** Props of the map beside a list (`list.map`), merged the same way. */
@@ -65,6 +65,8 @@ export interface ScreenExtension<P extends object, M extends object = object> {
 const BY_ID: ReadonlySet<string> = new Set(['actions', 'rowActions', 'bulk', 'tiles']);
 /** The records of the fields, merged by field: a field of the extension replaces the generated one. */
 const BY_FIELD: ReadonlySet<string> = new Set(['cells', 'values', 'display']);
+/** The contents of a card, shown both: `children` under its heading, `after` under its sections. */
+const BOTH: ReadonlySet<string> = new Set(['children', 'after']);
 
 /** Both contents, the generated one first; of render props, both called with the same arguments. */
 function both(generated: unknown, added: unknown): unknown {
@@ -96,8 +98,8 @@ function byId(generated: readonly { id: string }[], added: readonly { id: string
 /**
  * The props of the component of a generated screen with those of its extension: the lists of
  * actions and of tiles (`actions`, `rowActions`, `bulk`, `tiles`) by the `id` of their items,
- * the records of the fields (`cells`, `values`, `display`) by field, the `children` of both,
- * the generated ones first; the other props of the extension replace the generated ones (an
+ * the records of the fields (`cells`, `values`, `display`) by field, the `children` and the
+ * `after` of a card of both, the generated ones first; the other props of the extension replace the generated ones (an
  * undefined one too, but of a merged prop, which keeps the generated one).
  */
 export function extended<P extends object>(props: P, added: ExtensionProps<P> | undefined): P {
@@ -105,11 +107,11 @@ export function extended<P extends object>(props: P, added: ExtensionProps<P> | 
   const result: Record<string, unknown> = { ...(props as Record<string, unknown>) };
   for (const [name, value] of Object.entries(added as Record<string, unknown>)) {
     const generated = result[name];
-    if (generated === undefined || !(BY_ID.has(name) || BY_FIELD.has(name) || name === 'children')) {
+    if (generated === undefined || !(BY_ID.has(name) || BY_FIELD.has(name) || BOTH.has(name))) {
       result[name] = value;
     } else if (value === undefined) {
       continue;
-    } else if (name === 'children') {
+    } else if (BOTH.has(name)) {
       result[name] = both(generated, value);
     } else if (BY_FIELD.has(name)) {
       result[name] = { ...(generated as object), ...(value as object) };

@@ -91,7 +91,7 @@ export function RelatedList({ path, entity, relation, item, itemPath, title, add
     setAdding(false);
   };
   return (
-    <section aria-label={typeof title === 'string' ? title : undefined} className="grid gap-3">
+    <section aria-label={typeof title === 'string' ? title : undefined} className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {title !== undefined && <Title className="font-display text-base font-semibold">{title}</Title>}
       <ResourceList
         {...list}

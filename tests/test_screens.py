@@ -161,7 +161,8 @@ def kitchen_sink(root: Path) -> None:
 def test_the_parts_that_the_sample_does_not_have(tmp_path):
     """
     The kitchen sink: a list with its map, its create form, its bulk action and its status
-    filter; a card without tabs (its history and its related list under its heading) with a
+    filter; a card without tabs (its transits under its heading, its related list and its
+    history under its sections) with a
     create form in its header, an update form and a delete that describes itself; the tone of
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
     text; a calendar with its add and its tone; a dashboard of two entities, a tile with its
@@ -206,8 +207,12 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     summary = files[f'{screens.GENERATED_DIR}/task-summary.tsx']
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
     assert '      {deleteAction.confirm}\n' in summary
-    # the children of the card, given its item: no tabs
-    assert '            children: (item) => (\n              <>\n                <TransitBar path={TASK.path} id={id} />\n' in summary
+    # no tabs: the transits under the heading, the related list and the history under the sections
+    assert '            children: <TransitBar path={TASK.path} id={id} />,\n' in summary
+    assert (
+        '            after: (item) => (\n              <>\n                <RelatedList\n'
+    ) in summary
+    assert '                <StatusHistory resource={item} />\n              </>\n            ),\n' in summary
     # an "add here" of `when: always` is not gated by the permission to change the item
     assert "add={{ id: 'add-step', label: t('form.create'), fields: ['title'] }}" in summary
     assert '      actions={\n        <>\n          <ScreenAction\n' in summary
@@ -260,7 +265,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     user = files[f'{screens.GENERATED_DIR}/user-card.tsx']
     assert 'useNavigate' not in user and 'useLanguage' not in user
     assert '    <Screen id="user-card">\n' in user
-    assert '        {() => (\n          <RelatedList\n' in user
+    assert '        after={() => (\n          <RelatedList\n' in user
 
 
 #: an extended screen of each primitive: the list of the sample, the screens of the kitchen sink

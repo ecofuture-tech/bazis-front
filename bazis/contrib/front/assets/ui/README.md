@@ -59,6 +59,12 @@ The components look as the design of the product says (`spec/design/`, compiled 
   check both;
 - the loading states are skeletons of what loads, still marked `state:loading` with
   `aria-busy`;
+- a value of an item never widens the page: a grid that holds them has its column
+  `grid-cols-[minmax(0,1fr)]` (an implicit column grows to the longest word), and the
+  titles and the values that wrap break a word without a space (`wrap-anywhere`); the
+  others are cut with their whole text in their title (`truncate`, `titleFromText`). The
+  end-to-end test `layout.spec.ts` of the sample checks it with a long title, at the width
+  of a phone and of a desktop;
 - on a touch screen (`pointer-coarse:`) the buttons, the fields, the selects, the tabs and the
   other targets of a finger are 44 px at least (WCAG 2.5.5), without changing them for a mouse; the other states an icon, a title and a hint (the texts
   `state.<state>.title` and `state.<state>.hint`); a change that succeeded shows a toast (`toast`, the `Toaster` of
@@ -169,8 +175,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   toast) and keeps the refused rows selected with `error:bulk` otherwise (how many, and the
   errors).
 - **`app-shell`**: a link with `requires` is shown once the backend allows the user what it
-  requires (`useCan` of the hooks: the runtime schema of the list or of the create of
-  `path`; `filters`: those fields in `route_filter_fields/` of the user), never before.
+  requires (`useCan` of the hooks: the runtime schema of the list of `path`, or
+  `for_create` of its list; `filters`: those fields in `route_filter_fields/` of the user), never before.
   `ListCardLayout` renders the screen of a list and, as its child route, the
   screen of its card: next to the list on a wide screen (`split`; the list keeps its state
   and shows only its `compactColumns`, the first two by default, while the card is open) or
@@ -200,7 +206,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   first moment of a day in the time zone of the browser for a date-time), a list of one item
   each with its pagination (the core has no aggregates), drawn by recharts (`chart-view.tsx`,
   lazy) as a ring, bars or a line in the colors of the series of the theme (`--chart-1` …
-  `--chart-6`); `chart:<id>` with the states of its lists (`empty` when every value is 0) and
+  `--chart-6`), a status in the color of its tone (`statuses` of the theme, that of its badge,
+  `--color-<tone>`; `tone` of a value of `Chart`); `chart:<id>` with the states of its lists (`empty` when every value is 0) and
   each value as text, `value:<key>` with its number in `data-value` (the legend of a ring, a
   list for the screen readers under bars and a line).
 - **`date-picker`**: under `DatePickerProvider`, the date fields of the forms and the ranges
@@ -216,9 +223,10 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   page), the filters of the user as those of a list (`FilterBar`); a card `row:<id>` with its
   title (the button that opens it: the whole card), its fields `cell:<field>`, a badge of a
   boolean field while it is true (`badge`) and, with `move` (not by default), its menu `action:move`: the
-  transits that the user may run on it now (read when the menu opens), `move:<status>` (the
-  status the transit leads to; the transit itself when the contract does not know it),
-  disabled when restricted. A click on the menu never opens the card. A transit whose action
+  transits that the user may run on it now (`state_actions` of its item, read when the menu
+  opens or the card is dropped, never with each card; `No moves now` without one),
+  `move:<status>` (the status the transit leads to; the transit itself when the contract
+  does not know it), disabled when restricted. A click on the menu never opens the card. A transit whose action
   takes a payload asks for it in the dialog of `useRunTransit` of `transit-bar`; the columns
   are read again after it. The refusal of a transit run without the dialog (by the menu or a
   drop) is shown above the columns, `error:move`. **`board-dnd`** (`BoardDnd` around a board
@@ -252,8 +260,10 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   and `add`, its create form (`ResourceFormBody` in `FormSurface`) with the relationship
   fixed to the item, shown when the backend allows the create (`for_create`); an item added
   reads the item of the card again (`useRefreshItem(itemPath, item)` of the hooks: its query
-  keys, so in the `children` of the card or after it alike). `children` may be a function of the item and its permission meta
-  (`StatusHistory` takes the item; `permitted(meta, 'change')` for a section of the product).
+  keys, so in the card or after it alike). `children` (under the heading) and `after` (under
+  the sections and the tabs: the related sections and the history of a card without tabs)
+  may be functions of the item and its permission meta (`StatusHistory` takes the item;
+  `permitted(meta, 'change')` for a section of the product).
   With `tabs` (`card.tabs` of the specs) the sections are in tabs of Radix (`tab:<id>`,
   `role="tab"` with `aria-controls`), each with its sections and its `content` (a related
   section, the history: a function of the item and its meta, as `children`), a section that
@@ -420,8 +430,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   button `action:confirm-<id>` deletes it once, whatever the clicks; a toast after it, then
   the route `then`; a refusal is a toast of its error, the card stays) and the extension of a generated screen (`ScreenExtension<P>` of the
   props `P` of the component of its primitive, so that the asset requires none of them;
-  `extended` joins the actions, `actions`, `rowActions`, `bulk`, and the `children` of the
-  extension with the generated ones, and replaces the other props).
+  `extended` joins the actions, `actions`, `rowActions`, `bulk`, and the `children` and
+  `after` of the extension with the generated ones, and replaces the other props).
 
 ## A screen
 

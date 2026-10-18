@@ -58,7 +58,7 @@ export function CardTabs({ tabs, sections, item, meta, render }: CardTabsProps) 
         ))}
       </TabsList>
       {tabs.map((tab, index) => (
-        <TabsContent key={tab.id} value={tab.id} forceMount className="grid gap-(--space-section) data-[state=inactive]:hidden">
+        <TabsContent key={tab.id} value={tab.id} forceMount className="grid grid-cols-[minmax(0,1fr)] gap-(--space-section) data-[state=inactive]:hidden">
           {render(sections.filter((it) => tab.sections?.includes(it.id) || (index === 0 && !placed.has(it.id))))}
           {typeof tab.content === 'function' ? tab.content(item, meta) : tab.content}
         </TabsContent>

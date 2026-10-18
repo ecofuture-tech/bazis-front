@@ -201,15 +201,17 @@ describe('ScreenAction', () => {
   it('is shown once the backend allows what it requires', async () => {
     const onClick = vi.fn();
     const action = <ScreenAction id="create" label="New" requires={{ path: ITEMS, can: 'add' }} onClick={onClick} />;
-    const allowed = renderWithBazis(action, new Backend().on('GET', `${ITEMS}schema_create/`, createSchema));
+    const CREATE = `${ITEMS}?page%5Blimit%5D=1&meta=for_create`;
+    const allowed = renderWithBazis(action, new Backend().on('GET', CREATE, { data: [], meta: { for_create: true } }));
     fireEvent.click(await screen.findByTestId('action:create'));
     expect(onClick).toHaveBeenCalledWith();
     allowed.unmount();
 
-    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, errors(403), 403);
+    // no runtime schema of the create asked for (and refused) once the list tells it
+    const backend = new Backend().on('GET', CREATE, { data: [], meta: { for_create: false } });
     renderWithBazis(action, backend);
     await waitFor(() => {
-      expect(backend.requests('GET')).toEqual([`GET ${ITEMS}schema_create/`]);
+      expect(backend.requests('GET')).toEqual([`GET ${CREATE}`]);
     });
     expect(screen.queryByTestId('action:create')).toBeNull();
   });
@@ -260,10 +262,14 @@ describe('useDestroyCardAction', () => {
     // the title of the confirmation is a question, not the label of its button
     expect(screen.getByRole('heading', { name: 'Delete this item?' })).toBeTruthy();
     expect(screen.getByRole('dialog').textContent).toContain('It is deleted for good');
+    const read = backend.requests('GET').length;
     fireEvent.click(screen.getByTestId('action:confirm-delete'));
     expect(await screen.findByTestId('screen:item-list')).toBeTruthy();
     expect(backend.requests('DELETE')).toEqual([`DELETE ${ITEM}`]);
     expect(toast).toHaveBeenCalledWith({ title: expect.any(String) as unknown });
+    // the deleted item is not read again on the way to the route
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(backend.requests('GET').slice(read)).toEqual([]);
   });
 
   it('sends one deletion whatever the clicks of its confirmation', async () => {
@@ -275,6 +281,27 @@ describe('useDestroyCardAction', () => {
     fireEvent.click(confirm);
     expect(await screen.findByTestId('screen:item-list')).toBeTruthy();
     expect(backend.requests('DELETE')).toEqual([`DELETE ${ITEM}`]);
+  });
+
+  it('shows the item deleted as not found when the screen stays on it, without reading it again', async () => {
+    // a card that is not left (no `then`), as one next to the list of a bulk deletion
+    function Staying() {
+      const destroy = useDestroyCardAction({ id: 'delete', label: 'Delete', path: ITEMS as never, item: ITEM_ID });
+      return (
+        <>
+          <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['title'] }]} actions={[destroy.action]} />
+          {destroy.confirm}
+        </>
+      );
+    }
+    const backend = cardBackend({ crud_actions: ['view', 'delete'] }).on('DELETE', ITEM, undefined, 204);
+    renderWithBazis(<Staying />, backend);
+    fireEvent.click(await screen.findByTestId('action:delete'));
+    const read = backend.requests('GET').length;
+    fireEvent.click(screen.getByTestId('action:confirm-delete'));
+    expect(await screen.findByTestId('state:not_found')).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(backend.requests('GET').slice(read)).toEqual([]);
   });
 
   it('says what the action describes and keeps the item when cancelled', async () => {
@@ -338,11 +365,13 @@ describe('extended', () => {
             sections: [{ id: 'main', title: 'Main', fields: ['title'] }],
             actions: [{ id: 'generated', label: 'Generated', onClick: generated }],
             children: (item) => <p data-bz="generated-child">{item.id}</p>,
+            after: <p data-bz="generated-after">generated</p>,
           },
           {
             actions: [{ id: 'added', label: 'Added', onClick: added }],
             children: (item, meta) => <p data-bz="added-child">{meta?.crud_actions?.join(',') ?? item.id}</p>,
             sections: [{ id: 'other', title: 'Other', fields: ['title'] }],
+            after: (item) => <p data-bz="added-after">{item.id}</p>,
           },
         )}
       />,
@@ -351,6 +380,8 @@ describe('extended', () => {
     expect(await screen.findByTestId('state:loaded')).toBeTruthy();
     expect(screen.getByTestId('generated-child').textContent).toBe(ITEM_ID);
     expect(screen.getByTestId('added-child').textContent).toBe('view');
+    expect(screen.getByTestId('generated-after').textContent).toBe('generated');
+    expect(screen.getByTestId('added-after').textContent).toBe(ITEM_ID);
     expect(screen.getByText('Other')).toBeTruthy();
     expect(screen.queryByText('Main')).toBeNull();
     fireEvent.click(screen.getByTestId('action:generated'));

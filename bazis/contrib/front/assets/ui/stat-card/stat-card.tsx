@@ -63,7 +63,7 @@ export function StatCard({ id, path, filter, label, tone = 'neutral', icon: Icon
       )}
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
-        <span id={labelId} className="min-w-0 text-sm font-medium break-words text-muted-foreground">
+        <span id={labelId} className="min-w-0 text-sm font-medium wrap-anywhere text-muted-foreground">
           {label}
         </span>
         {Icon && (
