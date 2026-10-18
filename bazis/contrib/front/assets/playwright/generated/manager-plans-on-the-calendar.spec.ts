@@ -31,7 +31,7 @@ test('manager-plans-on-the-calendar', async ({ page }) => {
     await app.submit({ saved: true });
   });
   await test.step('open_item: {where: {title: Plan on the calendar}}', async () => {
-    await app.openItem({ where: { title: 'Plan on the calendar' } });
+    await app.openItem({ where: { title: 'Plan on the calendar' }, created: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: draft}', async () => {

@@ -18,11 +18,13 @@
 // `e2e/generated/product.ts` (the test users and the routes of the specs), and so can the
 // tests of the product (`e2e/custom/`). They wait with the auto-waiting of Playwright and on
 // the marks of the states, never for a fixed time but for the confirmation of a deletion,
-// which a hand-written screen may not have (`CONFIRMATION_WAIT`).
+// which a hand-written screen may not have (`CONFIRMATION_WAIT`). The tests run again on a
+// database that keeps what the previous runs created: a test finds the items it created by
+// their ids (`created`), and the notifications that came since it started.
 
 import path from 'node:path';
 
-import { errors, expect, type Locator, type Page } from '@playwright/test';
+import { errors, expect, type Locator, type Page, type Response } from '@playwright/test';
 
 import { CAPABILITIES } from '@/bazis/generated/contract';
 
@@ -135,6 +137,12 @@ const CONFIRM_TRANSIT = '[role="dialog"] [data-bz^="action:confirm-"]';
 export class App<P extends Product = Product> {
   private current: ScreenId<P> | null = null;
 
+  /** The ids of the items that the submits of this test created (`submit`). */
+  private readonly created = new Set<string>();
+
+  /** When this test started: `expectNotification` takes the notifications since. */
+  private readonly started = Date.now();
+
   constructor(
     readonly page: Page,
     readonly product: P,
@@ -168,20 +176,22 @@ export class App<P extends Product = Product> {
    * texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen,
    * of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page
    * shown, else searched with the search of the list (`field:$search`), each text of `where`
-   * in turn, else on the next pages (`action:next-page`) of the list without a search; fails
-   * when no page has it. A list that grows with every run (the items that the scenarios
-   * create) is searched, never read on its first page only.
+   * in turn, else on the next pages (`action:next-page`) of the list without a search, or with
+   * more items of the columns of a board (`action:more`); fails when no page has it. A list
+   * that grows with every run (the items that the scenarios create) is searched, never read on
+   * its first page only. With `created`, only an item that this test created (`submit`): never
+   * one of a previous run with the same texts.
    */
-  async openItem({ where, in: recent }: { where: Values; in?: string }): Promise<void> {
-    await (await this.row(where, recent)).click();
+  async openItem({ where, in: recent, created = false }: { where: Values; in?: string; created?: boolean }): Promise<void> {
+    await (await this.row(where, { recent, created })).click();
   }
 
   /**
    * Selects the row of the list of the current screen that `openItem` would open, its
    * checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
    */
-  async select({ where }: { where: Values }): Promise<void> {
-    await (await this.row(where)).locator('[data-bz^="select:"]').check();
+  async select({ where, created = false }: { where: Values; created?: boolean }): Promise<void> {
+    await (await this.row(where, { created })).locator('[data-bz^="select:"]').check();
   }
 
   /**
@@ -204,8 +214,8 @@ export class App<P extends Product = Product> {
    * `column:<status>`; fails as soon as the move is refused (`error:move`, or another error
    * shown), with the error.
    */
-  async move({ where, to }: { where: Values; to: string }): Promise<void> {
-    const row = await this.row(where);
+  async move({ where, to, created = false }: { where: Values; to: string; created?: boolean }): Promise<void> {
+    const row = await this.row(where, { created });
     const mark = (await row.getAttribute('data-bz')) ?? '';
     await this.seen(this.page.locator('body'));
     await row.locator(bz('action', 'move')).click();
@@ -383,13 +393,16 @@ export class App<P extends Product = Product> {
    * Submits the open form and waits until it is closed (saved) or shows an error of this
    * submit (not one of a previous submit), which the next step expects (`expectError`,
    * `expectState`). With `saved`, a submit that must save: it fails with the errors shown
-   * when the form stays open.
+   * when the form stays open. The items that it creates are those of this test (`created` of
+   * `openItem`): the answers 201 of the creates of the backend, their item in `data.id`.
    */
   async submit({ saved = false }: { saved?: boolean } = {}): Promise<void> {
     const form = this.form();
     await this.seen(form);
-    await form.locator(bz('action', 'submit')).click();
-    await this.until(form, form.locator(NEW_FAILED), 'the form is closed or shows an error');
+    await this.recordCreated(async () => {
+      await form.locator(bz('action', 'submit')).click();
+      await this.until(form, form.locator(NEW_FAILED), 'the form is closed or shows an error');
+    });
     if (!saved || (await form.count()) === 0) return;
     const shown = (await form.locator(NEW_FAILED).allInnerTexts()).join(' ').replace(/\s+/g, ' ').trim();
     throw new Error(`The form was not saved: ${shown || 'it is still open'}.`);
@@ -535,7 +548,8 @@ export class App<P extends Product = Product> {
   }
 
   /**
-   * The user has a notification whose text contains this text: the bell
+   * The user has a notification whose text contains this text, that came since this test
+   * started (its time, `<time datetime>`; one of a previous run does not count): the bell
    * (`action:notifications`) opens the list of the notifications (`list:notifications`),
    * which waits for it (`notification:<key>`), and is closed again.
    */
@@ -543,7 +557,18 @@ export class App<P extends Product = Product> {
     const bell = this.page.locator(bz('action', 'notifications')).filter({ visible: true }).first();
     await bell.click();
     const list = this.page.locator(bz('list', 'notifications'));
-    await expect(list.locator('[data-bz^="notification:"]').filter({ hasText: text }).first()).toBeVisible();
+    const notifications = list.locator('[data-bz^="notification:"]').filter({ hasText: text });
+    await expect
+      .poll(
+        () =>
+          notifications.evaluateAll(
+            (elements, started) =>
+              elements.some((element) => Date.parse(element.querySelector('time')?.dateTime ?? '') >= started),
+            this.started,
+          ),
+        { message: `a notification with the text ${text} since the test started` },
+      )
+      .toBe(true);
     await this.page.keyboard.press('Escape');
     await expect(list).toHaveCount(0);
   }
@@ -572,49 +597,58 @@ export class App<P extends Product = Product> {
   }
 
   /** The item that `openItem` opens. */
-  private async row(where: Values, recent?: string): Promise<Locator> {
+  private async row(where: Values, { recent, created }: { recent?: string | undefined; created: boolean }): Promise<Locator> {
+    if (created && this.created.size === 0) throw new Error('This test created no item: no submit of it answered with a create.');
     await this.settled();
     const lists = this.screen().locator('[data-bz^="list:"]');
     const list =
       recent !== undefined ? this.screen().locator(bz('recent', recent)) : (await lists.count()) > 0 ? lists.first() : this.screen();
-    const shown = await this.rowOnPage(list, where);
+    const shown = await this.rowOnPage(list, where, created);
     if (shown) return shown;
     const search = list.locator(bz('field', '$search'));
     if ((await search.count()) > 0) {
       const texts = Object.values(where).flatMap((it) => (typeof it === 'string' || typeof it === 'number' ? [String(it).trim()] : []));
       for (const text of new Set(texts.filter(Boolean))) {
         await this.searchList(list, search, text);
-        const found = await this.rowOnPages(list, where);
+        const found = await this.rowOnPages(list, where, created);
         if (found) return found;
       }
       await this.searchList(list, search, '');
     }
-    const found = await this.rowOnPages(list, where);
+    const found = await this.rowOnPages(list, where, created);
     if (found) return found;
-    throw new Error(`No row of the list of the screen ${String(this.current)} has the texts ${JSON.stringify(where)}.`);
+    const which = created ? 'that this test created' : 'of the list';
+    throw new Error(`No row ${which} of the screen ${String(this.current)} has the texts ${JSON.stringify(where)}.`);
   }
 
-  /** The first row of the list on its page whose cells have the texts, or null. */
-  private async rowOnPage(list: Locator, where: Values): Promise<Locator | null> {
+  /** The first row of the list on its page whose cells have the texts (with `created`, one that this test created), or null. */
+  private async rowOnPage(list: Locator, where: Values, created: boolean): Promise<Locator | null> {
     let rows = list.locator('[data-bz^="row:"]');
+    if (created) rows = rows.and(this.page.locator([...this.created].map((id) => bz('row', id)).join(', ')));
     for (const [name, value] of Object.entries(where)) {
       rows = rows.filter({ has: this.page.locator(bz('cell', name)).filter({ hasText: exactly(value) }) });
     }
     return (await rows.count()) > 0 ? rows.first() : null;
   }
 
-  /** The row on the page of the list or on its next pages, or null. */
-  private async rowOnPages(list: Locator, where: Values): Promise<Locator | null> {
-    const first = list.locator('[data-bz^="row:"]').first();
+  /** The row on the page of the list or on its next pages (more items of a board), or null. */
+  private async rowOnPages(list: Locator, where: Values, created: boolean): Promise<Locator | null> {
+    const rows = list.locator('[data-bz^="row:"]');
     const next = list.locator(bz('action', 'next-page'));
+    const more = list.locator(bz('action', 'more'));
     for (;;) {
-      const row = await this.rowOnPage(list, where);
+      const row = await this.rowOnPage(list, where, created);
       if (row) return row;
-      if ((await next.count()) === 0 || (await next.isDisabled())) return null;
-      const shown = await first.getAttribute('data-bz');
-      await next.click();
-      // the rows of the next page, loaded
-      await expect.poll(() => first.getAttribute('data-bz'), { message: 'the next page of the list' }).not.toBe(shown);
+      if ((await next.count()) > 0 && !(await next.isDisabled())) {
+        const shown = await rows.first().getAttribute('data-bz');
+        await next.click();
+        // the rows of the next page, loaded
+        await expect.poll(() => rows.first().getAttribute('data-bz'), { message: 'the next page of the list' }).not.toBe(shown);
+      } else if ((await more.count()) > 0) {
+        const listed = await rows.count();
+        await more.first().click();
+        await expect.poll(() => rows.count(), { message: 'more items of the board' }).toBeGreaterThan(listed);
+      } else return null;
       await this.listSettled(list);
     }
   }
@@ -694,6 +728,28 @@ export class App<P extends Product = Product> {
       .poll(async () => (await confirm.count()) > 0 || (await done()), { message: 'the transit is confirmed, done or shows an error' })
       .toBe(true);
     if ((await confirm.count()) > 0) await confirm.click();
+  }
+
+  /**
+   * Runs `run` and records the items that the requests of the page created meanwhile: the
+   * answers 201 in JSON of a POST (a create of the backend), their item in `data.id`.
+   */
+  private async recordCreated(run: () => Promise<void>): Promise<void> {
+    const answers: Response[] = [];
+    const listen = (response: Response) => {
+      const json = (response.headers()['content-type'] ?? '').includes('json');
+      if (response.status() === 201 && response.request().method() === 'POST' && json) answers.push(response);
+    };
+    this.page.on('response', listen);
+    try {
+      await run();
+    } finally {
+      this.page.off('response', listen);
+    }
+    for (const answer of answers) {
+      const { data } = (await answer.json()) as { data?: { id?: string | number } };
+      if (data?.id !== undefined) this.created.add(String(data.id));
+    }
   }
 
   /** Waits until `gone` is no longer on the page or `failed` is. */

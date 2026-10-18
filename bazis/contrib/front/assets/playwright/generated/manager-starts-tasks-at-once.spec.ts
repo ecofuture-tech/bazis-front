@@ -30,13 +30,13 @@ test('manager-starts-tasks-at-once', async ({ page }) => {
     await app.open('task-list');
   });
   await test.step('select: {where: {title: Start at once}}', async () => {
-    await app.select({ where: { title: 'Start at once' } });
+    await app.select({ where: { title: 'Start at once' }, created: true });
   });
   await test.step('bulk: start-all', async () => {
     await app.bulk('start-all');
   });
   await test.step('open_item: {where: {title: Start at once}}', async () => {
-    await app.openItem({ where: { title: 'Start at once' } });
+    await app.openItem({ where: { title: 'Start at once' }, created: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: in_progress}', async () => {

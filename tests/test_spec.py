@@ -477,6 +477,51 @@ CASES = [
         ])},
         [('P032', f'{PRODUCT}#/entities/3/id'), ('P032', f'{PRODUCT}#/entities/5/id')],
     ),
+    (
+        'P033',
+        # a scenario changes the task of `e2e_data` in every way: bulk, transit, edit, a step
+        # added to it, its custom action, its deletion, its move on the board
+        {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-changes-the-plan', 'role': 'manager', 'steps': [
+            {'open': 'task-list'},
+            {'select': {'where': {'title': 'Review the plan'}}},
+            {'bulk': 'start-all'},
+            {'open_item': {'where': {'title': 'Review the plan'}}},
+            {'transit': 'start'},
+            {'fill': {'title': 'Review the plan again'}},
+            {'submit': {}},
+            {'action': 'add-step'},
+            {'fill': {'title': 'Book the room'}},
+            {'submit': {}},
+            {'action': 'escalate'},
+            {'fill': {'priority': 'Low'}},
+            {'submit': {}},
+            {'action': 'delete'},
+            {'open': 'task-board'},
+            {'move': {'where': {'title': 'Review the plan'}, 'to': 'in_progress'}},
+        ]})},
+        [
+            ('P033', f'{PRODUCT}#/scenarios/18/steps/2/bulk'),
+            ('P033', f'{PRODUCT}#/scenarios/18/steps/4/transit'),
+            ('P033', f'{PRODUCT}#/scenarios/18/steps/6/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/18/steps/9/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/18/steps/12/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/18/steps/13/action'),
+            ('P033', f'{PRODUCT}#/scenarios/18/steps/15/move'),
+        ],
+    ),
+    (
+        'P034',
+        # the viewer opens a task by the title that `manager-finishes-a-task` gives the tasks it
+        # creates; the board moves a task by a title that its scenario gives the task only after
+        {PRODUCT: lambda d: [steps(d, 1)[2]['open_item']['where'].update(title='Write the report'),
+                             steps(d, 13).insert(0, {'open': 'task-board'}),
+                             steps(d, 13).insert(1, {'move': {'where': {'title': 'Move on the board'}, 'to': 'in_progress'}})]},
+        [
+            ('P033', f'{PRODUCT}#/scenarios/13/steps/1/move'),
+            ('P034', f'{PRODUCT}#/scenarios/1/steps/2/open_item/where'),
+            ('P034', f'{PRODUCT}#/scenarios/13/steps/1/move/where'),
+        ],
+    ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
     (
@@ -733,8 +778,10 @@ CASES = [
         # the steps have no workflow; a step opens no card of a task
         {BOARD: lambda d: [d.update(entity='step'), d['board'].update(card={'title': 'title'}),
                            d['board'].pop('filters'), d['board'].pop('open')]},
-        # the scenario of the board opens a step that opens nothing
-        [('S022', f'{BOARD}#/board/by'), ('P022', f'{PRODUCT}#/scenarios/13/steps/7/open_item')],
+        # the scenario of the board moves a step that it did not create, and opens a step that
+        # opens nothing
+        [('S022', f'{BOARD}#/board/by'), ('P033', f'{PRODUCT}#/scenarios/13/steps/6/move'),
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/7/open_item')],
     ),
     (
         'S023',

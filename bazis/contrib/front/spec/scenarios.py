@@ -18,9 +18,15 @@ checked against the screen it acts on (its actions, its form, its entity and wor
 The walk is the only reading of the steps: `bazis_front check` reports its issues, and the
 generator of the end-to-end tests (`e2e.py`) turns the steps it returns into calls of the
 Playwright helpers.
+
+The scenarios run again and again on a database that keeps what the previous runs created
+(`e2e_data` only adds): the walk follows the items that a scenario creates (the values filled
+in a create form that saves), so that a step that finds one of them by its texts finds the
+item of its own run (`Step.created`), and it reports a scenario that changes an item it did
+not create (P033), or finds one by the texts of the items that a scenario creates (P034).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .issues import Document, Issues
 from .refs import Entity, Product, related_fields, related_sections, screen_actions
@@ -58,10 +64,38 @@ class Step:
     #: (`action:confirm-<id>`) when the screens are generated (`screens`), `required` on a
     #: generated screen, `optional` on a custom one, which may show none; None for any other step
     confirm: str | None = None
+    #: an `open_item`, `select` or `move` whose `where` finds an item that the scenario created
+    #: before (`agrees`): the step takes one of the items its test created, never an item of a
+    #: previous run with the same texts
+    created: bool = False
 
 
 #: the states of a screen that a submit which does not save shows
 FAILED_STATES = {'invalid', 'error', 'forbidden', 'not_found'}
+
+#: the item of a card that the scenario did not create (an item of the test data), as opposed
+#: to one it created (`_Made`) and to none known
+OTHER = 'other'
+
+
+@dataclass
+class _Made:
+    """
+    An item that a scenario creates: its entity and the values filled in its forms (its create
+    form, then its edits), those it has at the end of the scenario.
+    """
+
+    entity: str | None
+    values: dict
+
+
+def agrees(where: dict, values: dict) -> bool:
+    """
+    Whether the item of these values has the texts of `where`: they share a field at least, and
+    have the same value in each field they share.
+    """
+    shared = where.keys() & values.keys()
+    return bool(shared) and all(where[name] == values[name] for name in shared)
 
 
 def fails(steps: list[dict], index: int) -> bool:
@@ -89,6 +123,10 @@ class _State:
     form: dict | None = None
     editing: bool = False
     selected: bool = False
+    #: the values filled in the open form since it was opened
+    values: dict = field(default_factory=dict)
+    #: whether a selected row is an item that the scenario did not create
+    others: bool = False
 
 
 def check(doc: Document, product: Product | None, screens: dict, issues: Issues) -> dict[str, list[Step]]:
@@ -99,7 +137,7 @@ def check(doc: Document, product: Product | None, screens: dict, issues: Issues)
     if product is None:
         return {}
     login = LOGIN_PACKAGE in doc.data.get('packages', [])
-    walked = {}
+    walked, runs = {}, []
     for i, scenario in enumerate(doc.data.get('scenarios', [])):
         path = ('scenarios', i)
         role = product.roles.get(scenario['role'])
@@ -117,8 +155,32 @@ def check(doc: Document, product: Product | None, screens: dict, issues: Issues)
                 'data of the backend creates with the password of E2E_PASSWORD; or `anonymous: '
                 'true` for the users who do not log in.',
             )
-        walked[scenario['id']] = _Scenario(doc, product, screens, scenario, path, issues).run()
+        run = _Scenario(doc, product, screens, scenario, path, issues)
+        walked[scenario['id']] = run.run()
+        runs.append(run)
+    check_finds(doc, runs, issues)
     return walked
+
+
+def check_finds(doc: Document, runs: list['_Scenario'], issues: Issues) -> None:
+    """
+    Reports the steps that find an item that their scenario did not create by the texts of the
+    items that a scenario creates (P034): the previous runs left such items in the database.
+    """
+    for run in runs:
+        for path, entity, where in run.finds:
+            maker = next(
+                (it for it in runs if any(made.entity == entity and agrees(where, made.values) for made in it.made)),
+                None,
+            )
+            if maker is not None:
+                issues.add(
+                    doc, (*path, 'where'), 'P034',
+                    f'The item is found by the texts of the items that the scenario `{maker.scenario["id"]}` '
+                    'creates: on a database that keeps the items of the previous runs it may find one of theirs.',
+                    'Create the item in this scenario before it is found, or find an item of the test data '
+                    '(`e2e_data`) by texts that no scenario gives its items.',
+                )
 
 
 class _Scenario:
@@ -133,21 +195,64 @@ class _Scenario:
         self.scenario, self.path, self.issues = scenario, path, issues
         self.state = _State(known=True)
         # what the current step implies (`Step`), whether it is a refused submit, whether
-        # the step before was one, and whether its action is confirmed
+        # the step before was one, whether its action is confirmed and whether it finds an
+        # item that the scenario created
         self.edit, self.then, self.failing, self.refused, self.confirm = False, None, False, False, None
+        self.created = False
+        # the items that the scenario creates; the item of the current card (one of them,
+        # OTHER, or None when no item is known); the steps that find an item it did not create
+        # (P034: their path, the entity and `where`); whether a step could not be followed
+        # (an unknown screen, action or entity), after which the items it created are not known
+        self.made: list[_Made] = []
+        self.item: _Made | str | None = None
+        self.finds: list[tuple[tuple, str | None, dict]] = []
+        self.lost = False
 
     def run(self) -> list[Step]:
         steps = []
         for i, step in enumerate(self.scenario['steps']):
             (name, value), = step.items()
             self.edit, self.then, self.refused, self.confirm = False, None, self.failing, None
-            self.failing = name == 'submit' and fails(self.scenario['steps'], i)
+            self.failing, self.created = name == 'submit' and fails(self.scenario['steps'], i), False
             getattr(self, f'step_{name}')((*self.path, 'steps', i, name), value)
-            steps.append(Step(name, value, self.edit, self.then, self.failing, self.confirm))
+            self.lost = self.lost or not self.state.known
+            steps.append(Step(name, value, self.edit, self.then, self.failing, self.confirm, self.created))
         return steps
 
     def add(self, path, code, message, hint):
         self.issues.add(self.doc, path, code, message, hint)
+
+    def find(self, path, entity: str | None, where: dict) -> _Made | None:
+        """
+        The item that the scenario created before and that `where` finds (the last that
+        agrees), or None: the item found is one it did not create then (`finds`, P034).
+        """
+        self.lost = self.lost or entity not in self.product.entities
+        made = next((it for it in reversed(self.made) if it.entity == entity and agrees(where, it.values)), None)
+        if made is None and not self.lost:
+            self.finds.append((path, entity, where))
+        self.created = made is not None
+        return made
+
+    def changes(self, path, own: bool, what: str) -> None:
+        """
+        Reports a step that changes an item that the scenario did not create (P033), unless a
+        step before could not be followed.
+        """
+        if not own and not self.lost:
+            self.add(
+                path, 'P033',
+                f'The scenario {what} an item that it did not create: an item of the test data, which the '
+                'other scenarios and the next runs expect as it is.',
+                'Create the item in the scenario (a create form) and change that one; open the items of the '
+                'test data (`e2e_data`) only to read them.',
+            )
+
+    def changes_item(self, path, what: str) -> None:
+        """
+        Reports a step that changes the item of the current card when the scenario did not create it.
+        """
+        self.changes(path, self.item != OTHER, what)
 
     @property
     def entity(self) -> Entity | None:
@@ -229,6 +334,7 @@ class _Scenario:
 
     def step_open(self, path, screen_id):
         self.go(path, screen_id)
+        self.item = None
         screen = self.state.screen
         if screen is None:
             return
@@ -266,8 +372,9 @@ class _Scenario:
         if not self.require(path, bool(screen) and possible, message):
             self.state.known = False
             return
-        entity = self.product.entities.get(part.get('entity', screen.get('entity')))
-        self.fields((((*path, 'where', name), name) for name in value['where']), entity=entity)
+        entity_id = part.get('entity', screen.get('entity'))
+        self.fields((((*path, 'where', name), name) for name in value['where']), entity=self.product.entities.get(entity_id))
+        self.item = self.find(path, entity_id, value['where']) or OTHER
         self.lead(path, part['open'])
 
     def step_select(self, path, value):
@@ -278,13 +385,16 @@ class _Scenario:
         ):
             self.fields(((*path, 'where', name), name) for name in value['where'])
             self.state.selected = True
+            if not self.find(path, screen.get('entity'), value['where']):
+                self.state.others = True
 
     def step_bulk(self, path, action_id):
         screen = self.state.screen
         actions = {it['id'] for it in screen['list'].get('bulk', [])} if screen and screen['primitive'] == 'list' else set()
         if self.require(path, action_id in actions, f'The screen has no bulk action `{action_id}`.'):
-            self.require(path, self.state.selected, 'No row is selected: `select` the rows first.')
-            self.state.selected = False
+            if self.require(path, self.state.selected, 'No row is selected: `select` the rows first.'):
+                self.changes(path, not self.state.others, 'runs a bulk action on')
+            self.state.selected = self.state.others = False
 
     def step_move(self, path, value):
         screen = self.state.screen
@@ -294,6 +404,7 @@ class _Scenario:
         ):
             return
         self.fields(((*path, 'where', name), name) for name in value['where'])
+        self.changes(path, bool(self.find(path, screen.get('entity'), value['where'])), 'moves')
         entity, to = self.entity, value['to']
         if entity is None or entity.workflow is None:
             return
@@ -340,6 +451,8 @@ class _Scenario:
             self.state.known = False
             return
         action = actions[action_id]
+        if action['primitive'] in ('form', 'custom'):
+            self.state.values = {}
         if action['primitive'] == 'form':
             self.state.form = action
             return
@@ -354,13 +467,17 @@ class _Scenario:
             )
             if action.get('fields'):
                 self.state.form = action
-            elif action.get('confirm'):
+                return
+            if action.get('confirm'):
                 self.confirm = 'optional' if custom else 'required'
+            self.changes_item(path, 'runs a custom action on')
             return
         if action['primitive'] == 'destroy':
             self.confirm = 'optional' if custom else 'required'
+            self.changes_item(path, 'deletes')
         if 'then' in action:
             self.lead(path, action['then'])
+            self.item = None
 
     def shown(self) -> set[str] | None:
         """
@@ -398,6 +515,7 @@ class _Scenario:
             return False
         if self.state.form is None and not self.state.editing:
             self.state.editing = self.edit = True
+            self.state.values = {}
         return True
 
     def fixed(self, path, name) -> None:
@@ -414,6 +532,7 @@ class _Scenario:
     def step_fill(self, path, values):
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
+            self.state.values.update(values)
             if (self.state.form or {}).get('primitive') == 'custom':
                 return
             for name, value in values.items():
@@ -473,9 +592,32 @@ class _Scenario:
         if not self.editing(path) or self.failing:
             return
         form, self.state.form, self.state.editing = self.state.form, None, False
+        made = self.save(path, form)
         then = (form or {}).get('then')
         if then is not None:
             self.lead(path, then)
+            # the screen of the item created, or of none
+            self.item = made
+
+    def save(self, path, form: dict | None) -> _Made | None:
+        """
+        The saved submit of the open form: a create form (of the screen, of a dashboard, of the
+        add of a calendar or of "add here" of a card) makes an item, which it returns; "add here"
+        and any other form (the edit of a card, a custom action) change the item of the card,
+        whose values an edit updates when the scenario created it.
+        """
+        values, custom = self.state.values, form is not None and form.get('primitive') == 'custom'
+        if form is not None and not custom and form.get('mode', 'create') == 'create':
+            made = _Made(form.get('entity', (self.state.screen or {}).get('entity')), dict(values))
+            self.made.append(made)
+            self.lost = self.lost or made.entity not in self.product.entities
+            if 'fixed' in form:
+                self.changes_item(path, 'adds a related item to')
+            return made
+        self.changes_item(path, 'runs a custom action on' if custom else 'edits')
+        if isinstance(self.item, _Made) and not custom:
+            self.item.values.update(values)
+        return None
 
     def step_transit(self, path, value):
         transit_id, payload = (value, None) if isinstance(value, str) else (value['id'], value.get('payload'))
@@ -488,6 +630,7 @@ class _Scenario:
         entity = self.entity
         if entity is None or entity.workflow is None:
             return
+        self.changes_item(path, 'runs a transit of')
         transition = entity.transitions.get(transit_id)
         if transition is None:
             self.add(
@@ -544,6 +687,9 @@ class _Scenario:
         # the screen of a refused submit stays, with its open form
         if 'screen' in value and not (self.refused and value['screen'] == current):
             self.go((*path, 'screen'), value['screen'])
+            if value['screen'] != current:
+                # another screen than the walk followed: its item is not known
+                self.item = None
         screen = self.state.screen
         self.expect_items(path, value)
         if 'action_absent' in value:

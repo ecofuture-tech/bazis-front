@@ -497,6 +497,71 @@ test.describe('submit', () => {
   });
 });
 
+test.describe('the items that a test created', () => {
+  /**
+   * The list of a previous run and of this one, its rows alike, with a create form whose submit
+   * posts to the backend (answered by `answers`, in turn), then shows the row of the item it
+   * created, `row:<id>`.
+   */
+  async function list(page: Page, answers: readonly { status: number; body: string; contentType?: string }[]): Promise<App<typeof PRODUCT>> {
+    const rows = (ids: string) =>
+      ids
+        .split(' ')
+        .map((id) => `<tr data-bz="row:${id}" onclick="document.body.dataset.opened = '${id}'"><td data-bz="cell:title">Write the report</td></tr>`)
+        .join('');
+    await show(page, '/tasks',
+      html(
+        `<section data-bz="screen:task-list"><div data-bz="list:task"><div data-bz="state:loaded"><table><tbody id="rows">${rows('old')}</tbody></table></div></div></section>
+         <form id="form"><input data-bz="field:title"><button type="submit" data-bz="action:submit">Save</button></form>`,
+        `document.getElementById('form').addEventListener('submit', async (event) => {
+           event.preventDefault();
+           for (const _ of ${JSON.stringify(answers)}) await fetch('/api/tasks/', { method: 'POST', body: '{}' });
+           document.getElementById('rows').insertAdjacentHTML('beforeend', ${JSON.stringify(rows('new'))});
+           event.target.remove();
+         });`,
+      ),
+    );
+    const left = [...answers];
+    await page.route('http://bazis.test/api/tasks/', async (route) => {
+      const { status, body, contentType = 'application/vnd.api+json' } = left.shift() ?? { status: 500, body: '' };
+      await route.fulfill({ status, body, contentType });
+    });
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    return app;
+  }
+
+  test('openItem with created opens the item that a submit of the test created, never another with its texts', async ({ page }) => {
+    const app = await list(page, [
+      // a create (with its id in data.id), not a request that answers 200 or a 201 that is no JSON
+      { status: 200, body: JSON.stringify({ data: { id: 'old' } }) },
+      { status: 201, body: 'created', contentType: 'text/plain' },
+      { status: 201, body: JSON.stringify({ data: { type: 'tasks.task', id: 'new' } }) },
+    ]);
+    await app.submit({ saved: true });
+    await app.openItem({ where: { title: 'Write the report' }, created: true });
+    await expect(page.locator('body')).toHaveAttribute('data-opened', 'new');
+    // without `created`: the first row that has the texts
+    await app.openItem({ where: { title: 'Write the report' } });
+    await expect(page.locator('body')).toHaveAttribute('data-opened', 'old');
+  });
+
+  test('fails when the test created no item, or none with the texts', async ({ page }) => {
+    const app = await list(page, [{ status: 200, body: JSON.stringify({ data: { id: 'new' } }) }]);
+    await expect(app.openItem({ where: { title: 'Write the report' }, created: true })).rejects.toThrow('This test created no item');
+    await app.submit({ saved: true });
+    await expect(app.select({ where: { title: 'Write the report' }, created: true })).rejects.toThrow('This test created no item');
+  });
+
+  test('fails when no item that the test created has the texts', async ({ page }) => {
+    const app = await list(page, [{ status: 201, body: JSON.stringify({ data: { id: 'other' } }) }]);
+    await app.submit({ saved: true });
+    await expect(app.openItem({ where: { title: 'Write the report' }, created: true })).rejects.toThrow(
+      'No row that this test created of the screen task-list has the texts {"title":"Write the report"}.',
+    );
+  });
+});
+
 /** A card with an open form and its file field, whose upload ends after a delay with `onUpload`. */
 function uploadPage(onUpload: string): string {
   return html(
@@ -571,35 +636,51 @@ test.describe('expectValues', () => {
 });
 
 test.describe('expectNotification', () => {
-  // the bell of a layout with a hidden copy (the sidebar on a phone); the list it opens, closed
-  // by Escape, gets the notification after a delay
-  const bell = html(
-    `<section data-bz="screen:task-card"><div data-bz="state:loaded">Task</div></section>
-     <button data-bz="action:notifications" style="display: none"></button>
-     <button data-bz="action:notifications" id="bell">Notifications</button>`,
-    `document.getElementById('bell').onclick = () => {
-       const list = document.createElement('ul');
-       list.dataset.bz = 'list:notifications';
-       list.innerHTML = '<li data-bz="notification:1">Task finished Plan the week</li>';
-       document.body.append(list);
-       setTimeout(() => { list.insertAdjacentHTML('afterbegin', '<li data-bz="notification:2">Task finished Write the report</li>'); }, 300);
-     };
-     document.addEventListener('keydown', (event) => {
-       if (event.key === 'Escape') document.querySelector('[data-bz="list:notifications"]')?.remove();
-     });`,
-  );
+  /**
+   * The bell of a layout with a hidden copy (the sidebar on a phone); the list it opens, closed
+   * by Escape, has the notifications of a previous run, each with its time, and gets a new one
+   * after a delay (`arrives`, its text).
+   */
+  function bell(arrives: string | null): string {
+    const item = (key: number, text: string, time: string) =>
+      `<li data-bz="notification:${String(key)}"><span>Task finished ${text}</span><time datetime="${time}">yesterday</time></li>`;
+    return html(
+      `<section data-bz="screen:task-card"><div data-bz="state:loaded">Task</div></section>
+       <button data-bz="action:notifications" style="display: none"></button>
+       <button data-bz="action:notifications" id="bell">Notifications</button>`,
+      `document.getElementById('bell').onclick = () => {
+         const list = document.createElement('ul');
+         list.dataset.bz = 'list:notifications';
+         list.innerHTML = ${JSON.stringify(item(1, 'Plan the week', '2026-01-01T09:00:00.000Z') + item(2, 'Write the report', '2026-01-01T10:00:00.000Z'))};
+         document.body.append(list);
+         const arrives = ${JSON.stringify(arrives)};
+         if (arrives !== null) setTimeout(() => {
+           list.insertAdjacentHTML('afterbegin', '<li data-bz="notification:3"><span>Task finished ' + arrives + '</span><time datetime="' + new Date().toISOString() + '">now</time></li>');
+         }, 300);
+       };
+       document.addEventListener('keydown', (event) => {
+         if (event.key === 'Escape') document.querySelector('[data-bz="list:notifications"]')?.remove();
+       });`,
+    );
+  }
 
-  test('opens the list of the notifications and waits for the text', async ({ page }) => {
-    await show(page, '/tasks/1', bell);
+  test('opens the list of the notifications and waits for one with the text since the test started', async ({ page }) => {
     const app = new App(page, PRODUCT);
+    await show(page, '/tasks/1', bell('Write the report'));
     await app.expectNotification('Write the report');
     await expect(page.locator(bz('list', 'notifications'))).toHaveCount(0);
   });
 
   test('fails when no notification has the text', async ({ page }) => {
-    await show(page, '/tasks/1', bell);
     const app = new App(page, PRODUCT);
+    await show(page, '/tasks/1', bell('Write the report'));
     await expect(app.expectNotification('Archive the task')).rejects.toThrow();
+  });
+
+  test('does not take a notification of before the test (of a previous run)', async ({ page }) => {
+    const app = new App(page, PRODUCT);
+    await show(page, '/tasks/1', bell(null));
+    await expect(app.expectNotification('Write the report')).rejects.toThrow('since the test started');
   });
 });
 
@@ -764,6 +845,37 @@ test('move moves an item by its menu and waits until it is in its column', async
   await app.expectScreen('task-board');
   await app.move({ where: { title: 'A' }, to: 'in_progress' });
   expect(await page.locator(`${bz('column', 'in_progress')} ${bz('row', '1')}`).count()).toBe(1);
+});
+
+test('openItem shows more items of a column of a board until it has the item', async ({ page }) => {
+  // the first cards of each column, more of them by `action:more` (busy while they load)
+  await show(page, '/board',
+    html(
+      `<section data-bz="screen:task-board"><div data-bz="state:loaded">
+        <div data-bz="column:draft"><div data-bz="row:1"><span data-bz="cell:title">A</span></div><button data-bz="action:more">More</button></div>
+        <div data-bz="column:done"><div data-bz="row:2"><span data-bz="cell:title">B</span></div><button data-bz="action:more">More</button></div></div></section>`,
+      `const cards = { draft: ['C', 'D'], done: ['Target'] };
+       let next = 3;
+       for (const button of document.querySelectorAll('[data-bz="action:more"]')) {
+         button.addEventListener('click', () => {
+           const column = button.parentElement;
+           const status = column.dataset.bz.slice(7);
+           button.disabled = true;
+           setTimeout(() => {
+             const title = cards[status].shift();
+             button.insertAdjacentHTML('beforebegin', '<div data-bz="row:' + next + '" onclick="document.body.dataset.opened = this.dataset.bz"><span data-bz="cell:title">' + title + '</span></div>');
+             next += 1;
+             button.disabled = false;
+             if (!cards[status].length) button.remove();
+           }, 200);
+         });
+       }`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-board');
+  await app.openItem({ where: { title: 'Target' } });
+  await expect(page.locator('body')).toHaveAttribute('data-opened', 'row:5');
 });
 
 test('move fails at once with the refusal of the move', async ({ page }) => {

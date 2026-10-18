@@ -1078,6 +1078,8 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P030` | error | an anonymous role is not what bazis-permit gives the users who do not log in: its permit role is not `for_anonymous`, it has `access` without a permit role, or a selector of its access is not `all` |
 | `P031` | error | the `label` of an entity names a field that the entity does not declare |
 | `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`) |
+| `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is |
+| `P034` | warning | a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -2592,15 +2594,15 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   |---|---|
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
-  | `open_item: {where, in}` | `openItem({where, in})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
-  | `select: {where}` | `select({where})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
+  | `open_item: {where, in}` | `openItem({where, in, created})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`), or with more items of the columns of a board (`action:more`); then `expectScreen` of `list.open`. `created: true` when the scenario created an item with these texts before (the walk of `check`: the values filled in a create form that saves, then in its edits, have the texts of `where`): only a row of an item that this test created, its id among those of the creates of its submits, never an item of a previous run with the same texts. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
+  | `select: {where}` | `select({where, created})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
   | `bulk: <id>` | `bulk(id)`: `bulk:<id>` of the screen, then `action:confirm-bulk` of its confirmation; waits until it is no longer offered (the selection is cleared) or an error is shown (`error:bulk`) |
-  | `move: {where, to}` | `move({where, to})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>` (confirmed in its dialog when the workflow confirms the transit); waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
+  | `move: {where, to}` | `move({where, to, created})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>` (confirmed in its dialog when the workflow confirms the transit); waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog), and so is a custom action with `confirm: true`; one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
-  | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
+  | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog, or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, count)` (`data-value` of `tile:<id>`, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, count)` (`data-value` of `tile:<id>`, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
@@ -2661,14 +2663,23 @@ E2E_PASSWORD=... python manage.py e2e_data
   of the test users again, so that the tests log in with the current `E2E_PASSWORD`; it runs
   in one transaction. The sample creates its task once and moves its date
   (`sample/tasks/e2e.py`).
-- since the items of the runs pile up, a count of a scenario (`rows`, `tile`, `day`) is of
-  the records of `e2e_data` alone (a filter or a title that no scenario creates), and a
-  scenario that changes an item (a transit, an edit) creates that item itself, never changes
-  a record of `e2e_data` that another opens. A scenario finds its item by its texts
-  (`open_item`, `move`: the first row that has them), so on a database that keeps the items
-  of the previous runs it may find the item of a previous run with the same texts (a task
-  already moved) and fail: run the tests on a new database (CI does) or give the items of
-  the scenarios texts that no previous run has.
+- **the scenarios run again on the same database**, which keeps the items of the previous
+  runs, and pass every time:
+  - a scenario that changes an item (a transit, a move, an edit, a custom or a bulk action,
+    a deletion, a related item added to it) creates that item itself: the records of
+    `e2e_data` are only read, so that the other scenarios and the next runs find them as
+    they are (P033 reports a change of an item that the scenario did not create);
+  - a scenario finds the items it created by their ids: when the values that it filled in a
+    create form (then in its edits) have the texts of a `where`, the test takes only an item
+    that it created (`created: true` of `openItem`, `select`, `move`; the ids of the creates
+    of its submits), never an item of a previous run with the same texts (a task already
+    moved). An item of `e2e_data` is found by texts that no scenario gives the items it
+    creates (P034 reports them);
+  - a count (`rows`, `tile`, `day`) is of the records of `e2e_data` alone: a filter or a
+    title that no scenario gives its items (the tile `review` of the sample counts the task
+    of `e2e_data` by its title), never the items that the scenarios add at every run;
+  - a notification is one that came since its test started (`expectNotification`, by its
+    time): those of the previous runs stay in the list.
 
 The scenarios share the database and run one at a time (`playwright.config.ts`); none
 should depend on another: a scenario opens an item that `e2e_data` creates, or one it
@@ -2714,11 +2725,15 @@ test('a manager sees the drafts', async ({ page }) => {
   const app = await loginAs(page, PRODUCT, 'manager');
   await app.open('task-list');
   await app.expectState('loaded');
-  await app.openItem({ where: { title: 'Write the report' } });
+  await app.openItem({ where: { title: 'Review the plan' } }); // the task of `e2e_data`
   await app.expectScreen('task-card');
   await app.expectStatus('draft');
 });
 ```
+
+A test of your own runs again on the same database too: it reads the records of `e2e_data`,
+and finds an item that it created with `created: true` (`openItem`, `select`, `move`), never
+one of a previous run with the same texts.
 
 For what they do not cover, `app.page`, `app.screen()` (the current screen), `app.form()`
 (the open form) and `bz(kind, id)` of `../bazis` (the selector of a mark): a transit that a
@@ -6305,10 +6320,10 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `screen(): Locator`: The current screen, `screen:<id>`.
 - `form(): Locator`: The open form.
 - `open(screen: ScreenId<P>): Promise<void>`: Opens a screen by its route (one without the id of an item) and waits for its state.
-- `openItem(options: { where: Values; in?: string; }): Promise<void>`: Opens the first item of the current screen whose cells `cell:<name>` have exactly these texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search; fails when no page has it.
-- `select(options: { where: Values; }): Promise<void>`: Selects the row of the list of the current screen that `openItem` would open, its checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
+- `openItem(options: { where: Values; in?: string; created?: boolean; }): Promise<void>`: Opens the first item of the current screen whose cells `cell:<name>` have exactly these texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search, or with more items of the columns of a board (`action:more`); fails when no page has it.
+- `select(options: { where: Values; created?: boolean; }): Promise<void>`: Selects the row of the list of the current screen that `openItem` would open, its checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
 - `bulk(id: string): Promise<void>`: Runs a bulk action of the list of the current screen on the selected rows, `bulk:<id>`, confirmed in its dialog (`action:confirm-bulk`), and waits until it is done (the action is no longer offered: the selection is cleared) or shows an error (`error:bulk`).
-- `move(options: { where: Values; to: string; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), confirmed in its dialog when the specs confirm the transit, and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
+- `move(options: { where: Values; to: string; created?: boolean; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), confirmed in its dialog when the specs confirm the transit, and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
 - `confirm(id: string, options?: { optional?: boolean; }): Promise<void>`: Confirms the action `<id>` of the current screen in its dialog, `action:confirm-<id>` (the deletion of the item of a card), and waits until the dialog is closed; the dialog must be shown, but with `optional` (a hand-written screen may run the action without a confirmation), where nothing is done when none is shown within 2 s.
 - `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false; an input of a date or a date-time also by a day of the run (`today`, `today+1 10:30`: `dateOfRun`).
@@ -6326,7 +6341,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `expectTile(id: string, count: number): Promise<void>`: The tile of the current dashboard counts this number of items, `tile:<id>` (its `data-value`).
 - `expectDay(day: string, count: number): Promise<void>`: The day of the calendar of the current screen has this number of items, `day:<date>` (its `data-count`): the calendar (`calendar:<entity>`, the days it shows from `data-from` to `data-to`) is first moved to the period of the day (`action:previous-period`, `action:next-period`).
 - `expectError(field: string): Promise<void>`: A field shows a validation error, `error:<name>`.
-- `expectNotification(text: string): Promise<void>`: The user has a notification whose text contains this text: the bell (`action:notifications`) opens the list of the notifications (`list:notifications`), which waits for it (`notification:<key>`), and is closed again.
+- `expectNotification(text: string): Promise<void>`: The user has a notification whose text contains this text, that came since this test started (its time, `<time datetime>`; one of a previous run does not count): the bell (`action:notifications`) opens the list of the notifications (`list:notifications`), which waits for it (`notification:<key>`), and is closed again.
 - `language(code: string): Promise<void>`: Switches the language of the interface to a language of the backend (`LANGUAGES` of the contract): the button of the layout, `action:language`, until its `data-value` is the code.
 - `search(text: string): Promise<void>`: Searches the list of the current screen (`field:$search`) and waits for its rows.
 

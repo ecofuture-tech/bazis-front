@@ -80,7 +80,7 @@ test('a long title keeps the screens within the width of the page', async ({ pag
   await app.fill({ title: LONG, due: 'today 12:00' });
   await app.submit({ saved: true });
   await app.open('task-list');
-  await app.openItem({ where: { title: LONG } });
+  await app.openItem({ where: { title: LONG }, created: true });
   await app.expectScreen('task-card');
   await app.action('add-step');
   await app.fill({ title: LONG });
@@ -96,7 +96,7 @@ test('a long title keeps the screens within the width of the page', async ({ pag
       if (await scrollsSideways(page)) wide.push(`${screen} at ${String(width)}`);
     }
     await app.open('task-list');
-    await app.openItem({ where: { title: LONG } });
+    await app.openItem({ where: { title: LONG }, created: true });
     await app.expectScreen('task-card');
     await expect(app.screen().getByText(LONG).first()).toBeAttached();
     await expect(page.locator(bz('state', 'loading'))).toHaveCount(0);

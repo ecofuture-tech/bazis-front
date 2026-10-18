@@ -33,7 +33,7 @@ test('manager-starts-from-the-home', async ({ page }) => {
     await app.open('home');
   });
   await test.step('open_item: {in: last-tasks, where: {title: Plan from the home}}', async () => {
-    await app.openItem({ in: 'last-tasks', where: { title: 'Plan from the home' } });
+    await app.openItem({ in: 'last-tasks', where: { title: 'Plan from the home' }, created: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: draft}', async () => {

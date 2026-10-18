@@ -112,7 +112,8 @@ def calls(step: Step, screens: bool = False) -> list[str]:
         result.append(f'app.open({string(value)})')
     elif name in ('open_item', 'select', 'move'):
         helper = 'openItem' if name == 'open_item' else name
-        result.append(f'app.{helper}({literal(value)})')
+        # the item that the test created, never one of a previous run with the same texts
+        result.append(f'app.{helper}({literal({**value, "created": True} if step.created else value)})')
     elif name in ('action', 'bulk'):
         result.append(f'app.{name}({string(value)})')
         if step.confirm and screens:

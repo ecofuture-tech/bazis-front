@@ -42,13 +42,13 @@ test('manager-escalates-a-task', async ({ page }) => {
     await app.open('task-list');
   });
   await test.step('select: {where: {title: Escalate the review}}', async () => {
-    await app.select({ where: { title: 'Escalate the review' } });
+    await app.select({ where: { title: 'Escalate the review' }, created: true });
   });
   await test.step('bulk: escalate-all', async () => {
     await app.bulk('escalate-all');
   });
   await test.step('open_item: {where: {title: Escalate the review}}', async () => {
-    await app.openItem({ where: { title: 'Escalate the review' } });
+    await app.openItem({ where: { title: 'Escalate the review' }, created: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, values: {priority: High}}', async () => {

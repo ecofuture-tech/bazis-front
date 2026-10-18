@@ -166,6 +166,10 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
     assert e2e.calls(Step('select', where)) == ["app.select({ where: { title: 'A' } })"]
     assert e2e.calls(Step('bulk', 'start-all')) == ["app.bulk('start-all')"]
     assert e2e.calls(Step('move', {**where, 'to': 'done'})) == ["app.move({ where: { title: 'A' }, to: 'done' })"]
+    # the item that the test created
+    assert e2e.calls(Step('move', {**where, 'to': 'done'}, created=True)) == [
+        "app.move({ where: { title: 'A' }, to: 'done', created: true })",
+    ]
     assert e2e.calls(Step('expect', {'day': {'2026-10-07': 1, '2026-10-08': 0}, 'tile': {'in-progress': 2}, 'screen': 'home'})) == [
         "app.expectScreen('home')", "app.expectTile('in-progress', 2)",
         "app.expectDay('2026-10-07', 1)", "app.expectDay('2026-10-08', 0)",
@@ -227,6 +231,45 @@ def test_the_steps_follow_the_walk_of_the_scenario(tmp_path):
         '  });\n'
         '});\n'
     )
+
+
+def test_the_steps_find_the_items_that_the_scenario_created(tmp_path):
+    """
+    A step finds an item that its scenario created when the values filled in its create form,
+    then in its edits, have the texts of `where`: the test takes the item it created
+    (`created: true`), whatever the previous runs left; an item of the test data is found by
+    its texts.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+
+    def scenario(data):
+        data['scenarios'].append({
+            'id': 'manager-renames-its-task',
+            'role': 'manager',
+            'steps': [
+                {'open': 'task-list'}, {'action': 'create'}, {'fill': {'title': 'Draft it', 'priority': 'High'}},
+                {'submit': {}}, {'expect': {'screen': 'task-card'}},
+                # renamed: found by its new title, its priority kept
+                {'fill': {'title': 'Renamed'}}, {'submit': {}},
+                {'open': 'task-list'}, {'open_item': {'where': {'title': 'Renamed', 'priority': 'High'}}},
+                # no item of the scenario has the old title, nor the title of the task of `e2e_data`
+                {'open': 'task-list'}, {'open_item': {'where': {'title': 'Draft it'}}},
+                {'open': 'task-list'}, {'open_item': {'where': {'title': 'Review the plan'}}},
+                # an item added on the calendar stays there: found by its title
+                {'open': 'task-calendar'}, {'action': 'add-task'}, {'fill': {'title': 'On the day', 'due': 'today 10:00'}},
+                {'submit': {}}, {'open_item': {'where': {'title': 'On the day'}}}, {'transit': 'start'},
+            ],
+        })
+
+    edit_product(tmp_path, scenario)
+    result = validate(tmp_path)
+    assert result.issues == []
+    finds = [it.created for it in result.specs.scenarios['manager-renames-its-task'] if it.name == 'open_item']
+    assert finds == [True, False, False, True]
+    text = rendered(tmp_path)['e2e/generated/manager-renames-its-task.spec.ts']
+    assert "app.openItem({ where: { title: 'Renamed', priority: 'High' }, created: true })" in text
+    assert "app.openItem({ where: { title: 'Review the plan' } })" in text
+    assert "app.openItem({ where: { title: 'On the day' }, created: true })" in text
 
 
 def test_the_delete_of_a_card_is_confirmed(tmp_path):

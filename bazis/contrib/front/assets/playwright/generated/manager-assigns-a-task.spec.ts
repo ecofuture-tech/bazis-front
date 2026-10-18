@@ -30,7 +30,7 @@ test('manager-assigns-a-task', async ({ page }) => {
     await app.open('task-list');
   });
   await test.step('open_item: {where: {title: Assign the review, assignee: Mary Manager}}', async () => {
-    await app.openItem({ where: { title: 'Assign the review', assignee: 'Mary Manager' } });
+    await app.openItem({ where: { title: 'Assign the review', assignee: 'Mary Manager' }, created: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card}', async () => {

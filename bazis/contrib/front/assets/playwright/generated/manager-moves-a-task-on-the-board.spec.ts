@@ -30,10 +30,10 @@ test('manager-moves-a-task-on-the-board', async ({ page }) => {
     await app.open('task-board');
   });
   await test.step('move: {where: {title: Move on the board}, to: in_progress}', async () => {
-    await app.move({ where: { title: 'Move on the board' }, to: 'in_progress' });
+    await app.move({ where: { title: 'Move on the board' }, to: 'in_progress', created: true });
   });
   await test.step('open_item: {where: {title: Move on the board}}', async () => {
-    await app.openItem({ where: { title: 'Move on the board' } });
+    await app.openItem({ where: { title: 'Move on the board' }, created: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card, status: in_progress}', async () => {

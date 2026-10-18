@@ -102,7 +102,8 @@ an invalidation hint, never data), and notifies the assignee of a finished task 
 `notify` of bazis-notify (the type `tasks.finished` of `tasks/notifications.py`, stored, in
 the language of his profile, delivered live by bazis-notify itself: never published a
 second time), which the scenario `manager-is-notified-of-a-finished-task` expects (the
-bell lists it with `useInbox`; `e2e_data` only adds, so a notification of a previous run stays;
+bell lists it with `useInbox`; `e2e_data` only adds, so a notification of a previous run stays,
+which `expectNotification` does not count: it takes those since its test started;
 `tests/test_notify.py` replaces the Redis of bazis-ws). The sample has no Kafka and
 no `bg_scheduler`: a request with `X-Async-Background` runs at once
 (`async_request.W001` is silenced in `sample/settings.py`), and the task of bazis-bg of the
@@ -242,8 +243,12 @@ job of CI.
   has an `error` or a `state` of a failure, the one rule of the walk and of the generator; a
   refused submit keeps its form open, without its `then` and with no other `screen`
   expected, and every other submit is generated as `submit({saved: true})`, which fails the
-  test when the form stays open) in `validate.Result.specs`, which `spec/e2e.py` turns into
-  calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
+  test when the form stays open; whether an `open_item`, `select` or `move` finds an item that
+  the scenario created: `created`, its `where` has the values filled in a create form of the
+  scenario before, generated as `created: true`, so that the test takes the item it created
+  and not one of a previous run, the scenarios running again on a database that keeps them;
+  P033 and P034 report the scenarios that would not) in `validate.Result.specs`, which
+  `spec/e2e.py` turns into calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the table of the steps in `bazis/contrib/front/AGENTS.md`.
 - `spec/theme.py` (`bazis_front design`, also run by `init`) compiles the design into
   `frontend/src/bazis/generated/fonts.css` (the imports of the fonts of the tokens, their

@@ -31,7 +31,7 @@ test('manager-adds-a-watcher', async ({ page }) => {
     await app.open('draft-tasks');
   });
   await test.step('open_item: {where: {title: Watch the release, assignee: Mary Manager}}', async () => {
-    await app.openItem({ where: { title: 'Watch the release', assignee: 'Mary Manager' } });
+    await app.openItem({ where: { title: 'Watch the release', assignee: 'Mary Manager' }, created: true });
     await app.expectScreen('task-card');
   });
   await test.step('expect: {screen: task-card}', async () => {

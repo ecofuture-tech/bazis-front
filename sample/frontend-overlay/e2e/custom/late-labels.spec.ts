@@ -33,6 +33,6 @@ test('a row is found by the label of a related item read after the rows', async 
     await route.continue();
   });
   await app.open('draft-tasks');
-  await app.openItem({ where: { title: 'Read the labels late', assignee: 'Mary Manager' } });
+  await app.openItem({ where: { title: 'Read the labels late', assignee: 'Mary Manager' }, created: true });
   await app.expectScreen('task-card');
 });
