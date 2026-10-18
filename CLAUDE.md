@@ -194,7 +194,15 @@ job of CI.
   issue). The defaults of the tokens keep the look of a design that names no layer (one
   of an older version): the shadows, the transitions and the monospace fonts of
   Tailwind. Only the documents valid against their
-  schema are checked further, so that one broken file does not cascade.
+  schema are checked further, so that one broken file does not cascade. The names of the
+  icons of the specs are checked (D013) against `spec/lucide-icons.json`, package data
+  written by `scripts/gen_lucide_icons.mjs` from the lucide-react of the workspace of the
+  components (the version of the template), so that `check` needs neither Node nor the
+  network. The texts of the specs (`$defs/text` of the schemas: a key of the dictionaries,
+  a text, or a map of the languages) are found in the documents by their schema
+  (`validate.text_paths`) and checked against `languages` (S027); `check` also reads the
+  code of the screens of the product in `frontend/src/screens/` (`custom`, `extend`: S028,
+  S029, S031).
 - `spec/issues.py` has the codes (`CODES`, with their severity); a code never changes its
   meaning. A new code gets a case in `tests/test_spec.py` (`CASES` must cover every code)
   and a row in the table of `bazis/contrib/front/AGENTS.md` (tested).
@@ -325,8 +333,9 @@ npm ci
 npx playwright install chromium   # the tests of the Playwright helpers
 npm run lint
 npm run typecheck
-npm test                  # also `npm run api-reference -- --check`
+npm test                  # also `npm run api-reference -- --check` and `npm run lucide-icons -- --check`
 npm run api-reference     # the API reference of the guide, after a change of an exported API
+npm run lucide-icons      # spec/lucide-icons.json, after a change of the version of lucide-react
 ```
 
 - `bazis/contrib/front/AGENTS.md` is the guide of the agents that build a product (served by

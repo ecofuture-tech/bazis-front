@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
 spec: bazis-screen/1
 id: task-list
-title: Tasks
+title: {en: Tasks, ru: Задачи}
+description: {en: 'The tasks of the team, from the draft to the report.', ru: 'Задачи команды: от черновика до отчёта.'}
 route: /tasks
 entity: task
 roles: [manager, viewer]
@@ -12,9 +13,16 @@ list:
   sort: [-dt_created]
   search: true
   open: task-card
+  empty: {en: No tasks yet., ru: Задач пока нет.}
   map: {field: location}          # the tasks with a location on a map beside the list
   bulk:
-    - {id: start-all, transit: start}   # the selected drafts started one by one
+    - {id: start-all, transit: start, label: {en: Start, ru: Начать}}   # the selected drafts started one by one
 actions:
-  - {id: create, primitive: form, mode: create, fields: [title, assignee, priority, watchers], then: task-card}
+  - id: create
+    primitive: form
+    mode: create
+    fields: [title, assignee, priority, watchers]
+    then: task-card
+    label: {en: New task, ru: Новая задача}
+    description: {en: The task is created as a draft., ru: Задача создаётся черновиком.}
 states: [loading, empty, error, forbidden]

@@ -444,10 +444,40 @@ def check_statuses(theme: Document, contract: dict | None, issues: Issues) -> No
             )
 
 
+#: the names of the icons of lucide-react that the frontend imports, by the version of the
+#: template (`npm run lucide-icons` writes it from the workspace of the components)
+LUCIDE_ICONS = 'lucide-icons.json'
+
+
+@cache
+def lucide_icons() -> tuple[str, frozenset[str]]:
+    """
+    The version of lucide-react and the names of its icons, in kebab-case.
+    """
+    data = json.loads((files(__package__) / LUCIDE_ICONS).read_text(encoding='utf-8'))
+    return data['lucide-react'], frozenset(data['icons'])
+
+
+def check_icon(doc: Document, path: tuple, name: str, issues: Issues) -> None:
+    """
+    An icon of the specs is an icon of lucide-react (D013), which the frontend imports by its
+    name in PascalCase (`book-open`: `BookOpen`).
+    """
+    version, names = lucide_icons()
+    if name not in names:
+        issues.add(
+            doc, path, 'D013', f'`{name}` is not an icon of lucide-react {version}: the screens cannot import it.',
+            'Name an icon of lucide.dev in kebab-case (`book-open`, `building-2`), as "Icons" of the '
+            'guide of bazis-front says.',
+        )
+
+
 def check_icons(theme: Document, entities: set[str], issues: Issues) -> None:
     """
-    Every entity with a screen has an icon in `icons`.
+    Every entity with a screen has an icon in `icons`, one of lucide-react.
     """
+    for entity, name in theme.data.get('icons', {}).items():
+        check_icon(theme, ('icons', entity), name, issues)
     for entity in sorted(entities - set(theme.data.get('icons', {}))):
         issues.add(
             theme, ('icons',), 'D011',

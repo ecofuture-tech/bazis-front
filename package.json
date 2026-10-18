@@ -16,8 +16,9 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm test --workspaces && npm run api-reference -- --check",
-    "api-reference": "node scripts/gen_api_reference.mjs"
+    "test": "npm test --workspaces && npm run api-reference -- --check && npm run lucide-icons -- --check",
+    "api-reference": "node scripts/gen_api_reference.mjs",
+    "lucide-icons": "node scripts/gen_lucide_icons.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

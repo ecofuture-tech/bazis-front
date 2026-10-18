@@ -2,22 +2,30 @@
 # The home: the tasks by status and by week, the last ones, and a task created from here.
 spec: bazis-screen/1
 id: home
-title: Home
+title: {en: Home, ru: Главная}
+description: {en: The tasks of the team at a glance and where to go next., ru: Задачи команды с первого взгляда и куда идти дальше.}
 route: /
 roles: [manager, viewer]
 primitive: dashboard
 dashboard:
   tiles:
-    - {id: drafts, entity: task, filter: {status: draft}, label: Drafts, open: draft-tasks}
-    - {id: in-progress, entity: task, filter: {status: in_progress}, tone: info, label: In progress}
-    - {id: done, entity: task, filter: {status: done}, tone: success, label: Done}
+    - {id: drafts, entity: task, filter: {status: draft}, label: {en: Drafts, ru: Черновики}, open: draft-tasks}
+    - {id: in-progress, entity: task, filter: {status: in_progress}, tone: info, label: {en: In progress, ru: В работе}}
+    - {id: done, entity: task, filter: {status: done}, tone: success, label: {en: Done, ru: Готово}}
     # the task that `manage.py e2e_data` creates: one at every run
-    - {id: review, entity: task, filter: {title: Review the plan}, tone: warning, label: To review}
+    - {id: review, entity: task, filter: {title: Review the plan}, tone: warning, label: {en: To review, ru: На проверку}}
   charts:
-    - {id: by-status, entity: task, by: status, kind: donut, label: By status}
-    - {id: created-by-week, entity: task, by: dt_created, bucket: week, last: 12, kind: bar, label: Created by week}
+    - {id: by-status, entity: task, by: status, kind: donut, label: {en: By status, ru: По статусам}}
+    - {id: created-by-week, entity: task, by: dt_created, bucket: week, last: 12, kind: bar, label: {en: Created by week, ru: Созданы по неделям}}
   recent:
-    - {id: last-tasks, entity: task, columns: [title, status, dt_created], sort: [-dt_created], limit: 5, open: task-card, label: The last tasks}
+    - {id: last-tasks, entity: task, columns: [title, status, dt_created], sort: [-dt_created], limit: 5, open: task-card, label: {en: The last tasks, ru: Последние задачи}}
   actions:
-    - {id: create, primitive: form, entity: task, mode: create, fields: [title], then: task-card}
+    - id: create
+      primitive: form
+      entity: task
+      mode: create
+      fields: [title]
+      then: task-card
+      label: {en: New task, ru: Новая задача}
+      description: {en: The task is created as a draft., ru: Задача создаётся черновиком.}
 states: [loading, error]

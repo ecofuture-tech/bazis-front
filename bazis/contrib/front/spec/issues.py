@@ -99,6 +99,11 @@ CODES: dict[str, tuple[str, str]] = {
     'S024': (ERROR, 'the tabs of a card are inconsistent: a tab names an unknown section or related section, or is empty; a section or a related section is in no tab or in two; the history is in no tab, or a tab has a history that the card does not have'),
     'S025': (ERROR, 'a bulk action of a list runs a transition that its entity does not have (or has no workflow), or one with a payload'),
     'S026': (WARNING, 'the home of the frontend is the overview of the template: the product declares entities, and no screen has the route `/`, it is not a dashboard, or a dashboard has no tile'),
+    'S027': (WARNING, 'a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them; the frontend shows the text of another language'),
+    'S028': (ERROR, 'a custom screen has no code: the module of `custom` (frontend/src/screens/<id>/index.tsx for `custom: true`) is missing, or does not export its component'),
+    'S029': (ERROR, 'a screen has two implementations: frontend/src/screens/<id>/index.tsx is there, and the screen is not `custom` (the frontend generates its screens)'),
+    'S030': (ERROR, 'the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice'),
+    'S031': (ERROR, 'a screen with `extend` has no extension: frontend/src/screens/<id>/extend.tsx is missing or does not export `extension`, or the screen is `custom`'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),
@@ -111,6 +116,7 @@ CODES: dict[str, tuple[str, str]] = {
     'D010': (ERROR, '`mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`)'),
     'D011': (WARNING, 'an entity with a screen has no icon in `icons` of theme.yaml'),
     'D012': (WARNING, 'spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows'),
+    'D013': (WARNING, 'an icon of the specs (`icons` of theme.yaml, `icon` of the navigation) is not an icon of the lucide-react of the template'),
 }
 
 

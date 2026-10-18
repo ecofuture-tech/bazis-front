@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
 spec: bazis-screen/1
 id: task-card
-title: Task
+title: {en: Task, ru: Задача}
 route: /tasks/:id
 entity: task
 roles: [manager, viewer]
@@ -9,22 +9,22 @@ primitive: card
 card:
   sections:
     - {id: main, fields: [title, status, assignee, watchers, attachment, priority, location]}
-    - {id: report, title: Report, fields: [report]}
+    - {id: report, title: {en: Report, ru: Отчёт}, fields: [report]}
   edit: true
   transitions: true
   history: true
   # the steps of the task, added here with the task fixed
   related:
     - id: steps
-      title: Steps
+      title: {en: Steps, ru: Шаги}
       entity: step
       relation: task
       columns: [title, dt_created]
-      add: {id: add-step, fields: [title]}
+      add: {id: add-step, fields: [title], label: {en: Add a step, ru: Добавить шаг}}
   tabs:
-    - {id: details, title: Details, sections: [main, report]}
-    - {id: steps, title: Steps, related: [steps]}
-    - {id: history, title: History, history: true}
+    - {id: details, title: {en: Details, ru: Подробности}, sections: [main, report]}
+    - {id: steps, title: {en: Steps, ru: Шаги}, related: [steps]}
+    - {id: history, title: {en: History, ru: История}, history: true}
 actions:
-  - {id: delete, primitive: destroy, then: task-list}
+  - {id: delete, primitive: destroy, then: task-list, label: {en: Delete, ru: Удалить}}
 states: [loading, error, forbidden, not_found]

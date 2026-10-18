@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import access
+from .design import check_icon
 from .issues import DECLARE_ROLES, DECLARE_WORKFLOWS, EXPORT_HINT, Document, Issues
 
 
@@ -618,6 +619,58 @@ def check_screens(
     if product and product.entities:
         _check_home(docs, routes, issues)
     return screens
+
+
+def check_navigation(doc: Document, screens: dict[str, dict | None], issues: Issues) -> None:
+    """
+    The navigation of product.yaml: each link opens a screen of the specs without an item, not
+    a form, without `nav: false`, linked once, and each group is declared once (S030); their
+    icons are those of lucide-react (D013). A screen that does not follow its schema is
+    accepted unchecked.
+    """
+    if not doc.valid:
+        return
+    linked, groups = set(), set()
+    for i, item in enumerate(doc.data.get('navigation', [])):
+        if 'group' in item:
+            if item['group'] in groups:
+                issues.add(
+                    doc, ('navigation', i, 'group'), 'S030', f'The group `{item["group"]}` is declared twice.',
+                    'Give every group of the navigation an id of its own.',
+                )
+            groups.add(item['group'])
+            links = [(('navigation', i, 'items', j), it) for j, it in enumerate(item['items'])]
+        else:
+            links = [(('navigation', i), item)]
+        for path, link in links:
+            if 'icon' in link:
+                check_icon(doc, (*path, 'icon'), link['icon'], issues)
+            _check_link(doc, (*path, 'screen'), link['screen'], screens, linked, issues)
+            linked.add(link['screen'])
+
+
+def _check_link(
+    doc: Document, path: tuple, screen_id: str, screens: dict[str, dict | None], linked: set[str], issues: Issues
+) -> None:
+    hint = 'Link the screens that the user opens from the navigation: lists, boards, calendars and dashboards.'
+    if screen_id not in screens:
+        problem = f'The screen `{screen_id}` does not exist.'
+        hint = f'Create spec/screens/{screen_id}.yaml or link an existing screen.'
+    elif screen_id in linked:
+        problem = f'The screen `{screen_id}` is linked twice.'
+        hint = 'Link every screen once.'
+    elif (screen := screens[screen_id]) is None:
+        return
+    elif ':' in screen['route']:
+        problem = f'The screen `{screen_id}` shows an item (`{screen["route"]}`): it is opened from another screen.'
+    elif screen['primitive'] == 'form':
+        problem = f'The screen `{screen_id}` is a form: it is opened from another screen.'
+    elif screen.get('nav') is False:
+        problem = f'The screen `{screen_id}` has `nav: false`.'
+        hint = 'Remove the link, or `nav: false` from the screen.'
+    else:
+        return
+    issues.add(doc, path, 'S030', problem, hint)
 
 
 def _check_home(docs: list[Document], routes: dict[str, str], issues: Issues) -> None:

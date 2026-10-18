@@ -2,7 +2,8 @@
 # A report: the drafts, the filter of the screen combined with that of the user.
 spec: bazis-screen/1
 id: draft-tasks
-title: Drafts
+title: {en: Drafts, ru: Черновики}
+description: {en: The tasks that are not started yet., ru: 'Задачи, которые ещё не начаты.'}
 route: /drafts
 entity: task
 roles: [manager, viewer]
@@ -13,4 +14,5 @@ list:
   filter: {status: draft}
   sort: [-dt_created]
   open: task-card
+  empty: {en: No drafts., ru: Черновиков нет.}
 states: [loading, empty, error, forbidden]

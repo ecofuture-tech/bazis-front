@@ -3,11 +3,12 @@
 # entities (until then `check` does not ask for it): `tiles` that count the items by their
 # statuses and dates and what needs the attention of the user, `charts` of the items by
 # status or by date, `recent`, the last items of the main entity, and `actions`, its create
-# form. The format is in "The specs of the screens and the design" of AGENTS.md of the
-# installed package bazis-front.
+# form. A text is in every language of the product (`languages` of product.yaml), or a key
+# of the dictionaries of the frontend. The format is in "The specs of the screens and the
+# design" of AGENTS.md of the installed package bazis-front.
 spec: bazis-screen/1
 id: home
-title: Home
+title: {en: Home, ru: Главная}
 route: /
 primitive: dashboard
 dashboard:

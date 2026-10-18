@@ -11,6 +11,10 @@ product:
 # LANGUAGES that LANGUAGE_CODE names; `check` compares them with the contract):
 # languages: [en, ru]
 # language: en
+# The links of the navigation, in their order (without it: the home, then of each entity
+# its list, its board, its calendar and its reports):
+# navigation:
+#   - {screen: home}
 roles: []
 entities: []
 scenarios: []

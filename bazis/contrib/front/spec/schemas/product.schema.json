@@ -14,7 +14,7 @@
       "required": ["id", "name"],
       "properties": {
         "id": {"$ref": "#/$defs/id"},
-        "name": {"type": "string", "minLength": 1},
+        "name": {"description": "The name of the product, the title of its frontend.", "$ref": "#/$defs/text", "minLength": 1},
         "summary": {"type": "string"}
       }
     },
@@ -34,6 +34,12 @@
     "language": {
       "description": "The default language of the interface: the code of LANGUAGES of the backend that its LANGUAGE_CODE names, one of `languages`. Optional; `bazis_front check` compares it with `project.language` of the contract.",
       "$ref": "#/$defs/language"
+    },
+    "navigation": {
+      "description": "The links of the navigation of the frontend, in their order, and their groups (the screens without an item in their route, not forms: S030). Without it: the home, then for each entity in the order of `entities` its list, its board, its calendar and its reports (a list with `filter`), but the screens with `nav: false`. The icon of a link is by default that of its entity (`icons` of spec/design/theme.yaml): `square-kanban` for a board, `calendar-days` for a calendar, `list-filter` for a report, `house` for the home.",
+      "type": "array",
+      "minItems": 1,
+      "items": {"oneOf": [{"$ref": "#/$defs/nav_link"}, {"$ref": "#/$defs/nav_group"}]}
     },
     "roles": {
       "type": "array",
@@ -58,6 +64,50 @@
       "description": "A language code of Django: `en`, `ru`, `pt-br`.",
       "type": "string",
       "pattern": "^[a-z]{2,3}([-_][A-Za-z0-9]{2,8})*$"
+    },
+    "text": {
+      "description": "A text of the interface: a key of the dictionaries of the frontend (lowercase words joined by dots, no space: `tiles.on_hand`), a text in the default language (`language`), or the text in each language (`{en: Library, ru: Библиотека}`); `check` warns about a text that is not in every language of `languages` (S027).",
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/language"},
+          "additionalProperties": {"type": "string", "minLength": 1}
+        }
+      ]
+    },
+    "icon": {
+      "description": "The name of a lucide icon (lucide.dev), in kebab-case (D013).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "nav_link": {
+      "description": "The link of a screen (`nav:<screen>`), labelled by its title. It is shown to the users whom the backend lets view the items of the route set of its entity (and filter them by the fields of `list.filter` of a report); `requires.can: add` asks that they may add one too.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["screen"],
+      "properties": {
+        "screen": {"$ref": "#/$defs/id"},
+        "icon": {"$ref": "#/$defs/icon"},
+        "requires": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["can"],
+          "properties": {"can": {"enum": ["view", "add"]}}
+        }
+      }
+    },
+    "nav_group": {
+      "description": "Links under a heading of the navigation.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "title", "items"],
+      "properties": {
+        "group": {"description": "The id of the group.", "$ref": "#/$defs/id"},
+        "title": {"$ref": "#/$defs/text", "minLength": 1},
+        "items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/nav_link"}}
+      }
     },
     "field_id": {
       "description": "The name of a field of the resource in the API.",

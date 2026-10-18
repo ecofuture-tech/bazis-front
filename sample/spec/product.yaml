@@ -5,11 +5,19 @@
 spec: bazis-product/1
 product:
   id: tasks
-  name: Tasks
+  name: {en: Tasks, ru: Задачи}
   summary: The tasks of a team, started and finished with a report
 packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request, notify]
 languages: [en, ru]            # LANGUAGES of the backend: the interface is in English and Russian
 language: en                   # the code of LANGUAGES of LANGUAGE_CODE
+# the links of the navigation in their order, each labelled by the title of its screen; the
+# icons of the board, the calendar and the home are those by default
+navigation:
+  - {screen: home}
+  - {screen: task-list, icon: list-checks}
+  - {screen: draft-tasks, icon: file-pen}
+  - {screen: task-board}
+  - {screen: task-calendar}
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}

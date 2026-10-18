@@ -364,6 +364,33 @@ scenarios:
 `language`, the default one (one of them), as the backend has them: `check` compares them
 with `project.languages` (`LANGUAGES`) and `project.language` (the code of `LANGUAGES`
 that `LANGUAGE_CODE` names) of the contract (P029). See [The language](#the-language).
+The texts of the specs (`product.name`, the titles and the labels of the screens) are in
+each of them: see "Texts" in
+[The specs of the screens and the design](#the-specs-of-the-screens-and-the-design).
+
+#### Navigation
+
+**Navigation** (optional): the links of the navigation in their order, `{screen}` each,
+and groups of them under a heading, `{group: <id>, title: <text>, items: [...]}`. A link
+is labelled by the title of its screen and shown to the users whom the backend lets view
+the items of its entity (a report: filter them by the fields of its `list.filter`);
+`requires: {can: add}` asks that they may add one too. Its `icon` is a name of lucide
+(D013), by default the icon of its entity (`icons` of theme.yaml), `square-kanban` for a
+board, `calendar-days` for a calendar, `list-filter` for a report, `house` for the home.
+A link opens a screen without an item in its route, not a form, once (S030). Without
+`navigation`: the home, then of each entity in the order of `entities` its list, its
+board, its calendar and its reports, but the screens with `nav: false`.
+
+```yaml
+navigation:
+  - {screen: home}
+  - {screen: loan-list}
+  - {screen: loan-board, requires: {can: add}}
+  - group: catalog
+    title: {en: Catalog, ru: Каталог}
+    items: [{screen: book-list}, {screen: author-list}]
+  - {screen: overdue-loans, icon: alarm-clock}
+```
 
 #### Fields
 
@@ -600,6 +627,33 @@ A `form` screen has `form: {mode: create | update, fields, then}`. Actions are `
 `loading, error, forbidden, invalid`; dashboard `loading, error`; board and calendar
 `loading, empty, error, forbidden`.
 
+#### Texts
+
+**Texts** of a screen: its `title` and `description` (the subtitle), `list.empty` (the
+text of a list without items), the `label` of an action (its button, the title of its
+form) and its `description`, of a bulk action, of "add here" (`card.related[].add.label`)
+and of the add of a calendar, the titles of the sections, related sections and tabs of a
+card, the label of a highlight and of the parts of a dashboard. A text is the text in each
+language of the product, `{en: New loan, ru: Новая выдача}`, a text in its default
+language, or a key of the dictionaries of the frontend (lowercase words joined by dots,
+`tiles.on_hand`), which have every language. `check` warns about a text that is not in
+every language of `languages` (S027).
+
+#### Custom screens and extensions
+
+**Custom screens and extensions** are declared in the spec of the screen. `custom: true`:
+the screen is written by hand, the export `<Id in PascalCase>Screen` of
+`frontend/src/screens/<id>/index.tsx` (`LoanListScreen` of `loan-list`); `custom: {module:
+'@/screens/loan', export: LoanListScreen}`: an export of another module there (several
+screens in one file). `check` reports a missing module or export (S028) and, once the
+frontend generates its screens, a `frontend/src/screens/<id>/index.tsx` of a screen that is
+not custom (S029: two implementations). `extend: true`: the generated screen takes the
+extension `export const extension` of `frontend/src/screens/<id>/extend.tsx`, what the spec
+cannot say (S031: missing; a custom screen is never extended). `nav: false` leaves the
+screen out of the navigation generated without `navigation` of product.yaml.
+`card.related[].add.when` is when "add here" is shown: `changeable` (the default, while
+the user may change the item of the card) or `always`.
+
 #### Tabs and bulk actions
 
 A card with many parts is in tabs, `card.tabs`: each section, each related section and the
@@ -802,8 +856,8 @@ start from (D004). `bazis_front design` compiles them into the theme of the fron
 [The design](#the-design)); `check` reports the statuses of `statuses` that the contract
 does not have (D008), the text colors below the contrast of WCAG AA (D009), `mode: dark`
 without the values of the dark mode (D010), an entity with a screen and no icon
-(D011) and a layer of theme.yaml that `tokens.json` hides, replacing more than half of its
-tokens (D012).
+(D011), a layer of theme.yaml that `tokens.json` hides, replacing more than half of its
+tokens (D012), and the name of an icon that lucide-react does not have (D013).
 
 ## The issues of check
 
@@ -874,6 +928,11 @@ warning there, never blocking `migrate` or `contract`.
 | `S024` | error | the tabs of a card are inconsistent: a tab names an unknown section or related section, or is empty, or is declared twice; a section or a related section is in no tab or in two; the history is in no tab, or a tab has a history that the card does not have |
 | `S025` | error | a bulk action of a list runs a transition that its entity does not have (or has no workflow), or one with a payload |
 | `S026` | warning | the home of the frontend is the overview of the template: the product declares entities, and no screen has the route `/`, the screen there is not a dashboard, or a dashboard has no tile |
+| `S027` | warning | a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them (a key of the dictionaries is in all); the frontend shows the text of another language |
+| `S028` | error | a custom screen has no code: the module of `custom` (`frontend/src/screens/<id>/index.tsx` for `custom: true`) is missing, or does not export its component |
+| `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`) |
+| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice |
+| `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -886,6 +945,7 @@ warning there, never blocking `migrate` or `contract`.
 | `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 | `D012` | warning | spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows; the issue names the tokens |
+| `D013` | warning | an icon of the specs (`icons` of theme.yaml, `icon` of the navigation) is not an icon of the lucide-react of the template |
 
 ## The backend of a product
 
@@ -2195,7 +2255,8 @@ take from the palette (`check` reports a layer whose tokens it mostly replaces, 
 ### Icons
 
 **Icons.** `icons` gives every entity with a screen the name of a lucide icon
-([lucide.dev](https://lucide.dev), kebab-case; `check` reports an entity without one, D011);
+([lucide.dev](https://lucide.dev), kebab-case; `check` reports an entity without one, D011,
+and a name that the lucide-react of the template does not have, D013);
 the components and the screens read it from `THEME.icons[entity]` (the navigation, the
 empty states, the dashboard). Choose by the meaning of the entity: people `users` (one
 person `user`), a document `file-text`, money `wallet`, a deadline or a booking

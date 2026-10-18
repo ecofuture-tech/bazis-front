@@ -2,7 +2,8 @@
 # The tasks on the days they were created.
 spec: bazis-screen/1
 id: task-calendar
-title: Calendar
+title: {en: Calendar, ru: Календарь}
+description: {en: The tasks on the days they were created., ru: Задачи в дни их создания.}
 route: /calendar
 entity: task
 roles: [manager, viewer]

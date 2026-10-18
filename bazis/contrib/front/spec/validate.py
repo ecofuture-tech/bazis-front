@@ -262,6 +262,176 @@ def check_packages(contract: dict, issues: Issues) -> None:
         )
 
 
+#: a key of the dictionaries of the frontend, as a text of the specs (`tiles.on_hand`), rather
+#: than a text in words
+TEXT_KEY = re.compile(r'[a-z][a-z0-9_]*(\.[a-z0-9_-]+)+')
+TEXT = '#/$defs/text'
+
+
+@cache
+def text_paths(name: str) -> tuple[tuple, ...]:
+    """
+    The paths of the texts (`$defs/text`) in the documents of a JSON Schema, `*` for each item
+    of a list.
+    """
+    schema = validator(name).schema
+    found: dict[tuple, None] = {}
+
+    def walk(node, path: tuple, refs: frozenset) -> None:
+        if not isinstance(node, dict):
+            return
+        ref = node.get('$ref')
+        if ref == TEXT:
+            found[path] = None
+            return
+        if ref is not None and ref not in refs:
+            walk(schema['$defs'][ref.removeprefix('#/$defs/')], path, refs | {ref})
+        for key, value in node.get('properties', {}).items():
+            walk(value, (*path, key), refs)
+        walk(node.get('items'), (*path, '*'), refs)
+        for key in ('allOf', 'anyOf', 'oneOf'):
+            for value in node.get(key, []):
+                walk(value, path, refs)
+        for key in ('then', 'else'):
+            walk(node.get(key), path, refs)
+
+    walk(schema, (), frozenset())
+    return tuple(found)
+
+
+def _values(data, path: tuple, at: tuple = ()):
+    """
+    The values at a path of `text_paths` in a document, with their paths.
+    """
+    if not path:
+        yield at, data
+    elif path[0] == '*':
+        for i, item in enumerate(data if isinstance(data, list) else []):
+            yield from _values(item, path[1:], (*at, i))
+    elif isinstance(data, dict) and path[0] in data:
+        yield from _values(data[path[0]], path[1:], (*at, path[0]))
+
+
+def check_texts(doc: Document, schema: str, languages: list[str], issues: Issues) -> None:
+    """
+    Every text of a document is in each language of the product (S027): a map of them, or a
+    key of the dictionaries of the frontend (which have every language); a text in words is in
+    one language.
+    """
+    for path in text_paths(schema):
+        for at, value in _values(doc.data, path):
+            if isinstance(value, str):
+                if len(languages) < 2 or TEXT_KEY.fullmatch(value):
+                    continue
+                problem = f'The text `{value}` is in one language; the product has {", ".join(languages)}.'
+            else:
+                missing = [it for it in languages if it not in value]
+                if not missing:
+                    continue
+                problem = f'The text has no {", ".join(f"`{it}`" for it in missing)}.'
+            issues.add(
+                doc, at, 'S027', problem,
+                f'Give it in every language of the product: `{{{", ".join(f"{it}: ..." for it in languages)}}}`; '
+                'or a key of the dictionaries of the frontend (`screens.home.title`).',
+            )
+
+
+#: the code of the screens of the product in its frontend: `custom`, `extend`
+SCREENS_DIR = 'src/screens'
+#: the extension of a generated screen, in `<SCREENS_DIR>/<id>/`
+EXTEND_FILE = 'extend.tsx'
+EXTENSION = 'extension'
+#: the module of `custom` (`@/screens/<path>`) is one of these files of `src/screens/<path>`
+MODULE_FILES = ('.tsx', '.ts', '/index.tsx', '/index.ts')
+
+
+def component_name(screen_id: str) -> str:
+    """
+    The component of a screen: its id in PascalCase and `Screen` (`loan-list`: `LoanListScreen`).
+    """
+    return ''.join(it.capitalize() for it in re.split(r'[-_]', screen_id)) + 'Screen'
+
+
+def exports(path: Path, name: str) -> bool:
+    """
+    Whether a module of TypeScript exports a declaration, or lists it among its exports.
+    """
+    text = path.read_text(encoding='utf-8')
+    declared = rf'^export\s+(?:async\s+)?(?:function|const|let|class)\s+{name}\b'
+    listed = rf'^export\s*\{{[^}}]*\b{name}\b'
+    return re.search(declared, text, re.M) is not None or re.search(listed, text, re.M) is not None
+
+
+def check_screen_code(root: Path, docs: list[Document], issues: Issues) -> None:
+    """
+    The code of the screens in `frontend/src/screens/`, once the frontend exists: a `custom`
+    screen exports its component (S028), a screen with `extend` its extension (S031); once the
+    frontend generates its screens (the lock has `screens`), no screen but a custom one has
+    `<id>/index.tsx` (S029). A custom screen is never extended (S031).
+    """
+    frontend = root / frontend_lock.FRONTEND_DIR
+    screens, code = frontend / SCREENS_DIR, (frontend / 'src').is_dir()
+    try:
+        generated = 'screens' in (frontend_lock.read(frontend) or {})
+    except frontend_lock.LockError:
+        # front.W001 reports it
+        generated = False
+    for doc in docs:
+        if not doc.valid:
+            continue
+        screen_id, custom, extend = Path(doc.file).stem, doc.data.get('custom', False), doc.data.get('extend', False)
+        if custom and extend:
+            issues.add(
+                doc, ('extend',), 'S031',
+                f'The screen `{screen_id}` is custom: it is not generated, and nothing takes its extension.',
+                'Remove `extend` and write what it adds in the code of the screen, or remove `custom`.',
+            )
+        if not code:
+            continue
+        if custom:
+            _check_custom(root, doc, screens, screen_id, custom, issues)
+        elif generated and (screens / screen_id / 'index.tsx').is_file():
+            file = f'{frontend_lock.FRONTEND_DIR}/{SCREENS_DIR}/{screen_id}/index.tsx'
+            issues.add(
+                doc, (), 'S029',
+                f'{file} is a screen `{screen_id}` of its own, and the frontend generates the screen from its spec.',
+                f'Delete {file} to keep the generated screen (what it adds beyond the spec goes to '
+                f'`extend`), or declare the screen `custom: true` to keep it.',
+            )
+        if extend and not custom:
+            path = screens / screen_id / EXTEND_FILE
+            file = path.relative_to(root).as_posix()
+            if not path.is_file() or not exports(path, EXTENSION):
+                issues.add(
+                    doc, ('extend',), 'S031',
+                    f'{file} ' + ('does not export `extension`.' if path.is_file() else 'is missing.'),
+                    f'Write it, `export const {EXTENSION}` with the type of the extension of the primitive '
+                    f'(`ListScreenExtension` of `@/bazis/ui/screens`...), or remove `extend`.',
+                )
+
+
+def _check_custom(root: Path, doc: Document, screens: Path, screen_id: str, custom, issues: Issues) -> None:
+    if custom is True:
+        candidates, name = [screens / screen_id / 'index.tsx'], component_name(screen_id)
+    else:
+        base = custom['module'].removeprefix('@/screens')
+        candidates, name = [Path(f'{screens}{base}{it}') for it in MODULE_FILES], custom['export']
+    path = next((it for it in candidates if it.is_file()), None)
+    if path is not None and exports(path, name):
+        return
+    if path is not None:
+        problem = f'{path.relative_to(root).as_posix()} does not export `{name}`.'
+    elif custom is True:
+        problem = f'{candidates[0].relative_to(root).as_posix()} is missing.'
+    else:
+        module = Path(f'{screens}{base}').relative_to(root).as_posix()
+        problem = f'The module `{custom["module"]}` is missing: no {module}.tsx nor {module}/index.tsx (or .ts).'
+    issues.add(
+        doc, ('custom',), 'S028', problem,
+        f'Write the screen there, `export function {name}()`, or remove `custom` to generate it.',
+    )
+
+
 def screen_files(root: Path) -> list[str]:
     """
     The specs of the screens, `spec/screens/<id>.yaml`, by their path in the product root.
@@ -300,6 +470,12 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
 
     product = refs.check_product(product_doc, contract, issues)
     screens = refs.check_screens(screen_docs, product, contract, issues)
+    refs.check_navigation(product_doc, screens, issues)
+    check_screen_code(root, screen_docs, issues)
+    languages = product_doc.data.get('languages', []) if product_doc.valid else []
+    for doc, schema in [(product_doc, PRODUCT_SCHEMA), *((it, SCREEN_SCHEMA) for it in screen_docs)]:
+        if doc.valid:
+            check_texts(doc, schema, languages, issues)
     walked = scenarios.check(product_doc, product, screens, issues)
     screened = {
         data['entity'] for data in screens.values()

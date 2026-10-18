@@ -9,7 +9,8 @@
   "properties": {
     "spec": {"const": "bazis-screen/1"},
     "id": {"description": "The id of the screen, also the name of its file.", "$ref": "#/$defs/id"},
-    "title": {"type": "string"},
+    "title": {"description": "The title of the screen.", "$ref": "#/$defs/text"},
+    "description": {"description": "The subtitle of the screen, under its title.", "$ref": "#/$defs/text"},
     "route": {
       "description": "The route of the screen in the frontend; `:id` is the id of the item.",
       "type": "string",
@@ -23,6 +24,29 @@
       "items": {"$ref": "#/$defs/id"}
     },
     "primitive": {"enum": ["list", "card", "form", "dashboard", "board", "calendar"]},
+    "custom": {
+      "description": "The screen is written by hand, not generated from its spec: `true`, the export `<Id in PascalCase>Screen` of frontend/src/screens/<id>/index.tsx; or the export of another module of frontend/src/screens (several screens in one file). Its route, its link and its texts are generated all the same; S028 when the file or the export is missing.",
+      "oneOf": [
+        {"type": "boolean"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["module", "export"],
+          "properties": {
+            "module": {"description": "The module, `@/screens/<path>` (frontend/src/screens/<path>.tsx or <path>/index.tsx).", "type": "string", "pattern": "^@/screens(/[A-Za-z0-9_-]+)+$"},
+            "export": {"description": "The component of the screen that it exports.", "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$"}
+          }
+        }
+      ]
+    },
+    "extend": {
+      "description": "The generated screen takes the extension `export const extension` of frontend/src/screens/<id>/extend.tsx: what its spec cannot say, in the slots of the screen and the props of its component (S031 when the file or its export is missing, or the screen is `custom`: a custom screen extends itself in its own code).",
+      "type": "boolean"
+    },
+    "nav": {
+      "description": "false: the screen has no link in the navigation that is generated without `navigation` of spec/product.yaml (a screen of an item or a form never has one).",
+      "type": "boolean"
+    },
     "list": {
       "type": "object",
       "additionalProperties": false,
@@ -33,6 +57,7 @@
         "sort": {"$ref": "#/$defs/sort"},
         "search": {"description": "A full-text search field (`search`).", "type": "boolean"},
         "open": {"description": "The card screen that a row opens.", "$ref": "#/$defs/id"},
+        "empty": {"description": "The text of the list without items (`emptyMessage`); that of the component by default.", "$ref": "#/$defs/text"},
         "filter": {
           "description": "The filter of the screen itself, a report of some of the items: each field (that the contract can filter by) equal to its value, combined (AND) with the filters and the search of the user (`ResourceList` `filter`).",
           "$ref": "#/$defs/filter"
@@ -54,7 +79,7 @@
           "properties": {
             "field": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
             "tone": {"$ref": "#/$defs/tone"},
-            "label": {"type": "string", "minLength": 1}
+            "label": {"$ref": "#/$defs/label"}
           }
         },
         "bulk": {
@@ -68,7 +93,8 @@
             "properties": {
               "id": {"$ref": "#/$defs/id"},
               "transit": {"description": "The id of a transition of the workflow.", "$ref": "#/$defs/id"},
-              "primitive": {"const": "destroy"}
+              "primitive": {"const": "destroy"},
+              "label": {"description": "The label of its button.", "$ref": "#/$defs/text"}
             },
             "oneOf": [{"required": ["transit"]}, {"required": ["primitive"]}]
           }
@@ -89,7 +115,7 @@
             "required": ["id", "fields"],
             "properties": {
               "id": {"$ref": "#/$defs/id"},
-              "title": {"type": "string"},
+              "title": {"$ref": "#/$defs/text"},
               "fields": {"$ref": "#/$defs/fields", "minItems": 1}
             }
           }
@@ -106,7 +132,7 @@
             "required": ["id", "entity", "relation", "columns"],
             "properties": {
               "id": {"$ref": "#/$defs/id"},
-              "title": {"type": "string"},
+              "title": {"$ref": "#/$defs/text"},
               "entity": {"description": "The id of the related entity of spec/product.yaml.", "$ref": "#/$defs/id"},
               "relation": {
                 "description": "The to-one relationship (`relation`) of the related entity to the entity of the card, which the contract can filter by.",
@@ -122,7 +148,12 @@
                 "required": ["id"],
                 "properties": {
                   "id": {"$ref": "#/$defs/id"},
-                  "fields": {"$ref": "#/$defs/fields"}
+                  "fields": {"$ref": "#/$defs/fields"},
+                  "label": {"description": "The label of its button.", "$ref": "#/$defs/text"},
+                  "when": {
+                    "description": "When the action is shown: `changeable`, while the user may change the item of the card (the default), or `always` (the backend decides at the submit).",
+                    "enum": ["changeable", "always"]
+                  }
                 }
               }
             }
@@ -138,7 +169,7 @@
             "required": ["id", "title"],
             "properties": {
               "id": {"$ref": "#/$defs/id"},
-              "title": {"type": "string", "minLength": 1},
+              "title": {"$ref": "#/$defs/text", "minLength": 1},
               "sections": {"description": "The ids of sections of the card.", "$ref": "#/$defs/ids"},
               "related": {"description": "The ids of related sections of the card.", "$ref": "#/$defs/ids"},
               "history": {"description": "The status history of the item (`history` of the card).", "type": "boolean"}
@@ -228,7 +259,9 @@
               "entity": {"$ref": "#/$defs/id"},
               "mode": {"const": "create"},
               "fields": {"$ref": "#/$defs/fields"},
-              "then": {"description": "The screen shown after the form.", "$ref": "#/$defs/id"}
+              "then": {"description": "The screen shown after the form.", "$ref": "#/$defs/id"},
+              "label": {"description": "The label of its button, also the title of its form.", "$ref": "#/$defs/text"},
+              "description": {"description": "The description of its form.", "$ref": "#/$defs/text"}
             }
           }
         }
@@ -287,7 +320,11 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["id"],
-          "properties": {"id": {"$ref": "#/$defs/id"}, "fields": {"$ref": "#/$defs/fields"}}
+          "properties": {
+            "id": {"$ref": "#/$defs/id"},
+            "fields": {"$ref": "#/$defs/fields"},
+            "label": {"description": "The label of its button.", "$ref": "#/$defs/text"}
+          }
         }
       }
     },
@@ -353,7 +390,24 @@
       "additionalProperties": {"type": ["string", "number", "boolean"]}
     },
     "tone": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]},
-    "label": {"description": "A key of the dictionaries of the frontend, or a text: never the color alone.", "type": "string", "minLength": 1},
+    "language": {
+      "description": "A language code of Django: `en`, `ru`, `pt-br`.",
+      "type": "string",
+      "pattern": "^[a-z]{2,3}([-_][A-Za-z0-9]{2,8})*$"
+    },
+    "text": {
+      "description": "A text of the interface: a key of the dictionaries of the frontend (lowercase words joined by dots, no space: `tiles.on_hand`), a text in the default language of the product (`language` of spec/product.yaml), or the text in each language of the product (`{en: Loans, ru: Выдачи}`); `check` warns about a text that is not in every language of `languages` (S027).",
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/language"},
+          "additionalProperties": {"type": "string", "minLength": 1}
+        }
+      ]
+    },
+    "label": {"description": "A key of the dictionaries of the frontend, or a text: never the color alone.", "$ref": "#/$defs/text", "minLength": 1},
     "action": {
       "description": "`form`: a form of the entity (create on a list or a card, update on a card); `destroy`: the deletion of the item of a card.",
       "type": "object",
@@ -364,7 +418,9 @@
         "primitive": {"enum": ["form", "destroy"]},
         "mode": {"enum": ["create", "update"]},
         "fields": {"$ref": "#/$defs/fields"},
-        "then": {"description": "The screen shown after the action.", "$ref": "#/$defs/id"}
+        "then": {"description": "The screen shown after the action.", "$ref": "#/$defs/id"},
+        "label": {"description": "The label of its button, also the title of its form.", "$ref": "#/$defs/text"},
+        "description": {"description": "The description of its form, or of the confirmation of a deletion.", "$ref": "#/$defs/text"}
       },
       "if": {"properties": {"primitive": {"const": "form"}}},
       "then": {"required": ["mode"]},

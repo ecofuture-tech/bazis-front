@@ -2,7 +2,8 @@
 # The tasks in a column for each status, moved by the transits that the backend allows.
 spec: bazis-screen/1
 id: task-board
-title: Board
+title: {en: Board, ru: Доска}
+description: {en: 'The tasks by status, moved by their transits.', ru: 'Задачи по статусам, переводимые их переходами.'}
 route: /board
 entity: task
 roles: [manager, viewer]
