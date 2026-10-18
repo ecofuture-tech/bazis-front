@@ -24,7 +24,7 @@
 // page per column (the core has no aggregates), refetched after a transit.
 
 import { ArrowRightLeft, SearchX } from 'lucide-react';
-import { useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 
 import { Filter, pagination } from '@/bazis/client';
 import { formatNumber, useLanguage } from '@/bazis/i18n';
@@ -93,22 +93,66 @@ export interface ResourceBoardProps {
   icon?: ComponentType<{ className?: string }>;
 }
 
-/** The menu of the moves of a card: the transits that the user may run on it now, read when it opens. */
-function MoveItems({
-  path,
-  id,
-  type,
-  run,
-  declared,
-}: {
+interface MovesProps {
   path: TransitPath;
-  id: string;
+  item: ResourceObject;
   type: string;
   run: TransitRun;
   declared: readonly DeclaredTransit[];
-}) {
+}
+
+/**
+ * The menu of the moves of a card (`action:move`). The transits are read when it opens: once it
+ * has shown that the user may run none on the item in its status, it is hidden as it closes,
+ * until the item is in another status.
+ */
+function MoveMenu({ path, item, type, run, declared }: MovesProps) {
+  const { t } = useLanguage();
+  const [open, setOpen] = useState(false);
+  // the status of the item when its transits were read empty
+  const [noneIn, setNoneIn] = useState<string | null | undefined>();
+  const status = statusOf(item);
+  if (!open && noneIn !== undefined && noneIn === status) return null;
+  return (
+    // modal: false, so that the dialog of a payload opens as the menu closes
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          data-bz="action:move"
+          aria-label={t('board.move')}
+          className="relative -my-1 -mr-1 text-muted-foreground"
+        >
+          <ArrowRightLeft />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <MoveItems
+          path={path}
+          item={item}
+          type={type}
+          run={run}
+          declared={declared}
+          onNone={() => {
+            setNoneIn(status);
+          }}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The items of the menu of the moves: the transits that the user may run on the item now. */
+function MoveItems({ path, item, type, run, declared, onNone }: MovesProps & { onNone: () => void }) {
+  const { id } = item;
   const transits = useTransits(path, id);
   const { language, t } = useLanguage();
+  const none = transits.isSuccess && transits.data.length === 0;
+  useEffect(() => {
+    if (none) onNone();
+  }, [none, onNone]);
   if (transits.isPending) return <DropdownMenuItem disabled>{t('state.loading.title')}</DropdownMenuItem>;
   if (transits.isError || !transits.data.length) return <DropdownMenuItem disabled>{t('board.no_moves')}</DropdownMenuItem>;
   return inDeclaredOrder(transits.data, declared).map((transit) => {
@@ -175,9 +219,10 @@ function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }:
       {fields.length > 0 && (
         <dl className="grid grid-cols-[minmax(0,1fr)] gap-1 text-sm">
           {fields.map((name) => (
-            <div key={name} className="flex min-w-0 items-baseline gap-2">
-              <dt className="shrink-0 text-muted-foreground first-letter:uppercase">{meta.title(name)}</dt>
-              <dd ref={titleFromText} data-bz={`cell:${name}`} className="min-w-0 truncate">
+            // the value beside its term while it keeps 6rem, else on the line under it; a long term wraps
+            <div key={name} className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+              <dt className="min-w-0 text-muted-foreground first-letter:uppercase">{meta.title(name)}</dt>
+              <dd ref={titleFromText} data-bz={`cell:${name}`} className="min-w-0 grow basis-24 truncate">
                 <ItemValue item={item} name={name} fields={meta} display={display[name]} />
               </dd>
             </div>
@@ -352,28 +397,7 @@ export function ResourceBoard({
                                   }
                                   display={display}
                                   onOpen={onOpen}
-                                  moves={
-                                    move && (
-                                      // modal: false, so that the dialog of a payload opens as the menu closes
-                                      <DropdownMenu modal={false}>
-                                        <DropdownMenuTrigger asChild>
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            data-bz="action:move"
-                                            aria-label={t('board.move')}
-                                            className="relative -my-1 -mr-1 text-muted-foreground"
-                                          >
-                                            <ArrowRightLeft />
-                                          </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                          <MoveItems path={path} id={item.id} type={type} run={run} declared={declared} />
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
-                                    )
-                                  }
+                                  moves={move && <MoveMenu path={path} item={item} type={type} run={run} declared={declared} />}
                                 />
                               </Card>
                             </li>

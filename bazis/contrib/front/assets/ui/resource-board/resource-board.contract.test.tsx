@@ -178,12 +178,22 @@ describe('ResourceBoard', () => {
     expect(items()).toEqual([`GET ${ITEMS}a/?meta=state_actions`]);
   });
 
-  it('says when a card has no transit once its menu opens', async () => {
-    const server = backend(listDocument([task('a', 'draft')])).on('GET', `${ITEMS}a/`, { data: task('a', 'draft'), meta: { state_actions: [] } });
+  it('says when a card has no transit once its menu opens, and hides its menu as it closes', async () => {
+    const server = backend(listDocument([task('a', 'draft'), task('b', 'draft')])).on('GET', `${ITEMS}a/`, {
+      data: task('a', 'draft'),
+      meta: { state_actions: [] },
+    });
     renderWithBazis(board({ columns: ['draft'], move: true }), server);
-    open(await within(await screen.findByTestId('row:a')).findByTestId('action:move'));
+    const row = await screen.findByTestId('row:a');
+    open(await within(row).findByTestId('action:move'));
     expect(await screen.findByText('No moves now')).toBeTruthy();
     expect(screen.queryByTestId('move:start')).toBeNull();
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    await waitFor(() => {
+      expect(within(row).queryByTestId('action:move')).toBeNull();
+    });
+    // the other cards keep theirs, unread
+    expect(within(screen.getByTestId('row:b')).getByTestId('action:move')).toBeTruthy();
   });
 
   /** A drag and drop that gives the test the drop of the board. */
