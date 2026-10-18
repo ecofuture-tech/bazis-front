@@ -19,7 +19,7 @@
 // the list. The list stays mounted under the same element whatever is open, so that it keeps
 // its search, filters, sort and page.
 
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import { useOutlet } from 'react-router';
 
 import { THEME } from '@/bazis/generated/theme';
@@ -33,6 +33,19 @@ export interface ListCardLayoutProps {
 }
 
 const BesideCard = createContext(false);
+const BesideList = createContext(false);
+
+/** The width from which a list and its card share the page (`split`): the breakpoint `xl` of Tailwind. */
+const SPLIT = '(min-width: 80rem)';
+
+function subscribeSplit(listener: () => void) {
+  if (typeof window.matchMedia !== 'function') return () => undefined;
+  const query = window.matchMedia(SPLIT);
+  query.addEventListener('change', listener);
+  return () => {
+    query.removeEventListener('change', listener);
+  };
+}
 
 /**
  * Whether the list is shown next to an open card (`split` on a wide screen): narrow, it
@@ -40,6 +53,15 @@ const BesideCard = createContext(false);
  */
 export function useBesideCard(): boolean {
   return useContext(BesideCard);
+}
+
+/**
+ * Whether the card is shown next to its list (`split` from the breakpoint `xl`): narrow, a
+ * list in it (a related list) shows its rows as the cards of a phone, never wider than the card.
+ */
+export function useBesideList(): boolean {
+  const split = useSyncExternalStore(subscribeSplit, () => typeof window.matchMedia === 'function' && window.matchMedia(SPLIT).matches);
+  return useContext(BesideList) && split;
 }
 
 /** The screen of a list with the screen of its card (the child route). */
@@ -66,7 +88,7 @@ export function ListCardLayout({ list, mode = THEME.composition.list_card }: Lis
               'xl:sticky xl:top-0 xl:-mt-(--space-section) xl:max-h-dvh xl:overflow-y-auto xl:border-l xl:pl-(--space-section) xl:[--bleed:0px] xl:[--screen-lift:0px]',
           )}
         >
-          {card}
+          <BesideList value={split}>{card}</BesideList>
         </div>
       )}
     </div>

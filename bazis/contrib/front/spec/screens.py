@@ -652,6 +652,8 @@ def destroy_action(screen: Screen, const: Raw, index: int, action: dict) -> Raw:
     name = camel(action['id']) + 'Action'
     label = screen.text('actions', index, 'label') or screen.package_text('card.delete')
     options = [('id', Str(action['id'])), ('label', label)]
+    if (title := screen.text('actions', index, 'title')) is not None:
+        options.append(('title', title))
     if (description := screen.text('actions', index, 'description')) is not None:
         options.append(('description', description))
     options += [('path', Raw(f'{const.code}.path')), ('item', Raw('id'))]
@@ -1077,10 +1079,13 @@ def first_link(product: Product) -> str | None:
     return None
 
 
-def nav_item(code: Code, product: Product, link: dict) -> Obj:
+def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
+    """The item of the link at a path of product.yaml."""
     data = product.screens[link['screen']]
-    title = text(data, 'title')
-    label = title if title is not None else Str(data['id'])
+    if 'label' in link:
+        label = t(link['label'], text_key('', product.specs.product, (*at, 'label')))
+    else:
+        label = text(data, 'title') or Str(data['id'])
     props = [('screen', Str(data['id'])), ('label', label), ('to', Str(data['route']))]
     if data['route'] == HOME_ROUTE:
         props.append(('end', Raw('true')))
@@ -1126,17 +1131,20 @@ def render_navigation(product: Product) -> str:
             label = t(item['title'], text_key('', spec, ('navigation', i, 'title')))
             entries.append(Obj([
                 ('group', Str(item['group'])), ('label', label),
-                ('items', Arr([nav_item(code, product, it) for it in item['items']])),
+                ('items', Arr([
+                    nav_item(code, product, it, ('navigation', i, 'items', j)) for j, it in enumerate(item['items'])
+                ])),
             ]))
         else:
-            entries.append(nav_item(code, product, item))
+            entries.append(nav_item(code, product, item, ('navigation', i)))
     navigation = Function('navigation', 't: Translate', Block([Return(Arr(entries))]), returns='readonly NavEntry[]')
     return module(
         header(f'the navigation of {PRODUCT_FILE}'),
         *code.imports(),
         doc_comment(
-            'The links of the navigation (`nav:<screen>`), labelled by the titles of their screens in the',
-            'language of the interface, each shown once the backend allows the user what it `requires`.',
+            'The links of the navigation (`nav:<screen>`), labelled by their `label` or the titles of',
+            'their screens in the language of the interface, each shown once the backend allows the',
+            'user what it `requires`.',
         ) + '\n' + printed(navigation.doc()),
     )
 

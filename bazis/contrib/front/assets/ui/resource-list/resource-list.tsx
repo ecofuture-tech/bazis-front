@@ -29,7 +29,7 @@ import { Filter, nextPage, pagination, prevPage } from '@/bazis/client';
 import { THEME, type Theme, type Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
-import { useBesideCard, useWide } from '@/bazis/ui/app-shell';
+import { useBesideCard, useBesideList, useWide } from '@/bazis/ui/app-shell';
 import { EmptyState } from '@/bazis/ui/empty-state';
 import {
   choiceOptions,
@@ -353,7 +353,10 @@ export function ResourceList({
   compactColumns = columns.slice(0, 2),
 }: ResourceListProps) {
   const besideCard = useBesideCard();
-  const view = useWide() ? layout : phoneLayout;
+  const wide = useWide();
+  // next to its list, a card is as narrow as a phone: a list in it takes the layout of a phone
+  const besideList = useBesideList();
+  const view = wide && !besideList ? layout : phoneLayout;
   const { t } = useLanguage();
   const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(new Set());
   const [rowDensity, setRowDensity] = useState(density);
@@ -499,7 +502,8 @@ export function ResourceList({
       {(searchable || filterList.length > 0 || actions.length > 0 || viewMenu) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           {searchable && (
-            <div className="relative w-full sm:w-72">
+            // as wide as 18rem, narrower (down to 10rem) rather than pushing the actions to a row of their own
+            <div className="relative w-full sm:w-auto sm:max-w-72 sm:min-w-40 sm:flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 type="search"

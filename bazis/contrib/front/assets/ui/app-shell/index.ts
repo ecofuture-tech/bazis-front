@@ -28,5 +28,5 @@ export type {
 export { ColorModeToggle, initColorMode, setColorMode } from './color-mode.js';
 export type { ColorMode } from './color-mode.js';
 export { LanguageToggle } from './language.js';
-export { ListCardLayout, useBesideCard } from './list-card.js';
+export { ListCardLayout, useBesideCard, useBesideList } from './list-card.js';
 export type { ListCardLayoutProps } from './list-card.js';

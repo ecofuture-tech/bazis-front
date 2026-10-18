@@ -25,6 +25,7 @@ export function TaskCardScreen() {
   const deleteAction = useDestroyCardAction({
     id: 'delete',
     label: t('screens.task-card.actions.delete.label'),
+    title: t('screens.task-card.actions.delete.title'),
     path: TASK.path,
     item: id,
     then: routeTo('task-list'),

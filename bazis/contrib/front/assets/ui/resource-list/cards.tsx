@@ -34,6 +34,12 @@ const CARD_TONES: Readonly<Record<Tone, string>> = {
 };
 
 /**
+ * The columns of the grid of cards by its own width, not that of the page: one in a card next to
+ * its list as on a phone, two from 36rem, three from 56rem.
+ */
+const GRID = 'grid gap-4 @xl:grid-cols-2 @4xl:grid-cols-3';
+
+/**
  * The rows as a grid of cards: the first column is the title, the others pairs of a label and
  * a value; above them, when the rows are selectable, the checkbox of the page.
  */
@@ -42,14 +48,14 @@ export function CardsView(props: BodyProps) {
   const { t } = useLanguage();
   const [first, ...rest] = columns;
   return (
-    <div className="grid gap-3">
+    <div className="@container grid gap-3">
       {selection && (
         <label className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
           <PageCheckbox rows={rows} selection={selection} onSelect={props.onSelect} />
           {t('list.select_all')}
         </label>
       )}
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className={GRID}>
         {rows.map((row) => {
           const tone = props.rowTone(row);
           return (
@@ -110,14 +116,16 @@ export function CardsView(props: BodyProps) {
 /** The skeleton of the cards while the list loads. */
 export function CardsSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
-      {[0, 1, 2].map((it) => (
-        <div key={it} className="grid gap-4 rounded-2xl border bg-card p-(--space-card)">
-          <Skeleton className="h-5 w-3/4" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-2/3" />
-        </div>
-      ))}
+    <div className="@container" aria-hidden="true">
+      <div className={GRID}>
+        {[0, 1, 2].map((it) => (
+          <div key={it} className="grid gap-4 rounded-2xl border bg-card p-(--space-card)">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

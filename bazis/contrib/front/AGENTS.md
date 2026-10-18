@@ -387,7 +387,8 @@ each of them: see "Texts" in
 
 **Navigation** (optional): the links of the navigation in their order, `{screen}` each,
 and groups of them under a heading, `{group: <id>, title: <text>, items: [...]}`. A link
-is labelled by the title of its screen and shown to the users whom the backend lets view
+is labelled by its `label` (a text, shorter than the title of its screen: `Catalog` for
+`Book catalog`), else by the title of its screen, and shown to the users whom the backend lets view
 the items of its entity (a report: filter them by the fields of its `list.filter`);
 `requires: {can: add}` asks that they may add one too (a link of a screen of an entity
 whose route set creates). Its `icon` is a name of lucide
@@ -405,7 +406,7 @@ navigation:
   - {screen: loan-board, requires: {can: add}}
   - group: catalog
     title: {en: Catalog, ru: Каталог}
-    items: [{screen: book-list}, {screen: author-list}]
+    items: [{screen: book-list, label: {en: Books, ru: Книги}}, {screen: author-list}]
   - {screen: overdue-loans, icon: alarm-clock}
 ```
 
@@ -562,7 +563,7 @@ primitive: list                  # list | card | form | dashboard | board | cale
 list:
   columns: [title, status, assignee, dt_created]
   filters: [status, assignee]    # fields with `filter` in the contract
-  sort: [-dt_created]            # fields with `order` in the contract
+  sort: [-dt_created]            # the order by default, each field once: fields with `order` in the contract
   search: true
   open: task-card                # the card that a row opens
 actions:
@@ -611,6 +612,11 @@ actions: [{id: delete, primitive: destroy, then: task-list}]
 states: [loading, error, forbidden, not_found]
 ```
 
+A deletion is confirmed in a dialog titled by its `title`, a question (`{en: 'Delete the
+task?', ru: 'Удалить задачу?'}`, quoted in a flow mapping; `Delete this item?` by default),
+not by the `label` of its button, which confirms it, and saying its `description` (that it
+cannot be undone by default).
+
 A card shows the items that reference its item in `related` sections: a list of the related
 entity filtered by its to-one relationship to the entity of the card (`relation`, a field of
 the related entity with `relation: <entity of the card>`, S015; one the contract filters by,
@@ -657,7 +663,8 @@ language, or a key of the dictionaries of the frontend (lowercase words joined b
 every language of `languages` (S027). `bazis_front screens` writes the texts of every spec
 in the dictionaries of the generated screens (`GENERATED_MESSAGES` of
 `src/screens/generated/messages.ts`) by the key of their place, `screens.<id>.title`,
-`screens.<id>.card.sections.<section>.title`, `navigation.<group>.title`, `product.name`;
+`screens.<id>.card.sections.<section>.title`, `navigation.<group>.title`,
+`navigation.<screen>.label` (`navigation.<group>.items.<screen>.label` in a group), `product.name`;
 a map without the default language gives it the text of the first language of the product
 that it has (the others fall back to the default). The dictionaries of the product
 (`src/i18n/<language>.ts`) override them key by key.
@@ -1024,6 +1031,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S036` | warning | a text of the specs is a key that no dictionary of the frontend has (src/i18n/<language>.ts of the product, nor those of the components): the screen would show the key, unless the product gives it otherwise (the dictionaries are read as text) |
 | `S037` | warning | a dictionary of the product (src/i18n/<language>.ts) has a key of the texts of the specs (`screens.<id>...`) that no text of the specs has: of a screen, a section, a tab or an action that is not there, or a text that the spec does not give |
 | `S038` | error | a screen of an item has no `:id` in its route: a card or an update form that is not custom (the id of the item is in the route; a custom one finds its item itself) |
+| `S039` | error | a sort names a field twice (`planned_date` and `-planned_date`): a sort is the order of the items by default, by its first field, then by the next one for the items equal by it; keep the field once (the user sorts a list by the headers of its columns) |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1435,7 +1443,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | Component | What | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel` (the state of a screen or of a part of it, `inline`, with a `skeleton` while it loads), `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard`, `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below | `nav:<screen>` (the navigation and the link of `parent`), `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
+| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard` (the list next to its card shows its first columns), `useBesideList` (a list in the card next to its list, a related list, shows the cards of a phone), `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below | `nav:<screen>` (the navigation and the link of `parent`), `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `ItemValue` (a field of an item as a cell: the status of a statusy model as its badge), `workflowStatuses(type)` (the statuses of a workflow, the initial one first, then in the order of its transits), `DateInput` with `DatesProvider` (the control of the dates, the calendar of `date-picker`), `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
@@ -1445,7 +1453,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
 | `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
-| `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
+| `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status; the screen readers are told the drag in the language of the interface, by the name of the item and of the status, never an id | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
 | `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`, `add`: `{id, label, onAdd(day)}`) | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
 | `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`; `tabs`: `{id, title, sections, content}`, `content` a node or `(item, meta) => node`, the children above them); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>`; `tab:<id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
@@ -1521,7 +1529,7 @@ of the specs and the paths of `ROUTES`.
 | the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
-| an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, `description` of the action: the deletion runs once confirmed) |
+| an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, titled by `title` of the action, a question, `Delete this item?` by default, and saying its `description`: the deletion runs once confirmed) |
 | `states` | the components render them (`state:<state>`); `StatePanel` of `@/bazis/ui/state-panel` for a screen of your own |
 
 ```tsx
@@ -2309,7 +2317,8 @@ screens (a drawer on a phone), a sticky header with the title and the actions of
 tables with a sticky header, aligned numbers and the open row selected, filters in a
 toolbar, the card next to the list on a wide screen (`list_card: split`; the list stays
 mounted and keeps its search, filters and page, and shows its first two columns next to the
-card, `compactColumns` of `ResourceList`), forms in dialogs. A table scrolls in its own
+card, `compactColumns` of `ResourceList`; a list in the card, a related list, shows the cards of
+a phone there), forms in dialogs. A table scrolls in its own
 area as high as the screen, with its header at the top: a wide table scrolls sideways
 instead of losing columns. On a phone a list shows cards (`composition.list_phone: cards`,
 the default of both presets; `table` keeps the table scrolled sideways).
@@ -3012,7 +3021,7 @@ the user (below), else the choice kept in the browser (localStorage), else the l
 of the browser (`navigator.languages`, also by their base code: `ru-RU` is `ru`), else
 `LANGUAGE`. `AppShell` shows `LanguageToggle` next to the color mode when there is more
 than one language (`action:language`, the code in `data-value`); the `lang` of the page
-follows it.
+follows it, and so does its title, the name of the product (`product.name`).
 
 ### The backend answers in it
 
@@ -3388,7 +3397,7 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
   its imports), then apply the other changes of the product to it again: its own providers,
   the routes that are not screens of the specs, the tiles of its maps (a `MapProvider tiles`
   around `GeneratedProviders`). Move its links to `navigation` of `product.yaml` (with their
-  `icon` and `requires`) and give each screen written by hand `custom` in its spec.
+  `icon`, `requires` and a `label` shorter than the title of the screen) and give each screen written by hand `custom` in its spec.
 - `src/app/product.ts` and the home `src/screens/home/index.tsx` are no longer in the
   template: `update` keeps them and says what replaces them. The name of the product is
   `product.name` of `product.yaml`: delete `product.ts` once nothing imports it. Delete the home, or
@@ -3405,7 +3414,8 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
   (`react-day-picker`) in `package.json`: run `npm install` again, else `tsc` fails (TS2307).
 - New errors of `check` and `screens` that a product of 0.2.0 may meet: two entities that the
   generated code would name alike (P032), the screens of an item without `:id` (S038), the
-  links of the navigation (S030), the code of a custom screen (S028, S029).
+  links of the navigation (S030), the code of a custom screen (S028, S029), a field twice in
+  a sort (S039).
 
 ## API: the client
 
@@ -4515,6 +4525,10 @@ Its props, `ListCardLayoutProps`:
 
 `useBesideCard(): boolean`: Whether the list is shown next to an open card (`split` on a wide screen): narrow, it shows only its first columns (`compactColumns` of `ResourceList`).
 
+#### useBesideList
+
+`useBesideList(): boolean`: Whether the card is shown next to its list (`split` from the breakpoint `xl`): narrow, a list in it (a related list) shows its rows as the cards of a phone, never wider than the card.
+
 #### The types and the constants of `@/bazis/ui/app-shell`
 
 - `AppShellProps`: the props of `AppShell`, listed with it
@@ -5347,8 +5361,8 @@ The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The co
 `interface BoardDrag`: The parts of the drag and drop of a board.
 
 - `Area: ComponentType<{ onDrop: (id: string, status: string) => void; children: ReactNode; }>`: The board: `onDrop` gets the id of a card dropped on another column, and the status of that one.
-- `Column: ComponentType<{ status: string; children: ReactNode; }>`: A column, where a card is dropped.
-- `Card: ComponentType<{ id: string; children: ReactNode; }>`: A card, which is dragged.
+- `Column: ComponentType<{ status: string; label: string; children: ReactNode; }>`: A column, where a card is dropped; `label`: the name of its status, for the screen readers.
+- `Card: ComponentType<{ id: string; label: string | null; children: ReactNode; }>`: A card, which is dragged; `label`: the name of its item, for the screen readers (none without one).
 
 #### ResourceBoard
 
@@ -5712,7 +5726,8 @@ Its props, `UpdateFormActionProps`:
 `interface DestroyCardActionOptions`
 
 - `id: string`: The id of the action in the specs: `action:<id>`, its confirmation `action:confirm-<id>`.
-- `label: ReactNode`: The label of the action, also the title of its confirmation.
+- `label: ReactNode`: The label of the action and of the button that confirms it.
+- `title?: ReactNode`: The title of the confirmation, a question (`title` of the action): `Delete this item?` by default.
 - `description?: ReactNode`: What the confirmation says (`description` of the action); that the deletion cannot be undone by default.
 - `path: DestroyPath`: The route set of the entity (`ROUTES` of the contract).
 - `item: string`: The id of the item of the card.

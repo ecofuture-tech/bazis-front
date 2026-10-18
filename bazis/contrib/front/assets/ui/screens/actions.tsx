@@ -166,8 +166,10 @@ export function ScreenAction({ id, label, icon: Icon, requires, onClick }: Scree
 export interface DestroyCardActionOptions {
   /** The id of the action in the specs: `action:<id>`, its confirmation `action:confirm-<id>`. */
   id: string;
-  /** The label of the action, also the title of its confirmation. */
+  /** The label of the action and of the button that confirms it. */
   label: ReactNode;
+  /** The title of the confirmation, a question (`title` of the action): `Delete this item?` by default. */
+  title?: ReactNode;
   /** What the confirmation says (`description` of the action); that the deletion cannot be undone by default. */
   description?: ReactNode;
   /** The route set of the entity (`ROUTES` of the contract). */
@@ -191,7 +193,15 @@ export interface DestroyCardAction {
  * user may delete it, run once confirmed in its dialog (once, whatever the clicks): a toast
  * once it is deleted, then the route `then`; a toast of the error when the backend refuses it.
  */
-export function useDestroyCardAction({ id, label, description, path, item, then }: DestroyCardActionOptions): DestroyCardAction {
+export function useDestroyCardAction({
+  id,
+  label,
+  title,
+  description,
+  path,
+  item,
+  then,
+}: DestroyCardActionOptions): DestroyCardAction {
   const destroy = useDestroy(path);
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -226,7 +236,7 @@ export function useDestroyCardAction({ id, label, description, path, item, then 
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{label}</DialogTitle>
+          <DialogTitle>{title ?? t('card.delete_title')}</DialogTitle>
           <DialogDescription>{description ?? t('card.delete_confirm')}</DialogDescription>
         </DialogHeader>
         <DialogFooter>

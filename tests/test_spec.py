@@ -460,6 +460,12 @@ CASES = [
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
     (
+        'S002',
+        # the title of a confirmation is that of a deletion, not of a form
+        {LIST: lambda d: d['actions'][0].update(title={'en': 'Create?', 'ru': 'Создать?'})},
+        [('S002', f'{LIST}#/actions/0')],
+    ),
+    (
         'S003',
         {CARD: lambda d: d.update(id='task-item', route='/tasks')},
         # a card at the route of a list has no `:id` either
@@ -876,6 +882,13 @@ CASES = [
          f'{SCREENS}/my-task/index.tsx': lambda d: 'export function MyTaskScreen() {}\n',
          f'{SCREENS}/my-task-edit/index.tsx': lambda d: 'export function MyTaskEditScreen() {}\n'},
         [('S038', f'{CARD}#/route'), ('S038', 'spec/screens/task-edit.yaml#/route')],
+    ),
+    (
+        'S039',
+        # a sort read as the sorts that the user may choose: a field twice, its `-` or not
+        {LIST: lambda d: d['list'].update(sort=['dt_created', 'title', '-dt_created']),
+         HOME: lambda d: d['dashboard']['recent'][0].update(sort=['-dt_created', 'dt_created'])},
+        [('S039', f'{HOME}#/dashboard/recent/0/sort/1'), ('S039', f'{LIST}#/list/sort/2')],
     ),
     (
         'S006',
@@ -1454,6 +1467,16 @@ def test_a_missing_permission_through_an_undescribed_relation_is_not_copied(cont
     hint = found['/entities/0/access/manager/delete/1']
     assert hint.startswith('Check the path of the selector `steps__task__assignee` first: `steps` is not in the contract')
     assert 'tasks.task.item.delete.steps__task__assignee' not in hint
+
+
+def test_a_text_in_one_language_is_told_its_key(root):
+    # the hint of S027 names the key of the text that it is about, which the dictionaries of
+    # the frontend may give instead
+    edit(root, PRODUCT, lambda d: d['product'].update(name='Tasks'))
+    edit(root, LIST, lambda d: [d['actions'][0]['label'].pop('ru')])
+    hints = {it.location: it.hint for it in validate(root).issues if it.code == 'S027'}
+    assert '(`product.name`)' in hints[f'{PRODUCT}#/product/name']
+    assert '(`screens.task-list.actions.create.label`)' in hints[f'{LIST}#/actions/0/label']
 
 
 @pytest.mark.django_db

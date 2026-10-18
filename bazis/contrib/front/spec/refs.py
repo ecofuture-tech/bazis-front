@@ -1438,7 +1438,8 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
     The queries of the items of a list, a board, a calendar or a part of a dashboard (its
     `section` at `path`) against the resource of the contract: the fields of its filters, of
     its filter and of the columns, days or bars it lists the items by, filtered by, and of
-    its sort, sorted by (S008); the values of its filter, and the highlight of a list (S014).
+    its sort, sorted by (S008); a field of the sort once (S039); the values of its filter, and
+    the highlight of a list (S014).
     """
     checks = [((*path, 'filters', i), name, 'filter') for i, name in enumerate(section.get('filters', []))]
     checks += [((*path, 'filter', name), name, 'filter') for name in section.get('filter', {})]
@@ -1453,6 +1454,17 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
                 f'The field `{name}` of `{entity.data["resource"]}` cannot be {verb} by: it has no '
                 f'`{label}` in the contract.',
                 f'Remove it, or make the field {verb} by in the route set of the backend.',
+            )
+    sort = section.get('sort', [])
+    for i, name in enumerate(it.removeprefix('-') for it in sort):
+        if any(it.removeprefix('-') == name for it in sort[:i]):
+            twice = ', '.join(f'`{it}`' for it in sort if it.removeprefix('-') == name)
+            issues.add(
+                doc, (*path, 'sort', i), 'S039',
+                f'The sort orders by `{name}` twice ({twice}): it is the order of the items, by '
+                'its first field, then by the next one for the items equal by it.',
+                f'Keep `{name}` once, ascending or `-{name}` descending (the user sorts a list by '
+                'the headers of its columns himself).',
             )
     for name, value in section.get('filter', {}).items():
         actual = resource['fields'].get(name)

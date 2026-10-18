@@ -27,27 +27,49 @@ import { BoardDnd } from '@/bazis/ui/board-dnd';
 import { ResourceBoard } from '@/bazis/ui/resource-board';
 import { Backend, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
+/** A card or a column of @dnd-kit: its id and its data. */
+interface Part {
+  id: string;
+  data: { current: { label: string | null } };
+}
+
+/** What the screen readers are told of a drag (`accessibility` of `DndContext`). */
+interface Accessibility {
+  screenReaderInstructions: { draggable: string };
+  announcements: {
+    onDragStart: (event: { active: Part }) => string;
+    onDragOver: (event: { active: Part; over: Part | null }) => string;
+    onDragEnd: (event: { active: Part; over: Part | null }) => string;
+    onDragCancel: (event: { active: Part }) => string;
+  };
+}
+
 const fake = vi.hoisted(() => ({
   drop: null as ((event: { active: { id: string }; over: { id: string } | null }) => void) | null,
+  accessibility: null as Accessibility | null,
   droppables: [] as string[],
   draggables: [] as string[],
+  labels: new Map<string, string | null>(),
 }));
 
 vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({ onDragEnd, children }: { onDragEnd: typeof fake.drop; children: ReactNode }) => {
+  DndContext: ({ onDragEnd, accessibility, children }: { onDragEnd: typeof fake.drop; accessibility: Accessibility; children: ReactNode }) => {
     fake.drop = onDragEnd;
+    fake.accessibility = accessibility;
     return children;
   },
   MouseSensor: {},
   TouchSensor: {},
   useSensor: () => ({}),
   useSensors: () => [],
-  useDroppable: ({ id }: { id: string }) => {
+  useDroppable: ({ id, data }: { id: string; data: { label: string } }) => {
     fake.droppables.push(id);
+    fake.labels.set(id, data.label);
     return { setNodeRef: () => undefined, isOver: false };
   },
-  useDraggable: ({ id }: { id: string }) => {
+  useDraggable: ({ id, data }: { id: string; data: { label: string | null } }) => {
     fake.draggables.push(id);
+    fake.labels.set(id, data.label);
     return { setNodeRef: () => undefined, listeners: {}, transform: null, isDragging: false };
   },
 }));
@@ -94,5 +116,35 @@ describe('BoardDnd', () => {
     await waitFor(() => {
       expect(server.calls.filter((it) => it.method === 'POST').map((it) => it.body)).toEqual([{ transit: 'start' }]);
     });
+  });
+
+  it('tells the screen readers the drag by the names of the item and the status, never their ids', async () => {
+    const item = resource('item-0001', { title: 'Write the report' }, { status: { type: 'statusy.status', id: 'draft' } });
+    const unnamed = resource('item-0002', {}, { status: { type: 'statusy.status', id: 'draft' } });
+    renderWithBazis(
+      <BoardDnd>
+        <ResourceBoard path={ITEMS as never} entity="item" columns={['draft', 'start']} title="title" move />
+      </BoardDnd>,
+      new Backend().on('GET', `${ITEMS}schema_list/`, schema).on('GET', ITEMS, listDocument([item, unnamed])),
+    );
+    await screen.findAllByTestId('row:item-0002');
+    const part = (id: string): Part => ({ id, data: { current: { label: fake.labels.get(id) ?? null } } });
+    const told = fake.accessibility;
+    if (told === null) throw new Error('no accessibility');
+    const said = [
+      told.announcements.onDragStart({ active: part('item-0001') }),
+      told.announcements.onDragStart({ active: part('item-0002') }),
+      told.announcements.onDragOver({ active: part('item-0001'), over: part('start') }),
+      told.announcements.onDragOver({ active: part('item-0001'), over: null }),
+      told.announcements.onDragEnd({ active: part('item-0001'), over: part('start') }),
+      told.announcements.onDragCancel({ active: part('item-0001') }),
+    ];
+    expect(said[0]).toContain('Write the report');
+    expect(said[1]).toContain('a card');
+    expect(said[2]).toContain(fake.labels.get('start'));
+    // the texts of the language, not their keys, and never the id of an item
+    for (const text of [...said, told.screenReaderInstructions.draggable]) {
+      expect(text).not.toMatch(/item-000|\{|board\./);
+    }
   });
 });

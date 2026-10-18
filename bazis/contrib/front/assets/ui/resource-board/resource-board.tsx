@@ -36,6 +36,7 @@ import {
   type Fields,
   fieldValue,
   ItemValue,
+  itemName,
   type ResourceObject,
   SOFT_TONES,
   StatusLabel,
@@ -301,7 +302,7 @@ export function ResourceBoard({
                 const list = lists[index]?.data;
                 const count = (list ? pagination(list)?.count : undefined) ?? items.length;
                 return (
-                  <Column key={status} status={status}>
+                  <Column key={status} status={status} label={statusName(type, status, language)}>
                     <section
                       data-bz={`column:${status}`}
                       data-count={count}
@@ -320,7 +321,7 @@ export function ResourceBoard({
                         <ul className="grid gap-2">
                           {items.map((item) => (
                             <li key={item.id}>
-                              <Card id={item.id}>
+                              <Card id={item.id} label={itemName(item)}>
                                 <BoardCard
                                   item={item}
                                   title={title}

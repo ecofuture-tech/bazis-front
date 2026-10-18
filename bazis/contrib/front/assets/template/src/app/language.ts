@@ -30,6 +30,7 @@ import {
 } from '@/bazis/i18n';
 import type { Api } from '@/bazis/react';
 import { MESSAGES } from '@/i18n';
+import { PRODUCT_NAME } from '@/screens/generated/product';
 
 export const languageStore = createLanguageStore({ languages: LANGUAGES, fallback: LANGUAGE });
 
@@ -41,9 +42,13 @@ export function getLanguage(): string {
   return languageStore.get();
 }
 
-/** The `lang` of the page follows the language, for the screen readers and the hyphenation. */
+/**
+ * The `lang` of the page follows the language, for the screen readers and the hyphenation, and
+ * so does its title, the name of the product (`product.name` of spec/product.yaml).
+ */
 function markPage(): void {
   document.documentElement.lang = languageStore.get();
+  document.title = t(PRODUCT_NAME);
 }
 markPage();
 languageStore.subscribe(markPage);

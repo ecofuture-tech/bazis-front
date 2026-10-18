@@ -113,6 +113,45 @@ def test_the_texts_of_the_specs_are_the_generated_messages(tmp_path):
     assert "label: t('navigation.planning.title')," in files[f'{screens.GENERATED_DIR}/navigation.ts']
 
 
+def test_a_link_of_the_navigation_is_labelled_by_its_label_else_by_the_title_of_its_screen(tmp_path):
+    """
+    A link with a `label` (shorter than the title of its screen) is labelled by it, a text of
+    the generated messages by the screen of the link; the others by the titles of their screens.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    path = tmp_path / 'spec' / 'product.yaml'
+    data = yaml.safe_load(path.read_text(encoding='utf-8'))
+    data['navigation'][0]['label'] = {'en': 'Start', 'ru': 'Начало'}
+    data['navigation'][1]['items'][1]['label'] = 'tasks.drafts'
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding='utf-8')
+
+    files = rendered(tmp_path)
+    navigation = files[f'{screens.GENERATED_DIR}/navigation.ts']
+    messages = files[f'{screens.GENERATED_DIR}/messages.ts']
+    assert "label: t('navigation.home.label')," in navigation
+    assert "    'navigation.home.label': 'Start',\n" in messages
+    assert "    'navigation.home.label': 'Начало',\n" in messages
+    # a key of the dictionaries is the product's own
+    assert "label: t('tasks.drafts')," in navigation
+    assert 'tasks.drafts' not in messages
+    assert "label: t('screens.task-list.title')," in navigation
+
+
+def test_the_confirmation_of_a_deletion_is_titled_by_its_title(tmp_path):
+    """
+    The confirmation of a deletion is titled by `title` of the action, a question, and its
+    button by its label; without a title, by the default question of the components.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    card = rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-card.tsx']
+    assert "label: t('screens.task-card.actions.delete.label')," in card
+    assert "title: t('screens.task-card.actions.delete.title')," in card
+
+    edit_screen(tmp_path, 'task-card', lambda data: data['actions'][0].pop('title'))
+    card = rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-card.tsx']
+    assert 'actions.delete.title' not in card
+
+
 def kitchen_sink(root: Path) -> None:
     """The specs of the sample and of the kitchen sink in a product root."""
     shutil.copytree(SAMPLE_SPEC, root / 'spec')

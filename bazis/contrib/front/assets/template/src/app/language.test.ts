@@ -14,9 +14,12 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { followSessionLanguage } from '@/app/language';
+import { followSessionLanguage, languageStore } from '@/app/language';
+import { LANGUAGES } from '@/bazis/generated/contract';
 import { createLanguageStore } from '@/bazis/i18n';
 import type { Api } from '@/bazis/react';
+import { MESSAGES } from '@/i18n';
+import { PRODUCT_NAME } from '@/screens/generated/product';
 
 const PROFILE = { path: '/api/v1/users/user/', type: 'users.user' };
 
@@ -116,5 +119,17 @@ describe('followSessionLanguage', () => {
     current.login('manager');
     expect(list).toHaveBeenCalledTimes(2);
     expect(update).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the page', () => {
+  it('is titled by the name of the product in the language of the interface', () => {
+    const before = languageStore.get();
+    for (const { code } of LANGUAGES) {
+      languageStore.set(code);
+      expect(document.documentElement.lang).toBe(code);
+      expect(document.title).toBe(MESSAGES[code]?.[PRODUCT_NAME] ?? MESSAGES[languageStore.fallback]?.[PRODUCT_NAME]);
+    }
+    languageStore.set(before);
   });
 });

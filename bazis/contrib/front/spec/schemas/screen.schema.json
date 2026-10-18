@@ -384,7 +384,7 @@
       "items": {"$ref": "#/$defs/field"}
     },
     "sort": {
-      "description": "The order: fields that the contract can sort by, `-` for descending.",
+      "description": "The order of the items by default: fields that the contract can sort by, `-` for descending, by the first field, then by the next one for the items equal by it; each field once (S039). The user sorts a list by the headers of its columns.",
       "type": "array",
       "uniqueItems": true,
       "items": {"type": "string", "pattern": "^-?[A-Za-z_][A-Za-z0-9_]*$"}
@@ -427,10 +427,11 @@
         "fields": {"$ref": "#/$defs/fields"},
         "then": {"description": "The screen shown after the action.", "$ref": "#/$defs/id"},
         "label": {"description": "The label of its button, also the title of its form.", "$ref": "#/$defs/text"},
+        "title": {"description": "The title of the confirmation of a deletion, a question (`Delete the book?`): `Delete this item?` by default.", "$ref": "#/$defs/text"},
         "description": {"description": "The description of its form, or of the confirmation of a deletion.", "$ref": "#/$defs/text"}
       },
       "if": {"properties": {"primitive": {"const": "form"}}},
-      "then": {"required": ["mode"]},
+      "then": {"required": ["mode"], "properties": {"title": false}},
       "else": {"properties": {"mode": false, "fields": false}}
     }
   }

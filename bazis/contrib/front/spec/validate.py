@@ -347,6 +347,7 @@ def check_texts(doc: Document, schema: str, languages: list[str], issues: Issues
     key of the dictionaries of the frontend (which have every language); a text in words is in
     one language.
     """
+    prefix = screen_prefix(doc.data['id']) if schema == SCREEN_SCHEMA else ''
     for at, value in document_texts(doc.data, schema):
         if isinstance(value, str):
             if len(languages) < 2 or TEXT_KEY.fullmatch(value):
@@ -360,20 +361,21 @@ def check_texts(doc: Document, schema: str, languages: list[str], issues: Issues
         issues.add(
             doc, at, 'S027', problem,
             f'Give it in every language of the product: `{{{", ".join(f"{it}: ..." for it in languages)}}}`; '
-            'or a key of the dictionaries of the frontend (`screens.home.title`).',
+            f'or a key of the dictionaries of the frontend (`{text_key(prefix, doc.data, at)}`).',
         )
 
 
 def text_key(prefix: str, data, path: tuple) -> str:
     """
     The key of the text at a path of a document: the path from the prefix, an item of a list
-    by its id (`group` for a group of the navigation).
+    by its id (`group` for a group of the navigation, `screen` for a link).
     """
     parts, node = [prefix] if prefix else [], data
     for step in path:
         if isinstance(step, int):
             item = node[step]
-            parts.append(str(item.get('id', item.get('group', step))) if isinstance(item, dict) else str(step))
+            name = item.get('id', item.get('group', item.get('screen', step))) if isinstance(item, dict) else step
+            parts.append(str(name))
         else:
             parts.append(step)
         node = node[step]

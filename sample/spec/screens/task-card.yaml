@@ -25,5 +25,5 @@ card:
     - {id: steps, title: {en: Steps, ru: Шаги}, related: [steps]}
     - {id: history, title: {en: History, ru: История}, history: true}
 actions:
-  - {id: delete, primitive: destroy, then: task-list, label: {en: Delete, ru: Удалить}}
+  - {id: delete, primitive: destroy, then: task-list, label: {en: Delete, ru: Удалить}, title: {en: 'Delete the task?', ru: 'Удалить задачу?'}}
 states: [loading, error, forbidden, not_found]

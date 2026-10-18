@@ -23,10 +23,10 @@ import { createContext, use, type ComponentType, type ReactNode } from 'react';
 export interface BoardDrag {
   /** The board: `onDrop` gets the id of a card dropped on another column, and the status of that one. */
   Area: ComponentType<{ onDrop: (id: string, status: string) => void; children: ReactNode }>;
-  /** A column, where a card is dropped. */
-  Column: ComponentType<{ status: string; children: ReactNode }>;
-  /** A card, which is dragged. */
-  Card: ComponentType<{ id: string; children: ReactNode }>;
+  /** A column, where a card is dropped; `label`: the name of its status, for the screen readers. */
+  Column: ComponentType<{ status: string; label: string; children: ReactNode }>;
+  /** A card, which is dragged; `label`: the name of its item, for the screen readers (none without one). */
+  Card: ComponentType<{ id: string; label: string | null; children: ReactNode }>;
 }
 
 /** A part without drag and drop: its children as they are. */

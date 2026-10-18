@@ -257,7 +257,9 @@ describe('useDestroyCardAction', () => {
     renderCard(backend);
     fireEvent.click(await screen.findByTestId('action:delete'));
     expect(backend.requests('DELETE')).toEqual([]);
-    expect(screen.getByRole('dialog').textContent).toContain('Delete it for good?');
+    // the title of the confirmation is a question, not the label of its button
+    expect(screen.getByRole('heading', { name: 'Delete this item?' })).toBeTruthy();
+    expect(screen.getByRole('dialog').textContent).toContain('It is deleted for good');
     fireEvent.click(screen.getByTestId('action:confirm-delete'));
     expect(await screen.findByTestId('screen:item-list')).toBeTruthy();
     expect(backend.requests('DELETE')).toEqual([`DELETE ${ITEM}`]);
@@ -280,6 +282,7 @@ describe('useDestroyCardAction', () => {
       const destroy = useDestroyCardAction({
         id: 'delete',
         label: 'Delete',
+        title: 'Delete the task?',
         description: 'The steps of the task go with it.',
         path: ITEMS as never,
         item: ITEM_ID,
@@ -294,6 +297,7 @@ describe('useDestroyCardAction', () => {
     const backend = cardBackend({ crud_actions: ['view', 'delete'] });
     renderWithBazis(<Described />, backend);
     fireEvent.click(await screen.findByTestId('action:delete'));
+    expect(screen.getByRole('heading', { name: 'Delete the task?' })).toBeTruthy();
     expect(screen.getByRole('dialog').textContent).toContain('The steps of the task go with it.');
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() => {

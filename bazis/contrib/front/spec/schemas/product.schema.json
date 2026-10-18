@@ -83,12 +83,17 @@
       "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
     },
     "nav_link": {
-      "description": "The link of a screen (`nav:<screen>`), labelled by its title. It is shown to the users whom the backend lets view the items of the route set of its entity (and filter them by the fields of `list.filter` of a report); `requires.can: add` asks that they may add one too.",
+      "description": "The link of a screen (`nav:<screen>`), labelled by its `label`, else by the title of the screen. It is shown to the users whom the backend lets view the items of the route set of its entity (and filter them by the fields of `list.filter` of a report); `requires.can: add` asks that they may add one too.",
       "type": "object",
       "additionalProperties": false,
       "required": ["screen"],
       "properties": {
         "screen": {"$ref": "#/$defs/id"},
+        "label": {
+          "description": "The text of the link, shorter than the title of its screen (`Catalog` for `Book catalog`).",
+          "$ref": "#/$defs/text",
+          "minLength": 1
+        },
         "icon": {"$ref": "#/$defs/icon"},
         "requires": {
           "type": "object",

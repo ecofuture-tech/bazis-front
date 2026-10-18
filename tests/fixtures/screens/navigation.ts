@@ -9,8 +9,9 @@ import type { NavEntry } from '@/bazis/ui/app-shell';
 import { ENTITIES } from './entities';
 
 /**
- * The links of the navigation (`nav:<screen>`), labelled by the titles of their screens in the
- * language of the interface, each shown once the backend allows the user what it `requires`.
+ * The links of the navigation (`nav:<screen>`), labelled by their `label` or the titles of
+ * their screens in the language of the interface, each shown once the backend allows the
+ * user what it `requires`.
  */
 export function navigation(t: Translate): readonly NavEntry[] {
   return [

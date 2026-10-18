@@ -592,6 +592,34 @@ describe('ResourceList', () => {
     expect([...loaded.querySelectorAll('th')].some((it) => it.classList.contains('hidden'))).toBe(false);
   });
 
+  it('shows a list in a card next to its list as on a phone, from the breakpoint xl', async () => {
+    for (const xl of [true, false]) {
+      // jsdom has no `matchMedia`: wide (`md`), and `xl` or not
+      window.matchMedia = (query: string) =>
+        ({ matches: xl || !query.includes('80rem'), addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+      try {
+        const { unmount } = renderWithBazis(
+          <Routes>
+            <Route path="/items" element={<ListCardLayout mode="split" list={<p />} />}>
+              <Route
+                path=":id"
+                element={<ResourceList path={ITEMS as never} entity="item" columns={['title', 'done', 'count']} layout="table" phoneLayout="cards" />}
+              />
+            </Route>
+          </Routes>,
+          backend(listDocument(rows)),
+          { route: '/items/a' },
+        );
+        await screen.findByTestId('state:loaded');
+        // the cards of a phone show every column, never wider than the card
+        expect(screen.getByTestId('row:a').tagName).toBe(xl ? 'ARTICLE' : 'TR');
+        unmount();
+      } finally {
+        Reflect.deleteProperty(window, 'matchMedia');
+      }
+    }
+  });
+
   it(
     'shows the rows as cards on a phone, a table there only when asked',
     onPhone(async () => {
