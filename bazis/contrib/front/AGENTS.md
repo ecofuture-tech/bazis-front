@@ -1556,9 +1556,9 @@ the names of the statuses and transits of the contract (in every language), and 
 | `dashboard` | `Dashboard` (`tiles`: the props of `StatCard`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
 | `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
-| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (read when it opens) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
+| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (read when it opens; with none, the menu says so and the card hides `action:move` once it is closed, while its status stays) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
 | `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status; the screen readers are told the drag in the language of the interface, by the name of the item and of the status, never an id | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
-| `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `filters`: those of a list, `onOpen`, `add`: `{id, label, time, duration, fields, onAdd(initial)}`, the values the form starts with: `field` on the selected day (the day of a date, of a date-time the moment of `time` in the time zone of the browser), `end` `duration` minutes later, the related item or the choice of a filter of the user by a field of `fields`) | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
+| `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `filters`: those of a list, `onOpen`, `add`: `{id, label, time, duration, fields, onAdd(initial)}`, the values the form starts with: `field` on the selected day (the day of a date, of a date-time the moment of `time` in the time zone of the browser), `end` `duration` minutes later, the related item or the choice of a filter of the user by a field of `fields`); an item shows its time to its `end` on the same day (`10:00–11:30`), in a day of a month its start with the range in its title | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
 | `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`; `tabs`: `{id, title, sections, content}`, `content` a node or `(item, meta) => node`, the children above them); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>`; `tab:<id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
@@ -1764,8 +1764,8 @@ list); never raise `chunkSizeWarningLimit` to hide a large chunk.
 
 Their links are `navigation` of `spec/product.yaml`, generated as `navigation(t)` of
 `src/screens/generated/navigation.ts` (the items of `AppShell`, a group under its heading,
-shown with its first allowed link). A link shown only to the users that the backend allows
-names what it `requires`, and `AppShell` shows it once the backend answers (the screens read
+shown with its first allowed link; a link after a group is set apart from it by a line). A
+link shown only to the users that the backend allows names what it `requires`, and `AppShell` shows it once the backend answers (the screens read
 the same queries: no request of its own):
 
 ```tsx
@@ -2681,7 +2681,11 @@ creates itself.
   dev`) and runs the tests once the backend answers its health check through it, unless
   `E2E_BASE_URL` names a running frontend; the backend runs separately. It never reuses a
   server already on the port: the run fails instead of testing another frontend (choose
-  another `E2E_PORT`, or `E2E_BASE_URL`). The browser is in UTC and in the default language
+  another `E2E_PORT`, or `E2E_BASE_URL`). Its dev server optimizes the dependencies again as
+  it starts (`--force`): a dependency imported since the last start (the charts of a new
+  dashboard) would be optimized once a page imports it, and the server would reload the
+  pages of the tests (a login that fails, a blank screenshot); a running frontend of
+  `E2E_BASE_URL` may do so. The browser is in UTC and in the default language
   of the backend (`timezoneId`, `locale`): the times that the scenarios fill and the dates
   they read are in UTC, like the data of `e2e_data`. In CI, an HTML report is written to
   `frontend/playwright-report/`.
@@ -2767,7 +2771,14 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
   state: their 404 is reported (a route set whose `actions` leave out
   `get_route_filter_fields`, which `check` reports as S040), and a 500 of the proxy of the dev
   server that did not reach the backend (a `text/plain` without a body) says so: not an error
-  of the backend, take the screenshots again.
+  of the backend.
+- A screen is shot once again, the user still logged in, when the proxy of the dev server did
+  not reach the backend (from the login on) or when the page loaded again between its check
+  and its screenshot (the dev server of Vite reloads the pages once it has optimized a
+  dependency that it found late: the screenshot would be a blank page); `retried` of the
+  report, the result is that of the second time, and the summary of the command counts the
+  screens shot again. The second time the proxy is reported as V013, the page that loaded
+  again as V019.
 - It runs as `npm run e2e` does (the same `playwright.config.ts`, which the config of the
   shots extends): the backend running, migrated and with the data of `manage.py e2e_data`,
   `E2E_PASSWORD` set, a dev server of its own on `E2E_PORT` (a free port without it, not
@@ -2792,13 +2803,13 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
 ```json
 {"errors": 1, "warnings": 1,
  "shots": [{"screen": "task-list", "role": "manager", "mode": "dark", "width": 390, "variant": null,
-            "file": "task-list-manager-dark-390.png",
+            "retried": false, "file": "task-list-manager-dark-390.png",
             "issues": [{"code": "V002", "severity": "error", "selector": "[data-bz=\"list:task\"]",
                         "message": "The page is 812 px wide at 390 px."},
                        {"code": "V009", "severity": "warning", "selector": "[data-bz=\"action:edit\"] button",
                         "message": "3 controls are smaller than 44×44 px: [data-bz=\"action:edit\"] button 24×24, …"}]},
            {"screen": "task-list", "role": "manager", "mode": "dark", "width": 390, "variant": "form",
-            "file": "task-list.form-manager-dark-390.png",
+            "retried": false, "file": "task-list.form-manager-dark-390.png",
             "issues": [{"code": "V013", "severity": "error", "selector": "GET /api/v1/tasks/task/schema_create/",
                         "message": "500 Internal Server Error"}]}]}
 ```
@@ -2825,12 +2836,13 @@ with the number of the small controls and the first five of them.
 | `V010` | warning | a text cut by an ellipsis without its whole text in a title or a tooltip: give it `title`, or let it wrap |
 | `V011` | error | an error of the page that nothing caught (`pageerror`): fix the code of the screen that throws it (the message says which) |
 | `V012` | warning | an error written to the console (`console.error`: a warning of React, a failure that the page handles): fix what React warns of (a key, a nested form), and handle the failure without writing it |
-| `V013` | error | a request of the page to the API failed or was answered with an error status, but a 403 or a 404 of a `GET` that a screen shows as its state: a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 404 of `route_filter_fields/` or a 405 of an action it does not route (its `actions`, S040); a 500 of the proxy of the dev server that did not reach the backend says so: take the screenshots again |
+| `V013` | error | a request of the page to the API failed or was answered with an error status, but a 403 or a 404 of a `GET` that a screen shows as its state: a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 404 of `route_filter_fields/` or a 405 of an action it does not route (its `actions`, S040); a 500 of the proxy of the dev server that did not reach the backend says so (the screen was shot again: the proxy failed twice); restart the dev server or the backend (the output of the dev server says why) and take the screenshots again |
 | `V014` | error | the page scrolls sideways at the width of a desktop: a fixed width, a grid whose implicit column grows to a long word; give the grid its column (`grid-cols-[minmax(0,1fr)]`), let the texts wrap |
 | `V015` | error | the page scrolls sideways once the texts of its items are long: before the screenshot, for the check only, the texts of the items in their cells and fields (`data-text` of `FieldValue` in `cell:<name>`, `field:<name>`, not in a form: a string without a choice or a format, the label of a related item; not a date, a number or the label of a choice, short by their nature, nor a cell of the product) are made 120 characters long with a word of 40, then given back; the data of `e2e_data` are short, the data of the users are not. Bound the column of the grid that holds them and let them wrap (`wrap-anywhere`) or cut them with their text in a title (`truncate`) |
 | `V016` | warning | a list, a board, a calendar (neither a row nor a day with items) or the last items of a dashboard show no item (but the list searched for nothing): the screenshot does not show them, nor what a long value does there; give `e2e_data` items for them, their dates relative to the day of the run (a calendar opens on the month of today) |
 | `V017` | warning | a text cut by an ellipsis to a few characters, its box narrower than 4 em: the item of a narrow day of a calendar, a narrow column; give it the width of a line of its own or let it wrap |
-| `V018` | warning | a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap; let them wrap (`whitespace-normal wrap-anywhere` with a `min-w-*`) |
+| `V018` | warning | a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap; let them wrap (`whitespace-normal wrap-anywhere` with a `min-w-*` and the same `max-w-*`, so that a long text does not narrow the columns of short words either) |
+| `V019` | error | the page loaded again between its check and its screenshot, also when the screen was shot again: the screenshot (a blank page, a page that loads) is not of the screen checked; the dev server reloads the pages (a dependency optimized late by a running frontend of `E2E_BASE_URL`, a file of the frontend changed during the run): take the screenshots again |
 
 ### The checklist of the screenshots
 
@@ -5708,7 +5720,7 @@ Its props, `ResourceCalendarProps`:
 
 Its props, `RelatedListProps`:
 
-- `extends Pick<ResourceListProps, 'columns' | 'onOpen' | 'rowActions' | 'cells' | 'emptyMessage' | 'sort' | 'pageSize' | 'layout'>`
+- `extends Pick<ResourceListProps, 'columns' | 'onOpen' | 'rowActions' | 'cells' | 'emptyMessage' | 'sort' | 'pageSize' | 'layout' | 'display' | 'icon'>`
 - `path: ListPath`: The route set of the related resource (`ROUTES` of the contract): its list, its create for `add`.
 - `entity: string`: The entity of the related resource: the list is `list:<entity>`.
 - `relation: string`: The to-one relationship of the related resource to the item of the card (`request` of an item of a request): the filter of the list (a field it can be filtered by) and the fixed value of the form.
