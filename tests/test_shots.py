@@ -76,18 +76,22 @@ def test_the_shots_of_the_sample_are_the_fixture_of_the_helpers():
 
 def test_the_shots_of_the_specs(root):
     plan, skipped = shots.plan(specs(root))
-    assert [(it['screen'], it['role'], it['via']) for it in plan] == [
-        ('draft-tasks', 'manager', None),
-        ('home', 'manager', None),
-        ('task-board', 'manager', None),
-        ('task-calendar', 'manager', None),
+    assert [(it['screen'], it['variant'], it['role'], it['via']) for it in plan] == [
+        ('draft-tasks', None, 'manager', None),
+        ('home', None, 'manager', None),
+        ('task-board', None, 'manager', None),
+        ('task-calendar', None, 'manager', None),
         # the screen of an item through a list that opens it: all the items, not the report
         # of the drafts (draft-tasks, first by its id)
-        ('task-card', 'manager', {'screen': 'task-list', 'part': None}),
-        ('task-list', 'manager', None),
+        ('task-card', None, 'manager', {'screen': 'task-list', 'part': None}),
+        ('task-list', None, 'manager', None),
+        # a list searched for nothing (it has a search), and with its create form open; the
+        # drafts have neither
+        ('task-list', 'empty', 'manager', None),
+        ('task-list', 'form', 'manager', None),
     ]
     assert skipped == {}
-    by_screen = {it['screen']: it for it in plan}
+    by_screen = {it['screen']: it for it in plan if it['variant'] is None}
     # the forms that create an item, which an empty state offers
     assert by_screen['home']['creates'] == ['create']
     assert by_screen['task-card']['creates'] == []
@@ -102,8 +106,18 @@ def test_the_shots_of_the_specs(root):
     edit(root, 'screens/task-list.yaml', lambda d: d.update(roles=['viewer', 'manager']))
     plan, skipped = shots.plan(specs(root))
     assert 'task-edit' not in [it['screen'] for it in plan]
-    assert {it['screen']: it['role'] for it in plan}['task-list'] == 'viewer'
+    assert {(it['screen'], it['variant']): it['role'] for it in plan}[('task-list', None)] == 'viewer'
+    # its create form open as the first of its roles that may create a task: not the viewer
+    assert {(it['screen'], it['variant']): it['role'] for it in plan}[('task-list', 'form')] == 'manager'
     assert skipped == {'task-edit': 'no list, board, calendar or dashboard of the specs opens its items'}
+    # a list of no role that may create: no form open, and said so
+    task_list = yaml.safe_load((root / 'spec' / 'screens' / 'task-list.yaml').read_text(encoding='utf-8'))
+    (root / 'spec' / 'screens' / 'task-archive.yaml').write_text(yaml.safe_dump({
+        **task_list, 'id': 'task-archive', 'route': '/archive', 'roles': ['viewer'],
+    }), encoding='utf-8')
+    plan, skipped = shots.plan(specs(root))
+    assert [it['variant'] for it in plan if it['screen'] == 'task-archive'] == [None, 'empty']
+    assert skipped['task-archive.form'] == 'no role of the screen may create the items of its forms'
     text = shots.render(specs(root))[shots.SHOTS_TS]
     assert '// Not shot: task-edit: no list, board, calendar or dashboard of the specs opens its items.\n' in text
 
@@ -128,7 +142,7 @@ def test_the_shots_of_an_item_through_a_dashboard(root):
 
     edit(root, 'screens/home.yaml', recent)
     plan, skipped = shots.plan(specs(root))
-    by_screen = {it['screen']: it for it in plan}
+    by_screen = {it['screen']: it for it in plan if it['variant'] is None}
     # the viewer is not a role of the home, the only screen that opens the summary
     assert by_screen['task-summary']['role'] == 'manager'
     assert by_screen['task-summary']['via'] == {'screen': 'home', 'part': 'recent:summaries'}
@@ -157,8 +171,14 @@ def test_the_text_of_the_shots(root):
     assert (
         "  test('task-card', async ({ page }, info) => {\n"
         "    await shoot(page, PRODUCT, { screen: 'task-card', role: 'manager', mode: 'dark', via: { screen: "
-        "'task-list', part: null }, creates: [] }, info);\n"
+        "'task-list', part: null }, creates: [], variant: null }, info);\n"
         '  });\n'
+    ) in text
+    # the variants of a list, named after it
+    assert (
+        "  test('task-list.empty', async ({ page }, info) => {\n"
+        "    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'dark', via: null, creates: "
+        "['create'], variant: 'empty' }, info);\n"
     ) in text
 
     # the one mode of the theme
@@ -221,7 +241,8 @@ def fake_playwright(monkeypatch, results: list[dict]) -> list:
     def run(command, cwd, env, check):
         runs.append((command, Path(cwd), env['BAZIS_SHOTS_DIR']))
         for result in results:
-            name = f'{result["screen"]}-{result["role"]}-{result["mode"]}-{result["width"]}'
+            shown = result['screen'] if result['variant'] is None else f'{result["screen"]}.{result["variant"]}'
+            name = f'{shown}-{result["role"]}-{result["mode"]}-{result["width"]}'
             (Path(env['BAZIS_SHOTS_DIR']) / f'{name}.json').write_text(json.dumps(result), encoding='utf-8')
 
     monkeypatch.setattr(shots.shutil, 'which', lambda name: f'/usr/bin/{name}')
@@ -229,9 +250,10 @@ def fake_playwright(monkeypatch, results: list[dict]) -> list:
     return runs
 
 
-def result(screen: str, mode: str, width: int, *issues: tuple[str, str]) -> dict:
+def result(screen: str, mode: str, width: int, *issues: tuple[str, str], variant: str | None = None) -> dict:
     return {
-        'screen': screen, 'role': 'manager', 'mode': mode, 'width': width, 'file': f'{screen}-{mode}-{width}.png',
+        'screen': screen, 'role': 'manager', 'mode': mode, 'width': width, 'variant': variant,
+        'file': f'{screen}-{mode}-{width}.png',
         'issues': [
             {'code': code, 'severity': severity, 'selector': f'[data-bz="screen:{screen}"]', 'message': 'Wrong.'}
             for code, severity in issues
@@ -242,7 +264,10 @@ def result(screen: str, mode: str, width: int, *issues: tuple[str, str]) -> dict
 def every_result(root: Path) -> list[dict]:
     plan, _ = shots.plan(specs(root))
     return [
-        result(it['screen'], mode, width) for it in plan for mode in shots.modes(specs(root)) for width in (1280, 390)
+        result(it['screen'], mode, width, variant=it['variant'])
+        for it in plan
+        for mode in shots.modes(specs(root))
+        for width in (1280, 390)
     ]
 
 
@@ -267,12 +292,15 @@ def test_shots_gathers_the_report(root, monkeypatch):
     assert not (output / 'old.png').exists()
     report = json.loads((output / shots.REPORT).read_text(encoding='utf-8'))
     assert (report['errors'], report['warnings']) == (2, 1)
-    assert [(it['screen'], it['mode'], it['width']) for it in report['shots']] == sorted(
-        (it['screen'], it['mode'], it['width']) for it in [*results, missing]
+    # by screen, its variants after it (none first), mode and width
+    assert [(it['screen'], it['variant'] or '', it['mode'], it['width']) for it in report['shots']] == sorted(
+        (it['screen'], it['variant'] or '', it['mode'], it['width']) for it in [*results, missing]
     )
     # the shot without a result: its test did not finish
     [not_shot] = [it for it in report['shots'] if it['file'] is None]
-    assert (not_shot['screen'], not_shot['mode'], not_shot['width']) == (missing['screen'], missing['mode'], missing['width'])
+    assert [not_shot[key] for key in ('screen', 'variant', 'mode', 'width')] == [
+        missing[key] for key in ('screen', 'variant', 'mode', 'width')
+    ]
     assert not_shot['issues'][0]['code'] == 'V001'
     assert f'{len(results)} screenshots of {len(results) + 1}, 2 errors, 1 warnings' in str(error.value)
     # not stale: no command brings the screens up to date

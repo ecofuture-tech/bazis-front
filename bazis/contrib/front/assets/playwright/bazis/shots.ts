@@ -20,7 +20,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page, type Response, type TestInfo } from '@playwright/test';
 
 import { App, bz, loginAs, stubForeignImages, type Product, type Role, type ScreenId } from '.';
 
@@ -36,6 +36,9 @@ export const CODES = {
   V008: ['warning', 'an empty state without a text, or without the action that creates an item when the user may create one'],
   V009: ['warning', 'controls smaller than 44×44 px at the width of a phone, one issue for the screenshot with their number'],
   V010: ['warning', 'a text cut by an ellipsis without its whole text in a title or a tooltip'],
+  V011: ['error', 'an error of the page that nothing caught (`pageerror`)'],
+  V012: ['warning', 'an error written to the console (`console.error`: a warning of React, a failure that the page handles)'],
+  V013: ['error', 'a request of the page to the API failed or was answered with an error status, but the refusals that a screen shows as its state'],
 } as const;
 
 /** A code of the checks of a screenshot. */
@@ -63,6 +66,11 @@ export interface Shot<P extends Product = Product> {
   readonly via: { readonly screen: ScreenId<P>; readonly part: string | null } | null;
   /** The actions of the screen that create an item, which its empty state offers. */
   readonly creates: readonly string[];
+  /**
+   * What is shown on the screen of a list: null for the screen as it opens, `empty` its list
+   * searched for a text that no item has, `form` its first form that creates an item, open.
+   */
+  readonly variant: 'empty' | 'form' | null;
 }
 
 /** The result of a screenshot, `<screen>-<role>-<mode>-<width>.json` in the directory of the shots. */
@@ -71,6 +79,7 @@ export interface ShotResult {
   readonly role: string | null;
   readonly mode: 'light' | 'dark';
   readonly width: number;
+  readonly variant: 'empty' | 'form' | null;
   /** The screenshot, relative to the directory of the shots; null when it was not taken. */
   readonly file: string | null;
   readonly issues: readonly ShotIssue[];
@@ -91,46 +100,99 @@ function shotsDir(info: TestInfo): string {
   return process.env.BAZIS_SHOTS_DIR ?? path.join(root, '.scratch', 'shots');
 }
 
+/** The search of the screenshot of an empty list (`variant: 'empty'`): a text that no item has. */
+const NOTHING = 'bazis-shots-match-nothing';
+
+/** A message of Playwright or of the page without its colors, on one line. */
+function oneLine(text: string, length = 400): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\u001b\[[0-9;]*m/g, '').replace(/\s+/g, ' ').trim().slice(0, length);
+}
+
 /**
  * Opens a screen as the test user of the role (the screen of an item through the first item of
- * `via`, in its part), waits until nothing loads, checks what it renders (`check`) and takes a
- * screenshot of the whole page; writes the screenshot and its result into the directory of the
- * shots (`shotsDir`). A screen that cannot be reached is the issue V001 of its result, and
- * fails the test.
+ * `via`, in its part; the list searched or its form open, `variant`), waits until nothing loads,
+ * checks what it renders (`check`) and what the page did once the user was logged in (`listen`)
+ * and takes a screenshot of the whole page; writes the screenshot and its result into the
+ * directory of the shots (`shotsDir`). A screen that cannot be reached is the issue V001 of
+ * its result, and fails the test.
  */
 export async function shoot<P extends Product>(page: Page, product: P, shot: Shot<P>, info: TestInfo): Promise<void> {
   const width = page.viewportSize()?.width ?? 0;
-  const name = [shot.screen, shot.role ?? 'nobody', shot.mode, String(width)].join('-');
+  const shown = shot.variant === null ? shot.screen : `${shot.screen}.${shot.variant}`;
+  const name = [shown, shot.role ?? 'nobody', shot.mode, String(width)].join('-');
   const directory = shotsDir(info);
   mkdirSync(directory, { recursive: true });
   const write = (result: ShotResult) => {
     writeFileSync(path.join(directory, `${name}.json`), `${JSON.stringify(result, null, 2)}\n`);
   };
-  const base = { screen: shot.screen, role: shot.role, mode: shot.mode, width };
+  const base = { screen: shot.screen, role: shot.role, mode: shot.mode, width, variant: shot.variant };
+  let heard = (): ShotIssue[] => [];
   try {
-    await reach(page, product, shot);
-    const issues = await check(page, { phone: width <= PHONE, dark: shot.mode === 'dark', creates: shot.creates });
+    const app = await enter(page, product, shot);
+    heard = listen(page);
+    await reach(page, app, shot);
+    // the empty state of a search offers no creation: its text only is checked
+    const creates = shot.variant === 'empty' ? [] : shot.creates;
+    const issues = await check(page, { phone: width <= PHONE, dark: shot.mode === 'dark', creates });
     await page.screenshot({ path: path.join(directory, `${name}.png`), fullPage: true });
-    write({ ...base, file: `${name}.png`, issues });
+    write({ ...base, file: `${name}.png`, issues: [...issues, ...heard()] });
   } catch (error) {
-    // the message of Playwright without its colors, on one line
-    const text = error instanceof Error ? error.message : String(error);
-    // eslint-disable-next-line no-control-regex
-    const message = text.replace(/\u001b\[[0-9;]*m/g, '').replace(/\s+/g, ' ').trim().slice(0, 400);
-    write({ ...base, file: null, issues: [{ code: 'V001', severity: CODES.V001[0], selector: bz('screen', shot.screen), message }] });
+    const message = oneLine(error instanceof Error ? error.message : String(error));
+    const issue: ShotIssue = { code: 'V001', severity: CODES.V001[0], selector: bz('screen', shot.screen), message };
+    write({ ...base, file: null, issues: [issue, ...heard()] });
     throw error;
   }
 }
 
+/** Logs in as the test user of the role of a shot, or opens the pages without a login. */
+async function enter<P extends Product>(page: Page, product: P, shot: Shot<P>): Promise<App<P>> {
+  if (shot.role !== null) return loginAs(page, product, shot.role);
+  await stubForeignImages(page);
+  return new App(page, product);
+}
+
+/**
+ * A refusal that a screen shows as its state, not an error of the page: 403 and 404 of what
+ * it reads (`state:forbidden`, `state:not_found`).
+ */
+function expected(response: Response): boolean {
+  return [403, 404].includes(response.status()) && response.request().method() === 'GET';
+}
+
+/**
+ * Listens to the page from now on: its errors that nothing caught (V011), the errors written
+ * to its console (V012, but the failed loads of resources, which V013 reports), and its
+ * requests to the API (`/api/`) that failed or were answered with an error status (V013, but
+ * the refusals that a screen shows as its state and the requests that the page cancelled);
+ * returns what it heard so far, at most `MAX_ISSUES` of each code.
+ */
+function listen(page: Page): () => ShotIssue[] {
+  const heard: Found[] = [];
+  const api = (url: string) => new URL(url).pathname.startsWith('/api/');
+  page.on('pageerror', (error) => {
+    heard.push({ code: 'V011', selector: 'page', message: oneLine(error.message) });
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) {
+      heard.push({ code: 'V012', selector: 'console', message: oneLine(message.text()) });
+    }
+  });
+  page.on('response', (response) => {
+    if (!api(response.url()) || response.status() < 400 || expected(response)) return;
+    const { pathname } = new URL(response.url());
+    heard.push({ code: 'V013', selector: `${response.request().method()} ${pathname}`, message: `${String(response.status())} ${response.statusText()}`.trim() });
+  });
+  page.on('requestfailed', (request) => {
+    const failure = request.failure()?.errorText ?? '';
+    if (!api(request.url()) || failure === 'net::ERR_ABORTED') return;
+    heard.push({ code: 'V013', selector: `${request.method()} ${new URL(request.url()).pathname}`, message: failure });
+  });
+  return () => capped(heard.map((it) => ({ ...it, severity: CODES[it.code][0] })));
+}
+
 /** Opens the screen of a shot and waits until it has rendered a state and nothing loads. */
-async function reach<P extends Product>(page: Page, product: P, shot: Shot<P>): Promise<void> {
-  let app: App<P>;
-  if (shot.role === null) {
-    await stubForeignImages(page);
-    app = new App(page, product);
-  } else {
-    app = await loginAs(page, product, shot.role);
-  }
+async function reach<P extends Product>(page: Page, app: App<P>, shot: Shot<P>): Promise<void> {
   if (shot.via === null) {
     await app.open(shot.screen);
   } else {
@@ -147,6 +209,22 @@ async function reach<P extends Product>(page: Page, product: P, shot: Shot<P>): 
   }
   await expect(app.screen().locator('[data-bz^="state:"]').first()).toBeAttached();
   await expect(page.locator(bz('state', 'loading'))).toHaveCount(0);
+  if (shot.variant === 'empty') await app.search(NOTHING);
+  const [create] = shot.creates;
+  if (shot.variant === 'form' && create !== undefined) {
+    await app.action(create);
+    await expect(app.form()).toBeVisible();
+    await expect(page.locator(bz('state', 'loading'))).toHaveCount(0);
+    // the dialog of the form at its size, not in its opening animation (a spinner never ends)
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((it) => it.effect?.getComputedTiming().endTime !== Infinity)
+          .map((it) => it.finished),
+      ).then(() => undefined),
+    );
+  }
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
 }
 
@@ -159,11 +237,25 @@ export interface CheckOptions {
 
 /**
  * The issues of what the page renders (the codes of `CODES`, V002 to V010), at most
- * `MAX_ISSUES` of each code.
+ * `MAX_ISSUES` of each code (`capped`).
  */
 export async function check(page: Page, options: CheckOptions): Promise<ShotIssue[]> {
-  const found = await page.evaluate(audit, { ...options, max: MAX_ISSUES });
-  return found.map((it) => ({ ...it, severity: CODES[it.code][0] }));
+  const found = await page.evaluate(audit, options);
+  return capped(found.map((it) => ({ ...it, severity: CODES[it.code][0] })));
+}
+
+/** At most `MAX_ISSUES` of each code, the last of them with the number of the others. */
+function capped(issues: readonly ShotIssue[]): ShotIssue[] {
+  const kept: ShotIssue[] = [];
+  const counts = new Map<Code, number>();
+  for (const issue of issues) counts.set(issue.code, (counts.get(issue.code) ?? 0) + 1);
+  for (const [code, count] of counts) {
+    const ofCode = issues.filter((it) => it.code === code).slice(0, MAX_ISSUES);
+    const last = ofCode.at(-1);
+    if (last && count > MAX_ISSUES) ofCode[ofCode.length - 1] = { ...last, message: `${last.message} (and ${String(count - MAX_ISSUES)} more)` };
+    kept.push(...ofCode);
+  }
+  return kept;
 }
 
 type Found = Omit<ShotIssue, 'severity'>;
@@ -172,15 +264,12 @@ type Found = Omit<ShotIssue, 'severity'>;
  * The checks, run in the page: self-contained, as `page.evaluate` sends its source. The colors
  * are those that the browser computes, converted to sRGB by a canvas (a token may be `oklch`).
  */
-function audit(options: CheckOptions & { max: number }): Found[] {
+function audit(options: CheckOptions): Found[] {
   /** The small controls named in the one issue V009 of a screenshot. */
   const SMALL_LISTED = 5;
   const issues: Found[] = [];
-  const counts = new Map<Code, number>();
   const add = (code: Code, element: Element, message: string) => {
-    const count = (counts.get(code) ?? 0) + 1;
-    counts.set(code, count);
-    if (count <= options.max) issues.push({ code, selector: describe(element), message });
+    issues.push({ code, selector: describe(element), message });
   };
 
   /** The nearest mark of the element, and its tag when it is not the marked element. */
@@ -345,12 +434,12 @@ function audit(options: CheckOptions & { max: number }): Found[] {
   /**
    * What a finger touches to use a control: its box, the `label` around it, or its
    * `::after` positioned over a larger area (a card that its title opens, the touch area of a
-   * checkbox), whichever is the largest.
+   * checkbox), whichever has the longest shortest side.
    */
   function target(element: Element): DOMRect {
     let best = element.getBoundingClientRect();
     const larger = (box: DOMRect) => {
-      if (box.width * box.height > best.width * best.height) best = box;
+      if (Math.min(box.width, box.height) > Math.min(best.width, best.height)) best = box;
     };
     const label = element.closest('label');
     if (label !== null) larger(label.getBoundingClientRect());
@@ -358,11 +447,14 @@ function audit(options: CheckOptions & { max: number }): Found[] {
     if (after.content !== 'none' && after.position === 'absolute') {
       let block: Element | null = element;
       while (block !== null && block !== document.body && getComputedStyle(block).position === 'static') block = block.parentElement;
-      const around = (block ?? document.body).getBoundingClientRect();
+      // its offsets are from the padding box of the block, inside its borders
+      const container = block ?? document.body;
+      const border = container.getBoundingClientRect();
+      const inner = new DOMRect(border.left + container.clientLeft, border.top + container.clientTop, container.clientWidth, container.clientHeight);
       const px = (value: string) => parseFloat(value) || 0;
-      const left = around.left + px(after.left);
-      const top = around.top + px(after.top);
-      larger(new DOMRect(left, top, around.right - px(after.right) - left, around.bottom - px(after.bottom) - top));
+      const left = inner.left + px(after.left);
+      const top = inner.top + px(after.top);
+      larger(new DOMRect(left, top, inner.right - px(after.right) - left, inner.bottom - px(after.bottom) - top));
     }
     return best;
   }
@@ -378,11 +470,5 @@ function audit(options: CheckOptions & { max: number }): Found[] {
     add('V010', element, `The text ${quote(text(element))} is cut.`);
   }
 
-  for (const [code, count] of counts) {
-    if (count > options.max) {
-      const last = issues.filter((it) => it.code === code).at(-1);
-      if (last) issues[issues.indexOf(last)] = { ...last, message: `${last.message} (and ${String(count - options.max)} more)` };
-    }
-  }
   return issues;
 }

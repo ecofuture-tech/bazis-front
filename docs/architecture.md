@@ -273,18 +273,20 @@ fixture of the product), never by the tests.
 
 `bazis_front shots` (`spec/shots.py`) renders `frontend/e2e/generated/shots.ts` from the
 specs, every screen as the first of its roles in each color mode of the theme (the screen of
-an item through the first item of a screen that opens it), and runs it with the
+an item through the first item of a screen that opens it; a list also searched for nothing and
+with its create form open), and runs it with the
 `playwright.shots.config.ts` of the template, at the width of a desktop and of a phone. The
 helper `shoot` of the asset `playwright` (`e2e/bazis/shots.ts`) takes the screenshot and
 checks what the page renders, in the browser: a screen not shot (`V001`), a page or a part of
 it wider than a phone (`V002`, `V003`), a raw name or a UUID shown (`V004`, `V005`), the
 contrast of a text as rendered (`V006`), a light surface in the dark mode (`V007`), an empty
 state without its action (`V008`), controls too small to touch (`V009`), a text cut without
-its whole text (`V010`). The results are gathered into `frontend/.scratch/shots/report.json`
+its whole text (`V010`); and what the page did once logged in: an error that nothing caught,
+an error of its console, a request to the API that failed (`V011`-`V013`). The results are gathered into `frontend/.scratch/shots/report.json`
 (ignored by Git), for the agent that looks at the screens. Like the end-to-end tests,
 `shots.ts` depends on the specs only: the lock records its hashes, and `shots --check` and
 the system check `front.W008` report it stale without Node; `front.W009` reports a last
-report with errors, which no command brings up to date but the screens.
+report with errors, or none, which no command brings up to date but the screens.
 
 ## The frontend of a product
 

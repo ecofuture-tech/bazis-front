@@ -159,6 +159,23 @@ test('the controls too small to touch on a phone', async ({ page }) => {
   const issues = await check(page, PHONE);
   expect(issues).toHaveLength(1);
   expect(issues[0]?.message).toBe(`7 controls are smaller than 44×44 px: ${Array(5).fill('button 32×32').join(', ')}, and 2 more.`);
+  // a wide, short label is not the target of a checkbox touched through its own wider area
+  await show(
+    page,
+    `<style>.wide::after { content: ''; position: absolute; inset: -14px }</style>
+     <label style="display: flex; width: 200px; height: 20px">
+       <input type="checkbox" class="wide" style="position: relative; width: 16px; height: 16px; margin: 2px" /> All
+     </label>`,
+  );
+  expect(await check(page, PHONE)).toEqual([]);
+  // the area is measured from inside the borders of the control: 16 - 2 + 2 × 14 is 42
+  const bordered = (inset: number) =>
+    `<style>.area::after { content: ''; position: absolute; inset: -${String(inset)}px }</style>
+     <button class="area" style="position: relative; box-sizing: border-box; width: 16px; height: 16px; padding: 0; border: 1px solid">B</button>`;
+  await show(page, bordered(14));
+  expect((await check(page, PHONE)).map((it) => it.message)).toEqual(['1 controls are smaller than 44×44 px: button 42×42.']);
+  await show(page, bordered(15));
+  expect(await check(page, PHONE)).toEqual([]);
 });
 
 test('a text cut without its whole text', async ({ page }) => {
@@ -181,7 +198,7 @@ test.describe('shoot', () => {
     const directory = info.outputPath('shots');
     process.env.BAZIS_SHOTS_DIR = directory;
     await serve(page, { '/tasks': `<!doctype html><html><body>${screen}</body></html>` });
-    await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info);
     const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult;
     expect(result).toMatchObject({ screen: 'task-list', role: null, mode: 'light', width: 1280, file: 'task-list-nobody-light-1280.png' });
     expect(result.issues.map((it) => [it.code, it.severity])).toEqual([['V004', 'error']]);
@@ -200,16 +217,78 @@ test.describe('shoot', () => {
       '/tasks/1': loaded('task-card', '<h1>Write the report</h1>'),
     });
     const via = { screen: 'home', part: 'recent:last-tasks' } as const;
-    await shoot(page, PRODUCT, { screen: 'task-card', role: null, mode: 'light', via, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-card', role: null, mode: 'light', via, creates: [], variant: null }, info);
     const result = JSON.parse(readFileSync(path.join(directory, 'task-card-nobody-light-1280.json'), 'utf8')) as ShotResult;
     expect(result).toMatchObject({ file: 'task-card-nobody-light-1280.png', issues: [] });
+  });
+
+  test('reports the errors of the page, of its console and of its requests to the API', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    const script = `<script>
+      console.error('Each child in a list should have a unique "key" prop.');
+      fetch('/api/v1/tasks/task/');
+      fetch('/api/v1/tasks/task/1/');
+      fetch('/api/v1/tasks/task/', { method: 'POST' });
+      fetch('/other/missing');
+      setTimeout(() => { throw new Error('Cannot read properties of undefined'); });
+    </script>`;
+    await serve(page, { '/tasks': `<!doctype html><html><body>${screen}${script}</body></html>` });
+    await page.route('http://bazis.test/api/**', async (route) => {
+      const request = route.request();
+      const { pathname } = new URL(request.url());
+      // a list that fails, an item refused (the screen shows it as its state), a create refused
+      const status = request.method() === 'POST' ? 403 : pathname.endsWith('/1/') ? 404 : 500;
+      await route.fulfill({ status, contentType: 'application/vnd.api+json', body: '{"errors": []}' });
+    });
+    await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info);
+    const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult;
+    expect(result.issues.map((it) => [it.code, it.selector]).sort()).toEqual(
+      [
+        ['V004', '[data-bz="state:loaded"] h1'],
+        ['V011', 'page'],
+        ['V012', 'console'],
+        ['V013', 'GET /api/v1/tasks/task/'],
+        ['V013', 'POST /api/v1/tasks/task/'],
+      ].sort(),
+    );
+    expect(result.issues.find((it) => it.code === 'V013')?.message).toMatch(/^500/);
+  });
+
+  test('shoots a list searched for nothing and with its create form open', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    // a list that marks its search and shows its empty state; a create action that opens a form
+    const list = `<section data-bz="screen:task-list"><div data-bz="state:loaded"><h1>Tasks</h1>
+      <div data-bz="list:task"><input data-bz="field:$search" aria-label="Search"><div data-bz="row:1">Write the report</div></div>
+      <button data-bz="action:create">New task</button></div></section>
+      <script>
+        const list = document.querySelector('[data-bz="list:task"]');
+        list.querySelector('input').addEventListener('input', (event) => {
+          list.setAttribute('data-search', event.target.value);
+          list.querySelector('[data-bz="row:1"]').outerHTML = '<p data-bz="state:empty">Nothing found</p>';
+        });
+        document.querySelector('[data-bz="action:create"]').addEventListener('click', () => {
+          document.body.insertAdjacentHTML('beforeend', '<form><label>Title <input></label><button data-bz="action:submit">Create</button></form>');
+        });
+      </script>`;
+    await serve(page, { '/tasks': `<!doctype html><html><body>${list}</body></html>` });
+    const shot = { screen: 'task-list', role: null, mode: 'light', via: null, creates: ['create'] } as const;
+    await shoot(page, PRODUCT, { ...shot, variant: 'empty' }, info);
+    const empty = JSON.parse(readFileSync(path.join(directory, 'task-list.empty-nobody-light-1280.json'), 'utf8')) as ShotResult;
+    // the empty state of a search offers no creation: no V008
+    expect(empty).toMatchObject({ variant: 'empty', file: 'task-list.empty-nobody-light-1280.png', issues: [] });
+    await shoot(page, PRODUCT, { ...shot, variant: 'form' }, info);
+    const form = JSON.parse(readFileSync(path.join(directory, 'task-list.form-nobody-light-1280.json'), 'utf8')) as ShotResult;
+    expect(form).toMatchObject({ variant: 'form', issues: [] });
+    expect(readFileSync(path.join(directory, 'task-list.form-nobody-light-1280.png')).length).toBeGreaterThan(0);
   });
 
   test('writes V001 when the screen is not reached', async ({ page }, info) => {
     const directory = info.outputPath('shots');
     process.env.BAZIS_SHOTS_DIR = directory;
     await serve(page, { '/tasks': '<!doctype html><html><body>Not found</body></html>' });
-    await expect(shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'dark', via: null, creates: [] }, info)).rejects.toThrow();
+    await expect(shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'dark', via: null, creates: [], variant: null }, info)).rejects.toThrow();
     const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-dark-1280.json'), 'utf8')) as ShotResult;
     expect(result.file).toBeNull();
     expect(result.issues).toMatchObject([{ code: 'V001', severity: 'error', selector: '[data-bz="screen:task-list"]' }]);

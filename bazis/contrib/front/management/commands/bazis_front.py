@@ -274,7 +274,8 @@ class Command(BaseCommand):
                 'file (front.W001; the database must be migrated), the issues of the specs '
                 '(front.W002), stale or changed copies (front.W004, front.W007), a stale theme '
                 '(front.W005), stale end-to-end tests (front.W003), a stale test of the '
-                'screenshots (front.W008), a report of the screenshots with errors (front.W009). '
+                'screenshots (front.W008), a report of the screenshots with errors or none, the '
+                'screenshots not taken (front.W009). '
                 'Writes nothing and exits '
                 'with 0: the `--check` of each subcommand fails on its own state.'
             ),

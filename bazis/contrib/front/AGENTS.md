@@ -2438,13 +2438,24 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
   the screen of the item, which is shot as the first of its roles that one is for: a list
   first, all the items before a report (a list with a `filter` of its own); a screen that
   none opens is not shot, listed at the top of `shots.ts` (`// Not shot: …`).
+- A list is also shot searched for a text that no item has (its empty state, when it has
+  `search`; the empty state of a search offers no creation, so V008 checks its text only)
+  and with its first create form open, as the first of its roles that the `access` of the
+  entity of the form lets create (`add`; any role of an entity without an `access`; none:
+  `// Not shot: <screen>.form`): the variants `empty` and `form` of the screen,
+  `<screen>.<variant>` in `shots.ts`, in the names of the files and `variant` in the report.
+- Once the test user is logged in, the shot also listens to the page: an error that nothing
+  caught (V011), an error written to the console (V012) and a request to the API (`/api/`)
+  that failed or was answered with an error status (V013); a 403 or a 404 of a `GET`, which
+  a screen shows as its state, and a request that the page cancelled are not reported, nor
+  the requests of the login.
 - It runs as `npm run e2e` does (the same `playwright.config.ts`, which the config of the
   shots extends): the backend running, migrated and with the data of `manage.py e2e_data`,
   `E2E_PASSWORD` set, a dev server of its own on `E2E_PORT` or a running frontend at
   `E2E_BASE_URL`, and Chromium (`npx playwright install chromium` in `frontend/`). A screen
   with no item (an empty list before its card) cannot be shot: the data of `e2e_data` has
   one.
-- It writes `frontend/.scratch/shots/<screen>-<role>-<mode>-<width>.png` and `report.json`,
+- It writes `frontend/.scratch/shots/<screen>[.<variant>]-<role>-<mode>-<width>.png` and `report.json`,
   after it emptied the directory. `.scratch/` is in the `.gitignore` of the frontend: never
   commit it.
 - It exits with 0 when the report has no error, 1 when it has errors, 2 when no screen could
@@ -2460,16 +2471,21 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
 
 ```json
 {"errors": 1, "warnings": 1,
- "shots": [{"screen": "task-list", "role": "manager", "mode": "dark", "width": 390,
+ "shots": [{"screen": "task-list", "role": "manager", "mode": "dark", "width": 390, "variant": null,
             "file": "task-list-manager-dark-390.png",
             "issues": [{"code": "V002", "severity": "error", "selector": "[data-bz=\"list:task\"]",
                         "message": "The page is 812 px wide at 390 px."},
                        {"code": "V009", "severity": "warning", "selector": "[data-bz=\"action:edit\"] button",
-                        "message": "3 controls are smaller than 44×44 px: [data-bz=\"action:edit\"] button 24×24, …"}]}]}
+                        "message": "3 controls are smaller than 44×44 px: [data-bz=\"action:edit\"] button 24×24, …"}]},
+           {"screen": "task-list", "role": "manager", "mode": "dark", "width": 390, "variant": "form",
+            "file": "task-list.form-manager-dark-390.png",
+            "issues": [{"code": "V013", "severity": "error", "selector": "GET /api/v1/tasks/task/schema_create/",
+                        "message": "500 Internal Server Error"}]}]}
 ```
 
 `selector` is the nearest `data-bz` mark of the element (with its tag when the element is
-inside it): the component or the cell to fix. A code reports at most ten elements of a
+inside it): the component or the cell to fix; for V011 and V012 `page` and `console`, for
+V013 the method and the path of the request. A code reports at most ten elements of a
 screenshot, the last with the number of the others; V009 is one issue for the screenshot,
 with the number of the small controls and the first five of them.
 
@@ -2487,6 +2503,9 @@ with the number of the small controls and the first five of them.
 | `V008` | warning | an empty state without a text, or without the action that creates an item when the user may create one: put the create action in the empty state |
 | `V009` | warning | controls smaller than 44×44 px at the width of a phone, one issue for the screenshot with their number: give them the size of the components (an icon button of shadcn/ui is `size="icon"`; on a touch screen the components are 44 px at least); the `<label>` around a control and its stretched `::after` count in its size |
 | `V010` | warning | a text cut by an ellipsis without its whole text in a title or a tooltip: give it `title`, or let it wrap |
+| `V011` | error | an error of the page that nothing caught (`pageerror`): fix the code of the screen that throws it (the message says which) |
+| `V012` | warning | an error written to the console (`console.error`: a warning of React, a failure that the page handles): fix what React warns of (a key, a nested form), and handle the failure without writing it |
+| `V013` | error | a request of the page to the API failed or was answered with an error status, but a 403 or a 404 of a `GET` that a screen shows as its state: a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 405 of an action it does not route |
 
 ### The checklist of the screenshots
 
@@ -5633,6 +5652,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `expectError(field: string): Promise<void>`: A field shows a validation error, `error:<name>`.
 - `expectNotification(text: string): Promise<void>`: The user has a notification whose text contains this text: the bell (`action:notifications`) opens the list of the notifications (`list:notifications`), which waits for it (`notification:<key>`), and is closed again.
 - `language(code: string): Promise<void>`: Switches the language of the interface to a language of the backend (`LANGUAGES` of the contract): the button of the layout, `action:language`, until its `data-value` is the code.
+- `search(text: string): Promise<void>`: Searches the list of the current screen (`field:$search`) and waits for its rows.
 
 #### The types and the constants of `../bazis`
 

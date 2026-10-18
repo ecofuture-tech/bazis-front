@@ -23,7 +23,10 @@ its result into `frontend/.scratch/shots/`; `collect` gathers the results into `
 A screen of an item (its route has an id) is reached through the first item of a screen
 that opens it (`open` of a list, a board, a calendar; of the last items of a dashboard, in
 their part `recent:<id>`), one for its role: a list first, one without a filter of its own
-before a report; one that no such screen opens is not shot. The text of `shots.ts` depends on the specs only: `--check` and
+before a report; one that no such screen opens is not shot. A list is also shot searched for
+a text that no item has (its empty state, with `search`) and with its first create form open,
+as the first of its roles that `access` lets create the items of the form (`variant`:
+`empty`, `form`). The text of `shots.ts` depends on the specs only: `--check` and
 `front.W008` render it again and compare it byte for byte, without Node, and the lock records
 the hashes of the specs and of the file (`shots`). It is not a `.spec.ts`: `npm run e2e` does
 not run it.
@@ -37,7 +40,7 @@ from pathlib import Path
 
 from ..contract.typescript import constant
 from ..vendor import lock as frontend_lock
-from . import design, e2e
+from . import access, design, e2e
 from .refs import screen_actions
 from .validate import SPEC_DIR, THEME_FILE, TOKENS_FILE, Specs
 
@@ -110,11 +113,48 @@ def plan(specs: Specs) -> tuple[list[dict], dict[str, str]]:
                     else 'no list, board, calendar or dashboard of the specs opens its items'
                 )
                 continue
-        creates = [
-            it['id'] for _, it in screen_actions(screen) if it.get('primitive') == 'form' and it.get('mode') == 'create'
-        ]
-        shots.append({'screen': screen_id, 'role': role, 'via': via, 'creates': creates})
+        forms = [it for _, it in screen_actions(screen) if it.get('primitive') == 'form' and it.get('mode') == 'create']
+        shot = {'screen': screen_id, 'role': role, 'via': via, 'creates': [it['id'] for it in forms]}
+        shots.append({**shot, 'variant': None})
+        if screen['primitive'] != 'list':
+            continue
+        # a list also searched for nothing (its empty state) and with its create form open,
+        # as the first of its roles that may create the items of a form
+        if screen.get('list', {}).get('search'):
+            shots.append({**shot, 'variant': 'empty'})
+        creator = next(
+            (
+                (candidate, form['id'])
+                for form in forms
+                for candidate in (candidates if via is None else [role])
+                if adds(specs, form.get('entity', screen['entity']), candidate)
+            ),
+            None,
+        )
+        if creator is not None:
+            shots.append({**shot, 'role': creator[0], 'creates': [creator[1]], 'variant': 'form'})
+        elif forms:
+            skipped[f'{screen_id}.form'] = 'no role of the screen may create the items of its forms'
     return shots, skipped
+
+
+def adds(specs: Specs, entity_id: str, role: str | None) -> bool:
+    """
+    Whether the access of an entity of the specs lets a role create its items; an entity
+    without an access, or a product without roles, leaves it to the backend.
+    """
+    entity = next((it for it in specs.product.get('entities', []) if it['id'] == entity_id), {})
+    if role is None or 'access' not in entity:
+        return True
+    grants = access.listed(entity['access'].get(role, {}).get('add', []))
+    return any((it if isinstance(it, str) else it['selector']) != access.NONE for _, it in grants)
+
+
+def title(shot: dict) -> str:
+    """
+    The name of a shot: its screen, and its variant after a dot (`task-list.empty`).
+    """
+    return shot['screen'] if shot['variant'] is None else f'{shot["screen"]}.{shot["variant"]}'
 
 
 def modes(specs: Specs) -> tuple[str, ...]:
@@ -144,11 +184,11 @@ def render(specs: Specs) -> dict[str, str]:
         for shot in shots:
             value = e2e.literal({
                 'screen': shot['screen'], 'role': shot['role'], 'mode': mode, 'via': shot['via'],
-                'creates': shot['creates'],
+                'creates': shot['creates'], 'variant': shot['variant'],
             })
             lines += [
                 '',
-                f'  test({e2e.string(shot["screen"])}, async ({{ page }}, info) => {{',
+                f'  test({e2e.string(title(shot))}, async ({{ page }}, info) => {{',
                 f'    await shoot(page, PRODUCT, {value}, info);',
                 '  });',
             ]
@@ -226,20 +266,21 @@ def collect(frontend: Path, specs: Specs) -> dict:
         json.loads(path.read_text(encoding='utf-8')) for path in output.glob('*.json') if path.name != REPORT
     ]
     widths = sorted({it['width'] for it in results}) or [None]
-    done = {(it['screen'], it['role'], it['mode'], it['width']) for it in results}
+    done = {(it['screen'], it.get('variant'), it['role'], it['mode'], it['width']) for it in results}
     shots, _skipped = plan(specs)
     for mode in modes(specs):
         for shot in shots:
             for width in widths:
-                if (shot['screen'], shot['role'], mode, width) not in done:
+                if (shot['screen'], shot['variant'], shot['role'], mode, width) not in done:
                     results.append({
-                        'screen': shot['screen'], 'role': shot['role'], 'mode': mode, 'width': width, 'file': None,
+                        'screen': shot['screen'], 'role': shot['role'], 'mode': mode, 'width': width,
+                        'variant': shot['variant'], 'file': None,
                         'issues': [{
                             'code': NOT_SHOT, 'severity': 'error', 'selector': f'[data-bz="screen:{shot["screen"]}"]',
                             'message': 'No result: its test did not finish (see the output of Playwright).',
                         }],
                     })
-    results.sort(key=lambda it: (it['screen'], it['mode'], it['width'] or 0, it['role'] or ''))
+    results.sort(key=lambda it: (it['screen'], it.get('variant') or '', it['mode'], it['width'] or 0, it['role'] or ''))
     issues = [issue for it in results for issue in it['issues']]
     report = {
         'errors': sum(it['severity'] == 'error' for it in issues),

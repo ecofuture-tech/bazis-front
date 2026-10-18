@@ -237,9 +237,11 @@ job of CI.
   generator or of the specs of the sample).
 - `spec/shots.py` (`bazis_front shots`) renders `frontend/e2e/generated/shots.ts` from specs
   without errors (every screen as the first of its roles, in each color mode of the theme;
-  the screen of an item through the first item of a screen that opens it), checked and
+  the screen of an item through the first item of a screen that opens it; a list also
+  searched for nothing and with its create form open, as the first of its roles that `access`
+  lets create), checked and
   locked like the end-to-end tests (`--check`, `front.W008`, the lock `shots`; the errors of
-  the last report are `front.W009`), runs it with
+  the last report, or no report that can be read, are `front.W009`), runs it with
   `npx playwright test --config playwright.shots.config.ts` (`BAZIS_SHOTS_DIR` set to
   `frontend/.scratch/shots/`) and gathers the results that the helper `shoot` writes there
   into `report.json` (`collect`: a shot without a result is V001); exit 1 on errors, 2 when

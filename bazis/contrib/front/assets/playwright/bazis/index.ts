@@ -570,6 +570,13 @@ export class App<P extends Product = Product> {
     await this.listSettled(list);
   }
 
+  /** Searches the list of the current screen (`field:$search`) and waits for its rows. */
+  async search(text: string): Promise<void> {
+    await this.settled();
+    const list = this.screen().locator('[data-bz^="list:"]').first();
+    await this.searchList(list, list.locator(bz('field', '$search')), text);
+  }
+
   /** Waits until the list is no longer busy and nothing on the page loads. */
   private async listSettled(list: Locator): Promise<void> {
     await expect(list).not.toHaveAttribute('aria-busy', 'true');

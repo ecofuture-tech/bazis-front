@@ -41,27 +41,35 @@ test.describe('light', () => {
   test.use({ colorScheme: 'light' });
 
   test('draft-tasks', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'draft-tasks', role: 'manager', mode: 'light', via: null, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'draft-tasks', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
   test('home', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'home', role: 'manager', mode: 'light', via: null, creates: ['create'] }, info);
+    await shoot(page, PRODUCT, { screen: 'home', role: 'manager', mode: 'light', via: null, creates: ['create'], variant: null }, info);
   });
 
   test('task-board', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'task-board', role: 'manager', mode: 'light', via: null, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-board', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
   test('task-calendar', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'manager', mode: 'light', via: null, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
   test('task-card', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'task-card', role: 'manager', mode: 'light', via: { screen: 'task-list', part: null }, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-card', role: 'manager', mode: 'light', via: { screen: 'task-list', part: null }, creates: [], variant: null }, info);
   });
 
   test('task-list', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'light', via: null, creates: ['create'] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'light', via: null, creates: ['create'], variant: null }, info);
+  });
+
+  test('task-list.empty', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'light', via: null, creates: ['create'], variant: 'empty' }, info);
+  });
+
+  test('task-list.form', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'light', via: null, creates: ['create'], variant: 'form' }, info);
   });
 });
 
@@ -69,26 +77,34 @@ test.describe('dark', () => {
   test.use({ colorScheme: 'dark' });
 
   test('draft-tasks', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'draft-tasks', role: 'manager', mode: 'dark', via: null, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'draft-tasks', role: 'manager', mode: 'dark', via: null, creates: [], variant: null }, info);
   });
 
   test('home', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'home', role: 'manager', mode: 'dark', via: null, creates: ['create'] }, info);
+    await shoot(page, PRODUCT, { screen: 'home', role: 'manager', mode: 'dark', via: null, creates: ['create'], variant: null }, info);
   });
 
   test('task-board', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'task-board', role: 'manager', mode: 'dark', via: null, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-board', role: 'manager', mode: 'dark', via: null, creates: [], variant: null }, info);
   });
 
   test('task-calendar', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'manager', mode: 'dark', via: null, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'manager', mode: 'dark', via: null, creates: [], variant: null }, info);
   });
 
   test('task-card', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'task-card', role: 'manager', mode: 'dark', via: { screen: 'task-list', part: null }, creates: [] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-card', role: 'manager', mode: 'dark', via: { screen: 'task-list', part: null }, creates: [], variant: null }, info);
   });
 
   test('task-list', async ({ page }, info) => {
-    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'dark', via: null, creates: ['create'] }, info);
+    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'dark', via: null, creates: ['create'], variant: null }, info);
+  });
+
+  test('task-list.empty', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'dark', via: null, creates: ['create'], variant: 'empty' }, info);
+  });
+
+  test('task-list.form', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'dark', via: null, creates: ['create'], variant: 'form' }, info);
   });
 });
