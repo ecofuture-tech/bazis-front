@@ -14,28 +14,57 @@
 
 // The extension of a screen generated from the specs (`extend: true`): what the product adds
 // to it in `src/screens/<id>/extend.tsx` without editing the generated file. Its type is
-// that of the props of the component of the screen, `ScreenExtension<ResourceListProps>`,
-// so that the screens asset requires none of the components of the primitives.
+// that of the props of the component of the primitive of the screen,
+// `ScreenExtension<ResourceListProps>`, so that the screens asset requires none of the
+// components of the primitives.
 
 import type { ReactNode } from 'react';
 
-/** What a product adds to a screen generated from the specs, the component of its primitive with props `P`. */
-export interface ScreenExtension<P extends object> {
-  /** In the screen, before the component of its primitive. */
+/**
+ * The props of the component of a dashboard that are those of its screen (`Dashboard` is the
+ * screen): the slots of an extension give them, never its `props`.
+ */
+type DashboardScreenProps = 'id' | 'title' | 'description' | 'actions' | 'before' | 'children';
+
+/**
+ * The props that an extension gives the component of its screen: any of them, but those of
+ * the screen for a dashboard, whose component is the screen.
+ */
+export type ExtensionProps<P extends object> = Partial<
+  'tiles' | 'recent' | 'charts' extends keyof P ? Omit<P, DashboardScreenProps> : P
+>;
+
+/**
+ * What a product adds to a screen generated from the specs (`export const extension` of
+ * `src/screens/<id>/extend.tsx`), the component of its primitive with props `P` (and `M`, the
+ * map of a list: `ScreenExtension<ResourceListProps, ResourceMapProps>`). It is a constant:
+ * what needs a hook (a count, a mutation, a translated text) is a component of the product,
+ * rendered in a slot or by a render prop.
+ */
+export interface ScreenExtension<P extends object, M extends object = object> {
+  /** In the screen, before the component of its primitive (and the map of a list). */
   before?: ReactNode;
-  /** In the screen, after the component of its primitive. */
+  /** In the screen, after the component of its primitive (before the forms of its actions). */
   after?: ReactNode;
-  /** In the header of the screen, after the actions of the specs. */
+  /** In the header of the screen, after the actions of the specs: on every primitive, a dashboard too. */
   actions?: ReactNode;
   /**
-   * Props of the component: the actions (`actions`, `rowActions`, `bulk`) and the `children`
-   * come after those of the specs, the others replace them.
+   * Props of the component of the primitive, merged with those of the specs (`extended`): the
+   * lists of actions and of tiles by their `id`, the records of the fields by field, the
+   * `children` of both; the other props replace the generated ones.
    */
-  props?: Partial<P>;
+  props?: ExtensionProps<P>;
+  /** Props of the map beside a list (`list.map`), merged the same way. */
+  map?: Partial<M>;
 }
 
-/** The props that an extension adds to rather than replaces. */
-const ADDED: ReadonlySet<string> = new Set(['actions', 'rowActions', 'bulk', 'children']);
+/**
+ * The lists merged by the `id` of their items: an item of the extension replaces the
+ * generated one with its id, in its place; the others follow the generated ones.
+ */
+const BY_ID: ReadonlySet<string> = new Set(['actions', 'rowActions', 'bulk', 'tiles']);
+/** The records of the fields, merged by field: a field of the extension replaces the generated one. */
+const BY_FIELD: ReadonlySet<string> = new Set(['cells', 'values', 'display']);
 
 /** Both contents, the generated one first; of render props, both called with the same arguments. */
 function both(generated: unknown, added: unknown): unknown {
@@ -57,21 +86,38 @@ function both(generated: unknown, added: unknown): unknown {
   );
 }
 
+/** The generated items with those of the extension, by their id. */
+function byId(generated: readonly { id: string }[], added: readonly { id: string }[]): readonly { id: string }[] {
+  const replacing = new Map(added.map((it) => [it.id, it]));
+  const ids = new Set(generated.map((it) => it.id));
+  return [...generated.map((it) => replacing.get(it.id) ?? it), ...added.filter((it) => !ids.has(it.id))];
+}
+
 /**
- * The props of the component of a generated screen with those of its extension: the arrays
- * of the actions joined, the `children` of both, the other props of the extension in place
- * of the generated ones.
+ * The props of the component of a generated screen with those of its extension: the lists of
+ * actions and of tiles (`actions`, `rowActions`, `bulk`, `tiles`) by the `id` of their items,
+ * the records of the fields (`cells`, `values`, `display`) by field, the `children` of both,
+ * the generated ones first; the other props of the extension replace the generated ones (an
+ * undefined one too, but of a merged prop, which keeps the generated one).
  */
-export function extended<P extends object>(props: NoInfer<P>, extension: ScreenExtension<P>): P {
-  const own = extension.props;
-  if (own === undefined) return props;
+export function extended<P extends object>(props: P, added: ExtensionProps<P> | undefined): P {
+  if (added === undefined) return props;
   const result: Record<string, unknown> = { ...(props as Record<string, unknown>) };
-  for (const [name, value] of Object.entries(own)) {
+  for (const [name, value] of Object.entries(added as Record<string, unknown>)) {
     const generated = result[name];
-    if (!ADDED.has(name) || generated === undefined) result[name] = value;
-    else if (value === undefined) continue;
-    else if (Array.isArray(generated) && Array.isArray(value)) result[name] = [...(generated as unknown[]), ...(value as unknown[])];
-    else result[name] = both(generated, value);
+    if (generated === undefined || !(BY_ID.has(name) || BY_FIELD.has(name) || name === 'children')) {
+      result[name] = value;
+    } else if (value === undefined) {
+      continue;
+    } else if (name === 'children') {
+      result[name] = both(generated, value);
+    } else if (BY_FIELD.has(name)) {
+      result[name] = { ...(generated as object), ...(value as object) };
+    } else if (Array.isArray(generated) && Array.isArray(value)) {
+      result[name] = byId(generated as { id: string }[], value as { id: string }[]);
+    } else {
+      result[name] = value;
+    }
   }
   return result as P;
 }

@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# A card without tabs: its history and its related list under its heading, a create form in
-# the header, an update form and a delete that says what it deletes.
+# A card without tabs, extended: its history and its related list under its heading, a create
+# form in the header, an update form and a delete that says what it deletes; its title is not
+# shown (the label of its item heads it), nor among the texts of the specs.
 spec: bazis-screen/1
 id: task-summary
 title: {en: Summary, ru: Сводка}
@@ -8,6 +9,7 @@ route: /tasks/:id/summary
 entity: task
 roles: [manager, viewer]
 primitive: card
+extend: true
 card:
   sections:
     - {id: main, fields: [title, status, assignee, dt_created]}

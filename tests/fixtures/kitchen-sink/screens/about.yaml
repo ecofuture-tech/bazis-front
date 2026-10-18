@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A screen written by hand in src/screens/about/index.tsx (`custom: true`).
+spec: bazis-screen/1
+id: about
+title: {en: About, ru: О продукте}
+route: /about
+roles: [manager, viewer]
+primitive: dashboard
+custom: true
+dashboard:
+  tiles:
+    - {id: tasks, entity: task, label: {en: Tasks, ru: Задачи}}
+states: [loading, error]

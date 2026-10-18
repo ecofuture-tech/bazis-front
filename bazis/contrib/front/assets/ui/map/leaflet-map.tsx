@@ -48,9 +48,10 @@ function placementOf(markers: readonly MapMarker[], me: LatLng | null | undefine
 }
 
 /** `LeafletMap` once Leaflet is loaded. */
-export default function LeafletView({ markers, selected, onOpen, onPick, me, className, 'data-bz': mark }: LeafletMapProps) {
+export default function LeafletView({ markers, selected, onOpen, onPick, me, tiles: own, className, 'data-bz': mark }: LeafletMapProps) {
   const { t } = useLanguage();
-  const tiles = useMapTiles();
+  const provided = useMapTiles();
+  const tiles = own ?? provided;
   const element = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);

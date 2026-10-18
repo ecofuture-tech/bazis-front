@@ -20,7 +20,7 @@ from django.test import override_settings
 
 import pytest
 
-from .support import SAMPLE_SPEC, copy_custom_screens, write_contract
+from .support import SAMPLE_SPEC, copy_screen_code, write_contract
 
 
 @pytest.fixture
@@ -46,12 +46,12 @@ def product(tmp_path):
 def root(tmp_path):
     """
     A product root with the specs of the sample and a frontend made by `init`, with the code
-    of the custom screens of the sample; its screens are not generated (`init` refuses the
-    specs before that code is there).
+    of the screens of the sample; its screens are not generated (`init` refuses the specs
+    before that code is there).
     """
     shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
     with override_settings(BASE_DIR=str(tmp_path)):
         call_command('bazis_front', 'init', '--no-node', stdout=StringIO(), stderr=StringIO())
-        copy_custom_screens(tmp_path)
+        copy_screen_code(tmp_path)
         yield tmp_path
 

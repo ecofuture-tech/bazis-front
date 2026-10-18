@@ -32,7 +32,7 @@ from bazis.contrib.front.spec.access import Grant
 from bazis.contrib.front.spec.issues import CODES
 from bazis.contrib.front.spec.validate import schema_files, validate
 
-from .support import SAMPLE_SPEC, copy_custom_screens
+from .support import SAMPLE_SPEC, copy_screen_code
 
 
 AGENTS_MD = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front' / 'AGENTS.md'
@@ -41,11 +41,11 @@ AGENTS_MD = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'fron
 @pytest.fixture
 def root(tmp_path):
     """
-    A product root (BASE_DIR) with the specs of the sample and the code of its custom screens,
+    A product root (BASE_DIR) with the specs of the sample and the code of its screens,
     and no contract.
     """
     shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
-    copy_custom_screens(tmp_path)
+    copy_screen_code(tmp_path)
     with override_settings(BASE_DIR=str(tmp_path)):
         yield tmp_path
 
@@ -131,6 +131,9 @@ HOME, BOARD, CALENDAR = 'spec/screens/home.yaml', 'spec/screens/task-board.yaml'
 THEME, TOKENS, CONTRACT = 'spec/design/theme.yaml', 'spec/design/tokens.json', 'contract/contract.json'
 LOCK = 'frontend/bazis-front.lock.json'
 SCREENS = 'frontend/src/screens'
+I18N = 'frontend/src/i18n'
+#: a dictionary of the components (the copy of the asset `i18n`)
+MESSAGES = 'frontend/src/bazis/i18n/messages/en.ts'
 #: the hooks of the packages of the sample, which `init` copies
 HOOKS = ('react-statusy', 'react-uploadable', 'react-ws', 'react-notify', 'react-bg', 'react-async')
 
@@ -459,7 +462,8 @@ CASES = [
     (
         'S003',
         {CARD: lambda d: d.update(id='task-item', route='/tasks')},
-        [('S003', f'{CARD}#/id'), ('S003', f'{LIST}#/route')],
+        # a card at the route of a list has no `:id` either
+        [('S003', f'{CARD}#/id'), ('S038', f'{CARD}#/route'), ('S003', f'{LIST}#/route')],
     ),
     ('S004', {LIST: lambda d: d.update(entity='job')}, [('S004', f'{LIST}#/entity')]),
     ('S005', {LIST: lambda d: d['roles'].append('member')}, [('S005', f'{LIST}#/roles/2')]),
@@ -475,6 +479,15 @@ CASES = [
         {'spec/screens/user-card.yaml': user_card, LIST: lambda d: d['list'].update(open='user-card')},
         # a row opens the card of another entity
         [('S006', f'{LIST}#/list/open')],
+    ),
+    (
+        'S006',
+        {'spec/screens/user-card.yaml': user_card,
+         CARD: lambda d: d['actions'][0].update(then='task-card'),
+         LIST: lambda d: d['actions'][0].update(then='user-card')},
+        # a deletion leads to a screen of an item (none is left); a create to the card of
+        # another entity than that of the saved item
+        [('S006', f'{CARD}#/actions/0/then'), ('S006', f'{LIST}#/actions/0/then')],
     ),
     (
         'S007',
@@ -529,7 +542,7 @@ CASES = [
     (
         'S007',
         # the filter of the screen and its highlight by fields that the entity does not declare
-        {LIST: lambda d: d['list'].update(filter={'rank': 1}, highlight={'field': 'is_late', 'tone': 'danger', 'label': 'tasks.late'})},
+        {LIST: lambda d: d['list'].update(filter={'rank': 1}, highlight={'field': 'is_late', 'tone': 'danger', 'label': {'en': 'Late', 'ru': 'Опоздание'}})},
         [('S007', f'{LIST}#/list/filter/rank'), ('S007', f'{LIST}#/list/highlight/field')],
     ),
     (
@@ -545,7 +558,7 @@ CASES = [
         'S014',
         # a boolean for a text, a text for a relationship is an id; a highlight by a text
         {LIST: lambda d: d['list'].update(filter={'title': True, 'status': 'done', 'assignee': False},
-                                          highlight={'field': 'title', 'tone': 'warning', 'label': 'tasks.titled'})},
+                                          highlight={'field': 'title', 'tone': 'warning', 'label': {'en': 'Titled', 'ru': 'С названием'}})},
         [('S014', f'{LIST}#/list/filter/title'), ('S014', f'{LIST}#/list/filter/assignee'),
          ('S014', f'{LIST}#/list/highlight/field')],
     ),
@@ -656,7 +669,7 @@ CASES = [
         {HOME: lambda d: [d['dashboard']['charts'][0].update(by='title'),
                           d['dashboard']['charts'][1].update(by='status'),
                           d['dashboard']['charts'].append({'id': 'users', 'entity': 'user', 'by': 'status',
-                                                           'kind': 'donut', 'label': 'charts.users'})]},
+                                                           'kind': 'donut', 'label': {'en': 'Users', 'ru': 'Пользователи'}})]},
         [('S021', f'{HOME}#/dashboard/charts/0/by'), ('S021', f'{HOME}#/dashboard/charts/1/bucket'),
          ('S021', f'{HOME}#/dashboard/charts/1/last'), ('S021', f'{HOME}#/dashboard/charts/2/by')],
     ),
@@ -689,7 +702,7 @@ CASES = [
         'S024',
         # an unknown section, a section in two tabs, the history in none
         {CARD: lambda d: [d['card']['tabs'][0]['sections'].append('extra'),
-                          d['card']['tabs'].__setitem__(2, {'id': 'more', 'title': 'tabs.more', 'sections': ['report']})]},
+                          d['card']['tabs'].__setitem__(2, {'id': 'more', 'title': {'en': 'More', 'ru': 'Ещё'}, 'sections': ['report']})]},
         [('S024', f'{CARD}#/card/tabs/0/sections/2'), ('S024', f'{CARD}#/card/tabs/2/sections/0'),
          ('S024', f'{CARD}#/card/tabs')],
     ),
@@ -697,7 +710,7 @@ CASES = [
         'S024',
         # the history of a card without it, a tab declared twice and empty, a section in no tab
         {CARD: lambda d: [d['card'].update(history=False), d['card']['tabs'][0].update(sections=['main']),
-                          d['card']['tabs'].append({'id': 'steps', 'title': 'tabs.empty'})]},
+                          d['card']['tabs'].append({'id': 'steps', 'title': {'en': 'Steps', 'ru': 'Шаги'}})]},
         [('S024', f'{CARD}#/card/tabs/2/history'), ('S024', f'{CARD}#/card/tabs/3/id'),
          ('S024', f'{CARD}#/card/tabs/3'), ('S024', f'{CARD}#/card/tabs')],
     ),
@@ -733,9 +746,13 @@ CASES = [
     (
         'S027',
         # the name of the product in its default language only, a label without its Russian;
-        # a key of the dictionaries is in every language
+        # a key of the dictionaries is in every language; the title of a generated card is not
+        # shown
         {PRODUCT: lambda d: d['product'].update(name='Tasks'),
-         LIST: lambda d: [d['actions'][0]['label'].pop('ru'), d['list'].update(empty='tasks.empty')]},
+         CARD: lambda d: d.update(title='Task'),
+         LIST: lambda d: [d['actions'][0]['label'].pop('ru'), d['list'].update(empty='tasks.empty')],
+         f'{I18N}/en.ts': lambda d: "export const en: Messages = {\n  'tasks.empty': 'No tasks yet.',\n};\n",
+         MESSAGES: lambda d: 'export const en: Messages = {};\n'},
         [('S027', f'{PRODUCT}#/product/name'), ('S027', f'{LIST}#/actions/0/label')],
     ),
     (
@@ -743,7 +760,7 @@ CASES = [
         # a custom screen without the export of its component, another without its module
         {f'{SCREENS}/task-card/index.tsx': lambda d: 'export function TaskCard() {}\n',
          CARD: lambda d: d.update(custom=True),
-         LIST: lambda d: d.update(custom={'module': '@/screens/tasks', 'export': 'TaskListScreen'})},
+         LIST: lambda d: [d.update(custom={'module': '@/screens/tasks', 'export': 'TaskListScreen'}), d.pop('extend')]},
         [('S028', f'{CARD}#/custom'), ('S028', f'{LIST}#/custom')],
     ),
     (
@@ -762,8 +779,8 @@ CASES = [
         # board with `nav: false`
         {PRODUCT: lambda d: d.update(navigation=[
             {'screen': 'home', 'requires': {'can': 'view'}},
-            {'group': 'tasks', 'title': 'nav.tasks', 'items': [{'screen': 'task-list'}, {'screen': 'task-card'}]},
-            {'group': 'tasks', 'title': 'nav.tasks', 'items': [{'screen': 'draft-tasks'}, {'screen': 'task-list'}]},
+            {'group': 'tasks', 'title': 'list.actions', 'items': [{'screen': 'task-list'}, {'screen': 'task-card'}]},
+            {'group': 'tasks', 'title': 'list.actions', 'items': [{'screen': 'draft-tasks'}, {'screen': 'task-list'}]},
             {'screen': 'reports'},
             {'screen': 'task-board'},
         ]),
@@ -780,8 +797,8 @@ CASES = [
          f'{SCREENS}/task-card/index.tsx': lambda d: 'export function TaskCardScreen() {}\n',
          DRAFTS: lambda d: d.update(extend=True),
          CARD: lambda d: d.update(custom=True, extend=True),
-         LIST: lambda d: d.update(extend=True)},
-        [('S031', f'{DRAFTS}#/extend'), ('S031', f'{CARD}#/extend'), ('S031', f'{LIST}#/extend')],
+         BOARD: lambda d: d.update(extend=True)},
+        [('S031', f'{DRAFTS}#/extend'), ('S031', f'{BOARD}#/extend'), ('S031', f'{CARD}#/extend')],
     ),
     (
         'S033',
@@ -791,6 +808,88 @@ CASES = [
         },
          CARD: lambda d: d['actions'].append({'id': 'add_step', 'primitive': 'form', 'mode': 'create'})},
         [('S033', f'{CARD}#/card/related/0/add/id'), ('S033', 'spec/screens/task_board.yaml#/id')],
+    ),
+    (
+        'S034',
+        # the add of a calendar on the day of the creation, which the backend sets itself
+        {CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'label': {'en': 'Add', 'ru': 'Добавить'}})},
+        [('S034', f'{CALENDAR}#/calendar/add')],
+    ),
+    (
+        'S035',
+        # two create actions without a label, one with the label of the add of the calendar; a
+        # create action of a dashboard without a label
+        {LIST: lambda d: d['actions'].extend([
+            {'id': 'create-draft', 'primitive': 'form', 'mode': 'create'},
+            {'id': 'create-other', 'primitive': 'form', 'mode': 'create'},
+            {'id': 'create-again', 'primitive': 'form', 'mode': 'create', 'label': d['actions'][0]['label']},
+        ]),
+         HOME: lambda d: [d['dashboard']['actions'][0].pop('label')]},
+        [('S035', f'{HOME}#/dashboard/actions/0'), ('S035', f'{LIST}#/actions/2'), ('S035', f'{LIST}#/actions/3')],
+    ),
+    (
+        'S036',
+        # keys of the dictionaries: one of the product, one of the components, one of none
+        {LIST: lambda d: d['list'].update(empty='tasks.empty'),
+         BOARD: lambda d: d.update(title='list.actions'),
+         CALENDAR: lambda d: d.update(title='tasks.calendar'),
+         f'{I18N}/ru.ts': lambda d: "export const ru: Messages = {\n  'tasks.empty': 'Задач нет.',\n};\n",
+         MESSAGES: lambda d: "export const en: Messages = {\n  'list.actions': 'Actions',\n};\n"},
+        [('S036', f'{CALENDAR}#/title')],
+    ),
+    (
+        'S037',
+        # the keys of a screen that is not there, of an action that is not there, of a text that
+        # the spec does not give; those of a text of the specs and of a custom screen are kept
+        {f'{I18N}/en.ts': lambda d: (
+            'export const en: Messages = {\n'
+            "  'screens.task-list.title': 'All the tasks',\n"
+            "  'screens.reports.title': 'Reports',\n"
+            "  'screens.task-list.actions.archive.label': 'Archive',\n"
+            "  'screens.task-board.description': 'The board',\n"
+            "  'tasks.count': 'Count',\n"
+            '};\n'
+        ),
+         MESSAGES: lambda d: 'export const en: Messages = {};\n',
+         BOARD: lambda d: [d.pop('description')]},
+        [('S037', f'{I18N}/en.ts'), ('S037', f'{I18N}/en.ts'), ('S037', f'{I18N}/en.ts')],
+    ),
+    (
+        'S038',
+        # a card and an update form without the id of their item in their route; a custom card
+        # and a custom update form find their item themselves
+        {CARD: lambda d: d.update(route='/task'),
+         'spec/screens/task-edit.yaml': lambda d: {
+             'spec': 'bazis-screen/1', 'id': 'task-edit', 'route': '/edit', 'entity': 'task', 'primitive': 'form',
+             'form': {'mode': 'update'}, 'states': ['loading', 'error', 'forbidden', 'invalid'],
+         },
+         'spec/screens/my-task.yaml': lambda d: {
+             'spec': 'bazis-screen/1', 'id': 'my-task', 'route': '/my-task', 'entity': 'task', 'primitive': 'card',
+             'custom': True, 'card': {'sections': [{'id': 'main', 'fields': ['title']}]},
+             'states': ['loading', 'error', 'forbidden', 'not_found'],
+         },
+         'spec/screens/my-task-edit.yaml': lambda d: {
+             'spec': 'bazis-screen/1', 'id': 'my-task-edit', 'route': '/my-task/edit', 'entity': 'task',
+             'primitive': 'form', 'custom': True, 'form': {'mode': 'update'},
+             'states': ['loading', 'error', 'forbidden', 'invalid'],
+         },
+         f'{SCREENS}/my-task/index.tsx': lambda d: 'export function MyTaskScreen() {}\n',
+         f'{SCREENS}/my-task-edit/index.tsx': lambda d: 'export function MyTaskEditScreen() {}\n'},
+        [('S038', f'{CARD}#/route'), ('S038', 'spec/screens/task-edit.yaml#/route')],
+    ),
+    (
+        'S006',
+        # a row of a list and a row of the last items open an item in a custom card that finds
+        # its item itself: its route has nowhere to put the id
+        {'spec/screens/my-task.yaml': lambda d: {
+             'spec': 'bazis-screen/1', 'id': 'my-task', 'route': '/my-task', 'entity': 'task', 'primitive': 'card',
+             'custom': True, 'card': {'sections': [{'id': 'main', 'fields': ['title']}]},
+             'states': ['loading', 'error', 'forbidden', 'not_found'],
+         },
+         f'{SCREENS}/my-task/index.tsx': lambda d: 'export function MyTaskScreen() {}\n',
+         LIST: lambda d: d['list'].update(open='my-task'),
+         HOME: lambda d: d['dashboard']['recent'][0].update(open='my-task')},
+        [('S006', f'{HOME}#/dashboard/recent/0/open'), ('S006', f'{LIST}#/list/open')],
     ),
     (
         'S004',
@@ -891,8 +990,10 @@ CASES = [
         'D013',
         # names that lucide-react does not have
         {THEME: lambda d: d['icons'].update(task='square-tick'),
-         PRODUCT: lambda d: d['navigation'][1]['items'][0].update(icon='list-tick')},
-        [('D013', f'{PRODUCT}#/navigation/1/items/0/icon'), ('D013', f'{THEME}#/icons/task')],
+         PRODUCT: lambda d: d['navigation'][1]['items'][0].update(icon='list-tick'),
+         HOME: lambda d: d['dashboard']['tiles'][0].update(icon='tile-tick')},
+        [('D013', f'{HOME}#/dashboard/tiles/0/icon'), ('D013', f'{PRODUCT}#/navigation/1/items/0/icon'),
+         ('D013', f'{THEME}#/icons/task')],
     ),
     (
         'D012',
@@ -969,6 +1070,9 @@ def test_an_anonymous_role_logs_in_as_nobody(contract):
 def layer_of(file: str) -> str:
     if file in (CONTRACT, LOCK):
         return 'contract'
+    # the dictionaries of the frontend, against the texts of the screens
+    if file.startswith(f'{I18N}/'):
+        return 'screens'
     return 'product' if file == PRODUCT else file.split('/')[1]
 
 
@@ -1023,7 +1127,8 @@ def test_the_texts_and_the_code_of_the_screens(root):
     exists; a custom module is one of frontend/src/screens.
     """
     edit(root, PRODUCT, lambda d: d.update(languages=['en'], language='en'))
-    edit(root, LIST, lambda d: d.update(title='Tasks', custom=True))
+    edit(root, LIST, lambda d: [d.update(title='Tasks', custom=True), d.pop('extend')])
+    edit(root, f'{SCREENS}/task-list/index.tsx', lambda d: 'export function TaskListScreen() {}\n')
     assert issues(root) == []
 
     edit(root, LIST, lambda d: d.update(custom={'module': '@/screens/../app/router', 'export': 'Router'}))
@@ -1037,7 +1142,7 @@ def test_the_module_of_a_custom_screen(root, module):
     lists the component among its exports or declares it; never one of the generated screens.
     """
     edit(root, f'{SCREENS}/{module}', lambda d: 'function TaskListScreen() {}\n\nexport { TaskListScreen };\n')
-    edit(root, LIST, lambda d: d.update(custom={'module': '@/screens/tasks', 'export': 'TaskListScreen'}))
+    edit(root, LIST, lambda d: [d.update(custom={'module': '@/screens/tasks', 'export': 'TaskListScreen'}), d.pop('extend')])
     assert issues(root) == []
 
     edit(root, LIST, lambda d: d.update(custom={'module': '@/screens/generated/task-list', 'export': 'TaskListScreen'}))
@@ -1058,7 +1163,7 @@ def test_two_implementations_once_the_screens_are_generated(root):
 
     # the module of the custom list, in the folder of the drafts
     edit(root, f'{SCREENS}/draft-tasks/index.tsx', lambda d: 'export function TaskListScreen() {}\n')
-    edit(root, LIST, lambda d: d.update(custom={'module': '@/screens/draft-tasks', 'export': 'TaskListScreen'}))
+    edit(root, LIST, lambda d: [d.update(custom={'module': '@/screens/draft-tasks', 'export': 'TaskListScreen'}), d.pop('extend')])
     assert issues(root) == []
 
 

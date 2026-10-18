@@ -112,8 +112,8 @@ def test_the_shots_of_the_specs(root):
     assert skipped == {'task-edit': 'no list, board, calendar or dashboard of the specs opens its items'}
     # a list of no role that may create: no form open, and said so
     task_list = yaml.safe_load((root / 'spec' / 'screens' / 'task-list.yaml').read_text(encoding='utf-8'))
-    # a generated one: no code of its own
-    del task_list['custom']
+    # without an extension of its own
+    del task_list['extend']
     (root / 'spec' / 'screens' / 'task-archive.yaml').write_text(yaml.safe_dump({
         **task_list, 'id': 'task-archive', 'route': '/archive', 'roles': ['viewer'],
     }), encoding='utf-8')

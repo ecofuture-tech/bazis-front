@@ -18,9 +18,10 @@ sample is a fixture (`tests/fixtures/screens/`, compiled, linted and formatted i
 of the sample by the e2e job of the CI; with `BAZIS_FRONT_WRITE_FIXTURES=1` the test writes
 it), the files and the lock in a
 frontend with the components they import, `--check`, `front.W010`, the generated files edited
-by hand, the deletion of the files of a screen that is no longer generated, the screens not
-generated yet, and the parts of the specs that the sample does not have (the kitchen sink of
-`tests/fixtures/kitchen-sink/`, which the frontend job of the CI builds too).
+by hand, the deletion of the files of a screen that is no longer generated, the extended and
+the custom screens, and the parts of the specs that the sample does not have (the kitchen sink
+of `tests/fixtures/kitchen-sink/` with the code of its screens, which the frontend job of the
+CI builds too).
 """
 
 import os
@@ -52,7 +53,6 @@ CARD = f'{screens.GENERATED_DIR}/task-card.tsx'
 def rendered(root: Path) -> dict[str, str]:
     result = validate(root)
     assert not result.errors, [it.as_dict() for it in result.errors]
-    assert screens.unsupported(result.specs) == []
     return screens.render(result.specs)
 
 
@@ -113,59 +113,70 @@ def test_the_texts_of_the_specs_are_the_generated_messages(tmp_path):
     assert "label: t('navigation.planning.title')," in files[f'{screens.GENERATED_DIR}/navigation.ts']
 
 
+def kitchen_sink(root: Path) -> None:
+    """The specs of the sample and of the kitchen sink in a product root."""
+    shutil.copytree(SAMPLE_SPEC, root / 'spec')
+    shutil.copytree(KITCHEN_SINK / 'screens', root / 'spec' / 'screens', dirs_exist_ok=True)
+
+
 def test_the_parts_that_the_sample_does_not_have(tmp_path):
     """
-    The kitchen sink: a generated list with its map, its create form, its bulk action and its
-    status filter; a card without tabs (its history and its related list under its heading)
-    with a create form in its header, an update form and a delete that describes itself; the
-    tone of the rows; forms as pages; a board without drag and drop and with a badge; a
-    calendar with its add and its tone; a dashboard of two entities; forms that show a screen
-    without an item after them, whose code takes no saved item; a plain card, whose code
-    uses no navigation, no translation and no item (the lint of the frontend job refuses them
-    unused).
+    The kitchen sink: a list with its map, its create form, its bulk action and its status
+    filter; a card without tabs (its history and its related list under its heading) with a
+    create form in its header, an update form and a delete that describes itself; the tone of
+    the rows; forms as pages; a board without drag and drop, with a badge and its own empty
+    text; a calendar with its add and its tone; a dashboard of two entities, a tile with its
+    own icon; forms that show a screen without an item after them, whose code takes no saved
+    item; a plain card, whose code uses no navigation, no translation and no item (the lint of
+    the frontend job refuses them unused).
     """
-    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
-    shutil.copytree(KITCHEN_SINK / 'screens', tmp_path / 'spec' / 'screens', dirs_exist_ok=True)
+    kitchen_sink(tmp_path)
 
     def urgent(path):
         data = yaml.safe_load(path.read_text(encoding='utf-8'))
-        data['entities'][0]['fields'].append({'id': 'urgent', 'type': 'boolean'})
+        for entity in data['entities']:
+            if entity['id'] in ('task', 'user'):
+                entity['fields'].append({'id': 'urgent', 'type': 'boolean'})
         path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding='utf-8')
 
     urgent(tmp_path / 'spec' / 'product.yaml')
-    edit_screen(tmp_path, 'task-list', lambda data: data['list'].update(
+    edit_screen(tmp_path, 'task-places', lambda data: data['list'].update(
         highlight={'field': 'urgent', 'tone': 'warning', 'label': {'en': 'Urgent', 'ru': 'Срочно'}},
     ))
     edit_screen(tmp_path, 'task-flow', lambda data: data['board']['card'].update(badge='urgent'))
-    edit_screen(tmp_path, 'task-schedule', lambda data: data['calendar'].update(tone={'field': 'urgent', 'tone': 'danger'}))
+    edit_screen(tmp_path, 'user-schedule', lambda data: data['calendar'].update(tone={'field': 'urgent', 'tone': 'danger'}))
     files = rendered(tmp_path)
-    task_list = files[f'{screens.GENERATED_DIR}/task-list.tsx']
-    assert '        {...createForm}\n' in task_list
-    assert "{ field: 'status', options: statusOptions(TASK.type, language) }," in task_list
-    assert "run: (item) => transit.mutateAsync({ id: item, transit: 'start' })," in task_list
-    assert "rowTone={(row) => (fieldValue(row, 'urgent') === true ? 'warning' : undefined)}" in task_list
+    places = files[f'{screens.GENERATED_DIR}/task-places.tsx']
+    assert '        {...createForm}\n' in places
+    assert "        filters={[{ field: 'status', options: statusOptions(TASK.type, language) }]}\n" in places
+    assert "run: (item) => transit.mutateAsync({ id: item, transit: 'start' })," in places
+    assert "rowTone={(row) => (fieldValue(row, 'urgent') === true ? 'warning' : undefined)}" in places
     assert (
         '        rowToneLabel={(row) =>\n'
-        "          fieldValue(row, 'urgent') === true ? t('screens.task-list.list.highlight.label') : undefined\n"
+        "          fieldValue(row, 'urgent') === true ? t('screens.task-places.list.highlight.label') : undefined\n"
         '        }\n'
-    ) in task_list
-    # the map beside the list: the open task selected, a marker opening it
+    ) in places
+    # the map beside the list, of the items of its filter, a marker opening the card
     assert (
         '      <ResourceMap\n        path={TASK.path}\n        entity="task"\n        field="location"\n'
-        '        selected={id}\n'
-    ) in task_list
+        '        filter={FILTER}\n'
+    ) in places
+    # after its form, the list of all the tasks: the code takes no saved item
+    assert "onSaved={() => void navigate(routeTo('task-list'))}" in places
 
     summary = files[f'{screens.GENERATED_DIR}/task-summary.tsx']
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
     assert '      {deleteAction.confirm}\n' in summary
     # the children of the card, given its item: no tabs
-    assert '        {(item) => (\n          <>\n            <TransitBar path={TASK.path} id={id} />\n' in summary
+    assert '            children: (item) => (\n              <>\n                <TransitBar path={TASK.path} id={id} />\n' in summary
     # an "add here" of `when: always` is not gated by the permission to change the item
     assert "add={{ id: 'add-step', label: t('form.create'), fields: ['title'] }}" in summary
-    assert '      actions={\n        <ScreenAction\n' in summary
+    assert '      actions={\n        <>\n          <ScreenAction\n' in summary
     # the update form, an action of the card shown to whom may change the item
     assert "{ id: 'edit', label: t('card.edit'), permission: 'change', onClick: editForm.onOpen }," in summary
     assert '      <UpdateFormAction\n        {...editForm}\n        path={TASK.path}\n        id={id}\n' in summary
+    # the title of a generated card is not shown: not a text of the screen
+    assert 'screens.task-summary.title' not in files[f'{screens.GENERATED_DIR}/messages.ts']
     # a card under the list whose route its route continues; the others at their own
     routes = files[f'{screens.GENERATED_DIR}/routes.tsx']
     assert '      <Route path="/tasks/:id" element={<TaskCardScreen />} />\n    </Route>\n' in routes
@@ -173,31 +184,35 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
 
     # the forms as pages: a create, then the card of the item; an update of the item of the route
     new = files[f'{screens.GENERATED_DIR}/task-new.tsx']
-    assert "onSaved={(saved) => void navigate(routeTo('task-card', saved.data.id))}" in new
+    assert "onSaved: (saved) => void navigate(routeTo('task-card', saved.data.id))," in new
     edit = files[f'{screens.GENERATED_DIR}/task-edit.tsx']
     assert "  const { id = '' } = useParams();\n" in edit
     assert '      <ResourceForm\n        path={TASK.path}\n        id={id}\n' in edit
     assert 'fields=' not in edit
 
-    # a board without `move` is not in `BoardDnd`; its badge, some of its columns
+    # a board without `move` is not in `BoardDnd`; its badge, some of its columns, its empty text
     flow = files[f'{screens.GENERATED_DIR}/task-flow.tsx']
-    assert 'BoardDnd' not in flow and '        move\n' not in flow
-    assert "        columns={['draft', 'in_progress']}\n        title=\"title\"\n        badge=\"urgent\"\n" in flow
+    assert 'BoardDnd' not in flow and 'move: true' not in flow
+    assert "            columns: ['draft', 'in_progress'],\n            title: 'title',\n            badge: 'urgent',\n" in flow
+    assert "            emptyMessage: t('screens.task-flow.board.empty'),\n" in flow
     assert "requires={{ path: TASK.path, can: 'add' }}" in flow
     assert "onSaved={() => void navigate(routeTo('task-flow'))}" in flow
 
     # the add of a calendar fills its field with the selected day
-    schedule = files[f'{screens.GENERATED_DIR}/task-schedule.tsx']
+    schedule = files[f'{screens.GENERATED_DIR}/user-schedule.tsx']
     assert (
-        '          onAdd: (day) => {\n            addForm.onOpenWith({ dt_created: day });\n          },\n'
+        '              onAdd: (day) => {\n                addForm.onOpenWith({ dt_first_login: day });\n'
     ) in schedule
-    assert "        tone={{ field: 'urgent', tone: 'danger' }}\n" in schedule
+    assert "            tone: { field: 'urgent', tone: 'danger' },\n" in schedule
     assert '      <CreateFormAction\n        {...addForm}\n' in schedule
 
-    # a dashboard of two entities: a tile of two conditions, a chart by a date, the forms of both
+    # a dashboard of two entities: a tile of two conditions, a tile with its own icon, a chart by
+    # a date, the forms of both, one then the home
     overview = files[f'{screens.GENERATED_DIR}/overview.tsx']
     assert "filter: Filter.and(Filter.where('status', 'in_progress'), Filter.where('title', 'Review the plan'))," in overview
-    assert "label: t('tiles.started_reviews')," in overview
+    assert "label: t('async.processing')," in overview
+    assert "import { FootprintsIcon, PlusIcon } from 'lucide-react';\n" in overview
+    assert '              icon: FootprintsIcon,\n' in overview
     assert '        <TimeChart\n' in overview and 'StatusChart' not in overview
     assert "requires={{ path: STEP.path, can: 'add' }}" in overview
     assert "onSaved={() => void navigate(routeTo('home'))}" in overview
@@ -207,6 +222,112 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert 'useNavigate' not in user and 'useLanguage' not in user
     assert '    <Screen id="user-card">\n' in user
     assert '        {() => (\n          <RelatedList\n' in user
+
+
+#: an extended screen of each primitive: the list of the sample, the screens of the kitchen sink
+EXTENDED = {
+    'list': ('task-list', 'ResourceList', 'ResourceListProps'),
+    'card': ('task-summary', 'ResourceCard', 'ResourceCardProps'),
+    'board': ('task-flow', 'ResourceBoard', 'ResourceBoardProps'),
+    'calendar': ('user-schedule', 'ResourceCalendar', 'ResourceCalendarProps'),
+    'form': ('task-new', 'ResourceForm', 'ResourceFormProps'),
+}
+
+
+@pytest.mark.parametrize('primitive', sorted(EXTENDED))
+def test_an_extended_screen(tmp_path, primitive):
+    """
+    The extension of a screen (`extend`): what it shows before and after the component, its
+    actions after those of the header, its props merged with those of the spec
+    (`extended<Props>`), the children among them; the hooks are those of the generated screen.
+    """
+    kitchen_sink(tmp_path)
+    screen_id, name, props = EXTENDED[primitive]
+    code = rendered(tmp_path)[f'{screens.GENERATED_DIR}/{screen_id}.tsx']
+    assert f"import {{ extension }} from '@/screens/{screen_id}/extend';\n" in code
+    assert f'type {props} }}' in code and 'extended' in code.split("from '@/bazis/ui/screens'")[0].splitlines()[-1]
+    assert f'      <{name}\n        {{...extended<{props}>(\n          {{\n' in code
+    assert '          extension.props,\n        )}\n      />\n' in code
+    body = code.split('return (')[1]
+    assert body.index('{extension.before}') < body.index(f'<{name}') < body.index('{extension.after}')
+    assert 'actions={extension.actions}' in code or '          {extension.actions}\n        </>\n' in code
+    # the extension is a value of the module: it adds no hook to the screen
+    assert 'extension' not in code.split('return (')[0].split('export function')[1]
+
+
+def test_an_extended_list_and_dashboard(tmp_path):
+    """
+    The map of an extended list takes the props of `extension.map`; an extended dashboard, the
+    screen itself, shows `extension.before` after its heading and `extension.after` after its
+    parts, the props of its parts merged.
+    """
+    kitchen_sink(tmp_path)
+    files = rendered(tmp_path)
+    task_list = files[f'{screens.GENERATED_DIR}/task-list.tsx']
+    assert '      <ResourceMap\n        {...extended<ResourceMapProps>(\n' in task_list
+    assert '            selected: id,\n' in task_list and '          extension.map,\n' in task_list
+    overview = files[f'{screens.GENERATED_DIR}/overview.tsx']
+    assert '      before={extension.before}\n      {...extended<DashboardProps>(\n' in overview
+    assert '        extension.props,\n      )}\n    >\n      {extension.after}\n' in overview
+    assert '          {extension.actions}\n        </>\n      }\n      before={extension.before}\n' in overview
+
+
+#: a screen of each primitive of the sample, declared custom
+CUSTOM = {
+    'list': 'draft-tasks', 'card': 'task-card', 'dashboard': 'home', 'board': 'task-board',
+    'calendar': 'task-calendar', 'form': 'task-new',
+}
+
+
+@pytest.mark.parametrize('primitive', sorted(CUSTOM))
+@pytest.mark.parametrize('custom', [True, {'module': '@/screens/hand', 'export': 'HandScreen'}])
+def test_a_custom_screen(tmp_path, primitive, custom):
+    """
+    A custom screen (`custom: true`, or the export of a module) of every primitive is not
+    generated: its route loads its code, its link and its texts are generated all the same.
+    """
+    kitchen_sink(tmp_path)
+    screen_id = CUSTOM[primitive]
+    edit_screen(
+        tmp_path, screen_id, lambda data: data.update(custom=custom, title='Hand-written') or data.pop('extend', None),
+    )
+    files = rendered(tmp_path)
+    assert f'{screens.GENERATED_DIR}/{screen_id}.tsx' not in files
+    source, export = (
+        (f'@/screens/{screen_id}', screens.component_name(screen_id)) if custom is True
+        else (custom['module'], custom['export'])
+    )
+    routes = files[f'{screens.GENERATED_DIR}/routes.tsx']
+    assert f"import('{source}').then((module) => module.{export})" in routes
+    # the title of a custom card too: its code heads the screen as it likes
+    assert f"'screens.{screen_id}.title': 'Hand-written'" in files[f'{screens.GENERATED_DIR}/messages.ts']
+
+
+def test_the_routes_of_custom_screens_of_items(tmp_path):
+    """
+    A generated card beside a custom list (`/steps/:id` under `/steps`) and a custom card beside
+    a generated list (`/tasks/:id`) are in the layout of their list; the generated card links
+    back to the custom list.
+    """
+    kitchen_sink(tmp_path)
+    edit_screen(tmp_path, 'task-card', lambda data: data.update(custom=True))
+    files = rendered(tmp_path)
+    routes = files[f'{screens.GENERATED_DIR}/routes.tsx']
+    assert (
+        '    <Route path="/steps" element={<ListCardLayout list={<StepListScreen />} />}>\n'
+        '      <Route path="/steps/:id" element={<StepCardScreen />} />\n    </Route>\n'
+    ) in routes
+    assert (
+        '    <Route path="/tasks" element={<ListCardLayout list={<TaskListScreen />} />}>\n'
+        '      <Route path="/tasks/:id" element={<TaskCardScreen />} />\n    </Route>\n'
+    ) in routes
+    assert "import('@/screens/task-card').then((module) => module.TaskCardScreen)" in routes
+    assert "import('@/screens/steps').then((module) => module.StepListScreen)" in routes
+    assert f'{screens.GENERATED_DIR}/step-list.tsx' not in files
+    step_card = files[f'{screens.GENERATED_DIR}/step-card.tsx']
+    assert "parent={{ screen: 'step-list', label: t('screens.step-list.title'), to: routeTo('step-list') }}" in step_card
+    # the generated list selects the custom card of its route
+    assert '            selected: id,\n' in files[f'{screens.GENERATED_DIR}/task-list.tsx']
 
 
 def test_the_routes_of_the_home(tmp_path):
@@ -325,31 +446,43 @@ def test_the_files_of_a_screen_no_longer_generated_are_deleted(frontend, root):
 
 
 @pytest.mark.django_db
-def test_a_screen_that_is_not_generated_must_be_custom(frontend, root):
-    """An extension is not generated yet; an update form must have the item in its route."""
+def test_an_extended_screen_in_the_frontend(frontend, root):
+    """
+    The extension is the product's: the generation never writes it, and `--force` drops the
+    edits of the generated screen only; a screen of its own beside the extension (`index.tsx`)
+    is refused (S029), the extension stays the place of what the spec cannot say.
+    """
+    extension = frontend / 'src' / 'screens' / 'task-list' / 'extend.tsx'
+    mine = extension.read_text(encoding='utf-8')
     generate()
-    edit_screen(root, 'task-board', lambda data: data.update(extend=True))
-    (frontend / 'src' / 'screens' / 'task-board').mkdir()
-    (frontend / 'src' / 'screens' / 'task-board' / 'extend.tsx').write_text(
-        'export const extension = {};\n', encoding='utf-8',
-    )
-    before = {it: it.read_bytes() for it in (frontend / screens.GENERATED_DIR).iterdir()}
-    message = (
-        'The screen `task-board` has `extend`, which `bazis_front screens` does not generate yet: declare it '
-        '`custom: true`'
-    )
-    with pytest.raises(CommandError, match=message):
+    task_list = frontend / f'{screens.GENERATED_DIR}/task-list.tsx'
+    expected = task_list.read_text(encoding='utf-8')
+    assert "import { extension } from '@/screens/task-list/extend';\n" in expected
+    task_list.write_text(expected.replace('extension.props', '{}'), encoding='utf-8')
+    with pytest.raises(CommandError, match='Edited after they were generated: src/screens/generated/task-list.tsx.'):
         generate()
-    assert {it: it.read_bytes() for it in (frontend / screens.GENERATED_DIR).iterdir()} == before
-    assert check_screens(None)[0].msg.startswith(message)
+    generate('--force')
+    assert task_list.read_text(encoding='utf-8') == expected
+    assert extension.read_text(encoding='utf-8') == mine
 
-    edit_screen(root, 'task-board', lambda data: data.pop('extend'))
-    (root / 'spec' / 'screens' / 'task-edit.yaml').write_text(yaml.safe_dump({
-        'spec': 'bazis-screen/1', 'id': 'task-edit', 'route': '/edit', 'entity': 'task', 'primitive': 'form',
-        'form': {'mode': 'update'}, 'states': ['loading', 'error', 'forbidden', 'invalid'],
-    }), encoding='utf-8')
-    with pytest.raises(CommandError, match=r'The screen `task-edit` updates an item, but its route `/edit` does not '):
+    (extension.parent / 'index.tsx').write_text('export function TaskListScreen() {}\n', encoding='utf-8')
+    with pytest.raises(CommandError, match='The specs have 1 errors'):
         generate()
+    [issue] = validate(root).errors
+    assert issue.code == 'S029' and issue.file == 'spec/screens/task-list.yaml'
+
+
+@pytest.mark.django_db
+def test_a_key_that_no_dictionary_has_does_not_stop_the_screens(frontend, root):
+    """
+    A text of the specs that is a key of no dictionary (S036) is a warning: the dictionaries are
+    read as text, and the product may give the key otherwise; the screen asks for the key.
+    """
+    edit_screen(root, 'draft-tasks', lambda data: data.update(title='tasks.drafts'))
+    [issue] = [it for it in validate(root).issues if it.code == 'S036']
+    assert issue.severity == 'warning' and issue.file == 'spec/screens/draft-tasks.yaml'
+    generate()
+    assert "title={t('tasks.drafts')}" in (frontend / DRAFTS).read_text(encoding='utf-8')
 
 
 def test_the_screens_need_a_frontend(tmp_path, settings):

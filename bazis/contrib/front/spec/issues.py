@@ -79,7 +79,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S003': (ERROR, 'the id of a screen differs from its file name, or its route is taken'),
     'S004': (ERROR, 'a screen references an unknown entity'),
     'S005': (ERROR, 'a screen references an unknown role'),
-    'S006': (ERROR, 'a screen references an unknown screen, or one of another primitive'),
+    'S006': (ERROR, 'a screen references an unknown screen, or one of another primitive, or opens an item in a card without `:id` in its route; a form or an action leads to a screen of an item (`:id` in its route) that is not a card of the saved item, or a deletion to one'),
     'S007': (ERROR, 'a screen references a field that its entity does not declare'),
     'S008': (ERROR, 'a filter or a sort field cannot be filtered or sorted by in the contract'),
     'S009': (ERROR, 'a state required by the primitive is missing'),
@@ -106,6 +106,11 @@ CODES: dict[str, tuple[str, str]] = {
     'S030': (ERROR, 'the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, `requires` a screen without an entity or `can: add` of a resource without a create route, or declares a group twice'),
     'S031': (ERROR, 'a screen with `extend` has no extension: frontend/src/screens/<id>/extend.tsx is missing or does not export `extension`, or the screen is `custom`'),
     'S033': (ERROR, 'the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`)'),
+    'S034': (ERROR, 'the add of a calendar creates the item on the selected day, in a field that the create route of its resource does not take (a date that the backend sets, such as that of the creation: the day is lost), or the resource has no create route'),
+    'S035': (WARNING, 'the buttons of the create forms of a screen cannot be told apart: two create actions (or the add of a calendar) with the same label, or without one (both say `Create`), or a create action of a dashboard without a label'),
+    'S036': (WARNING, 'a text of the specs is a key that no dictionary of the frontend has (src/i18n/<language>.ts of the product, nor those of the components): the screen would show the key, unless the product gives it otherwise (the dictionaries are read as text)'),
+    'S037': (WARNING, 'a dictionary of the product (src/i18n/<language>.ts) has a key of the texts of the specs (`screens.<id>...`) that no text of the specs has: of a screen, a section, a tab or an action that is not there, or a text that the spec does not give'),
+    'S038': (ERROR, 'a screen of an item has no `:id` in its route: a card or an update form that is not custom (the id of the item is in the route; a custom one finds its item itself)'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),
@@ -118,7 +123,7 @@ CODES: dict[str, tuple[str, str]] = {
     'D010': (ERROR, '`mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`)'),
     'D011': (WARNING, 'an entity with a screen has no icon in `icons` of theme.yaml'),
     'D012': (WARNING, 'spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows'),
-    'D013': (WARNING, 'an icon of the specs (`icons` of theme.yaml, `icon` of the navigation) is not an icon of the lucide-react of the template'),
+    'D013': (WARNING, 'an icon of the specs (`icons` of theme.yaml, `icon` of the navigation or of a tile of a dashboard) is not an icon of the lucide-react of the template'),
 }
 
 

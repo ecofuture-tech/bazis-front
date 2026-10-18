@@ -57,8 +57,9 @@ in `frontend/` never need to be read.
    each issue says until it reports no errors, exporting the contract again after every
    change of the backend: "The issues of check".
 6. Generate the screens, `python manage.py bazis_front screens` (it copies the components
-   that they import), and write those it does not generate yet (`custom: true`) in
-   `frontend/src/screens/<id>/`: "The components", "Writing the screens" and "Composing beyond
+   that they import), and write what their specs cannot say in their extensions (`extend`)
+   or the screens that they do not fit (`custom: true`) in `frontend/src/screens/<id>/` (as
+   "The specs of the screens and the design" says): "The components", "Writing the screens" and "Composing beyond
    the specs"; by topic "Choices, filters, permissions and relationships", "Files, points and
    maps", "Custom actions and background work", "The socket" and "The language"; the data
    through "The hooks" and "The client".
@@ -169,8 +170,7 @@ screens of the specs. It never overwrites an existing `frontend/`. It writes:
   errors is reported and the theme is left to `bazis_front design`;
 - the screens of the specs, as `bazis_front screens` generates them (see
   [Writing the screens](#writing-the-screens)), with the components that they import; specs
-  with errors or with screens it does not generate yet are reported and left to
-  `bazis_front screens`;
+  with errors are reported and left to `bazis_front screens`;
 
 - the files of the template (`assets/template`), which the product owns from then on
   (`update` merges a new version with its changes), among them `frontend/AGENTS.md`, which
@@ -280,8 +280,8 @@ the subcommand that brings up to date what it reports stale (`contract`, `update
 database must be migrated, else `front.I001`), `front.W002` (an issue of the specs),
 `front.W004` (stale copies), `front.W007` (changed copies), `front.W005` (a stale theme),
 `front.W010` (stale, edited or missing generated screens, none at all in a frontend made
-before them whose updated template needs them, the components that they import missing, or
-a screen it does not generate yet that is not custom), `front.W003` (stale
+before them whose router, updated, imports them, or the components that they import
+missing), `front.W003` (stale
 end-to-end tests), `front.W008` (a stale `shots.ts`), `front.W009` (a
 report of the screenshots with errors, or none: the screenshots were not taken; not stale,
 its `command` is null). The `--check` of
@@ -664,24 +664,79 @@ that it has (the others fall back to the default). The dictionaries of the produ
 
 #### Custom screens and extensions
 
-**Custom screens and extensions** are declared in the spec of the screen. `custom: true`:
-the screen is written by hand, the export `<Id in PascalCase>Screen` of
-`frontend/src/screens/<id>/index.tsx` (`LoanListScreen` of `loan-list`); `custom: {module:
-'@/screens/loan', export: LoanListScreen}`: an export of another module there (several
-screens in one file). `check` reports a missing module or export (S028) and, once the
-frontend generates its screens, a `frontend/src/screens/<id>/index.tsx` of a screen that is
-not custom (S029: two implementations). `extend: true`: the generated screen takes the
-extension `export const extension` of `frontend/src/screens/<id>/extend.tsx`, what the spec
-cannot say (S031: missing; a custom screen is never extended). `nav: false` leaves the
-screen out of the navigation generated without `navigation` of product.yaml.
-`card.related[].add.when` is when "add here" is shown: `changeable` (the default, while
-the user may change the item of the card) or `always`. The module of a custom screen is
-never in `src/screens/generated/`, which `bazis_front screens` owns.
+A screen is generated from its spec; what the spec cannot say goes to an **extension** of the
+generated screen, and a screen that the generated one does not fit is **custom**, written by
+hand. Never edit `src/screens/generated/`: `bazis_front screens` owns it, refuses to overwrite
+an edited file (`--force` drops the edits) and `front.W010` reports it.
 
-`bazis_front screens` generates every primitive with every key of its spec; `extend` is not
-generated yet, and a form screen of an update needs the item in its route (`:id`): such a
-screen is `custom: true`, else `bazis_front screens` refuses the specs and `front.W010` says
-which.
+- **`extend: true`** — the generated screen with additions: a panel before or after its
+  component (counts, a summary, a custom action and its progress), buttons in its header,
+  some props of its component (an empty text, the content of a cell, the tiles of a map, a
+  row action). The spec keeps the rest, and a change of the spec still changes the screen.
+- **`custom: true`** — the screen is the export `<Id in PascalCase>Screen` of
+  `frontend/src/screens/<id>/index.tsx` (`LoanListScreen` of `loan-list`); `custom: {module:
+  '@/screens/loan', export: LoanListScreen}`: an export of another module there (several
+  screens in one file; never one of `src/screens/generated/`). For a layout or a flow that
+  the primitive does not have. Its route, its link, the routes of the cards beside it and
+  its texts are generated all the same (a generated card at `<its route>/:id` beside a
+  custom list, a custom card beside a generated list); it composes the same components.
+
+`check` reports a missing module or export (S028); once the frontend generates its screens, a
+`frontend/src/screens/<id>/index.tsx` of a screen that is not custom (S029: two
+implementations; the code of an extension is `extend.tsx`); a screen with `extend` without
+`export const extension` in `frontend/src/screens/<id>/extend.tsx`, or a custom screen with
+`extend` (S031: a custom screen extends itself in its own code).
+
+The extension is `export const extension: ScreenExtension<Props>` (`@/bazis/ui/screens`), the
+props of the component of its primitive: `ResourceListProps` (with a map,
+`ScreenExtension<ResourceListProps, ResourceMapProps>`), `ResourceCardProps`,
+`ResourceBoardProps`, `ResourceCalendarProps`, `ResourceFormProps`, `DashboardProps`:
+
+```tsx
+// frontend/src/screens/loan-list/extend.tsx
+export const extension: ScreenExtension<ResourceListProps, ResourceMapProps> = {
+  before: <OverdueCount />, // before the component (and the map of a list)
+  after: <LoanHelp />, // after it, before the forms of its actions
+  actions: <ExportButton />, // in the header, after the actions of the spec
+  props: { emptyMessage: <LoanEmpty />, cells: { due_date: (row) => <DueDate row={row} /> } },
+  map: { tiles: LIBRARY_TILES }, // the props of the map beside the list (`list.map`)
+};
+```
+
+- **The props merge with those of the spec** (`extended`): the lists of actions and tiles
+  (`actions`, `rowActions`, `bulk`, `tiles`) by the `id` of their items — an item with the id
+  of a generated one replaces it in its place, the others follow, so that no id is shown twice;
+  the records of the fields (`cells`, `values`, `display`) field by field; `children` (a
+  card's render prop of its item) both, the generated first; any other prop replaces the
+  generated one. A merged prop set to `undefined` keeps the generated one.
+- **A dashboard is its screen**: its `props` are those of its parts (`tiles`, `charts`,
+  `recent`); its header is `actions` of the extension after the create forms of the spec,
+  `before` after its heading, `after` after its parts. Its `props` take no `actions`,
+  `title` or `before` (a type error).
+- **The extension is a constant**, not a hook: the generated screen keeps its own hooks and
+  their order, and imports nothing from it but `extension`. What needs a hook (a count, a
+  mutation, a translated text, `useParams`) is a component of the product rendered in a slot
+  or by a render prop (`cells`, `children`); its texts are keys of its own in
+  `src/i18n/<language>.ts`, outside `screens.` (S037).
+- The tiles of the maps of the product are those of `MapProvider` (`OSM_TILES` by default);
+  `map.tiles` of an extension sets those of one map.
+
+**Ejecting.** An extended screen that has outgrown its spec becomes custom: copy
+`src/screens/generated/<id>.tsx` to `src/screens/<id>/index.tsx`, write the extension into it
+(its slots in place of `extension.before`..., its props in place of `extended(...)`), delete
+`extend.tsx`, set `custom: true` and remove `extend`; `bazis_front screens` then deletes the
+generated file and routes the custom one. Back to generated: delete the code of the custom
+screen (keep what the spec cannot say in `extend.tsx`) and remove `custom`.
+
+A screen of an item, a card or an update form, has `:id` in its route (S038): its screen reads
+the item there, and every screen opens it with the id of the item; a custom one may find its
+item itself (`/me`, the card of the user). The screen after a form
+or an action (`then`) is a screen without an item, or the card of the saved item (S006); none
+of an item after a deletion. A generated card is headed by the label of its item: its
+`title` is not shown, and not among the texts of the specs. `nav: false` leaves the screen
+out of the navigation generated without `navigation` of product.yaml.
+`card.related[].add.when` is when "add here" is shown: `changeable` (the default, while the
+user may change the item of the card) or `always`.
 
 #### Tabs and bulk actions
 
@@ -937,7 +992,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
 | `S004` | error | a screen references an unknown entity |
 | `S005` | error | a screen references an unknown role |
-| `S006` | error | a screen references an unknown screen, or one of another primitive |
+| `S006` | error | a screen references an unknown screen, or one of another primitive, or opens an item in a card without `:id` in its route (a custom card that finds its item itself); a form or an action leads to a screen of an item (`:id` in its route) that is not a card of the saved item, or a deletion to one |
 | `S007` | error | a screen references a field that its entity does not declare |
 | `S008` | error | a filter or a sort field cannot be filtered or sorted by in the contract |
 | `S009` | error | a state required by the primitive is missing |
@@ -964,6 +1019,11 @@ warning there, never blocking `migrate` or `contract`.
 | `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
 | `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`) |
+| `S034` | error | the add of a calendar creates the item on the selected day, in a field that the create route of its resource does not take (a date that the backend sets, such as that of the creation: the day is lost), or the resource has no create route |
+| `S035` | warning | the buttons of the create forms of a screen cannot be told apart: two create actions (or the add of a calendar) with the same label, or without one (both say `Create`), or a create action of a dashboard without a label |
+| `S036` | warning | a text of the specs is a key that no dictionary of the frontend has (src/i18n/<language>.ts of the product, nor those of the components): the screen would show the key, unless the product gives it otherwise (the dictionaries are read as text) |
+| `S037` | warning | a dictionary of the product (src/i18n/<language>.ts) has a key of the texts of the specs (`screens.<id>...`) that no text of the specs has: of a screen, a section, a tab or an action that is not there, or a text that the spec does not give |
+| `S038` | error | a screen of an item has no `:id` in its route: a card or an update form that is not custom (the id of the item is in the route; a custom one finds its item itself) |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -976,7 +1036,7 @@ warning there, never blocking `migrate` or `contract`.
 | `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 | `D012` | warning | spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows; the issue names the tokens |
-| `D013` | warning | an icon of the specs (`icons` of theme.yaml, `icon` of the navigation) is not an icon of the lucide-react of the template |
+| `D013` | warning | an icon of the specs (`icons` of theme.yaml, `icon` of the navigation or of a tile of a dashboard) is not an icon of the lucide-react of the template |
 
 ## The backend of a product
 
@@ -1429,10 +1489,11 @@ live queries), which `src/app/router.tsx` of the template renders. It copies the
 that they import that the frontend lacks (their npm dependencies set in `package.json`: run
 `npm install` then), deletes the files of a screen that is no longer generated, and never
 overwrites a generated file edited since it was generated (`--force` drops the edits);
-`--check` and `front.W010` compare them with the specs byte for byte, without Node. The
-screens it does not generate yet (see "Custom screens and extensions") are written by hand
-in `frontend/src/screens/<id>/` (`custom: true`) from the same components, as the table
-says, and routed and linked as the others. A screen is one primitive (`list`, `card`, `form`, `board` or `calendar`) over an
+`--check` and `front.W010` compare them with the specs byte for byte, without Node. What a
+spec cannot say goes to the extension of its screen, and a screen that the generated one does
+not fit is written by hand in `frontend/src/screens/<id>/` (`custom: true`) from the same
+components, as the table says, and routed and linked as the others (see "Custom screens and
+extensions" in "The specs of the screens and the design"). A screen is one primitive (`list`, `card`, `form`, `board` or `calendar`) over an
 entity, or a `dashboard`:
 implement it with the route of its spec, from the components of `src/bazis/ui/` (their
 `data-bz` in [The components](#the-components), their props in the `API:` sections), and
@@ -1953,20 +2014,21 @@ core), and never filter a list by a point with a control of the filters (S016).
 
 The maps: `manage.py bazis_front add map`, then `npm install`. The generated providers
 (`GeneratedProviders` of `src/screens/generated/providers.tsx`) wrap the routes in
-`MapProvider` with the default tiles once an entity has a point field; a product with tiles
-of its own wraps the routes again in `src/app/router.tsx`, inside `GeneratedProviders` (the
-inner provider is the one read). A screen with `list.map` shows `ResourceMap` beside its
+`MapProvider` once an entity has a point field; a product sets the tiles of its own once, a
+`MapProvider tiles` around `GeneratedProviders` in `src/app/router.tsx` (a `MapProvider`
+without `tiles` keeps those of the one above it, OpenStreetMap without one); `map.tiles` of
+the extension of a screen sets those of its map alone. A screen with `list.map` shows `ResourceMap` beside its
 list, and a list of what is near the user filters by the distance from the position of the
 browser:
 
 ```tsx
 // src/app/router.tsx: the maps draw these tiles, the point fields of the forms get a map
 const MAP_TILES: MapTiles = { url: 'https://tiles.example.com/{z}/{x}/{y}.png', attribution: '&copy; Example' };
-<GeneratedProviders>
-  <MapProvider tiles={MAP_TILES}>
+<MapProvider tiles={MAP_TILES}>
+  <GeneratedProviders>
     <BrowserRouter>…</BrowserRouter>
-  </MapProvider>
-</GeneratedProviders>
+  </GeneratedProviders>
+</MapProvider>
 
 // spec/screens/site-list.yaml (`list.map: {field: location}`)
 const geolocation = useGeolocation();   // locate() asks the browser
@@ -4542,6 +4604,7 @@ Its props, `DashboardProps`:
 - `description?: ReactNode`: What the product is for (`summary` of the product, under the title of a hero).
 - `actions?: ReactNode`: The actions of the screen, such as the forms that create an item (`action:<id>`).
 - `hero?: boolean`: The title, the description and the actions as a hero: a portal (`preset` of the theme) by default.
+- `before?: ReactNode`: What the screen shows before its parts (after the hero), such as the extension of a generated screen.
 - `tiles?: readonly StatCardProps[]`
 - `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`.
 - `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`.
@@ -4694,7 +4757,7 @@ Its props, `LoginFormProps`:
 
 #### LeafletMap
 
-`LeafletMap(props: LeafletMapProps): Element`: A Leaflet map with a marker per point (`marker:<id>`, a button with the label as its name and its title when it opens the item: the keyboard reaches it), fitted to them when they change (not when another one is selected); the tiles of `MapProvider`.
+`LeafletMap(props: LeafletMapProps): Element`: A Leaflet map with a marker per point (`marker:<id>`, a button with the label as its name and its title when it opens the item: the keyboard reaches it), fitted to them when they change (not when another one is selected); its tiles, else those of `MapProvider`.
 
 
 Its props, `LeafletMapProps`:
@@ -4704,6 +4767,7 @@ Its props, `LeafletMapProps`:
 - `onOpen?: ((id: string) => void) | undefined`: A click on a marker, or Enter or Space on a marker focused with the keyboard.
 - `onPick?: ((point: LatLng) => void) | undefined`: A click on the map elsewhere: its point (the map of a point field).
 - `me?: LatLng | null | undefined`: The position of the user, drawn apart.
+- `tiles?: MapTiles | undefined`: The tiles of this map, over those of `MapProvider`.
 - `className?: string | undefined`
 - `'data-bz'?: string | undefined`
 
@@ -4721,7 +4785,7 @@ Its props, `PointControlProps`:
 
 #### MapProvider
 
-`MapProvider(props: { tiles?: MapTiles; points?: Readonly<Record<string, readonly string[]>>; children: ReactNode; }): Element`: The tiles of the maps below it, and the map of the point fields in the forms (`FieldInput`: a click places the point).
+`MapProvider(props: { tiles?: MapTiles | undefined; points?: Readonly<Record<string, readonly string[]>>; children: ReactNode; }): Element`: The tiles of the maps below it, and the map of the point fields in the forms (`FieldInput`: a click places the point).
 
 #### nearFilter
 
@@ -4781,6 +4845,7 @@ Its props, `ResourceMapProps`:
 - `selected?: string | null | undefined`: The open item, drawn larger.
 - `me?: LatLng | null | undefined`: The position of the user (`useGeolocation`), drawn apart.
 - `emptyMessage?: ReactNode`: Under the map when no item has a point.
+- `tiles?: MapTiles | undefined`: The tiles of the map, over those of `MapProvider`.
 - `className?: string | undefined`
 
 #### The types and the constants of `@/bazis/ui/map`
@@ -5223,7 +5288,7 @@ Its props, `RelationPickerProps`:
 - `RelationListPickerProps`: the props of `RelationListPicker`, listed with it
 - `RelationPickerProps`: the props of `RelationPicker`, listed with it
 
-## API: the components: resource-board, resource-calendar, resource-card, resource-form, resource-list, screens
+## API: the components: resource-board, resource-calendar, resource-card, resource-form, resource-list
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -5534,6 +5599,10 @@ Its props, `ResourceListProps`:
 - `type FilterValues = Readonly<Record<string, string>>`: The values of the filters by field; a date range is `<field>__gte` and `<field>__lte`.
 - `ResourceListProps`: the props of `ResourceList`, listed with it
 
+## API: the components: screens, stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
 ### `@/bazis/ui/screens`
 
 #### CreateFormAction
@@ -5611,26 +5680,24 @@ Its props, `UpdateFormActionProps`:
 
 #### extended
 
-`extended<P extends object>(props: NoInfer<P>, extension: ScreenExtension<P>): P`: The props of the component of a generated screen with those of its extension: the arrays of the actions joined, the `children` of both, the other props of the extension in place of the generated ones.
+`extended<P extends object>(props: P, added: ExtensionProps<P> | undefined): P`: The props of the component of a generated screen with those of its extension: the lists of actions and of tiles (`actions`, `rowActions`, `bulk`, `tiles`) by the `id` of their items, the records of the fields (`cells`, `values`, `display`) by field, the `children` of both, the generated ones first; the other props of the extension replace the generated ones (an undefined one too, but of a merged prop, which keeps the generated one).
 
 #### ScreenExtension
 
-`interface ScreenExtension<P extends object>`: What a product adds to a screen generated from the specs, the component of its primitive with props `P`.
+`interface ScreenExtension<P extends object, M extends object = object>`: What a product adds to a screen generated from the specs (`export const extension` of `src/screens/<id>/extend.tsx`), the component of its primitive with props `P` (and `M`, the map of a list: `ScreenExtension<ResourceListProps, ResourceMapProps>`).
 
-- `before?: ReactNode`: In the screen, before the component of its primitive.
-- `after?: ReactNode`: In the screen, after the component of its primitive.
-- `actions?: ReactNode`: In the header of the screen, after the actions of the specs.
-- `props?: Partial<P>`: Props of the component: the actions (`actions`, `rowActions`, `bulk`) and the `children` come after those of the specs, the others replace them.
+- `before?: ReactNode`: In the screen, before the component of its primitive (and the map of a list).
+- `after?: ReactNode`: In the screen, after the component of its primitive (before the forms of its actions).
+- `actions?: ReactNode`: In the header of the screen, after the actions of the specs: on every primitive, a dashboard too.
+- `props?: ExtensionProps<P>`: Props of the component of the primitive, merged with those of the specs (`extended`): the lists of actions and of tiles by their `id`, the records of the fields by field, the `children` of both; the other props replace the generated ones.
+- `map?: Partial<M>`: Props of the map beside a list (`list.map`), merged the same way.
 
 #### The types and the constants of `@/bazis/ui/screens`
 
 - `CreateFormActionProps`: the props of `CreateFormAction`, listed with it
 - `ScreenActionProps`: the props of `ScreenAction`, listed with it
 - `UpdateFormActionProps`: the props of `UpdateFormAction`, listed with it
-
-## API: the components: stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+- `type ExtensionProps<P extends object> = Partial<'tiles' | 'recent' | 'charts' extends keyof P ? Omit<P, DashboardScreenProps> : P>`: The props that an extension gives the component of its screen: any of them, but those of the screen for a dashboard, whose component is the screen.
 
 ### `@/bazis/ui/stat-card`
 

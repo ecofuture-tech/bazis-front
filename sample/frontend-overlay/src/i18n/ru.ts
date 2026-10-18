@@ -17,12 +17,5 @@
 import type { Messages } from '@/bazis/i18n';
 
 export const ru: Messages = {
-  'tasks.title': 'Задачи',
-  'tasks.description': 'Задачи команды: от черновика до отчёта.',
-  'tasks.new': 'Новая задача',
-  'tasks.new_description': 'Задача создаётся черновиком.',
-  'tasks.empty': 'Задач пока нет.',
   'tasks.count': 'Посчитать задачи',
-  'tasks.no_location': 'Ни у одной задачи нет местоположения.',
-  'tasks.start_all': 'Начать',
 };

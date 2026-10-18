@@ -23,7 +23,9 @@ const TaskCalendarScreen = lazyScreen(() =>
 const TaskCardScreen = lazyScreen(() =>
   import('@/screens/generated/task-card').then((module) => module.TaskCardScreen),
 );
-const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
+const TaskListScreen = lazyScreen(() =>
+  import('@/screens/generated/task-list').then((module) => module.TaskListScreen),
+);
 
 /**
  * The routes of the screens, inside `RequireSession` of src/app/router.tsx: a card whose route

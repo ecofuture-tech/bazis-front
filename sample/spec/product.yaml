@@ -59,6 +59,7 @@ entities:
     title: User
     fields:
       - {id: username, type: string}
+      - {id: dt_first_login, type: datetime}   # taken by the create of a user: the add of a calendar (the kitchen sink)
   # the steps of a task: a related section of its card, added there with the task fixed
   - id: step
     resource: tasks.step

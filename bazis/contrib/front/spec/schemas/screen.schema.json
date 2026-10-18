@@ -9,7 +9,7 @@
   "properties": {
     "spec": {"const": "bazis-screen/1"},
     "id": {"description": "The id of the screen, also the name of its file.", "$ref": "#/$defs/id"},
-    "title": {"description": "The title of the screen.", "$ref": "#/$defs/text"},
+    "title": {"description": "The title of the screen, also the label of its link and of the way back to it; a generated card does not show it, the label of its item heads it.", "$ref": "#/$defs/text"},
     "description": {"description": "The subtitle of the screen, under its title.", "$ref": "#/$defs/text"},
     "route": {
       "description": "The route of the screen in the frontend; `:id` is the id of the item.",
@@ -206,6 +206,7 @@
               "filter": {"$ref": "#/$defs/filter"},
               "tone": {"$ref": "#/$defs/tone"},
               "label": {"$ref": "#/$defs/label"},
+              "icon": {"description": "The icon of the tile, a lucide icon (D013); that of its entity (`icons` of theme.yaml) by default.", "$ref": "#/$defs/icon"},
               "open": {"description": "The list screen of the entity that the tile opens.", "$ref": "#/$defs/id"}
             }
           }
@@ -294,7 +295,8 @@
         },
         "filters": {"description": "Fields that the contract can filter by.", "$ref": "#/$defs/fields"},
         "move": {"description": "The items move between the columns by the transits that the backend allows them.", "type": "boolean"},
-        "open": {"description": "The card screen that an item opens.", "$ref": "#/$defs/id"}
+        "open": {"description": "The card screen that an item opens.", "$ref": "#/$defs/id"},
+        "empty": {"description": "The text of the board without items (`emptyMessage`); that of the component by default.", "$ref": "#/$defs/text"}
       }
     },
     "calendar": {
@@ -369,6 +371,11 @@
   ],
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+    "icon": {
+      "description": "The name of a lucide icon (lucide.dev), in kebab-case (D013).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
     "ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
     "field": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
     "fields": {

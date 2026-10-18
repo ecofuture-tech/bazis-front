@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A generated card beside a list written by hand.
+spec: bazis-screen/1
+id: step-card
+route: /steps/:id
+entity: step
+roles: [manager, viewer]
+primitive: card
+card:
+  sections:
+    - {id: main, fields: [title, task, dt_created]}
+states: [loading, error, forbidden, not_found]

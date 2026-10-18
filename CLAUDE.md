@@ -107,8 +107,9 @@ tests of the hooks and the contract tests of the components. The
 title of a task is not empty (`MinLengthValidator`), for the scenario of a failing
 submit. `sample/spec/` is a complete valid spec of the sample: the permissions
 of the declared roles cover its `access`, and `tests/test_spec.py` checks it against
-the contract. `sample/frontend-overlay/` holds the custom screen of the sample (product
-code: the list of the tasks, with what its spec cannot say, `custom: true`) with the texts
+the contract. `sample/frontend-overlay/` holds the code of the screens of the sample (the
+extension of the list of the tasks, `extend: true`: what its spec cannot say, the counts by
+status, the custom action `count` and the height of its map; no custom screen) with the texts
 it uses (`src/i18n/`) and
 `e2e/` (`fixtures/`, the files that the scenarios upload, and
 `custom/`, the tests of what no scenario says: the custom actions, the downloads, the
@@ -170,11 +171,12 @@ job of CI.
   of a vendored asset or a component whose hash differs from the lock, not the template;
   kept apart from W004 because a changed copy is not stale and may be silenced alone). `front.W005`: a stale theme (`design --check`, without the database;
   only when the lock has `design` and the design has no errors). `front.W010`: stale,
-  edited or missing generated screens, the components that they import missing, or a screen
-  that is not generated yet and not custom (`screens --check`, without Node and the
-  database; only when the lock has `screens` and the specs have no errors), or none at all
-  while the lock has the template, whose router imports them (`screens.needs_screens`: a
-  frontend made before them, updated; `update` says it too). A new check id gets its pitfall in `bazis_manifest.toml`
+  edited or missing generated screens, or the components that they import missing
+  (`screens --check`, without Node and the database; only when the lock has `screens` and
+  the specs have no errors), or none at all while `src/app/router.tsx` imports them
+  (`screens.needs_screens`: a frontend made before them, once `update` gave it the router of
+  the template; before, its router is its own, and generated screens would be refused
+  beside its own, S029; `update` says it too). A new check id gets its pitfall in `bazis_manifest.toml`
   (`tests/test_manifest.py` checks that the ids exist).
 
 ### The specs
@@ -264,17 +266,19 @@ job of CI.
   assignments, the arguments, the arrows and JSX that the generator uses), so the text is
   that of `prettier` 3 of the template without Node: the `frontend` job checks it with
   prettier. Every primitive is generated with every key of its spec (a key is a prop of its
-  component, nothing inferred); a screen that it does not compose (`screens.unsupported`:
-  `extend`, not generated yet, and a form screen of an update without `:id` in its route)
-  refuses the generation until it is `custom`. `--check` and `front.W010` render again and compare byte
+  component, nothing inferred); a screen with `extend` takes its extension
+  (`extended<Props>` of the props of its component, `extension.before`/`after`/`actions`:
+  the extension is a constant of the product, so the generated hooks stay those of the
+  screen); a screen of an item has `:id` in its route (S038). `--check` and `front.W010` render again and compare byte
   for byte; the lock records the hashes of the specs (product.yaml, the screens,
   theme.yaml) and of the files (`screens`); a file edited since is not overwritten without
   `--force`, the files of the lock outside `src/screens/generated/` are never touched, and
   the components that the code imports are copied (`copy.add_assets`). `tests/test_screens.py`
   compares the screens of the sample with `tests/fixtures/screens/` (write it again with
   `BAZIS_FRONT_WRITE_FIXTURES=1`) and renders the kitchen sink of
-  `tests/fixtures/kitchen-sink/` (the screens of the sample that the generator composes
-  beyond the sample, which the `frontend` job also builds). The names that the code gives
+  `tests/fixtures/kitchen-sink/` (the screens that the generator composes beyond the
+  sample, with the code of their extensions and of custom screens in its `src/`, which the
+  `frontend` job also builds), an extension and a custom screen of every primitive. The names that the code gives
   the ids (components, entity constants, the states of the actions) are those of
   `spec/names.py`, whose clashes the checks refuse (P032, S033).
 - `spec/shots.py` (`bazis_front shots`) renders `frontend/e2e/generated/shots.ts` from specs
@@ -576,8 +580,9 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   passes the prop of a default it relies on): on the sample (with `BS_BASE_DIR` outside the
   checkout) `init`, `contract`, `contract --check`, `check` (the starters of the specs
   against the contract), `design --check`, `add` of every component, then the product and
-  the screens of the sample with the kitchen sink of `tests/fixtures/kitchen-sink/` and the
-  code of the custom screens over the starters (the design of the preset kept), `check`,
+  the screens of the sample with the kitchen sink of `tests/fixtures/kitchen-sink/` (its
+  `src/` too: extensions and custom screens) and the code of the screens of the sample over
+  the starters (the design of the preset kept), `check`,
   `screens` and `screens --check`, then `tsc --noEmit`, lint, prettier (also of the generated
   screens), tests (the
   contract tests of the components) and build of the generated frontend, whose chunks
@@ -593,9 +598,9 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   literal maps (empty, they collapse to `never`/`unknown`). Run the same locally after a
   change of the template or of a component.
 - The `e2e` job of CI runs the scenarios of the sample: the specs of the sample copied to
-  the product root, `migrate`, `e2e_data`, `init` (which leaves the screens: the custom ones
-  have no code yet), `contract`, `add` of the components (with `map`, then `npm install`
-  for Leaflet), the custom screens of `sample/frontend-overlay/src/` copied over `src/`,
+  the product root, `migrate`, `e2e_data`, `init` (which leaves the screens: the extension
+  has no code yet), `contract`, `add` of the components (with `map`, then `npm install`
+  for Leaflet), the code of the screens of `sample/frontend-overlay/src/` copied over `src/`,
   `check`, `screens` and `--check`, `bazis_front e2e` and `--check`, `design --check`, the build, then the backend
   (`uvicorn sample.main:app`) and `vite preview` (its `/api` proxied to the backend) and
   `npm run e2e` with `E2E_BASE_URL`; the report of Playwright is uploaded on a failure. Run

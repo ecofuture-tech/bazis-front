@@ -48,6 +48,7 @@ from .tsx import (
     Call,
     Cond,
     Const,
+    Expr,
     Function,
     If,
     Jsx,
@@ -69,9 +70,10 @@ from .validate import (
     TEXT_KEY,
     THEME_FILE,
     Specs,
+    document_texts,
     screen_files,
-    text_paths,
-    text_values,
+    screen_prefix,
+    text_key,
 )
 
 
@@ -112,29 +114,6 @@ def icon_name(icon: str) -> str:
     return pascal(icon) + 'Icon'
 
 
-def unsupported(specs: Specs) -> list[str]:
-    """
-    Why screens of the specs are not generated, one message for each: an extension, which the
-    generator does not compose yet, and an update form without the item in its route. Empty
-    when every screen that is not custom is generated.
-    """
-    problems = []
-    for screen_id, data in specs.screens.items():
-        if data is None or data.get('custom'):
-            continue
-        if data.get('extend'):
-            problems.append(
-                f'The screen `{screen_id}` has `extend`, which `bazis_front screens` does not generate yet: '
-                f'declare it `custom: true` and write it in src/screens/{screen_id}/index.tsx.'
-            )
-        if data['primitive'] == 'form' and data['form']['mode'] == 'update' and ':id' not in data['route']:
-            problems.append(
-                f'The screen `{screen_id}` updates an item, but its route `{data["route"]}` does not say which: '
-                'add `:id` to the route (the id of the item), or declare the screen `custom: true`.'
-            )
-    return problems
-
-
 class Texts:
     """
     The texts of the specs in the dictionaries of the languages of the product
@@ -164,36 +143,14 @@ class Texts:
             self.messages[self.default][key] = first
 
 
-def text_key(prefix: str, data, path: tuple) -> str:
-    """
-    The key of the text at a path of a document: the path from the prefix, an item of a list
-    by its id (`group` for a group of the navigation).
-    """
-    parts, node = [prefix] if prefix else [], data
-    for step in path:
-        if isinstance(step, int):
-            item = node[step]
-            parts.append(str(item.get('id', item.get('group', step))) if isinstance(item, dict) else str(step))
-        else:
-            parts.append(step)
-        node = node[step]
-    return '.'.join(parts)
-
-
-def screen_prefix(screen_id: str) -> str:
-    return f'screens.{screen_id}'
-
-
 def texts(specs: Specs) -> Texts:
     """The texts of product.yaml and of the screens."""
     result = Texts(specs.product)
-    for path in text_paths(PRODUCT_SCHEMA):
-        for at, value in text_values(specs.product, path):
-            result.add(text_key('', specs.product, at), value)
+    for at, value in document_texts(specs.product, PRODUCT_SCHEMA):
+        result.add(text_key('', specs.product, at), value)
     for screen_id, data in specs.screens.items():
-        for path in text_paths(SCREEN_SCHEMA):
-            for at, value in text_values(data, path):
-                result.add(text_key(screen_prefix(screen_id), data, at), value)
+        for at, value in document_texts(data, SCREEN_SCHEMA):
+            result.add(text_key(screen_prefix(screen_id), data, at), value)
     return result
 
 
@@ -309,6 +266,10 @@ class Screen:
         #: the names that the code uses of `useLanguage()`
         self.language: set[str] = set()
         self.after: list = []
+        #: whether the product extends the screen (`extend`): `extension` of src/screens/<id>/extend.tsx
+        self.extended = bool(data.get('extend'))
+        if self.extended:
+            self.code.use(f'@/screens/{data["id"]}/extend', 'extension')
 
     def entity(self, entity_id: str) -> Raw:
         return entity_constant(self.code, self.consts, entity_id)
@@ -400,6 +361,53 @@ class Screen:
         )
 
 
+def component(screen: Screen, name: str, props: str, source: str, attrs: list[Attr], children=(), part='props') -> Jsx:
+    """
+    The component of a primitive with its attributes and children; of an extended screen, its
+    props merged with those of the extension (`extended<Props>({...}, extension.props)`, the
+    children a prop among them).
+    """
+    screen.code.use(source, name)
+    if not screen.extended:
+        return Jsx(name, attrs, list(children))
+    screen.code.use(source, f'type {props}')
+    screen.code.use('@/bazis/ui/screens', 'extended')
+    # a prop of a name of its own is a shorthand: `id`
+    entries = [
+        (it.name, None if isinstance(it.value, Raw) and it.value.code == it.name else attr_value(it.value))
+        for it in attrs
+    ]
+    if children:
+        entries.append(('children', children[0] if len(children) == 1 else Jsx('', [], list(children))))
+    merged = Call(f'extended<{props}>', [Obj(entries), Raw(f'extension.{part}')])
+    return Jsx(name, [Attr(SPREAD, merged)])
+
+
+def attr_value(value) -> Expr:
+    """The value of an attribute as that of a prop: a string, `true`, or the expression."""
+    if value is True:
+        return Raw('true')
+    return Str(value) if isinstance(value, str) else value
+
+
+def extension_body(screen: Screen, body: list) -> list:
+    """The body of a screen: of an extended one, between what the extension shows before and after it."""
+    if not screen.extended:
+        return body
+    return [Raw('extension.before'), *body, Raw('extension.after')]
+
+
+def extension_actions(screen: Screen, actions):
+    """
+    The actions of the header of a screen (None without any): of an extended one, those of
+    the specs then those of the extension.
+    """
+    if not screen.extended:
+        return actions
+    parts = [] if actions is None else actions.children if actions.name == '' else [actions]
+    return Jsx('', [], [*parts, Raw('extension.actions')]) if parts else Raw('extension.actions')
+
+
 def screen_attrs(screen: Screen, parent: dict | None = None) -> list[Attr]:
     attrs = [Attr('id', screen.data['id'])]
     # a card heads the screen with the label of its item, its `h1`, instead of a title
@@ -471,8 +479,7 @@ def render_list(product: Product, data: dict) -> str:
         attrs += highlight_attrs(screen, spec['highlight'])
     if (empty := screen.text('list', 'empty')) is not None:
         attrs.append(Attr('emptyMessage', empty))
-    screen.code.use('@/bazis/ui/resource-list', 'ResourceList')
-    body = [Jsx('ResourceList', attrs)]
+    body = [component(screen, 'ResourceList', 'ResourceListProps', '@/bazis/ui/resource-list', attrs)]
     if 'map' in spec:
         body.insert(0, list_map(screen, const, spec, opened))
     return screen.write(screen_element(screen, body))
@@ -483,12 +490,11 @@ def list_map(screen: Screen, const: Raw, spec: dict, opened: list[Attr]) -> Jsx:
     The map of the items of a list beside it (`list.map`): those of the filter of the screen,
     the open one selected, a marker opening its card as a row does.
     """
-    screen.code.use('@/bazis/ui/map', 'ResourceMap')
     attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('entity', screen.data['entity'])]
     attrs.append(Attr('field', spec['map']['field']))
     if 'filter' in spec:
         attrs.append(Attr('filter', Raw('FILTER')))
-    return Jsx('ResourceMap', attrs + opened)
+    return component(screen, 'ResourceMap', 'ResourceMapProps', '@/bazis/ui/map', attrs + opened, part='map')
 
 
 def has_display(product: Product, entity_id: str) -> bool:
@@ -599,8 +605,7 @@ def render_card(product: Product, data: dict) -> str:
     if render_props:
         body = Jsx('', [], [*children, *render_props]) if len(children) + len(render_props) > 1 else render_props[0]
         children = [render_prop(render_props, body)]
-    screen.code.use('@/bazis/ui/resource-card', 'ResourceCard')
-    card = Jsx('ResourceCard', attrs, children)
+    card = component(screen, 'ResourceCard', 'ResourceCardProps', '@/bazis/ui/resource-card', attrs, children)
     return screen.write(screen_element(screen, [card], header, product.parent(data)))
 
 
@@ -608,9 +613,9 @@ def screen_element(screen: Screen, body: list, actions=None, parent: dict | None
     """`Screen` with its title, its parent, its description and the actions of its header, then the body and what follows it."""
     screen.code.use('@/bazis/ui/app-shell', 'Screen')
     attrs = screen_attrs(screen, parent)
-    if actions is not None:
+    if (actions := extension_actions(screen, actions)) is not None:
         attrs.append(Attr('actions', actions))
-    return Jsx('Screen', attrs, [*body, *screen.after])
+    return Jsx('Screen', attrs, [*extension_body(screen, body), *screen.after])
 
 
 def card_section(screen: Screen, index: int, section: dict) -> Obj:
@@ -756,21 +761,28 @@ def render_dashboard(product: Product, data: dict) -> str:
     screen = Screen(product, data)
     spec = data['dashboard']
     attrs = screen_attrs(screen)
-    if (actions := header_actions(screen)) is not None:
+    if (actions := extension_actions(screen, header_actions(screen))) is not None:
         attrs.append(Attr('actions', actions))
+    parts = []
     if spec.get('tiles'):
-        attrs.append(Attr('tiles', Arr([tile(screen, i, it) for i, it in enumerate(spec['tiles'])])))
+        parts.append(Attr('tiles', Arr([tile(screen, i, it) for i, it in enumerate(spec['tiles'])])))
     if spec.get('charts'):
         charts = [chart(screen, i, it) for i, it in enumerate(spec['charts'])]
-        attrs.append(Attr('charts', charts[0] if len(charts) == 1 else Jsx('', [], charts)))
+        parts.append(Attr('charts', charts[0] if len(charts) == 1 else Jsx('', [], charts)))
     if spec.get('recent'):
-        attrs.append(Attr('recent', Arr([recent_list(screen, i, it) for i, it in enumerate(spec['recent'])])))
+        parts.append(Attr('recent', Arr([recent_list(screen, i, it) for i, it in enumerate(spec['recent'])])))
+    # the dashboard is the screen: the extension gives it what it shows before its parts and
+    # after them, the props of its parts merged
+    if screen.extended:
+        attrs.append(Attr('before', Raw('extension.before')))
+        dashboard = component(screen, 'Dashboard', 'DashboardProps', '@/bazis/ui/dashboard', parts)
+        return screen.write(Jsx('Dashboard', [*attrs, *dashboard.attrs], [Raw('extension.after'), *screen.after]))
     screen.code.use('@/bazis/ui/dashboard', 'Dashboard')
-    return screen.write(Jsx('Dashboard', attrs, screen.after))
+    return screen.write(Jsx('Dashboard', [*attrs, *parts], screen.after))
 
 
 def tile(screen: Screen, index: int, spec: dict) -> Obj:
-    """A tile counting the items of its filter, with the icon of its entity, opening its list."""
+    """A tile counting the items of its filter, with its icon (that of its entity), opening its list."""
     const = screen.entity(spec['entity'])
     props = [('id', Str(spec['id'])), ('path', Raw(f'{const.code}.path'))]
     if 'filter' in spec:
@@ -778,7 +790,10 @@ def tile(screen: Screen, index: int, spec: dict) -> Obj:
     props.append(('label', screen.text('dashboard', 'tiles', index, 'label')))
     if 'tone' in spec:
         props.append(('tone', Str(spec['tone'])))
-    if spec['entity'] in screen.product.icons:
+    if 'icon' in spec:
+        screen.code.use('lucide-react', icon_name(spec['icon']))
+        props.append(('icon', Raw(icon_name(spec['icon']))))
+    elif spec['entity'] in screen.product.icons:
         props.append(('icon', Raw(f'{const.code}.Icon')))
     if 'open' in spec:
         props.append(('onOpen', Arrow([], screen.go(screen.route(spec['open'])))))
@@ -846,8 +861,9 @@ def render_board(product: Product, data: dict) -> str:
     if 'open' in spec:
         attrs.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
     attrs += entity_attrs(product, entity_id, const, label=False)
-    screen.code.use('@/bazis/ui/resource-board', 'ResourceBoard')
-    board = Jsx('ResourceBoard', attrs)
+    if (empty := screen.text('board', 'empty')) is not None:
+        attrs.append(Attr('emptyMessage', empty))
+    board = component(screen, 'ResourceBoard', 'ResourceBoardProps', '@/bazis/ui/resource-board', attrs)
     if spec.get('move'):
         screen.code.use('@/bazis/ui/board-dnd', 'BoardDnd')
         board = Jsx('BoardDnd', [], [board])
@@ -878,8 +894,8 @@ def render_calendar(product: Product, data: dict) -> str:
         attrs.append(Attr('add', calendar_add(screen, const, spec)))
     if has_display(product, entity_id):
         attrs.append(Attr('display', Raw(f'{const.code}.display')))
-    screen.code.use('@/bazis/ui/resource-calendar', 'ResourceCalendar')
-    return screen.write(screen_element(screen, [Jsx('ResourceCalendar', attrs)], header_actions(screen)))
+    calendar = component(screen, 'ResourceCalendar', 'ResourceCalendarProps', '@/bazis/ui/resource-calendar', attrs)
+    return screen.write(screen_element(screen, [calendar], header_actions(screen)))
 
 
 def calendar_add(screen: Screen, const: Raw, spec: dict) -> Obj:
@@ -909,8 +925,8 @@ def render_form(product: Product, data: dict) -> str:
         attrs.append(Attr('fields', Arr([Str(it) for it in spec['fields']])))
     if 'then' in spec:
         attrs.append(Attr('onSaved', screen.on_saved(spec['then'])))
-    screen.code.use('@/bazis/ui/resource-form', 'ResourceForm')
-    return screen.write(screen_element(screen, [Jsx('ResourceForm', attrs)], header_actions(screen)))
+    form = component(screen, 'ResourceForm', 'ResourceFormProps', '@/bazis/ui/resource-form', attrs)
+    return screen.write(screen_element(screen, [form], header_actions(screen)))
 
 
 RENDERERS = {
@@ -1242,12 +1258,9 @@ def render_tools(product: Product) -> str:
     )
 
 
-
-
 def render(specs: Specs) -> dict[str, str]:
     """
-    The generated files by their path in the frontend, from specs without errors whose
-    screens are all generated or custom (`unsupported` has none).
+    The generated files by their path in the frontend, from specs without errors.
     """
     product = Product(specs)
     files = {

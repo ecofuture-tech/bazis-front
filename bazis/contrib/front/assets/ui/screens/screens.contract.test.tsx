@@ -33,6 +33,7 @@ import {
   useDestroyCardAction,
   UpdateFormAction,
   type CreateFormActionProps,
+  type ScreenExtension,
 } from '@/bazis/ui/screens';
 import { toast } from '@/bazis/ui/state-panel';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
@@ -335,11 +336,9 @@ describe('extended', () => {
             children: (item) => <p data-bz="generated-child">{item.id}</p>,
           },
           {
-            props: {
-              actions: [{ id: 'added', label: 'Added', onClick: added }],
-              children: (item, meta) => <p data-bz="added-child">{meta?.crud_actions?.join(',') ?? item.id}</p>,
-              sections: [{ id: 'other', title: 'Other', fields: ['title'] }],
-            },
+            actions: [{ id: 'added', label: 'Added', onClick: added }],
+            children: (item, meta) => <p data-bz="added-child">{meta?.crud_actions?.join(',') ?? item.id}</p>,
+            sections: [{ id: 'other', title: 'Other', fields: ['title'] }],
           },
         )}
       />,
@@ -362,25 +361,94 @@ describe('extended', () => {
     }
     const node = (props: Props, id: string) =>
       typeof props.children === 'function' ? props.children(id) : props.children;
-    render(<div data-bz="nodes">{node(extended<Props>({ children: 'generated' }, { props: { children: ' added' } }), ITEM_ID)}</div>);
+    render(<div data-bz="nodes">{node(extended<Props>({ children: 'generated' }, { children: ' added' }), ITEM_ID)}</div>);
     expect(screen.getByTestId('nodes').textContent).toBe('generated added');
-    const mixed = extended<Props>({ children: 'generated' }, { props: { children: (id) => ` ${id}` } });
+    const mixed = extended<Props>({ children: 'generated' }, { children: (id) => ` ${id}` });
     render(<div data-bz="mixed">{node(mixed, ITEM_ID)}</div>);
     expect(screen.getByTestId('mixed').textContent).toBe(`generated ${ITEM_ID}`);
   });
 
-  it('joins every kind of actions and keeps the generated props without an extension', () => {
+  it('merges the lists of actions and of tiles by id and the records of the fields by field', () => {
+    interface Item {
+      id: string;
+      label: string;
+    }
     interface Props {
-      rowActions?: readonly string[];
-      bulk?: readonly string[];
-      children?: unknown;
+      actions?: readonly Item[];
+      rowActions?: readonly Item[];
+      bulk?: readonly Item[];
+      tiles?: readonly Item[];
+      cells?: Readonly<Record<string, string>>;
+      values?: Readonly<Record<string, string>>;
+      display?: Readonly<Record<string, string>>;
       columns: readonly string[];
       search?: boolean;
     }
-    const props: Props = { rowActions: ['a'], bulk: ['b'], columns: ['title'], search: true };
-    expect(extended(props, {})).toBe(props);
+    const props: Props = {
+      actions: [{ id: 'create', label: 'Create' }],
+      rowActions: [{ id: 'a', label: 'A' }],
+      bulk: [{ id: 'b', label: 'B' }],
+      tiles: [
+        { id: 'drafts', label: 'Drafts' },
+        { id: 'done', label: 'Done' },
+      ],
+      cells: { status: 'badge' },
+      display: { price: 'money' },
+      columns: ['title'],
+      search: true,
+    };
+    expect(extended(props, undefined)).toBe(props);
     expect(
-      extended<Props>(props, { props: { rowActions: ['c'], bulk: undefined, columns: ['status'], search: undefined } }),
-    ).toEqual({ rowActions: ['a', 'c'], bulk: ['b'], columns: ['status'], search: undefined });
+      extended<Props>(props, {
+        // the action of the specs replaced in its place, not shown twice
+        actions: [
+          { id: 'export', label: 'Export' },
+          { id: 'create', label: 'New task' },
+        ],
+        rowActions: [{ id: 'c', label: 'C' }],
+        bulk: undefined,
+        tiles: [{ id: 'mine', label: 'Mine' }],
+        cells: { title: 'link' },
+        values: { title: 'bold' },
+        display: { price: 'percent' },
+        columns: ['status'],
+        search: undefined,
+      }),
+    ).toEqual({
+      actions: [
+        { id: 'create', label: 'New task' },
+        { id: 'export', label: 'Export' },
+      ],
+      rowActions: [
+        { id: 'a', label: 'A' },
+        { id: 'c', label: 'C' },
+      ],
+      bulk: [{ id: 'b', label: 'B' }],
+      tiles: [
+        { id: 'drafts', label: 'Drafts' },
+        { id: 'done', label: 'Done' },
+        { id: 'mine', label: 'Mine' },
+      ],
+      cells: { status: 'badge', title: 'link' },
+      values: { title: 'bold' },
+      display: { price: 'percent' },
+      columns: ['status'],
+      search: undefined,
+    });
+  });
+
+  it('gives a dashboard, the component that is its screen, the header through its slots only', () => {
+    interface Home {
+      title?: ReactNode;
+      actions?: ReactNode;
+      tiles?: readonly { id: string }[];
+      recent?: readonly { id: string }[];
+      charts?: ReactNode;
+    }
+    const extension: ScreenExtension<Home> = { actions: 'Export', props: { tiles: [{ id: 'mine' }] } };
+    // @ts-expect-error the header of a dashboard is `actions` of the extension, never a prop
+    const header: ScreenExtension<Home> = { props: { actions: 'Export', title: 'Mine' } };
+    expect(extended<Home>({ tiles: [{ id: 'drafts' }] }, extension.props)).toEqual({ tiles: [{ id: 'drafts' }, { id: 'mine' }] });
+    expect(header.props).toBeDefined();
   });
 });

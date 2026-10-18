@@ -1,21 +1,24 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# A dashboard of two entities: a tile of two conditions, one chart by a date, the last items
-# without an order, the create forms of both entities in its header.
+# A dashboard of two entities, extended: a tile of two conditions labelled by a key of the
+# dictionaries of the components, a tile with an icon of its own, one chart by a date, the last
+# items without an order, the create forms of both entities in its header (one shows the
+# card of the saved task, the other the home).
 spec: bazis-screen/1
 id: overview
 title: {en: Overview, ru: Обзор}
 route: /overview
 roles: [manager, viewer]
 primitive: dashboard
+extend: true
 dashboard:
   tiles:
-    - {id: started-reviews, entity: task, filter: {status: in_progress, title: Review the plan}, label: tiles.started_reviews, open: task-list}
-    - {id: steps, entity: step, label: {en: Steps, ru: Шаги}}
+    - {id: started-reviews, entity: task, filter: {status: in_progress, title: Review the plan}, label: async.processing, open: task-list}
+    - {id: steps, entity: step, icon: footprints, label: {en: Steps, ru: Шаги}}
   charts:
     - {id: steps-by-day, entity: step, by: dt_created, kind: line, label: {en: Steps by day, ru: Шаги по дням}}
   recent:
     - {id: steps, entity: step, columns: [title], label: {en: Steps, ru: Шаги}}
   actions:
-    - {id: create-task, primitive: form, entity: task, mode: create, fields: [title], then: task-card}
-    - {id: create-step, primitive: form, entity: step, mode: create, then: home}
+    - {id: create-task, primitive: form, entity: task, mode: create, fields: [title], then: task-card, label: {en: New task, ru: Новая задача}}
+    - {id: create-step, primitive: form, entity: step, mode: create, then: home, label: {en: New step, ru: Новый шаг}}
 states: [loading, error]

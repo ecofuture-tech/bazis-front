@@ -1,7 +1,6 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
 spec: bazis-screen/1
 id: task-card
-title: {en: Task, ru: Задача}
 route: /tasks/:id
 entity: task
 roles: [manager, viewer]

@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A list written by hand in a module of several screens (`custom` with its module and its
+# export), whose card is generated beside it (`/steps/:id`).
+spec: bazis-screen/1
+id: step-list
+title: {en: Steps, ru: Шаги}
+route: /steps
+entity: step
+roles: [manager, viewer]
+primitive: list
+custom: {module: '@/screens/steps', export: StepListScreen}
+list:
+  columns: [title, task]
+  open: step-card
+states: [loading, empty, error, forbidden]

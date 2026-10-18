@@ -22,4 +22,4 @@ export type {
   UpdateFormActionProps,
 } from './actions.js';
 export { extended } from './extension.js';
-export type { ScreenExtension } from './extension.js';
+export type { ExtensionProps, ScreenExtension } from './extension.js';

@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A list without an extension: its map of the items of its filter, its create form (then the
+# list of all the tasks), its bulk action and its status filter.
+spec: bazis-screen/1
+id: task-places
+title: {en: Places, ru: Места}
+route: /places
+entity: task
+roles: [manager, viewer]
+primitive: list
+list:
+  columns: [title, status, priority]
+  filters: [status]
+  filter: {status: draft}
+  open: task-card
+  map: {field: location}
+  bulk:
+    - {id: start-all, transit: start, label: {en: Start, ru: Начать}}
+actions:
+  - {id: create, primitive: form, mode: create, fields: [title], then: task-list, label: {en: New task, ru: Новая задача}}
+states: [loading, empty, error, forbidden]

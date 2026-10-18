@@ -53,20 +53,23 @@ const TilesContext = createContext<MapTiles>(OSM_TILES);
 
 /**
  * The tiles of the maps below it, and the map of the point fields in the forms
- * (`FieldInput`: a click places the point). `points`: the point fields by the path of the
+ * (`FieldInput`: a click places the point). `tiles`: those of a `MapProvider` above it by
+ * default (OpenStreetMap without one), so that the tiles of the product are set once around
+ * the providers that the screens generate. `points`: the point fields by the path of the
  * route set, those of the contract by default.
  */
 export function MapProvider({
-  tiles = OSM_TILES,
+  tiles,
   points = POINT_FIELDS,
   children,
 }: {
-  tiles?: MapTiles;
+  tiles?: MapTiles | undefined;
   points?: Readonly<Record<string, readonly string[]>>;
   children: ReactNode;
 }) {
+  const above = use(TilesContext);
   return (
-    <TilesContext value={tiles}>
+    <TilesContext value={tiles ?? above}>
       <PointsProvider control={MapPointControl} fields={points}>
         {children}
       </PointsProvider>
@@ -158,6 +161,8 @@ export interface LeafletMapProps {
   onPick?: ((point: LatLng) => void) | undefined;
   /** The position of the user, drawn apart. */
   me?: LatLng | null | undefined;
+  /** The tiles of this map, over those of `MapProvider`. */
+  tiles?: MapTiles | undefined;
   className?: string | undefined;
   'data-bz'?: string | undefined;
 }
@@ -168,7 +173,7 @@ const LeafletView = lazy(() => import('./leaflet-map.js'));
 /**
  * A Leaflet map with a marker per point (`marker:<id>`, a button with the label as its name and
  * its title when it opens the item: the keyboard reaches it), fitted to them when they change
- * (not when another one is selected); the tiles of `MapProvider`. Leaflet is loaded with the
+ * (not when another one is selected); its tiles, else those of `MapProvider`. Leaflet is loaded with the
  * first map shown (`aria-busy` meanwhile, and the skeleton `state:loading` in it).
  */
 export function LeafletMap(props: LeafletMapProps) {

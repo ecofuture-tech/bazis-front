@@ -196,7 +196,8 @@ product and kept by `update` at the version of each release, and loaded in a chu
 own with its first view. The components read
 the fields, their titles and what is read-only from the runtime schemas and the actions
 from the permission meta; they are small explicit APIs over the field ids of the specs,
-and the screens are written by the agent from them: there is no generator of screens.
+and the screens are composed from them: generated from the specs (see "Generated screens"),
+or written by hand where the specs do not fit.
 
 ### 4. Specs
 
@@ -225,9 +226,33 @@ The same validation is the system check `front.W002` when `spec/` exists: a warn
 that a spec under construction never blocks `migrate` or `contract`. The format and the
 codes are documented in `bazis/contrib/front/AGENTS.md`.
 
-The specs are written by the agent; there is no generator of screens or of the
-permissions of the roles: the backend is built to satisfy the specs, and the validator
-shows what it lacks.
+The specs are written by the agent; there is no generator of the permissions of the roles:
+the backend is built to satisfy the specs, and the validator shows what it lacks.
+
+### Generated screens
+
+`bazis_front screens` (`spec/screens.py`) writes `frontend/src/screens/generated/` from specs
+without errors: a component per screen, composed from the components as its spec says (a key
+is a prop, nothing inferred), its routes, the navigation, the texts of the specs and the
+providers of the fields, printed in the style of prettier (`spec/tsx.py`) so that `--check`
+and `front.W010` compare them byte for byte without Node; the lock records the hashes of the
+specs and of the files, and an edited file is not overwritten without `--force`. The product
+never edits these files; it has two ways past a spec, both declared in it and checked by
+`check`:
+
+- an **extension** (`extend: true`): `export const extension` of
+  `src/screens/<id>/extend.tsx`, typed by the props of the component of the primitive
+  (`ScreenExtension<ResourceListProps>`). The generated screen renders its slots (`before`,
+  `after`, the `actions` of its header) and merges its props with those of the spec
+  (`extended`: the lists of actions and tiles by id, the records of the fields by field, the
+  children of both; another prop replaces the generated one). It is a constant, not a hook:
+  the hooks of the screen stay generated, and what needs a hook is a component of the product
+  in a slot;
+- a **custom screen** (`custom: true`, or a module and its export): written by hand, routed,
+  linked and translated as the others, the generated cards beside it too.
+
+The generated code is the only implementation of a screen that is not custom (S029), and a
+screen of an item has the item in its route (S038).
 
 ### Design
 
@@ -367,4 +392,5 @@ notifications and the live refetches), the tasks of bazis-bg and the background 
 of bazis-async-request, the layers of the design (palettes, fonts, shapes, surfaces, the
 dark mode), the dashboard, the board and the calendar with the tabs of a card and the bulk
 actions of a list, and the visual check of the screens (`bazis_front shots`, `front.W008`,
-`front.W009`).
+`front.W009`), and the screens generated from the specs with their extensions and the custom
+screens (`bazis_front screens`, `front.W010`).

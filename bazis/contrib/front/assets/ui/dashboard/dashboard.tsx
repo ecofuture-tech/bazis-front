@@ -164,6 +164,8 @@ export interface DashboardProps {
   actions?: ReactNode;
   /** The title, the description and the actions as a hero: a portal (`preset` of the theme) by default. */
   hero?: boolean;
+  /** What the screen shows before its parts (after the hero), such as the extension of a generated screen. */
+  before?: ReactNode;
   tiles?: readonly StatCardProps[];
   /**
    * The links to the screens, the items of the navigation of `AppShell` by default: all but
@@ -187,6 +189,7 @@ export function Dashboard({
   description,
   actions,
   hero = THEME.preset === 'portal',
+  before,
   tiles = [],
   links,
   charts,
@@ -215,6 +218,7 @@ export function Dashboard({
             {actions !== undefined && <div className="flex flex-wrap gap-2">{actions}</div>}
           </header>
         )}
+        {before}
         {tiles.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {tiles.map((it) => (

@@ -155,9 +155,8 @@ def check_screens(app_configs, **kwargs):
     The screens generated in the frontend (when its lock records them: the product generates
     them with `bazis_front screens`) are those of the specs, and the components that they
     import are copied: the comparison of `bazis_front screens --check`, without Node and
-    without the database. Specs with errors are not compared (`front.W002`), nor specs with
-    screens that are not generated yet: the command says which. A frontend made before the
-    screens were generated has none, which its updated template needs.
+    without the database. Specs with errors are not compared (`front.W002`). A frontend made
+    before the screens were generated has none, which its updated template needs.
     """
     from django.conf import settings
 
@@ -176,7 +175,7 @@ def check_screens(app_configs, **kwargs):
     result = validate.validate(root)
     if result.errors:
         return []
-    problems = screens.unsupported(result.specs) or screens.stale(root, frontend, lock, screens.render(result.specs))
+    problems = screens.stale(root, frontend, lock, screens.render(result.specs))
     if problems:
         return [
             Warning(

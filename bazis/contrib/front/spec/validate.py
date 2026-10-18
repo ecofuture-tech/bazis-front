@@ -313,28 +313,121 @@ def text_values(data, path: tuple, at: tuple = ()):
         yield from text_values(data[path[0]], path[1:], (*at, path[0]))
 
 
+def document_texts(data: dict, schema: str):
+    """
+    The texts of a document of a schema that the frontend shows, with their paths: all but the
+    title of a generated card, which the label of its item heads.
+    """
+    shown_title = schema != SCREEN_SCHEMA or data['primitive'] != 'card' or data.get('custom')
+    for path in text_paths(schema):
+        if path != ('title',) or shown_title:
+            yield from text_values(data, path)
+
+
 def check_texts(doc: Document, schema: str, languages: list[str], issues: Issues) -> None:
     """
     Every text of a document is in each language of the product (S027): a map of them, or a
     key of the dictionaries of the frontend (which have every language); a text in words is in
     one language.
     """
-    for path in text_paths(schema):
-        for at, value in text_values(doc.data, path):
-            if isinstance(value, str):
-                if len(languages) < 2 or TEXT_KEY.fullmatch(value):
-                    continue
-                problem = f'The text `{value}` is in one language; the product has {", ".join(languages)}.'
-            else:
-                missing = [it for it in languages if it not in value]
-                if not missing:
-                    continue
-                problem = f'The text has no {", ".join(f"`{it}`" for it in missing)}.'
-            issues.add(
-                doc, at, 'S027', problem,
-                f'Give it in every language of the product: `{{{", ".join(f"{it}: ..." for it in languages)}}}`; '
-                'or a key of the dictionaries of the frontend (`screens.home.title`).',
-            )
+    for at, value in document_texts(doc.data, schema):
+        if isinstance(value, str):
+            if len(languages) < 2 or TEXT_KEY.fullmatch(value):
+                continue
+            problem = f'The text `{value}` is in one language; the product has {", ".join(languages)}.'
+        else:
+            missing = [it for it in languages if it not in value]
+            if not missing:
+                continue
+            problem = f'The text has no {", ".join(f"`{it}`" for it in missing)}.'
+        issues.add(
+            doc, at, 'S027', problem,
+            f'Give it in every language of the product: `{{{", ".join(f"{it}: ..." for it in languages)}}}`; '
+            'or a key of the dictionaries of the frontend (`screens.home.title`).',
+        )
+
+
+def text_key(prefix: str, data, path: tuple) -> str:
+    """
+    The key of the text at a path of a document: the path from the prefix, an item of a list
+    by its id (`group` for a group of the navigation).
+    """
+    parts, node = [prefix] if prefix else [], data
+    for step in path:
+        if isinstance(step, int):
+            item = node[step]
+            parts.append(str(item.get('id', item.get('group', step))) if isinstance(item, dict) else str(step))
+        else:
+            parts.append(step)
+        node = node[step]
+    return '.'.join(parts)
+
+
+def screen_prefix(screen_id: str) -> str:
+    """The prefix of the keys of the texts of a screen: `screens.<id>`."""
+    return f'screens.{screen_id}'
+
+
+#: the dictionaries of the product in its frontend, `<language>.ts` (`index.ts` merges them)
+DICTIONARIES_DIR = 'src/i18n'
+#: the dictionaries of the components (the copy of the asset `i18n`)
+PACKAGE_DICTIONARIES_DIR = 'src/bazis/i18n/messages'
+#: a key of a dictionary as the dictionaries write them, one per line: `'tasks.count': 'Count',`
+DICTIONARY_KEY = re.compile(r"""^\s*(?:'([^'\n]+)'|"([^"\n]+)"|([A-Za-z_$][\w$]*))\s*:(?!:)""", re.M)
+
+
+def dictionary_keys(path: Path) -> set[str]:
+    """The keys of a dictionary of the frontend."""
+    return {next(it for it in found if it) for found in DICTIONARY_KEY.findall(path.read_text(encoding='utf-8'))}
+
+
+def check_dictionaries(root: Path, docs: list[tuple[Document, str]], issues: Issues) -> None:
+    """
+    The texts of the specs against the dictionaries of the frontend, once it has them: a text
+    that is a key is in one of them, the product's or those of the components (S036, else the
+    screen shows the key; a warning: the dictionaries are read as text, and a key that the
+    product builds or keeps elsewhere is not seen, so it never stops `screens`); a key of the texts of the specs in a dictionary of the product
+    (`screens.<id>...`) is that of a text that the specs have (S037, a warning: a key of a
+    screen, a section, a tab or an action that is not there, or of a text that the spec does not
+    give, shows nowhere).
+    """
+    frontend = root / frontend_lock.FRONTEND_DIR
+    if not (frontend / PACKAGE_DICTIONARIES_DIR).is_dir():
+        return
+    product = {
+        path: dictionary_keys(path) for path in sorted((frontend / DICTIONARIES_DIR).glob('*.ts'))
+        if path.name != 'index.ts'
+    }
+    known = set().union(*product.values(), *(
+        dictionary_keys(it) for it in sorted((frontend / PACKAGE_DICTIONARIES_DIR).glob('*.ts'))
+    ))
+    used: set[str] = set()
+    for doc, schema in docs:
+        if not doc.valid:
+            continue
+        prefix = screen_prefix(doc.data['id']) if schema == SCREEN_SCHEMA else ''
+        for at, value in document_texts(doc.data, schema):
+            if not (isinstance(value, str) and TEXT_KEY.fullmatch(value)):
+                used.add(text_key(prefix, doc.data, at))
+                continue
+            used.add(value)
+            if value not in known:
+                issues.add(
+                    doc, at, 'S036',
+                    f'The text is the key `{value}`, which no dictionary of the frontend has.',
+                    f'Add `{value}` to {frontend_lock.FRONTEND_DIR}/{DICTIONARIES_DIR}/<language>.ts of every '
+                    'language of the product, or give the text itself, in every language: `{en: ...}`.',
+                )
+    for path, keys in product.items():
+        doc = Document('screens', path.relative_to(root).as_posix())
+        for key in sorted(keys):
+            if key.startswith('screens.') and key not in used:
+                issues.add(
+                    doc, (), 'S037',
+                    f'`{key}` is the key of a text that the specs do not have: it shows nowhere.',
+                    'Delete it, or give the spec the text that it replaces; the texts of a custom screen or of '
+                    'an extension have keys of their own, outside `screens.`.',
+                )
 
 
 #: the code of the screens of the product in its frontend: `custom`, `extend`
@@ -480,9 +573,11 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     refs.check_navigation(product_doc, screens, product, contract, issues)
     check_screen_code(root, screen_docs, issues)
     languages = product_doc.data.get('languages', []) if product_doc.valid else []
-    for doc, schema in [(product_doc, PRODUCT_SCHEMA), *((it, SCREEN_SCHEMA) for it in screen_docs)]:
+    documents = [(product_doc, PRODUCT_SCHEMA), *((it, SCREEN_SCHEMA) for it in screen_docs)]
+    for doc, schema in documents:
         if doc.valid:
             check_texts(doc, schema, languages, issues)
+    check_dictionaries(root, documents, issues)
     walked = scenarios.check(product_doc, product, screens, issues)
     screened = {
         data['entity'] for data in screens.values()

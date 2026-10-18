@@ -12,18 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The texts of the custom screen of the sample in English (the list of the tasks); those of
+// The texts of the extension of the list of the tasks of the sample in English; those of
 // the specs are generated (`GENERATED_MESSAGES`).
 
 import type { Messages } from '@/bazis/i18n';
 
 export const en: Messages = {
-  'tasks.title': 'Tasks',
-  'tasks.description': 'The tasks of the team, from the draft to the report.',
-  'tasks.new': 'New task',
-  'tasks.new_description': 'The task is created as a draft.',
-  'tasks.empty': 'No tasks yet.',
   'tasks.count': 'Count the tasks',
-  'tasks.no_location': 'No task has a location.',
-  'tasks.start_all': 'Start',
 };

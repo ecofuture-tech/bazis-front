@@ -534,8 +534,7 @@ class Command(BaseCommand):
 
     def render_screens(self) -> dict[str, str]:
         """
-        The generated screens of the specs; fails with the issues of specs with errors, and
-        with the screens that are not generated yet.
+        The generated screens of the specs; fails with the issues of specs with errors.
         """
         result = spec_validate.validate(Path(settings.BASE_DIR))
         if result.errors:
@@ -544,8 +543,6 @@ class Command(BaseCommand):
                 f'The specs have {len(result.errors)} errors: the screens are generated from specs '
                 'that `bazis_front check` accepts.'
             )
-        if problems := spec_screens.unsupported(result.specs):
-            raise CommandError('\n'.join(problems))
         return spec_screens.render(result.specs)
 
     def generate_screens(self, frontend: Path, lock: dict, rendered: dict[str, str], capabilities_of, force=False):

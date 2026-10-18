@@ -29,9 +29,10 @@ SAMPLE_SPEC = Path(__file__).resolve().parent.parent / 'sample' / 'spec'
 SAMPLE_SCREENS = SAMPLE_SPEC.parent / 'frontend-overlay' / 'src' / 'screens'
 
 
-def copy_custom_screens(root: Path) -> None:
+def copy_screen_code(root: Path) -> None:
     """
-    The code of the custom screens of the sample in the frontend of the product root.
+    The code of the screens of the sample (the extension of its list) in the frontend of the
+    product root.
     """
     shutil.copytree(SAMPLE_SCREENS, root / 'frontend' / 'src' / 'screens', dirs_exist_ok=True)
 

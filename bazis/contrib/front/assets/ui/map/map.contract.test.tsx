@@ -260,6 +260,32 @@ describe('ResourceMap', () => {
     expect(await screen.findByTestId('marker:a')).toBeTruthy();
     expect(fake.state.tiles).toEqual([{ url: tiles.url, options: expect.objectContaining({ attribution: 'Example tiles' }) as unknown }]);
   });
+
+  it('draws the tiles of a provider above one without tiles', async () => {
+    const tiles = { url: 'https://tiles.example.test/{z}/{x}/{y}.png', attribution: 'Example tiles' };
+    renderWithBazis(
+      <MapProvider tiles={tiles}>
+        <MapProvider>
+          <ResourceMap path={ITEMS as never} entity="item" field="location" />
+        </MapProvider>
+      </MapProvider>,
+      new Backend().on('GET', ITEMS, items),
+    );
+    expect(await screen.findByTestId('marker:a')).toBeTruthy();
+    expect(fake.state.tiles).toEqual([{ url: tiles.url, options: expect.objectContaining({ attribution: 'Example tiles' }) as unknown }]);
+  });
+
+  it('draws its own tiles over those of the provider', async () => {
+    const tiles = { url: 'https://tiles.example.test/{z}/{x}/{y}.png', attribution: 'Example tiles' };
+    renderWithBazis(
+      <MapProvider tiles={OSM_TILES}>
+        <ResourceMap path={ITEMS as never} entity="item" field="location" tiles={tiles} />
+      </MapProvider>,
+      new Backend().on('GET', ITEMS, items),
+    );
+    expect(await screen.findByTestId('marker:a')).toBeTruthy();
+    expect(fake.state.tiles).toEqual([{ url: tiles.url, options: expect.objectContaining({ attribution: 'Example tiles' }) as unknown }]);
+  });
 });
 
 describe('the map of a point field', () => {

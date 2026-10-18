@@ -17,8 +17,8 @@
 // `AppShell` by default, once the backend allows what they require), the charts it is given, the last
 // items `recent:<id>` (a row `row:<id>` with a cell `cell:<field>` each, sorted and limited,
 // opened by a click, with the states of its list), a state of its own (`state:loaded`, a
-// dashboard of links only), and its children in its screen (where a form page takes the place
-// of its parts). Keep it passing when the component is changed.
+// dashboard of links only), what it is given before its parts, and its children in its screen
+// (where a form page takes the place of its parts). Keep it passing when the component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -133,6 +133,17 @@ describe('Dashboard', () => {
       new Backend(),
     );
     expect(within(screen.getByTestId('screen:home')).getByTestId('in-screen').textContent).toBe('inside');
+  });
+
+  it('shows what it is given before its parts, after its hero', () => {
+    renderWithBazis(
+      <Dashboard hero title="Home" before={<p data-bz="before">Before</p>} tiles={[{ id: 'all', path: ITEMS as never, label: 'All' }]} />,
+      new Backend(),
+    );
+    const home = screen.getByTestId('screen:home');
+    const before = within(home).getByTestId('before');
+    expect(home.querySelector('[data-slot="hero"]')?.compareDocumentPosition(before)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(before.compareDocumentPosition(within(home).getByTestId('tile:all'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 });
 

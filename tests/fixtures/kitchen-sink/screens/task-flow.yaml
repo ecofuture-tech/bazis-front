@@ -1,5 +1,6 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# A board without drag and drop: some of the columns, a create form in its header.
+# A board without drag and drop, extended: some of the columns, its own empty text, a create
+# form in its header that shows the board again.
 spec: bazis-screen/1
 id: task-flow
 title: {en: Flow, ru: Поток}
@@ -7,12 +8,14 @@ route: /flow
 entity: task
 roles: [manager, viewer]
 primitive: board
+extend: true
 board:
   by: status
   columns: [draft, in_progress]
   card: {title: title}
   filters: [status, priority]
   open: task-summary
+  empty: {en: The flow has no tasks yet., ru: В потоке пока нет задач.}
 actions:
   - {id: create, primitive: form, mode: create, fields: [title], then: task-flow, label: {en: New task, ru: Новая задача}}
 states: [loading, empty, error, forbidden]

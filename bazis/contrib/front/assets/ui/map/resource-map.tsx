@@ -26,7 +26,7 @@ import { fieldValue, itemLabel, pointOf, useAnyList, type LatLng } from '@/bazis
 import { StatePanel, errorState } from '@/bazis/ui/state-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { LeafletMap, type MapMarker } from './map.js';
+import { LeafletMap, type MapMarker, type MapTiles } from './map.js';
 
 /** The items a map reads at most, the first page of its list. */
 const MAP_PAGE = 200;
@@ -54,6 +54,8 @@ export interface ResourceMapProps {
   me?: LatLng | null | undefined;
   /** Under the map when no item has a point. */
   emptyMessage?: ReactNode;
+  /** The tiles of the map, over those of `MapProvider`. */
+  tiles?: MapTiles | undefined;
   className?: string | undefined;
 }
 
@@ -72,6 +74,7 @@ export function ResourceMap({
   selected,
   me,
   emptyMessage,
+  tiles,
   className,
 }: ResourceMapProps) {
   const { t } = useLanguage();
@@ -100,7 +103,15 @@ export function ResourceMap({
   }
   return (
     <div className="grid gap-2">
-      <LeafletMap data-bz={`map:${entity}`} markers={markers} selected={selected} onOpen={onOpen} me={me} className={className} />
+      <LeafletMap
+        data-bz={`map:${entity}`}
+        markers={markers}
+        selected={selected}
+        onOpen={onOpen}
+        me={me}
+        tiles={tiles}
+        className={className}
+      />
       {markers.length === 0 && <p className="text-sm text-muted-foreground">{emptyMessage ?? t('map.empty')}</p>}
     </div>
   );

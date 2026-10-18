@@ -641,6 +641,7 @@ def check_screens(
                 'Give every screen its own route.',
             )
         routes.setdefault(data['route'], stem)
+        _check_item_route(doc, issues)
         _check_screen(doc, product, screens, contract, issues)
     if product and product.entities:
         _check_home(docs, routes, issues)
@@ -731,6 +732,28 @@ def _check_requires(
         )
 
 
+def _check_item_route(doc: Document, issues: Issues) -> None:
+    """
+    A generated screen of an item, a card or an update form, has the id of its item in its
+    route, `:id` (S038): a screen opens it with the id of the item (`routeTo`), and the
+    screen reads it there. A custom one finds its item itself (`/me`, the card of the user).
+    """
+    data = doc.data
+    primitive = data['primitive']
+    if data.get('custom') or primitive == 'form' and data['form']['mode'] != 'update' or primitive not in (
+        'card', 'form'
+    ):
+        return
+    if ':id' in data['route'].split('/'):
+        return
+    shows = 'A card shows' if primitive == 'card' else 'An update form changes'
+    issues.add(
+        doc, ('route',), 'S038', f'{shows} the item of its route, and `{data["route"]}` has no `:id`.',
+        'Add `/:id` to the route (`/tasks/:id`: the card of the list `/tasks` is shown beside it), or declare '
+        'the screen `custom: true` when it finds its item itself.',
+    )
+
+
 def _check_home(docs: list[Document], routes: dict[str, str], issues: Issues) -> None:
     """
     The home of the frontend (S026, a warning) of a product that declares entities: the
@@ -775,10 +798,12 @@ def _check_screen(
             f'Add {", ".join(missing)} to `states` and render them (`data-bz="state:<state>"`).',
         )
     _check_screen_refs(doc, screens, issues)
+    _check_create_labels(doc, issues)
     if primitive == 'card' and 'tabs' in data['card']:
         _check_tabs(doc, issues)
     if product is None:
         return
+    _check_thens(doc, screens, product, issues)
     for i, role in enumerate(data.get('roles', [])):
         if role not in product.roles:
             issues.add(
@@ -801,6 +826,8 @@ def _check_screen(
         checks[primitive](doc, entity, issues)
     resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
     if resource is not None:
+        if primitive == 'calendar' and 'add' in section:
+            _check_calendar_add(doc, section, resource, issues)
         _check_queries(doc, (primitive,), section, entity, resource, issues)
         _check_search_contract(doc, entity, resource, contract, issues)
     _check_related_sections(doc, entity, product, screens, contract, issues)
@@ -862,6 +889,8 @@ def _check_dashboard(doc: Document, product: Product, screens: dict, contract: d
         for i, part in enumerate(doc.data['dashboard'].get(key, []))
     ]
     for path, key, part in parts:
+        if 'icon' in part:
+            check_icon(doc, (*path, 'icon'), part['icon'], issues)
         entity = _screen_entity(doc, (*path, 'entity'), part['entity'], product, issues)
         if entity is None:
             continue
@@ -1033,6 +1062,62 @@ def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
         issues.add(
             doc, ('calendar', 'tone', 'field'), 'S023', f'The tone is by `{tone}`, not a boolean field.',
             'Give the tone a boolean field (`is_overdue`): its items are in the tone while it is true.',
+        )
+
+
+def _check_calendar_add(doc: Document, calendar: dict, resource: dict, issues: Issues) -> None:
+    """
+    The add of a calendar opens the create form with the selected day in the field of the
+    calendar: the create route of the entity must take that field, or the day is lost (S034).
+    """
+    field = calendar['field']
+    if field in resource['create']:
+        return
+    problem = (
+        f'The add of the calendar creates the item on the selected day, in `{field}`, which the create '
+        'route of its resource does not take (the backend sets it itself): the day is lost.'
+        if resource['create'] else 'The add of the calendar creates an item, and its resource has no create route.'
+    )
+    issues.add(
+        doc, ('calendar', 'add'), 'S034', problem,
+        'Show the items on the days of a date that the create takes (a due date), or remove `add`.',
+    )
+
+
+def _label_text(label) -> object:
+    """A text of the specs, comparable: a map of the languages as its items."""
+    return tuple(sorted(label.items())) if isinstance(label, dict) else label
+
+
+def _check_create_labels(doc: Document, issues: Issues) -> None:
+    """
+    The buttons that open the create forms of a screen (its create actions, the add of a
+    calendar) are told apart by their labels (S035, a warning): none has the label of another
+    (without one, every create says `Create`), and on a dashboard, which shows several
+    entities, each has a label of its own.
+    """
+    data = doc.data
+    buttons = [
+        (path, action) for path, action in screen_actions(data)
+        if action['primitive'] == 'form' and action.get('mode') == 'create'
+    ]
+    if data['primitive'] == 'calendar' and 'add' in data['calendar']:
+        buttons.append((('calendar', 'add'), data['calendar']['add']))
+    seen: dict[object, str] = {}
+    for path, action in buttons:
+        label = _label_text(action.get('label'))
+        if label is None and data['primitive'] == 'dashboard':
+            problem = f'The create action `{action["id"]}` has no label: on a dashboard, `Create` does not say what it creates.'
+        elif (other := seen.setdefault(label, action['id'])) != action['id']:
+            problem = (
+                f'The create actions `{other}` and `{action["id"]}` have the same label'
+                + (' (none: both say `Create`).' if label is None else '.')
+            )
+        else:
+            continue
+        issues.add(
+            doc, path, 'S035', problem,
+            'Give each create action a label of its own, in every language of the product: `label: {en: New task}`.',
         )
 
 
@@ -1253,7 +1338,14 @@ def _check_screen_refs(doc: Document, screens: dict, issues: Issues) -> None:
                 'Give the action of "add" an id of its own.',
             )
         renamed(path, action_id)
-    for path, target, kind in _targets(data):
+    _check_targets(doc, screens, issues)
+
+
+def _check_targets(doc: Document, screens: dict, issues: Issues) -> None:
+    """
+    The screens that a screen opens exist and are of the primitive that opens them (S006).
+    """
+    for path, target, kind in _targets(doc.data):
         if target not in screens:
             issues.add(
                 doc, path, 'S006', f'The screen `{target}` does not exist.',
@@ -1264,6 +1356,41 @@ def _check_screen_refs(doc: Document, screens: dict, issues: Issues) -> None:
                 doc, path, 'S006', f'The screen `{target}` is not a {kind}.',
                 f'Use a {kind} screen of the entity.',
             )
+        elif kind == 'card' and (card := screens[target]) is not None and card.get('custom') and ':id' not in card['route'].split('/'):
+            # a generated card without `:id` is S038; a custom one finds its item itself, and
+            # `routeTo` has nowhere to put the id of the item opened
+            issues.add(
+                doc, path, 'S006',
+                f'The card `{target}` is opened with an item, and its route `{card["route"]}` has no `:id`.',
+                f'Open a card with `:id` in its route, or remove `open` (`{target}` finds its item itself).',
+            )
+
+
+def _check_thens(doc: Document, screens: dict, product: Product, issues: Issues) -> None:
+    """
+    The screen of an item shown after a form is that of the saved item, a card of its entity;
+    none is shown after a deletion, which leaves no item (S006).
+    """
+    data = doc.data
+    # the screens after the forms and the actions, with the entity of the item that they save
+    thens = [(('form', 'then'), data['form']['then'], data['entity'])] if 'then' in data.get('form', {}) else []
+    thens += [
+        ((*path, 'then'), action['then'], None if action['primitive'] == 'destroy' else action.get('entity', data.get('entity')))
+        for path, action in screen_actions(data) if 'then' in action
+    ]
+    for path, target_id, saved in thens:
+        target = screens.get(target_id)
+        if target is None or ':' not in target['route'] or saved is not None and saved not in product.entities:
+            continue
+        shows = f'The screen `{target_id}` shows an item (`{target["route"]}`)'
+        if saved is None:
+            problem, hint = f'{shows}, and the deletion leaves none.', 'Show a screen without an item: a list of the entity.'
+        elif target['primitive'] != 'card' or target.get('entity') != saved:
+            problem = f'{shows}: after the form, it is that of the saved item, and it is not a card of `{saved}`.'
+            hint = f'Show the card of `{saved}`, or a screen without an item.'
+        else:
+            continue
+        issues.add(doc, path, 'S006', problem, hint)
 
 
 def _added_actions(data: dict) -> list[tuple[tuple, str]]:
