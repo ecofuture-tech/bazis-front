@@ -106,6 +106,18 @@ function dayOfRun(day: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * A value of `fill` for an input of a date or a date-time: `today`, `today+<n>` or
+ * `today-<n>` as in `expectDay`, followed by ` HH:MM` for a date-time (`today 10:30`); any
+ * other value as it is (`2030-03-04`, `2030-03-04T10:00`).
+ */
+function dateOfRun(value: string): string {
+  const relative = /^(today(?:[+-]\d+)?)(?: (\d{2}:\d{2}))?$/.exec(value);
+  if (relative === null) return value;
+  const [, day = 'today', time] = relative;
+  return time === undefined ? dayOfRun(day) : `${dayOfRun(day)}T${time}`;
+}
+
 /** The languages that `language` goes through before it gives up. */
 const MAX_LANGUAGES = 20;
 
@@ -243,7 +255,8 @@ export class App<P extends Product = Product> {
    * label of the item, searched in its popup, null by its option that clears the value; the
    * picker of a to-many relationship by the list of the labels of its items, which replace
    * those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by
-   * true or false.
+   * true or false; an input of a date or a date-time also by a day of the run (`today`,
+   * `today+1 10:30`: `dateOfRun`).
    */
   async fill(values: FormValues): Promise<void> {
     const form = this.form();
@@ -262,6 +275,7 @@ export class App<P extends Product = Product> {
       } else if (kind === 'checkbox') await control.setChecked(value === true);
       else if (kind === 'select') await control.selectOption(value === null ? { value: '' } : { label: String(value) });
       else if (kind === 'combobox') await this.choose(control, value);
+      else if (kind === 'date' || kind === 'datetime-local') await control.fill(value === null ? '' : dateOfRun(String(value)));
       else await control.fill(value === null ? '' : String(value));
     }
   }

@@ -275,6 +275,24 @@ test.describe('fill of a date-time', () => {
       '2030-03-04T10:00:00.000Z',
     );
   });
+
+  test('takes a day of the run, as expectDay', async ({ page }) => {
+    const form = `<form><input type="datetime-local" data-bz="field:dt_start"><input type="date" data-bz="field:day">
+      <button type="submit" data-bz="action:submit">Save</button></form>`;
+    await show(page, '/tasks', html(`<section data-bz="screen:task-list"><div data-bz="state:loaded">${form}</div></section>`));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    const day = (shift: number) => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() + shift);
+      return date.toISOString().slice(0, 10);
+    };
+    await app.fill({ dt_start: 'today 10:30', day: 'today+1' });
+    await expect(page.locator(bz('field', 'dt_start'))).toHaveValue(`${day(0)}T10:30`);
+    await expect(page.locator(bz('field', 'day'))).toHaveValue(day(1));
+    await app.fill({ dt_start: 'today-2 08:05' });
+    await expect(page.locator(bz('field', 'dt_start'))).toHaveValue(`${day(-2)}T08:05`);
+  });
 });
 
 test('fill chooses the item of a combobox by its label, null by the option that clears it', async ({ page }) => {
