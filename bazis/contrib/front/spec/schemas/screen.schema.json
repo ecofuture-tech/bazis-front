@@ -82,8 +82,15 @@
             "label": {"$ref": "#/$defs/label"}
           }
         },
+        "row_actions": {
+          "description": "The custom actions of the screen (`actions`, `primitive: custom`, of an item) run on each row, a button `action:<id>` in it; the other actions of a list are those of its toolbar.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
         "bulk": {
-          "description": "The actions on the rows that the user selects (`select:<id>`), each item in turn: a transition of the workflow of the entity (one without a payload, S025) or the deletion; the button `bulk:<id>`, shown while rows are selected, asks to confirm (`action:confirm-bulk`).",
+          "description": "The actions on the rows that the user selects (`select:<id>`), each item in turn: a transition of the workflow of the entity (one without a payload, S025), the deletion, or a custom action of an item (one whose body needs nothing, S032); the button `bulk:<id>`, shown while rows are selected, asks to confirm (`action:confirm-bulk`).",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -94,9 +101,10 @@
               "id": {"$ref": "#/$defs/id"},
               "transit": {"description": "The id of a transition of the workflow.", "$ref": "#/$defs/id"},
               "primitive": {"const": "destroy"},
+              "action": {"description": "A custom action of an item, run with an empty body: its name in its path, as `custom_actions` of the contract has it.", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
               "label": {"description": "The label of its button.", "$ref": "#/$defs/text"}
             },
-            "oneOf": [{"required": ["transit"]}, {"required": ["primitive"]}]
+            "oneOf": [{"required": ["transit"]}, {"required": ["primitive"]}, {"required": ["action", "label"]}]
           }
         }
       }
@@ -416,23 +424,38 @@
     },
     "label": {"description": "A key of the dictionaries of the frontend, or a text: never the color alone.", "$ref": "#/$defs/text", "minLength": 1},
     "action": {
-      "description": "`form`: a form of the entity (create on a list or a card, update on a card); `destroy`: the deletion of the item of a card.",
+      "description": "`form`: a form of the entity (create on a list or a card, update on a card); `destroy`: the deletion of the item of a card; `custom`: a custom action of the route set of the entity (`custom_actions` of its resource in the contract, a POST), of the item of a card, of each row of a list (an action of an item) or of the toolbar of a list (an action of the route set).",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "primitive"],
       "properties": {
         "id": {"$ref": "#/$defs/id"},
-        "primitive": {"enum": ["form", "destroy"]},
+        "primitive": {"enum": ["form", "destroy", "custom"]},
         "mode": {"enum": ["create", "update"]},
-        "fields": {"$ref": "#/$defs/fields"},
+        "fields": {"description": "The fields of a form; of a custom action, the properties of its JSON body that its dialog asks for (none: an empty body).", "$ref": "#/$defs/fields"},
+        "action": {"description": "The custom action: its name in its path (`escalate` of `/tasks/task/{id}/escalate/`), as `custom_actions` of the contract has it.", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+        "confirm": {"description": "Whether a custom action without `fields` is confirmed in a dialog first (`action:confirm-<id>`).", "type": "boolean"},
+        "message": {"description": "What the toast says once a custom action is done: `Done` by default.", "$ref": "#/$defs/text"},
         "then": {"description": "The screen shown after the action.", "$ref": "#/$defs/id"},
         "label": {"description": "The label of its button, also the title of its form.", "$ref": "#/$defs/text"},
-        "title": {"description": "The title of the confirmation of a deletion, a question (`Delete the book?`): `Delete this item?` by default.", "$ref": "#/$defs/text"},
-        "description": {"description": "The description of its form, or of the confirmation of a deletion.", "$ref": "#/$defs/text"}
+        "title": {"description": "The title of the confirmation of a deletion, a question (`Delete the book?`): `Delete this item?` by default; the title of the dialog of a custom action: its label by default.", "$ref": "#/$defs/text"},
+        "description": {"description": "The description of its form, of the confirmation of a deletion, or of the dialog of a custom action.", "$ref": "#/$defs/text"}
       },
-      "if": {"properties": {"primitive": {"const": "form"}}},
-      "then": {"required": ["mode"], "properties": {"title": false}},
-      "else": {"properties": {"mode": false, "fields": false}}
+      "allOf": [
+        {
+          "if": {"properties": {"primitive": {"const": "form"}}},
+          "then": {"required": ["mode"], "properties": {"title": false}}
+        },
+        {
+          "if": {"properties": {"primitive": {"const": "destroy"}}},
+          "then": {"properties": {"mode": false, "fields": false}}
+        },
+        {
+          "if": {"properties": {"primitive": {"const": "custom"}}},
+          "then": {"required": ["action", "label"], "properties": {"mode": false, "then": false}},
+          "else": {"properties": {"action": false, "confirm": false, "message": false}}
+        }
+      ]
     }
   }
 }

@@ -27,4 +27,7 @@ test('viewer-only-reads', async ({ page }) => {
   await test.step('expect: {action_absent: add-step}', async () => {
     await app.expectActionAbsent('add-step');
   });
+  await test.step('expect: {action_absent: escalate}', async () => {
+    await app.expectActionAbsent('escalate');
+  });
 });

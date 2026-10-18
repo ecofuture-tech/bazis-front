@@ -123,7 +123,7 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 |---|---|
 | The frontend | you create the frontend (`init`), need the files of `frontend/` and who changes them, the npm commands, the lock, `status` |
 | The specs | you write `spec/product.yaml`: the roles, entities, fields, workflows, access (with the permissions it requires), scenarios and their steps |
-| The specs of the screens and the design | you write `spec/screens/<id>.yaml` (list, card, form, dashboard, board, calendar, `card.related`, `card.tabs`, `list.filter`, `list.map`, `list.bulk`), which primitive a part of the product takes, the `data-bz` marks, `spec/design/theme.yaml` |
+| The specs of the screens and the design | you write `spec/screens/<id>.yaml` (list, card, form, dashboard, board, calendar, `card.related`, `card.tabs`, `list.filter`, `list.map`, `list.bulk`, the custom actions), which primitive a part of the product takes, the `data-bz` marks, `spec/design/theme.yaml` |
 | The issues of check | `bazis_front check` reports a code (`C…`, `P…`, `S…`, `D…`) |
 | The backend of a product | you build the backend the frontend relies on: the declared roles and workflows, the test data, the changes and the notifications, the invariants, the labels |
 | The contract | you export the contract or read `contract.json` and `contract.ts` (`ROUTES`, `CAPABILITIES`, the sections of the capabilities) |
@@ -512,12 +512,15 @@ dashboard a row of its last items, `open_item: {in: <recent>, where: {...}}`),
 `select: {where: {...}}` and `bulk: <id>` (rows of a list with `bulk` selected, then a bulk
 action run on them; P022 without a selection), `move: {where: {...}, to: <status>}` (an item
 of a board with `move: true` moved to a column that a transition without a payload leads to:
-P024), `action: <action of the screen>`,
+P024), `action: <action of the screen>` (a custom action, `primitive: custom`, only on a
+card: P022; one with `fields` opens its dialog, filled with `fill` and run with `submit`,
+P023 for a property it does not ask for; one with `confirm: true` is confirmed),
 `fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
 `edit: true`; a `file` field is uploaded, a file of `e2e/fixtures/` of the frontend,
 never filled: P022; a to-many relationship, `many: true`, is filled with the list of the
 labels of its items, `fill: {interviewers: [Ann Lee, Bob Stone]}`, which replace those it
-had, `[]` for none: P022 for one value), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
+had, `[]` for none: P022 for one value; a date or a date-time takes a day of the run too,
+`today`, `today+3`, `today-1 10:30`, in UTC, as `day`), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
 `transitions: true`), `expect` with `screen`, `status`, `state`, `action_absent`,
 `field_readonly`, `field_absent` (a field the screen shows that the user may not see:
 not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
@@ -647,10 +650,39 @@ card:
 
 A `form` screen has `form: {mode: create | update, fields, then}`. Actions are `form`
 (`mode: create` on a list, a card, a board or a calendar, `mode: update` on a card) and
-`destroy` (on a card). The states that a primitive must render are required (S009): list
+`destroy` (on a card), and `custom` (on a list or a card, see below). The states that a primitive must render are required (S009): list
 `loading, empty, error, forbidden`; card `loading, error, forbidden, not_found`; form
 `loading, error, forbidden, invalid`; dashboard `loading, error`; board and calendar
 `loading, empty, error, forbidden`.
+
+#### Custom actions of the specs
+
+A **custom action** (`primitive: custom`) is a button that calls a custom action of the route
+set of the entity, a POST declared with `http_post` (`custom_actions` of its resource in the
+contract, with the JSON Schemas of its body and response): `action` is its name in its path
+(`escalate` of `/{item_id}/escalate/`), `label` its button (required). On a card it is an
+action of the item; on a list an action of the route set in the toolbar, or one of an item on
+each row when its id is in `list.row_actions`; `list.bulk` runs one of an item on the
+selected rows (`{id, action, label}`) with an empty body. `fields` are the properties of its
+body that its dialog asks for (a property named as a field of the entity takes its title and
+the labels of its choices), `confirm: true` confirms one without fields in a dialog (`title`,
+`description`), `message` is the toast once it is done; the queries of the resource are
+refetched. The button shows when the backend lets the user run it: on a card and in the
+toolbar by `custom_actions` of the meta of bazis-permit, on the rows and in a bulk action
+when the row may be changed (or deleted) as its `access_action` requires. S032 checks it
+against the contract; an action declared with GET reads and belongs to an extension
+(`useActionQuery`), what the contract cannot say (its response shown, a task followed) too:
+
+```yaml
+actions:
+  - id: escalate
+    primitive: custom
+    action: escalate
+    label: {en: Escalate, ru: Эскалировать}
+    fields: [priority]             # the properties of its body asked for
+    message: {en: Escalated, ru: Эскалирована}
+# a list: row_actions: [escalate], bulk: [{id: escalate-all, action: escalate, label: Escalate}]
+```
 
 #### Texts
 
@@ -769,8 +801,9 @@ card:
 
 A list acts on the rows that the user selects with `bulk`: a transition of the workflow of
 the entity (one without a payload, S025; one with a payload is run on the card of each
-item) or the deletion, `primitive: destroy`. The screen runs it on each selected item in
-turn (a transit or a delete per item, bazis-bulk is not needed) after a confirmation; it
+item), the deletion, `primitive: destroy`, or a custom action of an item, `action` (with an
+empty body, see [Custom actions of the specs](#custom-actions-of-the-specs)). The screen runs it on each selected item in
+turn (a transit, a delete or an action per item, bazis-bulk is not needed) after a confirmation; it
 reads nothing per item first: the backend refuses an item it does not allow (a transition
 its status does not have now), which stays selected, with the error shown (`error:bulk`):
 
@@ -884,6 +917,7 @@ states: [loading, empty, error, forbidden]
 | a date or a date-time field of a term (`due_*`, a planned `*_at`) | a `calendar` too, by that field |
 | a card with two related sections or more, or a history | `card.tabs` |
 | a list whose items are transited | `list.bulk` with the transitions without a payload |
+| a custom action of the route set (`custom_actions` of the contract, POST) | `primitive: custom` on the card, in `list.row_actions` or `list.bulk` for an action of an item; in the toolbar of the list for one of the route set |
 
 #### `data-bz`
 
@@ -892,7 +926,8 @@ states: [loading, empty, error, forbidden]
 `list:<entity>`, `row:<id>` (its cells `cell:<column>`), `field:<field>`,
 `error:<field>`, `upload:<field>` (a file field, `aria-busy` while its file uploads; the
 input of the file is its `field:<field>`), `file:unavailable` (a file the user may not
-read), `action:<id>`, `transit:<id>`, `status:<id>`,
+read), `action:<id>` (in a row too: a row action), its confirmation `action:confirm-<id>`
+(a destroy action, a custom action with `confirm`), `transit:<id>`, `status:<id>`,
 `nav:<screen>`, `map:<entity>` with `marker:<id>` (`list.map`); `select:<id>` (a row,
 `select:all` the rows of the page), `bulk:<id>`, its confirmation `action:confirm-bulk` and
 its failures `error:bulk` (`list.bulk`); `tab:<id>` (`role="tab"`, its panel, `role="tabpanel"`
@@ -1007,7 +1042,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S007` | error | a screen references a field that its entity does not declare |
 | `S008` | error | a filter or a sort field cannot be filtered or sorted by in the contract |
 | `S009` | error | a state required by the primitive is missing |
-| `S010` | error | an action is not valid: a duplicate id (`edit` on a card with `edit: true`, which is its edit), or not possible on the primitive |
+| `S010` | error | an action is not valid: a duplicate id (`edit` on a card with `edit: true`, which is its edit), or not possible on the primitive (a custom action is one of a list or a card), or a row action (`list.row_actions`) is not a custom action of the screen |
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
@@ -1029,7 +1064,8 @@ warning there, never blocking `migrate` or `contract`.
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`) |
 | `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
-| `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`) |
+| `S032` | error | a custom action (`primitive: custom`) or a custom bulk action is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list; or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
+| `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`), or two custom bulk actions of a list |
 | `S034` | error | the add of a calendar creates the item on the selected day, in a field that the create route of its resource does not take (a date that the backend sets, such as that of the creation: the day is lost), or the resource has no create route |
 | `S035` | warning | the buttons of the create forms of a screen cannot be told apart: two create actions (or the add of a calendar) with the same label, or without one (both say `Create`), or a create action of a dashboard without a label |
 | `S036` | warning | a text of the specs is a key that no dictionary of the frontend has (src/i18n/<language>.ts of the product, nor those of the components): the screen would show the key, unless the product gives it otherwise (the dictionaries are read as text) |
@@ -1475,7 +1511,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `task-progress` | `TaskProgress` (the task of its `id`), `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult` (`start`: what `useAsyncRequest` resolved to), `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
 | `map` | `ResourceMap` (`list.map`: the items with a point in `field`), `MapProvider` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
-| `screens` (copied with the generated screens) | the parts of the generated screens: `ScreenAction` (an action in the header of a screen, shown when its `requires` is allowed), `CreateFormAction` (the create form of an action, `CreateFormAction.use()` its state), `useDestroyCardAction` (the delete of a card: its `action` and its confirmation `confirm`), `extended` and `ScreenExtension` (the extension of a screen, `extend`) | `action:<id>`, `action:confirm-<id>` (the confirmation of a delete), the marks of `FormSurface` and `ResourceForm` | |
+| `screens` (copied with the generated screens) | the parts of the generated screens: `ScreenAction` (an action in the header of a screen, shown when its `requires` is allowed), `CreateFormAction` (the create form of an action, `CreateFormAction.use()` its state), `useDestroyCardAction` (the delete of a card: its `action` and its confirmation `confirm`), `useCustomAction` (a custom action of the route set: its `action` of a card or of the toolbar of a list, `row`, `bulk` and its `dialog`), `extended` and `ScreenExtension` (the extension of a screen, `extend`) | `action:<id>`, `action:confirm-<id>` (the confirmation of a delete or of a custom action), `action:submit` and `action:cancel` (the dialog of a custom action with fields, its fields `field:<property>`), the marks of `FormSurface` and `ResourceForm` | |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -1529,7 +1565,7 @@ of the specs and the paths of `ROUTES`.
 | a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
 | a field `type: file` (bazis-uploadable) | shown by the components (its name downloads it, a thumbnail of an image, both read with the token from its download route); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes ("Files, points and maps") |
 | a field `type: point`, `list.map: {field}` | shown as its coordinates (`55.7558, 37.6173`) and edited as them in the forms, on a map too once `MapProvider` of `@/bazis/ui/map` wraps the routes; `ResourceMap` of `@/bazis/ui/map` beside the `ResourceList` of the screen, with its `filter` ("Files, points and maps") |
-| an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
+| an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | `primitive: custom` in the spec when a button, its fields and its toast say it all ("Custom actions of the specs"); else a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
 | `card.tabs` | `tabs` of `ResourceCard`: `{id, title, sections: [...]}`, a related section or the history as its `content` (`(item, meta) => <RelatedList …/>`, `(item) => <StatusHistory resource={item} />`); the `TransitBar` in the `children`, above the tabs |
 | `list.bulk` (a transition, a deletion) | `bulk` of `ResourceList`: `{id, label, run: (id) => transit.mutateAsync({id, transit: '<transit>'})}` with `const transit = useItemsTransit(path)` of `@/bazis/react/statusy`, or `run: (id) => destroy.mutateAsync(id)` with `permission: 'delete'` |
 | `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
@@ -1539,6 +1575,7 @@ of the specs and the paths of `ROUTES`.
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, titled by `title` of the action, a question, `Delete this item?` by default, and saying its `description`: the deletion runs once confirmed) |
+| an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`path`, `action`, `item` of a card, `fields`, `confirm`, `message`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
 | `states` | the components render them (`state:<state>`); `StatePanel` of `@/bazis/ui/state-panel` for a screen of your own |
 
 ```tsx
@@ -2066,7 +2103,9 @@ The responses carry no distance: show it from both points if the screen needs it
 ### Custom actions
 
 **Custom actions** (a route of a route set declared with `@http_post('/<name>/')`, kind
-`other` in `actions` of the contract: an export, a report, a recount): call them with
+`other` in `actions` of the contract: an export, a report, a recount): a button that asks
+for some properties of its body and says it is done is `primitive: custom` of the specs
+(see [Custom actions of the specs](#custom-actions-of-the-specs)); in the code of a screen, call them with
 `useAction(path, '<name>')` of `@/bazis/react` (`mutate(body)`; `useItemAction` for
 `<path><id>/<name>/`, `method` for another method than POST), typed by `schema.d.ts`
 (an action declared with `@http_get` that a screen shows is read with `useActionQuery`
@@ -2496,8 +2535,8 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `select: {where}` | `select({where})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
   | `bulk: <id>` | `bulk(id)`: `bulk:<id>` of the screen, then `action:confirm-bulk` of its confirmation; waits until it is no longer offered (the selection is cleared) or an error is shown (`error:bulk`) |
   | `move: {where, to}` | `move({where, to})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>`; waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
-  | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog); then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
+  | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog), and so is a custom action with `confirm: true`; one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
+  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, count)` (`data-value` of `tile:<id>`, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
@@ -3443,7 +3482,7 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
   its screens use them, and remove the keys that no screen reads once they are generated (the
   texts of a generated screen are those of its spec, in `GENERATED_MESSAGES`).
 - `contract.json` is of format 6 (`create`, the fields of the create route of a resource,
-  which the generated forms take): export the contract again after `npm install`; `update`
+  which the generated forms take, and `custom_actions`, the custom actions of its route set): export the contract again after `npm install`; `update`
   says so, and `check` reports `C002` until then.
 - `screens` copies the components that the generated screens import and the frontend lacks
   (`calendar` and `date-picker` for the dates of the forms) and sets their npm dependencies
@@ -3486,8 +3525,11 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
     day of a date as before, the start of the day in the time zone of the browser (ISO) of
     a date-time instead of the day; give it to the form as `initial` (the user may change
     it), not `fixed`.
-  - New: `@/bazis/ui/screens` (the actions and the extensions of the generated screens),
-    `useErrorMessage` and the type `DestroyPath` of `@/bazis/react`, `errorText` of the
+  - `permission` of a `ListAction` and of a `CardAction` also takes the name of a custom
+    action (`action_<name>`), allowed by `custom_actions` of the meta.
+  - New: `@/bazis/ui/screens` (the actions and the extensions of the generated screens,
+    `useCustomAction`), `customActionAt`, `useAnyAction` and `useAnyItemAction` of
+    `@/bazis/ui/resource`, `useErrorMessage` and the type `DestroyPath` of `@/bazis/react`, `errorText` of the
     client, `useBesideList`, `NavEntry` and `NavGroup` of `@/bazis/ui/app-shell` (`items`
     of `AppShell` takes groups of links; `useNavItems` still gives the links), `initial` of
     `useResourceForm` and `ResourceForm`, `fieldTitle` of `@/bazis/ui/resource`.
@@ -5113,6 +5155,10 @@ Its props, `ItemValueProps`:
 
 `choiceOptions(field: FormField | undefined): { value: string; label: string; }[] | null`: The choices of an attribute with choices as options (the value as text, the label of `enumDict`, else the value), in their order; null for another field.
 
+#### customActionAt
+
+`customActionAt(path: string, name: string): (ContractCustomAction & { readonly key: CustomActionName; }) | undefined`: The custom action `name` (its name in the path) of the route set of `path` in the contract, with its name in the permission meta (`action_<name>` of `custom_actions`); undefined when the contract does not have it.
+
 #### fieldTitle
 
 `fieldTitle(path: string, name: string, title?: string): string`: The title of a field of the route set of `path`: that of its runtime schema (`title`), else that of the contract, else its name as words; never a name of the code.
@@ -5192,6 +5238,16 @@ Its props, `ItemValueProps`:
 #### workflowStatuses
 
 `workflowStatuses(type: string): readonly string[]`: The statuses of a statusy model in the order of its workflow (the contract sorts them by id): the initial one, then those its transits reach, in the order of the transits; the statuses no transit reaches last.
+
+#### ContractCustomAction
+
+`interface ContractCustomAction`: A custom action of a route set in the contract (`custom_actions` of its resource).
+
+- `readonly name: string`: Its name in the path: `<path><name>/`, or `<path><id>/<name>/` for an item.
+- `readonly item: boolean`: Whether it is an action of an item.
+- `readonly method: string`
+- `readonly access_action: string | null`: What the route requires of the user on the item (`change`), null for nothing more than the route.
+- `readonly body: JsonSchema | null`: The JSON Schema of its body, null without one.
 
 #### Fields
 
@@ -5420,8 +5476,10 @@ Its props, `RelationPickerProps`:
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
+- `useAnyAction: (path: string, name: string) => ActionMutation<unknown, Readonly<Record<string, unknown>>>`: `useAction(path, name)`: a custom action of the route set (POST), `mutateAsync(body)`.
 - `useAnyFilterFields: (path: string) => UseQueryResult<FilterFieldsDocument>`: `useFilterFields(path)`.
 - `useAnyItem: (path: string, id: string, query?: Pick<QueryOptions, "include" | "fields" | "meta"> | undefined) => UseQueryResult<ItemDocument>`: `useItem(path, id, query)`.
+- `useAnyItemAction: (path: string, name: string) => ActionMutation<unknown, { id: string; body: Readonly<Record<string, unknown>>; }>`: `useItemAction(path, name)`: a custom action of an item (POST), `mutateAsync({id, body})`.
 - `useAnyList: (path: string, query?: Omit<QueryOptions, "include"> | undefined) => UseQueryResult<ListDocument>`: `useList(path, query)`.
 - `useAnyLists: (path: string, queries: readonly Omit<QueryOptions, "include">[]) => UseQueryResult<ListDocument>[]`: `useLists(path, queries)`: several lists of a route set, a query each.
 - `useAnyRelated: (path: string, id: string) => UseQueryResult<ResourceObject | null>`: `useRelatedItem(path, id)`: null when the user may not view the item.
@@ -5587,7 +5645,7 @@ Its props, `ResourceCardProps`:
 - `id: string`
 - `label: ReactNode`
 - `onClick: () => void`
-- `permission?: 'change' | 'delete'`
+- `permission?: 'change' | 'delete' | CustomActionName`: `change`, `delete`, or a custom action of the item (`action_<name>`, in `custom_actions` of its meta).
 - `variant?: 'default' | 'outline' | 'destructive'`
 
 #### CardSection
@@ -5722,12 +5780,12 @@ Its props, `ResourceListProps`:
 
 #### ListAction
 
-`interface ListAction`: An action of the list, a button `action:<id>`; `add` shows it when the user may create.
+`interface ListAction`: An action of the list, a button `action:<id>`; `add` shows it when the user may create, a custom action of the route set (`action_<name>`) when the backend lists it in `custom_actions` of the list.
 
 - `id: string`
 - `label: ReactNode`
 - `onClick: () => void`
-- `permission?: 'add'`
+- `permission?: 'add' | CustomActionName`
 - `icon?: ComponentType<{ className?: string; }>`: Its icon, such as an icon of lucide-react.
 
 #### RowAction
@@ -5824,6 +5882,34 @@ Its props, `UpdateFormActionProps`:
 - `path: DestroyPath`: The route set of the entity (`ROUTES` of the contract).
 - `item: string`: The id of the item of the card.
 - `then?: string | undefined`: The route shown once the item is deleted (the screen `then` of the action); the card stays without it.
+
+#### useCustomAction
+
+`useCustomAction(options: CustomActionOptions): CustomAction`: A custom action of the specs, of the route set of `path` or of its items: what its buttons do, and the dialog of its fields or of its confirmation.
+
+#### CustomAction
+
+`interface CustomAction`: A custom action of a screen: its buttons, its run and its dialog.
+
+- `action: { id: string; label: ReactNode; permission: CustomActionName; onClick: () => void; }`: The button of the card of its item (`ResourceCard` `actions`), or of the toolbar of a list for an action of the route set (`ResourceList` `actions`): shown when the backend lists it in `custom_actions` of the meta.
+- `row: RowAction`: The button of the rows of a list (`ResourceList` `rowActions`): shown on a row that the list lets the user change (or delete) when the action requires it (`access_action`).
+- `bulk: BulkAction`: The action on the selected rows of a list (`ResourceList` `bulk`, `bulk:<id>`), called on each with an empty body, on the rows that it lets the user change (or delete) as `row`.
+- `dialog: ReactNode`: Its dialog, rendered in the screen.
+
+#### CustomActionOptions
+
+`interface CustomActionOptions`
+
+- `id: string`: The id of the action in the specs: `action:<id>`, its confirmation `action:confirm-<id>`.
+- `label: ReactNode`: The label of its button, also the title of its dialog by default.
+- `path: string`: The route set of the entity (`ROUTES` of the contract).
+- `action: string`: The name of the custom action in its path (`escalate` of `<path><id>/escalate/`), as `custom_actions` of the contract has it.
+- `item?: string`: The item of a card, whose action it is; none on a list (a row or the selected rows give theirs).
+- `fields?: readonly string[]`: The properties of the body that its dialog asks for, in this order; none by default (an empty body).
+- `title?: ReactNode`: The title of its dialog: the label by default.
+- `description?: ReactNode`: What its dialog says.
+- `confirm?: boolean`: Whether an action without fields is confirmed in a dialog first.
+- `message?: ReactNode`: What the toast says once it is done.
 
 #### extended
 
@@ -6070,7 +6156,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `move(options: { where: Values; to: string; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
 - `confirm(id: string, options?: { optional?: boolean; }): Promise<void>`: Confirms the action `<id>` of the current screen in its dialog, `action:confirm-<id>` (the deletion of the item of a card), and waits until the dialog is closed; the dialog must be shown, but with `optional` (a hand-written screen may run the action without a confirmation), where nothing is done when none is shown within 2 s.
-- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false.
+- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false; an input of a date or a date-time also by a day of the run (`today`, `today+1 10:30`: `dateOfRun`).
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).
 - `transit(id: string, payload?: Values): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog, and waits until it is done (the transit is no longer offered) or shows an error.

@@ -832,6 +832,8 @@ def _check_screen(
         if primitive == 'calendar' and 'add' in section:
             _check_calendar_add(doc, section, entity, resource, issues)
         _check_queries(doc, (primitive,), section, entity, resource, issues)
+        if primitive in ('list', 'card'):
+            _check_custom_actions(doc, entity, resource, issues)
         _check_filter_route(doc, primitive, section, entity, resource, product, issues)
         _check_search_contract(doc, entity, resource, contract, issues)
     _check_related_sections(doc, entity, product, screens, contract, issues)
@@ -977,15 +979,81 @@ def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
             'Map a field with `type: point` (a PointField of the model).',
         )
     seen = set()
+    # the custom bulk actions by the name of their run in the generated code (`<id>Bulk`)
+    named: dict[str, str] = {}
     for i, action in enumerate(lst.get('bulk', [])):
         if action['id'] in seen:
             issues.add(
                 doc, ('list', 'bulk', i, 'id'), 'S010', f'The bulk action `{action["id"]}` is declared twice.',
                 'Give every bulk action an id of its own.',
             )
+        elif 'action' in action and (other := named.setdefault(camel(action['id']), action['id'])) != action['id']:
+            issues.add(
+                doc, ('list', 'bulk', i, 'id'), 'S033',
+                f'The bulk action `{action["id"]}` has the name of the bulk action `{other}` in the code, `{camel(other)}`.',
+                'Rename one of the bulk actions.',
+            )
         seen.add(action['id'])
         if 'transit' in action:
             _check_bulk_transit(doc, ('list', 'bulk', i, 'transit'), action['transit'], entity, issues)
+
+
+def _check_custom_actions(doc: Document, entity: Entity, resource: dict, issues: Issues) -> None:
+    """
+    The custom actions of a list or a card, and the custom bulk actions of a list, against the
+    resource of the contract (S032): a custom action of its route set declared with POST (one
+    declared with GET reads), of an item on a card and in a bulk action; the fields that its
+    dialog asks for are properties of its body, and the body needs nothing else (a property
+    that the body requires is among them; a bulk action asks for none).
+    """
+    data = doc.data
+    # where each runs: on an item (a card, the rows of a list, a bulk action) or on the route
+    # set (the toolbar of a list)
+    rows = set(data['list'].get('row_actions', [])) if data['primitive'] == 'list' else set()
+    runs = [
+        (path, it['action'], it.get('fields', []), data['primitive'] == 'card' or it['id'] in rows)
+        for path, it in screen_actions(data) if it['primitive'] == 'custom'
+    ]
+    if data['primitive'] == 'list':
+        runs += [(('list', 'bulk', i), it['action'], None, True) for i, it in enumerate(data['list'].get('bulk', [])) if 'action' in it]
+    if not runs:
+        return
+    declared = {it['name']: it for it in resource['custom_actions'].values()}
+    posts = ', '.join(sorted(name for name, it in declared.items() if it['method'] == 'post')) or 'none'
+    for path, name, fields, of_item in runs:
+        action = declared.get(name)
+        problem, hint = None, None
+        if action is None:
+            problem = f'The resource `{entity.data["resource"]}` has no custom action `{name}` in the contract.'
+            hint = f'Use a custom action of its route set declared with POST: {posts}.'
+        elif action['method'] != 'post':
+            problem = f'The custom action `{name}` is declared with {action["method"].upper()}: it reads, a button runs a POST.'
+            hint = 'Read it in the code of the screen (`useActionQuery`, `useItemActionQuery`), or declare the action with POST.'
+        elif of_item and not action['item']:
+            problem = f'The custom action `{name}` is one of the route set, not of an item.'
+            hint = 'Run it from the toolbar of a list (`actions` of a list, not in `list.row_actions`).'
+        elif not of_item and action['item']:
+            problem = f'The custom action `{name}` is one of an item, and the toolbar of a list has none.'
+            hint = 'Run it on each row (its id in `list.row_actions`), on the card of the item, or as a bulk action.'
+        if problem:
+            issues.add(doc, (*path, 'action'), 'S032', problem, hint)
+            continue
+        body = action['body'] or {}
+        properties = body.get('properties', {})
+        for i, prop in enumerate(fields or []):
+            if prop not in properties:
+                issues.add(
+                    doc, (*path, 'fields', i), 'S032', f'The body of the custom action `{name}` has no property `{prop}`.',
+                    f'Ask for the properties of its body: {", ".join(sorted(properties)) or "none"}.',
+                )
+        missing = [it for it in body.get('required', []) if it not in (fields or [])]
+        if missing:
+            issues.add(
+                doc, path, 'S032',
+                f'The custom action `{name}` requires {", ".join(f"`{it}`" for it in missing)} in its body.',
+                'Ask for it in `fields` of the action.' if fields is not None else
+                'Run it on the card or on each row, whose dialog asks for it: a bulk action sends an empty body.',
+            )
 
 
 def _check_bulk_transit(doc: Document, path: tuple, transit: str, entity: Entity, issues: Issues) -> None:
@@ -1295,13 +1363,15 @@ def _references(value, path: tuple, keys: tuple):
 
 def _screen_fields(data: dict):
     """
-    The fields that a screen (not a dashboard) references, with their paths.
+    The fields that a screen (not a dashboard) references, with their paths; those of a
+    custom action are the properties of its body (S032).
     """
     primitive = data['primitive']
     for keys in FIELD_REFERENCES[primitive]:
         yield from _references(data[primitive], (primitive,), keys)
     for path, action in screen_actions(data):
-        yield from _references(action, path, ('fields',))
+        if action['primitive'] != 'custom':
+            yield from _references(action, path, ('fields',))
 
 
 def screen_actions(data: dict) -> list[tuple[tuple, dict]]:
@@ -1344,9 +1414,18 @@ def _check_screen_refs(doc: Document, screens: dict, issues: Issues) -> None:
             problem = 'An item is destroyed from its card: `destroy` is an action of a card.'
         elif action.get('mode') == 'update' and primitive != 'card':
             problem = 'An item is updated from its card: an update form is an action of a card.'
+        elif action['primitive'] == 'custom' and primitive not in ('list', 'card'):
+            problem = 'A custom action is one of a list (of its rows, or of its toolbar) or of a card (of its item).'
         renamed((*path, 'id'), action['id'])
         if problem:
             issues.add(doc, path, 'S010', problem, 'Fix or remove the action.')
+    customs = {it['id'] for _, it in screen_actions(data) if it['primitive'] == 'custom'}
+    for i, action_id in enumerate(data['list'].get('row_actions', []) if primitive == 'list' else []):
+        if action_id not in customs:
+            issues.add(
+                doc, ('list', 'row_actions', i), 'S010', f'The row action `{action_id}` is not a custom action of the screen.',
+                'Declare it in `actions` with `primitive: custom`, or name one of them.',
+            )
     for path, action_id in _added_actions(data):
         if action_id in named.values():
             issues.add(

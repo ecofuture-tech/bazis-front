@@ -16,29 +16,67 @@
 // button or with fixed values, sent, closed when saved or cancelled, in a dialog and as a
 // page; the update form of an item, sent and closed when saved or cancelled; the action of the header shown once the backend allows it; the deletion of the item of
 // a card, shown when the user may delete it, followed by the route `then`, a refusal kept on
-// the card; and the props of an extension joined with the generated ones. Keep it passing
-// when the component is changed.
+// the card; a custom action of the route set of the contract, on a card, a row, the selected
+// rows and the toolbar of a list, shown as the backend allows it, its fields in a dialog;
+// and the props of an extension joined with the generated ones. Keep it passing when the
+// component is changed.
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import type * as Contract from '@/bazis/generated/contract';
+
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceCard, type ResourceCardProps } from '@/bazis/ui/resource-card';
+import { ResourceList } from '@/bazis/ui/resource-list';
 import {
   CreateFormAction,
   extended,
   ScreenAction,
+  useCustomAction,
   useDestroyCardAction,
   UpdateFormAction,
   type CreateFormActionProps,
+  type CustomActionOptions,
   type ScreenExtension,
 } from '@/bazis/ui/screens';
 import { toast } from '@/bazis/ui/state-panel';
-import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
-// the toasts of the deletion, whatever their texts
+// the contract of the product with the resource of the tests and its custom actions: of an
+// item, which requires its change, its body a priority with a default; of the route set,
+// without a body
+vi.mock('@/bazis/generated/contract', async (importOriginal) => {
+  const contract = await importOriginal<typeof Contract>();
+  const priority = { enum: ['low', 'high'], title: 'Priority', type: 'string' };
+  return {
+    ...contract,
+    RESOURCES: {
+      ...contract.RESOURCES,
+      'test.item': {
+        path: '/api/test/item/',
+        fields: {},
+        search: [],
+        custom_actions: {
+          action_escalate: {
+            name: 'escalate',
+            item: true,
+            method: 'post',
+            public: false,
+            access_action: 'change',
+            body: { type: 'object', properties: { priority: { $ref: '#/$defs/Priority', default: 'high' } }, $defs: { Priority: priority } },
+            response: null,
+          },
+          action_count: { name: 'count', item: false, method: 'post', public: false, access_action: null, body: null, response: null },
+        },
+      },
+    },
+  };
+});
+
+// the toasts of the deletion and of the custom actions, whatever their texts
 vi.mock('@/bazis/ui/state-panel', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/bazis/ui/state-panel')>()),
   toast: vi.fn(),
@@ -363,6 +401,157 @@ describe('useDestroyCardAction', () => {
     });
     expect(screen.queryByTestId('screen:item-list')).toBeNull();
     expect(screen.getByTestId('action:delete')).toBeTruthy();
+  });
+});
+
+/** The list schema of the items: the priority, with the labels of its choices in the language of the interface. */
+const listSchema = runtimeSchema(
+  {
+    title: { attribute: { type: 'string', title: 'Title' } },
+    priority: { attribute: { type: 'string', enum: ['low', 'high'], enumDict: { low: 'Basse', high: 'Haute' }, title: 'Priorité' } },
+  },
+  { list: true },
+);
+
+const ESCALATE: CustomActionOptions = { id: 'escalate', label: 'Escalate', path: ITEMS, action: 'escalate' };
+
+/** The card of the item with the custom action `escalate`. */
+function EscalatingCard(options: Partial<CustomActionOptions>) {
+  const escalate = useCustomAction({ ...ESCALATE, item: ITEM_ID, ...options });
+  return (
+    <>
+      <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['title'] }]} actions={[escalate.action]} />
+      {escalate.dialog}
+    </>
+  );
+}
+
+/** A list with the custom actions of the route set (`count`) in its toolbar, and `escalate` on its rows and on the selected ones. */
+function EscalatingList() {
+  const count = useCustomAction({ id: 'count', label: 'Count', path: ITEMS, action: 'count' });
+  const escalate = useCustomAction({ ...ESCALATE, confirm: true });
+  const escalateAll = useCustomAction({ ...ESCALATE, id: 'escalate-all' });
+  return (
+    <>
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title']}
+        layout="table"
+        actions={[count.action]}
+        rowActions={[escalate.row]}
+        bulk={[escalateAll.bulk]}
+      />
+      {count.dialog}
+      {escalate.dialog}
+    </>
+  );
+}
+
+describe('useCustomAction', () => {
+  it('runs the action of the item of a card, its fields in a dialog, when the backend lists it', async () => {
+    vi.mocked(toast).mockClear();
+    const backend = cardBackend({ crud_actions: ['view'], custom_actions: ['action_escalate'] })
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('POST', `${ITEM}escalate/`, { priority: 'low' });
+    renderWithBazis(<EscalatingCard fields={['priority']} message="Escalated" />, backend);
+    fireEvent.click(await screen.findByTestId('action:escalate'));
+    // the field of the body named as a field of the resource: its title and its choices from the list schema
+    const field = await screen.findByTestId('field:priority');
+    await waitFor(() => {
+      expect(screen.getByRole('dialog').textContent).toContain('Priorité');
+    });
+    // the default of the body
+    expect((field as HTMLSelectElement | HTMLButtonElement).textContent).toContain('Haute');
+    const itemReads = () => backend.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`)).length;
+    const read = itemReads();
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('action:submit')).toBeNull();
+    });
+    expect(backend.calls.filter((it) => it.method === 'POST').map((it) => [it.url, it.body])).toEqual([
+      [`${ITEM}escalate/`, { priority: 'high' }],
+    ]);
+    expect(toast).toHaveBeenCalledWith({ title: 'Escalate', description: 'Escalated' });
+    // the card is read again
+    await waitFor(() => {
+      expect(itemReads()).toBeGreaterThan(read);
+    });
+  });
+
+  it('keeps its dialog open with the errors of its fields', async () => {
+    const backend = cardBackend({ crud_actions: ['view'], custom_actions: ['action_escalate'] })
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('POST', `${ITEM}escalate/`, { errors: [{ status: 422, detail: 'Not a choice', source: { pointer: '/priority' } }] }, 422);
+    renderWithBazis(<EscalatingCard fields={['priority']} />, backend);
+    fireEvent.click(await screen.findByTestId('action:escalate'));
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect((await screen.findByTestId('error:priority')).textContent).toContain('Not a choice');
+    expect(screen.getByTestId('action:submit')).toBeTruthy();
+  });
+
+  it('is not shown on a card when the backend does not list it', async () => {
+    renderWithBazis(<EscalatingCard />, cardBackend({ crud_actions: ['view', 'change'], custom_actions: [] }));
+    await screen.findByTestId('state:loaded');
+    expect(screen.queryByTestId('action:escalate')).toBeNull();
+  });
+
+  it('runs the action of a row once confirmed, on the rows that the user may change', async () => {
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'First' }), resource('b', { title: 'Second' })], {
+        meta: { for_change: ['a'], custom_actions: [] },
+      }))
+      .on('POST', `${ITEMS}a/escalate/`, { priority: 'high' });
+    renderWithBazis(<EscalatingList />, backend);
+    await screen.findByTestId('state:loaded');
+    const rows = screen.getAllByTestId('action:escalate');
+    // the second row is not one the user may change
+    expect(rows).toHaveLength(1);
+    fireEvent.click(rows[0] as HTMLElement);
+    expect(backend.requests('POST')).toEqual([]);
+    fireEvent.click(screen.getByTestId('action:confirm-escalate'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEMS}a/escalate/`]);
+    });
+    expect(backend.calls.find((it) => it.method === 'POST')?.body).toEqual({});
+  });
+
+  it('runs on the selected rows, and the action of the route set from the toolbar, once the backend lists it', async () => {
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'First' }), resource('b', { title: 'Second' })], {
+        meta: { for_change: ['a', 'b'], custom_actions: ['action_count'] },
+      }))
+      .on('POST', `${ITEMS}a/escalate/`, { priority: 'high' })
+      .on('POST', `${ITEMS}b/escalate/`, { priority: 'high' })
+      .on('POST', `${ITEMS}count/`, { task: 't' });
+    renderWithBazis(<EscalatingList />, backend);
+    await screen.findByTestId('state:loaded');
+    // the list asks for the custom actions of the route set
+    expect(backend.requests('GET').some((it) => decodeURIComponent(it).includes('custom_actions'))).toBe(true);
+    fireEvent.click(screen.getByTestId('select:all'));
+    fireEvent.click(screen.getByTestId('bulk:escalate-all'));
+    fireEvent.click(screen.getByTestId('action:confirm-bulk'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEMS}a/escalate/`, `POST ${ITEMS}b/escalate/`]);
+    });
+    // without fields nor a confirmation, at once
+    fireEvent.click(screen.getByTestId('action:count'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toContain(`POST ${ITEMS}count/`);
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('is not in the toolbar when the backend does not list it', async () => {
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'First' })], { meta: { for_change: [], custom_actions: [] } }));
+    renderWithBazis(<EscalatingList />, backend);
+    await screen.findByTestId('state:loaded');
+    expect(screen.queryByTestId('action:count')).toBeNull();
+    expect(screen.queryByTestId('action:escalate')).toBeNull();
   });
 });
 

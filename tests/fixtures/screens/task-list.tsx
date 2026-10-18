@@ -9,7 +9,7 @@ import { useItemsTransit } from '@/bazis/react/statusy';
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceMap, type ResourceMapProps } from '@/bazis/ui/map';
 import { ResourceList, type ResourceListProps } from '@/bazis/ui/resource-list';
-import { CreateFormAction, extended } from '@/bazis/ui/screens';
+import { CreateFormAction, extended, useCustomAction } from '@/bazis/ui/screens';
 import { statusOptions } from '@/bazis/ui/status-badge';
 import { extension } from '@/screens/task-list/extend';
 
@@ -24,6 +24,12 @@ export function TaskListScreen() {
   const navigate = useNavigate();
   const createForm = CreateFormAction.use();
   const transit = useItemsTransit(TASK.path);
+  const escalateAllBulk = useCustomAction({
+    id: 'escalate-all',
+    label: t('screens.task-list.list.bulk.escalate-all.label'),
+    path: TASK.path,
+    action: 'escalate',
+  });
   return (
     <Screen
       id="task-list"
@@ -76,6 +82,7 @@ export function TaskListScreen() {
                 label: t('screens.task-list.list.bulk.start-all.label'),
                 run: (item) => transit.mutateAsync({ id: item, transit: 'start' }),
               },
+              escalateAllBulk.bulk,
             ],
             emptyMessage: t('screens.task-list.list.empty'),
           },

@@ -74,6 +74,21 @@ interface ContractResource {
   /** The attributes that label an item (none: its id). */
   readonly label?: readonly string[];
   readonly search?: readonly string[];
+  /** The custom actions of its route set, by their name in `x-bazis` (`action_<name>`). */
+  readonly custom_actions?: Readonly<Record<string, ContractCustomAction>>;
+}
+
+/** A custom action of a route set in the contract (`custom_actions` of its resource). */
+export interface ContractCustomAction {
+  /** Its name in the path: `<path><name>/`, or `<path><id>/<name>/` for an item. */
+  readonly name: string;
+  /** Whether it is an action of an item. */
+  readonly item: boolean;
+  readonly method: string;
+  /** What the route requires of the user on the item (`change`), null for nothing more than the route. */
+  readonly access_action: string | null;
+  /** The JSON Schema of its body, null without one. */
+  readonly body: JsonSchema | null;
 }
 
 const CONTRACT_RESOURCES = RESOURCES as Readonly<Record<string, ContractResource | undefined>>;
@@ -81,6 +96,19 @@ const CONTRACT_RESOURCES = RESOURCES as Readonly<Record<string, ContractResource
 /** The resource of the contract whose route set has this path, if it has one. */
 export function resourceAt(path: string): ContractResource | undefined {
   return Object.values(CONTRACT_RESOURCES).find((it) => it?.path === path);
+}
+
+/**
+ * The custom action `name` (its name in the path) of the route set of `path` in the contract,
+ * with its name in the permission meta (`action_<name>` of `custom_actions`); undefined when
+ * the contract does not have it.
+ */
+export function customActionAt(
+  path: string,
+  name: string,
+): (ContractCustomAction & { readonly key: CustomActionName }) | undefined {
+  const found = Object.entries(resourceAt(path)?.custom_actions ?? {}).find(([, it]) => it.name === name);
+  return found && { ...found[1], key: found[0] as CustomActionName };
 }
 
 /**

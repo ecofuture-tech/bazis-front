@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # A card without tabs, extended: its history and its related list under its heading, a create
-# form in the header, an update form and a delete that says what it deletes; its title is not
-# shown (the label of its item heads it), nor among the texts of the specs.
+# form in the header, an update form, a delete that says what it deletes and a custom action of
+# its item with an empty body; its title is not shown (the label of its item heads it), nor
+# among the texts of the specs.
 spec: bazis-screen/1
 id: task-summary
 title: {en: Summary, ru: Сводка}
@@ -32,4 +33,5 @@ actions:
     mode: update
     fields: [title, priority]
     description: {en: The title and the priority of the task., ru: Название и приоритет задачи.}
+  - {id: escalate, primitive: custom, action: escalate, confirm: false, label: {en: Escalate, ru: Повысить}}
 states: [loading, error, forbidden, not_found]

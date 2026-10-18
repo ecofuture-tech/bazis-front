@@ -23,6 +23,10 @@ import type { Messages } from '../translate.js';
 export const en: Messages = {
   'action.cancel': 'Cancel',
   'action.close': 'Close',
+  'action.confirm': 'Run it?',
+  'action.done': 'Done',
+  'action.failed': 'Not done',
+  'action.fill': 'Fill in what it needs.',
   'async.completed': 'Done',
   'async.failed': 'Failed',
   'async.pending': 'Queued',

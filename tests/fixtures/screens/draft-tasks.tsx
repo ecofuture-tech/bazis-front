@@ -7,6 +7,7 @@ import { Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceList } from '@/bazis/ui/resource-list';
+import { useCustomAction } from '@/bazis/ui/screens';
 
 import { ENTITIES } from './entities';
 import { routeTo } from './screens';
@@ -17,6 +18,15 @@ const FILTER = Filter.where('status', 'draft');
 export function DraftTasksScreen() {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const escalateAction = useCustomAction({
+    id: 'escalate',
+    label: t('screens.draft-tasks.actions.escalate.label'),
+    path: TASK.path,
+    action: 'escalate',
+    title: t('screens.draft-tasks.actions.escalate.title'),
+    description: t('screens.draft-tasks.actions.escalate.description'),
+    confirm: true,
+  });
   return (
     <Screen id="draft-tasks" title={t('screens.draft-tasks.title')} description={t('screens.draft-tasks.description')}>
       <ResourceList
@@ -28,8 +38,10 @@ export function DraftTasksScreen() {
         sort={['-dt_created']}
         icon={TASK.Icon}
         onOpen={(item) => void navigate(routeTo('task-card', item))}
+        rowActions={[escalateAction.row]}
         emptyMessage={t('screens.draft-tasks.list.empty')}
       />
+      {escalateAction.dialog}
     </Screen>
   );
 }

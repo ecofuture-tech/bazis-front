@@ -160,10 +160,10 @@ def kitchen_sink(root: Path) -> None:
 
 def test_the_parts_that_the_sample_does_not_have(tmp_path):
     """
-    The kitchen sink: a list with its map, its create form, its bulk action and its status
-    filter; a card without tabs (its transits under its heading, its related list and its
-    history under its sections) with a
-    create form in its header, an update form and a delete that describes itself; the tone of
+    The kitchen sink: a list with its map, its create form, a custom action of the route set,
+    its bulk action and its status filter; a card without tabs (its transits under its
+    heading, its related list and its history under its sections) with a create form in its
+    header, an update form, a delete that describes itself and a custom action; the tone of
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
     text; a calendar with its add and its tone; a dashboard of two entities, a tile with its
     own icon; forms that show a screen without an item after them, whose code takes no saved
@@ -190,6 +190,9 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert '        {...createForm}\n' in places
     assert "        filters={[{ field: 'status', options: statusOptions(TASK.type, language) }]}\n" in places
     assert "run: (item) => transit.mutateAsync({ id: item, transit: 'start' })," in places
+    # a custom action of the route set in the toolbar, after the create form, its dialog after the list
+    assert "    action: 'count',\n    fields: ['priority'],\n" in places
+    assert '          countAction.action,\n        ]}\n' in places and '      {countAction.dialog}\n' in places
     assert "rowTone={(row) => (fieldValue(row, 'urgent') === true ? 'warning' : undefined)}" in places
     assert (
         '        rowToneLabel={(row) =>\n'
@@ -207,6 +210,9 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     summary = files[f'{screens.GENERATED_DIR}/task-summary.tsx']
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
     assert '      {deleteAction.confirm}\n' in summary
+    # a custom action of the item, among the actions of the card
+    assert "    action: 'escalate',\n    item: id,\n    confirm: false,\n  });\n" in summary
+    assert '              escalateAction.action,\n' in summary and '      {escalateAction.dialog}\n' in summary
     # no tabs: the transits under the heading, the related list and the history under the sections
     assert '            children: <TransitBar path={TASK.path} id={id} />,\n' in summary
     assert (
@@ -289,7 +295,8 @@ def test_an_extended_screen(tmp_path, primitive):
     screen_id, name, props = EXTENDED[primitive]
     code = rendered(tmp_path)[f'{screens.GENERATED_DIR}/{screen_id}.tsx']
     assert f"import {{ extension }} from '@/screens/{screen_id}/extend';\n" in code
-    assert f'type {props} }}' in code and 'extended' in code.split("from '@/bazis/ui/screens'")[0].splitlines()[-1]
+    # the import of `extended`, on one line or on several
+    assert f'type {props} }}' in code and 'extended' in code.split("from '@/bazis/ui/screens'")[0].rsplit('import ', 1)[1]
     assert f'      <{name}\n        {{...extended<{props}>(\n          {{\n' in code
     assert '          extension.props,\n        )}\n      />\n' in code
     body = code.split('return (')[1]

@@ -15,4 +15,14 @@ list:
   sort: [-dt_created]
   open: task-card
   empty: {en: No drafts., ru: Черновиков нет.}
+  row_actions: [escalate]   # a button in each row
+actions:
+  # the custom action of a task, with its default priority (high), confirmed
+  - id: escalate
+    primitive: custom
+    action: escalate
+    confirm: true
+    label: {en: Escalate, ru: Повысить приоритет}
+    title: {en: 'Escalate the task?', ru: 'Повысить приоритет задачи?'}
+    description: {en: Its priority becomes high., ru: Её приоритет станет высоким.}
 states: [loading, empty, error, forbidden]

@@ -1,16 +1,17 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# The tasks on the days they were created.
+# The tasks on the days they are due, a task added on the day selected at the time filled.
 spec: bazis-screen/1
 id: task-calendar
 title: {en: Calendar, ru: Календарь}
-description: {en: The tasks on the days they were created., ru: Задачи в дни их создания.}
+description: {en: The tasks on the days they are due., ru: Задачи в дни их сроков.}
 route: /calendar
 entity: task
 roles: [manager, viewer]
 primitive: calendar
 calendar:
-  field: dt_created
+  field: due
   label: [title]
   views: [month, week]
   open: task-card
+  add: {id: add-task, fields: [title, due], label: {en: New task, ru: Новая задача}}
 states: [loading, empty, error, forbidden]

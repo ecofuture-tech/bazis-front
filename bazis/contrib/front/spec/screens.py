@@ -471,8 +471,7 @@ def render_list(product: Product, data: dict) -> str:
     if 'open' in spec:
         opened.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
     attrs += opened
-    if actions := [create_action(screen, it) for it in screen.create_forms()]:
-        attrs.append(Attr('actions', Arr(actions)))
+    attrs += list_actions(screen, const)
     if 'bulk' in spec:
         attrs.append(Attr('bulk', Arr([bulk_action(screen, const, i, it) for i, it in enumerate(spec['bulk'])])))
     if 'highlight' in spec:
@@ -483,6 +482,29 @@ def render_list(product: Product, data: dict) -> str:
     if 'map' in spec:
         body.insert(0, list_map(screen, const, spec, opened))
     return screen.write(screen_element(screen, body))
+
+
+def list_actions(screen: Screen, const: Raw) -> list[Attr]:
+    """
+    The actions of the toolbar of a list in the order of the spec, its create forms and the
+    custom actions of the route set, and those of the items in each row (`list.row_actions`).
+    """
+    creates = {it.action['id']: create_action(screen, it) for it in screen.create_forms()}
+    rows = screen.data['list'].get('row_actions', [])
+    toolbar, row_actions = [], {}
+    for i, action in enumerate(screen.data.get('actions', [])):
+        if action['id'] in creates:
+            toolbar.append(creates[action['id']])
+        elif action['primitive'] == 'custom':
+            name = custom_action(screen, const, ('actions', i), action)
+            if action['id'] in rows:
+                row_actions[action['id']] = Raw(f'{name}.row')
+            else:
+                toolbar.append(Raw(f'{name}.action'))
+    attrs = [Attr('actions', Arr(toolbar))] if toolbar else []
+    if rows:
+        attrs.append(Attr('rowActions', Arr([row_actions[it] for it in rows])))
+    return attrs
 
 
 def list_map(screen: Screen, const: Raw, spec: dict, opened: list[Attr]) -> Jsx:
@@ -544,7 +566,38 @@ def highlight_attrs(screen: Screen, highlight: dict) -> list[Attr]:
     return attrs
 
 
-def bulk_action(screen: Screen, const: Raw, index: int, bulk: dict) -> Obj:
+def custom_action(screen: Screen, const: Raw, path: tuple, action: dict, item: Raw | None = None, bulk: bool = False) -> str:
+    """
+    A custom action (`useCustomAction`) at the path of its spec, `<id>Action`, of the item of a
+    card (`item`), its dialog written after the screen; of a bulk action, `<id>Bulk`, without a
+    dialog (it asks for nothing).
+    """
+    name = camel(action['id']) + ('Bulk' if bulk else 'Action')
+    options = [
+        ('id', Str(action['id'])), ('label', screen.text(*path, 'label')),
+        ('path', Raw(f'{const.code}.path')), ('action', Str(action['action'])),
+    ]
+    if item is not None:
+        options.append(('item', item))
+    if 'fields' in action:
+        options.append(('fields', Arr([Str(it) for it in action['fields']])))
+    for key in ('title', 'description'):
+        if (value := screen.text(*path, key)) is not None:
+            options.append((key, value))
+    if 'confirm' in action:
+        options.append(('confirm', Raw('true' if action['confirm'] else 'false')))
+    if (message := screen.text(*path, 'message')) is not None:
+        options.append(('message', message))
+    screen.hook(name, Const(name, Call('useCustomAction', [Obj(options)])), '@/bazis/ui/screens', 'useCustomAction')
+    if not bulk:
+        screen.after.append(Raw(f'{name}.dialog'))
+    return name
+
+
+def bulk_action(screen: Screen, const: Raw, index: int, bulk: dict) -> Obj | Raw:
+    if 'action' in bulk:
+        # a custom action of the items, without a dialog: `<id>Bulk`
+        return Raw(custom_action(screen, const, ('list', 'bulk', index), bulk, bulk=True) + '.bulk')
     props = [('id', Str(bulk['id']))]
     label = screen.text('list', 'bulk', index, 'label')
     if 'transit' in bulk:
@@ -593,11 +646,14 @@ def render_card(product: Product, data: dict) -> str:
         render_props = []
     else:
         render_props = [*related.values(), *([history] if history is not None else [])]
-    card_actions = [
-        destroy_action(screen, const, i, it) if it['primitive'] == 'destroy' else update_action(screen, const, i, it)
-        for i, it in enumerate(data.get('actions', []))
-        if it['primitive'] == 'destroy' or it.get('mode') == 'update'
-    ]
+    card_actions = []
+    for i, action in enumerate(data.get('actions', [])):
+        if action['primitive'] == 'destroy':
+            card_actions.append(destroy_action(screen, const, i, action))
+        elif action.get('mode') == 'update':
+            card_actions.append(update_action(screen, const, i, action))
+        elif action['primitive'] == 'custom':
+            card_actions.append(Raw(custom_action(screen, const, ('actions', i), action, Raw('id')) + '.action'))
     if card_actions:
         attrs.append(Attr('actions', Arr(card_actions)))
     header = header_actions(screen)

@@ -74,10 +74,12 @@ const LONG = `Pneumonoultramicroscopicsilicovolcanoconiosis-${'x'.repeat(40)} an
 
 test('a long title keeps the screens within the width of the page', async ({ page }) => {
   const app = await loginAs(page, PRODUCT, 'manager');
-  await app.open('task-list');
-  await app.action('create');
-  await app.fill({ title: LONG });
+  // added on the calendar, which shows the tasks on the days they are due
+  await app.open('task-calendar');
+  await app.action('add-task');
+  await app.fill({ title: LONG, due: 'today 12:00' });
   await app.submit({ saved: true });
+  await app.open('task-list');
   await app.openItem({ where: { title: LONG } });
   await app.expectScreen('task-card');
   await app.action('add-step');

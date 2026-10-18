@@ -121,6 +121,15 @@ def task(data):
     return data['entities'][0]
 
 
+def field(entity, field_id):
+    return next(it for it in entity['fields'] if it['id'] == field_id)
+
+
+def no_calendar_scenario(data):
+    """Without the scenario of the add of the calendar, which fills its date-time."""
+    data['scenarios'] = [it for it in data['scenarios'] if it['id'] != 'manager-plans-on-the-calendar']
+
+
 def steps(data, scenario):
     return data['scenarios'][scenario]['steps']
 
@@ -195,7 +204,7 @@ CASES = [
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/8/id')],
+        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/9/id')],
     ),
     (
         'P004',
@@ -232,7 +241,7 @@ CASES = [
     (
         'P012',
         {PRODUCT: lambda d: task(d)['fields'].append({'id': 'due_date', 'type': 'date'})},
-        [('P012', f'{PRODUCT}#/entities/0/fields/8')],
+        [('P012', f'{PRODUCT}#/entities/0/fields/9')],
     ),
     (
         'P013',
@@ -354,12 +363,12 @@ CASES = [
         # a file is uploaded, not filled; a list shows no values, nor a card the fields that
         # its sections do not have
         {PRODUCT: lambda d: [steps(d, 5).__setitem__(5, {'fill': {'attachment': 'brief.txt'}}),
-                             steps(d, 5)[4]['expect'].update(values={'dt_created': 'today', 'due': 'never'}),
+                             steps(d, 5)[4]['expect'].update(values={'dt_created': 'today', 'deadline': 'never'}),
                              steps(d, 1).insert(1, {'expect': {'values': {'title': 'Review the plan'}}})]},
         [
             ('P022', f'{PRODUCT}#/scenarios/1/steps/1/expect/values'),
             ('P022', f'{PRODUCT}#/scenarios/5/steps/4/expect/values/dt_created'),
-            ('P023', f'{PRODUCT}#/scenarios/5/steps/4/expect/values/due'),
+            ('P023', f'{PRODUCT}#/scenarios/5/steps/4/expect/values/deadline'),
             ('P022', f'{PRODUCT}#/scenarios/5/steps/5/fill/attachment'),
         ],
     ),
@@ -522,7 +531,7 @@ CASES = [
         'S010',
         # an update form `edit` on a card with `edit: true`, whose edit is the action `edit`
         {CARD: lambda d: d['actions'].append({'id': 'edit', 'primitive': 'form', 'mode': 'update'})},
-        [('S010', f'{CARD}#/actions/1')],
+        [('S010', f'{CARD}#/actions/2')],
     ),
     ('S011', {'spec/screens/user-card.yaml': lambda d: user_card(d, transitions=True)}, [('S011', 'spec/screens/user-card.yaml#/card/transitions')]),
     (
@@ -555,9 +564,12 @@ CASES = [
         'S008',
         # the filter of the screen by a field that the contract cannot filter by
         {LIST: lambda d: d['list'].update(filter={'dt_created': '2026-01-01'}),
-         CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['dt_created'].pop('filter')]},
-        # and the filter of the user by it, the chart of the home by week and the days of the calendar
-        [('S008', f'{HOME}#/dashboard/charts/1/by'), ('S008', f'{CALENDAR}#/calendar/field'),
+         CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['dt_created'].pop('filter')],
+         CALENDAR: lambda d: d['calendar'].update(field='dt_created')},
+        # and the filter of the user by it, the chart of the home by week and the days of the
+        # calendar by it (whose add is S034: the backend sets the date)
+        [('S008', f'{HOME}#/dashboard/charts/1/by'), ('S034', f'{CALENDAR}#/calendar/add'),
+         ('S008', f'{CALENDAR}#/calendar/field'),
          ('S008', f'{LIST}#/list/filters/3'), ('S008', f'{LIST}#/list/filter/dt_created')],
     ),
     (
@@ -726,8 +738,8 @@ CASES = [
         {LIST: lambda d: d['list']['bulk'].extend([{'id': 'finish-all', 'transit': 'finish'},
                                                    {'id': 'archive-all', 'transit': 'archive'},
                                                    {'id': 'start-all', 'primitive': 'destroy'}])},
-        [('S025', f'{LIST}#/list/bulk/1/transit'), ('S025', f'{LIST}#/list/bulk/2/transit'),
-         ('S010', f'{LIST}#/list/bulk/3/id')],
+        [('S025', f'{LIST}#/list/bulk/2/transit'), ('S025', f'{LIST}#/list/bulk/3/transit'),
+         ('S010', f'{LIST}#/list/bulk/4/id')],
     ),
     (
         'S025',
@@ -816,9 +828,69 @@ CASES = [
         [('S033', f'{CARD}#/card/related/0/add/id'), ('S033', 'spec/screens/task_board.yaml#/id')],
     ),
     (
+        'P022',
+        # a custom action of a list is run on a row: the scenarios run it on the card
+        {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-escalates-a-draft', 'role': 'manager', 'steps': [
+            {'open': 'draft-tasks'}, {'action': 'escalate'},
+        ]})},
+        [('P022', f'{PRODUCT}#/scenarios/18/steps/1/action')],
+    ),
+    (
+        'P023',
+        # the dialog of a custom action asks for the properties of its `fields` only
+        {PRODUCT: lambda d: steps(d, 16)[6].update(fill={'level': 1})},
+        [('P023', f'{PRODUCT}#/scenarios/16/steps/6/fill/level')],
+    ),
+    (
+        'S032',
+        # an action that the route set does not have; one of the route set on a card and of an
+        # item in the toolbar of a list
+        {CARD: lambda d: d['actions'].extend([
+            {'id': 'archive', 'primitive': 'custom', 'action': 'archive', 'label': {'en': 'Archive', 'ru': 'В архив'}},
+            {'id': 'count', 'primitive': 'custom', 'action': 'count', 'label': {'en': 'Count', 'ru': 'Посчитать'}},
+        ]),
+         DRAFTS: lambda d: d['list'].pop('row_actions')},
+        [('S032', f'{DRAFTS}#/actions/0/action'), ('S032', f'{CARD}#/actions/2/action'),
+         ('S032', f'{CARD}#/actions/3/action')],
+    ),
+    (
+        'S032',
+        # a property that the body does not have, one that it requires and the dialog does not
+        # ask for, of the card, the rows and the bulk action (which asks for none)
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_escalate']['body'].update(
+            required=['priority']),
+         CARD: lambda d: d['actions'][1]['fields'].append('level')},
+        [('S032', f'{DRAFTS}#/actions/0'), ('S032', f'{CARD}#/actions/1/fields/1'),
+         ('S032', f'{LIST}#/list/bulk/1')],
+    ),
+    (
+        'S032',
+        # an action declared with GET reads: no button runs it
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_escalate'].update(method='get')},
+        [('S032', f'{DRAFTS}#/actions/0/action'), ('S032', f'{CARD}#/actions/1/action'),
+         ('S032', f'{LIST}#/list/bulk/1/action')],
+    ),
+    (
+        'S010',
+        # a custom action of a board; a row action that is not a custom action of the list
+        {BOARD: lambda d: d.update(actions=[
+            {'id': 'escalate', 'primitive': 'custom', 'action': 'escalate', 'label': {'en': 'Escalate', 'ru': 'Повысить'}},
+        ]),
+         DRAFTS: lambda d: d['list']['row_actions'].append('open')},
+        [('S010', f'{DRAFTS}#/list/row_actions/1'), ('S010', f'{BOARD}#/actions/0')],
+    ),
+    (
+        'S033',
+        # two custom bulk actions named alike in the code (`escalateAllBulk`)
+        {LIST: lambda d: d['list']['bulk'].append(
+            {'id': 'escalate_all', 'action': 'escalate', 'label': {'en': 'Escalate', 'ru': 'Повысить'}},
+        )},
+        [('S033', f'{LIST}#/list/bulk/2/id')],
+    ),
+    (
         'S034',
         # the add of a calendar on the day of the creation, which the backend sets itself
-        {CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'label': {'en': 'Add', 'ru': 'Добавить'}})},
+        {CALENDAR: lambda d: d['calendar'].update(field='dt_created')},
         [('S034', f'{CALENDAR}#/calendar/add')],
     ),
     (
@@ -944,37 +1016,36 @@ CASES = [
     ),
     (
         'S041',
-        # the add of a calendar by a date-time field that the create route takes, whose fields
-        # leave it out: the time cannot be picked
-        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['create'].append('dt_created'),
-         CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title']})},
+        # the add of the calendar by a date-time field that the create route takes (the due of
+        # the sample), whose fields leave it out: the time cannot be picked (the scenario that
+        # fills it removed)
+        {CALENDAR: lambda d: d['calendar']['add'].update(fields=['title']), PRODUCT: no_calendar_scenario},
         [('S041', f'{CALENDAR}#/calendar/add/fields')],
     ),
     (
         'S041',
         # the create route does not take the field: S034 only, the fields cannot give the time
-        {CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title']})},
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['create'].remove('due'),
+         CALENDAR: lambda d: d['calendar']['add'].update(fields=['title']), PRODUCT: no_calendar_scenario},
         [('S034', f'{CALENDAR}#/calendar/add')],
     ),
     (
         'S041',
         # no S041: the fields list the field, or the add lists none (all the writable fields)
-        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['create'].append('dt_created'),
-         CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title', 'dt_created']})},
+        {CALENDAR: lambda d: d['calendar']['add'].update(fields=['due', 'title'])},
         [],
     ),
     (
         'S041',
-        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['create'].append('dt_created'), CALENDAR: lambda d: d['calendar'].update(add={'id': 'add'})},
+        {CALENDAR: lambda d: d['calendar']['add'].pop('fields')},
         [],
     ),
     (
         'S041',
         # no S041 for a date field: the day is all of it
-        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['create'].append('dt_created'),
-                              d['project']['resources']['tasks.task']['fields']['dt_created'].update(format='date')],
-         PRODUCT: lambda d: task(d)['fields'][2].update(type='date'),
-         CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title']})},
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['fields']['due'].update(format='date'),
+         PRODUCT: lambda d: [field(task(d), 'due').update(type='date'), no_calendar_scenario(d)],
+         CALENDAR: lambda d: d['calendar']['add'].update(fields=['title'])},
         [],
     ),
     (
@@ -1383,7 +1454,7 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
     ]}))
     # a day from the day of the run, as the dates of `e2e_data`
     edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'].insert(15, {'expect': {'day': {'today': 1, 'today+3': 0, 'today-1': 0}}}))
-    steps = f'{PRODUCT}#/scenarios/16/steps'
+    steps = f'{PRODUCT}#/scenarios/18/steps'
     assert issues(root) == [
         ('P022', f'{steps}/1/expect/tile/overdue'),
         ('P022', f'{steps}/2/expect/day'),
@@ -1488,7 +1559,9 @@ def test_the_system_check(root, tmp_path):
     (root / 'contract').mkdir()
     (root / 'contract' / 'contract.json').write_text(
         json.dumps({'format': CONTRACT_FORMAT, 'capabilities': {'permit': {'roles': []}, 'statusy': {'models': {}}},
-                    'project': {'resources': {'users.user': {'actions': {}, 'fields': {}, 'label': []}}}}),
+                    'project': {'resources': {'users.user': {
+                        'actions': {}, 'fields': {}, 'label': [], 'create': [], 'custom_actions': {},
+                    }}}}),
         encoding='utf-8',
     )
     messages = check_spec(None)

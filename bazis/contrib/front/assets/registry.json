@@ -782,8 +782,10 @@
           "i18n",
           "react",
           "app-shell",
+          "resource",
           "resource-card",
           "resource-form",
+          "resource-list",
           "state-panel",
           "testing",
           "button",
@@ -792,6 +794,7 @@
       },
       "files": [
         "actions.tsx",
+        "custom-action.tsx",
         "extension.tsx",
         "index.ts",
         "screens.contract.test.tsx"

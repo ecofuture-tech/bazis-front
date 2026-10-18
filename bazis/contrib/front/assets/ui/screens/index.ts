@@ -21,5 +21,7 @@ export type {
   ScreenActionProps,
   UpdateFormActionProps,
 } from './actions.js';
+export { useCustomAction } from './custom-action.js';
+export type { CustomAction, CustomActionOptions } from './custom-action.js';
 export { extended } from './extension.js';
 export type { ExtensionProps, ScreenExtension } from './extension.js';

@@ -18,6 +18,7 @@ list:
   map: {field: location}          # the tasks with a location on a map beside the list
   bulk:
     - {id: start-all, transit: start, label: {en: Start, ru: Начать}}   # the selected drafts started one by one
+    - {id: escalate-all, action: escalate, label: {en: Escalate, ru: Повысить приоритет}}   # high, on each
 actions:
   - id: create
     primitive: form

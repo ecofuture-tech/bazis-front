@@ -21,7 +21,7 @@
 import { Lock, Pencil } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 
-import type { PermitMeta } from '@/bazis/client';
+import type { CustomActionName, PermitMeta } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ItemPath } from '@/bazis/react';
@@ -60,7 +60,8 @@ export interface CardAction {
   id: string;
   label: ReactNode;
   onClick: () => void;
-  permission?: 'change' | 'delete';
+  /** `change`, `delete`, or a custom action of the item (`action_<name>`, in `custom_actions` of its meta). */
+  permission?: 'change' | 'delete' | CustomActionName;
   variant?: 'default' | 'outline' | 'destructive';
 }
 

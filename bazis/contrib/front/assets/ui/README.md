@@ -107,7 +107,7 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | `task-progress` | `TaskProgress`; `taskView`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
 | `async-result` | `AsyncResult`; `asyncResult`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
 | `map` | `ResourceMap`; `MapProvider`, `OSM_TILES`, `useMapTiles`; `LeafletMap`, `MapPointControl`; `nearFilter`, `nearSort`, `useGeolocation`; the texts `map.<text>` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; the map of a point field `map:<field>`, `action:locate-<field>` | npm `leaflet` (`add` sets it in package.json) |
-| `screens` | `CreateFormAction` (its state `CreateFormAction.use()`), `ScreenAction`, `useDestroyCardAction` (`{action, confirm}`); `ScreenExtension`, `extended` | those of `resource-form` in the form; `action:<id>` of a header action and of the deletion of a card, `action:confirm-<id>` of its confirmation | |
+| `screens` | `CreateFormAction` (its state `CreateFormAction.use()`), `ScreenAction`, `useDestroyCardAction` (`{action, confirm}`), `useCustomAction` (`{action, row, bulk, dialog}`); `ScreenExtension`, `extended` | those of `resource-form` in the form; `action:<id>` of a header action, of the deletion of a card and of a custom action, `action:confirm-<id>` of their confirmation; `field:<property>`, `action:submit` and `action:cancel` in the dialog of a custom action with fields | |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it; the choices of a field are a
@@ -437,7 +437,12 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   the item of a card (`useDestroyCardAction`: `action`, an action of `ResourceCard` shown when
   the user may delete the item, opens `confirm`, the dialog to render in the screen, whose
   button `action:confirm-<id>` deletes it once, whatever the clicks; a toast after it, then
-  the route `then`; a refusal is a toast of its error, the card stays) and the extension of a generated screen (`ScreenExtension<P>` of the
+  the route `then`; a refusal is a toast of its error, the card stays), a custom action of
+  the route set (`useCustomAction`: `action`, a button of a card or of the toolbar of a list
+  shown when `custom_actions` of the meta has it, `row` and `bulk`, shown on the rows that
+  the user may change or delete as its `access_action` requires, and `dialog`, the dialog of
+  its `fields` or of its confirmation; done, a toast, the queries of the resource refetched)
+  and the extension of a generated screen (`ScreenExtension<P>` of the
   props `P` of the component of its primitive, so that the asset requires none of them;
   `extended` joins the actions, `actions`, `rowActions`, `bulk`, and the `children` and
   `after` of the extension with the generated ones, and replaces the other props).

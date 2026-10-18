@@ -26,4 +26,12 @@ card:
     - {id: history, title: {en: History, ru: История}, history: true}
 actions:
   - {id: delete, primitive: destroy, then: task-list, label: {en: Delete, ru: Удалить}, title: {en: 'Delete the task?', ru: 'Удалить задачу?'}}
+  # the custom action of the task (`TaskRouteSet.action_escalate`), its priority asked for
+  - id: escalate
+    primitive: custom
+    action: escalate
+    fields: [priority]
+    label: {en: Escalate, ru: Повысить приоритет}
+    description: {en: The priority that the task takes., ru: 'Приоритет, который получит задача.'}
+    message: {en: The priority of the task is changed., ru: Приоритет задачи изменён.}
 states: [loading, error, forbidden, not_found]

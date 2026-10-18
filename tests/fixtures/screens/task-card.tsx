@@ -7,7 +7,7 @@ import { useLanguage } from '@/bazis/i18n';
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
 import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
-import { useDestroyCardAction } from '@/bazis/ui/screens';
+import { useCustomAction, useDestroyCardAction } from '@/bazis/ui/screens';
 import { StatusBadge } from '@/bazis/ui/status-badge';
 import { StatusHistory } from '@/bazis/ui/status-history';
 import { TransitBar } from '@/bazis/ui/transit-bar';
@@ -29,6 +29,16 @@ export function TaskCardScreen() {
     path: TASK.path,
     item: id,
     then: routeTo('task-list'),
+  });
+  const escalateAction = useCustomAction({
+    id: 'escalate',
+    label: t('screens.task-card.actions.escalate.label'),
+    path: TASK.path,
+    action: 'escalate',
+    item: id,
+    fields: ['priority'],
+    description: t('screens.task-card.actions.escalate.description'),
+    message: t('screens.task-card.actions.escalate.message'),
   });
   return (
     <Screen
@@ -72,7 +82,7 @@ export function TaskCardScreen() {
             content: (item) => <StatusHistory resource={item} />,
           },
         ]}
-        actions={[deleteAction.action]}
+        actions={[deleteAction.action, escalateAction.action]}
       >
         <TransitBar
           path={TASK.path}
@@ -83,6 +93,7 @@ export function TaskCardScreen() {
         />
       </ResourceCard>
       {deleteAction.confirm}
+      {escalateAction.dialog}
     </Screen>
   );
 }

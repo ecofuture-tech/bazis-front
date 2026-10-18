@@ -54,9 +54,9 @@ class Step:
     #: its screen and its test waits for the form only; any other submit must save, or its
     #: test fails with the error shown
     failing: bool = False
-    #: a destroy action: its dialog confirms it (`action:confirm-<id>`) when the screens are
-    #: generated (`screens`), `required` on a generated screen, `optional` on a custom one,
-    #: which may show none; None for any other step
+    #: a destroy action, or a custom action with `confirm`: its dialog confirms it
+    #: (`action:confirm-<id>`) when the screens are generated (`screens`), `required` on a
+    #: generated screen, `optional` on a custom one, which may show none; None for any other step
     confirm: str | None = None
 
 
@@ -203,6 +203,15 @@ class _Scenario:
         Checks that the entity of the screen (or the given one) has the fields of
         `(path, name)` items, and the form, when it lists its fields.
         """
+        if form is not None and form.get('primitive') == 'custom':
+            # the dialog of a custom action: the properties of its body (S032), not fields of the entity
+            for path, name in items:
+                if name not in form['fields']:
+                    self.add(
+                        path, 'P023', f'The dialog of the action has no field `{name}`.',
+                        'Fill a property of its body that the action asks for (`fields` of the action).',
+                    )
+            return
         entity = entity or self.entity
         if entity is None:
             return
@@ -334,8 +343,22 @@ class _Scenario:
         if action['primitive'] == 'form':
             self.state.form = action
             return
+        custom = (self.state.screen or {}).get('custom')
+        if action['primitive'] == 'custom':
+            # a list runs one on each row (or of the route set, its toolbar): the scenarios run
+            # those of the item of a card, and those of the rows as bulk actions
+            self.require(
+                path, self.state.screen['primitive'] == 'card',
+                'A custom action of a list is run on a row or from its toolbar: run it on the card of the item, '
+                'or as a bulk action of the list.',
+            )
+            if action.get('fields'):
+                self.state.form = action
+            elif action.get('confirm'):
+                self.confirm = 'optional' if custom else 'required'
+            return
         if action['primitive'] == 'destroy':
-            self.confirm = 'optional' if (self.state.screen or {}).get('custom') else 'required'
+            self.confirm = 'optional' if custom else 'required'
         if 'then' in action:
             self.lead(path, action['then'])
 
@@ -391,6 +414,8 @@ class _Scenario:
     def step_fill(self, path, values):
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
+            if (self.state.form or {}).get('primitive') == 'custom':
+                return
             for name, value in values.items():
                 self.fixed((*path, name), name)
                 if self.file(name):

@@ -23,6 +23,10 @@ import type { Messages } from '../translate.js';
 export const ru: Messages = {
   'action.cancel': 'Отмена',
   'action.close': 'Закрыть',
+  'action.confirm': 'Выполнить?',
+  'action.done': 'Готово',
+  'action.failed': 'Не выполнено',
+  'action.fill': 'Заполните то, что нужно для действия.',
   'async.completed': 'Готово',
   'async.failed': 'Ошибка',
   'async.pending': 'В очереди',

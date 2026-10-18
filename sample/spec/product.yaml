@@ -41,6 +41,7 @@ entities:
       - {id: priority, type: string}     # choices: shown, filled and filtered by their labels
       - {id: location, type: point}      # a PointField: on the map of the list, its coordinates on the card
       - {id: watchers, relation: user, many: true}   # a to-many relationship: chosen in the forms
+      - {id: due, type: datetime}        # the calendar of the tasks, whose add takes its time
     workflow:
       initial: draft
       statuses: [draft, in_progress, done]
@@ -91,7 +92,9 @@ scenarios:
       - open_item: {where: {title: Review the plan}}   # created by `manage.py e2e_data`
       # a field permission of the viewer (tasks/roles.py): the report is hidden; he adds no step
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
+      # nor does he escalate it: bazis-permit leaves the custom action out of his meta
       - expect: {action_absent: add-step}
+      - expect: {action_absent: escalate}
   # the picker of the assignee searches the user by the label (his first and last name,
   # given by `manage.py e2e_data`); the list shows the label
   - id: manager-assigns-a-task
@@ -265,10 +268,43 @@ scenarios:
       - bulk: start-all
       - open_item: {where: {title: Start at once}}
       - expect: {screen: task-card, status: in_progress}
-  # a calendar: the task of `manage.py e2e_data`, created today, on its day
+  # a calendar: the task of `manage.py e2e_data`, due now, on its day
   - id: viewer-reads-the-calendar
     role: viewer
     steps:
       - open: task-calendar
       - open_item: {where: {title: Review the plan}}
+      - expect: {screen: task-card, status: draft}
+  # the custom action `escalate` of the tasks: on the card, its priority asked for in its
+  # dialog; then on the selected rows of the list, with its default (high)
+  - id: manager-escalates-a-task
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Escalate the review}
+      - submit: {}
+      - expect: {screen: task-card, values: {priority: Normal}}
+      - action: escalate
+      - fill: {priority: Low}
+      - submit: {}
+      - expect: {values: {priority: Low}}
+      - open: task-list
+      - select: {where: {title: Escalate the review}}
+      - bulk: escalate-all
+      - open_item: {where: {title: Escalate the review}}
+      - expect: {screen: task-card, values: {priority: High}}
+  # the add of the calendar by a date-time: the day selected (today) at the time filled; a
+  # task without a title is refused, its form kept open with the time
+  - id: manager-plans-on-the-calendar
+    role: manager
+    steps:
+      - open: task-calendar
+      - action: add-task
+      - fill: {title: '', due: 'today 10:30'}
+      - submit: {}
+      - expect: {error: title}
+      - fill: {title: Plan on the calendar}
+      - submit: {}
+      - open_item: {where: {title: Plan on the calendar}}
       - expect: {screen: task-card, status: draft}
