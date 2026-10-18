@@ -61,8 +61,11 @@ The components look as the design of the product says (`spec/design/`, compiled 
   `aria-busy`;
 - a value of an item never widens the page: a grid that holds them has its column
   `grid-cols-[minmax(0,1fr)]` (an implicit column grows to the longest word), and the
-  titles and the values that wrap break a word without a space (`wrap-anywhere`); the
-  others are cut with their whole text in their title (`truncate`, `titleFromText`). The
+  titles and the values that wrap break a word without a space (`wrap-anywhere`); a column of
+  texts of a table has a `min-w-*` and the same `max-w-*`, so that the table shares its width
+  by them and, while it has room, a long text does not narrow the column of a short word until
+  the word breaks; the others are cut with their whole text in their title (`truncate`,
+  `titleFromText`). The
   end-to-end test `layout.spec.ts` of the sample checks it with a long title, at the width
   of a phone and of a desktop;
 - on a touch screen (`pointer-coarse:`) the buttons, the fields, the selects, the tabs and the

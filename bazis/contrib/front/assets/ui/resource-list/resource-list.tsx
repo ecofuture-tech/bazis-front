@@ -299,8 +299,11 @@ function TableView(
                       index === 0
                         ? cn('min-w-48 font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
                         : 'text-muted-foreground',
-                      // a text wraps in the width that the table gives its column, a long word too
-                      !isShort(field) && cn('whitespace-normal wrap-anywhere', index > 0 && 'min-w-32'),
+                      // a text wraps in the width that the table gives its column, a long word too; the
+                      // table shares its width between the columns of texts by their bounds, not by the
+                      // length of their texts: while it has room, a long text does not narrow the column
+                      // of a short word (an e-mail) until the word breaks
+                      !isShort(field) && cn('whitespace-normal wrap-anywhere', index > 0 ? 'min-w-32 max-w-32' : 'max-w-48'),
                       isNumeric(field) && 'text-right tabular-nums',
                       field?.kind === 'attribute' && field.format === 'date-time' && 'tabular-nums',
                       hidden(name) && 'hidden',
