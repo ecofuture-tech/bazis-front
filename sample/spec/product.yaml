@@ -31,7 +31,7 @@ roles:
 entities:
   - id: task
     resource: tasks.task
-    title: Task
+    title: {en: Task, ru: Задача}
     fields:
       - {id: title, type: string}
       - {id: report, type: text}
@@ -57,14 +57,14 @@ entities:
       viewer: {view: all}
   - id: user
     resource: users.user
-    title: User
+    title: {en: User, ru: Пользователь}
     fields:
       - {id: username, type: string}
       - {id: dt_first_login, type: datetime}   # taken by the create of a user: the add of a calendar (the kitchen sink)
   # the steps of a task: a related section of its card, added there with the task fixed
   - id: step
     resource: tasks.step
-    title: Step
+    title: {en: Step, ru: Шаг}
     fields:
       - {id: title, type: string}
       - {id: task, relation: task}

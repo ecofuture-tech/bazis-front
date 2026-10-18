@@ -320,7 +320,7 @@
           "type": "string",
           "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$"
         },
-        "title": {"type": "string"},
+        "title": {"description": "The name of the entity (`ENTITIES.<id>.title` of the generated screens is the key of its text).", "$ref": "#/$defs/text"},
         "label": {
           "description": "The fields that label an item (the book and the reader of a loan: `[book, reader]`), when its resource has no attribute of a label in the contract (`label`: a `name`, a `title`...; S019): the screens give them to the components, which show an item by them, not by its id.",
           "type": "array",

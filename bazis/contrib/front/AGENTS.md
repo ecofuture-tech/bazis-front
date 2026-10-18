@@ -379,8 +379,8 @@ scenarios:
 `language`, the default one (one of them), as the backend has them: `check` compares them
 with `project.languages` (`LANGUAGES`) and `project.language` (the code of `LANGUAGES`
 that `LANGUAGE_CODE` names) of the contract (P029). See [The language](#the-language).
-The texts of the specs (`product.name`, the titles and the labels of the screens) are in
-each of them: see "Texts" in
+The texts of the specs (`product.name`, the titles of the entities, the titles and the labels
+of the screens) are in each of them: see "Texts" in
 [The specs of the screens and the design](#the-specs-of-the-screens-and-the-design).
 
 #### Navigation
@@ -698,8 +698,10 @@ every language of `languages` (S027). `bazis_front screens` writes the texts of 
 in the dictionaries of the generated screens (`GENERATED_MESSAGES` of
 `src/screens/generated/messages.ts`) by the key of their place, `screens.<id>.title`,
 `screens.<id>.card.sections.<section>.title`, `navigation.<group>.title`,
-`navigation.<screen>.label` (`navigation.<group>.items.<screen>.label` in a group), `product.name`;
-a map without the default language gives it the text of the first language of the product
+`navigation.<screen>.label` (`navigation.<group>.items.<screen>.label` in a group), `product.name`,
+`entities.<id>.title` (the `title` of an entity, a text like the others; `ENTITIES.<id>.title` is
+the key of its text).
+A map without the default language gives it the text of the first language of the product
 that it has (the others fall back to the default). The dictionaries of the product
 (`src/i18n/<language>.ts`) override them key by key.
 

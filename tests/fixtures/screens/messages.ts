@@ -10,6 +10,9 @@ import type { Messages } from '@/bazis/i18n';
  */
 export const GENERATED_MESSAGES: Readonly<Record<string, Messages>> = {
   en: {
+    'entities.step.title': 'Step',
+    'entities.task.title': 'Task',
+    'entities.user.title': 'User',
     'navigation.planning.title': 'Planning',
     'navigation.tasks.title': 'Tasks',
     'product.name': 'Tasks',
@@ -55,6 +58,9 @@ export const GENERATED_MESSAGES: Readonly<Record<string, Messages>> = {
     'screens.task-list.title': 'Tasks',
   },
   ru: {
+    'entities.step.title': 'Шаг',
+    'entities.task.title': 'Задача',
+    'entities.user.title': 'Пользователь',
     'navigation.planning.title': 'Планирование',
     'navigation.tasks.title': 'Задачи',
     'product.name': 'Задачи',

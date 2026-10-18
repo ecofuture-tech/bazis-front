@@ -763,15 +763,16 @@ CASES = [
     ),
     (
         'S027',
-        # the name of the product in its default language only, a label without its Russian;
-        # a key of the dictionaries is in every language; the title of a generated card is not
-        # shown
-        {PRODUCT: lambda d: d['product'].update(name='Tasks'),
+        # the name of the product in its default language only, a label without its Russian, the
+        # title of an entity without its Russian; a key of the dictionaries is in every language;
+        # the title of a generated card is not shown
+        {PRODUCT: lambda d: [d['product'].update(name='Tasks'), d['entities'][1].update(title={'en': 'User'})],
          CARD: lambda d: d.update(title='Task'),
          LIST: lambda d: [d['actions'][0]['label'].pop('ru'), d['list'].update(empty='tasks.empty')],
          f'{I18N}/en.ts': lambda d: "export const en: Messages = {\n  'tasks.empty': 'No tasks yet.',\n};\n",
          MESSAGES: lambda d: 'export const en: Messages = {};\n'},
-        [('S027', f'{PRODUCT}#/product/name'), ('S027', f'{LIST}#/actions/0/label')],
+        [('S027', f'{PRODUCT}#/product/name'), ('S027', f'{PRODUCT}#/entities/1/title'),
+         ('S027', f'{LIST}#/actions/0/label')],
     ),
     (
         'S028',

@@ -7,11 +7,11 @@ import { ROUTES } from '@/bazis/generated/contract';
 
 /**
  * The entities of the product by their id: the JSON:API type of the resource, its route set
- * (`ROUTES` of the contract), the fields that label an item, how the values of fields are shown,
- * and the icon of the entity.
+ * (`ROUTES` of the contract), the key of the name of the entity in the dictionaries (`t(title)`),
+ * the fields that label an item, how the values of fields are shown, and the icon of the entity.
  */
 export const ENTITIES = {
-  task: { type: 'tasks.task', path: ROUTES['tasks.task'], Icon: SquareCheckIcon },
-  user: { type: 'users.user', path: ROUTES['users.user'], Icon: UsersIcon },
-  step: { type: 'tasks.step', path: ROUTES['tasks.step'], Icon: ListChecksIcon },
+  task: { type: 'tasks.task', path: ROUTES['tasks.task'], title: 'entities.task.title', Icon: SquareCheckIcon },
+  user: { type: 'users.user', path: ROUTES['users.user'], title: 'entities.user.title', Icon: UsersIcon },
+  step: { type: 'tasks.step', path: ROUTES['tasks.step'], title: 'entities.step.title', Icon: ListChecksIcon },
 } as const;

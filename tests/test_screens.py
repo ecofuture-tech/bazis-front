@@ -113,6 +113,30 @@ def test_the_texts_of_the_specs_are_the_generated_messages(tmp_path):
     assert "label: t('navigation.planning.title')," in files[f'{screens.GENERATED_DIR}/navigation.ts']
 
 
+def test_the_title_of_an_entity_is_a_text_of_the_specs(tmp_path):
+    """
+    `title` of an entity is a text like the others: `ENTITIES.<id>.title` is the key of its text, a
+    text in each language or in words is a message under the key of its place, a key of the
+    dictionaries is the product's own.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    path = tmp_path / 'spec' / 'product.yaml'
+    data = yaml.safe_load(path.read_text(encoding='utf-8'))
+    data['entities'][1]['title'] = 'users.title'
+    data['entities'][2]['title'] = 'Step'
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding='utf-8')
+
+    files = rendered(tmp_path)
+    entities = files[f'{screens.GENERATED_DIR}/entities.ts']
+    messages = files[f'{screens.GENERATED_DIR}/messages.ts']
+    assert "title: 'entities.task.title'," in entities
+    assert "    'entities.task.title': 'Task',\n" in messages
+    assert "    'entities.task.title': 'Задача',\n" in messages
+    assert "title: 'users.title'," in entities and 'users.title' not in messages
+    assert "title: 'entities.step.title'," in entities
+    assert "    'entities.step.title': 'Step',\n" in messages.split('  ru: {')[0]
+
+
 def test_a_link_of_the_navigation_is_labelled_by_its_label_else_by_the_title_of_its_screen(tmp_path):
     """
     A link with a `label` (shorter than the title of its screen) is labelled by it, a text of

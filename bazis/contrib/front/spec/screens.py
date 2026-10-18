@@ -154,9 +154,14 @@ def texts(specs: Specs) -> Texts:
     return result
 
 
+def message_key(value, key: str) -> Str:
+    """The key of a text of the specs in the dictionaries: the text when it is one, else its own key."""
+    return Str(value if isinstance(value, str) and TEXT_KEY.fullmatch(value) else key)
+
+
 def t(value, key: str) -> Call:
     """The translation of a text of the specs: its key, or the key that it is."""
-    return Call('t', [Str(value if isinstance(value, str) and TEXT_KEY.fullmatch(value) else key)])
+    return Call('t', [message_key(value, key)])
 
 
 def text(screen: dict, *path) -> Call | None:
@@ -1000,9 +1005,13 @@ RENDERERS = {
 def render_entities(product: Product) -> str:
     code = Code()
     entries = []
-    for entity_id, entity in product.entities.items():
+    for index, entity in enumerate(product.specs.product.get('entities', [])):
+        entity_id = entity['id']
         code.use('@/bazis/generated/contract', 'ROUTES')
         props = [('type', Str(entity['resource'])), ('path', Raw(f'ROUTES[{quote(entity["resource"])}]'))]
+        if 'title' in entity:
+            key = text_key('', product.specs.product, ('entities', index, 'title'))
+            props.append(('title', message_key(entity['title'], key)))
         if 'label' in entity:
             props.append(('label', Arr([Str(it) for it in entity['label']])))
         display = [(it['id'], display_literal(it['display'])) for it in entity['fields'] if 'display' in it]
@@ -1018,8 +1027,8 @@ def render_entities(product: Product) -> str:
         *code.imports(),
         doc_comment(
             'The entities of the product by their id: the JSON:API type of the resource, its route set',
-            '(`ROUTES` of the contract), the fields that label an item, how the values of fields are shown,',
-            'and the icon of the entity.',
+            '(`ROUTES` of the contract), the key of the name of the entity in the dictionaries (`t(title)`),',
+            'the fields that label an item, how the values of fields are shown, and the icon of the entity.',
         ) + '\n' + printed(Const('ENTITIES', value, exported=True).doc()),
     )
 
