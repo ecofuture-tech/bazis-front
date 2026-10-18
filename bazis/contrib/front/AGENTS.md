@@ -1036,6 +1036,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S037` | warning | a dictionary of the product (src/i18n/<language>.ts) has a key of the texts of the specs (`screens.<id>...`) that no text of the specs has: of a screen, a section, a tab or an action that is not there, or a text that the spec does not give |
 | `S038` | error | a screen of an item has no `:id` in its route: a card or an update form that is not custom (the id of the item is in the route; a custom one finds its item itself) |
 | `S039` | error | a sort names a field twice (`planned_date` and `-planned_date`): a sort is the order of the items by default, by its first field, then by the next one for the items equal by it; keep the field once (the user sorts a list by the headers of its columns) |
+| `S040` | error | a list or a board has filters, or a list is a report (a `filter`, whose link in the navigation reads them), and the route set of its resource does not route the fields that the user may filter by (`route_filter_fields/`): its `actions` leave out `get_route_filter_fields`, and the filters show an error. Add it to `actions` (the frontend needs the routes of the list, of the item, of their schemas and of the fields of the filters), never remove the filters for it |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1301,7 +1302,10 @@ differ from the backend; `--check` does the same in CI.
 - `project.resources` is keyed by the JSON:API type. A resource is described by the route
   set that the core uses as the default route of its model; other route sets of the model
   are listed in `other_routes`. `actions` maps the name of each route to its `kind` (a custom action of the route set is
-  `other`: `client.action`).
+  `other`: `client.action`). A route set that narrows its `actions` keeps those that the
+  frontend reads: `action_list`, `action_retrieve` and their schemas (`action_schema_list`,
+  `action_schema_retrieve`), the create and the update with theirs when the screens change
+  the items, and `get_route_filter_fields` while a list or a board filters them (S040).
   `fields` are the attributes and relationships of the item response: `title`, the title
   of the field in the OpenAPI in `LANGUAGE_CODE` (that of the route set, else the
   `verbose_name` of the model field, else the name of the field: S018), `type` (and
@@ -2650,10 +2654,15 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
   caught (V011), an error written to the console (V012) and a request to the API (`/api/`)
   that failed or was answered with an error status (V013); a 403 or a 404 of a `GET`, which
   a screen shows as its state, and a request that the page cancelled are not reported, nor
-  the requests of the login.
+  the requests of the login. The fields of the filters (`route_filter_fields/`) are never a
+  state: their 404 is reported (a route set whose `actions` leave out
+  `get_route_filter_fields`, which `check` reports as S040), and a 500 of the proxy of the dev
+  server that did not reach the backend (a `text/plain` without a body) says so: not an error
+  of the backend, take the screenshots again.
 - It runs as `npm run e2e` does (the same `playwright.config.ts`, which the config of the
   shots extends): the backend running, migrated and with the data of `manage.py e2e_data`,
-  `E2E_PASSWORD` set, a dev server of its own on `E2E_PORT` or a running frontend at
+  `E2E_PASSWORD` set, a dev server of its own on `E2E_PORT` (a free port without it, not
+  5173, which a dev server of the developer may have) or a running frontend at
   `E2E_BASE_URL`, and Chromium (`npx playwright install chromium` in `frontend/`). A screen
   with no item (an empty list before its card) cannot be shot: the data of `e2e_data` has
   one.
@@ -2661,8 +2670,8 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
   after it emptied the directory. `.scratch/` is in the `.gitignore` of the frontend: never
   commit it.
 - It exits with 0 when the report has no error, 1 when it has errors, 2 when no screen could
-  be shot (no Node, no browser, no backend or frontend, no `E2E_PASSWORD`: the output of
-  Playwright says which).
+  be shot (no Node, no browser, no backend or frontend, no `E2E_PASSWORD`, a port of
+  `E2E_PORT` already used: the output of Playwright says which).
 - `shots.ts` is generated like the end-to-end tests: never edited, the hashes of the specs
   and of the file in the lock (`shots`), `--check`; the system check `front.W008` reports a
   stale `shots.ts`, `front.W009` a report with errors or no report that can be read (the
@@ -2707,10 +2716,12 @@ with the number of the small controls and the first five of them.
 | `V010` | warning | a text cut by an ellipsis without its whole text in a title or a tooltip: give it `title`, or let it wrap |
 | `V011` | error | an error of the page that nothing caught (`pageerror`): fix the code of the screen that throws it (the message says which) |
 | `V012` | warning | an error written to the console (`console.error`: a warning of React, a failure that the page handles): fix what React warns of (a key, a nested form), and handle the failure without writing it |
-| `V013` | error | a request of the page to the API failed or was answered with an error status, but a 403 or a 404 of a `GET` that a screen shows as its state: a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 405 of an action it does not route |
+| `V013` | error | a request of the page to the API failed or was answered with an error status, but a 403 or a 404 of a `GET` that a screen shows as its state: a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 404 of `route_filter_fields/` or a 405 of an action it does not route (its `actions`, S040); a 500 of the proxy of the dev server that did not reach the backend says so: take the screenshots again |
 | `V014` | error | the page scrolls sideways at the width of a desktop: a fixed width, a grid whose implicit column grows to a long word; give the grid its column (`grid-cols-[minmax(0,1fr)]`), let the texts wrap |
 | `V015` | error | the page scrolls sideways once the texts of its items are long: before the screenshot, for the check only, the texts of the items in their cells and fields (`data-text` of `FieldValue` in `cell:<name>`, `field:<name>`, not in a form: a string without a choice or a format, the label of a related item; not a date, a number or the label of a choice, short by their nature, nor a cell of the product) are made 120 characters long with a word of 40, then given back; the data of `e2e_data` are short, the data of the users are not. Bound the column of the grid that holds them and let them wrap (`wrap-anywhere`) or cut them with their text in a title (`truncate`) |
 | `V016` | warning | a list, a board, a calendar (neither a row nor a day with items) or the last items of a dashboard show no item (but the list searched for nothing): the screenshot does not show them, nor what a long value does there; give `e2e_data` items for them, their dates relative to the day of the run (a calendar opens on the month of today) |
+| `V017` | warning | a text cut by an ellipsis to a few characters, its box narrower than 4 em: the item of a narrow day of a calendar, a narrow column; give it the width of a line of its own or let it wrap |
+| `V018` | warning | a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap; let them wrap (`whitespace-normal wrap-anywhere` with a `min-w-*`) |
 
 ### The checklist of the screenshots
 
@@ -3482,7 +3493,7 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
 - New errors of `check` and `screens` that a product of 0.2.0 may meet: two entities that the
   generated code would name alike (P032), the screens of an item without `:id` (S038), the
   links of the navigation (S030), the code of a custom screen (S028, S029), a field twice in
-  a sort (S039).
+  a sort (S039), filters of a route set that does not route the fields of its filters (S040).
 
 ## API: the client
 

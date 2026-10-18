@@ -35,6 +35,7 @@ not run it.
 import json
 import os
 import shutil
+import socket
 import subprocess
 from pathlib import Path
 
@@ -255,11 +256,21 @@ class NodeMissingError(Exception):
     """
 
 
+def free_port() -> int:
+    """A port of the local host that nothing listens on now."""
+    with socket.socket() as probe:
+        probe.bind(('localhost', 0))
+        return probe.getsockname()[1]
+
+
 def run(frontend: Path) -> None:
     """
     Takes the screenshots: empties `.scratch/shots/` and runs Playwright with
     `playwright.shots.config.ts` in the frontend, its output on the output of the process. A
-    failed test is the error V001 of its result, which `collect` reads.
+    failed test is the error V001 of its result, which `collect` reads. Without `E2E_BASE_URL`
+    (a frontend already running) nor `E2E_PORT`, the dev server that the config starts takes
+    a free port, not the default one of the end-to-end tests, which the dev server of the
+    developer usually has (the config never tests a server already running).
     """
     npx = shutil.which('npx')
     if npx is None:
@@ -269,6 +280,8 @@ def run(frontend: Path) -> None:
     output.mkdir(parents=True)
     command = [npx, '--no-install', 'playwright', 'test', '--config', CONFIG]
     environment = {**os.environ, 'BAZIS_SHOTS_DIR': str(output)}
+    if 'E2E_BASE_URL' not in environment and 'E2E_PORT' not in environment:
+        environment['E2E_PORT'] = str(free_port())
     subprocess.run(command, cwd=frontend, env=environment, check=False)
 
 

@@ -53,7 +53,7 @@
       "required": ["columns"],
       "properties": {
         "columns": {"$ref": "#/$defs/fields", "minItems": 1},
-        "filters": {"description": "Fields that the contract can filter by.", "$ref": "#/$defs/fields"},
+        "filters": {"description": "Fields that the contract can filter by, read from `route_filter_fields/` of the route set, which its `actions` keep (S040).", "$ref": "#/$defs/fields"},
         "sort": {"$ref": "#/$defs/sort"},
         "search": {"description": "A full-text search field (`search`).", "type": "boolean"},
         "open": {"description": "The card screen that a row opens.", "$ref": "#/$defs/id"},
@@ -293,7 +293,7 @@
             "badge": {"$ref": "#/$defs/field"}
           }
         },
-        "filters": {"description": "Fields that the contract can filter by.", "$ref": "#/$defs/fields"},
+        "filters": {"description": "Fields that the contract can filter by, read from `route_filter_fields/` of the route set, which its `actions` keep (S040).", "$ref": "#/$defs/fields"},
         "move": {"description": "The items move between the columns by the transits that the backend allows them.", "type": "boolean"},
         "open": {"description": "The card screen that an item opens.", "$ref": "#/$defs/id"},
         "empty": {"description": "The text of the board without items (`emptyMessage`); that of the component by default.", "$ref": "#/$defs/text"}

@@ -891,6 +891,14 @@ CASES = [
         [('S039', f'{HOME}#/dashboard/recent/0/sort/1'), ('S039', f'{LIST}#/list/sort/2')],
     ),
     (
+        'S040',
+        # a route set that narrows its actions without the fields of its filters: the filters of
+        # the list and of the board, the filters and the report of the drafts
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')]},
+        [('S040', f'{DRAFTS}#/list/filters'), ('S040', f'{DRAFTS}#/list/filter'),
+         ('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+    ),
+    (
         'S006',
         # a row of a list and a row of the last items open an item in a custom card that finds
         # its item itself: its route has nowhere to put the id
@@ -1401,7 +1409,7 @@ def test_the_system_check(root, tmp_path):
     (root / 'contract').mkdir()
     (root / 'contract' / 'contract.json').write_text(
         json.dumps({'format': CONTRACT_FORMAT, 'capabilities': {'permit': {'roles': []}, 'statusy': {'models': {}}},
-                    'project': {'resources': {'users.user': {'fields': {}, 'label': []}}}}),
+                    'project': {'resources': {'users.user': {'actions': {}, 'fields': {}, 'label': []}}}}),
         encoding='utf-8',
     )
     messages = check_spec(None)

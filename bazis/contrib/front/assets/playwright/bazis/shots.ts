@@ -42,6 +42,8 @@ export const CODES = {
   V014: ['error', 'the page scrolls sideways at the width of a desktop'],
   V015: ['error', 'the page scrolls sideways once the texts of its items are long: a text of 120 characters with a word of 40 put in their cells and fields (`data-text`, not a date, a number or the label of a choice) for the check, then taken out'],
   V016: ['warning', 'a list, a board, a calendar or the last items of a dashboard show no item, but the list searched for nothing: the screenshot does not show them'],
+  V017: ['warning', 'a text cut by an ellipsis to a few characters: its box is narrower than 4 em, too narrow to be read (the item of a narrow day of a calendar, a narrow column)'],
+  V018: ['warning', 'a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap'],
 } as const;
 
 /** A code of the checks of a screenshot. */
@@ -158,10 +160,26 @@ async function enter<P extends Product>(page: Page, product: P, shot: Shot<P>): 
 
 /**
  * A refusal that a screen shows as its state, not an error of the page: 403 and 404 of what
- * it reads (`state:forbidden`, `state:not_found`).
+ * it reads (`state:forbidden`, `state:not_found`), but of the fields of its filters
+ * (`route_filter_fields/`), which no screen shows as its state: the route set does not route
+ * them.
  */
 function expected(response: Response): boolean {
-  return [403, 404].includes(response.status()) && response.request().method() === 'GET';
+  return (
+    [403, 404].includes(response.status()) &&
+    response.request().method() === 'GET' &&
+    !new URL(response.url()).pathname.endsWith('/route_filter_fields/')
+  );
+}
+
+/**
+ * An answer of the proxy of the dev server of Vite that did not reach the backend, not of the
+ * backend: a 500 of the type `text/plain` without a charset and without a body (its error is
+ * in the output of the dev server), where Bazis answers JSON and Starlette a text with its
+ * charset.
+ */
+function unproxied(response: Response): boolean {
+  return response.status() === 500 && response.headers()['content-type'] === 'text/plain';
 }
 
 /**
@@ -185,7 +203,11 @@ function listen(page: Page): () => ShotIssue[] {
   page.on('response', (response) => {
     if (!api(response.url()) || response.status() < 400 || expected(response)) return;
     const { pathname } = new URL(response.url());
-    heard.push({ code: 'V013', selector: `${response.request().method()} ${pathname}`, message: `${String(response.status())} ${response.statusText()}`.trim() });
+    const status = `${String(response.status())} ${response.statusText()}`.trim();
+    const message = unproxied(response)
+      ? `${status}: the proxy of the dev server did not reach the backend (its output says why), not an answer of the backend; take the screenshots again`
+      : status;
+    heard.push({ code: 'V013', selector: `${response.request().method()} ${pathname}`, message });
   });
   page.on('requestfailed', (request) => {
     const failure = request.failure()?.errorText ?? '';
@@ -244,7 +266,7 @@ export interface CheckOptions {
 }
 
 /**
- * The issues of what the page renders (the codes of `CODES`: V002 to V010, V014 to V016), at most
+ * The issues of what the page renders (the codes of `CODES`: V002 to V010, V014 to V018), at most
  * `MAX_ISSUES` of each code (`capped`).
  */
 export async function check(page: Page, options: CheckOptions): Promise<ShotIssue[]> {
@@ -335,7 +357,8 @@ function audit(options: CheckOptions): Found[] {
     return result;
   };
 
-  // V002, V014: the page scrolls sideways as it is; V015: once the values of the items are long
+  // V002, V014: the page scrolls sideways as it is; V015: once the values of the items are
+  // long, V018: a part that scrolls sideways (a table) grows then
   // the width of the layout viewport: a mobile browser widens its window to a wider page
   const root = document.documentElement;
   const width = root.clientWidth;
@@ -374,9 +397,19 @@ function audit(options: CheckOptions): Found[] {
         if (node instanceof Text && !kept.has(node) && node.data.trim()) kept.set(node, node.data);
       }
     }
+    // the parts that scroll sideways (not the columns of a board) and fit their content
+    const fitting = [...document.body.querySelectorAll('*')].filter((element) => {
+      const overflow = getComputedStyle(element).overflowX;
+      return (overflow === 'auto' || overflow === 'scroll') && shown(element) && !element.closest('[data-bz^="board:"]') && element.scrollWidth <= element.clientWidth + 1;
+    });
     for (const node of kept.keys()) node.data = long;
     try {
       if (wide()) sideways('V015', ` with a text of ${String(long.length)} characters in the cells and the fields`);
+      for (const element of fitting) {
+        if (element.scrollWidth > element.clientWidth + 1) {
+          add('V018', element, `It is ${String(element.scrollWidth)} px wide in ${String(element.clientWidth)} px with a text of ${String(long.length)} characters in the cells.`);
+        }
+      }
     } finally {
       for (const [node, data] of kept) node.data = data;
     }
@@ -520,13 +553,15 @@ function audit(options: CheckOptions): Found[] {
     return best;
   }
 
-  // V010: the texts cut without their whole text
+  // V010: the texts cut without their whole text; V017: those cut to a few characters
   for (const element of document.body.querySelectorAll('*')) {
     const style = getComputedStyle(element);
-    const cut =
-      (style.textOverflow === 'ellipsis' && element.scrollWidth > element.clientWidth + 1) ||
-      (style.webkitLineClamp !== 'none' && style.webkitLineClamp !== '' && element.scrollHeight > element.clientHeight + 1);
+    const ellipsis = style.textOverflow === 'ellipsis' && element.scrollWidth > element.clientWidth + 1;
+    const cut = ellipsis || (style.webkitLineClamp !== 'none' && style.webkitLineClamp !== '' && element.scrollHeight > element.clientHeight + 1);
     if (!cut || !shown(element)) continue;
+    if (ellipsis && element.clientWidth < 4 * parseFloat(style.fontSize)) {
+      add('V017', element, `The text ${quote(text(element))} is cut to ${String(element.clientWidth)} px.`);
+    }
     if (element.closest('[title], [aria-describedby], [data-slot="tooltip-trigger"]')) continue;
     add('V010', element, `The text ${quote(text(element))} is cut.`);
   }

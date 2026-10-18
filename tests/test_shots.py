@@ -24,6 +24,7 @@ of `assets/playwright/test/shots.spec.ts`.
 import json
 import os
 import re
+import socket
 from io import StringIO
 from pathlib import Path
 
@@ -260,7 +261,7 @@ def fake_playwright(monkeypatch, results: list[dict]) -> list:
     runs = []
 
     def run(command, cwd, env, check):
-        runs.append((command, Path(cwd), env['BAZIS_SHOTS_DIR']))
+        runs.append((command, Path(cwd), env['BAZIS_SHOTS_DIR'], env.get('E2E_PORT')))
         for result in results:
             shown = result['screen'] if result['variant'] is None else f'{result["screen"]}.{result["variant"]}'
             name = f'{shown}-{result["role"]}-{result["mode"]}-{result["width"]}'
@@ -308,7 +309,7 @@ def test_shots_gathers_the_report(root, monkeypatch):
     with pytest.raises(CommandError) as error:
         shoot()
     assert error.value.returncode == 1
-    [(command, cwd, directory)] = runs
+    [(command, cwd, directory, _port)] = runs
     assert command == ['/usr/bin/npx', '--no-install', 'playwright', 'test', '--config', shots.CONFIG]
     assert cwd == frontend and directory == str(output)
     # the screenshots of the previous run are deleted first
@@ -350,6 +351,26 @@ def test_shots_without_a_screenshot(root, monkeypatch):
     with pytest.raises(CommandError, match='Node') as error:
         shoot()
     assert error.value.returncode == 2
+
+
+@pytest.mark.django_db
+def test_shots_take_a_free_port(root, monkeypatch):
+    # the dev server of the shots takes a free port: the default one of the end-to-end tests is
+    # that of the dev server of the developer, which the config never tests in its place
+    monkeypatch.delenv('E2E_PORT', raising=False)
+    monkeypatch.delenv('E2E_BASE_URL', raising=False)
+    runs = fake_playwright(monkeypatch, every_result(root))
+    shoot()
+    [(_command, _cwd, _directory, port)] = runs
+    with socket.socket() as probe:
+        probe.bind(('localhost', int(port)))
+    # the port of E2E_PORT, and none for a frontend already running
+    for name, value in (('E2E_PORT', '5999'), ('E2E_BASE_URL', 'http://localhost:4000')):
+        monkeypatch.setenv(name, value)
+        runs = fake_playwright(monkeypatch, every_result(root))
+        shoot()
+        assert runs[0][3] == ('5999' if name == 'E2E_PORT' else None)
+        monkeypatch.delenv(name)
 
 
 def test_the_codes_of_the_shots_are_in_the_guide():

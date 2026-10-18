@@ -157,6 +157,24 @@ test('what scrolls sideways once the texts of the items are long', async ({ page
   expect(await found(page, LIGHT)).toEqual([]);
 });
 
+test('a table that grows sideways once the texts of the items are long', async ({ page }) => {
+  // the page does not grow: the table scrolls in its own area, wider than it was
+  const table = (cell: string) =>
+    `<div data-bz="list:visit" style="overflow-x: auto; width: 600px"><table style="width: 100%"><tr data-bz="row:1">` +
+    `<td data-bz="cell:client">Mary</td><td data-bz="cell:subscription" style="${cell}"><span data-text>Mary, 8 lessons</span></td></tr></table></div>`;
+  await show(page, table('white-space: nowrap'));
+  const [issue, ...others] = await check(page, LIGHT);
+  expect(others).toEqual([]);
+  expect(issue).toMatchObject({ code: 'V018', severity: 'warning', selector: '[data-bz="list:visit"]' });
+  expect(issue?.message).toMatch(/^It is \d+ px wide in 600 px with a text of 120 characters in the cells\.$/);
+  await expect(page.locator('[data-bz="cell:subscription"]')).toHaveText('Mary, 8 lessons');
+  // a text that wraps, and a table that was wider already (its columns, not its texts)
+  await show(page, table('white-space: normal; overflow-wrap: anywhere'));
+  expect(await found(page, LIGHT)).toEqual([]);
+  await show(page, `<div style="overflow-x: auto; width: 300px"><table style="width: 800px"><tr><td style="white-space: nowrap"><span data-text>Mary</span></td></tr></table></div>`);
+  expect(await found(page, LIGHT)).toEqual([]);
+});
+
 test('a light surface in the dark mode', async ({ page }) => {
   await show(page, '<div data-bz="list:task" style="background: #fff; height: 100px"></div>', 'html { background: #111 }');
   expect(await found(page, { ...LIGHT, dark: true })).toEqual([['V007', '[data-bz="list:task"]']]);
@@ -248,9 +266,22 @@ test('the controls too small to touch on a phone', async ({ page }) => {
 });
 
 test('a text cut without its whole text', async ({ page }) => {
-  const cut = 'width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap';
+  const cut = 'width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap';
   await show(page, `<div data-bz="cell:title" style="${cut}">Write the report again</div><div title="Write the report again" style="${cut}">Write the report again</div>`);
   expect(await found(page, LIGHT)).toEqual([['V010', '[data-bz="cell:title"]']]);
+});
+
+test('a text cut to a few characters', async ({ page }) => {
+  // the items of the narrow days of a calendar: the fields of an item share its width
+  const cut = (width: string) => `width: ${width}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px`;
+  await show(
+    page,
+    `<div data-bz="row:1"><span data-bz="cell:group" title="Bachata for beginners" style="${cut('40px')}; display: inline-block">Bachata for beginners</span></div>` +
+      `<div data-bz="row:2"><span data-bz="cell:group" title="Bachata for beginners" style="${cut('60px')}; display: inline-block">Bachata for beginners</span></div>`,
+  );
+  const [issue, ...others] = await check(page, LIGHT);
+  expect(others).toEqual([]);
+  expect(issue).toMatchObject({ code: 'V017', severity: 'warning', selector: '[data-bz="cell:group"]', message: 'The text "Bachata for beginners" is cut to 40 px.' });
 });
 
 test('at most ten issues of a code', async ({ page }) => {
@@ -299,6 +330,8 @@ test.describe('shoot', () => {
       fetch('/api/v1/tasks/task/');
       fetch('/api/v1/tasks/task/1/');
       fetch('/api/v1/tasks/task/', { method: 'POST' });
+      fetch('/api/v1/tasks/step/route_filter_fields/');
+      fetch('/api/v1/tasks/step/schema_list/');
       fetch('/other/missing');
       setTimeout(() => { throw new Error('Cannot read properties of undefined'); });
     </script>`;
@@ -306,8 +339,14 @@ test.describe('shoot', () => {
     await page.route('http://bazis.test/api/**', async (route) => {
       const request = route.request();
       const { pathname } = new URL(request.url());
-      // a list that fails, an item refused (the screen shows it as its state), a create refused
-      const status = request.method() === 'POST' ? 403 : pathname.endsWith('/1/') ? 404 : 500;
+      // the proxy of the dev server that did not reach the backend: a 500 without a body
+      if (pathname.endsWith('/schema_list/')) {
+        await route.fulfill({ status: 500, contentType: 'text/plain', body: '' });
+        return;
+      }
+      // a list that fails, an item refused (the screen shows it as its state), a create
+      // refused, the fields of the filters of a route set that does not route them
+      const status = request.method() === 'POST' ? 403 : pathname.endsWith('/1/') || pathname.endsWith('/route_filter_fields/') ? 404 : 500;
       await route.fulfill({ status, contentType: 'application/vnd.api+json', body: '{"errors": []}' });
     });
     await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info);
@@ -319,9 +358,14 @@ test.describe('shoot', () => {
         ['V012', 'console'],
         ['V013', 'GET /api/v1/tasks/task/'],
         ['V013', 'POST /api/v1/tasks/task/'],
+        ['V013', 'GET /api/v1/tasks/step/route_filter_fields/'],
+        ['V013', 'GET /api/v1/tasks/step/schema_list/'],
       ].sort(),
     );
-    expect(result.issues.find((it) => it.code === 'V013')?.message).toMatch(/^500/);
+    const message = (selector: string) => result.issues.find((it) => it.selector === selector)?.message;
+    expect(message('GET /api/v1/tasks/task/')).toBe('500 Internal Server Error');
+    expect(message('GET /api/v1/tasks/step/route_filter_fields/')).toBe('404 Not Found');
+    expect(message('GET /api/v1/tasks/step/schema_list/')).toMatch(/^500 Internal Server Error: the proxy of the dev server did not reach the backend/);
   });
 
   test('shoots a list searched for nothing and with its create form open', async ({ page }, info) => {

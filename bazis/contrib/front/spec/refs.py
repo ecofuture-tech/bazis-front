@@ -829,6 +829,7 @@ def _check_screen(
         if primitive == 'calendar' and 'add' in section:
             _check_calendar_add(doc, section, resource, issues)
         _check_queries(doc, (primitive,), section, entity, resource, issues)
+        _check_filter_route(doc, primitive, section, entity, resource, issues)
         _check_search_contract(doc, entity, resource, contract, issues)
     _check_related_sections(doc, entity, product, screens, contract, issues)
 
@@ -1485,6 +1486,32 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
             f'({_describe(actual)} in the contract): a row is highlighted when its field is true.',
             'Highlight by a boolean field of the resource (a calculated field of the route set '
             'of the backend, such as `is_overdue`).',
+        )
+
+
+#: the action of the core that gives the fields that a user may filter a list by
+FILTER_FIELDS_ACTION = 'get_route_filter_fields'
+
+
+def _check_filter_route(doc: Document, primitive: str, section: dict, entity: Entity, resource: dict, issues: Issues) -> None:
+    """
+    The filters of a list or a board, and the link of a report (a list with `filter`, shown
+    to the users who may filter by its fields), read the fields that the user may filter by
+    (`route_filter_fields/`): the route set must route them (S040), not leave them out of its
+    `actions`.
+    """
+    if FILTER_FIELDS_ACTION in resource['actions']:
+        return
+    keys = [key for key in ('filters', 'filter') if section.get(key) and (key == 'filters' or primitive == 'list')]
+    for key in keys:
+        reads = 'its filters read' if key == 'filters' else 'the link of the report reads'
+        issues.add(
+            doc, (primitive, key), 'S040',
+            f'The route set of `{entity.data["resource"]}` does not route the fields that the user '
+            f'may filter by (`route_filter_fields/`), which {reads}: its `actions` leave out '
+            f'`{FILTER_FIELDS_ACTION}`.',
+            f'Add `{FILTER_FIELDS_ACTION}` to the `actions` of the route set in the backend (or remove '
+            f'`{key}`), then {EXPORT_HINT}.',
         )
 
 

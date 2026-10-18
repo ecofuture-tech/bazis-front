@@ -656,7 +656,8 @@ class Command(BaseCommand):
             raise CommandError(
                 f'{summary} No screen was shot: run the backend (migrated, with the data of '
                 '`manage.py e2e_data`) and set E2E_PASSWORD, and see the output of Playwright '
-                '(`npx playwright install chromium` without a browser).',
+                '(`npx playwright install chromium` without a browser; a port of E2E_PORT that '
+                'is already used: another port, or no E2E_PORT for a free one).',
                 returncode=2,
             )
         if report['errors']:
