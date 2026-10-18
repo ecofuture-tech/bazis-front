@@ -281,8 +281,9 @@ class Command(BaseCommand):
             allow_abbrev=False,
             help='Take the screenshots of the screens and check what they render.',
             description=(
-                'Generate frontend/e2e/generated/shots.ts from the specs (every screen as the '
-                'first of its roles, in each color mode of the theme; the screen of an item through '
+                'Generate frontend/e2e/generated/shots.ts from the specs (every screen as '
+                'each of its roles: as the first one in each color mode of the theme, as the others in '
+                'the first mode only; the screen of an item through '
                 'the first item of a screen that opens it), then run it with Playwright '
                 '(playwright.shots.config.ts: the widths of a desktop and a phone, against the '
                 'frontend and the backend of the end-to-end tests, E2E_PASSWORD set) and gather the '

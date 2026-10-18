@@ -84,6 +84,8 @@ class Entity:
 class Product:
     roles: dict[str, dict]
     entities: dict[str, Entity]
+    #: the links of `navigation` of product.yaml; None without it (the default navigation)
+    navigation: list[dict] | None = None
 
 
 def index(doc: Document, items: list[dict], path: tuple, kind: str, issues: Issues) -> dict:
@@ -163,6 +165,7 @@ def check_product(doc: Document, contract: dict | None, issues: Issues) -> Produ
     product = Product(
         roles=index(doc, data.get('roles', []), ('roles',), 'role', issues),
         entities={},
+        navigation=data.get('navigation'),
     )
     entities = index(doc, data.get('entities', []), ('entities',), 'entity', issues)
     _check_entity_names(doc, data.get('entities', []), issues)
@@ -829,7 +832,7 @@ def _check_screen(
         if primitive == 'calendar' and 'add' in section:
             _check_calendar_add(doc, section, resource, issues)
         _check_queries(doc, (primitive,), section, entity, resource, issues)
-        _check_filter_route(doc, primitive, section, entity, resource, issues)
+        _check_filter_route(doc, primitive, section, entity, resource, product, issues)
         _check_search_contract(doc, entity, resource, contract, issues)
     _check_related_sections(doc, entity, product, screens, contract, issues)
 
@@ -1048,9 +1051,20 @@ def _check_board(doc: Document, entity: Entity, issues: Issues) -> None:
 def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
     """
     A calendar: its days are those of date or date-time fields, its tone by a boolean field
-    (S023).
+    (S023); the add of a date-time field lists it among its fields, to pick the time (S041).
     """
     calendar = doc.data['calendar']
+    field = calendar['field']
+    if (
+        field in entity.fields and entity.fields[field].get('type') == 'datetime'
+        and 'fields' in calendar.get('add', {}) and field not in calendar['add']['fields']
+    ):
+        issues.add(
+            doc, ('calendar', 'add', 'fields'), 'S041',
+            f'The add of the calendar starts the item at the start of the selected day, in the date-time `{field}`, '
+            'which its fields leave out: the user cannot pick the time.',
+            f'Add `{field}` to the `fields` of `add`.',
+        )
     for key in ('field', 'end'):
         name = calendar.get(key)
         if name in entity.fields and entity.fields[name].get('type') not in DATES:
@@ -1493,16 +1507,30 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
 FILTER_FIELDS_ACTION = 'get_route_filter_fields'
 
 
-def _check_filter_route(doc: Document, primitive: str, section: dict, entity: Entity, resource: dict, issues: Issues) -> None:
+def _linked(data: dict, product: Product) -> bool:
+    """Whether the navigation links the screen: listed in `navigation`, else by default."""
+    if product.navigation is None:
+        return ':' not in data['route'] and data.get('nav') is not False
+    return any(
+        link['screen'] == data['id'] for item in product.navigation for link in (item['items'] if 'group' in item else [item])
+    )
+
+
+def _check_filter_route(
+    doc: Document, primitive: str, section: dict, entity: Entity, resource: dict, product: Product, issues: Issues
+) -> None:
     """
-    The filters of a list or a board, and the link of a report (a list with `filter`, shown
-    to the users who may filter by its fields), read the fields that the user may filter by
-    (`route_filter_fields/`): the route set must route them (S040), not leave them out of its
-    `actions`.
+    The filters of a list or a board read the fields that the user may filter by
+    (`route_filter_fields/`), and so does the link of a report (a list with `filter`) in the
+    navigation: the route set must route them (S040), not leave them out of its `actions`. A
+    report that the navigation does not link reads nothing.
     """
     if FILTER_FIELDS_ACTION in resource['actions']:
         return
-    keys = [key for key in ('filters', 'filter') if section.get(key) and (key == 'filters' or primitive == 'list')]
+    keys = [
+        key for key in ('filters', 'filter')
+        if section.get(key) and (key == 'filters' or primitive == 'list' and _linked(doc.data, product))
+    ]
     for key in keys:
         reads = 'its filters read' if key == 'filters' else 'the link of the report reads'
         issues.add(

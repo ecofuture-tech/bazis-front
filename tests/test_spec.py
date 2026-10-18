@@ -899,6 +899,22 @@ CASES = [
          ('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
     ),
     (
+        'S040',
+        # a report that the navigation does not link reads no filters of its link: only the
+        # filters of the board and of the list are reported
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
+         PRODUCT: lambda d: [d['navigation'].pop(1)],
+         DRAFTS: lambda d: d['list'].pop('filters')},
+        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+    ),
+    (
+        'S041',
+        # the add of a calendar by a date-time field, whose fields leave it out: the time cannot
+        # be picked (the field is also one that the create route does not take)
+        {CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title']})},
+        [('S041', f'{CALENDAR}#/calendar/add/fields'), ('S034', f'{CALENDAR}#/calendar/add')],
+    ),
+    (
         'S006',
         # a row of a list and a row of the last items open an item in a custom card that finds
         # its item itself: its route has nowhere to put the id
