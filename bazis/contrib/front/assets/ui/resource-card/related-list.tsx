@@ -48,7 +48,7 @@ export interface RelatedAdd {
 export interface RelatedListProps
   extends Pick<
     ResourceListProps,
-    'columns' | 'onOpen' | 'rowActions' | 'cells' | 'emptyMessage' | 'sort' | 'pageSize' | 'layout'
+    'columns' | 'onOpen' | 'rowActions' | 'cells' | 'emptyMessage' | 'sort' | 'pageSize' | 'layout' | 'display' | 'icon'
   > {
   /** The route set of the related resource (`ROUTES` of the contract): its list, its create for `add`. */
   path: ListPath;

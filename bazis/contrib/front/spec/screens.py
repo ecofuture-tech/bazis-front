@@ -808,6 +808,7 @@ def related_list(screen: Screen, index: int, related: dict) -> Jsx:
     if (title := screen.text('card', 'related', index, 'title')) is not None:
         attrs.append(Attr('title', title))
     attrs.append(Attr('columns', Arr([Str(it) for it in related['columns']])))
+    attrs += entity_attrs(screen.product, related['entity'], target, label=False)
     if 'open' in related:
         attrs.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(related['open'], 'item')))))
     element = _Related('RelatedList', attrs)

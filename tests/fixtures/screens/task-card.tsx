@@ -69,6 +69,7 @@ export function TaskCardScreen() {
                 itemPath={TASK.path}
                 title={t('screens.task-card.card.related.steps.title')}
                 columns={['title', 'dt_created']}
+                icon={STEP.Icon}
                 add={
                   permitted(meta, 'change')
                     ? { id: 'add-step', label: t('screens.task-card.card.related.steps.add.label'), fields: ['title'] }

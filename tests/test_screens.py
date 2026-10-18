@@ -211,6 +211,23 @@ def test_the_transits_in_their_order_and_the_values_of_the_add_of_a_calendar(tmp
     ) in calendar
 
 
+def test_a_related_list_shows_the_values_as_the_list_of_its_entity(tmp_path):
+    """
+    A related section of a card takes from its entity what a list of it takes: its `display`
+    (a sum in its currency, not the decimal of the API) and its icon.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    path = tmp_path / 'spec' / 'product.yaml'
+    data = yaml.safe_load(path.read_text(encoding='utf-8'))
+    step = next(it for it in data['entities'] if it['id'] == 'step')
+    step['fields'][0]['display'] = 'phone'
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding='utf-8')
+    files = rendered(tmp_path)
+    assert "  display: { title: 'phone' },\n" in files[f'{screens.GENERATED_DIR}/entities.ts']
+    card = files[CARD]
+    assert "columns={['title', 'dt_created']}\n                display={STEP.display}\n                icon={STEP.Icon}\n" in card
+
+
 def test_the_confirmation_of_a_deletion_is_titled_by_its_title(tmp_path):
     """
     The confirmation of a deletion is titled by `title` of the action, a question, and its
