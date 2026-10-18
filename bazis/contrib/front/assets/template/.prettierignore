@@ -5,4 +5,5 @@ src/bazis/
 src/components/ui/
 e2e/bazis/
 e2e/generated/
+src/screens/generated/
 e2e/fixtures/

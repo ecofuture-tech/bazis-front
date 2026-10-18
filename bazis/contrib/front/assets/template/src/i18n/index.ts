@@ -13,12 +13,22 @@
 // limitations under the License.
 
 // The dictionaries of the product by language, given to `LanguageProvider`
-// (`src/app/providers.tsx`): a dictionary per language of the backend (`LANGUAGES` of
-// `src/bazis/generated/contract.ts`), `src/i18n/<language>.ts`, imported here.
+// (`src/app/providers.tsx`): the texts of the specs (`GENERATED_MESSAGES`, written by
+// `bazis_front screens`) under a dictionary per language of the backend (`LANGUAGES` of
+// `src/bazis/generated/contract.ts`), `src/i18n/<language>.ts`, imported here, which gives a
+// key of the specs a text of its own.
 
 import type { Messages } from '@/bazis/i18n';
+import { GENERATED_MESSAGES } from '@/screens/generated/messages';
 
 import { en } from '@/i18n/en';
 import { ru } from '@/i18n/ru';
 
-export const MESSAGES: Readonly<Record<string, Messages>> = { en, ru };
+const PRODUCT: Readonly<Record<string, Messages>> = { en, ru };
+
+export const MESSAGES: Readonly<Record<string, Messages>> = Object.fromEntries(
+  [...new Set([...Object.keys(GENERATED_MESSAGES), ...Object.keys(PRODUCT)])].map((language) => [
+    language,
+    { ...GENERATED_MESSAGES[language], ...PRODUCT[language] },
+  ]),
+);

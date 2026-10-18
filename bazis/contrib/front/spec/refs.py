@@ -621,12 +621,16 @@ def check_screens(
     return screens
 
 
-def check_navigation(doc: Document, screens: dict[str, dict | None], issues: Issues) -> None:
+def check_navigation(
+    doc: Document, screens: dict[str, dict | None], product: Product | None, contract: dict | None, issues: Issues
+) -> None:
     """
     The navigation of product.yaml: each link opens a screen of the specs without an item, not
-    a form, without `nav: false`, linked once, and each group is declared once (S030); their
-    icons are those of lucide-react (D013). A screen that does not follow its schema is
-    accepted unchecked.
+    a form, without `nav: false`, linked once, what it `requires` the backend allows on the
+    items of the entity of its screen (one with an entity; `can: add` of a resource with a
+    create route in the contract), and each group is declared once (S030); their icons are
+    those of lucide-react (D013). A screen that does not follow its schema is accepted
+    unchecked.
     """
     if not doc.valid:
         return
@@ -647,6 +651,8 @@ def check_navigation(doc: Document, screens: dict[str, dict | None], issues: Iss
                 check_icon(doc, (*path, 'icon'), link['icon'], issues)
             _check_link(doc, (*path, 'screen'), link['screen'], screens, linked, issues)
             linked.add(link['screen'])
+            if 'requires' in link:
+                _check_requires(doc, (*path, 'requires'), link, screens.get(link['screen']), product, contract, issues)
 
 
 def _check_link(
@@ -673,11 +679,37 @@ def _check_link(
     issues.add(doc, path, 'S030', problem, hint)
 
 
+def _check_requires(
+    doc: Document, path: tuple, link: dict, screen: dict | None, product: Product | None, contract: dict | None,
+    issues: Issues,
+) -> None:
+    if screen is None:
+        return
+    if 'entity' not in screen:
+        issues.add(
+            doc, path, 'S030',
+            f'The link of `{link["screen"]}` requires what the backend allows on the items of the entity of '
+            'the screen, which has none.',
+            'Remove `requires`: the link of a screen without an entity (a dashboard) is shown to every user.',
+        )
+        return
+    entity = product.entities.get(screen['entity']) if product else None
+    resource = contract['project']['resources'].get(entity.data['resource']) if contract and entity else None
+    if link['requires']['can'] == 'add' and resource is not None and 'create' not in resource['actions'].values():
+        issues.add(
+            doc, path, 'S030',
+            f'The link of `{link["screen"]}` requires that the user may add a `{entity.data["resource"]}`, '
+            'which has no create route in the contract: it is never shown.',
+            f'Remove `requires`, or give the route set of `{entity.data["resource"]}` its create route and '
+            f'{EXPORT_HINT}.',
+        )
+
+
 def _check_home(docs: list[Document], routes: dict[str, str], issues: Issues) -> None:
     """
     The home of the frontend (S026, a warning) of a product that declares entities: the
-    screen at `/`, a dashboard with tiles; without it the template shows its overview, the
-    counts of the resources. A product without entities (the starter home of `init` has no
+    screen at `/`, a dashboard with tiles; without it `/` leads to the first link of the
+    navigation. A product without entities (the starter home of `init` has no
     tile: there is nothing to count yet), without screens, or with a screen that does not
     follow its schema, is not told.
     """
@@ -687,7 +719,10 @@ def _check_home(docs: list[Document], routes: dict[str, str], issues: Issues) ->
     )
     if docs and all(it.valid for it in docs) and HOME_ROUTE not in routes:
         folder = Document('screens', Path(docs[0].file).parent.as_posix())
-        issues.add(folder, (), 'S026', f'No screen has the route `{HOME_ROUTE}`.', hint)
+        issues.add(
+            folder, (), 'S026',
+            f'No screen has the route `{HOME_ROUTE}`: it leads to the first link of the navigation.', hint,
+        )
     for doc in docs:
         if not doc.valid:
             continue

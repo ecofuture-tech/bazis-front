@@ -54,6 +54,10 @@ class Step:
     #: its screen and its test waits for the form only; any other submit must save, or its
     #: test fails with the error shown
     failing: bool = False
+    #: a destroy action: its dialog confirms it (`action:confirm-<id>`) when the screens are
+    #: generated (`screens`), `required` on a generated screen, `optional` on a custom one,
+    #: which may show none; None for any other step
+    confirm: str | None = None
 
 
 #: the states of a screen that a submit which does not save shows
@@ -128,18 +132,18 @@ class _Scenario:
         self.role = scenario['role']
         self.scenario, self.path, self.issues = scenario, path, issues
         self.state = _State(known=True)
-        # what the current step implies (`Step`), whether it is a refused submit, and whether
-        # the step before was one
-        self.edit, self.then, self.failing, self.refused = False, None, False, False
+        # what the current step implies (`Step`), whether it is a refused submit, whether
+        # the step before was one, and whether its action is confirmed
+        self.edit, self.then, self.failing, self.refused, self.confirm = False, None, False, False, None
 
     def run(self) -> list[Step]:
         steps = []
         for i, step in enumerate(self.scenario['steps']):
             (name, value), = step.items()
-            self.edit, self.then, self.refused = False, None, self.failing
+            self.edit, self.then, self.refused, self.confirm = False, None, self.failing, None
             self.failing = name == 'submit' and fails(self.scenario['steps'], i)
             getattr(self, f'step_{name}')((*self.path, 'steps', i, name), value)
-            steps.append(Step(name, value, self.edit, self.then, self.failing))
+            steps.append(Step(name, value, self.edit, self.then, self.failing, self.confirm))
         return steps
 
     def add(self, path, code, message, hint):
@@ -329,7 +333,10 @@ class _Scenario:
         action = actions[action_id]
         if action['primitive'] == 'form':
             self.state.form = action
-        elif 'then' in action:
+            return
+        if action['primitive'] == 'destroy':
+            self.confirm = 'optional' if (self.state.screen or {}).get('custom') else 'required'
+        if 'then' in action:
             self.lead(path, action['then'])
 
     def shown(self) -> set[str] | None:

@@ -56,7 +56,8 @@ in `frontend/` never need to be read.
 5. Run `python manage.py bazis_front check` and fix the spec or the backend as the hint of
    each issue says until it reports no errors, exporting the contract again after every
    change of the backend: "The issues of check".
-6. Copy the components the screens need (`bazis_front add`) and write the screens in
+6. Generate the screens, `python manage.py bazis_front screens` (it copies the components
+   that they import), and write those it does not generate yet (`custom: true`) in
    `frontend/src/screens/<id>/`: "The components", "Writing the screens" and "Composing beyond
    the specs"; by topic "Choices, filters, permissions and relationships", "Files, points and
    maps", "Custom actions and background work", "The socket" and "The language"; the data
@@ -103,6 +104,10 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
   `text-muted-foreground`, `bg-success-soft`) and the patterns of the preset (`Screen`,
   `ListCardLayout`, `FormSurface`, the components), never colors such as `bg-blue-600` or
   `#3b82f6`.
+- **Generate the screens, never edit them.** `bazis_front screens` writes
+  `frontend/src/screens/generated/` from the specs: run it after every change of `spec/`;
+  what a spec cannot say goes to a custom screen (`custom`) or an extension (`extend`), never
+  into the generated files.
 - **Generate the end-to-end tests, never edit them.** Run `bazis_front e2e` after every
   change of the scenarios or the screens of the specs and keep `npm run e2e` green against
   the migrated backend with the data of `manage.py e2e_data`; write the other tests in
@@ -122,7 +127,7 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | The backend of a product | you build the backend the frontend relies on: the declared roles and workflows, the test data, the changes and the notifications, the invariants, the labels |
 | The contract | you export the contract or read `contract.json` and `contract.ts` (`ROUTES`, `CAPABILITIES`, the sections of the capabilities) |
 | The components | you choose the components and copy them (`add`): what each one is, its `data-bz`, what it requires |
-| Writing the screens | you write a screen from its spec: the component of each part of a spec, the routes, the navigation, the card next to the list |
+| Writing the screens | you generate the screens (`bazis_front screens`) or write a custom one from its spec: the component of each part of a spec, the routes, the navigation, the card next to the list |
 | Composing beyond the specs | a screen needs more than the specs say: a section of your own, a form of your own (and the marks that the tests need), numbers and dates in a text |
 | Choices, filters, permissions and relationships | the choices and their labels, the related items ("add here"), the filters of a list, the navigation, the field permissions, the pickers and the labels of related items, the to-many fields in a form |
 | Files, points and maps | the files of bazis-uploadable, the points and the maps, what is near |
@@ -145,13 +150,14 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 python manage.py bazis_front init                  # create frontend/ in the product root and run `npm install`
 python manage.py bazis_front init --no-node        # the same without `npm install`
 python manage.py bazis_front init --preset portal  # the starters of the design of the preset portal (workspace by default)
+python manage.py bazis_front screens               # the screens of the specs in src/screens/generated/
+python manage.py bazis_front screens --check       # fails when they differ from the specs (CI)
 ```
 
 `init` creates `frontend/` next to `manage.py`, a React 19 + TypeScript + Vite 7 app with
 TanStack Query, React Router 7 and Tailwind 4 set up for shadcn/ui (`components.json`),
-with the layout of the application (`app-shell`), a login screen (`login-form`) and a home
-screen that lists the resources of the contract. It never overwrites an existing
-`frontend/`. It writes:
+with the layout of the application (`app-shell`), a login screen (`login-form`) and the
+screens of the specs. It never overwrites an existing `frontend/`. It writes:
 
 - `spec/` next to `manage.py`, when the product has none (an existing one is kept): the
   JSON Schemas of the specs in `spec/schema/` (for the editors) and starters of
@@ -161,6 +167,10 @@ screen that lists the resources of the contract. It never overwrites an existing
 - the theme of the frontend, `src/bazis/generated/fonts.css`, `theme.css` and `theme.ts`, compiled from
   `spec/design/` as `bazis_front design` does (see [The design](#the-design)); a design with
   errors is reported and the theme is left to `bazis_front design`;
+- the screens of the specs, as `bazis_front screens` generates them (see
+  [Writing the screens](#writing-the-screens)), with the components that they import; specs
+  with errors or with screens it does not generate yet are reported and left to
+  `bazis_front screens`;
 
 - the files of the template (`assets/template`), which the product owns from then on
   (`update` merges a new version with its changes), among them `frontend/AGENTS.md`, which
@@ -189,7 +199,8 @@ screen that lists the resources of the contract. It never overwrites an existing
   made from (see below), and the version and the file hashes of every copied asset, the
   template too; an asset that was not copied is not in it.
   `bazis_front e2e` adds the hashes of the specs and of the tests it generates (`e2e`),
-  `init` and `bazis_front design` those of the design and of the theme (`design`).
+  `init` and `bazis_front design` those of the design and of the theme (`design`), `init`
+  and `bazis_front screens` those of the specs and of the screens (`screens`).
 
 Commit `bazis-front.lock.json` and `.bazis/`: `update` merges a new version with the
 changes of the product from the pristine copies, and the old version is no longer installed
@@ -210,15 +221,16 @@ them:
 | `frontend/src/bazis/generated/` | 0. Contract | `contract.ts` (resources, roles, transits, capabilities as constants), `schema.d.ts` (the types of the API); `fonts.css`, `theme.css` and `theme.ts` (the design: the fonts, the tokens as CSS variables, `THEME`) | only `manage.py bazis_front contract`; the theme only `manage.py bazis_front design` |
 | `frontend/src/bazis/client/` | 1. Protocol (`assets/client`) | the client of the Bazis protocol | bazis-front, copied by `init`; not edited, wrapped in `src/app/` |
 | `frontend/src/bazis/react/` | 2. Hooks (`assets/react`) | the React hooks over the client and TanStack Query (`@/bazis/react`); `statusy/` (`@/bazis/react/statusy`) when the backend has bazis-statusy, `uploadable/` (`@/bazis/react/uploadable`) when it has bazis-uploadable, `ws/` with bazis-ws, `bg/` with bazis-bg, `async/` with bazis-async-background | bazis-front, copied; not edited |
-| `frontend/src/bazis/ui/<component>/` | 3. Components (`assets/ui`) | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies those that the template requires (`state-panel`, `app-shell`, `login-form`, `dashboard`), `manage.py bazis_front add` the others (`add map` also sets Leaflet in `package.json`: `npm install` then) | the product, keeping the contract tests passing |
+| `frontend/src/bazis/ui/<component>/` | 3. Components (`assets/ui`) | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies those that the template requires (`state-panel`, `app-shell`, `login-form`), `manage.py bazis_front screens` those that the generated screens import, `manage.py bazis_front add` the others (`add map` also sets Leaflet in `package.json`: `npm install` then) | the product, keeping the contract tests passing |
 | `frontend/src/components/ui/`, `frontend/src/lib/` | 3. Components | shadcn/ui components: those of the components copied by bazis-front, others with `npx shadcn add <name>` | the product |
 | `spec/` (in the product root) | 4. Specs | the specs: `product.yaml` (roles, entities, access, scenarios), `screens/<id>.yaml`, `design/`; validated against the contract, its scenarios generate the end-to-end tests and its design the theme | the product; checked by `manage.py bazis_front check` |
+| `frontend/src/screens/generated/` | 4. Specs | the screens of the specs, their routes (`SCREEN_ROUTES`), the navigation of `spec/product.yaml`, the texts of the specs (`GENERATED_MESSAGES`), the providers and the tools of the layout | only `manage.py bazis_front screens` |
 | `frontend/e2e/generated/` | 4. Specs | the end-to-end tests of the scenarios of `spec/product.yaml`, and `product.ts` (the test users and the routes of the specs); `shots.ts`, the screenshots of the screens | only `manage.py bazis_front e2e` (`shots`: `bazis_front shots`) |
 | `frontend/.scratch/shots/` | 4. Specs | the screenshots and `report.json` of the last `bazis_front shots`; ignored by Git | only `manage.py bazis_front shots` |
 | `frontend/e2e/bazis/` | 4. Specs | the helpers of the end-to-end tests (Playwright, through `data-bz`) | bazis-front; not edited |
 | `frontend/e2e/custom/` | 4. Specs | the end-to-end tests written by hand | the product |
-| `frontend/src/app/` | App (the template, `assets/template`) | providers (query cache, `BazisProvider`), session, router (the layout and the navigation), errors | the product; merged with a new version by `update` |
-| `frontend/src/screens/<screen>/` | App | the screens, composed from the components | the product |
+| `frontend/src/app/` | App (the template, `assets/template`) | providers (query cache, `BazisProvider`), session, router (the layout with the generated routes and navigation), errors | the product; merged with a new version by `update` |
+| `frontend/src/screens/<screen>/` | App | the custom screens (`custom`) and the extensions (`extend`), composed from the components; the login | the product |
 | `frontend/package.json`, the configs, `frontend/src/i18n/`, `frontend/AGENTS.md` | App | the rest of the template | the product; merged with a new version by `update` |
 | `frontend/bazis-front.lock.json`, `frontend/.bazis/base/` | | the hashes of the OpenAPI and of the generated files, the versions and hashes of the copied assets; the pristine copies of the assets, from which `bazis_front update` merges a new version | bazis-front; commit them, never edit them |
 
@@ -259,18 +271,21 @@ python manage.py bazis_front status --json  # {bazis_front, frontend, assets, ge
 
 `status` writes nothing and exits with 0: it shows the installed bazis-front, the assets of
 the lock with their versions, which generated files the frontend has (`contract`: the
-TypeScript of the contract; `design`: the theme; `e2e`: the end-to-end tests; `shots`: the
-screenshots), and the
+TypeScript of the contract; `design`: the theme; `screens`: the generated screens; `e2e`:
+the end-to-end tests; `shots`: the screenshots), and the
 issues of the checks of bazis-front, each with its id, level, message, hint and `command`,
 the subcommand that brings up to date what it reports stale (`contract`, `update`, `design`,
-`e2e`, `shots`; null for the others):
+`screens`, `e2e`, `shots`; null for the others):
 `front.W006` (an outdated package), `front.W001` (a stale contract or generated file; the
 database must be migrated, else `front.I001`), `front.W002` (an issue of the specs),
 `front.W004` (stale copies), `front.W007` (changed copies), `front.W005` (a stale theme),
-`front.W003` (stale end-to-end tests), `front.W008` (a stale `shots.ts`), `front.W009` (a
+`front.W010` (stale, edited or missing generated screens, none at all in a frontend made
+before them whose updated template needs them, the components that they import missing, or
+a screen it does not generate yet that is not custom), `front.W003` (stale
+end-to-end tests), `front.W008` (a stale `shots.ts`), `front.W009` (a
 report of the screenshots with errors, or none: the screenshots were not taken; not stale,
 its `command` is null). The `--check` of
-`contract`, `update`, `design`, `e2e` and `shots`, and `check`, fail on their own state in
+`contract`, `update`, `design`, `screens`, `e2e` and `shots`, and `check`, fail on their own state in
 CI. No subcommand of `bazis_front` runs
 the system checks of Django (`manage.py check` and `bazis_doctor` do): their warnings never
 mix with its output.
@@ -374,10 +389,12 @@ each of them: see "Texts" in
 and groups of them under a heading, `{group: <id>, title: <text>, items: [...]}`. A link
 is labelled by the title of its screen and shown to the users whom the backend lets view
 the items of its entity (a report: filter them by the fields of its `list.filter`);
-`requires: {can: add}` asks that they may add one too. Its `icon` is a name of lucide
+`requires: {can: add}` asks that they may add one too (a link of a screen of an entity
+whose route set creates). Its `icon` is a name of lucide
 (D013), by default the icon of its entity (`icons` of theme.yaml), `square-kanban` for a
 board, `calendar-days` for a calendar, `list-filter` for a report, `house` for the home.
-A link opens a screen without an item in its route, not a form, once (S030). Without
+A link opens a screen without an item in its route, not a form, once (S030). The
+generated navigation is made from it (`src/screens/generated/navigation.ts`). Without
 `navigation`: the home, then of each entity in the order of `entities` its list, its
 board, its calendar and its reports, but the screens with `nav: false`.
 
@@ -637,7 +654,13 @@ card, the label of a highlight and of the parts of a dashboard. A text is the te
 language of the product, `{en: New loan, ru: Новая выдача}`, a text in its default
 language, or a key of the dictionaries of the frontend (lowercase words joined by dots,
 `tiles.on_hand`), which have every language. `check` warns about a text that is not in
-every language of `languages` (S027).
+every language of `languages` (S027). `bazis_front screens` writes the texts of every spec
+in the dictionaries of the generated screens (`GENERATED_MESSAGES` of
+`src/screens/generated/messages.ts`) by the key of their place, `screens.<id>.title`,
+`screens.<id>.card.sections.<section>.title`, `navigation.<group>.title`, `product.name`;
+a map without the default language gives it the text of the first language of the product
+that it has (the others fall back to the default). The dictionaries of the product
+(`src/i18n/<language>.ts`) override them key by key.
 
 #### Custom screens and extensions
 
@@ -652,7 +675,13 @@ extension `export const extension` of `frontend/src/screens/<id>/extend.tsx`, wh
 cannot say (S031: missing; a custom screen is never extended). `nav: false` leaves the
 screen out of the navigation generated without `navigation` of product.yaml.
 `card.related[].add.when` is when "add here" is shown: `changeable` (the default, while
-the user may change the item of the card) or `always`.
+the user may change the item of the card) or `always`. The module of a custom screen is
+never in `src/screens/generated/`, which `bazis_front screens` owns.
+
+`bazis_front screens` generates the lists and the cards, and the dashboards without parts;
+a form, a board, a calendar, a dashboard with tiles, charts, last items or actions,
+`list.map`, `extend` and an update form are not generated yet: such a screen is `custom:
+true`, else `bazis_front screens` refuses the specs and `front.W010` says which.
 
 #### Tabs and bulk actions
 
@@ -692,7 +721,7 @@ list:
 **The home of the frontend is a dashboard**, `spec/screens/home.yaml` at the route `/`: the
 counts that matter to the users (tiles by the statuses and the dates of the entities with a
 workflow or dates), the last items of the main entity, the create forms of the entities.
-Without it the frontend shows the overview of the template. `init` writes it without tiles,
+Without it `/` leads to the first link of the navigation. `init` writes it without tiles,
 and `check` warns once `product.yaml` declares entities (S026: no screen at `/`, another
 primitive there, or a dashboard without tiles): fill it then. A dashboard has no `entity`:
 each part names its own.
@@ -927,11 +956,11 @@ warning there, never blocking `migrate` or `contract`.
 | `S023` | error | a calendar is not by a `date` or `datetime` field (`field`, `end`), or its `tone` is not by a boolean field |
 | `S024` | error | the tabs of a card are inconsistent: a tab names an unknown section or related section, or is empty, or is declared twice; a section or a related section is in no tab or in two; the history is in no tab, or a tab has a history that the card does not have |
 | `S025` | error | a bulk action of a list runs a transition that its entity does not have (or has no workflow), or one with a payload |
-| `S026` | warning | the home of the frontend is the overview of the template: the product declares entities, and no screen has the route `/`, the screen there is not a dashboard, or a dashboard has no tile |
+| `S026` | warning | the frontend has no home of its own: the product declares entities, and no screen has the route `/` (it leads to the first link of the navigation), the screen there is not a dashboard, or a dashboard has no tile |
 | `S027` | warning | a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them (a key of the dictionaries is in all); the frontend shows the text of another language |
 | `S028` | error | a custom screen has no code: the module of `custom` (`frontend/src/screens/<id>/index.tsx` for `custom: true`) is missing, or does not export its component |
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`) |
-| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice |
+| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
@@ -1262,7 +1291,7 @@ differ from the backend; `--check` does the same in CI.
 
 ```bash
 python manage.py bazis_front add resource-list resource-card resource-form   # the core
-python manage.py bazis_front add stat-card                                   # the figures of a dashboard (`dashboard` is copied by init)
+python manage.py bazis_front add stat-card                                   # the figures of a dashboard (`dashboard` is copied with the generated home)
 python manage.py bazis_front add charts                                      # the charts of a dashboard (recharts): then `npm install`
 python manage.py bazis_front add resource-board board-dnd                    # a board, with bazis-statusy; its drag and drop (@dnd-kit): then `npm install`
 python manage.py bazis_front add resource-calendar                           # a calendar
@@ -1318,9 +1347,10 @@ layout). Each component comes with its contract test, `<component>.contract.test
 run by `npm test` of the frontend: it checks the `data-bz` marks and the states that the
 scenarios of the specs rely on. Keep it passing when the component is changed.
 
-- There is no generator of screens: the screens are written in `src/screens/<id>/` from
-  their specs, composed from the components (see
-  [Writing the screens](#writing-the-screens)).
+- The screens of the specs are generated from them, composed from the components
+  (`bazis_front screens`, `src/screens/generated/`), and the custom ones written in
+  `src/screens/<id>/` from the same components (see
+  [Writing the screens](#writing-the-screens)): a change of a component reaches both.
 
 ### Their texts are translated
 
@@ -1366,6 +1396,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `task-progress` | `TaskProgress` (the task of its `id`), `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult` (`start`: what `useAsyncRequest` resolved to), `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
 | `map` | `ResourceMap` (`list.map`: the items with a point in `field`), `MapProvider` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
+| `screens` (copied with the generated screens) | the parts of the generated screens: `ScreenAction` (an action in the header of a screen, shown when its `requires` is allowed), `CreateFormAction` (the create form of an action, `CreateFormAction.use()` its state), `useDestroyCardAction` (the delete of a card: its `action` and its confirmation `confirm`), `extended` and `ScreenExtension` (the extension of a screen, `extend`) | `action:<id>`, `action:confirm-<id>` (the confirmation of a delete), the marks of `FormSurface` and `ResourceForm` | |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -1387,8 +1418,19 @@ are not shown.
 
 ## Writing the screens
 
-The screens are written in `frontend/src/screens/<id>/`, from their specs; nothing
-generates them. A screen is one primitive (`list`, `card`, `form`, `board` or `calendar`) over an
+`python manage.py bazis_front screens` generates the screens in
+`frontend/src/screens/generated/` from their specs, never edited: the screen of each spec
+(`<id>.tsx`), their routes, the navigation of `spec/product.yaml`, the texts of the specs,
+the providers of the fields of the specs (`SocketProvider`, `FileFieldProvider`,
+`MapProvider`, `DatePickerProvider`) and the tools of the layout (the notifications, the
+live queries), which `src/app/router.tsx` of the template renders. It copies the components
+that they import that the frontend lacks (their npm dependencies set in `package.json`: run
+`npm install` then), deletes the files of a screen that is no longer generated, and never
+overwrites a generated file edited since it was generated (`--force` drops the edits);
+`--check` and `front.W010` compare them with the specs byte for byte, without Node. The
+screens it does not generate yet (see "Custom screens and extensions") are written by hand
+in `frontend/src/screens/<id>/` (`custom: true`) from the same components, as the table
+says, and routed and linked as the others. A screen is one primitive (`list`, `card`, `form`, `board` or `calendar`) over an
 entity, or a `dashboard`:
 implement it with the route of its spec, from the components of `src/bazis/ui/` (their
 `data-bz` in [The components](#the-components), their props in the `API:` sections), and
@@ -1416,7 +1458,7 @@ of the specs and the paths of `ROUTES`.
 | the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
-| an action `primitive: destroy` | an action of the card (`permission: 'delete'`) calling `useDestroy` |
+| an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, `description` of the action: the deletion runs once confirmed) |
 | `states` | the components render them (`state:<state>`); `StatePanel` of `@/bazis/ui/state-panel` for a screen of your own |
 
 ```tsx
@@ -1425,13 +1467,12 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { ROUTES } from '@/bazis/generated/contract';
-import { useDestroy } from '@/bazis/react';
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
 import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
 import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { ResourceList } from '@/bazis/ui/resource-list';
-import { toast } from '@/bazis/ui/state-panel';
+import { useDestroyCardAction } from '@/bazis/ui/screens';
 import { StatusBadge, statusOptions } from '@/bazis/ui/status-badge';
 import { StatusHistory } from '@/bazis/ui/status-history';
 import { TransitBar } from '@/bazis/ui/transit-bar';
@@ -1473,7 +1514,7 @@ export function TaskListScreen() {
 export function TaskCardScreen() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const destroy = useDestroy(TASKS);
+  const destroy = useDestroyCardAction({ id: 'delete', label: 'Delete', path: TASKS, item: id, then: '/tasks' });
   return (
     <Screen id="task-card" parent={{ screen: 'task-list', label: 'Tasks', to: '/tasks' }}>
       <ResourceCard
@@ -1482,10 +1523,7 @@ export function TaskCardScreen() {
         edit
         sections={[{ id: 'main', title: 'Details', fields: ['title', 'assignee'] }, { id: 'report', title: 'Report', fields: ['report'] }]}
         badge={(item) => <StatusBadge resource={item} />}
-        actions={[{
-          id: 'delete', label: 'Delete', permission: 'delete', variant: 'destructive',
-          onClick: () => { destroy.mutate(id, { onSuccess: () => { toast({ title: 'Deleted' }); void navigate('/tasks'); } }); },
-        }]}
+        actions={[destroy.action]}
       >
         {(item, meta) => (
           <>
@@ -1506,6 +1544,7 @@ export function TaskCardScreen() {
           </>
         )}
       </ResourceCard>
+      {destroy.confirm}
     </Screen>
   );
 }
@@ -1513,8 +1552,12 @@ export function TaskCardScreen() {
 
 ### The routes and the navigation
 
-Add the routes of the screens to `src/app/router.tsx` (inside `RequireSession`), each screen
-imported with `lazyScreen` of `src/app/lazy.tsx` as those of the template (its own chunk,
+The routes of the screens of the specs are `SCREEN_ROUTES` of
+`src/screens/generated/routes.tsx`, inside `RequireSession` of `src/app/router.tsx`: the
+route of each spec, `/` the index (the layout route `/` of a list there with its cards;
+without a screen at `/`, a redirect to the first link of the navigation), a card under the
+list whose route its route continues (below). Each screen is imported with `lazyScreen` of `src/app/lazy.tsx`, a custom one from
+its module (its own chunk,
 loaded when its route is first shown, under the `ErrorBoundary` of the layout: a static
 import puts every screen and the libraries it uses, a map, in the one bundle that every page
 loads). Until its chunk is loaded a screen shows the loading state of the screens in a
@@ -1541,10 +1584,11 @@ primitives of the layout) are chunks of their own, listed by package in `manualC
 that one screen needs is imported by that screen and stays in its chunk (never add it to the
 list); never raise `chunkSizeWarningLimit` to hide a large chunk.
 
-Add their
-links, with an icon of `lucide-react`, to `NAVIGATION` there. A link shown only to the users
-that the backend allows names what it `requires`, and `AppShell` shows it once the backend
-answers (the screens read the same queries: no request of its own):
+Their links are `navigation` of `spec/product.yaml`, generated as `navigation(t)` of
+`src/screens/generated/navigation.ts` (the items of `AppShell`, a group under its heading,
+shown with its first allowed link). A link shown only to the users that the backend allows
+names what it `requires`, and `AppShell` shows it once the backend answers (the screens read
+the same queries: no request of its own):
 
 ```tsx
 { screen: 'task-list', label: 'nav.tasks', to: '/tasks', icon: ListChecks, requires: { path: TASKS } },   // may view
@@ -1819,7 +1863,8 @@ lists. The content (the download, the thumbnail) is read with the token from
 the media host, which serves it to anyone who has the link; the file of
 another user, which bazis-uploadable does not give (a 404), is `file:unavailable`
 ("File not available"). In the
-forms, with `FileFieldProvider` around the routes (`src/app/router.tsx`), `FieldInput`
+forms, with `FileFieldProvider` around the routes (`GeneratedProviders`, once an entity of
+the specs has a file field), `FieldInput`
 edits it with `FileField`: a drop zone and a picker, the file uploaded at once with its
 progress and a cancel (one file at a time: another one is not taken while it uploads),
 its id set as the value of the relationship, a replace and a
@@ -1889,8 +1934,8 @@ by its label, which the keyboard reaches: Enter or Space opens it like a click,
 `onOpen`), the open item `selected` (drawn larger; the view is fitted to the points when
 they change, never when another one is selected). The list beside it stays the way of the
 items for every user: a map without a list is no screen of the specs. **The tiles** are those of
-`MapProvider tiles` (`{url, attribution, maxZoom?}`, a setting of the product such as
-`MAP_TILES` in `src/app/product.ts`); the default, OpenStreetMap with its attribution, is
+`MapProvider tiles` (`{url, attribution, maxZoom?}`, a setting of the product); the
+default, OpenStreetMap with its attribution, is
 for development and light use under its tile usage policy: a product in production sets
 the tiles of its provider (and allows their host in its Content Security Policy,
 `img-src`). **What is near**: `useGeolocation()` asks the browser for its position (never
@@ -1904,19 +1949,22 @@ field must be in the LIST schema of the route set; declare it `geography=True` (
 index of the distances). Never store a point as two numbers (no index, no lookup of the
 core), and never filter a list by a point with a control of the filters (S016).
 
-The maps: `manage.py bazis_front add map`, then `npm install`. Wrap the routes in
-`MapProvider` with the tiles of the product, a setting of `src/app/product.ts`; a screen with
-`list.map` shows `ResourceMap` beside its list, and a list of what is near the user filters
-by the distance from the position of the browser:
+The maps: `manage.py bazis_front add map`, then `npm install`. The generated providers
+(`GeneratedProviders` of `src/screens/generated/providers.tsx`) wrap the routes in
+`MapProvider` with the default tiles once an entity has a point field; a product with tiles
+of its own wraps the routes again in `src/app/router.tsx`, inside `GeneratedProviders` (the
+inner provider is the one read). A screen with `list.map` shows `ResourceMap` beside its
+list, and a list of what is near the user filters by the distance from the position of the
+browser:
 
 ```tsx
-// src/app/product.ts
-export const MAP_TILES: MapTiles = { url: 'https://tiles.example.com/{z}/{x}/{y}.png', attribution: '&copy; Example' };
-
 // src/app/router.tsx: the maps draw these tiles, the point fields of the forms get a map
-<MapProvider tiles={MAP_TILES}>
-  <BrowserRouter>…</BrowserRouter>
-</MapProvider>
+const MAP_TILES: MapTiles = { url: 'https://tiles.example.com/{z}/{x}/{y}.png', attribution: '&copy; Example' };
+<GeneratedProviders>
+  <MapProvider tiles={MAP_TILES}>
+    <BrowserRouter>…</BrowserRouter>
+  </MapProvider>
+</GeneratedProviders>
 
 // spec/screens/site-list.yaml (`list.map: {field: location}`)
 const geolocation = useGeolocation();   // locate() asks the browser
@@ -2090,10 +2138,12 @@ backend sends nothing else; without bazis-ws, `useInbox(path, {poll})`), else, w
 bazis-ws only, those received in the session (`notifications={useNotifications()}`: none
 of before the page was opened, pub/sub keeps nothing).
 
-In the frontend, with bazis-ws: `manage.py bazis_front add live-query notification-center`,
-wrap the routes in `SocketProvider` with the token of the session (none before the login;
-the logout closes it) and give the layout the tools. The dev server proxies the socket
-(`vite.config.ts` reads its path from the contract):
+In the frontend, with bazis-ws (`ws` in `packages` of product.yaml, with `notify` for the
+stored notifications), `bazis_front screens` does it: `GeneratedProviders` wraps the routes
+in `SocketProvider` with the token of the session (none before the login; the logout closes
+it) and `TOOLS` gives the layout the tools, both of `src/screens/generated/`, with
+`live-query` and `notification-center` copied. The dev server proxies the socket
+(`vite.config.ts` reads its path from the contract). What they render:
 
 ```tsx
 import { CAPABILITIES } from '@/bazis/generated/contract';
@@ -2362,7 +2412,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `select: {where}` | `select({where})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
   | `bulk: <id>` | `bulk(id)`: `bulk:<id>` of the screen, then `action:confirm-bulk` of its confirmation; waits until it is no longer offered (the selection is cleared) or an error is shown (`error:bulk`) |
   | `move: {where, to}` | `move({where, to})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>`; waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
-  | `action: <id>` | `action(id)`: `action:<id>` of the current screen; then `expectScreen` of the `then` of a destroy |
+  | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog); then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
@@ -3245,9 +3295,11 @@ From 0.1.0 to 0.2.0 (nothing of the API of the copies is removed):
   product that chose a filter with `selectOption` chooses it with `fill` of the helpers, as
   the generated tests do. The panels of the tabs of a card (`card.tabs`) stay in the DOM,
   hidden: a test opens the tab before it fills or reads a control of it.
-- The home of the template is a `Dashboard` of the links of the navigation: `update` copies
-  `dashboard` with what it requires. A home that the product rewrote conflicts with it once:
-  keep the side of the frontend, the screen of the product. Once the product declares its
+- The template renders the screens of the specs (`src/screens/generated/`), and has no home
+  of its own: `/` is the screen of the specs at `/`, else the first link of the navigation.
+  After `update`, generate them with `bazis_front screens` (`front.W010` until then); a
+  `src/app/router.tsx` that the product changed may conflict once: its routes go to the
+  specs (a `custom` screen for one written by hand). Once the product declares its
   entities, `check` asks for a screen of the specs at `/` that is a `dashboard` with tiles
   (S026).
 
@@ -4248,7 +4300,7 @@ Its props, `AppShellProps`:
 
 - `title: ReactNode`: The name of the product.
 - `navigation?: Navigation`: `navigation` of the theme by default.
-- `items: readonly NavItem[]`
+- `items: readonly NavEntry[]`: The links of the navigation and their groups.
 - `session?: ShellSession | null`
 - `tools?: ReactNode`: The tools of the product next to the color mode, such as the notifications (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at the foot of the sidebar (a row that wraps, above the session) or, on a phone, in its header.
 - `children: ReactNode`
@@ -4269,7 +4321,7 @@ Its props, `ScreenProps`:
 
 #### useNavItems
 
-`useNavItems(): readonly NavItem[]`: The links of the navigation of the layout (`items` of `AppShell`), none outside it.
+`useNavItems(): readonly NavItem[]`: The links of the navigation of the layout (`items` of `AppShell`, those of its groups in their place), none outside it.
 
 #### useScreenPage
 
@@ -4278,6 +4330,14 @@ Its props, `ScreenProps`:
 #### useWide
 
 `useWide(): boolean`: Whether the screen is at least the breakpoint `md` of Tailwind wide: the sidebar is shown, and a list is not the one of a phone (true when the browser cannot tell, as in jsdom).
+
+#### NavGroup
+
+`interface NavGroup`: Links of the navigation under a heading, shown while the backend allows the user one of them.
+
+- `group: string`: The id of the group in the specs.
+- `label: ReactNode`
+- `items: readonly NavItem[]`
 
 #### NavItem
 
@@ -4355,6 +4415,7 @@ Its props, `ListCardLayoutProps`:
 
 - `AppShellProps`: the props of `AppShell`, listed with it
 - `type Navigation = 'sidebar' | 'topbar'`
+- `type NavEntry = NavItem | NavGroup`: An entry of the navigation: a link, or a group of links.
 - `ScreenProps`: the props of `Screen`, listed with it
 - `type ColorMode = 'light' | 'dark' | 'system'`
 - `ListCardLayoutProps`: the props of `ListCardLayout`, listed with it
@@ -5159,7 +5220,7 @@ Its props, `RelationPickerProps`:
 - `RelationListPickerProps`: the props of `RelationListPicker`, listed with it
 - `RelationPickerProps`: the props of `RelationPicker`, listed with it
 
-## API: the components: resource-board, resource-calendar, resource-card, resource-form, resource-list, screens, stat-card
+## API: the components: resource-board, resource-calendar, resource-card, resource-form, resource-list, screens
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -5504,7 +5565,7 @@ Its props, `ScreenActionProps`:
 
 #### useDestroyCardAction
 
-`useDestroyCardAction(options: DestroyCardActionOptions): CardAction`: The deletion of the item of a card, an action of `ResourceCard` (`actions`) shown when the user may delete it: a toast once it is deleted, then the route `then`; a toast of the error when the backend refuses it.
+`useDestroyCardAction(options: DestroyCardActionOptions): DestroyCardAction`: The deletion of the item of a card, an action of `ResourceCard` (`actions`) shown when the user may delete it, run once confirmed in its dialog (once, whatever the clicks): a toast once it is deleted, then the route `then`; a toast of the error when the backend refuses it.
 
 #### CreateForm
 
@@ -5516,12 +5577,20 @@ Its props, `ScreenActionProps`:
 - `onOpenWith: (fixed: FixedValues) => void`: Opens the form with fields fixed, such as the day of a calendar: `{due_date: day}`.
 - `onClose: () => void`
 
+#### DestroyCardAction
+
+`interface DestroyCardAction`: The deletion of the item of a card: its action and the dialog that confirms it.
+
+- `action: CardAction`: The action of `ResourceCard` (`actions`), shown when the user may delete the item: it opens the confirmation.
+- `confirm: ReactNode`: The confirmation, rendered in the screen: the deletion runs from its button `action:confirm-<id>`.
+
 #### DestroyCardActionOptions
 
 `interface DestroyCardActionOptions`
 
-- `id: string`: The id of the action in the specs: `action:<id>`.
-- `label: ReactNode`
+- `id: string`: The id of the action in the specs: `action:<id>`, its confirmation `action:confirm-<id>`.
+- `label: ReactNode`: The label of the action, also the title of its confirmation.
+- `description?: ReactNode`: What the confirmation says (`description` of the action); that the deletion cannot be undone by default.
 - `path: DestroyPath`: The route set of the entity (`ROUTES` of the contract).
 - `item: string`: The id of the item of the card.
 - `then?: string | undefined`: The route shown once the item is deleted (the screen `then` of the action); the card stays without it.
@@ -5544,6 +5613,10 @@ Its props, `ScreenActionProps`:
 - `CreateFormActionProps`: the props of `CreateFormAction`, listed with it
 - `ScreenActionProps`: the props of `ScreenAction`, listed with it
 
+## API: the components: stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
 ### `@/bazis/ui/stat-card`
 
 #### StatCard
@@ -5565,10 +5638,6 @@ Its props, `StatCardProps`:
 #### The types and the constants of `@/bazis/ui/stat-card`
 
 - `StatCardProps`: the props of `StatCard`, listed with it
-
-## API: the components: state-panel, status-badge, status-history, task-progress, transit-bar
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/state-panel`
 
@@ -5771,6 +5840,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `bulk(id: string): Promise<void>`: Runs a bulk action of the list of the current screen on the selected rows, `bulk:<id>`, confirmed in its dialog (`action:confirm-bulk`), and waits until it is done (the action is no longer offered: the selection is cleared) or shows an error (`error:bulk`).
 - `move(options: { where: Values; to: string; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
+- `confirm(id: string, options?: { optional?: boolean; }): Promise<void>`: Confirms the action `<id>` of the current screen in its dialog, `action:confirm-<id>` (the deletion of the item of a card), and waits until the dialog is closed; the dialog must be shown, but with `optional` (a hand-written screen may run the action without a confirmation), where nothing is done when none is shown within 2 s.
 - `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false.
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).

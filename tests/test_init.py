@@ -24,13 +24,15 @@ import pytest
 
 from bazis.contrib.front import __version__, capabilities
 from bazis.contrib.front.spec import create as spec_create
+from bazis.contrib.front.spec import screens as spec_screens
 from bazis.contrib.front.spec import theme
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import copy, registry
 from bazis.contrib.front.vendor.lock import digest
 
 
-#: the components that `init` copies, with those they require
+#: the components that `init` copies (those of the template and of its screens), with those they
+#: require
 INIT_COMPONENTS = [
     'state-panel', 'app-shell', 'login-form', 'dashboard', 'testing', 'button', 'card', 'input', 'label',
     'sheet', 'skeleton', 'resource', 'stat-card', 'badge', 'native-select', 'popover',
@@ -90,6 +92,12 @@ def test_init_creates_the_frontend(product):
     files = {name: lock['assets'][name].pop('files') for name in [*vendored, 'template']}
     # the theme of the starters of the design
     design = lock.pop('design')
+    # the screens of the starters: the home, a dashboard (the component it requires is copied)
+    generated = lock.pop('screens')
+    assert sorted(generated['spec']) == ['spec/design/theme.yaml', 'spec/product.yaml', 'spec/screens/home.yaml']
+    assert f'{spec_screens.GENERATED_DIR}/home.tsx' in generated['generated']
+    for path, value in generated['generated'].items():
+        assert digest((frontend / path).read_bytes()) == value
     assert lock == {
         'lock': 1,
         'contract': {},
@@ -129,9 +137,12 @@ def test_init_creates_the_frontend(product):
     assert (frontend / 'src' / 'components' / 'ui' / 'button.tsx').is_file()
     assert (frontend / 'e2e' / 'bazis' / 'index.ts').is_file()
     assert (frontend / 'e2e' / 'custom' / 'README.md').is_file()
-    # only the theme is generated: the contract needs the database
+    # the theme and the screens are generated: the contract needs the database
     assert sorted(it.name for it in (frontend / 'src' / 'bazis' / 'generated').iterdir()) == ['fonts.css', 'theme.css', 'theme.ts']
     assert 'Generated the theme' in out
+    added = 'badge, native-select, popover, resource, stat-card, dashboard'
+    assert f'Added the components that the screens import: {added}.' in out
+    assert f'Generated the screens of {frontend} in {spec_screens.GENERATED_DIR}.' in out
     assert not (frontend / 'e2e' / 'generated').exists()
 
 

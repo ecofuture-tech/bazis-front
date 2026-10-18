@@ -26,6 +26,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useId,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -56,6 +57,22 @@ export interface NavItem {
   icon?: ComponentType<{ className?: string }>;
   /** What the backend must allow the user: the link is shown once it does (always without). */
   requires?: NavRequirement;
+}
+
+/** Links of the navigation under a heading, shown while the backend allows the user one of them. */
+export interface NavGroup {
+  /** The id of the group in the specs. */
+  group: string;
+  label: ReactNode;
+  items: readonly NavItem[];
+}
+
+/** An entry of the navigation: a link, or a group of links. */
+export type NavEntry = NavItem | NavGroup;
+
+/** The links of the entries, those of a group in its place. */
+function navLinks(entries: readonly NavEntry[]): readonly NavItem[] {
+  return entries.flatMap((entry) => ('items' in entry ? entry.items : [entry]));
 }
 
 /**
@@ -89,7 +106,8 @@ export interface AppShellProps {
   title: ReactNode;
   /** `navigation` of the theme by default. */
   navigation?: Navigation;
-  items: readonly NavItem[];
+  /** The links of the navigation and their groups. */
+  items: readonly NavEntry[];
   session?: ShellSession | null;
   /**
    * The tools of the product next to the color mode, such as the notifications
@@ -124,7 +142,7 @@ export function useWide(): boolean {
 const ShellContext = createContext<Navigation | null>(null);
 const ItemsContext = createContext<readonly NavItem[]>([]);
 
-/** The links of the navigation of the layout (`items` of `AppShell`), none outside it. */
+/** The links of the navigation of the layout (`items` of `AppShell`, those of its groups in their place), none outside it. */
 export function useNavItems(): readonly NavItem[] {
   return useContext(ItemsContext);
 }
@@ -164,12 +182,19 @@ export function Allowed({ requirement, children }: { requirement: NavRequirement
   return requirement ? <Permitted requirement={requirement}>{children}</Permitted> : children;
 }
 
-function Permitted({ requirement, children }: { requirement: NavRequirement; children: ReactNode }) {
+interface PermittedProps {
+  requirement: NavRequirement;
+  children: ReactNode;
+  /** What is shown until, or unless, the backend allows it. */
+  otherwise?: ReactNode;
+}
+
+function Permitted({ requirement, children, otherwise = null }: PermittedProps) {
   const allowed = useAnyCan(requirement.path, requirement.can ?? 'view');
-  if (allowed !== true) return null;
+  if (allowed !== true) return otherwise;
   const { filters = [] } = requirement;
   return filters.length ? (
-    <Filterable path={requirement.path} filters={filters}>
+    <Filterable path={requirement.path} filters={filters} otherwise={otherwise}>
       {children}
     </Filterable>
   ) : (
@@ -177,55 +202,103 @@ function Permitted({ requirement, children }: { requirement: NavRequirement; chi
   );
 }
 
-function Filterable({ path, filters, children }: { path: string; filters: readonly string[]; children: ReactNode }) {
+function Filterable({ path, filters, children, otherwise }: Omit<PermittedProps, 'requirement'> & { path: string; filters: readonly string[] }) {
   const fields = useAnyFilterFields(path).data?.fields;
-  return fields && filters.every((name) => fields.some((it) => it.name === name)) ? children : null;
+  return fields && filters.every((name) => fields.some((it) => it.name === name)) ? children : otherwise;
 }
 
-function Navigation({ items, vertical, onNavigate }: { items: readonly NavItem[]; vertical: boolean; onNavigate?: () => void }) {
+/**
+ * Its children once the backend allows the user one of the requirements (at once when one
+ * is none), nothing until then: a group of links shown with its first allowed link. The
+ * requirements are asked for in turn by the queries of their links, without a request of
+ * their own.
+ */
+function AnyAllowed({ requirements, children }: { requirements: readonly (NavRequirement | undefined)[]; children: ReactNode }) {
+  const [first, ...rest] = requirements;
+  if (requirements.length === 0) return null;
+  if (first === undefined) return children;
+  return (
+    <Permitted requirement={first} otherwise={<AnyAllowed requirements={rest}>{children}</AnyAllowed>}>
+      {children}
+    </Permitted>
+  );
+}
+
+function Navigation({ items, vertical, onNavigate }: { items: readonly NavEntry[]; vertical: boolean; onNavigate?: () => void }) {
   const { t } = useLanguage();
   return (
     <nav aria-label={t('shell.navigation')}>
       <ul className={cn('flex gap-1', vertical ? 'flex-col' : 'items-center')}>
-        {items.map((item) => {
-          const Icon = item.icon;
-          const link = (
-            <li key={item.screen}>
-              <NavLink
-                to={item.to}
-                end={item.end}
-                data-bz={`nav:${item.screen}`}
-                onClick={onNavigate}
-                className={({ isActive }) =>
-                  cn(
-                    'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                    vertical
-                      ? 'rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
-                      : 'rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                    isActive &&
-                      (vertical
-                        ? 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent'
-                        : 'bg-accent text-accent-foreground'),
-                  )
-                }
-              >
-                {Icon && (
-                  <Icon className="size-4 shrink-0 opacity-70 group-aria-[current=page]:text-primary group-aria-[current=page]:opacity-100" />
-                )}
-                <span title={typeof item.label === 'string' ? item.label : undefined} className="truncate">
-                  {item.label}
-                </span>
-              </NavLink>
-            </li>
-          );
-          return (
-            <Allowed key={item.screen} requirement={item.requires}>
-              {link}
-            </Allowed>
-          );
-        })}
+        {items.map((entry) =>
+          'items' in entry ? (
+            <NavGroupEntry key={`group:${entry.group}`} group={entry} vertical={vertical} onNavigate={onNavigate} />
+          ) : (
+            <NavLinkEntry key={entry.screen} item={entry} vertical={vertical} onNavigate={onNavigate} />
+          ),
+        )}
       </ul>
     </nav>
+  );
+}
+
+/** A group of links under its heading: hidden while the backend allows the user none of them. */
+function NavGroupEntry({ group, vertical, onNavigate }: { group: NavGroup; vertical: boolean; onNavigate?: (() => void) | undefined }) {
+  const heading = useId();
+  return (
+    <AnyAllowed requirements={group.items.map((it) => it.requires)}>
+      <li className={cn('flex gap-1', vertical ? 'flex-col pt-3' : 'items-center')}>
+        <span
+          id={heading}
+          className={cn(
+            'truncate text-xs font-medium',
+            vertical ? 'px-3 pb-1 text-sidebar-foreground/80' : 'pl-2 text-muted-foreground',
+          )}
+        >
+          {group.label}
+        </span>
+        <ul aria-labelledby={heading} className={cn('flex gap-1', vertical ? 'flex-col' : 'items-center')}>
+          {group.items.map((item) => (
+            <NavLinkEntry key={item.screen} item={item} vertical={vertical} onNavigate={onNavigate} />
+          ))}
+        </ul>
+      </li>
+    </AnyAllowed>
+  );
+}
+
+/** A link of the navigation, `nav:<screen>`, shown once the backend allows what it requires. */
+function NavLinkEntry({ item, vertical, onNavigate }: { item: NavItem; vertical: boolean; onNavigate?: (() => void) | undefined }) {
+  const Icon = item.icon;
+  return (
+    <Allowed requirement={item.requires}>
+      <li>
+        <NavLink
+          to={item.to}
+          end={item.end}
+          data-bz={`nav:${item.screen}`}
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            cn(
+              'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+              vertical
+                ? 'rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                : 'rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              isActive &&
+                (vertical
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent'
+                  : 'bg-accent text-accent-foreground'),
+            )
+          }
+        >
+          {Icon && (
+            <Icon className="size-4 shrink-0 opacity-70 group-aria-[current=page]:text-primary group-aria-[current=page]:opacity-100" />
+          )}
+          <span title={typeof item.label === 'string' ? item.label : undefined} className="truncate">
+            {item.label}
+          </span>
+        </NavLink>
+      </li>
+    </Allowed>
   );
 }
 
@@ -283,7 +356,7 @@ function Drawer({
   side,
 }: {
   title: ReactNode;
-  items: readonly NavItem[];
+  items: readonly NavEntry[];
   session: ShellSession | null;
   side: 'left' | 'right';
 }) {
@@ -322,6 +395,7 @@ function Drawer({
 /** The layout of the screens of a logged-in user. */
 export function AppShell({ title, navigation = THEME.navigation, items, session = null, tools, children }: AppShellProps) {
   const wide = useWide();
+  const links = useMemo(() => navLinks(items), [items]);
   if (navigation === 'topbar') {
     return (
       <ShellContext value={navigation}>
@@ -348,7 +422,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
             </div>
           </header>
           <main className="mx-auto w-full max-w-6xl min-w-0 flex-1 px-4 py-8 md:px-(--space-page-x) md:py-12">
-            <ItemsContext value={items}>{children}</ItemsContext>
+            <ItemsContext value={links}>{children}</ItemsContext>
           </main>
           <Toaster />
         </div>
@@ -387,7 +461,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
             </div>
           </header>
           <main className="min-w-0 flex-1 px-(--bleed) pt-(--space-section) pb-(--space-page-y)">
-            <ItemsContext value={items}>{children}</ItemsContext>
+            <ItemsContext value={links}>{children}</ItemsContext>
           </main>
         </div>
         <Toaster />

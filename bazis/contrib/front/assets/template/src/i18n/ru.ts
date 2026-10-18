@@ -17,9 +17,4 @@
 
 import type { Messages } from '@/bazis/i18n';
 
-export const ru: Messages = {
-  'nav.home': 'Главная',
-  'home.title': 'Обзор',
-  'home.description': 'С чего начать: разделы продукта и что в них есть.',
-  'home.unavailable': 'Недоступно',
-};
+export const ru: Messages = {};

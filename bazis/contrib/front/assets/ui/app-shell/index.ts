@@ -16,6 +16,8 @@ export { Allowed, AppShell, Screen, useNavItems, useScreenPage, useWide } from '
 export type {
   AppShellProps,
   Navigation,
+  NavEntry,
+  NavGroup,
   NavItem,
   NavRequirement,
   ScreenPage,

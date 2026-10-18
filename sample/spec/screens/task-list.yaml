@@ -7,6 +7,7 @@ route: /tasks
 entity: task
 roles: [manager, viewer]
 primitive: list
+custom: true  # written by hand: `bazis_front screens` does not generate `list.map` yet
 list:
   columns: [title, status, priority, assignee, dt_created]
   filters: [status, assignee, priority, dt_created]

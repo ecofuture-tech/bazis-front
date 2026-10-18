@@ -8,6 +8,7 @@ route: /calendar
 entity: task
 roles: [manager, viewer]
 primitive: calendar
+custom: true  # written by hand: `bazis_front screens` does not generate a calendar yet
 calendar:
   field: dt_created
   label: [title]

@@ -7,6 +7,7 @@ description: {en: The tasks of the team at a glance and where to go next., ru: �
 route: /
 roles: [manager, viewer]
 primitive: dashboard
+custom: true  # written by hand: `bazis_front screens` does not generate the tiles, the charts and the last items yet
 dashboard:
   tiles:
     - {id: drafts, entity: task, filter: {status: draft}, label: {en: Drafts, ru: Черновики}, open: draft-tasks}

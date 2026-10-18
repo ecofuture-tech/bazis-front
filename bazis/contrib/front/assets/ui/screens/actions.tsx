@@ -16,9 +16,11 @@
 // them: the create form of an entity (`primitive: form`, `mode: create`), opened by an action
 // of a list (`ListAction`), of a calendar (`add`, with the selected day fixed) or of the
 // header of a screen (`ScreenAction`); and the deletion of the item of a card
-// (`primitive: destroy`), an action of `ResourceCard` that shows the screen `then` after it.
+// (`primitive: destroy`), an action of `ResourceCard` confirmed in a dialog
+// (`action:confirm-<id>`), which shows the screen `then` after it.
 
-import { useState, type ComponentType, type ReactNode } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 
 import { useLanguage } from '@/bazis/i18n';
@@ -28,6 +30,7 @@ import type { CardAction } from '@/bazis/ui/resource-card';
 import { FormSurface, ResourceForm, type SavedDocument } from '@/bazis/ui/resource-form';
 import { toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 /** Whether the create form of a screen is open, and with which fixed values: `CreateFormAction.use()`. */
 export interface CreateForm {
@@ -129,9 +132,12 @@ export function ScreenAction({ id, label, icon: Icon, requires, onClick }: Scree
 }
 
 export interface DestroyCardActionOptions {
-  /** The id of the action in the specs: `action:<id>`. */
+  /** The id of the action in the specs: `action:<id>`, its confirmation `action:confirm-<id>`. */
   id: string;
+  /** The label of the action, also the title of its confirmation. */
   label: ReactNode;
+  /** What the confirmation says (`description` of the action); that the deletion cannot be undone by default. */
+  description?: ReactNode;
   /** The route set of the entity (`ROUTES` of the contract). */
   path: DestroyPath;
   /** The id of the item of the card. */
@@ -140,30 +146,86 @@ export interface DestroyCardActionOptions {
   then?: string | undefined;
 }
 
+/** The deletion of the item of a card: its action and the dialog that confirms it. */
+export interface DestroyCardAction {
+  /** The action of `ResourceCard` (`actions`), shown when the user may delete the item: it opens the confirmation. */
+  action: CardAction;
+  /** The confirmation, rendered in the screen: the deletion runs from its button `action:confirm-<id>`. */
+  confirm: ReactNode;
+}
+
 /**
  * The deletion of the item of a card, an action of `ResourceCard` (`actions`) shown when the
- * user may delete it: a toast once it is deleted, then the route `then`; a toast of the
- * error when the backend refuses it.
+ * user may delete it, run once confirmed in its dialog (once, whatever the clicks): a toast
+ * once it is deleted, then the route `then`; a toast of the error when the backend refuses it.
  */
-export function useDestroyCardAction({ id, label, path, item, then }: DestroyCardActionOptions): CardAction {
+export function useDestroyCardAction({ id, label, description, path, item, then }: DestroyCardActionOptions): DestroyCardAction {
   const destroy = useDestroy(path);
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const [open, setOpen] = useState(false);
+  // set by the first click until its request ends, before the dialog shows it is pending:
+  // the clicks after it send nothing
+  const running = useRef(false);
+  const run = () => {
+    if (running.current) return;
+    running.current = true;
+    destroy.mutate(item, {
+      onSettled: () => {
+        running.current = false;
+      },
+      onSuccess: () => {
+        setOpen(false);
+        toast({ title: t('card.deleted') });
+        if (then !== undefined) void navigate(then);
+      },
+      onError: (error) => {
+        setOpen(false);
+        toast({ title: t('card.not_deleted'), description: error.message, tone: 'danger' });
+      },
+    });
+  };
+  const confirm = (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !destroy.isPending) setOpen(false);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{label}</DialogTitle>
+          <DialogDescription>{description ?? t('card.delete_confirm')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={destroy.isPending}
+            onClick={() => {
+              setOpen(false);
+            }}
+          >
+            {t('action.cancel')}
+          </Button>
+          <Button type="button" variant="destructive" data-bz={`action:confirm-${id}`} disabled={destroy.isPending} onClick={run}>
+            {destroy.isPending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+            {label}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
   return {
-    id,
-    label,
-    permission: 'delete',
-    variant: 'destructive',
-    onClick: () => {
-      destroy.mutate(item, {
-        onSuccess: () => {
-          toast({ title: t('card.deleted') });
-          if (then !== undefined) void navigate(then);
-        },
-        onError: (error) => {
-          toast({ title: t('card.not_deleted'), description: error.message, tone: 'danger' });
-        },
-      });
+    action: {
+      id,
+      label,
+      permission: 'delete',
+      variant: 'destructive',
+      onClick: () => {
+        setOpen(true);
+      },
     },
+    confirm,
   };
 }

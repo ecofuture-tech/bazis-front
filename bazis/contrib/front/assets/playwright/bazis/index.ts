@@ -17,11 +17,12 @@
 // `manage.py bazis_front e2e` (`e2e/generated/`) call them with `PRODUCT` of
 // `e2e/generated/product.ts` (the test users and the routes of the specs), and so can the
 // tests of the product (`e2e/custom/`). They wait with the auto-waiting of Playwright and on
-// the marks of the states, never for a fixed time.
+// the marks of the states, never for a fixed time but for the confirmation of a deletion,
+// which a hand-written screen may not have (`CONFIRMATION_WAIT`).
 
 import path from 'node:path';
 
-import { expect, type Locator, type Page } from '@playwright/test';
+import { errors, expect, type Locator, type Page } from '@playwright/test';
 
 import { CAPABILITIES } from '@/bazis/generated/contract';
 
@@ -97,6 +98,9 @@ function exactly(value: string | number | boolean | null): RegExp {
 
 /** The languages that `language` goes through before it gives up. */
 const MAX_LANGUAGES = 20;
+
+/** How long `confirm` waits for the dialog of a confirmation before it assumes there is none, ms. */
+const CONFIRMATION_WAIT = 2_000;
 
 /**
  * The application in a page, at a screen of the specs. The steps act on the current screen
@@ -197,6 +201,28 @@ export class App<P extends Product = Product> {
     const button = this.screen().locator(bz('action', id));
     await this.reveal(button);
     await button.click();
+  }
+
+  /**
+   * Confirms the action `<id>` of the current screen in its dialog, `action:confirm-<id>`
+   * (the deletion of the item of a card), and waits until the dialog is closed; the dialog
+   * must be shown, but with `optional` (a hand-written screen may run the action without a
+   * confirmation), where nothing is done when none is shown within 2 s.
+   */
+  async confirm(id: string, { optional = false }: { optional?: boolean } = {}): Promise<void> {
+    const button = this.page.locator(bz('action', `confirm-${id}`));
+    if (optional) {
+      const shown = await button.waitFor({ timeout: CONFIRMATION_WAIT }).then(
+        () => true,
+        (error: unknown) => {
+          if (error instanceof errors.TimeoutError) return false;
+          throw error;
+        },
+      );
+      if (!shown) return;
+    }
+    await button.click();
+    await expect(button).toBeHidden();
   }
 
   /**

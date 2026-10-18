@@ -17,6 +17,7 @@ The helpers of the tests that act on a product root (BASE_DIR) with a frontend.
 """
 
 import json
+import shutil
 from pathlib import Path
 
 from bazis.contrib.front.contract.export import CONTRACT_FORMAT
@@ -24,6 +25,15 @@ from bazis.contrib.front.contract.export import CONTRACT_FORMAT
 
 #: the specs of the sample: a complete valid spec
 SAMPLE_SPEC = Path(__file__).resolve().parent.parent / 'sample' / 'spec'
+#: the code of the custom screens of the sample (`custom: true` in their specs)
+SAMPLE_SCREENS = SAMPLE_SPEC.parent / 'frontend-overlay' / 'src' / 'screens'
+
+
+def copy_custom_screens(root: Path) -> None:
+    """
+    The code of the custom screens of the sample in the frontend of the product root.
+    """
+    shutil.copytree(SAMPLE_SCREENS, root / 'frontend' / 'src' / 'screens', dirs_exist_ok=True)
 
 
 def read_lock(root: Path) -> dict:

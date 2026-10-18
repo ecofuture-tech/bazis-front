@@ -60,6 +60,8 @@ export const en: Messages = {
   'calendar.truncated': 'Not every item is shown: the first {count}',
   'calendar.view': 'View',
   'calendar.week': 'Week',
+  'card.delete': 'Delete',
+  'card.delete_confirm': 'Delete it for good? This cannot be undone.',
   'card.deleted': 'Deleted',
   'card.edit': 'Edit',
   'card.edit_item': 'Edit {item}',

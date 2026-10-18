@@ -19,7 +19,8 @@
 // the card; and the props of an extension joined with the generated ones. Keep it passing
 // when the component is changed.
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -173,7 +174,12 @@ function cardBackend(meta: unknown) {
 /** The card of the item with its deletion, which leads to `/items`. */
 function DestroyingCard() {
   const destroy = useDestroyCardAction({ id: 'delete', label: 'Delete', path: ITEMS as never, item: ITEM_ID, then: '/items' });
-  return <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['title'] }]} actions={[destroy]} />;
+  return (
+    <>
+      <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['title'] }]} actions={[destroy.action]} />
+      {destroy.confirm}
+    </>
+  );
 }
 
 function renderCard(backend: Backend) {
@@ -189,13 +195,54 @@ function renderCard(backend: Backend) {
 }
 
 describe('useDestroyCardAction', () => {
-  it('deletes the item of the card, then shows the route `then`', async () => {
+  it('deletes the item of the card once confirmed, then shows the route `then`', async () => {
     const backend = cardBackend({ crud_actions: ['view', 'delete'] }).on('DELETE', ITEM, undefined, 204);
     renderCard(backend);
     fireEvent.click(await screen.findByTestId('action:delete'));
+    expect(backend.requests('DELETE')).toEqual([]);
+    expect(screen.getByRole('dialog').textContent).toContain('Delete it for good?');
+    fireEvent.click(screen.getByTestId('action:confirm-delete'));
     expect(await screen.findByTestId('screen:item-list')).toBeTruthy();
     expect(backend.requests('DELETE')).toEqual([`DELETE ${ITEM}`]);
     expect(toast).toHaveBeenCalledWith({ title: expect.any(String) as unknown });
+  });
+
+  it('sends one deletion whatever the clicks of its confirmation', async () => {
+    const backend = cardBackend({ crud_actions: ['view', 'delete'] }).on('DELETE', ITEM, undefined, 204);
+    renderCard(backend);
+    fireEvent.click(await screen.findByTestId('action:delete'));
+    const confirm = screen.getByTestId('action:confirm-delete');
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    expect(await screen.findByTestId('screen:item-list')).toBeTruthy();
+    expect(backend.requests('DELETE')).toEqual([`DELETE ${ITEM}`]);
+  });
+
+  it('says what the action describes and keeps the item when cancelled', async () => {
+    function Described() {
+      const destroy = useDestroyCardAction({
+        id: 'delete',
+        label: 'Delete',
+        description: 'The steps of the task go with it.',
+        path: ITEMS as never,
+        item: ITEM_ID,
+      });
+      return (
+        <>
+          <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={[{ id: 'main', fields: ['title'] }]} actions={[destroy.action]} />
+          {destroy.confirm}
+        </>
+      );
+    }
+    const backend = cardBackend({ crud_actions: ['view', 'delete'] });
+    renderWithBazis(<Described />, backend);
+    fireEvent.click(await screen.findByTestId('action:delete'));
+    expect(screen.getByRole('dialog').textContent).toContain('The steps of the task go with it.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(backend.requests('DELETE')).toEqual([]);
   });
 
   it('is not shown when the user may not delete the item', async () => {
@@ -208,6 +255,7 @@ describe('useDestroyCardAction', () => {
     const backend = cardBackend({ crud_actions: ['view', 'delete'] }).on('DELETE', ITEM, errors(409), 409);
     renderCard(backend);
     fireEvent.click(await screen.findByTestId('action:delete'));
+    fireEvent.click(screen.getByTestId('action:confirm-delete'));
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith({ title: expect.any(String) as unknown, description: 'HTTP 409', tone: 'danger' });
     });
@@ -250,6 +298,19 @@ describe('extended', () => {
     fireEvent.click(screen.getByTestId('action:added'));
     expect(generated).toHaveBeenCalled();
     expect(added).toHaveBeenCalled();
+  });
+
+  it('shows the children of both when they are contents rather than render props', () => {
+    interface Props {
+      children?: ReactNode | ((id: string) => ReactNode);
+    }
+    const node = (props: Props, id: string) =>
+      typeof props.children === 'function' ? props.children(id) : props.children;
+    render(<div data-bz="nodes">{node(extended<Props>({ children: 'generated' }, { props: { children: ' added' } }), ITEM_ID)}</div>);
+    expect(screen.getByTestId('nodes').textContent).toBe('generated added');
+    const mixed = extended<Props>({ children: 'generated' }, { props: { children: (id) => ` ${id}` } });
+    render(<div data-bz="mixed">{node(mixed, ITEM_ID)}</div>);
+    expect(screen.getByTestId('mixed').textContent).toBe(`generated ${ITEM_ID}`);
   });
 
   it('joins every kind of actions and keeps the generated props without an extension', () => {

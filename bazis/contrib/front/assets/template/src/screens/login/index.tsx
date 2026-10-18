@@ -14,10 +14,11 @@
 
 import { useLocation, useNavigate } from 'react-router';
 
-import { PRODUCT_NAME } from '@/app/product';
 import { login, loginInWindow, PASSWORD_LOGIN, WINDOW_LOGINS } from '@/app/session';
+import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
 import { LoginForm } from '@/bazis/ui/login-form';
+import { PRODUCT_NAME } from '@/screens/generated/product';
 
 /**
  * The login: the username and the password (bazis-users, or the service `password` of
@@ -28,6 +29,8 @@ export function LoginScreen() {
   const api = useApi();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
+  const name = t(PRODUCT_NAME);
   const from = (location.state as { from?: string } | null)?.from ?? '/';
   return (
     <main
@@ -39,9 +42,9 @@ export function LoginScreen() {
           aria-hidden="true"
           className="flex size-10 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground shadow-sm"
         >
-          {PRODUCT_NAME.charAt(0).toUpperCase()}
+          {name.charAt(0).toUpperCase()}
         </span>
-        <span className="font-display text-xl font-semibold tracking-tight">{PRODUCT_NAME}</span>
+        <span className="font-display text-xl font-semibold tracking-tight">{name}</span>
       </div>
       <LoginForm
         onLogin={PASSWORD_LOGIN ? (credentials) => login(api, credentials) : undefined}

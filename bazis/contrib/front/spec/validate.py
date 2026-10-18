@@ -299,7 +299,7 @@ def text_paths(name: str) -> tuple[tuple, ...]:
     return tuple(found)
 
 
-def _values(data, path: tuple, at: tuple = ()):
+def text_values(data, path: tuple, at: tuple = ()):
     """
     The values at a path of `text_paths` in a document, with their paths.
     """
@@ -307,9 +307,9 @@ def _values(data, path: tuple, at: tuple = ()):
         yield at, data
     elif path[0] == '*':
         for i, item in enumerate(data if isinstance(data, list) else []):
-            yield from _values(item, path[1:], (*at, i))
+            yield from text_values(item, path[1:], (*at, i))
     elif isinstance(data, dict) and path[0] in data:
-        yield from _values(data[path[0]], path[1:], (*at, path[0]))
+        yield from text_values(data[path[0]], path[1:], (*at, path[0]))
 
 
 def check_texts(doc: Document, schema: str, languages: list[str], issues: Issues) -> None:
@@ -319,7 +319,7 @@ def check_texts(doc: Document, schema: str, languages: list[str], issues: Issues
     one language.
     """
     for path in text_paths(schema):
-        for at, value in _values(doc.data, path):
+        for at, value in text_values(doc.data, path):
             if isinstance(value, str):
                 if len(languages) < 2 or TEXT_KEY.fullmatch(value):
                     continue
@@ -367,7 +367,8 @@ def check_screen_code(root: Path, docs: list[Document], issues: Issues) -> None:
     The code of the screens in `frontend/src/screens/`, once the frontend exists: a `custom`
     screen exports its component (S028), a screen with `extend` its extension (S031); once the
     frontend generates its screens (the lock has `screens`), no screen but a custom one has
-    `<id>/index.tsx` (S029). A custom screen is never extended (S031).
+    `<id>/index.tsx` (S029), unless it is the module of another custom screen. A custom screen
+    is never extended (S031).
     """
     frontend = root / frontend_lock.FRONTEND_DIR
     screens, code = frontend / SCREENS_DIR, (frontend / 'src').is_dir()
@@ -376,6 +377,10 @@ def check_screen_code(root: Path, docs: list[Document], issues: Issues) -> None:
     except frontend_lock.LockError:
         # front.W001 reports it
         generated = False
+    # the files of the modules of the custom screens: none is a screen of its own
+    modules = {
+        _module_file(screens, it.data['custom']) for it in docs if it.valid and isinstance(it.data.get('custom'), dict)
+    }
     for doc in docs:
         if not doc.valid:
             continue
@@ -390,7 +395,7 @@ def check_screen_code(root: Path, docs: list[Document], issues: Issues) -> None:
             continue
         if custom:
             _check_custom(root, doc, screens, screen_id, custom, issues)
-        elif generated and (screens / screen_id / 'index.tsx').is_file():
+        elif generated and (own := screens / screen_id / 'index.tsx').is_file() and own not in modules:
             file = f'{frontend_lock.FRONTEND_DIR}/{SCREENS_DIR}/{screen_id}/index.tsx'
             issues.add(
                 doc, (), 'S029',
@@ -406,25 +411,33 @@ def check_screen_code(root: Path, docs: list[Document], issues: Issues) -> None:
                     doc, ('extend',), 'S031',
                     f'{file} ' + ('does not export `extension`.' if path.is_file() else 'is missing.'),
                     f'Write it, `export const {EXTENSION}` with the type of the extension of the primitive '
-                    f'(`ListScreenExtension` of `@/bazis/ui/screens`...), or remove `extend`.',
+                    f'(`ScreenExtension<ResourceListProps>` of `@/bazis/ui/screens`...), or remove `extend`.',
                 )
+
+
+def _module_file(screens: Path, custom: dict) -> Path | None:
+    """
+    The file of the module `custom.module` of a screen: `<path>.tsx`, `.ts`, `<path>/index.tsx`
+    or `.ts` in `src/screens`; None when there is none.
+    """
+    base = custom['module'].removeprefix('@/screens')
+    return next((it for it in (Path(f'{screens}{base}{end}') for end in MODULE_FILES) if it.is_file()), None)
 
 
 def _check_custom(root: Path, doc: Document, screens: Path, screen_id: str, custom, issues: Issues) -> None:
     if custom is True:
-        candidates, name = [screens / screen_id / 'index.tsx'], component_name(screen_id)
+        path, name = screens / screen_id / 'index.tsx', component_name(screen_id)
+        path = path if path.is_file() else None
     else:
-        base = custom['module'].removeprefix('@/screens')
-        candidates, name = [Path(f'{screens}{base}{it}') for it in MODULE_FILES], custom['export']
-    path = next((it for it in candidates if it.is_file()), None)
+        path, name = _module_file(screens, custom), custom['export']
     if path is not None and exports(path, name):
         return
     if path is not None:
         problem = f'{path.relative_to(root).as_posix()} does not export `{name}`.'
     elif custom is True:
-        problem = f'{candidates[0].relative_to(root).as_posix()} is missing.'
+        problem = f'{(screens / screen_id / "index.tsx").relative_to(root).as_posix()} is missing.'
     else:
-        module = Path(f'{screens}{base}').relative_to(root).as_posix()
+        module = Path(f'{screens}{custom["module"].removeprefix("@/screens")}').relative_to(root).as_posix()
         problem = f'The module `{custom["module"]}` is missing: no {module}.tsx nor {module}/index.tsx (or .ts).'
     issues.add(
         doc, ('custom',), 'S028', problem,
@@ -470,7 +483,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
 
     product = refs.check_product(product_doc, contract, issues)
     screens = refs.check_screens(screen_docs, product, contract, issues)
-    refs.check_navigation(product_doc, screens, issues)
+    refs.check_navigation(product_doc, screens, product, contract, issues)
     check_screen_code(root, screen_docs, issues)
     languages = product_doc.data.get('languages', []) if product_doc.valid else []
     for doc, schema in [(product_doc, PRODUCT_SCHEMA), *((it, SCREEN_SCHEMA) for it in screen_docs)]:

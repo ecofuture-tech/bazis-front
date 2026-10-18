@@ -31,6 +31,7 @@ from django.test import override_settings
 import pytest
 
 from bazis.contrib.front import __version__, checks
+from bazis.contrib.front.spec import screens
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor import update as vendor_update
@@ -387,50 +388,79 @@ def test_update_copies_what_a_new_version_requires(product):
         )
 
 
-#: the components that only the home of the template (`Dashboard`) requires
-def home_components():
+def login_components(root):
+    """The components of the frontend that only the login of the template (`LoginForm`) requires."""
     assets = registry.load()
+    login = [it.name for it in registry.resolve(['login-form'], assets)]
     others = {
         it.name for it in registry.resolve(
-            [*(name for name in assets['template'].assets if name != 'dashboard'),
-             *(it.name for it in assets.values() if it.kind == registry.VENDORED)],
+            [*(name for name in assets['template'].assets if name != 'login-form'),
+             *(name for name in read_lock(root)['assets'] if name not in [*login, 'template'])],
             assets,
         )
     }
-    return [it.name for it in registry.resolve(['dashboard'], assets) if it.name not in others]
+    return [name for name in login if name not in others]
 
 
-HOME = 'src/screens/home/index.tsx'
-OLD_HOME = 'export function HomeScreen() {\n  return null;\n}\n'
+def lacks(warning) -> list[str]:
+    """The components that W004 says the frontend lacks."""
+    return sorted(warning.msg.rsplit('The frontend lacks ', 1)[1].split(', required by')[0].split(', '))
+
+
+LOGIN = 'src/screens/login/index.tsx'
+OLD_LOGIN = 'export function LoginScreen() {\n  return null;\n}\n'
 
 
 def test_update_copies_the_components_that_a_new_template_requires(product):
     """
-    A frontend of a version whose home was not a `Dashboard` gets `dashboard` (and what it
-    requires) with the new home.
+    A frontend of a version whose login was not a `LoginForm` gets `login-form` (and what it
+    requires) with the new login.
     """
     frontend = product / 'frontend'
-    added = home_components()
-    assert added[-1] == 'dashboard'
+    added = login_components(product)
+    assert added[-1] == 'login-form'
     for name in added:
         remove_asset(product, name)
-    downgrade(product, 'template', lambda path, text: OLD_HOME if path == HOME else text)
-    assert w004()[0].msg.endswith(
-        f'The frontend lacks {", ".join(added)}, required by bazis-front {__version__}.'
-    )
+    downgrade(product, 'template', lambda path, text: OLD_LOGIN if path == LOGIN else text)
+    assert lacks(w004()[0]) == sorted(added)
 
     out = update()
     for name in added:
         assert f'{name}: copied ({__version__}), required by a new version.\n' in out
         assert_updated(product, name)
-    assert (frontend / HOME).read_text(encoding='utf-8') == upstream(HOME)
+    assert (frontend / LOGIN).read_text(encoding='utf-8') == upstream(LOGIN)
     assert_updated(product, 'template')
     assert w004() == []
 
 
+def test_update_of_a_frontend_made_before_the_screens(product):
+    """
+    A frontend made before `bazis_front screens` has no generated screens: its router is its
+    own until the update, and `front.W010` says nothing (generated then, they would be refused
+    beside its own screens, S029); the router of its updated template imports them, and the
+    update and `front.W010` say to generate them.
+    """
+    lock = read_lock(product)
+    del lock['screens']
+    write_lock(product, lock)
+    shutil.rmtree(product / 'frontend' / screens.GENERATED_DIR)
+
+    def own_router(path, text):
+        if path != screens.ROUTER_TSX:
+            return text
+        return ''.join(it for it in text.splitlines(keepends=True) if "from '@/screens/generated/" not in it)
+
+    downgrade(product, 'template', own_router)
+    assert checks.check_screens(None) == []
+
+    out = update()
+    assert out.index(screens.NEEDS_SCREENS) < out.index('Updated the copies')
+    assert [it.msg for it in checks.check_screens(None)] == [screens.NEEDS_SCREENS]
+
+
 def test_update_copies_no_component_for_a_frontend_without_the_template(product):
     """A lock without the template (the product's frontend) is never given its components."""
-    for name in home_components():
+    for name in login_components(product):
         remove_asset(product, name)
     lock = read_lock(product)
     del lock['assets']['template']
@@ -438,8 +468,8 @@ def test_update_copies_no_component_for_a_frontend_without_the_template(product)
     assert w004() == []
 
     out = update()
-    assert 'dashboard' not in out
-    assert 'dashboard' not in read_lock(product)['assets']
+    assert 'login-form' not in out
+    assert 'login-form' not in read_lock(product)['assets']
 
 
 def test_update_needs_the_capabilities_of_a_new_requirement(product):

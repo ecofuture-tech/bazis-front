@@ -137,13 +137,53 @@ def check_e2e(app_configs, **kwargs):
     result = validate.validate(root)
     if result.errors:
         return []
-    if problems := e2e.stale(root, frontend, lock, e2e.render(result.specs)):
+    if problems := e2e.stale(root, frontend, lock, e2e.render(result.specs, 'screens' in lock)):
         return [
             Warning(
                 ' '.join(problems),
                 hint='Generate them with `manage.py bazis_front e2e`; never edit them, write the '
                 'tests of your own in frontend/e2e/custom/.',
                 id='front.W003',
+            )
+        ]
+    return []
+
+
+@register()
+def check_screens(app_configs, **kwargs):
+    """
+    The screens generated in the frontend (when its lock records them: the product generates
+    them with `bazis_front screens`) are those of the specs, and the components that they
+    import are copied: the comparison of `bazis_front screens --check`, without Node and
+    without the database. Specs with errors are not compared (`front.W002`), nor specs with
+    screens that are not generated yet: the command says which. A frontend made before the
+    screens were generated has none, which its updated template needs.
+    """
+    from django.conf import settings
+
+    from .spec import screens, validate
+    from .vendor import lock as frontend_lock
+
+    frontend = frontend_lock.frontend_dir()
+    lock = frontend_lock.read_valid(frontend)
+    if lock is None:
+        return []
+    if screens.needs_screens(frontend, lock):
+        return [Warning(screens.NEEDS_SCREENS, id='front.W010')]
+    if 'screens' not in lock:
+        return []
+    root = Path(settings.BASE_DIR)
+    result = validate.validate(root)
+    if result.errors:
+        return []
+    problems = screens.unsupported(result.specs) or screens.stale(root, frontend, lock, screens.render(result.specs))
+    if problems:
+        return [
+            Warning(
+                ' '.join(problems),
+                hint='Generate them with `manage.py bazis_front screens`; never edit them: what a '
+                'spec cannot say goes to an extension (`extend`) or a custom screen (`custom`).',
+                id='front.W010',
             )
         ]
     return []
@@ -323,6 +363,7 @@ COMMANDS = {
     'front.W004': 'update',
     'front.W005': 'design',
     'front.W008': 'shots',
+    'front.W010': 'screens',
 }
 
 #: the checks of the state of the frontend, in the order of `bazis_front status`
@@ -333,6 +374,7 @@ STATUS = (
     check_update,
     check_changed_copies,
     check_design,
+    check_screens,
     check_e2e,
     check_shots,
 )

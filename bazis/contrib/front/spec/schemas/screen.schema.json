@@ -33,7 +33,7 @@
           "additionalProperties": false,
           "required": ["module", "export"],
           "properties": {
-            "module": {"description": "The module, `@/screens/<path>` (frontend/src/screens/<path>.tsx or <path>/index.tsx).", "type": "string", "pattern": "^@/screens(/[A-Za-z0-9_-]+)+$"},
+            "module": {"description": "The module, `@/screens/<path>` (frontend/src/screens/<path>.tsx or <path>/index.tsx); never one of src/screens/generated/, which `bazis_front screens` writes.", "type": "string", "pattern": "^@/screens/(?!generated(/|$))[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$"},
             "export": {"description": "The component of the screen that it exports.", "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$"}
           }
         }

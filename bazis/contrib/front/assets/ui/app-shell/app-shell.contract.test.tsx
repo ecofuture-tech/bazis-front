@@ -14,19 +14,20 @@
 
 // The contract of the layout: `nav:<screen>` of the navigation (the current one
 // `aria-current="page"`; a link that `requires` a permission only once the backend allows
-// it), `screen:<id>`, the logout `action:logout` with a session only, the
-// color mode, the language (`action:language`, with more than one language), the tools of the
-// product mounted once, the link of a screen back to its parent (`nav:<screen>`); and the list
-// with its card (`ListCardLayout`), side by side or one at a time.
+// it; a group under its heading while one of its links is shown, also in the menu of a
+// phone), `screen:<id>`, the logout `action:logout` with a session only, the color mode, the
+// language (`action:language`, with more than one language), the tools of the product mounted
+// once, the link of a screen back to its parent (`nav:<screen>`); and the list with its card
+// (`ListCardLayout`), side by side or one at a time.
 // Keep it passing when the component is changed.
 
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { THEME } from '@/bazis/generated/theme';
-import { AppShell, ListCardLayout, Screen, setColorMode } from '@/bazis/ui/app-shell';
+import { AppShell, ListCardLayout, Screen, setColorMode, useNavItems } from '@/bazis/ui/app-shell';
 import { Backend, errors, ITEMS, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 const items = [
@@ -114,6 +115,92 @@ describe('AppShell', () => {
     expect(screen.queryByTestId('nav:item-list')).toBeNull();
     // no filter fields are read for a link without `filters`
     expect(server.requests('GET')).not.toContain(`GET ${ITEMS}route_filter_fields/`);
+  });
+
+  const grouped = [
+    { screen: 'home', label: 'Home', to: '/', end: true },
+    {
+      group: 'reports',
+      label: 'Reports',
+      items: [
+        { screen: 'report', label: 'Report', to: '/report', requires: { path: ITEMS, filters: ['done'] } },
+        { screen: 'item-new', label: 'New item', to: '/items/new', requires: { path: ITEMS, can: 'add' as const } },
+      ],
+    },
+    { group: 'help', label: 'Help', items: [{ screen: 'about', label: 'About', to: '/about' }] },
+  ];
+
+  /** The links of the layout as a screen reads them (the quick links of a dashboard). */
+  function Links() {
+    return <p data-bz="links">{useNavItems().map((it) => it.screen).join(',')}</p>;
+  }
+
+  it('shows a group of links under its heading with the links the backend allows', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, { title: 'list' })
+      .on('GET', `${ITEMS}schema_create/`, errors(403), 403)
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'done', py_type: 'boolean' }] });
+    renderWithBazis(
+      <AppShell title="Product" navigation="sidebar" items={grouped}>
+        <Screen id="home">
+          <Links />
+        </Screen>
+      </AppShell>,
+      server,
+    );
+    // a group without a requirement at once
+    expect(screen.getByText('Help')).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Help' }).contains(screen.getByTestId('nav:about'))).toBe(true);
+    expect(screen.queryByText('Reports')).toBeNull();
+    expect(await screen.findByTestId('nav:report')).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Reports' }).contains(screen.getByTestId('nav:report'))).toBe(true);
+    await waitFor(() => {
+      expect(server.requests('GET')).toContain(`GET ${ITEMS}schema_create/`);
+    });
+    expect(screen.queryByTestId('nav:item-new')).toBeNull();
+    // each requirement is read once, by the queries of the links
+    expect(server.requests('GET').filter((it) => it === `GET ${ITEMS}route_filter_fields/`)).toHaveLength(1);
+    // the screens read the links of the groups in their place
+    expect(screen.getByTestId('links').textContent).toBe('home,report,item-new,about');
+  });
+
+  it('hides the heading of a group whose links the backend allows none of', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, errors(403), 403)
+      .on('GET', `${ITEMS}schema_create/`, errors(403), 403);
+    renderWithBazis(
+      <AppShell title="Product" navigation="topbar" items={grouped}>
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      server,
+    );
+    await waitFor(() => {
+      expect(server.requests('GET')).toEqual(
+        expect.arrayContaining([`GET ${ITEMS}schema_list/`, `GET ${ITEMS}schema_create/`]) as unknown,
+      );
+    });
+    expect(screen.getByText('Help')).toBeTruthy();
+    expect(screen.queryByText('Reports')).toBeNull();
+    expect(screen.queryByTestId('nav:report')).toBeNull();
+    expect(screen.queryByTestId('nav:item-new')).toBeNull();
+  });
+
+  it('shows the groups in the menu of a phone', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    try {
+      renderWithBazis(
+        <AppShell title="Product" navigation="sidebar" items={grouped}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend().hold('GET', `${ITEMS}schema_list/`),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Open the menu' }));
+      const menu = screen.getByRole('dialog');
+      expect(within(menu).getByRole('list', { name: 'Help' })).toBeTruthy();
+      expect(within(menu).getByTestId('nav:about')).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('switches the language of the interface with more than one language', () => {

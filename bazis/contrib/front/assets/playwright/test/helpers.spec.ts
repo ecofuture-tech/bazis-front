@@ -17,7 +17,7 @@
 // not pass before the screen is loaded. The roles and screens are those of the sample
 // (`generated/product.ts`, which `manage.py bazis_front e2e` renders from its specs).
 
-import { expect, test, type Page } from '@playwright/test';
+import { errors, expect, test, type Page } from '@playwright/test';
 
 import { App, bz, loginAs, routePattern, stubForeignImages } from '../bazis';
 import { PRODUCT } from '../generated/product';
@@ -820,6 +820,63 @@ test('the steps show the tab of the card that has what they act on', async ({ pa
   await app.expectValues({ title: 'Plan' });
   await expect(page.locator('#t1')).toHaveAttribute('aria-selected', 'true');
   await app.expectValues({ report: 'Done' });
+});
+
+test('confirm runs the action in its dialog and waits until the dialog is closed', async ({ page }) => {
+  await show(
+    page,
+    '/tasks/1',
+    html(
+      `<section data-bz="screen:task-card"><article data-bz="state:loaded">
+        <button id="delete" data-bz="action:delete">Delete</button></article></section>`,
+      `document.getElementById('delete').addEventListener('click', () => {
+         document.body.insertAdjacentHTML('beforeend', '<div role="dialog"><button id="confirm" data-bz="action:confirm-delete">Delete</button></div>');
+         document.getElementById('confirm').addEventListener('click', () => {
+           document.body.dataset.deleted = '1';
+           setTimeout(() => { document.querySelector('[role=dialog]').remove(); }, 300);
+         });
+       });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-card');
+  await app.action('delete');
+  await app.confirm('delete');
+  await expect(page.locator('body')).toHaveAttribute('data-deleted', '1');
+  expect(await page.locator(bz('action', 'confirm-delete')).count()).toBe(0);
+});
+
+test('an optional confirm does nothing when the action shows no confirmation (a hand-written screen)', async ({ page }) => {
+  await show(
+    page,
+    '/tasks/1',
+    html(
+      `<section data-bz="screen:task-card"><article data-bz="state:loaded">
+        <button id="delete" data-bz="action:delete">Delete</button></article></section>`,
+      `document.getElementById('delete').addEventListener('click', () => { document.body.dataset.deleted = '1'; });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-card');
+  await app.action('delete');
+  await app.confirm('delete', { optional: true });
+  await expect(page.locator('body')).toHaveAttribute('data-deleted', '1');
+});
+
+test('confirm fails when the action shows no confirmation (a generated screen)', async ({ page }) => {
+  await show(
+    page,
+    '/tasks/1',
+    html(
+      `<section data-bz="screen:task-card"><article data-bz="state:loaded">
+        <button id="delete" data-bz="action:delete">Delete</button></article></section>`,
+    ),
+  );
+  page.setDefaultTimeout(500);
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-card');
+  await app.action('delete');
+  await expect(app.confirm('delete')).rejects.toThrow(errors.TimeoutError);
 });
 
 test.describe('expectActionAbsent', () => {

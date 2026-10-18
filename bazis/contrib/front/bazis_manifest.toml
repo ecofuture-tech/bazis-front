@@ -43,6 +43,10 @@ text = "the theme of the frontend (frontend/src/bazis/generated/theme.css and th
 check = "front.W005"
 
 [[pitfalls]]
+text = "the screens in frontend/src/screens/generated/ (their routes, the navigation, the texts of the specs) are written by `bazis_front screens` (and `init`) from spec/, never by hand: generate them again after every change of the specs (and after the `bazis_front update` of a frontend made before them, which has none); what a spec cannot say goes to an extension (`extend`, src/screens/<id>/extend.tsx) or a custom screen (`custom`, src/screens/<id>/index.tsx); a generated file edited since is not overwritten without `--force`"
+check = "front.W010"
+
+[[pitfalls]]
 text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-permit>=2.7.0 (the selectors, the filters restricted to the fields the user sees), bazis-statusy>=2.12.0 (the translated payload schemas, the initial status of each model), bazis-uploadable>=2.7.0 (the files of their author, their download route), bazis-bg>=2.6.0 (the download of the file of a task); an older installed package is the warning front.W006 (the error C004 of `bazis_front check`): upgrade it"
 check = "front.W006"
 

@@ -18,9 +18,9 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  // the template and the screens of the sample are linted with the config of the template
-  // in a frontend made from it (the frontend and e2e jobs of the CI): they need the
-  // generated files of a product
+  // the template, the screens of the sample and those generated from its specs are linted
+  // with the config of the template in a frontend made from it (the frontend and e2e jobs of
+  // the CI): they need the generated files of a product
   {
     ignores: [
       '**/dist/',
@@ -28,6 +28,7 @@ export default tseslint.config(
       'build/',
       'bazis/contrib/front/assets/template/',
       'sample/frontend-overlay/',
+      'tests/fixtures/',
       '**/test-results/',
       '**/playwright-report/',
     ],

@@ -100,9 +100,11 @@ def flow(value) -> str:
     return json.dumps(value)
 
 
-def calls(step: Step) -> list[str]:
+def calls(step: Step, screens: bool = False) -> list[str]:
     """
-    The calls of the helpers that run a step.
+    The calls of the helpers that run a step; with the screens generated from the specs
+    (`screens`), the dialog of a destroy action is confirmed: that of a generated screen must
+    be shown; a custom screen may show none (`optional`).
     """
     name, value = step.name, step.value
     result = ["app.action('edit')"] if step.edit else []
@@ -113,6 +115,9 @@ def calls(step: Step) -> list[str]:
         result.append(f'app.{helper}({literal(value)})')
     elif name in ('action', 'bulk'):
         result.append(f'app.{name}({string(value)})')
+        if step.confirm and screens:
+            optional = ', { optional: true }' if step.confirm == 'optional' else ''
+            result.append(f'app.confirm({string(value)}{optional})')
     elif name == 'fill':
         result.append(f'app.fill({literal(value)})')
     elif name == 'upload':
@@ -137,7 +142,7 @@ def calls(step: Step) -> list[str]:
     return result
 
 
-def render_scenario(scenario: dict, steps: list[Step]) -> str:
+def render_scenario(scenario: dict, steps: list[Step], screens: bool) -> str:
     lines = [
         header(f'the scenario `{scenario["id"]}` of {PRODUCT_FILE}'),
         "import { test } from '@playwright/test';",
@@ -152,7 +157,7 @@ def render_scenario(scenario: dict, steps: list[Step]) -> str:
     for step in steps:
         title = step.name if step.value == {} else f'{step.name}: {flow(step.value)}'
         lines.append(f'  await test.step({string(title)}, async () => {{')
-        lines += [f'    await {call};' for call in calls(step)]
+        lines += [f'    await {call};' for call in calls(step, screens)]
         lines.append('  });')
     lines.append('});')
     return '\n'.join(lines) + '\n'
@@ -184,14 +189,15 @@ def render_product(specs: Specs) -> str:
     return '\n'.join([header(f'{SPEC_DIR}/'), constant(PRODUCT_DOC, 'PRODUCT', product(specs))])
 
 
-def render(specs: Specs) -> dict[str, str]:
+def render(specs: Specs, screens: bool = False) -> dict[str, str]:
     """
-    The generated files by their path in the frontend, from specs without errors.
+    The generated files by their path in the frontend, from specs without errors; `screens`:
+    whether the screens are generated from the specs (the key `screens` of the lock).
     """
     files = {PRODUCT_TS: render_product(specs)}
     for scenario in specs.product.get('scenarios', []):
         path = f'{GENERATED_DIR}/{scenario["id"]}.spec.ts'
-        files[path] = render_scenario(scenario, specs.scenarios[scenario['id']])
+        files[path] = render_scenario(scenario, specs.scenarios[scenario['id']], screens)
     return dict(sorted(files.items()))
 
 

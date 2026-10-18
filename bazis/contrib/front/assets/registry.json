@@ -786,7 +786,8 @@
           "resource-form",
           "state-panel",
           "testing",
-          "button"
+          "button",
+          "dialog"
         ]
       },
       "files": [
@@ -1029,7 +1030,6 @@
       "requires": {
         "assets": [
           "app-shell",
-          "dashboard",
           "login-form",
           "state-panel"
         ]
@@ -1051,7 +1051,6 @@
         "src/app/language.ts",
         "src/app/lazy.test.tsx",
         "src/app/lazy.tsx",
-        "src/app/product.ts",
         "src/app/providers.test.ts",
         "src/app/providers.tsx",
         "src/app/router.tsx",
@@ -1063,7 +1062,6 @@
         "src/index.css",
         "src/lib/utils.ts",
         "src/main.tsx",
-        "src/screens/home/index.tsx",
         "src/screens/login/index.tsx",
         "tsconfig.json",
         "vite.config.ts"

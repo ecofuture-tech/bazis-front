@@ -12,17 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The texts of the sample in English: those of the template (the home screen, the
-// navigation) and those of the screens of the tasks.
+// The texts of the custom screens of the sample in English (the home, the list, the board
+// and the calendar of the tasks); those of the specs are generated (`GENERATED_MESSAGES`).
 
 import type { Messages } from '@/bazis/i18n';
 
 export const en: Messages = {
-  'nav.home': 'Home',
-  'nav.tasks': 'Tasks',
-  'nav.drafts': 'Drafts',
-  'nav.board': 'Board',
-  'nav.calendar': 'Calendar',
   'home.title': 'Overview',
   'home.description': 'The tasks of the team at a glance, and where to go next.',
   'home.drafts': 'Drafts',
@@ -32,9 +27,6 @@ export const en: Messages = {
   'home.by_status': 'By status',
   'home.by_week': 'Created by week',
   'home.last_tasks': 'The last tasks',
-  'drafts.title': 'Drafts',
-  'drafts.description': 'The tasks that are not started yet.',
-  'drafts.empty': 'No drafts.',
   'tasks.title': 'Tasks',
   'tasks.description': 'The tasks of the team, from the draft to the report.',
   'tasks.new': 'New task',
@@ -47,12 +39,4 @@ export const en: Messages = {
   'tasks.board_description': 'The tasks by status, moved by their transits.',
   'tasks.calendar': 'Calendar',
   'tasks.calendar_description': 'The tasks on the days they were created.',
-  'task.details': 'Details',
-  'task.report': 'Report',
-  'task.delete': 'Delete',
-  'task.deleted': 'Deleted',
-  'task.steps': 'Steps',
-  'task.add_step': 'Add a step',
-  'task.no_steps': 'No steps yet.',
-  'task.history': 'History',
 };

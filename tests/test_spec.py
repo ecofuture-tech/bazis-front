@@ -32,7 +32,7 @@ from bazis.contrib.front.spec.access import Grant
 from bazis.contrib.front.spec.issues import CODES
 from bazis.contrib.front.spec.validate import schema_files, validate
 
-from .support import SAMPLE_SPEC
+from .support import SAMPLE_SPEC, copy_custom_screens
 
 
 AGENTS_MD = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front' / 'AGENTS.md'
@@ -41,9 +41,11 @@ AGENTS_MD = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'fron
 @pytest.fixture
 def root(tmp_path):
     """
-    A product root (BASE_DIR) with the specs of the sample and no contract.
+    A product root (BASE_DIR) with the specs of the sample and the code of its custom screens,
+    and no contract.
     """
     shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    copy_custom_screens(tmp_path)
     with override_settings(BASE_DIR=str(tmp_path)):
         yield tmp_path
 
@@ -730,26 +732,28 @@ CASES = [
     ),
     (
         'S029',
-        # the home of the template left next to the generated one; the code of a custom screen
-        {f'{SCREENS}/home/index.tsx': lambda d: 'export function HomeScreen() {}\n',
+        # a screen of its own left next to the generated one; the code of a custom screen
+        {f'{SCREENS}/draft-tasks/index.tsx': lambda d: 'export function DraftTasksScreen() {}\n',
          f'{SCREENS}/task-card/index.tsx': lambda d: 'export function TaskCardScreen() {}\n',
          CARD: lambda d: d.update(custom=True),
          LOCK: lambda d: {**lock('client', 'react', *HOOKS, 'template'), 'screens': {}}},
-        [('S029', HOME)],
+        [('S029', DRAFTS)],
     ),
     (
         'S030',
-        # the card of an item in a group, a group declared twice with a screen linked twice, an
-        # unknown screen, the board with `nav: false`
+        # what the backend allows required of the home, which has no entity; the card of an item
+        # in a group, a group declared twice with a screen linked twice, an unknown screen, the
+        # board with `nav: false`
         {PRODUCT: lambda d: d.update(navigation=[
-            {'screen': 'home'},
+            {'screen': 'home', 'requires': {'can': 'view'}},
             {'group': 'tasks', 'title': 'nav.tasks', 'items': [{'screen': 'task-list'}, {'screen': 'task-card'}]},
             {'group': 'tasks', 'title': 'nav.tasks', 'items': [{'screen': 'draft-tasks'}, {'screen': 'task-list'}]},
             {'screen': 'reports'},
             {'screen': 'task-board'},
         ]),
          BOARD: lambda d: d.update(nav=False)},
-        [('S030', f'{PRODUCT}#/navigation/1/items/1/screen'), ('S030', f'{PRODUCT}#/navigation/2/group'),
+        [('S030', f'{PRODUCT}#/navigation/0/requires'),
+         ('S030', f'{PRODUCT}#/navigation/1/items/1/screen'), ('S030', f'{PRODUCT}#/navigation/2/group'),
          ('S030', f'{PRODUCT}#/navigation/2/items/1/screen'), ('S030', f'{PRODUCT}#/navigation/3/screen'),
          ('S030', f'{PRODUCT}#/navigation/4/screen')],
     ),
@@ -862,8 +866,8 @@ CASES = [
         'D013',
         # names that lucide-react does not have
         {THEME: lambda d: d['icons'].update(task='square-tick'),
-         PRODUCT: lambda d: d['navigation'][1].update(icon='list-tick')},
-        [('D013', f'{PRODUCT}#/navigation/1/icon'), ('D013', f'{THEME}#/icons/task')],
+         PRODUCT: lambda d: d['navigation'][1]['items'][0].update(icon='list-tick')},
+        [('D013', f'{PRODUCT}#/navigation/1/items/0/icon'), ('D013', f'{THEME}#/icons/task')],
     ),
     (
         'D012',
@@ -999,6 +1003,53 @@ def test_the_texts_and_the_code_of_the_screens(root):
 
     edit(root, LIST, lambda d: d.update(custom={'module': '@/screens/../app/router', 'export': 'Router'}))
     assert issues(root) == [('S002', f'{LIST}#/custom')]
+
+
+@pytest.mark.parametrize('module', ['tasks.tsx', 'tasks.ts', 'tasks/index.tsx', 'tasks/index.ts'])
+def test_the_module_of_a_custom_screen(root, module):
+    """
+    The module of a custom screen is `<path>.tsx`, `.ts`, `<path>/index.tsx` or `.ts`, and
+    lists the component among its exports or declares it; never one of the generated screens.
+    """
+    edit(root, f'{SCREENS}/{module}', lambda d: 'function TaskListScreen() {}\n\nexport { TaskListScreen };\n')
+    edit(root, LIST, lambda d: d.update(custom={'module': '@/screens/tasks', 'export': 'TaskListScreen'}))
+    assert issues(root) == []
+
+    edit(root, LIST, lambda d: d.update(custom={'module': '@/screens/generated/task-list', 'export': 'TaskListScreen'}))
+    assert issues(root) == [('S002', f'{LIST}#/custom')]
+
+
+def test_two_implementations_once_the_screens_are_generated(root):
+    """
+    S029 is told once the frontend generates its screens (the lock has `screens`), never for
+    the module of another custom screen.
+    """
+    edit(root, f'{SCREENS}/draft-tasks/index.tsx', lambda d: 'export function DraftTasksScreen() {}\n')
+    edit(root, LOCK, lambda d: lock('client', 'react', *HOOKS, 'template'))
+    assert issues(root) == []
+
+    edit(root, LOCK, lambda d: {**d, 'screens': {}})
+    assert issues(root) == [('S029', DRAFTS)]
+
+    # the module of the custom list, in the folder of the drafts
+    edit(root, f'{SCREENS}/draft-tasks/index.tsx', lambda d: 'export function TaskListScreen() {}\n')
+    edit(root, LIST, lambda d: d.update(custom={'module': '@/screens/draft-tasks', 'export': 'TaskListScreen'}))
+    assert issues(root) == []
+
+
+@pytest.mark.django_db
+def test_a_link_that_requires_an_add_without_a_create_route(contract):
+    """
+    A link that requires that the user may add an item of a resource without a create route
+    in the contract is never shown (S030).
+    """
+    root = contract.parent.parent
+    # the board
+    edit(root, PRODUCT, lambda d: d['navigation'][2]['items'][0].update(requires={'can': 'add'}))
+    assert issues(root) == []
+
+    edit(root, CONTRACT, lambda d: [d['project']['resources']['tasks.task']['actions'].pop('action_create')])
+    assert ('S030', f'{PRODUCT}#/navigation/2/items/0/requires') in issues(root)
 
 
 def test_a_missing_product_spec(root):

@@ -226,6 +226,36 @@ def test_the_steps_follow_the_walk_of_the_scenario(tmp_path):
     )
 
 
+def test_the_delete_of_a_card_is_confirmed(tmp_path):
+    """
+    Once the frontend generates its screens, the delete of a card is run in its confirmation
+    (`useDestroyCardAction`), which a generated card must show; a custom card may show none
+    (`optional`).
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    edit_product(tmp_path, lambda data: data['scenarios'].append({
+        'id': 'manager-deletes-a-task',
+        'role': 'manager',
+        'steps': [{'open': 'task-list'}, {'open_item': {'where': {'title': 'Old'}}}, {'action': 'delete'}],
+    }))
+    path = 'e2e/generated/manager-deletes-a-task.spec.ts'
+    confirmed = (
+        "  await test.step('action: delete', async () => {\n"
+        "    await app.action('delete');\n"
+        "    await app.confirm('delete');\n"
+        "    await app.expectScreen('task-list');\n"
+        '  });\n'
+    )
+    result = validate(tmp_path)
+    assert confirmed in e2e.render(result.specs, screens=True)[path]
+    assert "app.confirm('delete')" not in e2e.render(result.specs)[path]
+
+    card = tmp_path / 'spec' / 'screens' / 'task-card.yaml'
+    card.write_text(card.read_text(encoding='utf-8') + 'custom: true\n', encoding='utf-8')
+    optional = confirmed.replace("app.confirm('delete')", "app.confirm('delete', { optional: true })")
+    assert optional in e2e.render(validate(tmp_path).specs, screens=True)[path]
+
+
 def test_a_submit_followed_by_an_error_fails():
     result = validate(REPOSITORY / 'sample')
     steps = [(it.name, it.edit, it.then, it.failing) for it in result.specs.scenarios['manager-cannot-save-an-empty-title']]

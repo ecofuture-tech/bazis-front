@@ -27,6 +27,7 @@ from bazis.contrib.front.contract import generated
 from bazis.contrib.front.contract.openapi import dumps
 from bazis.contrib.front.spec import create as spec_create
 from bazis.contrib.front.spec import e2e
+from bazis.contrib.front.spec import screens as spec_screens
 from bazis.contrib.front.spec import shots as spec_shots
 from bazis.contrib.front.spec import theme as design_theme
 from bazis.contrib.front.spec import validate as spec_validate
@@ -70,9 +71,9 @@ def require_lock(frontend: Path) -> dict:
 
 
 #: the generated files of a frontend, by the key of their hashes in the lock: the TypeScript
-#: of the contract (`contract`), the theme (`design`), the end-to-end tests (`e2e`), the
-#: screenshots (`shots`)
-GENERATED = {'contract': 'generated', 'design': 'design', 'e2e': 'e2e', 'shots': 'shots'}
+#: of the contract (`contract`), the theme (`design`), the screens (`screens`), the
+#: end-to-end tests (`e2e`), the screenshots (`shots`)
+GENERATED = {'contract': 'generated', 'design': 'design', 'screens': 'screens', 'e2e': 'e2e', 'shots': 'shots'}
 
 
 class Command(BaseCommand):
@@ -83,20 +84,23 @@ class Command(BaseCommand):
     requires_system_checks = []
 
     def add_arguments(self, parser):
+        # every option of a subcommand by its full name: `--forc` is no `--force`
         subcommands = parser.add_subparsers(dest='subcommand', metavar='subcommand', required=True)
 
         init = subcommands.add_parser(
             'init',
+            allow_abbrev=False,
             help='Create the frontend of the product: frontend/ in BASE_DIR.',
             description=(
                 'Create frontend/ from the template of bazis-front (React, TypeScript, Vite), '
                 'with copies of the protocol client in src/bazis/client/ and of the React hooks '
                 'in src/bazis/react/ (with those of the installed packages, such as '
                 'bazis-statusy), their pristine copies in .bazis/base/ and the lock '
-                'bazis-front.lock.json, and its theme (`design`) in src/bazis/generated/, then '
-                'run `npm install` in it. Also create spec/ (the JSON Schemas of the specs in '
-                'spec/schema/, starters of product.yaml and of the design of the preset) when '
-                'the product has none. An existing frontend/ or spec/ is never overwritten.'
+                'bazis-front.lock.json, its theme (`design`) in src/bazis/generated/ and its '
+                'screens (`screens`) in src/screens/generated/, then run `npm install` in it. '
+                'Also create spec/ (the JSON Schemas of the specs in spec/schema/, starters of '
+                'product.yaml and of the design of the preset) when the product has none. An '
+                'existing frontend/ or spec/ is never overwritten.'
             ),
         )
         init.add_argument('--no-node', action='store_true', help='Do not run `npm install`.')
@@ -109,6 +113,7 @@ class Command(BaseCommand):
 
         export = subcommands.add_parser(
             'contract',
+            allow_abbrev=False,
             help='Export the contract and generate the TypeScript of the frontend.',
             description=(
                 'Export the OpenAPI of the backend and contract.json (the resources and the '
@@ -138,6 +143,7 @@ class Command(BaseCommand):
 
         add = subcommands.add_parser(
             'add',
+            allow_abbrev=False,
             help='Copy components (and the assets they require) into the frontend.',
             description=(
                 'Copy the components of bazis-front into frontend/src/bazis/ui/<name>/ (the '
@@ -154,6 +160,7 @@ class Command(BaseCommand):
 
         update_parser = subcommands.add_parser(
             'update',
+            allow_abbrev=False,
             help='Update the copied assets to the installed bazis-front, merging the changes.',
             description=(
                 'Bring the copies of the assets in frontend/ (the template: package.json, the '
@@ -182,6 +189,7 @@ class Command(BaseCommand):
 
         check = subcommands.add_parser(
             'check',
+            allow_abbrev=False,
             help='Validate the specs (spec/) against each other and the contract.',
             description=(
                 'Validate spec/product.yaml, spec/screens/*.yaml and spec/design/ against their '
@@ -197,8 +205,36 @@ class Command(BaseCommand):
             help='Report the issues of one layer only (all the layers are read).',
         )
 
+        screens_parser = subcommands.add_parser(
+            'screens',
+            allow_abbrev=False,
+            help='Generate the screens of the frontend from the specs.',
+            description=(
+                'Generate frontend/src/screens/generated/ from spec/: a component per screen of '
+                'spec/screens/ that is not `custom` (<id>.tsx), the routes of every screen '
+                '(routes.tsx), the navigation of spec/product.yaml (navigation.ts), the texts of '
+                'the specs in the languages of the product (messages.ts), the name of the product '
+                '(product.ts), the entities (entities.ts), the routes by screen (screens.ts), and '
+                'the providers and the tools of the layout that the packages and the fields need '
+                '(providers.tsx, tools.tsx). The components that they import are copied into the '
+                'frontend when it lacks them. The files of a screen that is no longer generated are '
+                'deleted; the lock records the hashes of the specs and of the files. The specs must '
+                'have no errors (`bazis_front check`). The generated files are never edited: a file '
+                'edited since it was generated is not overwritten without `--force`.'
+            ),
+        )
+        screens_parser.add_argument(
+            '--check',
+            action='store_true',
+            help='Write nothing; exit with 1 if the generated screens differ from the specs.',
+        )
+        screens_parser.add_argument(
+            '--force', action='store_true', help='Overwrite the generated files edited since they were generated.'
+        )
+
         e2e_parser = subcommands.add_parser(
             'e2e',
+            allow_abbrev=False,
             help='Generate the end-to-end tests of the scenarios of the specs.',
             description=(
                 'Generate a Playwright test per scenario of spec/product.yaml in '
@@ -218,6 +254,7 @@ class Command(BaseCommand):
 
         design_parser = subcommands.add_parser(
             'design',
+            allow_abbrev=False,
             help='Generate the theme of the frontend from spec/design/.',
             description=(
                 'Compile spec/design/theme.yaml (with the starters of the tokens it names: the '
@@ -241,6 +278,7 @@ class Command(BaseCommand):
 
         shots_parser = subcommands.add_parser(
             'shots',
+            allow_abbrev=False,
             help='Take the screenshots of the screens and check what they render.',
             description=(
                 'Generate frontend/e2e/generated/shots.ts from the specs (every screen as the '
@@ -265,17 +303,18 @@ class Command(BaseCommand):
 
         status = subcommands.add_parser(
             'status',
+            allow_abbrev=False,
             help='Show the state of the frontend: its copies and what is generated or stale.',
             description=(
                 'Show the installed bazis-front, the assets copied into frontend/ with their '
                 'versions (its lock), which generated files it has (the TypeScript of the '
-                'contract, the theme, the end-to-end tests), and every issue of the checks of '
-                'bazis-front: an outdated package (front.W006), a stale contract or generated '
-                'file (front.W001; the database must be migrated), the issues of the specs '
-                '(front.W002), stale or changed copies (front.W004, front.W007), a stale theme '
-                '(front.W005), stale end-to-end tests (front.W003), a stale test of the '
-                'screenshots (front.W008), a report of the screenshots with errors or none, the '
-                'screenshots not taken (front.W009). '
+                'contract, the theme, the screens, the end-to-end tests), and every issue of the '
+                'checks of bazis-front: an outdated package (front.W006), a stale contract or '
+                'generated file (front.W001; the database must be migrated), the issues of the '
+                'specs (front.W002), stale or changed copies (front.W004, front.W007), a stale '
+                'theme (front.W005), stale generated screens (front.W010), stale end-to-end tests '
+                '(front.W003), a stale test of the screenshots (front.W008), a report of the '
+                'screenshots with errors or none, the screenshots not taken (front.W009). '
                 'Writes nothing and exits '
                 'with 0: the `--check` of each subcommand fails on its own state.'
             ),
@@ -307,6 +346,13 @@ class Command(BaseCommand):
             self.generate_theme(frontend, frontend_lock.read(frontend))
         except CommandError as err:
             self.stderr.write(f'{err} Then generate the theme with `manage.py bazis_front design`.')
+        try:
+            # the contract is not exported yet: the components of the packages of the project
+            self.generate_screens(
+                frontend, frontend_lock.read(frontend), self.render_screens(), lambda: set(capabilities.enabled())
+            )
+        except CommandError as err:
+            self.stderr.write(f'{err} Then generate the screens with `manage.py bazis_front screens`.')
         self.stdout.flush()
         if no_node:
             self.stdout.write(f'Run `npm install` in {frontend}.')
@@ -367,6 +413,8 @@ class Command(BaseCommand):
                 '`manage.py bazis_front update`.'
             )
         update.apply(root, frontend, lock, plan)
+        if spec_screens.needs_screens(frontend, lock):
+            self.stdout.write(spec_screens.NEEDS_SCREENS)
         install = (
             f'`npm install` (its {update.PACKAGE_JSON} changed), ' if plan.dependencies_changed else ''
         )
@@ -471,6 +519,63 @@ class Command(BaseCommand):
         if result.errors:
             raise CommandError(f'The specs have {len(result.errors)} errors.')
 
+    def handle_screens(self, check=False, force=False, **options):
+        frontend = frontend_lock.frontend_dir()
+        lock = require_lock(frontend)
+        rendered = self.render_screens()
+        if check:
+            if problems := spec_screens.stale(Path(settings.BASE_DIR), frontend, lock, rendered):
+                raise CommandError(
+                    '\n'.join(problems) + '\nGenerate them with `manage.py bazis_front screens`; never edit them.'
+                )
+            self.stdout.write(f'The generated screens of {frontend} are up to date.')
+            return
+        self.generate_screens(frontend, lock, rendered, contract_capabilities, force)
+
+    def render_screens(self) -> dict[str, str]:
+        """
+        The generated screens of the specs; fails with the issues of specs with errors, and
+        with the screens that are not generated yet.
+        """
+        result = spec_validate.validate(Path(settings.BASE_DIR))
+        if result.errors:
+            self.write_issues(result)
+            raise CommandError(
+                f'The specs have {len(result.errors)} errors: the screens are generated from specs '
+                'that `bazis_front check` accepts.'
+            )
+        if problems := spec_screens.unsupported(result.specs):
+            raise CommandError('\n'.join(problems))
+        return spec_screens.render(result.specs)
+
+    def generate_screens(self, frontend: Path, lock: dict, rendered: dict[str, str], capabilities_of, force=False):
+        """
+        Writes the generated screens, with the components that they import copied first; a
+        generated file edited since is overwritten with `force` only.
+        """
+        if not force and (edited := spec_screens.edited_files(frontend, lock, rendered)):
+            raise CommandError(
+                f'Edited after they were generated: {", ".join(edited)}. `bazis_front screens` does '
+                'not overwrite them: say it in the specs, in an extension (`extend`) or in a custom '
+                'screen (`custom`), then run it again, or with `--force` to drop the edits.'
+            )
+        if missing := spec_screens.missing_assets(lock, rendered):
+            try:
+                added = copy.add_assets(frontend, lock, missing, capabilities_of)
+            except copy.CopyError as err:
+                raise CommandError('\n'.join(err.messages)) from err
+            self.stdout.write(f'Added the components that the screens import: {", ".join(added.copied)}.')
+            if added.dependencies:
+                packages = ', '.join(sorted(name for it in added.dependencies.values() for name in it))
+                self.stdout.write(
+                    f'Set their npm dependencies ({packages}) in package.json: run `npm install` in frontend/.'
+                )
+            if added.kept:
+                self.stdout.write(kept_message(added.kept, added.dependencies))
+        for path in spec_screens.write(Path(settings.BASE_DIR), frontend, lock, rendered):
+            self.stdout.write(f'Deleted {path}: its screen is no longer generated.')
+        self.stdout.write(f'Generated the screens of {frontend} in {spec_screens.GENERATED_DIR}.')
+
     def handle_e2e(self, check=False, **options):
         frontend = frontend_lock.frontend_dir()
         lock = require_lock(frontend)
@@ -482,7 +587,7 @@ class Command(BaseCommand):
                 f'The specs have {len(result.errors)} errors: the end-to-end tests are generated '
                 'from specs that `bazis_front check` accepts.'
             )
-        rendered = e2e.render(result.specs)
+        rendered = e2e.render(result.specs, 'screens' in lock)
         if check:
             if problems := e2e.stale(root, frontend, lock, rendered):
                 raise CommandError(

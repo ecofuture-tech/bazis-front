@@ -23,7 +23,7 @@ in `src/bazis/` and `e2e/bazis/` need not be read. This file only says where to 
 |---|---|
 | its files and who changes them, the npm commands | The frontend |
 | `../spec/` | The specs; The specs of the screens and the design; The issues of check |
-| `src/screens/`, the routes and the navigation in `src/app/router.tsx` | Writing the screens; Composing beyond the specs |
+| `src/screens/` (the screens generated from `../spec/` by `manage.py bazis_front screens` in `src/screens/generated/`, the custom ones), the routes and the navigation | Writing the screens; Composing beyond the specs |
 | the components in `src/bazis/ui/` | The components; the `API:` sections |
 | the data of the backend (`@/bazis/react`, `@/bazis/client`) | The hooks; The client; Protocol facts that are easy to get wrong |
 | the choices, the filters, the permissions, the files, the maps, the custom actions | Choices, filters, permissions and relationships; Files, points and maps; Custom actions and background work |
@@ -34,8 +34,9 @@ in `src/bazis/` and `e2e/bazis/` need not be read. This file only says where to 
 | `e2e/` | The end-to-end tests |
 | `manage.py bazis_front update` and its conflicts | Updating the copies |
 
-Never edit `src/bazis/generated/`, `src/bazis/client/`, `src/bazis/react/`,
-`src/bazis/i18n/`, `e2e/bazis/`, `e2e/generated/`, `bazis-front.lock.json` or `.bazis/`:
+Never edit `src/bazis/generated/`, `src/screens/generated/`, `src/bazis/client/`,
+`src/bazis/react/`, `src/bazis/i18n/`, `e2e/bazis/`, `e2e/generated/`,
+`bazis-front.lock.json` or `.bazis/`:
 they are generated or copied by `manage.py bazis_front`, which brings them to a new version.
 This file, like the rest of the template, is the product's: `update` merges a new version of
 it with the changes of the product.

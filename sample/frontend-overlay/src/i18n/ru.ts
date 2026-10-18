@@ -17,11 +17,6 @@
 import type { Messages } from '@/bazis/i18n';
 
 export const ru: Messages = {
-  'nav.home': 'Главная',
-  'nav.tasks': 'Задачи',
-  'nav.drafts': 'Черновики',
-  'nav.board': 'Доска',
-  'nav.calendar': 'Календарь',
   'home.title': 'Обзор',
   'home.description': 'Задачи команды с первого взгляда и куда идти дальше.',
   'home.drafts': 'Черновики',
@@ -31,9 +26,6 @@ export const ru: Messages = {
   'home.by_status': 'По статусам',
   'home.by_week': 'Созданы по неделям',
   'home.last_tasks': 'Последние задачи',
-  'drafts.title': 'Черновики',
-  'drafts.description': 'Задачи, которые ещё не начаты.',
-  'drafts.empty': 'Черновиков нет.',
   'tasks.title': 'Задачи',
   'tasks.description': 'Задачи команды: от черновика до отчёта.',
   'tasks.new': 'Новая задача',
@@ -46,12 +38,4 @@ export const ru: Messages = {
   'tasks.board_description': 'Задачи по статусам, переводимые их переходами.',
   'tasks.calendar': 'Календарь',
   'tasks.calendar_description': 'Задачи в дни их создания.',
-  'task.details': 'Подробности',
-  'task.report': 'Отчёт',
-  'task.delete': 'Удалить',
-  'task.deleted': 'Удалено',
-  'task.steps': 'Шаги',
-  'task.add_step': 'Добавить шаг',
-  'task.no_steps': 'Шагов пока нет.',
-  'task.history': 'История',
 };

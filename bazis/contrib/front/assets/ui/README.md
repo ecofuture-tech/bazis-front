@@ -7,9 +7,10 @@ Tailwind 4 over the hooks (`assets/react`). Status: pre-release.
 The components are not an npm package: `manage.py bazis_front add <component>...` copies
 them into the frontend of a product, to `frontend/src/bazis/ui/<component>/` (imported as
 `@/bazis/ui/<component>`), with the assets they require, their pristine copies in
-`.bazis/base/` and their hashes in the lock; `init` copies `state-panel`, `app-shell`,
-`login-form` and `dashboard` (with what they require), which the template uses and requires
-(`update` copies those that a new template requires). Unlike the client and the hooks, the product owns the
+`.bazis/base/` and their hashes in the lock; `init` copies `state-panel`, `app-shell` and
+`login-form` (with what they require), which the template uses and requires (`update`
+copies those that a new template requires), and `bazis_front screens` those that the
+generated screens import. Unlike the client and the hooks, the product owns the
 copies and changes them freely; each component comes with its contract test
 (`<component>.contract.test.tsx`), which checks the `data-bz` marks and the states that the
 scenarios of the specs rely on: keep it passing.
@@ -100,7 +101,7 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | `task-progress` | `TaskProgress`; `taskView`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
 | `async-result` | `AsyncResult`; `asyncResult`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
 | `map` | `ResourceMap`; `MapProvider`, `OSM_TILES`, `useMapTiles`; `LeafletMap`, `MapPointControl`; `nearFilter`, `nearSort`, `useGeolocation`; the texts `map.<text>` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; the map of a point field `map:<field>`, `action:locate-<field>` | npm `leaflet` (`add` sets it in package.json) |
-| `screens` | `CreateFormAction` (its state `CreateFormAction.use()`), `ScreenAction`, `useDestroyCardAction`; `ScreenExtension`, `extended` | those of `resource-form` in the form; `action:<id>` of a header action and of the deletion of a card | |
+| `screens` | `CreateFormAction` (its state `CreateFormAction.use()`), `ScreenAction`, `useDestroyCardAction` (`{action, confirm}`); `ScreenExtension`, `extended` | those of `resource-form` in the form; `action:<id>` of a header action and of the deletion of a card, `action:confirm-<id>` of its confirmation | |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it; the choices of a field are a
@@ -184,7 +185,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   item of `path` with its `filter` (the core has no aggregates), `tile:<id>` with the number
   in `data-value` once loaded, the states of the list; `onOpen` makes the whole tile a
   button named by its label.
-- **`dashboard`** (`primitive: dashboard`, the home of the template): its title in the header
+- **`dashboard`** (`primitive: dashboard`, the home of the starters): its title in the header
   of the screen, or as a hero (`data-slot="hero"`, the default of a portal), the tiles of
   `stat-card`, the links to the other screens of the navigation (`link:<screen>`, each once
   the backend allows what it `requires`; the numbers are those of the tiles), the
@@ -414,9 +415,10 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   by `onOpen`, the `onClick` of an action, or `onOpenWith` with fixed values, the day of a
   calendar; closed when saved or cancelled, then `onSaved`), an action of the header of a
   screen (`ScreenAction`, shown once the backend allows what it `requires`), the deletion of
-  the item of a card (`useDestroyCardAction`: an action of `ResourceCard` shown when the user
-  may delete the item, a toast after it, then the route `then`; a refusal is a toast of its
-  error, the card stays) and the extension of a generated screen (`ScreenExtension<P>` of the
+  the item of a card (`useDestroyCardAction`: `action`, an action of `ResourceCard` shown when
+  the user may delete the item, opens `confirm`, the dialog to render in the screen, whose
+  button `action:confirm-<id>` deletes it once, whatever the clicks; a toast after it, then
+  the route `then`; a refusal is a toast of its error, the card stays) and the extension of a generated screen (`ScreenExtension<P>` of the
   props `P` of the component of its primitive, so that the asset requires none of them;
   `extended` joins the actions, `actions`, `rowActions`, `bulk`, and the `children` of the
   extension with the generated ones, and replaces the other props).

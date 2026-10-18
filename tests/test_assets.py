@@ -149,7 +149,7 @@ def test_the_components_of_the_template_need_no_capability():
     require): every product has them.
     """
     assets = registry.load()
-    assert assets['template'].assets == ('app-shell', 'dashboard', 'login-form', 'state-panel')
+    assert assets['template'].assets == ('app-shell', 'login-form', 'state-panel')
     for asset in registry.resolve(['template'], assets)[:-1]:
         assert asset.kind in (registry.UI, registry.VENDORED) and not asset.capabilities, asset.name
 

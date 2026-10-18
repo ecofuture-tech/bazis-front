@@ -12,35 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { House } from 'lucide-react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
 
 import { ErrorBoundary } from '@/app/errors';
 import { lazyScreen } from '@/app/lazy';
-import { PRODUCT_NAME } from '@/app/product';
 import { LOGIN_ENABLED, signOut, useToken } from '@/app/session';
 import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
-import { AppShell, type NavItem } from '@/bazis/ui/app-shell';
+import { AppShell } from '@/bazis/ui/app-shell';
+import { navigation } from '@/screens/generated/navigation';
+import { PRODUCT_NAME } from '@/screens/generated/product';
+import { GeneratedProviders } from '@/screens/generated/providers';
+import { SCREEN_ROUTES } from '@/screens/generated/routes';
+import { TOOLS } from '@/screens/generated/tools';
 
-/**
- * The screens, each loaded with its own chunk when its route is first shown (`lazyScreen`, the
- * loading state of the screens until then), so that the bundle of the application does not
- * grow with every screen: a screen added here is imported the same way, never statically.
- */
-const HomeScreen = lazyScreen(() => import('@/screens/home').then((module) => module.HomeScreen));
+// The screens, their routes, the navigation, the providers and the tools of the layout are
+// generated from the specs (`bazis_front screens`, `src/screens/generated/`): a screen, a link
+// or a route is added in `spec/`, never here.
+
 const LoginScreen = lazyScreen(() => import('@/screens/login').then((module) => module.LoginScreen));
-
-/**
- * The links of the navigation: a screen of the specs each (`nav:<screen>`), with its icon;
- * the label is the key of its text in the dictionaries of the product (`src/i18n/`). The link
- * of a screen of a resource names what the backend must allow the user (`requires`: `{path:
- * ROUTES['<app>.<model>']}` to view its items, `can: 'add'` to add one, `filters` of a
- * report), and the layout shows it once the backend does: never decide it by the role here.
- */
-// one line, which the products extend: `update` merges it without a conflict
-// prettier-ignore
-const NAVIGATION: readonly (NavItem & { label: string })[] = [{ screen: 'home', label: 'nav.home', to: '/', end: true, icon: House }];
 
 /**
  * The screens of a logged-in user in the layout of the application (a sidebar or a top bar,
@@ -61,11 +51,7 @@ function RequireSession() {
     signOut(api);
   };
   return (
-    <AppShell
-      title={PRODUCT_NAME}
-      items={NAVIGATION.map((item) => ({ ...item, label: t(item.label) }))}
-      session={LOGIN_ENABLED ? { onLogout } : null}
-    >
+    <AppShell title={t(PRODUCT_NAME)} items={navigation(t)} session={LOGIN_ENABLED ? { onLogout } : null} tools={TOOLS}>
       <ErrorBoundary resetKey={location.pathname}>
         <Outlet />
       </ErrorBoundary>
@@ -75,23 +61,23 @@ function RequireSession() {
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {LOGIN_ENABLED && (
-          <Route
-            path="/login"
-            element={
-              <ErrorBoundary>
-                <LoginScreen />
-              </ErrorBoundary>
-            }
-          />
-        )}
-        <Route element={<RequireSession />}>
-          <Route index element={<HomeScreen />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <GeneratedProviders>
+      <BrowserRouter>
+        <Routes>
+          {LOGIN_ENABLED && (
+            <Route
+              path="/login"
+              element={
+                <ErrorBoundary>
+                  <LoginScreen />
+                </ErrorBoundary>
+              }
+            />
+          )}
+          <Route element={<RequireSession />}>{SCREEN_ROUTES}</Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </GeneratedProviders>
   );
 }

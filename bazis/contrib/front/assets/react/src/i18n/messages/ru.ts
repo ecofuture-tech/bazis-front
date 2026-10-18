@@ -60,6 +60,8 @@ export const ru: Messages = {
   'calendar.truncated': 'Показаны не все записи: первые {count}',
   'calendar.view': 'Вид',
   'calendar.week': 'Неделя',
+  'card.delete': 'Удалить',
+  'card.delete_confirm': 'Удалить безвозвратно? Это действие нельзя отменить.',
   'card.deleted': 'Удалено',
   'card.edit': 'Изменить',
   'card.edit_item': 'Изменить: {item}',
