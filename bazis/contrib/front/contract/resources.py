@@ -51,7 +51,7 @@ LABEL_FIELDS = (
 
 def resources(openapi: dict) -> dict:
     """
-    `{type: {model, route_set, path, actions, fields, label, search[, other_routes]}}`. A
+    `{type: {model, route_set, path, actions, fields, label, search, create[, other_routes]}}`. A
     resource is described by the route set the core uses as the default route of its model
     (the last one declared); other route sets of the same model are listed in
     `other_routes`.
@@ -82,6 +82,7 @@ def resources(openapi: dict) -> dict:
             # the search fields that its LIST schema reaches, as declared: those the core
             # searches (`bazis.W007` reports the others); none, a `search` is 400
             'search': route_search_fields(main_cls) if scope is not None else [],
+            'create': _create_fields(openapi, main['operations']),
         }
         if others:
             entry['other_routes'] = [
@@ -259,6 +260,25 @@ def _response_resource(openapi: dict, operation: dict) -> dict | None:
             if 'attributes' in data.get('properties', {}):
                 return data
     return None
+
+
+def _create_fields(openapi: dict, operations: list[dict]) -> list[str]:
+    """
+    The fields that the create route of the resource takes, the attributes and the
+    relationships of the item of its request: those the backend sets itself (a date of
+    creation, `auto_now_add`) are not among them; none without a create route.
+    """
+    operation = next((op for op in operations if op['x-bazis']['kind'] == 'create'), None)
+    if operation is None:
+        return []
+    # the JSON:API document of the request, its only content
+    content = next(iter(operation.get('requestBody', {}).get('content', {}).values()), {})
+    document = _resolve(openapi, content.get('schema', {}))
+    props = _not_null(openapi, document.get('properties', {}).get('data', {})).get('properties', {})
+    return sorted(
+        name for part in ('attributes', 'relationships')
+        for name in _resolve(openapi, props.get(part, {})).get('properties', {})
+    )
 
 
 def _labels(prop: dict, scope: QueryScope | None) -> dict:

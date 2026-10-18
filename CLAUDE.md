@@ -140,7 +140,8 @@ job of CI.
   the related model, read from the model, which a `ResourceForm` without `fields` leaves
   out; 5: `title` of the fields, their titles in the OpenAPI, which S018 compares with
   their names, and `label` of the resources, the attributes that label an item, the groups
-  of `resources.LABEL_FIELDS`, which S017 and S019 read).
+  of `resources.LABEL_FIELDS`, which S017 and S019 read; 6: `create` of the resources, the
+  attributes and the relationships of the request of their create route, which S034 reads).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the

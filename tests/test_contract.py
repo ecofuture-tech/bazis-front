@@ -45,7 +45,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 5
+    assert data['format'] == 6
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -92,6 +92,10 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     # a custom action of the route set (`client.action(path, 'count', body)`)
     assert task['actions']['action_count'] == 'other'
     assert 'other_routes' not in task
+    # the fields that the create takes: never a date that the backend sets (`dt_created`)
+    assert task['create'] == [
+        'assignee', 'attachment', 'location', 'priority', 'report', 'status', 'title', 'watchers',
+    ]
 
     fields = task['fields']
     assert fields['title'] == {'title': 'Title', 'type': 'string', 'filter': 'title', 'order': 'title'}
@@ -230,6 +234,8 @@ def test_a_resource_is_described_by_the_default_route_of_its_model(sample_app):
             'fields': {},
             'label': [],
             'search': ['title'],
+            # no create route: no field to create
+            'create': [],
             'other_routes': [{'path': '/api/v1/archive/task/', 'route_set': 'archive.TaskRouteSet'}],
         },
     }

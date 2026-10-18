@@ -136,8 +136,8 @@ def render(contract: dict) -> str:
         'export type ResourceType = keyof typeof ROUTES;\n',
         constant(
             'The resources: model, route set, path, actions, fields (title, type, relation, '
-            'filter and order labels), the attributes that label an item (none: its id) and '
-            'search fields (none: no search).',
+            'filter and order labels), the attributes that label an item (none: its id), the '
+            'search fields (none: no search) and the fields that its create takes.',
             'RESOURCES',
             resources,
         ),

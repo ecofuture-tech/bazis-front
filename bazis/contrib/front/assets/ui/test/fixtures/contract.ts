@@ -29,7 +29,7 @@ export const ROUTES = {
 /** The JSON:API type of a resource. */
 export type ResourceType = keyof typeof ROUTES;
 
-/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id) and search fields (none: no search). */
+/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search) and the fields that its create takes. */
 export const RESOURCES = {
   "bg.task": {
     actions: {
@@ -37,6 +37,7 @@ export const RESOURCES = {
       action_list: "collection",
       action_retrieve: "item",
     },
+    create: [],
     fields: {
       args: {
         filter: "args",
@@ -220,6 +221,7 @@ export const RESOURCES = {
       action_update: "update",
       get_route_filter_fields: "schema",
     },
+    create: [],
     fields: {
       action: {
         filter: "action",
@@ -304,6 +306,10 @@ export const RESOURCES = {
       action_update_relationships: "relationship",
       get_route_filter_fields: "schema",
     },
+    create: [
+      "task",
+      "title",
+    ],
     fields: {
       dt_created: {
         filter: "dt_created",
@@ -361,6 +367,16 @@ export const RESOURCES = {
       action_update_relationships: "relationship",
       get_route_filter_fields: "schema",
     },
+    create: [
+      "assignee",
+      "attachment",
+      "location",
+      "priority",
+      "report",
+      "status",
+      "title",
+      "watchers",
+    ],
     fields: {
       assignee: {
         filter: "assignee",
@@ -466,6 +482,7 @@ export const RESOURCES = {
       action_schema_retrieve: "schema",
       get_route_filter_fields: "schema",
     },
+    create: [],
     fields: {
       extension: {
         filter: "extension",
@@ -515,6 +532,22 @@ export const RESOURCES = {
       action_update_relationships: "relationship",
       get_route_filter_fields: "schema",
     },
+    create: [
+      "date_joined",
+      "dt_first_login",
+      "email",
+      "first_name",
+      "is_active",
+      "is_staff",
+      "is_superuser",
+      "language",
+      "last_login",
+      "last_name",
+      "raw_password",
+      "role_current",
+      "roles",
+      "username",
+    ],
     fields: {
       date_joined: {
         filter: "date_joined",

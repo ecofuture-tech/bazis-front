@@ -125,8 +125,8 @@ def test_contract_ts_is_rendered_from_the_contract():
         'export type ResourceType = keyof typeof ROUTES;',
         '',
         '/** The resources: model, route set, path, actions, fields (title, type, relation, '
-        'filter and order labels), the attributes that label an item (none: its id) and '
-        'search fields (none: no search). */',
+        'filter and order labels), the attributes that label an item (none: its id), the '
+        'search fields (none: no search) and the fields that its create takes. */',
         'export const RESOURCES = {',
         '  "shop.item": {',
         '    fields: {},',

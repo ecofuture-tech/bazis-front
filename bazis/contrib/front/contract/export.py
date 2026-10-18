@@ -36,8 +36,8 @@ from .resources import resources
 #: the search fields of the resources, the selectors of the permission models; 4: `reverse`
 #: of the relationships whose foreign key or many-to-many field is on the other model; 5:
 #: the titles of the fields, `title`, and the attributes that label the items of a
-#: resource, `label`
-CONTRACT_FORMAT = 5
+#: resource, `label`; 6: the fields that the create route of a resource takes, `create`
+CONTRACT_FORMAT = 6
 
 #: the directory of the contract in the product root
 CONTRACT_DIR = 'contract'
