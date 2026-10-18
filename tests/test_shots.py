@@ -89,6 +89,9 @@ def test_the_shots_of_the_specs(root):
         ('task-board', None, 'viewer', None, first),
         ('task-calendar', None, 'manager', None, every),
         ('task-calendar', None, 'viewer', None, first),
+        # a calendar with the form of its add open (a date-time on the selected day), as the
+        # first of its roles that may create a task
+        ('task-calendar', 'form', 'manager', None, every),
         # the screen of an item through a list that opens it: all the items, not the report
         # of the drafts (draft-tasks, first by its id), for each role
         ('task-card', None, 'manager', {'screen': 'task-list', 'part': None}, every),
@@ -105,6 +108,9 @@ def test_the_shots_of_the_specs(root):
     # the forms that create an item, which an empty state offers
     assert by_screen['home']['creates'] == ['create']
     assert by_screen['task-card']['creates'] == []
+    # the add of a calendar: its button opens the form of the shot, its empty state need not offer it
+    assert by_screen['task-calendar']['creates'] == []
+    assert [it['creates'] for it in plan if it['screen'] == 'task-calendar' and it['variant'] == 'form'] == [['add-task']]
 
     # a screen of an item that no screen opens is not shot, and said so; the role of a
     # screen is the first of its roles

@@ -2690,6 +2690,9 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
   entity of the form lets create (`add`; any role of an entity without an `access`; none:
   `// Not shot: <screen>.form`): the variants `empty` and `form` of the screen,
   `<screen>.<variant>` in `shots.ts`, in the names of the files and `variant` in the report.
+  A calendar with `add` is shot with its add form open too (the variant `form`, as the
+  first of its roles that may create). The dialogs of the custom actions are not shot: an
+  item may not allow its action.
 - Once the test user is logged in, the shot also listens to the page: an error that nothing
   caught (V011), an error written to the console (V012) and a request to the API (`/api/`)
   that failed or was answered with an error status (V013); a 403 or a 404 of a `GET`, which

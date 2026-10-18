@@ -25,8 +25,9 @@ that opens it (`open` of a list, a board, a calendar; of the last items of a das
 their part `recent:<id>`), one for each role (a role that none is for is not shot): a list first, one without a filter of its own
 before a report; one that no such screen opens is not shot. A list is also shot searched for
 a text that no item has (its empty state, with `search`) and with its first create form open,
-as the first of its roles that `access` lets create the items of the form (`variant`:
-`empty`, `form`). The text of `shots.ts` depends on the specs only: `--check` and
+and a calendar with the form of its add open (`calendar.add`, on the selected day), as the
+first of their roles that `access` lets create the items of the form (`variant`: `empty`,
+`form`). The text of `shots.ts` depends on the specs only: `--check` and
 `front.W008` render it again and compare it byte for byte, without Node, and the lock records
 the hashes of the specs and of the file (`shots`). It is not a `.spec.ts`: `npm run e2e` does
 not run it.
@@ -131,12 +132,15 @@ def plan(specs: Specs) -> tuple[list[dict], dict[str, str]]:
             {**shot, 'role': other, 'via': other_via, 'variant': None, 'modes': first, 'also': True}
             for other, other_via in others
         ]
-        if screen['primitive'] != 'list':
+        if screen['primitive'] not in ('list', 'calendar'):
             continue
-        # a list also searched for nothing (its empty state) and with its create form open,
-        # as the first of its roles that may create the items of a form
+        # a list also searched for nothing (its empty state); a list with its create form open,
+        # a calendar with that of its add (the selected day), as the first of its roles that
+        # may create the items of a form
         if screen.get('list', {}).get('search'):
             shots.append({**shot, 'variant': 'empty'})
+        if screen['primitive'] == 'calendar':
+            forms = [screen['calendar']['add']] if 'add' in screen['calendar'] else []
         creator = next(
             (
                 (candidate, form['id'])

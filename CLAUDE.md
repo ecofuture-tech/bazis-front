@@ -293,8 +293,8 @@ job of CI.
   without errors (every screen as the first of its roles, in each color mode of the theme,
   and as each other role in the first color mode;
   the screen of an item through the first item of a screen that opens it; a list also
-  searched for nothing and with its create form open, as the first of its roles that `access`
-  lets create), checked and
+  searched for nothing and with its create form open, and a calendar with its add form open,
+  as the first of its roles that `access` lets create), checked and
   locked like the end-to-end tests (`--check`, `front.W008`, the lock `shots`; the errors of
   the last report, or no report that can be read, are `front.W009`), runs it with
   `npx playwright test --config playwright.shots.config.ts` (`BAZIS_SHOTS_DIR` set to

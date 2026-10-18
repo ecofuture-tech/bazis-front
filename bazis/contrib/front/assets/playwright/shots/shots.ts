@@ -72,6 +72,10 @@ test.describe('light', () => {
     await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'viewer', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
+  test('task-calendar.form', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'manager', mode: 'light', via: null, creates: ['add-task'], variant: 'form' }, info);
+  });
+
   test('task-card', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'task-card', role: 'manager', mode: 'light', via: { screen: 'task-list', part: null }, creates: [], variant: null }, info);
   });
@@ -114,6 +118,10 @@ test.describe('dark', () => {
 
   test('task-calendar', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'manager', mode: 'dark', via: null, creates: [], variant: null }, info);
+  });
+
+  test('task-calendar.form', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'task-calendar', role: 'manager', mode: 'dark', via: null, creates: ['add-task'], variant: 'form' }, info);
   });
 
   test('task-card', async ({ page }, info) => {
