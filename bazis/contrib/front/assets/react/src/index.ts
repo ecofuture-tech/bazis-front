@@ -42,6 +42,7 @@ export type {
   CreateDocument,
   CreatePath,
   CreateResponse,
+  DestroyPath,
   ItemPath,
   ItemQuery,
   ItemResponse,

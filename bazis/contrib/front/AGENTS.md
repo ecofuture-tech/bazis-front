@@ -3779,6 +3779,7 @@ Its props, `BazisProviderProps`:
 - `type CreateDocument<P extends CreatePath> = BodyOf<CreateOperation<P>>`
 - `type CreatePath = RouteSetWith<paths, '', 'post'>`
 - `type CreateResponse<P extends CreatePath> = ResponseOf<CreateOperation<P>>`
+- `type DestroyPath = RouteSetWith<paths, Item, 'delete'>`
 - `type ItemPath = RouteSetWith<paths, Item, 'get'>`
 - `type ItemQuery<P extends ItemPath> = Omit<ItemOptions<ItemOperation<P>>, 'signal'>`: The options of `retrieve` without `signal`: include, fields, meta.
 - `type ItemResponse<P extends ItemPath> = ResponseOf<ItemOperation<P>>`
@@ -5158,7 +5159,7 @@ Its props, `RelationPickerProps`:
 - `RelationListPickerProps`: the props of `RelationListPicker`, listed with it
 - `RelationPickerProps`: the props of `RelationPicker`, listed with it
 
-## API: the components: resource-board, resource-calendar, resource-card, resource-form, resource-list, stat-card, state-panel, status-badge, status-history
+## API: the components: resource-board, resource-calendar, resource-card, resource-form, resource-list, screens, stat-card
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -5469,6 +5470,80 @@ Its props, `ResourceListProps`:
 - `type FilterValues = Readonly<Record<string, string>>`: The values of the filters by field; a date range is `<field>__gte` and `<field>__lte`.
 - `ResourceListProps`: the props of `ResourceList`, listed with it
 
+### `@/bazis/ui/screens`
+
+#### CreateFormAction
+
+`CreateFormAction(props: CreateFormActionProps): Element`: The create form of an action in `FormSurface` (a dialog or a page, as the theme composes the forms), closed when it is saved or cancelled; its state is `CreateFormAction.use()`.
+
+
+Its props, `CreateFormActionProps`:
+
+- `open: boolean`
+- `onClose: () => void`
+- `path: CreatePath`: The route set of the entity (`ROUTES` of the contract).
+- `fields?: readonly string[]`: The fields of the form (`fields` of the action); every field of the create schema by default.
+- `fixed?: FixedValues | undefined`: The values of fields that the user does not change (`ResourceForm` `fixed`).
+- `title: ReactNode`
+- `description?: ReactNode`
+- `onSaved?: (saved: SavedDocument) => void`: Called with the saved document once the form is closed: the screen `then` of the action.
+- `mode?: 'dialog' | 'page'`: `composition.forms` of the theme by default (`FormSurface`).
+
+#### ScreenAction
+
+`ScreenAction(props: ScreenActionProps): Element`: An action in the header of a screen (`actions` of `Screen` or of `Dashboard`), a button `action:<id>`, shown once the backend allows what it `requires`.
+
+
+Its props, `ScreenActionProps`:
+
+- `id: string`: The id of the action in the specs: `action:<id>`.
+- `label: ReactNode`
+- `icon?: ComponentType<{ className?: string; }>`: Its icon, such as an icon of lucide-react.
+- `requires?: NavRequirement`: What the backend must allow the user for the action to be shown: `{path, can: 'add'}` for a create form.
+- `onClick: () => void`
+
+#### useDestroyCardAction
+
+`useDestroyCardAction(options: DestroyCardActionOptions): CardAction`: The deletion of the item of a card, an action of `ResourceCard` (`actions`) shown when the user may delete it: a toast once it is deleted, then the route `then`; a toast of the error when the backend refuses it.
+
+#### CreateForm
+
+`interface CreateForm`: Whether the create form of a screen is open, and with which fixed values: `CreateFormAction.use()`.
+
+- `open: boolean`
+- `fixed: FixedValues | undefined`: The values of the fields fixed by the last `onOpenWith`; none after `onOpen`.
+- `onOpen: () => void`: Opens the form: the `onClick` of an action (its event is not read).
+- `onOpenWith: (fixed: FixedValues) => void`: Opens the form with fields fixed, such as the day of a calendar: `{due_date: day}`.
+- `onClose: () => void`
+
+#### DestroyCardActionOptions
+
+`interface DestroyCardActionOptions`
+
+- `id: string`: The id of the action in the specs: `action:<id>`.
+- `label: ReactNode`
+- `path: DestroyPath`: The route set of the entity (`ROUTES` of the contract).
+- `item: string`: The id of the item of the card.
+- `then?: string | undefined`: The route shown once the item is deleted (the screen `then` of the action); the card stays without it.
+
+#### extended
+
+`extended<P extends object>(props: NoInfer<P>, extension: ScreenExtension<P>): P`: The props of the component of a generated screen with those of its extension: the arrays of the actions joined, the `children` of both, the other props of the extension in place of the generated ones.
+
+#### ScreenExtension
+
+`interface ScreenExtension<P extends object>`: What a product adds to a screen generated from the specs, the component of its primitive with props `P`.
+
+- `before?: ReactNode`: In the screen, before the component of its primitive.
+- `after?: ReactNode`: In the screen, after the component of its primitive.
+- `actions?: ReactNode`: In the header of the screen, after the actions of the specs.
+- `props?: Partial<P>`: Props of the component: the actions (`actions`, `rowActions`, `bulk`) and the `children` come after those of the specs, the others replace them.
+
+#### The types and the constants of `@/bazis/ui/screens`
+
+- `CreateFormActionProps`: the props of `CreateFormAction`, listed with it
+- `ScreenActionProps`: the props of `ScreenAction`, listed with it
+
 ### `@/bazis/ui/stat-card`
 
 #### StatCard
@@ -5490,6 +5565,10 @@ Its props, `StatCardProps`:
 #### The types and the constants of `@/bazis/ui/stat-card`
 
 - `StatCardProps`: the props of `StatCard`, listed with it
+
+## API: the components: state-panel, status-badge, status-history, task-progress, transit-bar
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/state-panel`
 
@@ -5590,10 +5669,6 @@ Its props, `StatusHistoryProps`:
 #### The types and the constants of `@/bazis/ui/status-history`
 
 - `StatusHistoryProps`: the props of `StatusHistory`, listed with it
-
-## API: the components: task-progress, transit-bar
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/task-progress`
 

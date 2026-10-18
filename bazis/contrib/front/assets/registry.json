@@ -773,6 +773,30 @@
       ]
     },
     {
+      "name": "screens",
+      "kind": "ui",
+      "source": "ui/screens",
+      "target": "src/bazis/ui/screens",
+      "requires": {
+        "assets": [
+          "i18n",
+          "react",
+          "app-shell",
+          "resource-card",
+          "resource-form",
+          "state-panel",
+          "testing",
+          "button"
+        ]
+      },
+      "files": [
+        "actions.tsx",
+        "extension.tsx",
+        "index.ts",
+        "screens.contract.test.tsx"
+      ]
+    },
+    {
       "name": "testing",
       "kind": "ui",
       "source": "ui/testing",

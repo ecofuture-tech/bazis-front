@@ -100,6 +100,7 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | `task-progress` | `TaskProgress`; `taskView`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
 | `async-result` | `AsyncResult`; `asyncResult`, `RESULT_PATH`; the texts `async.<view>` | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | capability `async_background` |
 | `map` | `ResourceMap`; `MapProvider`, `OSM_TILES`, `useMapTiles`; `LeafletMap`, `MapPointControl`; `nearFilter`, `nearSort`, `useGeolocation`; the texts `map.<text>` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; the map of a point field `map:<field>`, `action:locate-<field>` | npm `leaflet` (`add` sets it in package.json) |
+| `screens` | `CreateFormAction` (its state `CreateFormAction.use()`), `ScreenAction`, `useDestroyCardAction`; `ScreenExtension`, `extended` | those of `resource-form` in the form; `action:<id>` of a header action and of the deletion of a card | |
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it; the choices of a field are a
@@ -408,6 +409,17 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   dialog with its fields, and the errors of a 422 (`/payload/<name>`) are shown by field.
   `onDone(null)`: the user can no longer view the item. `useRunTransit(path)` runs the
   transit of any item of the route set with this dialog (the board).
+- **`screens`** is what the screens generated from the specs use besides the components of
+  their primitives: the create form of an action (`CreateFormAction` in `FormSurface`, opened
+  by `onOpen`, the `onClick` of an action, or `onOpenWith` with fixed values, the day of a
+  calendar; closed when saved or cancelled, then `onSaved`), an action of the header of a
+  screen (`ScreenAction`, shown once the backend allows what it `requires`), the deletion of
+  the item of a card (`useDestroyCardAction`: an action of `ResourceCard` shown when the user
+  may delete the item, a toast after it, then the route `then`; a refusal is a toast of its
+  error, the card stays) and the extension of a generated screen (`ScreenExtension<P>` of the
+  props `P` of the component of its primitive, so that the asset requires none of them;
+  `extended` joins the actions, `actions`, `rowActions`, `bulk`, and the `children` of the
+  extension with the generated ones, and replaces the other props).
 
 ## A screen
 

@@ -1,0 +1,169 @@
+// Copyright 2026 EcoFuture Technology Services LLC and contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// The actions of the specs (`actions` of a screen) as the screens generated from them use
+// them: the create form of an entity (`primitive: form`, `mode: create`), opened by an action
+// of a list (`ListAction`), of a calendar (`add`, with the selected day fixed) or of the
+// header of a screen (`ScreenAction`); and the deletion of the item of a card
+// (`primitive: destroy`), an action of `ResourceCard` that shows the screen `then` after it.
+
+import { useState, type ComponentType, type ReactNode } from 'react';
+import { useNavigate } from 'react-router';
+
+import { useLanguage } from '@/bazis/i18n';
+import { useDestroy, type CreatePath, type DestroyPath, type FixedValues } from '@/bazis/react';
+import { Allowed, type NavRequirement } from '@/bazis/ui/app-shell';
+import type { CardAction } from '@/bazis/ui/resource-card';
+import { FormSurface, ResourceForm, type SavedDocument } from '@/bazis/ui/resource-form';
+import { toast } from '@/bazis/ui/state-panel';
+import { Button } from '@/components/ui/button';
+
+/** Whether the create form of a screen is open, and with which fixed values: `CreateFormAction.use()`. */
+export interface CreateForm {
+  open: boolean;
+  /** The values of the fields fixed by the last `onOpenWith`; none after `onOpen`. */
+  fixed: FixedValues | undefined;
+  /** Opens the form: the `onClick` of an action (its event is not read). */
+  onOpen: () => void;
+  /** Opens the form with fields fixed, such as the day of a calendar: `{due_date: day}`. */
+  onOpenWith: (fixed: FixedValues) => void;
+  onClose: () => void;
+}
+
+export interface CreateFormActionProps {
+  open: boolean;
+  onClose: () => void;
+  /** The route set of the entity (`ROUTES` of the contract). */
+  path: CreatePath;
+  /** The fields of the form (`fields` of the action); every field of the create schema by default. */
+  fields?: readonly string[];
+  /** The values of fields that the user does not change (`ResourceForm` `fixed`). */
+  fixed?: FixedValues | undefined;
+  title: ReactNode;
+  description?: ReactNode;
+  /** Called with the saved document once the form is closed: the screen `then` of the action. */
+  onSaved?: (saved: SavedDocument) => void;
+  /** `composition.forms` of the theme by default (`FormSurface`). */
+  mode?: 'dialog' | 'page';
+}
+
+/**
+ * The create form of an action in `FormSurface` (a dialog or a page, as the theme composes the
+ * forms), closed when it is saved or cancelled; its state is `CreateFormAction.use()`.
+ */
+export function CreateFormAction({ open, onClose, path, fields, fixed, title, description, onSaved, mode }: CreateFormActionProps) {
+  return (
+    <FormSurface open={open} title={title} description={description} onClose={onClose} mode={mode}>
+      <ResourceForm
+        path={path}
+        fields={fields}
+        fixed={fixed}
+        onSaved={(saved) => {
+          onClose();
+          onSaved?.(saved);
+        }}
+        onCancel={onClose}
+      />
+    </FormSurface>
+  );
+}
+
+/** The state of a create form: `{...create}` gives it to `CreateFormAction`. */
+CreateFormAction.use = function useCreateForm(): CreateForm {
+  const [state, setState] = useState<{ open: boolean; fixed: FixedValues | undefined }>({ open: false, fixed: undefined });
+  return {
+    ...state,
+    onOpen: () => {
+      setState({ open: true, fixed: undefined });
+    },
+    onOpenWith: (fixed) => {
+      setState({ open: true, fixed });
+    },
+    onClose: () => {
+      setState((current) => ({ ...current, open: false }));
+    },
+  };
+};
+
+export interface ScreenActionProps {
+  /** The id of the action in the specs: `action:<id>`. */
+  id: string;
+  label: ReactNode;
+  /** Its icon, such as an icon of lucide-react. */
+  icon?: ComponentType<{ className?: string }>;
+  /** What the backend must allow the user for the action to be shown: `{path, can: 'add'}` for a create form. */
+  requires?: NavRequirement;
+  onClick: () => void;
+}
+
+/**
+ * An action in the header of a screen (`actions` of `Screen` or of `Dashboard`), a button
+ * `action:<id>`, shown once the backend allows what it `requires`.
+ */
+export function ScreenAction({ id, label, icon: Icon, requires, onClick }: ScreenActionProps) {
+  return (
+    <Allowed requirement={requires}>
+      <Button
+        type="button"
+        data-bz={`action:${id}`}
+        onClick={() => {
+          onClick();
+        }}
+      >
+        {Icon && <Icon />}
+        {label}
+      </Button>
+    </Allowed>
+  );
+}
+
+export interface DestroyCardActionOptions {
+  /** The id of the action in the specs: `action:<id>`. */
+  id: string;
+  label: ReactNode;
+  /** The route set of the entity (`ROUTES` of the contract). */
+  path: DestroyPath;
+  /** The id of the item of the card. */
+  item: string;
+  /** The route shown once the item is deleted (the screen `then` of the action); the card stays without it. */
+  then?: string | undefined;
+}
+
+/**
+ * The deletion of the item of a card, an action of `ResourceCard` (`actions`) shown when the
+ * user may delete it: a toast once it is deleted, then the route `then`; a toast of the
+ * error when the backend refuses it.
+ */
+export function useDestroyCardAction({ id, label, path, item, then }: DestroyCardActionOptions): CardAction {
+  const destroy = useDestroy(path);
+  const navigate = useNavigate();
+  const { t } = useLanguage();
+  return {
+    id,
+    label,
+    permission: 'delete',
+    variant: 'destructive',
+    onClick: () => {
+      destroy.mutate(item, {
+        onSuccess: () => {
+          toast({ title: t('card.deleted') });
+          if (then !== undefined) void navigate(then);
+        },
+        onError: (error) => {
+          toast({ title: t('card.not_deleted'), description: error.message, tone: 'danger' });
+        },
+      });
+    },
+  };
+}
