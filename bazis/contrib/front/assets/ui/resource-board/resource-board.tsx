@@ -18,7 +18,8 @@
 // card moves to another column by a transit of bazis-statusy: its menu `action:move` lists the
 // transits that the user may run on it now (`move:<status>`, the status it leads to), and a
 // card dropped on a column (`BoardDragProvider`, board-dnd) runs the transit to it; a transit
-// whose action takes a payload asks for it in a dialog (`useRunTransit` of transit-bar); the
+// whose action takes a payload asks for it in a dialog, one that the specs confirm asks for its
+// confirmation (`useRunTransit` of transit-bar), the moves in the order of the specs; the
 // refusal of a transit run without it is shown above the columns (`error:move`). A list of one
 // page per column (the core has no aggregates), refetched after a transit.
 
@@ -31,7 +32,6 @@ import { useTransits, useTransitsOf, type TransitPath } from '@/bazis/react/stat
 import { EmptyState } from '@/bazis/ui/empty-state';
 import type { Tone } from '@/bazis/generated/theme';
 import {
-  choiceOptions,
   type FieldDisplay,
   type Fields,
   fieldValue,
@@ -48,8 +48,8 @@ import {
 } from '@/bazis/ui/resource';
 import { statusName, statusOf, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast, type ViewState } from '@/bazis/ui/state-panel';
-import { FilterBar, type ListFilter } from '@/bazis/ui/resource-list';
-import { useRunTransit, type TransitRun } from '@/bazis/ui/transit-bar';
+import { FilterBar, listFilters, type ListFilter } from '@/bazis/ui/resource-list';
+import { inDeclaredOrder, useRunTransit, type DeclaredTransit, type TransitRun } from '@/bazis/ui/transit-bar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -80,6 +80,8 @@ export interface ResourceBoardProps {
   sort?: readonly string[];
   /** Whether a card moves to another column by a transit (`move: true` of the spec); not by default. */
   move?: boolean;
+  /** The transits of the workflow of the specs (`transits` of the generated entities): the order of the moves, those confirmed first. */
+  transits?: readonly DeclaredTransit[];
   /** Called with the id of the card the user opens. */
   onOpen?: (id: string) => void;
   /** The cards of a column at first, and the more shown each time. */
@@ -92,12 +94,24 @@ export interface ResourceBoardProps {
 }
 
 /** The menu of the moves of a card: the transits that the user may run on it now, read when it opens. */
-function MoveItems({ path, id, type, run }: { path: TransitPath; id: string; type: string; run: TransitRun }) {
+function MoveItems({
+  path,
+  id,
+  type,
+  run,
+  declared,
+}: {
+  path: TransitPath;
+  id: string;
+  type: string;
+  run: TransitRun;
+  declared: readonly DeclaredTransit[];
+}) {
   const transits = useTransits(path, id);
   const { language, t } = useLanguage();
   if (transits.isPending) return <DropdownMenuItem disabled>{t('state.loading.title')}</DropdownMenuItem>;
   if (transits.isError || !transits.data.length) return <DropdownMenuItem disabled>{t('board.no_moves')}</DropdownMenuItem>;
-  return transits.data.map((transit) => {
+  return inDeclaredOrder(transits.data, declared).map((transit) => {
     const target = transitTarget(type, transit.id);
     return (
       <DropdownMenuItem
@@ -191,6 +205,7 @@ export function ResourceBoard({
   filters = [],
   sort,
   move = false,
+  transits: declared = [],
   onOpen,
   pageSize = 20,
   display = {},
@@ -204,12 +219,7 @@ export function ResourceBoard({
   const [userFilter, setUserFilter] = useState<Filter | undefined>();
   const filter = screenFilter && userFilter ? Filter.and(screenFilter, userFilter) : (screenFilter ?? userFilter);
   const meta = useListFields(path);
-  // a field with choices is filtered by a select of its choices, as in a list
-  const filterList = filters.map((it): ListFilter => {
-    const wanted = typeof it === 'string' ? { field: it } : it;
-    const options = wanted.options ?? choiceOptions(meta.fields.get(wanted.field));
-    return options ? { ...wanted, options } : wanted;
-  });
+  const filterList = listFilters(filters, meta);
   const lists = useAnyLists(
     path,
     statuses.map((status) => ({
@@ -219,7 +229,7 @@ export function ResourceBoard({
       meta: ['pagination'],
     })),
   );
-  const run = useRunTransit(path);
+  const run = useRunTransit(path, undefined, declared);
   const transitsOf = useTransitsOf(path);
   const { Area, Column, Card } = useBoardDrag(move);
 
@@ -359,7 +369,7 @@ export function ResourceBoard({
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                          <MoveItems path={path} id={item.id} type={type} run={run} />
+                                          <MoveItems path={path} id={item.id} type={type} run={run} declared={declared} />
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                     )

@@ -23,7 +23,7 @@ import { useState } from 'react';
 
 import { Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { DateInput, RelationPicker, typeAt, useAnyFilterFields } from '@/bazis/ui/resource';
+import { choiceOptions, DateInput, type Fields, RelationPicker, typeAt, useAnyFilterFields } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,13 +38,26 @@ export interface ListFilter {
   label?: string;
   /**
    * The choices (value, label), as the statuses of `statusOptions()` of status-badge; those
-   * of a field with choices in the list schema (`choiceOptions`) by default in `ResourceList`.
+   * of a field with choices in the list schema (`choiceOptions`) by default (`listFilters`).
    */
   options?: readonly { value: string; label: string }[];
 }
 
 /** The values of the filters by field; a date range is `<field>__gte` and `<field>__lte`. */
 export type FilterValues = Readonly<Record<string, string>>;
+
+/**
+ * The filters of a list, a board or a calendar, given by the name of their field or as they
+ * are: a field with choices in the list schema is filtered by a select of its choices, by
+ * their labels.
+ */
+export function listFilters(filters: readonly (string | ListFilter)[], fields: Fields): ListFilter[] {
+  return filters.map((it) => {
+    const filter = typeof it === 'string' ? { field: it } : it;
+    const options = filter.options ?? choiceOptions(fields.fields.get(filter.field));
+    return options ? { ...filter, options } : filter;
+  });
+}
 
 /**
  * The type of a filter field: `py_type` of `route_filter_fields/`, the JSON Schema type of
@@ -108,6 +121,22 @@ export function filterOf(
     }
   }
   return parts.length ? Filter.and(...parts) : undefined;
+}
+
+/**
+ * The values of the filters that select one value of their field, a related item or a
+ * choice: those that a new item of the filtered items takes (the add of a calendar).
+ */
+export function equalValues(
+  filters: readonly ListFilter[],
+  values: FilterValues,
+  types: ReadonlyMap<string, FieldType>,
+): FilterValues {
+  return Object.fromEntries(
+    filters
+      .filter(({ field, options }) => values[field] && (options || relationOf(types.get(field))))
+      .map(({ field }) => [field, values[field] ?? '']),
+  );
 }
 
 interface FilterControlProps {
@@ -255,8 +284,11 @@ export interface FilterBarProps {
   ready?: boolean;
   /** The titles of the fields. */
   title: (name: string) => string;
-  /** Called with the expression of the filters when a value changes. */
-  onFilter: (filter: Filter | undefined) => void;
+  /**
+   * Called with the expression of the filters when a value changes, and the values of those
+   * that select one value of their field (`equalValues`).
+   */
+  onFilter: (filter: Filter | undefined, equal: FilterValues) => void;
 }
 
 /**
@@ -291,7 +323,7 @@ export function FilterBar({ path, filters: wanted, ready = true, title, onFilter
           onChange={(name, value) => {
             const next = { ...values, [name]: value };
             setValues(next);
-            onFilter(filterOf(filters, next, types));
+            onFilter(filterOf(filters, next, types), equalValues(filters, next, types));
           }}
         />
       ))}

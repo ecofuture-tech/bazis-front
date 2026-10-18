@@ -1131,7 +1131,7 @@ def _check_board(doc: Document, entity: Entity, issues: Issues) -> None:
 def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
     """
     A calendar: its days are those of date or date-time fields, its tone by a boolean field
-    (S023).
+    (S023); the time and the duration of its add are those of date-times (S042).
     """
     calendar = doc.data['calendar']
     for key in ('field', 'end'):
@@ -1147,6 +1147,24 @@ def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
             doc, ('calendar', 'tone', 'field'), 'S023', f'The tone is by `{tone}`, not a boolean field.',
             'Give the tone a boolean field (`is_overdue`): its items are in the tone while it is true.',
         )
+    add = calendar.get('add', {})
+    for key, ends in (('time', ('field',)), ('duration', ('field', 'end'))):
+        if key not in add:
+            continue
+        for end in ends:
+            name = calendar.get(end)
+            if name in entity.fields and entity.fields[name].get('type') != 'datetime':
+                issues.add(
+                    doc, ('calendar', 'add', key), 'S042',
+                    f'The `{key}` of the add is that of a date-time, and `{name}` is not one.',
+                    'Remove it: the day of a date is all of it.',
+                )
+        if key == 'duration' and 'end' not in calendar:
+            issues.add(
+                doc, ('calendar', 'add', 'duration'), 'S042',
+                'The duration of the add leads from `field` to `end`, and the calendar has no `end`.',
+                'Give the calendar the date-time `end` of its items, or remove `duration`.',
+            )
 
 
 def _check_calendar_add(doc: Document, calendar: dict, entity: Entity, resource: dict, issues: Issues) -> None:
@@ -1154,8 +1172,10 @@ def _check_calendar_add(doc: Document, calendar: dict, entity: Entity, resource:
     The add of a calendar opens the create form with the selected day in the field of the
     calendar: the create route of the entity must take that field, or the day is lost (S034);
     when it does, a date-time field is listed among the `fields` of the add, to pick the time
-    (S041).
+    (S041). The end of a date-time that its form shows starts `duration` after it (S043), a
+    duration that only such an end takes (S042).
     """
+    _check_calendar_end(doc, calendar, entity, resource, issues)
     field = calendar['field']
     if field in resource['create']:
         if (
@@ -1178,6 +1198,32 @@ def _check_calendar_add(doc: Document, calendar: dict, entity: Entity, resource:
         doc, ('calendar', 'add'), 'S034', problem,
         'Show the items on the days of a date that the create takes (a due date), or remove `add`.',
     )
+
+
+def _check_calendar_end(doc: Document, calendar: dict, entity: Entity, resource: dict, issues: Issues) -> None:
+    """
+    The end of an item added on a calendar by date-times: when its form shows it, it starts
+    `duration` after the start (S043, a warning: else the user fills it each time), a
+    duration that a form without it loses (S042).
+    """
+    end, add = calendar.get('end'), calendar['add']
+    if end is None or entity.fields.get(end, {}).get('type') != 'datetime':
+        return
+    shown = end in resource['create'] and end in add.get('fields', [end])
+    if 'duration' in add and not shown:
+        issues.add(
+            doc, ('calendar', 'add', 'duration'), 'S042',
+            f'The duration of the add gives the end `{end}`, which its form '
+            + ('leaves out.' if end in resource['create'] else 'cannot send: the create route does not take it.'),
+            f'Add `{end}` to the `fields` of `add`, or remove `duration`.',
+        )
+    elif shown and 'duration' not in add and entity.fields.get(calendar['field'], {}).get('type') == 'datetime':
+        issues.add(
+            doc, ('calendar', 'add'), 'S043',
+            f'The form of the add shows the end `{end}` empty: the user fills it for every item.',
+            f'Give the add the usual length of an item in minutes, `duration: 30`: `{end}` starts '
+            'that long after the start, which the user may change.',
+        )
 
 
 def _label_text(label) -> object:
@@ -1345,7 +1391,7 @@ FIELD_REFERENCES = {
     'card': (('sections', '*', 'fields'),),
     'form': (('fields',),),
     'board': (('card', 'title'), ('card', 'fields'), ('card', 'badge'), ('filters',)),
-    'calendar': (('field',), ('end',), ('label',), ('tone', 'field'), ('add', 'fields')),
+    'calendar': (('field',), ('end',), ('label',), ('tone', 'field'), ('filters',), ('add', 'fields')),
 }
 #: where a part of a dashboard names fields of its entity (the field of a chart: `_check_chart`)
 PART_REFERENCES = (('filter',), ('columns',), ('sort',), ('fields',))
@@ -1612,7 +1658,7 @@ def _check_filter_route(
     doc: Document, primitive: str, section: dict, entity: Entity, resource: dict, product: Product, issues: Issues
 ) -> None:
     """
-    The filters of a list or a board read the fields that the user may filter by
+    The filters of a list, a board or a calendar read the fields that the user may filter by
     (`route_filter_fields/`), and so does the link of a report (a list with `filter`) in the
     navigation: the route set must route them (S040), not leave them out of its `actions`. A
     report that the navigation does not link reads nothing.

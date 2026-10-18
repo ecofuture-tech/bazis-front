@@ -45,8 +45,9 @@ labels the runtime schemas give translated, `enumDict`, which the frontend shows
 filters by; its `location` is a geography `PointField`, GeoJSON in the API and `format: point`
 in the contract, on the map of the list of the tasks (`list.map`), written through the API by
 the scenario `manager-places-a-task` (`e2e_data` places no point); its `due` is a date-time
-that the create takes, the field of the calendar of the tasks whose `add` the scenarios run
-(`e2e_data` creates the task of the viewer due now); its route set
+that the create takes, the field of the calendar of the tasks (filtered by the assignee and
+the priority) whose `add` at 09:00 the scenarios run (`e2e_data` creates the task of the
+viewer due now); its route set
 has the custom action `count` (`TaskRouteSet.action_count`, `POST /api/v1/tasks/task/count/`,
 a JSON body `{priority}`, 403 without a user), which queues `tasks.bg.count.CountTasks` and
 answers with the id of its task, the reference of `client.action`/`useAction` captured by

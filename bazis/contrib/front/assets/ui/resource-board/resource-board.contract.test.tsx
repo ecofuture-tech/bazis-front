@@ -132,6 +132,20 @@ describe('ResourceBoard', () => {
     expect(onOpen).toHaveBeenCalledWith('a');
   });
 
+  it('lists the moves in the order of the specs, and asks to confirm a transit that they confirm', async () => {
+    const server = backend(listDocument([task('a', 'draft')]));
+    renderWithBazis(board({ columns: ['draft'], move: true, transits: [{ id: 'finish' }, { id: 'start', confirm: true }] }), server);
+    open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));
+    await screen.findByTestId('move:start');
+    const moves = screen.getAllByRole('menuitem').map((it) => it.getAttribute('data-bz'));
+    expect(moves).toEqual(['move:finish', 'move:start']);
+    fireEvent.click(screen.getByTestId('move:start'));
+    fireEvent.click(await screen.findByTestId('action:confirm-start'));
+    await waitFor(() => {
+      expect(server.calls.find((it) => it.method === 'POST')?.body).toEqual({ transit: 'start' });
+    });
+  });
+
   it('asks for the payload of a transit in a dialog', async () => {
     renderWithBazis(board({ columns: ['draft'], move: true }), backend(listDocument([task('a', 'draft')])));
     open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));

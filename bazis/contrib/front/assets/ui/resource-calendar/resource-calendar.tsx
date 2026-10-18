@@ -21,10 +21,13 @@
 // date-time on the day it starts); a click on a day selects it, and
 // the list of the selected day (today at first) shows all its items, `row:<id>` again. A month
 // at the width of a phone has a dot on the days with items, which only the list of the day
-// shows: no hidden copy of a row is in the page. The
-// action that creates an item (`action:<id>`) is given the value of the field on the selected
-// day. One list of the period (its first `LIMIT` items, the days of a date-time in the time
-// zone of the browser).
+// shows: no hidden copy of a row is in the page. The filters of the user (`FilterBar` of
+// resource-list, as those of a list) narrow the items. The
+// action that creates an item (`action:<id>`) is given the values its form starts with: the
+// field on the selected day (at the time of the add), its end after the duration of the add,
+// and the related item or the choice of each filter of the user that its form shows. One list
+// of the period (its first `LIMIT` items, the days of a date-time in the time zone of the
+// browser).
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useId, useState, type ComponentType, type ReactNode } from 'react';
@@ -49,6 +52,7 @@ import {
   useAnyLists,
   useListFields,
 } from '@/bazis/ui/resource';
+import { FilterBar, listFilters, type FilterValues, type ListFilter } from '@/bazis/ui/resource-list';
 import { errorState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -62,11 +66,19 @@ export interface CalendarAdd {
   id: string;
   label: ReactNode;
   /**
-   * Called with the value of `field` on the selected day, which the create form of the screen
-   * starts with: the day (`YYYY-MM-DD`) of a date, the start of the day in the time zone of
-   * the browser (ISO) of a date-time, whose time the user sets.
+   * Called with the values that the create form of the screen starts with, which the user
+   * may change: `field` on the selected day, the day (`YYYY-MM-DD`) of a date, of a
+   * date-time the moment of `time` on that day in the time zone of the browser (ISO); `end`
+   * of a date-time `duration` later; and the value of each filter of the user that selects a
+   * related item or a choice, of a field of `fields`.
    */
-  onAdd: (value: string) => void;
+  onAdd: (initial: Readonly<Record<string, unknown>>) => void;
+  /** The time of a date-time on the selected day, `HH:MM`: the start of the day (00:00) by default. */
+  time?: string | undefined;
+  /** The minutes from `field` to `end` of a date-time: the form starts without its end by default. */
+  duration?: number | undefined;
+  /** The fields of its form, which the values of the filters may start: any field by default. */
+  fields?: readonly string[] | undefined;
   icon?: ComponentType<{ className?: string }>;
 }
 
@@ -87,6 +99,8 @@ export interface ResourceCalendarProps {
   views?: readonly CalendarView[];
   /** The items of the calendar (the filter of the screen). */
   filter?: Filter | undefined;
+  /** The filters of the user, as those of a list (`FilterBar` of resource-list), above the days. */
+  filters?: readonly (string | ListFilter)[];
   /** Called with the id of the item the user opens. */
   onOpen?: ((id: string) => void) | undefined;
   add?: CalendarAdd | undefined;
@@ -232,7 +246,8 @@ export function ResourceCalendar({
   label,
   tone,
   views = ['month'],
-  filter,
+  filter: screenFilter,
+  filters = [],
   onOpen,
   add,
   display = {},
@@ -247,6 +262,9 @@ export function ResourceCalendar({
   const [selected, setSelected] = useState(today);
   const wide = useWide();
   const meta = useListFields(path);
+  const filterList = listFilters(filters, meta);
+  const [userFilter, setUserFilter] = useState<{ filter: Filter | undefined; equal: FilterValues }>({ filter: undefined, equal: {} });
+  const filter = screenFilter && userFilter.filter ? Filter.and(screenFilter, userFilter.filter) : (screenFilter ?? userFilter.filter);
   const firstDay = weekStart(language);
   const days = periodDays(parseDay(anchor), view, firstDay);
   const keys = days.map((it) => isoDate(it));
@@ -259,6 +277,20 @@ export function ResourceCalendar({
   const spec = meta.fields.get(field);
   const date = spec?.kind === 'attribute' && spec.format === 'date';
   const bound = (day: string) => (date ? day : parseDay(day).toISOString());
+  // the values the form of the add starts with: the day of a date, the moment of the time of
+  // the add on the day of a date-time and its end, the related items and the choices filtered by
+  function initial(day: string, { time, duration, fields }: CalendarAdd): Record<string, unknown> {
+    const values: Record<string, unknown> = Object.fromEntries(
+      Object.entries(userFilter.equal).filter(([name]) => !fields || fields.includes(name)),
+    );
+    if (date) return { ...values, [field]: day };
+    const [hours = 0, minutes = 0] = (time ?? '00:00').split(':').map(Number);
+    const start = parseDay(day);
+    start.setHours(hours, minutes);
+    values[field] = start.toISOString();
+    if (end !== undefined && duration !== undefined) values[end] = new Date(start.getTime() + duration * 60_000).toISOString();
+    return values;
+  }
   const after = isoDate(addDays(parseDay(to), 1));
   const starts = Filter.where(`${field}__lt`, bound(after));
   // an item that spans days is shown from its first day to its end
@@ -464,7 +496,7 @@ export function ResourceCalendar({
             type="button"
             data-bz={`action:${add.id}`}
             onClick={() => {
-              add.onAdd(bound(selected));
+              add.onAdd(initial(selected, add));
             }}
           >
             {Add && <Add />}
@@ -472,6 +504,19 @@ export function ResourceCalendar({
           </Button>
         )}
       </div>
+      {filterList.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <FilterBar
+            path={path}
+            filters={filterList}
+            ready={meta.ready}
+            title={meta.title}
+            onFilter={(next, equal) => {
+              setUserFilter({ filter: next, equal });
+            }}
+          />
+        </div>
+      )}
       {state === 'loaded' || state === 'empty' ? (
         <div data-bz={`state:${state}`} className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="grid min-w-0 gap-2">

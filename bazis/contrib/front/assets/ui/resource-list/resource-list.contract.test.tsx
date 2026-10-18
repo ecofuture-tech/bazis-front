@@ -33,7 +33,7 @@ import { Filter } from '@/bazis/client';
 import { TRANSITS } from '@/bazis/generated/contract';
 import { ListCardLayout } from '@/bazis/ui/app-shell';
 import { statusName } from '@/bazis/ui/resource';
-import { filterOf, ResourceList } from '@/bazis/ui/resource-list';
+import { equalValues, filterOf, ResourceList } from '@/bazis/ui/resource-list';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 // the menus and the selects are positioned with ResizeObserver and scroll their options into
@@ -183,7 +183,7 @@ describe('ResourceList', () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it('filters by the types of route_filter_fields/ of the core', () => {
+  it('filters by the types of route_filter_fields/ of the core, the values of one item by a relation and a choice', () => {
     const types = new Map([
       ['price', 'Decimal'],
       ['rate', 'number'],
@@ -205,6 +205,9 @@ describe('ResourceList', () => {
         '&title__$search=two words&owner=u1&state=draft',
     );
     expect(filterOf(filters, {}, types)).toBeUndefined();
+    // the values that a new item of the filtered items takes: a related item and a choice
+    const choices = [...filters, { field: 'kind', options: [{ value: 'a', label: 'A' }] }];
+    expect(equalValues(choices, { ...values, kind: 'a' }, types)).toEqual({ owner: 'u1', kind: 'a' });
   });
 
   it('shows and filters a field with choices by their labels', async () => {

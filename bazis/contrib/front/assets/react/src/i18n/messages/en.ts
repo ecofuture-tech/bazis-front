@@ -190,6 +190,7 @@ export const en: Messages = {
   'state.retry': 'Retry',
   'toast.dismiss': 'Dismiss',
   'toast.region': 'Notifications',
+  'transit.confirm': 'The status will be {status}.',
   'transit.done': 'The status is {status} now.',
   'transit.fill': 'Fill in the values of the transit.',
   'transit.group': 'Transits',

@@ -26,6 +26,7 @@ export function TaskBoardScreen() {
           fields={['assignee', 'priority']}
           filters={['assignee']}
           move
+          transits={TASK.transits}
           onOpen={(item) => void navigate(routeTo('task-card', item))}
           icon={TASK.Icon}
         />

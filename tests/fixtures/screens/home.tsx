@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router';
 import { Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { StatusChart, TimeChart } from '@/bazis/ui/charts';
-import { Dashboard } from '@/bazis/ui/dashboard';
+import { Dashboard, Viewable } from '@/bazis/ui/dashboard';
 import { CreateFormAction, ScreenAction } from '@/bazis/ui/screens';
 
 import { ENTITIES } from './entities';
@@ -69,21 +69,25 @@ export function HomeScreen() {
       ]}
       charts={
         <>
-          <StatusChart
-            id="by-status"
-            path={TASK.path}
-            label={t('screens.home.dashboard.charts.by-status.label')}
-            kind="donut"
-          />
-          <TimeChart
-            id="created-by-week"
-            path={TASK.path}
-            field="dt_created"
-            label={t('screens.home.dashboard.charts.created-by-week.label')}
-            kind="bar"
-            bucket="week"
-            last={12}
-          />
+          <Viewable path={TASK.path}>
+            <StatusChart
+              id="by-status"
+              path={TASK.path}
+              label={t('screens.home.dashboard.charts.by-status.label')}
+              kind="donut"
+            />
+          </Viewable>
+          <Viewable path={TASK.path}>
+            <TimeChart
+              id="created-by-week"
+              path={TASK.path}
+              field="dt_created"
+              label={t('screens.home.dashboard.charts.created-by-week.label')}
+              kind="bar"
+              bucket="week"
+              last={12}
+            />
+          </Viewable>
         </>
       }
       recent={[

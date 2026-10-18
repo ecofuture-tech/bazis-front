@@ -29,7 +29,11 @@ import { useMapTiles, type LeafletMapProps, type MapMarker } from './map.js';
 /** The view of a map without markers: the world. */
 const WORLD = { center: [20, 0] as L.LatLngTuple, zoom: 2 };
 
-/** The icon of a marker: a dot in the colors of the theme, larger for the open item. */
+/**
+ * The icon of a marker: a dot in the colors of the theme, larger for the open item; on a
+ * touch screen the dot of an item is within a transparent area of 44 px that a finger touches
+ * (its `::after`, 16 px around its inside).
+ */
 function markerIcon(kind: 'item' | 'selected' | 'me'): L.DivIcon {
   const size = kind === 'selected' ? 22 : kind === 'me' ? 14 : 16;
   return L.divIcon({
@@ -37,7 +41,7 @@ function markerIcon(kind: 'item' | 'selected' | 'me'): L.DivIcon {
     iconSize: [size, size],
     className: cn(
       'rounded-full border-2 border-background shadow-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
-      kind === 'me' ? 'bg-info' : 'bg-primary',
+      kind === 'me' ? 'bg-info' : 'bg-primary pointer-coarse:after:absolute pointer-coarse:after:-inset-4 pointer-coarse:after:rounded-full',
     ),
   });
 }

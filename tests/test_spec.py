@@ -181,6 +181,17 @@ def user_card(data, transitions=False):
 
 #: (code, the edits {file: change}, the issues expected (code, location)); every code of
 #: the specs has a case, each checked against the contract of the sample
+#: a task with an end, `ends`, a date-time that its create takes: the end of the calendar
+WITH_END = {
+    PRODUCT: lambda d: task(d)['fields'].append({'id': 'ends', 'type': 'datetime'}),
+    CONTRACT: lambda d: [
+        d['project']['resources']['tasks.task']['fields'].update(
+            ends={'title': 'Ends', 'type': 'string', 'format': 'date-time', 'filter': 'ends', 'order': 'ends'}),
+        d['project']['resources']['tasks.task']['create'].append('ends'),
+    ],
+}
+
+
 CASES = [
     ('C001', {CONTRACT: lambda d: '{'}, [('C001', CONTRACT)]),
     # a contract of another format: of bazis-front 0.1.0 (4), without the titles and the labels
@@ -551,12 +562,13 @@ CASES = [
     ('S011', {'spec/screens/user-card.yaml': lambda d: user_card(d, transitions=True)}, [('S011', 'spec/screens/user-card.yaml#/card/transitions')]),
     (
         'S012',
-        # the users have no search: the pickers of the assignee (the filters of a list and of
-        # the board, a form, the card) and of the watchers (a form, the card)
+        # the users have no search: the pickers of the assignee (the filters of a list, of the
+        # board and of the calendar, a form, the card) and of the watchers (a form, the card)
         {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=[])},
         [
             ('S012', f'{DRAFTS}#/list/filters/0'),
             ('S012', f'{BOARD}#/board/filters/0'),
+            ('S012', f'{CALENDAR}#/calendar/filters/0'),
             ('S012', f'{CARD}#/card/sections/0/fields/2'),
             ('S012', f'{CARD}#/card/sections/0/fields/3'),
             ('S012', f'{LIST}#/list/filters/1'),
@@ -610,12 +622,13 @@ CASES = [
     (
         'S017',
         # the users are searched by their username only, and shown by their names: the pickers
-        # of the assignee (the filters of a list and of the board, a form, the card) and of the
-        # watchers (a form, the card)
+        # of the assignee (the filters of a list, of the board and of the calendar, a form, the
+        # card) and of the watchers (a form, the card)
         {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=['username', 'last_name'])},
         [
             ('S017', f'{DRAFTS}#/list/filters/0'),
             ('S017', f'{BOARD}#/board/filters/0'),
+            ('S017', f'{CALENDAR}#/calendar/filters/0'),
             ('S017', f'{CARD}#/card/sections/0/fields/2'),
             ('S017', f'{CARD}#/card/sections/0/fields/3'),
             ('S017', f'{LIST}#/list/filters/1'),
@@ -725,11 +738,12 @@ CASES = [
     ),
     (
         'S023',
-        # the days of a text, the end of a choice, a tone by a text
+        # the days of a text, the end of a choice, a tone by a text (and the time of the add of
+        # a text: S042)
         {CALENDAR: lambda d: d['calendar'].update(field='title', end='priority',
                                                   tone={'field': 'title', 'tone': 'danger'})},
         [('S023', f'{CALENDAR}#/calendar/field'), ('S023', f'{CALENDAR}#/calendar/end'),
-         ('S023', f'{CALENDAR}#/calendar/tone/field')],
+         ('S023', f'{CALENDAR}#/calendar/tone/field'), ('S042', f'{CALENDAR}#/calendar/add/time')],
     ),
     (
         'S024',
@@ -992,7 +1006,7 @@ CASES = [
         # the list and of the board, the filters and the report of the drafts
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')]},
         [('S040', f'{DRAFTS}#/list/filters'), ('S040', f'{DRAFTS}#/list/filter'),
-         ('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+         ('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters')],
     ),
     (
         'S040',
@@ -1001,7 +1015,7 @@ CASES = [
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
          PRODUCT: lambda d: [d['navigation'].pop(1)],
          DRAFTS: lambda d: d['list'].pop('filters')},
-        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters')],
     ),
     (
         'S040',
@@ -1010,7 +1024,7 @@ CASES = [
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
          PRODUCT: lambda d: d.pop('navigation'),
          DRAFTS: lambda d: [d.update(nav=False), d['list'].pop('filters')]},
-        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters')],
     ),
     (
         'S040',
@@ -1019,7 +1033,7 @@ CASES = [
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
          PRODUCT: lambda d: [d.pop('navigation'), d.pop('scenarios')],
          DRAFTS: lambda d: [d.update(route='/drafts/:kind'), d['list'].pop('filters')]},
-        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters')],
     ),
     (
         'S040',
@@ -1027,7 +1041,7 @@ CASES = [
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
          PRODUCT: lambda d: d.pop('navigation'),
          DRAFTS: lambda d: d['list'].pop('filters')},
-        [('S040', f'{DRAFTS}#/list/filter'), ('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+        [('S040', f'{DRAFTS}#/list/filter'), ('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters')],
     ),
     (
         'S040',
@@ -1035,7 +1049,7 @@ CASES = [
         # (S030: a screen with `nav: false` is no entry of the navigation)
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
          DRAFTS: lambda d: [d.update(nav=False), d['list'].pop('filters')]},
-        [('S040', f'{DRAFTS}#/list/filter'), ('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters'),
+        [('S040', f'{DRAFTS}#/list/filter'), ('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters'),
          ('S030', f'{PRODUCT}#/navigation/1/items/1/screen')],
     ),
     (
@@ -1066,10 +1080,35 @@ CASES = [
     ),
     (
         'S041',
-        # no S041 for a date field: the day is all of it
+        # no S041 for a date field: the day is all of it (without the time of a date-time)
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['fields']['due'].update(format='date'),
          PRODUCT: lambda d: [field(task(d), 'due').update(type='date'), no_calendar_scenario(d)],
-         CALENDAR: lambda d: d['calendar']['add'].update(fields=['title'])},
+         CALENDAR: lambda d: [d['calendar']['add'].update(fields=['title']), d['calendar']['add'].pop('time')]},
+        [],
+    ),
+    (
+        'S042',
+        # a duration of the add of a calendar without an end
+        {CALENDAR: lambda d: d['calendar']['add'].update(duration=30)},
+        [('S042', f'{CALENDAR}#/calendar/add/duration')],
+    ),
+    (
+        'S042',
+        # a duration whose end the form of the add leaves out
+        {**WITH_END, CALENDAR: lambda d: [d['calendar'].update(end='ends'), d['calendar']['add'].update(duration=30)]},
+        [('S042', f'{CALENDAR}#/calendar/add/duration')],
+    ),
+    (
+        'S043',
+        # the end of an item shown empty in the form of the add: the user fills it each time
+        {**WITH_END, CALENDAR: lambda d: [d['calendar'].update(end='ends'), d['calendar']['add'].update(fields=['title', 'due', 'ends'])]},
+        [('S043', f'{CALENDAR}#/calendar/add')],
+    ),
+    (
+        'S043',
+        # no S043: the end starts the duration after the start
+        {**WITH_END, CALENDAR: lambda d: [d['calendar'].update(end='ends'),
+                                          d['calendar']['add'].update(fields=['title', 'due', 'ends'], duration=30)]},
         [],
     ),
     (

@@ -190,6 +190,7 @@ export const ru: Messages = {
   'state.retry': 'Повторить',
   'toast.dismiss': 'Закрыть',
   'toast.region': 'Уведомления',
+  'transit.confirm': 'Статус станет: {status}.',
   'transit.done': 'Статус теперь: {status}.',
   'transit.fill': 'Заполните значения перехода.',
   'transit.group': 'Переходы',

@@ -88,6 +88,7 @@ export function TaskCardScreen() {
         <TransitBar
           path={TASK.path}
           id={id}
+          transits={TASK.transits}
           onDone={(done) => {
             if (done === null) void navigate(routeTo('task-list'));
           }}

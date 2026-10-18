@@ -524,6 +524,11 @@ def list_map(screen: Screen, const: Raw, spec: dict, opened: list[Attr]) -> Jsx:
     return component(screen, 'ResourceMap', 'ResourceMapProps', '@/bazis/ui/map', attrs + opened, part='map')
 
 
+def transitions(product: Product, entity_id: str) -> list[dict]:
+    """The transitions of the workflow of the entity, in their order."""
+    return product.entities[entity_id].get('workflow', {}).get('transitions', [])
+
+
 def has_display(product: Product, entity_id: str) -> bool:
     """Whether the entity says how some of its values are shown (`display` of its fields)."""
     return any('display' in it for it in product.entities[entity_id]['fields'])
@@ -701,9 +706,14 @@ def card_tab(screen: Screen, index: int, tab: dict, related: dict, history) -> O
 
 
 def transit_bar(screen: Screen, const: Raw) -> Jsx:
-    """The transitions of the card; once the user can no longer view the item, its list is opened."""
+    """
+    The transitions of the card, in the order of the workflow; once the user can no longer
+    view the item, its list is opened.
+    """
     screen.code.use('@/bazis/ui/transit-bar', 'TransitBar')
     attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('id', Raw('id'))]
+    if transitions(screen.product, screen.data['entity']):
+        attrs.append(Attr('transits', Raw(f'{const.code}.transits')))
     parent = screen.product.parent(screen.data)
     if parent is not None:
         back = If(Raw('done === null'), screen.go(screen.route(parent['id'])))
@@ -867,7 +877,10 @@ def tile(screen: Screen, index: int, spec: dict) -> Obj:
 
 
 def chart(screen: Screen, index: int, spec: dict) -> Jsx:
-    """A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`)."""
+    """
+    A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`),
+    shown to the users who may view them (`Viewable`, as the tiles and the last items).
+    """
     const = screen.entity(spec['entity'])
     attrs = [Attr('id', spec['id']), Attr('path', Raw(f'{const.code}.path'))]
     by_status = spec['by'] == 'status' and 'workflow' in screen.product.entities[spec['entity']]
@@ -880,7 +893,8 @@ def chart(screen: Screen, index: int, spec: dict) -> Jsx:
         attrs.append(Attr('last', Raw(str(spec['last']))))
     name = 'StatusChart' if by_status else 'TimeChart'
     screen.code.use('@/bazis/ui/charts', name)
-    return Jsx(name, attrs)
+    screen.code.use('@/bazis/ui/dashboard', 'Viewable')
+    return Jsx('Viewable', [Attr('path', Raw(f'{const.code}.path'))], [Jsx(name, attrs)])
 
 
 def recent_list(screen: Screen, index: int, spec: dict) -> Obj:
@@ -924,6 +938,8 @@ def render_board(product: Product, data: dict) -> str:
         attrs.append(Attr('filters', Arr([list_filter(screen, entity, const, it) for it in spec['filters']])))
     if spec.get('move'):
         attrs.append(Attr('move'))
+        if transitions(product, entity_id):
+            attrs.append(Attr('transits', Raw(f'{const.code}.transits')))
     if 'open' in spec:
         attrs.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
     attrs += entity_attrs(product, entity_id, const, label=False)
@@ -938,16 +954,19 @@ def render_board(product: Product, data: dict) -> str:
 
 def render_calendar(product: Product, data: dict) -> str:
     """
-    A calendar: the items on their days; its "add" opens the create form starting with the
-    selected day in the field of the calendar.
+    A calendar: the items on their days, narrowed by the filters of the user; its "add" opens
+    the create form starting with the selected day in the field of the calendar.
     """
     screen = Screen(product, data)
     spec = data['calendar']
     entity_id = data['entity']
+    entity = product.entities[entity_id]
     const = screen.entity(entity_id)
     attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('entity', entity_id), Attr('field', spec['field'])]
     if 'end' in spec:
         attrs.append(Attr('end', spec['end']))
+    if 'filters' in spec:
+        attrs.append(Attr('filters', Arr([list_filter(screen, entity, const, it) for it in spec['filters']])))
     if 'label' in spec:
         attrs.append(Attr('label', Arr([Str(it) for it in spec['label']])))
     if 'tone' in spec:
@@ -966,20 +985,25 @@ def render_calendar(product: Product, data: dict) -> str:
 
 def calendar_add(screen: Screen, const: Raw, spec: dict) -> Obj:
     """
-    The add of a calendar: its create form opened with the value of the field of the calendar
-    on the selected day (`onAdd`: the day of a date, its start of a date-time), which the user
-    may change.
+    The add of a calendar: its create form opened with the values that the calendar gives
+    (`onAdd`: the field of the calendar on the selected day at the `time` of the add, its end
+    `duration` later, the values of the filters of the user by the fields of the form), which
+    the user may change.
     """
     add = spec['add']
     state = screen.form_state('CreateFormAction', add['id'])
     label = screen.text('calendar', 'add', 'label') or screen.package_text('form.create')
     screen.form_action('CreateFormAction', state, const, add, label)
     screen.code.use('lucide-react', icon_name(CREATE_ICON))
-    open_with = Call(f'{state.code}.onOpenWith', [Obj([(spec['field'], Raw('value'))])])
-    return Obj([
-        ('id', Str(add['id'])), ('label', label), ('icon', Raw(icon_name(CREATE_ICON))),
-        ('onAdd', Arrow(['value'], Block([open_with]))),
-    ])
+    props = [('id', Str(add['id'])), ('label', label), ('icon', Raw(icon_name(CREATE_ICON)))]
+    if 'time' in add:
+        props.append(('time', Str(add['time'])))
+    if 'duration' in add:
+        props.append(('duration', Raw(str(add['duration']))))
+    if 'filters' in spec and 'fields' in add:
+        props.append(('fields', Arr([Str(it) for it in add['fields']])))
+    props.append(('onAdd', Raw(f'{state.code}.onOpenWith')))
+    return Obj(props)
 
 
 def render_form(product: Product, data: dict) -> str:
@@ -1020,6 +1044,10 @@ def render_entities(product: Product) -> str:
         display = [(it['id'], display_literal(it['display'])) for it in entity['fields'] if 'display' in it]
         if display:
             props.append(('display', Obj(display)))
+        if steps := transitions(product, entity_id):
+            props.append(('transits', Arr([
+                Obj([('id', Str(it['id'])), *([('confirm', Raw('true'))] if it.get('confirm') else [])]) for it in steps
+            ])))
         if entity_id in product.icons:
             code.use('lucide-react', icon_name(product.icons[entity_id]))
             props.append(('Icon', Raw(icon_name(product.icons[entity_id]))))
@@ -1031,7 +1059,8 @@ def render_entities(product: Product) -> str:
         doc_comment(
             'The entities of the product by their id: the JSON:API type of the resource, its route set',
             '(`ROUTES` of the contract), the key of the name of the entity in the dictionaries (`t(title)`),',
-            'the fields that label an item, how the values of fields are shown, and the icon of the entity.',
+            'the fields that label an item, how the values of fields are shown, the transits of its workflow',
+            'in their order (those confirmed before they run), and the icon of the entity.',
         ) + '\n' + printed(Const('ENTITIES', value, exported=True).doc()),
     )
 

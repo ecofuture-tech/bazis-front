@@ -32,7 +32,6 @@ import type { FormField, ListPath } from '@/bazis/react';
 import { useBesideCard, useBesideList, useWide } from '@/bazis/ui/app-shell';
 import { EmptyState } from '@/bazis/ui/empty-state';
 import {
-  choiceOptions,
   fieldValue,
   isNumeric,
   permitted,
@@ -53,7 +52,7 @@ import { cn } from '@/lib/utils';
 import { BulkBar, type BulkAction } from './bulk.js';
 import { CardsSkeleton, CardsView } from './cards.js';
 import { ViewMenu } from './columns.js';
-import { EVERY, FilterBar, type ListFilter } from './filters.js';
+import { EVERY, FilterBar, listFilters, type ListFilter } from './filters.js';
 import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps } from './rows.js';
 
 /**
@@ -417,12 +416,7 @@ export function ResourceList({
   const meta = document?.meta;
   const count = document ? pagination(document)?.count : undefined;
   const toolbar = actions.filter((action) => document && (!action.permission || permitted(meta, action.permission)));
-  // a field with choices is filtered by a select of its choices, by their labels
-  const filterList = filters.map((it): ListFilter => {
-    const filter = typeof it === 'string' ? { field: it } : it;
-    const options = filter.options ?? choiceOptions(fields.fields.get(filter.field));
-    return options ? { ...filter, options } : filter;
-  });
+  const filterList = listFilters(filters, fields);
   // the rows wait for the titles of their columns
   const loaded = queryState(list, rows.length === 0);
   const state = loaded === 'loaded' && !fields.ready ? 'loading' : loaded;

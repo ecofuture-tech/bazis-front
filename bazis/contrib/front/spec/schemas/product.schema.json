@@ -220,6 +220,7 @@
           "items": {"$ref": "#/$defs/status_id"}
         },
         "transitions": {
+          "description": "The transits in the order the frontend shows them: the first one the main button of a card.",
           "type": "array",
           "items": {
             "type": "object",
@@ -229,6 +230,7 @@
               "id": {"$ref": "#/$defs/status_id"},
               "from": {"$ref": "#/$defs/status_id"},
               "to": {"$ref": "#/$defs/status_id"},
+              "confirm": {"description": "The user confirms the transit in a dialog before it runs (`action:confirm-<id>`): one that cannot be undone, such as a payment or a cancellation. A transit with a payload is confirmed by the dialog of its payload.", "type": "boolean"},
               "payload": {
                 "description": "The transit requires a payload with these fields.",
                 "type": "object",

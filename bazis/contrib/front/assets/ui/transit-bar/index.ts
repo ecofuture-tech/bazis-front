@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { payloadErrors, useRunTransit } from './run-transit.js';
-export type { TransitRun } from './run-transit.js';
+export { inDeclaredOrder, payloadErrors, useRunTransit } from './run-transit.js';
+export type { DeclaredTransit, TransitRun } from './run-transit.js';
 export { TransitBar } from './transit-bar.js';
 export type { TransitBarProps } from './transit-bar.js';

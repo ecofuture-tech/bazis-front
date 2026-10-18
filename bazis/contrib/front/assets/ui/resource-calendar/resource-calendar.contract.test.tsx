@@ -19,9 +19,11 @@
 // of the field), a day `day:<YYYY-MM-DD>` with the number of all its items in `data-count`,
 // its first items `row:<id>` with their cells `cell:<field>` (after the time of a date-time),
 // the list of the selected day with all of them (only there at the width of a phone: no
-// hidden copy of a row), an item opened by a click, and the action that creates an item
-// given the value of the field on the selected day (the day of a date, its start of a
-// date-time). Keep it passing when the component is changed.
+// hidden copy of a row), an item opened by a click, the filters of the user (as those of a
+// list), and the action that creates an item given the values its form starts with (the
+// field on the selected day: the day of a date, the moment of the time of the add on it of a
+// date-time; the end its duration later; the related item of a filter of the user). Keep it
+// passing when the component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -214,10 +216,10 @@ describe('ResourceCalendar', () => {
       new Backend().on('GET', `${ITEMS}schema_list/`, schema).on('GET', ITEMS, listDocument([], { meta: { for_create: true } })),
     );
     fireEvent.click(await screen.findByTestId('action:add'));
-    expect(onAdd).toHaveBeenLastCalledWith('2026-10-15');
+    expect(onAdd).toHaveBeenLastCalledWith({ due: '2026-10-15' });
     fireEvent.click(within(screen.getByTestId('day:2026-10-20')).getAllByRole('button')[0] as HTMLElement);
     fireEvent.click(screen.getByTestId('action:add'));
-    expect(onAdd).toHaveBeenLastCalledWith('2026-10-20');
+    expect(onAdd).toHaveBeenLastCalledWith({ due: '2026-10-20' });
   });
 
   it('gives the action of a date-time the start of the selected day in the time zone of the browser', async () => {
@@ -228,7 +230,55 @@ describe('ResourceCalendar', () => {
     );
     fireEvent.click(await screen.findByTestId('action:add'));
     // a moment that the form shows as the local midnight of the day, its time for the user to set
-    expect(onAdd).toHaveBeenLastCalledWith(new Date(2026, 9, 15).toISOString());
+    expect(onAdd).toHaveBeenLastCalledWith({ at: new Date(2026, 9, 15).toISOString() });
+  });
+
+  it('gives the action of a date-time the time of the add on the selected day, and its end the duration later', async () => {
+    const onAdd = vi.fn();
+    renderWithBazis(
+      <ResourceCalendar
+        path={ITEMS as never}
+        entity="item"
+        field="at"
+        end="until"
+        add={{ id: 'add', label: 'Add', time: '09:30', duration: 45, onAdd }}
+        now={now}
+      />,
+      new Backend().on('GET', `${ITEMS}schema_list/`, schema).on('GET', ITEMS, listDocument([], { meta: { for_create: true } })),
+    );
+    fireEvent.click(await screen.findByTestId('action:add'));
+    expect(onAdd).toHaveBeenLastCalledWith({
+      at: new Date(2026, 9, 15, 9, 30).toISOString(),
+      until: new Date(2026, 9, 15, 10, 15).toISOString(),
+    });
+  });
+
+  it('narrows the items by the filters of the user, and gives the add the related item filtered by', async () => {
+    const onAdd = vi.fn();
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on('GET', `${ITEMS}route_filter_fields/`, { fields: [{ name: 'owner', py_type: ITEMS }, { name: 'title', py_type: 'string' }] })
+      .on('GET', ITEMS, listDocument([item('a', { at: new Date(2026, 9, 15, 10).toISOString() })], { meta: { for_create: true } }));
+    renderWithBazis(
+      <ResourceCalendar
+        path={ITEMS as never}
+        entity="item"
+        field="at"
+        filters={['owner', 'title']}
+        add={{ id: 'add', label: 'Add', fields: ['owner', 'at'], onAdd }}
+        now={now}
+      />,
+      server,
+    );
+    const title = await screen.findByTestId<HTMLInputElement>('field:title');
+    expect(screen.getByTestId('field:owner')).toBeTruthy();
+    fireEvent.change(title, { target: { value: 'plan' } });
+    await waitFor(() => {
+      expect(lists(server).some((it) => it.includes('title__$search=plan') && it.includes('at__gte='))).toBe(true);
+    });
+    // a text is no value of a new item; the related item of a filter is, for a field of the form
+    fireEvent.click(await screen.findByTestId('action:add'));
+    expect(onAdd).toHaveBeenLastCalledWith({ at: new Date(2026, 9, 15).toISOString() });
   });
 
   it('marks an error and a forbidden list', async () => {

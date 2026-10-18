@@ -162,6 +162,36 @@ def test_a_link_of_the_navigation_is_labelled_by_its_label_else_by_the_title_of_
     assert "label: t('screens.task-list.title')," in navigation
 
 
+def test_the_transits_in_their_order_and_the_values_of_the_add_of_a_calendar(tmp_path):
+    """
+    The transits of a workflow in the order of the specs, those confirmed marked (the
+    entities give them to the transits of a card and the moves of a board); the add of a
+    calendar with its time, the duration to its end and the fields that the filters of the
+    user start.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    path = tmp_path / 'spec' / 'product.yaml'
+    data = yaml.safe_load(path.read_text(encoding='utf-8'))
+    task = data['entities'][0]
+    task['fields'].append({'id': 'ends', 'type': 'datetime'})
+    task['workflow']['transitions'][0]['confirm'] = True
+    task['workflow']['transitions'].reverse()
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding='utf-8')
+    edit_screen(tmp_path, 'task-calendar', lambda data: [
+        data['calendar'].update(end='ends'), data['calendar']['add'].update(fields=['title', 'due', 'ends'], duration=45),
+    ])
+    files = rendered(tmp_path)
+    assert "transits: [{ id: 'finish' }, { id: 'start', confirm: true }]," in files[f'{screens.GENERATED_DIR}/entities.ts']
+    assert 'transits={TASK.transits}' in files[CARD]
+    assert 'transits={TASK.transits}' in files[f'{screens.GENERATED_DIR}/task-board.tsx']
+    calendar = files[f'{screens.GENERATED_DIR}/task-calendar.tsx']
+    assert "        filters={['assignee', 'priority']}\n" in calendar
+    assert (
+        "          time: '09:00',\n          duration: 45,\n          fields: ['title', 'due', 'ends'],\n"
+        '          onAdd: addTaskForm.onOpenWith,\n'
+    ) in calendar
+
+
 def test_the_confirmation_of_a_deletion_is_titled_by_its_title(tmp_path):
     """
     The confirmation of a deletion is titled by `title` of the action, a question, and its
@@ -239,7 +269,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "    action: 'escalate',\n    target: 'item',\n    item: id,\n    confirm: false,\n  });\n" in summary
     assert '              escalateAction.action,\n' in summary and '      {escalateAction.dialog}\n' in summary
     # no tabs: the transits under the heading, the related list and the history under the sections
-    assert '            children: <TransitBar path={TASK.path} id={id} />,\n' in summary
+    assert '            children: <TransitBar path={TASK.path} id={id} transits={TASK.transits} />,\n' in summary
     assert (
         '            after: (item) => (\n              <>\n                <RelatedList\n'
     ) in summary
@@ -273,11 +303,10 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "requires={{ path: TASK.path, can: 'add' }}" in flow
     assert "onSaved={() => void navigate(routeTo('task-flow'))}" in flow
 
-    # the add of a calendar opens its form starting with the value of its field on the selected day
+    # the add of a calendar opens its form starting with the values that the calendar gives
+    # (its field on the selected day)
     schedule = files[f'{screens.GENERATED_DIR}/user-schedule.tsx']
-    assert (
-        '              onAdd: (value) => {\n                addForm.onOpenWith({ dt_first_login: value });\n'
-    ) in schedule
+    assert '              onAdd: addForm.onOpenWith,\n' in schedule
     assert "            tone: { field: 'urgent', tone: 'danger' },\n" in schedule
     assert '      <CreateFormAction\n        {...addForm}\n' in schedule
 

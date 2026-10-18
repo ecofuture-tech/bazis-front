@@ -28,6 +28,7 @@ export function TaskCalendarScreen() {
         path={TASK.path}
         entity="task"
         field="due"
+        filters={['assignee', 'priority']}
         label={['title']}
         views={['month', 'week']}
         onOpen={(item) => void navigate(routeTo('task-card', item))}
@@ -35,9 +36,9 @@ export function TaskCalendarScreen() {
           id: 'add-task',
           label: t('screens.task-calendar.calendar.add.label'),
           icon: PlusIcon,
-          onAdd: (value) => {
-            addTaskForm.onOpenWith({ due: value });
-          },
+          time: '09:00',
+          fields: ['title', 'due'],
+          onAdd: addTaskForm.onOpenWith,
         }}
       />
       <CreateFormAction

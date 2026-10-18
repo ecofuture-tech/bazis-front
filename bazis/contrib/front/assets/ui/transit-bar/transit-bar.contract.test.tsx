@@ -13,9 +13,10 @@
 // limitations under the License.
 
 // The contract of the transits of an item: `transit:<id>` of each transit the user may run,
-// disabled when a validator restricts it, the dialog of a typed payload (`field:<name>`,
-// `error:<name>`, `action:submit`), `state:loading` and `state:error`. Keep it passing when
-// the component is changed.
+// in the order of the specs (the first the main button), disabled when a validator restricts
+// it, the dialog of a typed payload (`field:<name>`, `error:<name>`, `action:submit`), that of
+// the confirmation of a transit the specs confirm (`action:confirm-<id>`), `state:loading`
+// and `state:error`. Keep it passing when the component is changed.
 
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -77,6 +78,38 @@ describe('TransitBar', () => {
     const onDone = vi.fn();
     renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} onDone={onDone} />, server);
     fireEvent.click(await screen.findByTestId('transit:start'));
+    await waitFor(() => {
+      expect(onDone).toHaveBeenCalledOnce();
+    });
+    expect(server.calls.find((call) => call.method === 'POST')?.body).toEqual({ transit: 'start' });
+  });
+
+  it('shows the transits in the order of the specs, the first the main button, the others after them', async () => {
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} transits={[{ id: 'finish' }, { id: 'start' }]} />, backend());
+    await screen.findByTestId('transit:start');
+    const ids = screen.getAllByRole('button').map((it) => it.getAttribute('data-bz'));
+    expect(ids).toEqual(['transit:finish', 'transit:start', 'transit:cancel']);
+    // the main button is filled, the others outlined
+    expect(screen.getByTestId('transit:finish').getAttribute('data-variant')).toBe('default');
+    expect(screen.getByTestId('transit:start').getAttribute('data-variant')).toBe('outline');
+  });
+
+  it('asks to confirm a transit that the specs confirm, and runs it once confirmed', async () => {
+    const server = backend().on('POST', `${ITEM}transit/`, { data: resource(ITEM_ID) });
+    const onDone = vi.fn();
+    renderWithBazis(
+      <TransitBar path={ITEMS as never} id={ITEM_ID} transits={[{ id: 'start', confirm: true }]} onDone={onDone} />,
+      server,
+    );
+    fireEvent.click(await screen.findByTestId('transit:start'));
+    // cancelled: nothing runs
+    fireEvent.click(await screen.findByTestId('action:cancel'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('action:confirm-start')).toBeNull();
+    });
+    expect(server.calls.some((call) => call.method === 'POST')).toBe(false);
+    fireEvent.click(screen.getByTestId('transit:start'));
+    fireEvent.click(await screen.findByTestId('action:confirm-start'));
     await waitFor(() => {
       expect(onDone).toHaveBeenCalledOnce();
     });

@@ -124,6 +124,9 @@ const MAX_LANGUAGES = 20;
 /** How long `confirm` waits for the dialog of a confirmation before it assumes there is none, ms. */
 const CONFIRMATION_WAIT = 2_000;
 
+/** The button of the dialog that confirms a transit that the specs confirm (`confirm` of the workflow). */
+const CONFIRM_TRANSIT = '[role="dialog"] [data-bz^="action:confirm-"]';
+
 /**
  * The application in a page, at a screen of the specs. The steps act on the current screen
  * (set by `open` and `expectScreen`) and on the open form, the `<form>` with
@@ -196,9 +199,10 @@ export class App<P extends Product = Product> {
 
   /**
    * Moves the item of the board of the current screen that `openItem` would open to the
-   * column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it
-   * is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or
-   * another error shown), with the error.
+   * column of a status, by its menu (`action:move`, then `move:<status>`), confirmed in its
+   * dialog when the specs confirm the transit, and waits until it is in the column
+   * `column:<status>`; fails as soon as the move is refused (`error:move`, or another error
+   * shown), with the error.
    */
   async move({ where, to }: { where: Values; to: string }): Promise<void> {
     const row = await this.row(where);
@@ -208,6 +212,7 @@ export class App<P extends Product = Product> {
     await this.page.locator(bz('move', to)).click();
     const moved = this.screen().locator(`${bz('column', to)} [data-bz=${JSON.stringify(mark)}]`);
     const failed = this.page.locator(NEW_FAILED);
+    await this.confirmTransit(async () => (await moved.count()) > 0 || (await failed.count()) > 0);
     await expect
       .poll(async () => (await moved.count()) > 0 || (await failed.count()) > 0, { message: `the item is moved to ${to} or shows an error` })
       .toBe(true);
@@ -392,18 +397,21 @@ export class App<P extends Product = Product> {
 
   /**
    * Runs a transit of the item of the current screen, `transit:<id>`, with the values of
-   * its payload in its dialog, and waits until it is done (the transit is no longer
-   * offered) or shows an error.
+   * its payload in its dialog, or confirmed in its dialog when the specs confirm it, and
+   * waits until it is done (the transit is no longer offered) or shows an error.
    */
   async transit(id: string, payload?: Values): Promise<void> {
     const button = this.screen().locator(bz('transit', id));
+    const failed = this.page.locator(NEW_FAILED);
     await this.seen(this.page.locator('body'));
     await button.click();
     if (payload !== undefined) {
       await this.fill(payload);
       await this.submit();
+    } else {
+      await this.confirmTransit(async () => (await button.count()) === 0 || (await failed.count()) > 0);
     }
-    await this.until(button, this.page.locator(NEW_FAILED), `the transit ${id} is done or shows an error`);
+    await this.until(button, failed, `the transit ${id} is done or shows an error`);
   }
 
   /**
@@ -674,6 +682,18 @@ export class App<P extends Product = Product> {
     await scope.locator(FAILED).evaluateAll((elements, attribute) => {
       for (const element of elements) element.setAttribute(attribute, '');
     }, SEEN);
+  }
+
+  /**
+   * Confirms the transit just run in its dialog once it shows (`CONFIRM_TRANSIT`), unless it
+   * is `done` first: the transits that the specs do not confirm run at once.
+   */
+  private async confirmTransit(done: () => Promise<boolean>): Promise<void> {
+    const confirm = this.page.locator(CONFIRM_TRANSIT);
+    await expect
+      .poll(async () => (await confirm.count()) > 0 || (await done()), { message: 'the transit is confirmed, done or shows an error' })
+      .toBe(true);
+    if ((await confirm.count()) > 0) await confirm.click();
   }
 
   /** Waits until `gone` is no longer on the page or `failed` is. */

@@ -663,6 +663,33 @@ test('transit fills its payload and waits until it is done', async ({ page }) =>
   await app.expectStatus('done');
 });
 
+test('transit confirms a transit that the specs confirm, and runs one that they do not at once', async ({ page }) => {
+  await show(page, '/tasks/1',
+    html(
+      `<section data-bz="screen:task-card"><article data-bz="state:loaded">
+        <span data-bz="status:issued">Issued</span>
+        <button id="pay" data-bz="transit:pay">Pay</button>
+        <button id="remind" data-bz="transit:remind">Remind</button></article></section>`,
+      `document.getElementById('pay').addEventListener('click', () => {
+         document.body.insertAdjacentHTML('beforeend', '<div role="dialog"><button id="confirm" data-bz="action:confirm-pay">Pay</button></div>');
+         document.getElementById('confirm').addEventListener('click', () => {
+           document.querySelector('[role=dialog]').remove();
+           setTimeout(() => { document.getElementById('pay').remove(); }, 200);
+         });
+       });
+       document.getElementById('remind').addEventListener('click', () => {
+         setTimeout(() => { document.getElementById('remind').remove(); }, 200);
+       });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-card');
+  await app.transit('pay');
+  expect(await page.locator(bz('transit', 'pay')).count()).toBe(0);
+  await app.transit('remind');
+  expect(await page.locator(bz('transit', 'remind')).count()).toBe(0);
+});
+
 test('openItem opens a row of the last items of a dashboard', async ({ page }) => {
   const recent = (id: string) => `<div data-bz="recent:${id}"><table><tbody>
     <tr data-bz="row:${id}" onclick="document.body.dataset.opened = '${id}'"><td data-bz="cell:title">Plan</td></tr>

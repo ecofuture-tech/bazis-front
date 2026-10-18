@@ -1,5 +1,6 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# The tasks on the days they are due, a task added on the day selected at the time filled.
+# The tasks on the days they are due, those of an assignee or a priority; a task added on the
+# day selected at 09:00, the time the user may change.
 spec: bazis-screen/1
 id: task-calendar
 title: {en: Calendar, ru: Календарь}
@@ -12,6 +13,7 @@ calendar:
   field: due
   label: [title]
   views: [month, week]
+  filters: [assignee, priority]
   open: task-card
-  add: {id: add-task, fields: [title, due], label: {en: New task, ru: Новая задача}}
+  add: {id: add-task, fields: [title, due], time: '09:00', label: {en: New task, ru: Новая задача}}
 states: [loading, empty, error, forbidden]

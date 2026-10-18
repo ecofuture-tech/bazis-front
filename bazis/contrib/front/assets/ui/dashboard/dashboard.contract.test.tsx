@@ -16,7 +16,8 @@
 // `tile:<id>`, the links to the other screens `link:<screen>` (those of the navigation of
 // `AppShell` by default, once the backend allows what they require), the charts it is given, the last
 // items `recent:<id>` (a row `row:<id>` with a cell `cell:<field>` each, sorted and limited,
-// opened by a click, with the states of its list), a state of its own (`state:loaded`, a
+// opened by a click, with the states of its list), the tiles and the last items of a route set
+// that the backend does not let the user view not shown (`Viewable`), a state of its own (`state:loaded`, a
 // dashboard of links only), what it is given before its parts, and its children in its screen
 // (where a form page takes the place of its parts). Keep it passing when the component is changed.
 
@@ -24,12 +25,15 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AppShell, useScreenPage } from '@/bazis/ui/app-shell';
-import { Dashboard, RecentList } from '@/bazis/ui/dashboard';
+import { Dashboard, RecentList, Viewable } from '@/bazis/ui/dashboard';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 function Icon({ className }: { className?: string }) {
   return <svg data-bz="icon:items" className={className} />;
 }
+
+/** The route set of a chart whose permission the backend has not told yet. */
+const OTHER_CHART = '/api/test/chart/';
 
 const schema = runtimeSchema(
   {
@@ -135,7 +139,46 @@ describe('Dashboard', () => {
     expect(within(screen.getByTestId('screen:home')).getByTestId('in-screen').textContent).toBe('inside');
   });
 
-  it('shows what it is given before its parts, after its hero', () => {
+  it('shows the tiles, the last items and the charts in Viewable only to the users who may view their items', async () => {
+    const others = '/api/test/other/';
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { count: 1 }))
+      .on('GET', `${others}schema_list/`, errors(403), 403)
+      .hold('GET', `${OTHER_CHART}schema_list/`);
+    renderWithBazis(
+      <Dashboard
+        hero={false}
+        tiles={[
+          { id: 'items', path: ITEMS as never, label: 'Items' },
+          { id: 'others', path: others as never, label: 'Others' },
+        ]}
+        recent={[
+          { id: 'items', path: ITEMS as never, label: 'Items', columns: ['title'] },
+          { id: 'others', path: others as never, label: 'Others', columns: ['title'] },
+        ]}
+        charts={
+          <Viewable path={OTHER_CHART as never}>
+            <div data-bz="chart:other" />
+          </Viewable>
+        }
+      />,
+      server,
+    );
+    // until the backend tells, the loading state of the part
+    expect(screen.getAllByTestId('state:loading').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByTestId('tile:items').getAttribute('data-value')).toBe('1');
+    });
+    expect(await within(screen.getByTestId('recent:items')).findByTestId('row:a')).toBeTruthy();
+    expect(screen.queryByTestId('tile:others')).toBeNull();
+    expect(screen.queryByTestId('recent:others')).toBeNull();
+    // the items of a part that the user may not view are never asked for
+    expect(server.requests('GET').filter((it) => it.startsWith(`GET ${others}?`))).toEqual([]);
+    expect(screen.queryByTestId('chart:other')).toBeNull();
+  });
+
+  it('shows what it is given before its parts, after its hero', async () => {
     renderWithBazis(
       <Dashboard hero title="Home" before={<p data-bz="before">Before</p>} tiles={[{ id: 'all', path: ITEMS as never, label: 'All' }]} />,
       new Backend(),
@@ -143,7 +186,7 @@ describe('Dashboard', () => {
     const home = screen.getByTestId('screen:home');
     const before = within(home).getByTestId('before');
     expect(home.querySelector('[data-slot="hero"]')?.compareDocumentPosition(before)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(before.compareDocumentPosition(within(home).getByTestId('tile:all'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(before.compareDocumentPosition(await within(home).findByTestId('tile:all'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 });
 

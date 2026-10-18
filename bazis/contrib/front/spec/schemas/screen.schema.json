@@ -328,6 +328,7 @@
           "properties": {"field": {"$ref": "#/$defs/field"}, "tone": {"$ref": "#/$defs/tone"}}
         },
         "views": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"enum": ["month", "week"]}},
+        "filters": {"description": "Fields that the contract can filter by, read from `route_filter_fields/` of the route set, which its `actions` keep (S040): the items of the user's choice, a relation (the schedule of one doctor) or a choice. The add starts its form with the related item or the choice of a filter of one of its fields.", "$ref": "#/$defs/fields"},
         "open": {"description": "The card screen that an item opens.", "$ref": "#/$defs/id"},
         "add": {
           "description": "The action `id` opens the create form of the entity, its `fields` (all the writable fields when omitted), `field` filled with the day selected (today by default).",
@@ -337,7 +338,9 @@
           "properties": {
             "id": {"$ref": "#/$defs/id"},
             "fields": {"$ref": "#/$defs/fields"},
-            "label": {"description": "The label of its button.", "$ref": "#/$defs/text"}
+            "label": {"description": "The label of its button.", "$ref": "#/$defs/text"},
+            "time": {"description": "The time of the date-time `field` on the selected day, `HH:MM` in the time zone of the browser (the start of the opening hours); the start of the day (00:00) by default (S042).", "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"},
+            "duration": {"description": "The minutes from the date-time `field` to the date-time `end` of a new item, which its form starts with (S042, S043).", "type": "integer", "minimum": 1}
           }
         }
       }

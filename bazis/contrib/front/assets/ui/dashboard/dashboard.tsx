@@ -18,7 +18,9 @@
 // `@/bazis/ui/charts`, an optional asset) and the last items of a route set
 // (`recent:<id>`, a row `row:<id>` with a cell `cell:<field>` each). Its title is the header of
 // a working screen, the hero of a portal (`preset` of the theme): never a path of the API or
-// the name of a resource.
+// the name of a resource. A tile, a chart or the last items of a route set that the backend
+// does not let the user view are not shown to him (`Viewable`): the money of a clinic on the
+// home of its receptionist, not on that of its doctor.
 
 import { ChevronRight } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
@@ -27,11 +29,12 @@ import { Link } from 'react-router';
 import type { Filter } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
-import type { ListPath } from '@/bazis/react';
+import { useCan, type ListPath } from '@/bazis/react';
 import { Allowed, Screen, useNavItems, type NavItem } from '@/bazis/ui/app-shell';
 import { ItemValue, useAnyList, useListFields, type FieldDisplay } from '@/bazis/ui/resource';
 import { StatCard, type StatCardProps } from '@/bazis/ui/stat-card';
 import { queryState, SkeletonLines, StatePanel } from '@/bazis/ui/state-panel';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 const CARD = 'rounded-xl border bg-card text-card-foreground shadow-xs';
@@ -55,6 +58,20 @@ export interface RecentListProps {
   /** Opens an item (`open` of the specs): a click on its row. */
   onOpen?: ((id: string) => void) | undefined;
   className?: string;
+}
+
+// the hook with the plain path of a part: the screens pass the typed paths of their contract
+const useAnyCan = useCan as unknown as (path: string, action: 'view') => boolean | undefined;
+
+/**
+ * A part of a dashboard once the backend lets the user view the items of its route set
+ * (`useCan(path, 'view')`): nothing when it does not, its loading state until it tells.
+ */
+export function Viewable({ path, children }: { path: ListPath; children: ReactNode }): ReactNode {
+  const allowed = useAnyCan(path, 'view');
+  if (allowed === false) return null;
+  if (allowed === undefined) return <StatePanel state="loading" skeleton={<Skeleton className="h-28 w-full rounded-xl" />} />;
+  return children;
 }
 
 /** The last items of a route set: a row each, its first field as its title. */
@@ -173,7 +190,7 @@ export interface DashboardProps {
    * the dashboard itself, each once the backend allows what it `requires`.
    */
   links?: readonly NavItem[];
-  /** The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`. */
+  /** The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`. */
   charts?: ReactNode;
   recent?: readonly RecentListProps[];
   /**
@@ -223,7 +240,9 @@ export function Dashboard({
         {tiles.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {tiles.map((it) => (
-              <StatCard key={it.id} {...it} />
+              <Viewable key={it.id} path={it.path}>
+                <StatCard {...it} />
+              </Viewable>
             ))}
           </div>
         )}
@@ -247,7 +266,9 @@ export function Dashboard({
         {recent.length > 0 && (
           <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4', recent.length > 1 && 'xl:grid-cols-2')}>
             {recent.map((it) => (
-              <RecentList key={it.id} {...it} />
+              <Viewable key={it.id} path={it.path}>
+                <RecentList {...it} />
+              </Viewable>
             ))}
           </div>
         )}

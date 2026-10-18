@@ -13,9 +13,11 @@
 // limitations under the License.
 
 // The run of a transit of an item, shared by the transit bar and the moves of a board: a
-// transit without a payload runs at once, one whose action takes a typed payload opens a
-// dialog with its fields (`FieldInput`, `field:<name>`, `error:<name>`, `action:submit`). A
-// toast tells the status the item moved to.
+// transit without a payload runs at once, but one that the specs `confirm` (a payment, a
+// cancellation), which a dialog asks for first (`action:confirm-<transit>`); one whose action
+// takes a typed payload opens a dialog with its fields (`FieldInput`, `field:<name>`,
+// `error:<name>`, `action:submit`), which is its confirmation. A toast tells the status the
+// item moved to.
 
 import { useState, type ReactNode } from 'react';
 
@@ -66,7 +68,26 @@ function defaults(transit: Transit): Record<string, unknown> {
   return values;
 }
 
-/** The run of the transits of the items of a route set: `start` one, the `dialog` of its payload to render. */
+/**
+ * A transit of the workflow of the specs (`workflow.transitions` of the entity, `transits` of
+ * the generated entities): their order is that of the transits shown, the first the main
+ * one; one with `confirm` is asked for before it runs.
+ */
+export interface DeclaredTransit {
+  id: string;
+  confirm?: boolean;
+}
+
+/** The transits of the backend in the order of the specs, those that the specs do not declare after them. */
+export function inDeclaredOrder<T extends { id: string }>(transits: readonly T[], declared: readonly DeclaredTransit[]): T[] {
+  const order = (id: string) => {
+    const index = declared.findIndex((it) => it.id === id);
+    return index === -1 ? declared.length : index;
+  };
+  return [...transits].sort((a, b) => order(a.id) - order(b.id));
+}
+
+/** The run of the transits of the items of a route set: `start` one, the `dialog` of its payload or its confirmation to render. */
 export interface TransitRun {
   /** Runs a transit of an item, once the dialog has its payload when it takes one. */
   start: (id: string, transit: Transit) => void;
@@ -78,9 +99,14 @@ export interface TransitRun {
 
 /**
  * Runs the transits of the items of a route set (of an item, of the cards of a board);
- * `onDone` gets the item after one (null when the user can no longer view it).
+ * `onDone` gets the item after one (null when the user can no longer view it); those that
+ * `declared` confirms are asked for first.
  */
-export function useRunTransit(path: TransitPath, onDone?: (item: unknown) => void): TransitRun {
+export function useRunTransit(
+  path: TransitPath,
+  onDone?: (item: unknown) => void,
+  declared: readonly DeclaredTransit[] = [],
+): TransitRun {
   const mutation = useItemsTransit(path);
   const [open, setOpen] = useState<{ id: string; transit: Transit } | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -108,7 +134,8 @@ export function useRunTransit(path: TransitPath, onDone?: (item: unknown) => voi
 
   function start(id: string, transit: Transit) {
     mutation.reset();
-    if (transit.payload === null) {
+    const confirm = declared.some((it) => it.id === transit.id && it.confirm);
+    if (transit.payload === null && !confirm) {
       run(id, transit);
       return;
     }
@@ -117,6 +144,14 @@ export function useRunTransit(path: TransitPath, onDone?: (item: unknown) => voi
   }
 
   const fields = open ? objectFields(open.transit.payload ?? {}) : [];
+  const target = open ? transitTarget(open.transit.resource.type, open.transit.id) : null;
+  // a transit without a payload is only confirmed: the status it leads to
+  const question =
+    open?.transit.payload === null
+      ? target === null
+        ? t('action.confirm')
+        : t('transit.confirm', { status: statusName(open.transit.resource.type, target, language) })
+      : null;
   const errors = payloadErrors(
     mutation.error,
     fields.map((it) => it.name),
@@ -136,12 +171,12 @@ export function useRunTransit(path: TransitPath, onDone?: (item: unknown) => voi
             className="grid gap-4"
             onSubmit={(event) => {
               event.preventDefault();
-              run(open.id, open.transit, values);
+              run(open.id, open.transit, question === null ? values : undefined);
             }}
           >
             <DialogHeader>
               <DialogTitle>{transitName(open.transit.resource.type, open.transit.id, language)}</DialogTitle>
-              <DialogDescription>{open.transit.hint ?? t('transit.fill')}</DialogDescription>
+              <DialogDescription>{open.transit.hint ?? question ?? t('transit.fill')}</DialogDescription>
             </DialogHeader>
             {mutation.isError && errors.others.length > 0 && (
               <StatePanel
@@ -174,7 +209,11 @@ export function useRunTransit(path: TransitPath, onDone?: (item: unknown) => voi
               >
                 {t('action.cancel')}
               </Button>
-              <Button type="submit" data-bz="action:submit" disabled={mutation.isPending}>
+              <Button
+                type="submit"
+                data-bz={question === null ? 'action:submit' : `action:confirm-${open.transit.id}`}
+                disabled={mutation.isPending}
+              >
                 {transitName(open.transit.resource.type, open.transit.id, language)}
               </Button>
             </DialogFooter>

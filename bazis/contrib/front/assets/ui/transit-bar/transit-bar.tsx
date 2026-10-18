@@ -13,10 +13,11 @@
 // limitations under the License.
 
 // The transits that the user may run on an item now (`useTransits`), a button
-// `transit:<id>` each, disabled with the errors of its validators when they restrict it; a
-// transit to a status of the tone `danger` is a destructive button. A transit whose action
-// takes a typed payload opens a dialog with its fields (`useRunTransit`). A toast tells the
-// status the item moved to.
+// `transit:<id>` each in the order of the workflow of the specs (the first the main one),
+// disabled with the errors of its validators when they restrict it; a transit to a status of
+// the tone `danger` is a destructive button. A transit whose action takes a typed payload
+// opens a dialog with its fields, and one that the specs confirm a dialog of its confirmation
+// (`useRunTransit`). A toast tells the status the item moved to.
 
 import { ArrowRight, LoaderCircle } from 'lucide-react';
 
@@ -27,20 +28,26 @@ import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { useRunTransit } from './run-transit.js';
+import { inDeclaredOrder, useRunTransit, type DeclaredTransit } from './run-transit.js';
 
 export interface TransitBarProps {
   /** The route set of the statusy model (`ROUTES` of the contract). */
   path: TransitPath;
   id: string;
+  /**
+   * The transits of the workflow of the specs (`transits` of the generated entities): their
+   * order (the first the main button), and those confirmed first; the order of the backend
+   * by default.
+   */
+  transits?: readonly DeclaredTransit[];
   /** Called after a transit with the item, or null when the user can no longer view it (leave its screen). */
   onDone?: (item: unknown) => void;
 }
 
 /** The transits of an item, with the dialog of their payloads. */
-export function TransitBar({ path, id, onDone }: TransitBarProps) {
+export function TransitBar({ path, id, transits: declared = [], onDone }: TransitBarProps) {
   const transits = useTransits(path, id);
-  const { start, mutation, open, dialog } = useRunTransit(path, onDone);
+  const { start, mutation, open, dialog } = useRunTransit(path, onDone, declared);
   const { language, t } = useLanguage();
 
   if (transits.isPending) {
@@ -65,7 +72,7 @@ export function TransitBar({ path, id, onDone }: TransitBarProps) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="text-sm font-medium text-muted-foreground">{t('transit.next')}</span>
         <div role="group" aria-label={t('transit.group')} className="flex flex-wrap items-start gap-2">
-          {transits.data.map((transit, index) => {
+          {inDeclaredOrder(transits.data, declared).map((transit, index) => {
             const target = transitTarget(transit.resource.type, transit.id);
             const danger = target !== null && statusTone(target) === 'danger';
             return (

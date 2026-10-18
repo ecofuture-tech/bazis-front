@@ -464,6 +464,24 @@ a typed payload. The ids are those of the Status and Transit rows, including tho
 bazis-statusy generates for a Transit created without one (`task#draft_to_done`,
 `task#draft_to_done#1`); any characters but `.` and white space.
 
+The order of `transitions` is the order of the buttons of a card and of the moves of a
+board, the first the main button: put the usual next step first (`complete` before
+`cancel`), not the order of the ids, which the backend answers. `confirm: true` asks the
+user in a dialog before the transit runs (`action:confirm-<id>`): give it to a transit that
+cannot be undone and matters, a payment, a cancellation; not to the routine next step,
+which a question would only slow down (a transit is never confirmed by default). A transit
+with a `payload` is confirmed by the dialog of its payload. The scenarios run a confirmed
+transit as any other (`transit: <id>`, `move`): the helpers confirm it.
+
+```yaml
+workflow:
+  initial: issued
+  statuses: [issued, paid, overdue]
+  transitions:
+    - {id: pay, from: issued, to: paid, confirm: true}
+    - {id: mark_overdue, from: issued, to: overdue}
+```
+
 #### Access
 
 **Access** says what a role may do; it is compiled to permissions of bazis-permit that
@@ -859,7 +877,12 @@ states: [loading, error]
 
 The `label` of a part is a key of the dictionaries of the frontend or a text. A tile counts
 the items of its entity with its `filter` (as `list.filter`: S008, S014); `open` is a list
-of the entity, that of a row of the last items a card of it (S006). A chart is by `status`
+of the entity, that of a row of the last items a card of it (S006). **A tile, a chart and
+the last items are shown to the users whom the backend lets view their entity**
+(`useCan(path, 'view')`, `Viewable` of the dashboard): one dashboard serves every role of the
+screen, the tiles of the invoices shown to the receptionist and not to the doctor who may
+not view them, without an `extend` (a part of an entity that no role of the screen may view
+is never shown). A chart is by `status`
 (an entity with a workflow: a count for each status) or by a field `date` or `datetime`, a
 count for each `bucket` (`day`, `week`, `month`; a week by default), the `last` ones up to the
 current one (12 by default) (S021).
@@ -901,19 +924,28 @@ states: [loading, empty, error, forbidden]
 A calendar shows the items of an entity on the days of a field `date` or `datetime`
 (`field`; `end`, a second one, for the items that span days), a month or a week at a time
 (`views`), each item by its `label` fields (the label of the entity by default), in the tone
-of `tone` while its boolean field is true (S023). `add` is the create form of the entity,
-the action `add.id`, with `field` filled with the day selected (today by default).
+of `tone` while its boolean field is true (S023). `filters` are those of a list (S008,
+S040): the schedule of one doctor, one room, one master is a filter by the relation, not a
+screen of your own; the backend still decides what each user sees (a doctor who views only
+his own appointments sees only them, whatever he filters). `add` is the create form of the
+entity, the action `add.id`, with `field` filled with the day selected (today by default) at
+`time` (`HH:MM`, the start of the day by default) for a date-time, its `end` `duration`
+minutes later (S042; without it the form shows the end empty, S043), and the related item or
+the choice that a filter of the user selects, for a field of its form (a visit booked with
+the doctor of the schedule shown).
 
 ```yaml
 primitive: calendar
-entity: loan
+entity: appointment
 calendar:
-  field: due_date
-  label: [book, reader]
-  tone: {field: is_overdue, tone: danger}
-  views: [month, week]
-  open: loan-card
-  add: {id: issue, fields: [book, reader, due_date]}
+  field: starts_at
+  end: ends_at
+  label: [pet, doctor]
+  tone: {field: is_today, tone: info}
+  views: [week, month]
+  filters: [doctor]
+  open: appointment-card
+  add: {id: book, fields: [pet, doctor, starts_at, ends_at, reason], time: '09:00', duration: 30}
 states: [loading, empty, error, forbidden]
 ```
 
@@ -1084,8 +1116,10 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S037` | warning | a dictionary of the product (src/i18n/<language>.ts) has a key of the texts of the specs (`screens.<id>...`) that no text of the specs has: of a screen, a section, a tab or an action that is not there, or a text that the spec does not give |
 | `S038` | error | a screen of an item has no `:id` in its route: a card or an update form that is not custom (the id of the item is in the route; a custom one finds its item itself) |
 | `S039` | error | a sort names a field twice (`planned_date` and `-planned_date`): a sort is the order of the items by default, by its first field, then by the next one for the items equal by it; keep the field once (the user sorts a list by the headers of its columns) |
-| `S040` | error | a list or a board has filters, or a list is a report (a `filter`, whose link in the navigation reads them), and the route set of its resource does not route the fields that the user may filter by (`route_filter_fields/`): its `actions` leave out `get_route_filter_fields`, and the filters show an error. Add it to `actions` (the frontend needs the routes of the list, of the item, of their schemas and of the fields of the filters), never remove the filters for it. A report that the navigation does not link (`nav: false`, a route with `:`, or not in the `navigation` of the product) is not checked |
+| `S040` | error | a list, a board or a calendar has filters, or a list is a report (a `filter`, whose link in the navigation reads them), and the route set of its resource does not route the fields that the user may filter by (`route_filter_fields/`): its `actions` leave out `get_route_filter_fields`, and the filters show an error. Add it to `actions` (the frontend needs the routes of the list, of the item, of their schemas and of the fields of the filters), never remove the filters for it. A report that the navigation does not link (`nav: false`, a route with `:`, or not in the `navigation` of the product) is not checked |
 | `S041` | warning | the add of a calendar whose `field` is a date-time, which the create route takes (else S034), lists `fields` without it: the item is created at the start of the selected day (00:00) and the user cannot pick the time. Add the field to `fields` of `add` (or omit `fields`: all the writable fields) |
+| `S042` | error | the add of a calendar has a `time` or a `duration` that it cannot use: `field` (and `end`, for a duration) is not a date-time, the calendar has no `end`, or the form of the add does not send the end (left out of its `fields`, or not taken by the create route). Remove the key, or give the calendar its date-time `end` and the form the field |
+| `S043` | warning | the add of a calendar by date-times shows `end` in its form without `duration`: the form starts with the end empty, which the user fills for every item. Give the add the usual length of an item in minutes (`duration: 30`), which the user may change |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1229,6 +1263,18 @@ contract.
 **The labels of the payload of a transit** are the titles of the fields of its payload
 model (`report: str = Field(title=_('Report'))`): the runtime schemas (`state_actions`)
 give them in the language of the request, the contract in `LANGUAGE_CODE`.
+
+### A time in a text of the backend
+
+**The frontend shows a date-time in the time zone of the browser**; a text that the backend
+writes with a time in it (the title of an appointment `Rex · 2026-10-18 09:00` made with
+`timezone.localtime`) is in `TIME_ZONE` of the project, UTC unless `BS_TIME_ZONE` sets it: the
+two differ for every user outside it. Label such an item by its fields (`label: [pet,
+starts_at]` of the entity, or the `label` of the contract), which the frontend formats,
+rather than by a text with the time; a text that must have one is written in the zone of the
+business, `BS_TIME_ZONE=Europe/Moscow`. The end-to-end tests and the screenshots run in UTC,
+as the dates of `e2e_data` and of the scenarios do: they never show the difference, so check
+the texts of your backend that have a time yourself.
 
 ### The navigation and the filters follow the permissions
 
@@ -1506,23 +1552,23 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects (the count of the pagination of a list of one item), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded), `state:<loading\|loaded\|error\|forbidden>` | |
-| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`) | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
+| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
 | `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
-| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (read when it opens) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
+| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (read when it opens) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
 | `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status; the screen readers are told the drag in the language of the interface, by the name of the item and of the status, never an id | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
-| `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`, `add`: `{id, label, onAdd(value)}`, the value of `field` on the selected day: the day of a date, its start in the time zone of the browser of a date-time) | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
+| `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `filters`: those of a list, `onOpen`, `add`: `{id, label, time, duration, fields, onAdd(initial)}`, the values the form starts with: `field` on the selected day (the day of a date, of a date-time the moment of `time` in the time zone of the browser), `end` `duration` minutes later, the related item or the choice of a filter of the user by a field of `fields`) | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
 | `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`; `tabs`: `{id, title, sections, content}`, `content` a node or `(item, meta) => node`, the children above them); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>`; `tab:<id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
-| `transit-bar` | `TransitBar`: the transits of an item; `useRunTransit(path)`: a transit of any item with the dialog of its payload | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | `statusy` |
+| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`): `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
 | `live-query` | `LiveQuery`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` and `CAPABILITIES.notify.resource` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter`: a bell with the count of the unread notifications, their list (a click marks one read and opens it, `onOpen`), mark all read, a toast for each new one (`toasts`); `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only, which also has `clear`: forget those of the session); the stored notifications are deleted only with `onDeleteAll={inbox.deleteAll}`, after a confirmation | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` (`useNotifications`), `action:delete-notifications` and `action:confirm-delete-notifications` (`onDeleteAll`) | none (its source: `notify` or `ws`) |
 | `task-progress` | `TaskProgress` (the task of its `id`), `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult` (`start`: what `useAsyncRequest` resolved to), `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
-| `map` | `ResourceMap` (`list.map`: the items with a point in `field`), `MapProvider` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
+| `map` | `ResourceMap` (`list.map`: the items with a point in `field`), `MapProvider` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>` (44 px under a finger); in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
 | `screens` (copied with the generated screens) | the parts of the generated screens: `ScreenAction` (an action in the header of a screen, shown when its `requires` is allowed), `CreateFormAction` (the create form of an action, `CreateFormAction.use()` its state), `useDestroyCardAction` (the delete of a card: its `action` and its confirmation `confirm`), `useCustomAction` (a custom action of the route set or of its items, `target`: its `action` of a card or of the toolbar of a list, `row`, `bulk` and its `dialog`), `extended` and `ScreenExtension` (the extension of a screen, `extend`) | `action:<id>`, `action:confirm-<id>` (the confirmation of a delete or of a custom action), `action:submit` and `action:cancel` (the dialog of a custom action with fields, its fields `field:<property>`), the marks of `FormSurface` and `ResourceForm` | |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
@@ -2546,11 +2592,11 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `open_item: {where, in}` | `openItem({where, in})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`); then `expectScreen` of `list.open`. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `select: {where}` | `select({where})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
   | `bulk: <id>` | `bulk(id)`: `bulk:<id>` of the screen, then `action:confirm-bulk` of its confirmation; waits until it is no longer offered (the selection is cleared) or an error is shown (`error:bulk`) |
-  | `move: {where, to}` | `move({where, to})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>`; waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
+  | `move: {where, to}` | `move({where, to})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>` (confirmed in its dialog when the workflow confirms the transit); waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog), and so is a custom action with `confirm: true`; one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
-  | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog; waits until it is no longer offered or an error is shown |
+  | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog, or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, count)` (`data-value` of `tile:<id>`, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
@@ -3574,10 +3620,16 @@ The API of the copies that 0.3.0 changed:
 - The deletion of a card (`useDestroyCardAction` of `@/bazis/ui/screens`, new) asks
   `card.delete_title` (a question) and says `card.delete_confirm` (what the deletion
   does).
-- `add.onAdd` of `ResourceCalendar` gets the value of its field on the selected day: the
-  day of a date as before, the start of the day in the time zone of the browser (ISO) of
-  a date-time instead of the day; give it to the form as `initial` (the user may change
-  it), not `fixed`.
+- `add.onAdd` of `ResourceCalendar` gets the values that the create form starts with,
+  `{[field]: value}` and more, instead of the value of its field: the day of a date as
+  before, of a date-time the moment of `add.time` (the start of the day by default) in the
+  time zone of the browser (ISO) instead of the day, `end` `add.duration` minutes later, and
+  the related item or the choice of a filter of the user (`filters`) by a field of
+  `add.fields`; give them to the form as `initial` (the user may change them), not `fixed`:
+  `onAdd: form.onOpenWith`.
+- `onFilter` of `FilterBar` also gets the values of the filters of one value
+  (`equalValues`); `listFilters` gives the filters of a list, a board or a calendar their
+  choices.
 - `permission` of a `ListAction` and of a `CardAction` also takes the name of a custom
   action (`action_<name>`), allowed by `custom_actions` of the meta.
 - New: `@/bazis/ui/screens` (the actions and the extensions of the generated screens,
@@ -3590,7 +3642,8 @@ The API of the copies that 0.3.0 changed:
   generated code would name alike (P032), the screens of an item without `:id` (S038), the
   links of the navigation (S030), the code of a custom screen (S028, S029), a field twice in
   a sort (S039), filters of a route set that does not route the fields of its filters (S040), the add of a
-  calendar by a date-time field without it among its `fields` (S041, a warning).
+  calendar by a date-time field without it among its `fields` (S041, a warning), and its end
+  shown empty in the form (S043, a warning: `duration`).
 
 ## API: the client
 
@@ -4843,7 +4896,7 @@ Its props, `DashboardProps`:
 - `before?: ReactNode`: What the screen shows before its parts (after the hero), such as the extension of a generated screen.
 - `tiles?: readonly StatCardProps[]`
 - `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`.
-- `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`.
+- `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`.
 - `recent?: readonly RecentListProps[]`
 - `children?: ReactNode`: What the screen shows after its parts, such as the create forms of its actions: in the screen, so that a form composed as a page takes its place.
 
@@ -4864,6 +4917,10 @@ Its props, `RecentListProps`:
 - `display?: Readonly<Record<string, FieldDisplay>>`: How a field is shown (`display` of the entity of the specs).
 - `onOpen?: ((id: string) => void) | undefined`: Opens an item (`open` of the specs): a click on its row.
 - `className?: string`
+
+#### Viewable
+
+`Viewable(props: { path: ListPath; children: ReactNode; }): ReactNode`: A part of a dashboard once the backend lets the user view the items of its route set (`useCan(path, 'view')`): nothing when it does not, its loading state until it tells.
 
 #### The types and the constants of `@/bazis/ui/dashboard`
 
@@ -5583,6 +5640,7 @@ Its props, `ResourceBoardProps`:
 - `filters?: readonly (string | ListFilter)[]`: The filters of the user, as those of a list (`FilterBar` of resource-list), above the columns.
 - `sort?: readonly string[]`: The order of the cards in a column.
 - `move?: boolean`: Whether a card moves to another column by a transit (`move: true` of the spec); not by default.
+- `transits?: readonly DeclaredTransit[]`: The transits of the workflow of the specs (`transits` of the generated entities): the order of the moves, those confirmed first.
 - `onOpen?: (id: string) => void`: Called with the id of the card the user opens.
 - `pageSize?: number`: The cards of a column at first, and the more shown each time.
 - `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
@@ -5610,6 +5668,7 @@ Its props, `ResourceCalendarProps`:
 - `tone?: { field: string; tone: Tone; } | undefined`: The items whose boolean field is true, in a tone of the theme.
 - `views?: readonly CalendarView[]`: The views the user switches between, the first shown at first: a month by default.
 - `filter?: Filter | undefined`: The items of the calendar (the filter of the screen).
+- `filters?: readonly (string | ListFilter)[]`: The filters of the user, as those of a list (`FilterBar` of resource-list), above the days.
 - `onOpen?: ((id: string) => void) | undefined`: Called with the id of the item the user opens.
 - `add?: CalendarAdd | undefined`
 - `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
@@ -5621,7 +5680,10 @@ Its props, `ResourceCalendarProps`:
 
 - `id: string`
 - `label: ReactNode`
-- `onAdd: (value: string) => void`: Called with the value of `field` on the selected day, which the create form of the screen starts with: the day (`YYYY-MM-DD`) of a date, the start of the day in the time zone of the browser (ISO) of a date-time, whose time the user sets.
+- `onAdd: (initial: Readonly<Record<string, unknown>>) => void`: Called with the values that the create form of the screen starts with, which the user may change: `field` on the selected day, the day (`YYYY-MM-DD`) of a date, of a date-time the moment of `time` on that day in the time zone of the browser (ISO); `end` of a date-time `duration` later; and the value of each filter of the user that selects a related item or a choice, of a field of `fields`.
+- `time?: string | undefined`: The time of a date-time on the selected day, `HH:MM`: the start of the day (00:00) by default.
+- `duration?: number | undefined`: The minutes from `field` to `end` of a date-time: the form starts without its end by default.
+- `fields?: readonly string[] | undefined`: The fields of its form, which the values of the filters may start: any field by default.
 - `icon?: ComponentType<{ className?: string; }>`
 
 #### The types and the constants of `@/bazis/ui/resource-calendar`
@@ -5772,6 +5834,10 @@ Its props, `ResourceFormProps`:
 - `variant?: 'default' | 'outline' | 'destructive'`
 - `run: (id: string) => Promise<unknown>`: Runs the action on an item, rejected when its request fails: `useItemsTransit(path)` of `@/bazis/react/statusy` (`mutateAsync({id, transit})`), `useDestroy(path)`.
 
+#### equalValues
+
+`equalValues(filters: readonly ListFilter[], values: FilterValues, types: ReadonlyMap<string, FieldType>): FilterValues`: The values of the filters that select one value of their field, a related item or a choice: those that a new item of the filtered items takes (the add of a calendar).
+
 #### FilterBar
 
 `FilterBar(props: FilterBarProps): Element`: The controls of the filters of a list (their types from `route_filter_fields/`), but for the fields that the backend does not offer the user to filter by; the state of the error when the filter fields cannot be read (not every filter hidden in silence).
@@ -5783,11 +5849,15 @@ Its props, `FilterBarProps`:
 - `filters: readonly ListFilter[]`
 - `ready?: boolean`: Whether the titles of the fields are loaded: until then, and until the types of the filters are, a skeleton.
 - `title: (name: string) => string`: The titles of the fields.
-- `onFilter: (filter: Filter | undefined) => void`: Called with the expression of the filters when a value changes.
+- `onFilter: (filter: Filter | undefined, equal: FilterValues) => void`: Called with the expression of the filters when a value changes, and the values of those that select one value of their field (`equalValues`).
 
 #### filterOf
 
 `filterOf(filters: readonly ListFilter[], values: FilterValues, types: ReadonlyMap<string, FieldType>): Filter | undefined`: The `filter` expression of the values, or undefined without any.
+
+#### listFilters
+
+`listFilters(filters: readonly (string | ListFilter)[], fields: Fields): ListFilter[]`: The filters of a list, a board or a calendar, given by the name of their field or as they are: a field with choices in the list schema is filtered by a select of its choices, by their labels.
 
 #### ListFilter
 
@@ -5795,7 +5865,7 @@ Its props, `FilterBarProps`:
 
 - `field: string`
 - `label?: string`: The label; the title of the field in the list schema by default.
-- `options?: readonly { value: string; label: string; }[]`: The choices (value, label), as the statuses of `statusOptions()` of status-badge; those of a field with choices in the list schema (`choiceOptions`) by default in `ResourceList`.
+- `options?: readonly { value: string; label: string; }[]`: The choices (value, label), as the statuses of `statusOptions()` of status-badge; those of a field with choices in the list schema (`choiceOptions`) by default (`listFilters`).
 
 #### ResourceList
 
@@ -6134,17 +6204,28 @@ Its props, `TaskProgressProps`:
 
 ### `@/bazis/ui/transit-bar`
 
+#### inDeclaredOrder
+
+`inDeclaredOrder<T extends { id: string; }>(transits: readonly T[], declared: readonly DeclaredTransit[]): T[]`: The transits of the backend in the order of the specs, those that the specs do not declare after them.
+
 #### payloadErrors
 
 `payloadErrors(error: unknown, names: readonly string[], message?: (error: ErrorObject) => string): { fields: Record<string, string[]>; others: string[]; }`: The errors of a transit: those of the fields of its payload by name (`source.pointer` `/payload/<name>`, a name of `names`), and the others (its validators, a field that the dialog does not show, an error that is not of the backend), each the text that `message` gives (in the language of the interface with `useErrorMessage`).
 
 #### useRunTransit
 
-`useRunTransit(path: TransitPath, onDone?: (item: unknown) => void): TransitRun`: Runs the transits of the items of a route set (of an item, of the cards of a board); `onDone` gets the item after one (null when the user can no longer view it).
+`useRunTransit(path: TransitPath, onDone?: (item: unknown) => void, declared?: readonly DeclaredTransit[]): TransitRun`: Runs the transits of the items of a route set (of an item, of the cards of a board); `onDone` gets the item after one (null when the user can no longer view it); those that `declared` confirms are asked for first.
+
+#### DeclaredTransit
+
+`interface DeclaredTransit`: A transit of the workflow of the specs (`workflow.transitions` of the entity, `transits` of the generated entities): their order is that of the transits shown, the first the main one; one with `confirm` is asked for before it runs.
+
+- `id: string`
+- `confirm?: boolean`
 
 #### TransitRun
 
-`interface TransitRun`: The run of the transits of the items of a route set: `start` one, the `dialog` of its payload to render.
+`interface TransitRun`: The run of the transits of the items of a route set: `start` one, the `dialog` of its payload or its confirmation to render.
 
 - `start: (id: string, transit: Transit) => void`: Runs a transit of an item, once the dialog has its payload when it takes one.
 - `mutation: ReturnType<typeof useItemsTransit>`
@@ -6160,6 +6241,7 @@ Its props, `TransitBarProps`:
 
 - `path: TransitPath`: The route set of the statusy model (`ROUTES` of the contract).
 - `id: string`
+- `transits?: readonly DeclaredTransit[]`: The transits of the workflow of the specs (`transits` of the generated entities): their order (the first the main button), and those confirmed first; the order of the backend by default.
 - `onDone?: (item: unknown) => void`: Called after a transit with the item, or null when the user can no longer view it (leave its screen).
 
 #### The types and the constants of `@/bazis/ui/transit-bar`
@@ -6206,13 +6288,13 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `openItem(options: { where: Values; in?: string; }): Promise<void>`: Opens the first item of the current screen whose cells `cell:<name>` have exactly these texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search; fails when no page has it.
 - `select(options: { where: Values; }): Promise<void>`: Selects the row of the list of the current screen that `openItem` would open, its checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
 - `bulk(id: string): Promise<void>`: Runs a bulk action of the list of the current screen on the selected rows, `bulk:<id>`, confirmed in its dialog (`action:confirm-bulk`), and waits until it is done (the action is no longer offered: the selection is cleared) or shows an error (`error:bulk`).
-- `move(options: { where: Values; to: string; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
+- `move(options: { where: Values; to: string; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), confirmed in its dialog when the specs confirm the transit, and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
 - `confirm(id: string, options?: { optional?: boolean; }): Promise<void>`: Confirms the action `<id>` of the current screen in its dialog, `action:confirm-<id>` (the deletion of the item of a card), and waits until the dialog is closed; the dialog must be shown, but with `optional` (a hand-written screen may run the action without a confirmation), where nothing is done when none is shown within 2 s.
 - `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false; an input of a date or a date-time also by a day of the run (`today`, `today+1 10:30`: `dateOfRun`).
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).
-- `transit(id: string, payload?: Values): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog, and waits until it is done (the transit is no longer offered) or shows an error.
+- `transit(id: string, payload?: Values): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog, or confirmed in its dialog when the specs confirm it, and waits until it is done (the transit is no longer offered) or shows an error.
 - `expectScreen(screen: ScreenId<P>): Promise<void>`: The current screen is this one: at its route (another screen may show next to it, such as a list next to its card), with its state rendered.
 - `expectStatus(status: string): Promise<void>`: The item of the current screen has this status, `status:<id>`.
 - `expectState(state: State): Promise<void>`: The page shows this state, `state:<state>` (a screen kept hidden next to it does not count).
