@@ -541,7 +541,7 @@ class Command(BaseCommand):
         """
         The generated screens of the specs; fails with the issues of specs with errors.
         """
-        result = spec_validate.validate(Path(settings.BASE_DIR))
+        result = spec_validate.validate(Path(settings.BASE_DIR), generating=True)
         if result.errors:
             self.write_issues(result)
             raise CommandError(

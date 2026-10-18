@@ -524,6 +524,33 @@ def test_an_extended_screen_in_the_frontend(frontend, root):
 
 
 @pytest.mark.django_db
+def test_screens_refuse_a_screen_of_its_own_on_the_first_run_too(frontend, root):
+    """
+    A frontend of 0.1.0 has the code of its screens and no `screens` in its lock: `screens`
+    refuses a screen that has `index.tsx` and no `custom` (S029) before it writes anything,
+    and `--force` (about the edited generated files) does not lift it; `custom` does.
+    """
+    own = frontend / 'src' / 'screens' / 'draft-tasks' / 'index.tsx'
+    own.parent.mkdir(parents=True, exist_ok=True)
+    own.write_text('export function DraftTasksScreen() {}\n', encoding='utf-8')
+    assert 'screens' not in read_lock(root) and validate(root).errors == []
+    before = read_lock(root)
+
+    for args in ((), ('--force',), ('--check',)):
+        with pytest.raises(CommandError, match='The specs have 1 errors'):
+            generate(*args)
+    assert not (frontend / screens.GENERATED_DIR).exists()
+    assert read_lock(root) == before
+    [issue] = validate(root, generating=True).errors
+    assert issue.code == 'S029' and issue.file == 'spec/screens/draft-tasks.yaml'
+
+    edit_screen(root, 'draft-tasks', lambda data: data.update(custom=True))
+    generate()
+    assert 'screens' in read_lock(root)
+    assert not (frontend / DRAFTS).exists()
+
+
+@pytest.mark.django_db
 def test_a_key_that_no_dictionary_has_does_not_stop_the_screens(frontend, root):
     """
     A text of the specs that is a key of no dictionary (S036) is a warning: the dictionaries are

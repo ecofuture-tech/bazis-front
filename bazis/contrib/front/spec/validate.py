@@ -468,21 +468,21 @@ def exports(path: Path, name: str) -> bool:
     return re.search(declared, text, re.M) is not None or re.search(listed, text, re.M) is not None
 
 
-def check_screen_code(root: Path, docs: list[Document], issues: Issues) -> None:
+def check_screen_code(root: Path, docs: list[Document], issues: Issues, generating: bool) -> None:
     """
     The code of the screens in `frontend/src/screens/`, once the frontend exists: a `custom`
     screen exports its component (S028), a screen with `extend` its extension (S031); once the
-    frontend generates its screens (the lock has `screens`), no screen but a custom one has
-    `<id>/index.tsx` (S029), unless it is the module of another custom screen. A custom screen
-    is never extended (S031).
+    frontend generates its screens (the lock has `screens`, or `generating`: `screens` is
+    about to write them), no screen but a custom one has `<id>/index.tsx` (S029), unless it is
+    the module of another custom screen. A custom screen is never extended (S031).
     """
     frontend = root / frontend_lock.FRONTEND_DIR
     screens, code = frontend / SCREENS_DIR, (frontend / 'src').is_dir()
     try:
-        generated = 'screens' in (frontend_lock.read(frontend) or {})
+        generated = generating or 'screens' in (frontend_lock.read(frontend) or {})
     except frontend_lock.LockError:
         # front.W001 reports it
-        generated = False
+        generated = generating
     # the files of the modules of the custom screens: none is a screen of its own
     modules = {
         _module_file(screens, it.data['custom']) for it in docs if it.valid and isinstance(it.data.get('custom'), dict)
@@ -560,11 +560,13 @@ def screen_files(root: Path) -> list[str]:
     ]
 
 
-def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
+def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = False) -> Result:
     """
     Checks `spec/` of the product root against itself and `contract/contract.json`. The
     issues of the other layers are left out (the layers are checked together, because they
-    reference each other); those of the contract are always reported.
+    reference each other); those of the contract are always reported. `generating`: the
+    screens are about to be generated, so a screen of its own beside a generated one is
+    refused (S029) although the lock has no `screens` yet.
     """
     issues = Issues()
     contract = load_contract(root, issues)
@@ -590,7 +592,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS) -> Result:
     product = refs.check_product(product_doc, contract, issues)
     screens = refs.check_screens(screen_docs, product, contract, issues)
     refs.check_navigation(product_doc, screens, product, contract, issues)
-    check_screen_code(root, screen_docs, issues)
+    check_screen_code(root, screen_docs, issues, generating)
     languages = product_doc.data.get('languages', []) if product_doc.valid else []
     documents = [(product_doc, PRODUCT_SCHEMA), *((it, SCREEN_SCHEMA) for it in screen_docs)]
     for doc, schema in documents:

@@ -281,7 +281,9 @@ job of CI.
   for byte; the lock records the hashes of the specs (product.yaml, the screens,
   theme.yaml) and of the files (`screens`); a file edited since is not overwritten without
   `--force`, the files of the lock outside `src/screens/generated/` are never touched, and
-  the components that the code imports are copied (`copy.add_assets`). `tests/test_screens.py`
+  the components that the code imports are copied (`copy.add_assets`). It refuses a screen that is not `custom` and has
+  `src/screens/<id>/index.tsx` (S029) also on the first run, when the lock has no `screens`
+  (`validate(generating=True)`; `check` leaves it alone). `tests/test_screens.py`
   compares the screens of the sample with `tests/fixtures/screens/` (write it again with
   `BAZIS_FRONT_WRITE_FIXTURES=1`) and renders the kitchen sink of
   `tests/fixtures/kitchen-sink/` (the screens that the generator composes beyond the
