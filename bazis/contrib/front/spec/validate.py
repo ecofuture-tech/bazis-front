@@ -488,8 +488,9 @@ def check_screen_code(root: Path, docs: list[Document], issues: Issues, generati
     """
     The code of the screens in `frontend/src/screens/`, once the frontend exists: a `custom`
     screen exports its component (S028), a screen with `extend` its extension (S031); once the
-    frontend generates its screens (the lock has `screens`, or `generating`: `screens` is
-    about to write them), no screen but a custom one has `<id>/index.tsx` (S029), unless it is
+    frontend generates its screens (the lock has `screens`, `generating`: `screens` is
+    about to write them, or `needs_screens`: the router imports the generated screens before
+    the lock has them), no screen but a custom one has `<id>/index.tsx` (S029), unless it is
     the module of another custom screen. A custom screen is never extended (S031).
     """
     frontend = root / frontend_lock.FRONTEND_DIR

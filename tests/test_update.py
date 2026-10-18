@@ -458,6 +458,8 @@ def test_update_of_a_frontend_made_before_the_screens(product):
     assert out.index(screens.NEEDS_SCREENS) < out.index('Updated the copies')
     # `tsc` and the tests are red until the screens are generated: the update never asks for them
     assert '`npx tsc --noEmit` and `npm test` stay red until `bazis_front screens`' in out
+    assert '"Migrating the code of the product", step 8' in out
+    assert 'docs/releases' not in out
     assert 'Run `npx tsc --noEmit`' not in out
     assert [it.msg for it in checks.check_screens(None)] == [screens.NEEDS_SCREENS]
 

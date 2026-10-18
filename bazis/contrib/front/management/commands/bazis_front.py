@@ -423,7 +423,7 @@ class Command(BaseCommand):
         # `tsc` and the tests import the screens that `screens` writes: red until then
         verify = (
             '`npx tsc --noEmit` and `npm test` stay red until `bazis_front screens` generates the '
-            'screens (docs/releases/0.3.0.md, step 8).'
+            'screens (the reference of the package, "Migrating the code of the product", step 8).'
             if needs_screens
             else 'Run `npx tsc --noEmit`, `npm run lint` and `npm test` in frontend/.'
         )

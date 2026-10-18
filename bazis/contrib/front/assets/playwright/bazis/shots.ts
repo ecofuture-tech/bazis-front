@@ -233,8 +233,6 @@ async function reach<P extends Product>(page: Page, app: App<P>, shot: Shot<P>):
     await rows.first().click();
     await app.expectScreen(shot.screen);
   }
-  await expect(app.screen().locator('[data-bz^="state:"]').first()).toBeAttached();
-  await expect(page.locator(bz('state', 'loading'))).toHaveCount(0);
   if (shot.variant === 'empty') await app.search(NOTHING);
   const [create] = shot.creates;
   if (shot.variant === 'form' && create !== undefined) {

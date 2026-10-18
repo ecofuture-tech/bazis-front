@@ -3515,7 +3515,7 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
    entity: `name: {ru: Библиотека, en: Library}`, `title: {ru: Автор, en: Author}` (or a key
    of `src/i18n/*.ts`, `entities.author.title`). S027 is a warning: until the texts are
    given, the product shows the one it has in every language.
-7. `check` has no errors (S029 is among them while a screen of 0.1.0 has no `custom`). The template renders the screens of the specs
+7. `check` has no errors (S029 is told for `src/screens/<id>/index.tsx` without `custom`; `check` does not see the modules by entity, `src/screens/book/index.tsx` with `BookListScreen`: `custom` is set for them by step 5). The template renders the screens of the specs
    (`src/screens/generated/`) and has no home of its own: `/` is the screen of the specs at
    `/`, else the first link of the navigation. Once the product declares its entities,
    `check` asks for a screen of the specs at `/` that is a `dashboard` with tiles (S026).
