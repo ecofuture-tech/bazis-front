@@ -2540,7 +2540,8 @@ E2E_PASSWORD=... python manage.py e2e_data
   (`open_item`) and need, and an item at least for each list, board, calendar and part of a
   dashboard that a role sees, so that the screenshots show them (V016);
 - **its dates are relative to the day of the run** (`timezone.now() + timedelta(days=3)`,
-  some of them in the current month and the next days), never fixed (`2030-03-04`): a
+  its date in UTC, the day that `expectDay` counts, never `timezone.localdate()`; some of
+  them in the current month and the next days), never fixed (`2030-03-04`): a
   calendar opens on the month of today, the last items and the deadlines of a dashboard are
   those of the next days, and a fixed date leaves them empty once it is past or far. A
   scenario expects the day of such an item as `today+3` (`expect: {day: {today+3: 1}}`);
@@ -3363,7 +3364,7 @@ is an error there); the changes so far:
   product to them again, then `npm run format`; the links of `NAVIGATION` stay on their
   line (`// prettier-ignore`).
 
-From 0.1.0 to 0.2.0 (nothing of the API of the copies is removed):
+From 0.1.0 to 0.2.0:
 
 - `lazyScreen` shows the loading state of the screens in its own `Suspense`, and the router
   of the template has none: a `src/app/router.tsx` that the product changed may conflict on
@@ -3435,6 +3436,44 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
 - `screens` copies the components that the generated screens import and the frontend lacks
   (`calendar` and `date-picker` for the dates of the forms) and sets their npm dependencies
   (`react-day-picker`) in `package.json`: run `npm install` again, else `tsc` fails (TS2307).
+- The API of the copies (`npx tsc --noEmit` finds the code of the product that uses what
+  changed):
+  - `errorMessage` moved from `@/bazis/ui/resource` to `@/bazis/i18n` (the same function);
+    the import of `@/bazis/ui/resource` stays until 0.4.0, deprecated: import it from
+    `@/bazis/i18n`.
+  - `payloadErrors` of `@/bazis/ui/transit-bar` takes `message`, a function of an error to
+    its text (`useErrorMessage()` of `@/bazis/react`), in place of `t`.
+  - `BoardDrag` of `@/bazis/ui/resource-board` (a drag and drop of the product in place of
+    `board-dnd`): its `Column` takes `label` (the name of its status) and its `Card` takes
+    `label` (the name of its item, null without one), told to the screen readers.
+  - `useCan(path, 'add')` (the create actions, the links with `can: 'add'`) reads
+    `GET <path>?page[limit]=1&meta=for_create` instead of `<path>schema_create/` (which it
+    still reads without that meta): a mock of the backend in a test of the product answers
+    that list.
+  - `useDestroy(path)` shows a deleted item still shown as not found (an error 404 without a
+    request) instead of reading it again; `useDestroy(path, {leaving: true})` keeps its data
+    while its screen is left.
+  - The helpers of the end-to-end tests: `App.confirm(id)` confirms the dialog of an action
+    (`action:confirm-<id>`), which a deletion of a card shows: a test of the product that
+    deletes by `action(id)` confirms it then; `expectDay` takes `today±N`.
+  - `formatNumber` and `formatDecimal` of `@/bazis/i18n` (and the numbers of the texts)
+    group the digits by thousands from five digits only: `1234` (it was `1,234`), `12,345`;
+    `{useGrouping: true}` groups them as before. A test of the product that reads a number
+    of four digits reads it without the separator.
+  - The validation errors of the forms and of the actions (`errors` of `useResourceForm`,
+    `ActionMutation`) are in the language of the interface (`useErrorMessage`), no longer
+    the text of the backend: a test of the product that reads one reads the translated
+    text.
+  - `ResourceCard` takes `after`, rendered under its sections and its tabs: the related
+    lists and the history of a card without tabs go there (`children` stays under the
+    heading, for the transits).
+  - The deletion of a card (`useDestroyCardAction` of `@/bazis/ui/screens`, new) asks
+    `card.delete_title` (a question) and says `card.delete_confirm` (what the deletion
+    does).
+  - New: `@/bazis/ui/screens` (the actions and the extensions of the generated screens),
+    `useErrorMessage` and the type `DestroyPath` of `@/bazis/react`, `errorText` of the
+    client, `useBesideList`, `NavEntry` and `NavGroup` of `@/bazis/ui/app-shell` (`items`
+    of `AppShell` takes groups of links; `useNavItems` still gives the links).
 - New errors of `check` and `screens` that a product of 0.2.0 may meet: two entities that the
   generated code would name alike (P032), the screens of an item without `:id` (S038), the
   links of the navigation (S030), the code of a custom screen (S028, S029), a field twice in
