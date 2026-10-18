@@ -178,6 +178,23 @@ def load(
     return doc
 
 
+#: what `update` says of a contract of another format (C002), exported by an older version
+CONTRACT_OUTDATED = (
+    f'{CONTRACT_FILE} is of a format of another version: export it again with `manage.py bazis_front '
+    'contract` (after `npm install` in frontend/); `check` reports C002 until then.'
+)
+
+
+def contract_outdated(root: Path) -> bool:
+    """
+    Whether `load_contract` refuses contract/contract.json for its format (C002): not when the
+    product has none or it cannot be read (C001).
+    """
+    issues = Issues()
+    load_contract(root, issues)
+    return any(it.code == 'C002' for it in issues.items)
+
+
 def load_contract(root: Path, issues: Issues) -> dict | None:
     """
     contract/contract.json, or None when the product has none (or it cannot be used).

@@ -3359,13 +3359,53 @@ From 0.1.0 to 0.2.0 (nothing of the API of the copies is removed):
   product that chose a filter with `selectOption` chooses it with `fill` of the helpers, as
   the generated tests do. The panels of the tabs of a card (`card.tabs`) stay in the DOM,
   hidden: a test opens the tab before it fills or reads a control of it.
+
+From 0.2.0 to 0.3.0:
+
+```bash
+pip install -U bazis-front
+python manage.py bazis_front update      # resolve the conflicts that it lists (below)
+(cd frontend && npm install)             # before the contract
+python manage.py bazis_front contract    # contract.json of format 6
+python manage.py bazis_front design
+python manage.py bazis_front check       # after `custom` and `navigation` in the specs (below)
+python manage.py bazis_front screens     # also copies the components that they import
+(cd frontend && npm install)             # their npm dependencies, which `screens` adds
+python manage.py bazis_front e2e
+python manage.py bazis_front shots --no-run
+cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
+```
+
 - The template renders the screens of the specs (`src/screens/generated/`), and has no home
   of its own: `/` is the screen of the specs at `/`, else the first link of the navigation.
-  After `update`, generate them with `bazis_front screens` (`front.W010` until then); a
-  `src/app/router.tsx` that the product changed may conflict once: its routes go to the
-  specs (a `custom` screen for one written by hand). Once the product declares its
-  entities, `check` asks for a screen of the specs at `/` that is a `dashboard` with tiles
-  (S026).
+  After `update`, generate them with `bazis_front screens` (`front.W010` until then). Once
+  the product declares its entities, `check` asks for a screen of the specs at `/` that is a
+  `dashboard` with tiles (S026).
+- A `src/app/router.tsx` that the product changed conflicts once: its routes and its links
+  go to the specs. Replace the whole file by that of the template,
+  `frontend/.bazis/base/template@<version>/src/app/router.tsx` (taking the side of
+  bazis-front in each conflict keeps the lines of the product merged without one, such as
+  its imports), then apply the other changes of the product to it again: its own providers,
+  the routes that are not screens of the specs, the tiles of its maps (a `MapProvider tiles`
+  around `GeneratedProviders`). Move its links to `navigation` of `product.yaml` (with their
+  `icon` and `requires`) and give each screen written by hand `custom` in its spec.
+- `src/app/product.ts` and the home `src/screens/home/index.tsx` are no longer in the
+  template: `update` keeps them and says what replaces them. The name of the product is
+  `product.name` of `product.yaml`: delete `product.ts` once nothing imports it. Delete the home, or
+  keep it with `custom: true` in `spec/screens/home.yaml`.
+- The dictionaries `src/i18n/en.ts` and `src/i18n/ru.ts` that the product changed conflict
+  too, the template having removed the texts of its home: keep the side of the frontend while
+  its screens use them, and remove the keys that no screen reads once they are generated (the
+  texts of a generated screen are those of its spec, in `GENERATED_MESSAGES`).
+- `contract.json` is of format 6 (`create`, the fields of the create route of a resource,
+  which the generated forms take): export the contract again after `npm install`; `update`
+  says so, and `check` reports `C002` until then.
+- `screens` copies the components that the generated screens import and the frontend lacks
+  (`calendar` and `date-picker` for the dates of the forms) and sets their npm dependencies
+  (`react-day-picker`) in `package.json`: run `npm install` again, else `tsc` fails (TS2307).
+- New errors of `check` and `screens` that a product of 0.2.0 may meet: two entities that the
+  generated code would name alike (P032), the screens of an item without `:id` (S038), the
+  links of the navigation (S030), the code of a custom screen (S028, S029).
 
 ## API: the client
 

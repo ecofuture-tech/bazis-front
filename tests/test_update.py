@@ -31,7 +31,7 @@ from django.test import override_settings
 import pytest
 
 from bazis.contrib.front import __version__, checks
-from bazis.contrib.front.spec import screens
+from bazis.contrib.front.spec import screens, validate
 from bazis.contrib.front.spec.validate import schema_files
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor import update as vendor_update
@@ -458,6 +458,21 @@ def test_update_of_a_frontend_made_before_the_screens(product):
     assert [it.msg for it in checks.check_screens(None)] == [screens.NEEDS_SCREENS]
 
 
+def test_update_asks_for_the_contract_of_another_format(product):
+    """
+    A contract exported by an older version (C002) is exported again after the update, which
+    says so; a contract of the format of the installed version is not mentioned.
+    """
+    downgrade(product, 'client')
+    assert validate.CONTRACT_OUTDATED not in update()
+
+    contract = product / 'contract' / 'contract.json'
+    contract.write_text(json.dumps({**json.loads(contract.read_text(encoding='utf-8')), 'format': 5}), encoding='utf-8')
+    downgrade(product, 'client')
+    out = update()
+    assert out.index(validate.CONTRACT_OUTDATED) < out.index('Updated the copies')
+
+
 def test_update_copies_no_component_for_a_frontend_without_the_template(product):
     """A lock without the template (the product's frontend) is never given its components."""
     for name in login_components(product):
@@ -769,6 +784,21 @@ def test_update_never_deletes_a_file_of_the_template(product):
     assert (frontend / 'src/app/legacy.ts').read_text(encoding='utf-8') == '// legacy\n'
     assert_updated(product, 'template')
     assert 'src/app/legacy.ts' not in read_lock(product)['assets']['template']['files']
+
+
+def test_update_says_what_replaces_a_file_that_the_template_removed(product):
+    """
+    The files of the template of 0.2.0 that the screens of the specs replace are kept, with
+    what replaces them: the name of the product, the home.
+    """
+    downgrade(product, 'template')
+    add_old_file(product, 'template', 'src/app/product.ts', "export const PRODUCT_NAME = 'Library';\n")
+
+    out = update()
+    assert (
+        "  src/app/product.ts: kept: no longer in bazis-front (the product's now)\n"
+        f"    {vendor_update.REPLACED_BY['src/app/product.ts']}\n"
+    ) in out
 
 
 @dataclass(frozen=True)

@@ -413,6 +413,8 @@ class Command(BaseCommand):
                 '`manage.py bazis_front update`.'
             )
         update.apply(root, frontend, lock, plan)
+        if spec_validate.contract_outdated(root):
+            self.stdout.write(spec_validate.CONTRACT_OUTDATED)
         if spec_screens.needs_screens(frontend, lock):
             self.stdout.write(spec_screens.NEEDS_SCREENS)
         install = (
@@ -447,6 +449,8 @@ class Command(BaseCommand):
             for it in asset.files:
                 if it.status != update.REPLACED:
                     self.stdout.write(f'  {it.path}: {update.DESCRIPTIONS[it.status]}')
+                if it.status == update.ORPHANED and it.path in update.REPLACED_BY:
+                    self.stdout.write(f'    {update.REPLACED_BY[it.path]}')
         if plan.package is not None:
             self.stdout.write(f'{plan.package.path}: {update.DESCRIPTIONS[plan.package.status]}')
         if plan.kept:
