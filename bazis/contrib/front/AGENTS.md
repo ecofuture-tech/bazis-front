@@ -72,8 +72,9 @@ in `frontend/` never need to be read.
 9. Take the screenshots, `python manage.py bazis_front shots` (the backend running as for
    `npm run e2e`), read `frontend/.scratch/shots/report.json` and look at the screenshots,
    fix every error and take them again, at most three rounds: "The visual check".
-10. Check the frontend in `frontend/`: `npx tsc --noEmit`, `npm run lint`, `npm test` and
-   `npm run build`; `python manage.py bazis_front status` lists what is stale.
+10. Check the frontend in `frontend/`: `npm run format`, `npx tsc --noEmit`, `npm run lint`,
+   `npm test` and `npm run build`; after the last edit of a file run `npm run format` and
+   `npm run lint` again; `python manage.py bazis_front status` lists what is stale.
 
 Later, after `pip install -U bazis-front`: "Updating the copies".
 
@@ -1616,7 +1617,7 @@ of the specs and the paths of `ROUTES`.
 | a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell` (a card: `parent`, the link back to its list, and no `title`: the card heads the screen with the label of its item, its `h1`, instead of the name of the entity); the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control; `display` of the entity; the `status` of a statusy model is its badge, no `cells` needed; the icon of the entity in `icon`) |
 | `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
-| `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only; `label` and `display` of the entity), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
+| `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only; `label` and `display` of the entity), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy); `<TransitBar path={…} id={id} transits={ENTITY.transits} onDone={…} />`, `transits` of the entity in `src/screens/generated/entities.ts`: the order of `workflow.transitions` (the first the main button) and their `confirm`; leave it out and the buttons follow the order of the backend |
 | `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card`: `path`, `entity`, `relation`, `item={id}`, `itemPath` (the `path` of the card), `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). In `after` of the card it is drawn under the sections of fields (a card without tabs), in its `children` under the heading, above them; one placed after the card reads it again too ("Composing beyond the specs"). They read the card again after an add |
 | a field with choices (a column, a field of a card or a form, a filter) | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
 | the notifications and the live updates (bazis-notify, bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` (its `notifications`: `useInbox` with bazis-notify, else `useNotifications`) and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` ("The socket") |
@@ -1626,9 +1627,9 @@ of the specs and the paths of `ROUTES`.
 | an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | `primitive: custom` in the spec when a button, its fields and its toast say it all ("Custom actions of the specs"); else a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
 | `card.tabs` | `tabs` of `ResourceCard`: `{id, title, sections: [...]}`, a related section or the history as its `content` (`(item, meta) => <RelatedList …/>`, `(item) => <StatusHistory resource={item} />`); the `TransitBar` in the `children`, above the tabs |
 | `list.bulk` (a transition, a deletion) | `bulk` of `ResourceList`: `{id, label, run: (id) => transit.mutateAsync({id, transit: '<transit>'})}` with `const transit = useItemsTransit(path)` of `@/bazis/react/statusy`, or `run: (id) => destroy.mutateAsync(id)` with `permission: 'delete'` |
-| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
-| `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`title` and `fields` of `card`, `badge`, `columns`, `filters`, `move` for `move: true`, `onOpen`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
-| `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (value) => …}}`: the create form in `FormSurface` starting with the value as `initial={{<field>: value}}` of `ResourceForm`, which the user may change: the time of a date-time) |
+| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`; each in `<Viewable path={…}>` of `@/bazis/ui/dashboard`, as a tile and the last items, so that a role the backend does not let view the entity sees none of them), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
+| `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`title` and `fields` of `card`, `badge`, `columns`, `filters`, `move` and `transits={ENTITY.transits}` for `move: true` (the moves in the order of `workflow.transitions`, with their `confirm`), `onOpen`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
+| `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (initial) => …}}`: `initial` is an object of the values the create form starts with (`{<field>: day}`, the moment of `time` for a date-time, `end`, the choice of a filter), given as `initial={initial}` to the `ResourceForm` in `FormSurface`, which the user may change; the generated screen passes `onAdd: <form>.onOpenWith` of `CreateFormAction.use()`) |
 | the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
@@ -1653,6 +1654,8 @@ import { StatusHistory } from '@/bazis/ui/status-history';
 import { TransitBar } from '@/bazis/ui/transit-bar';
 
 const TASKS = ROUTES['tasks.task'];
+// `workflow.transitions` of the spec: the first the main button; generated screens read it from `TASK.transits`
+const TASK_TRANSITS = [{ id: 'finish' }, { id: 'start', confirm: true }];
 
 // spec/screens/task-list.yaml
 export function TaskListScreen() {
@@ -1717,7 +1720,7 @@ export function TaskCardScreen() {
         )}
       >
         {/* null: the user can no longer view the item */}
-        <TransitBar path={TASKS} id={id} onDone={(done) => { if (done === null) void navigate('/tasks'); }} />
+        <TransitBar path={TASKS} id={id} transits={TASK_TRANSITS} onDone={(done) => { if (done === null) void navigate('/tasks'); }} />
       </ResourceCard>
       {destroy.confirm}
     </Screen>

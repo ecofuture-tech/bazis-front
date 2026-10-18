@@ -94,6 +94,25 @@ def test_the_screens_of_the_sample_are_the_fixture():
         assert (FIXTURES / name).read_text(encoding='utf-8') == text, name
 
 
+def test_the_recipes_of_the_guide_are_what_the_generator_writes():
+    """
+    The table "spec to code" of the guide gives the recipe of each primitive that the
+    generator writes (the fixture): the props that it writes for a card, a board, a calendar
+    and a dashboard are those the table names, so that the table does not fall behind.
+    """
+    guide = (REPOSITORY / 'bazis' / 'contrib' / 'front' / 'AGENTS.md').read_text(encoding='utf-8')
+    rows = {
+        primitive: next(it for it in guide.splitlines() if it.startswith(f'| `primitive: {primitive}`'))
+        for primitive in ('card', 'board', 'calendar', 'dashboard')
+    }
+    written = {name: (FIXTURES / f'{name}.tsx').read_text(encoding='utf-8') for name in ('task-card', 'task-board', 'task-calendar', 'home')}
+    assert 'transits={TASK.transits}' in written['task-card'] and 'transits={ENTITY.transits}' in rows['card']
+    assert 'transits={TASK.transits}' in written['task-board'] and 'transits={ENTITY.transits}' in rows['board']
+    assert 'onAdd: addTaskForm.onOpenWith' in written['task-calendar']
+    assert 'onAdd: (initial) =>' in rows['calendar'] and 'initial={initial}' in rows['calendar']
+    assert '<Viewable' in written['home'] and '<Viewable path=' in rows['dashboard']
+
+
 def test_the_texts_of_the_specs_are_the_generated_messages(tmp_path):
     """
     The texts of every spec in the dictionaries of the languages; a map without the default
