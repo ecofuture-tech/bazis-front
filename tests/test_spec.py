@@ -444,6 +444,16 @@ CASES = [
         {PRODUCT: lambda d: d['entities'][2].update(label=['task', 'rank'])},
         [('P031', f'{PRODUCT}#/entities/2/label/1')],
     ),
+    (
+        'P032',
+        # an entity named as the filter of a list in the code, two named alike
+        {PRODUCT: lambda d: d['entities'].extend([
+            {'id': 'filter', 'resource': 'users.user', 'fields': [{'id': 'username', 'type': 'string'}]},
+            {'id': 'user_', 'resource': 'users.user', 'fields': [{'id': 'username', 'type': 'string'}]},
+            {'id': 'user-', 'resource': 'users.user', 'fields': [{'id': 'username', 'type': 'string'}]},
+        ])},
+        [('P032', f'{PRODUCT}#/entities/3/id'), ('P032', f'{PRODUCT}#/entities/5/id')],
+    ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
     (
@@ -488,6 +498,12 @@ CASES = [
         {LIST: lambda d: d['actions'].extend([{'id': 'remove', 'primitive': 'destroy'},
                                               {'id': 'create', 'primitive': 'form', 'mode': 'create'}])},
         [('S010', f'{LIST}#/actions/1'), ('S010', f'{LIST}#/actions/2')],
+    ),
+    (
+        'S010',
+        # an update form `edit` on a card with `edit: true`, whose edit is the action `edit`
+        {CARD: lambda d: d['actions'].append({'id': 'edit', 'primitive': 'form', 'mode': 'update'})},
+        [('S010', f'{CARD}#/actions/1')],
     ),
     ('S011', {'spec/screens/user-card.yaml': lambda d: user_card(d, transitions=True)}, [('S011', 'spec/screens/user-card.yaml#/card/transitions')]),
     (
@@ -766,6 +782,15 @@ CASES = [
          CARD: lambda d: d.update(custom=True, extend=True),
          LIST: lambda d: d.update(extend=True)},
         [('S031', f'{DRAFTS}#/extend'), ('S031', f'{CARD}#/extend'), ('S031', f'{LIST}#/extend')],
+    ),
+    (
+        'S033',
+        # a screen named as the board in the code, an action as the "add here" of the steps
+        {'spec/screens/task_board.yaml': lambda d: {
+            **read(SAMPLE_SPEC / 'screens' / 'task-board.yaml'), 'id': 'task_board', 'route': '/board-2',
+        },
+         CARD: lambda d: d['actions'].append({'id': 'add_step', 'primitive': 'form', 'mode': 'create'})},
+        [('S033', f'{CARD}#/card/related/0/add/id'), ('S033', 'spec/screens/task_board.yaml#/id')],
     ),
     (
         'S004',

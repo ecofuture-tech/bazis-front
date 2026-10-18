@@ -17,15 +17,6 @@
 import type { Messages } from '@/bazis/i18n';
 
 export const ru: Messages = {
-  'home.title': 'Обзор',
-  'home.description': 'Задачи команды с первого взгляда и куда идти дальше.',
-  'home.drafts': 'Черновики',
-  'home.in_progress': 'В работе',
-  'home.done': 'Готово',
-  'home.review': 'На проверку',
-  'home.by_status': 'По статусам',
-  'home.by_week': 'Созданы по неделям',
-  'home.last_tasks': 'Последние задачи',
   'tasks.title': 'Задачи',
   'tasks.description': 'Задачи команды: от черновика до отчёта.',
   'tasks.new': 'Новая задача',
@@ -34,8 +25,4 @@ export const ru: Messages = {
   'tasks.count': 'Посчитать задачи',
   'tasks.no_location': 'Ни у одной задачи нет местоположения.',
   'tasks.start_all': 'Начать',
-  'tasks.board': 'Доска',
-  'tasks.board_description': 'Задачи по статусам, переводимые их переходами.',
-  'tasks.calendar': 'Календарь',
-  'tasks.calendar_description': 'Задачи в дни их создания.',
 };

@@ -173,6 +173,11 @@ export interface DashboardProps {
   /** The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`. */
   charts?: ReactNode;
   recent?: readonly RecentListProps[];
+  /**
+   * What the screen shows after its parts, such as the create forms of its actions: in the
+   * screen, so that a form composed as a page takes its place.
+   */
+  children?: ReactNode;
 }
 
 /** The home of a product: its numbers, its links, its charts and its last items, in this order. */
@@ -186,6 +191,7 @@ export function Dashboard({
   links,
   charts,
   recent = [],
+  children,
 }: DashboardProps) {
   const { t } = useLanguage();
   const linksId = useId();
@@ -241,6 +247,7 @@ export function Dashboard({
           </div>
         )}
       </div>
+      {children}
     </Screen>
   );
 }

@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# The list of the sample without its map: generated, with its create form and its bulk action.
+# The list of the sample, generated: its map, its create form and its bulk action.
 spec: bazis-screen/1
 id: task-list
 title: {en: Tasks, ru: Задачи}
@@ -15,6 +15,7 @@ list:
   search: true
   open: task-card
   empty: {en: No tasks yet., ru: Задач пока нет.}
+  map: {field: location}
   bulk:
     - {id: start-all, transit: start, label: {en: Start, ru: Начать}}   # the selected drafts started one by one
 actions:

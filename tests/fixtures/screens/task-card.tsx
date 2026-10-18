@@ -32,7 +32,6 @@ export function TaskCardScreen() {
   return (
     <Screen
       id="task-card"
-      title={t('screens.task-card.title')}
       parent={{ screen: 'task-list', label: t('screens.task-list.title'), to: routeTo('task-list') }}
     >
       <ResourceCard

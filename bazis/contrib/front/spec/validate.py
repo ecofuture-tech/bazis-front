@@ -37,6 +37,7 @@ from ..vendor import lock as frontend_lock
 from ..vendor import registry
 from . import design, refs, scenarios
 from .issues import CONTRACT, ERROR, WARNING, Document, Issue, Issues
+from .names import component_name
 from .scenarios import Step
 
 
@@ -343,13 +344,6 @@ EXTEND_FILE = 'extend.tsx'
 EXTENSION = 'extension'
 #: the module of `custom` (`@/screens/<path>`) is one of these files of `src/screens/<path>`
 MODULE_FILES = ('.tsx', '.ts', '/index.tsx', '/index.ts')
-
-
-def component_name(screen_id: str) -> str:
-    """
-    The component of a screen: its id in PascalCase and `Screen` (`loan-list`: `LoanListScreen`).
-    """
-    return ''.join(it.capitalize() for it in re.split(r'[-_]', screen_id)) + 'Screen'
 
 
 def exports(path: Path, name: str) -> bool:

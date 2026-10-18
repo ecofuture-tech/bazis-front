@@ -32,9 +32,12 @@ are copied into the frontend when it lacks them (`copy.add_assets`).
 
 import re
 from pathlib import Path
+from typing import NamedTuple
 
 from ..vendor import lock as frontend_lock
 from ..vendor.registry import load as load_registry
+from .names import camel, component_name, constant_name, pascal
+from .refs import screen_actions
 from .tsx import (
     SPREAD,
     Arr,
@@ -66,7 +69,6 @@ from .validate import (
     TEXT_KEY,
     THEME_FILE,
     Specs,
-    component_name,
     screen_files,
     text_paths,
     text_values,
@@ -105,52 +107,30 @@ def doc_comment(*lines: str) -> str:
     return '\n'.join(['/**', *(f' * {it}' if it else ' *' for it in lines), ' */'])
 
 
-def pascal(name: str) -> str:
-    """`list-checks`: `ListChecks`; `building-2`: `Building2`."""
-    return ''.join(it[:1].upper() + it[1:] for it in re.split(r'[-_]', name) if it)
-
-
-def camel(name: str) -> str:
-    value = pascal(name)
-    return value[:1].lower() + value[1:]
-
-
 def icon_name(icon: str) -> str:
     """The export of lucide-react of an icon, `<Name>Icon`: never the name of a component."""
     return pascal(icon) + 'Icon'
 
 
-def constant_name(entity_id: str) -> str:
-    return re.sub(r'[^A-Z0-9]', '_', entity_id.upper())
-
-
 def unsupported(specs: Specs) -> list[str]:
     """
-    Why screens of the specs are not generated yet, one message for each: the parts that the
-    generator does not compose (those screens are `custom`). Empty when every screen that is
-    not custom is generated.
+    Why screens of the specs are not generated, one message for each: an extension, which the
+    generator does not compose yet, and an update form without the item in its route. Empty
+    when every screen that is not custom is generated.
     """
     problems = []
     for screen_id, data in specs.screens.items():
         if data is None or data.get('custom'):
             continue
-        reasons = []
-        primitive = data['primitive']
-        if primitive in ('form', 'board', 'calendar'):
-            reasons.append(f'a {primitive}')
-        parts = ('tiles', 'charts', 'recent', 'actions')
-        if primitive == 'dashboard' and any(data['dashboard'].get(it) for it in parts):
-            reasons.append('a dashboard with tiles, charts, last items or actions')
-        if primitive == 'list' and 'map' in data['list']:
-            reasons.append('`list.map`')
         if data.get('extend'):
-            reasons.append('`extend`')
-        if any(it.get('mode') == 'update' for it in data.get('actions', [])):
-            reasons.append('an update form')
-        if reasons:
             problems.append(
-                f'The screen `{screen_id}` has {", ".join(reasons)}, which `bazis_front screens` does not '
-                f'generate yet: declare it `custom: true` and write it in src/screens/{screen_id}/index.tsx.'
+                f'The screen `{screen_id}` has `extend`, which `bazis_front screens` does not generate yet: '
+                f'declare it `custom: true` and write it in src/screens/{screen_id}/index.tsx.'
+            )
+        if data['primitive'] == 'form' and data['form']['mode'] == 'update' and ':id' not in data['route']:
+            problems.append(
+                f'The screen `{screen_id}` updates an item, but its route `{data["route"]}` does not say which: '
+                'add `:id` to the route (the id of the item), or declare the screen `custom: true`.'
             )
     return problems
 
@@ -299,10 +279,6 @@ def route_to(product: Product, screen_id: str, item: str | None = None) -> Call:
     return Call('routeTo', args)
 
 
-def navigate(target: Call) -> Void:
-    return Void(Call('navigate', [target]))
-
-
 def entity_constant(code: Code, consts: dict, entity_id: str) -> Raw:
     name = constant_name(entity_id)
     consts[name] = f'const {name} = ENTITIES.{entity_id};' if re.fullmatch(r'[A-Za-z_$][\w$]*', entity_id) else (
@@ -310,6 +286,15 @@ def entity_constant(code: Code, consts: dict, entity_id: str) -> Raw:
     )
     code.use('./entities', 'ENTITIES')
     return Raw(name)
+
+
+class Form(NamedTuple):
+    """The create form of an action: the action, the name of its state, its label and its entity."""
+
+    action: dict
+    state: Raw
+    label: object
+    entity: Raw
 
 
 class Screen:
@@ -321,6 +306,8 @@ class Screen:
         self.consts: dict[str, str] = {}
         #: the statements of the hooks of the component, by name
         self.hooks: dict[str, object] = {}
+        #: the names that the code uses of `useLanguage()`
+        self.language: set[str] = set()
         self.after: list = []
 
     def entity(self, entity_id: str) -> Raw:
@@ -330,52 +317,76 @@ class Screen:
         self.hooks[name] = statement
         self.code.use(source, *names)
 
-    def translate(self, language: bool = False) -> None:
-        current = self.hooks.get('t')
-        if language or (current is not None and 'language' in current):
-            self.hooks['t'] = 'const { language, t } = useLanguage();'
-        else:
-            self.hooks['t'] = 'const { t } = useLanguage();'
+    def translate(self, *names: str) -> None:
+        """`useLanguage()` with the names that the code uses of it: `t`, `language`."""
+        self.language.update(names)
+        self.hooks['t'] = f'const {{ {", ".join(sorted(self.language))} }} = useLanguage();'
         self.code.use('@/bazis/i18n', 'useLanguage')
 
-    def navigate(self) -> None:
-        self.hook('navigate', 'const navigate = useNavigate();', 'react-router', 'useNavigate')
-        self.code.use('./screens', 'routeTo')
-
     def route(self, screen_id: str, item: str | None = None) -> Call:
-        self.navigate()
+        """`routeTo(screen)`, the route of a screen (of an item: `item` is its id)."""
+        self.code.use('./screens', 'routeTo')
         return route_to(self.product, screen_id, item)
+
+    def go(self, target: Call) -> Void:
+        """`void navigate(target)`, with the hook of the navigation."""
+        self.hook('navigate', 'const navigate = useNavigate();', 'react-router', 'useNavigate')
+        return Void(Call('navigate', [target]))
 
     def text(self, *path) -> Call | None:
         found = text(self.data, *path)
         if found is not None:
-            self.translate()
+            self.translate('t')
         return found
 
     def package_text(self, key: str) -> Call:
-        self.translate()
+        self.translate('t')
         return Call('t', [Str(key)])
 
-    def create_forms(self, entity: Raw) -> list[tuple[dict, Raw]]:
-        """The create forms of the actions (`CreateFormAction`), with their state; each written after the component."""
+    def create_forms(self) -> list[Form]:
+        """
+        The create forms of the actions (`CreateFormAction`), each of the entity of the screen or
+        of its own (a dashboard), with their state; each written after the component.
+        """
         forms = []
-        for i, action in enumerate(self.data.get('actions', [])):
+        for path, action in screen_actions(self.data):
             if action['primitive'] != 'form' or action.get('mode') != 'create':
                 continue
-            state = camel(action['id']) + 'Form'
-            self.hook(state, f'const {state} = CreateFormAction.use();', '@/bazis/ui/screens', 'CreateFormAction')
-            label = self.text('actions', i, 'label') or self.package_text('form.create')
-            attrs = [Attr(SPREAD, Raw(state)), Attr('path', Raw(f'{entity.code}.path'))]
-            if 'fields' in action:
-                attrs.append(Attr('fields', Arr([Str(it) for it in action['fields']])))
-            attrs.append(Attr('title', label))
-            if (description := self.text('actions', i, 'description')) is not None:
-                attrs.append(Attr('description', description))
-            if 'then' in action:
-                attrs.append(Attr('onSaved', Arrow(['saved'], navigate(self.route(action['then'], 'saved.data.id')))))
-            self.after.append(Jsx('CreateFormAction', attrs))
-            forms.append((action, Raw(state), label))
+            entity = self.entity(action.get('entity', self.data.get('entity')))
+            state = self.form_state('CreateFormAction', action['id'])
+            label = self.text(*path, 'label') or self.package_text('form.create')
+            self.form_action('CreateFormAction', state, entity, action, label, self.text(*path, 'description'))
+            forms.append(Form(action, state, label, entity))
         return forms
+
+    def form_state(self, component: str, action_id: str) -> Raw:
+        """The state of the form of an action, `<action>Form` (`CreateFormAction.use()`)."""
+        state = camel(action_id) + 'Form'
+        self.hook(state, f'const {state} = {component}.use();', '@/bazis/ui/screens', component)
+        return Raw(state)
+
+    def form_action(self, component: str, state: Raw, entity: Raw, action: dict, label, description=None) -> None:
+        """
+        The form of an action, written after the component: its fields, its title and its
+        description, then the screen `then` of the action (that of the saved item for a screen
+        of an item).
+        """
+        attrs = [Attr(SPREAD, state), Attr('path', Raw(f'{entity.code}.path'))]
+        if component == 'UpdateFormAction':
+            attrs.append(Attr('id', Raw('id')))
+        if 'fields' in action:
+            attrs.append(Attr('fields', Arr([Str(it) for it in action['fields']])))
+        attrs.append(Attr('title', label))
+        if description is not None:
+            attrs.append(Attr('description', description))
+        if 'then' in action:
+            attrs.append(Attr('onSaved', self.on_saved(action['then'])))
+        self.after.append(Jsx(component, attrs))
+
+    def on_saved(self, screen_id: str) -> Arrow:
+        """What a form does once it saved: it shows the screen, that of the saved item for a screen of an item."""
+        target = self.route(screen_id, 'saved.data.id')
+        return Arrow(['saved'] if len(target.args) > 1 else [], self.go(target))
 
     def write(self, body) -> str:
         """The module of the screen: its component, `<Id>Screen`, returning the body."""
@@ -391,11 +402,12 @@ class Screen:
 
 def screen_attrs(screen: Screen, parent: dict | None = None) -> list[Attr]:
     attrs = [Attr('id', screen.data['id'])]
-    if (title := screen.text('title')) is not None:
+    # a card heads the screen with the label of its item, its `h1`, instead of a title
+    if screen.data['primitive'] != 'card' and (title := screen.text('title')) is not None:
         attrs.append(Attr('title', title))
     if parent is not None:
-        label = text(parent, 'title')
-        screen.translate()
+        if (label := text(parent, 'title')) is not None:
+            screen.translate('t')
         attrs.append(Attr('parent', Obj([
             ('screen', Str(parent['id'])),
             ('label', label if label is not None else Str(parent['id'])),
@@ -406,21 +418,25 @@ def screen_attrs(screen: Screen, parent: dict | None = None) -> list[Attr]:
     return attrs
 
 
+def filter_value(screen: Screen, where: dict) -> Call:
+    """A filter of the specs: each field equal to its value (`Filter.and` of several)."""
+    screen.code.use('@/bazis/client', 'Filter')
+    parts = [Call('Filter.where', [Str(key), _scalar(value)]) for key, value in where.items()]
+    return parts[0] if len(parts) == 1 else Call('Filter.and', parts)
+
+
 def filter_expr(screen: Screen, where: dict) -> Raw:
     """The filter of a list (`list.filter`), a constant of the module."""
-    screen.code.use('@/bazis/client', 'Filter')
-    parts = [f'Filter.where({quote(key)}, {_scalar(value)})' for key, value in where.items()]
-    value = parts[0] if len(parts) == 1 else f'Filter.and({", ".join(parts)})'
-    screen.consts['FILTER'] = f'const FILTER = {value};'
+    screen.consts['FILTER'] = printed(Const('FILTER', filter_value(screen, where)).doc())
     return Raw('FILTER')
 
 
-def _scalar(value) -> str:
+def _scalar(value) -> Str | Raw:
     if isinstance(value, bool):
-        return 'true' if value else 'false'
+        return Raw('true' if value else 'false')
     if isinstance(value, str):
-        return quote(value)
-    return repr(value)
+        return Str(value)
+    return Raw(repr(value))
 
 
 def render_list(product: Product, data: dict) -> str:
@@ -440,12 +456,14 @@ def render_list(product: Product, data: dict) -> str:
     if spec.get('search'):
         attrs.append(Attr('search'))
     attrs += entity_attrs(product, entity_id, const, label=False)
+    opened = []
     if any(it['primitive'] == 'card' and product.host(it) is data for it in product.screens.values()):
         screen.hook('id', 'const { id } = useParams();', 'react-router', 'useParams')
-        attrs.append(Attr('selected', Raw('id')))
+        opened.append(Attr('selected', Raw('id')))
     if 'open' in spec:
-        attrs.append(Attr('onOpen', Arrow(['item'], navigate(screen.route(spec['open'], 'item')))))
-    if actions := [create_action(screen, *it) for it in screen.create_forms(const)]:
+        opened.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
+    attrs += opened
+    if actions := [create_action(screen, it) for it in screen.create_forms()]:
         attrs.append(Attr('actions', Arr(actions)))
     if 'bulk' in spec:
         attrs.append(Attr('bulk', Arr([bulk_action(screen, const, i, it) for i, it in enumerate(spec['bulk'])])))
@@ -453,18 +471,38 @@ def render_list(product: Product, data: dict) -> str:
         attrs += highlight_attrs(screen, spec['highlight'])
     if (empty := screen.text('list', 'empty')) is not None:
         attrs.append(Attr('emptyMessage', empty))
-    screen.code.use('@/bazis/ui/app-shell', 'Screen')
     screen.code.use('@/bazis/ui/resource-list', 'ResourceList')
-    return screen.write(Jsx('Screen', screen_attrs(screen), [Jsx('ResourceList', attrs), *screen.after]))
+    body = [Jsx('ResourceList', attrs)]
+    if 'map' in spec:
+        body.insert(0, list_map(screen, const, spec, opened))
+    return screen.write(screen_element(screen, body))
+
+
+def list_map(screen: Screen, const: Raw, spec: dict, opened: list[Attr]) -> Jsx:
+    """
+    The map of the items of a list beside it (`list.map`): those of the filter of the screen,
+    the open one selected, a marker opening its card as a row does.
+    """
+    screen.code.use('@/bazis/ui/map', 'ResourceMap')
+    attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('entity', screen.data['entity'])]
+    attrs.append(Attr('field', spec['map']['field']))
+    if 'filter' in spec:
+        attrs.append(Attr('filter', Raw('FILTER')))
+    return Jsx('ResourceMap', attrs + opened)
+
+
+def has_display(product: Product, entity_id: str) -> bool:
+    """Whether the entity says how some of its values are shown (`display` of its fields)."""
+    return any('display' in it for it in product.entities[entity_id]['fields'])
 
 
 def entity_attrs(product: Product, entity_id: str, const: Raw, label: bool) -> list[Attr]:
-    """The attributes a list and a card take from the entity: its label, its display and its icon."""
+    """The attributes a list, a card and a board take from the entity: its label, its display and its icon."""
     entity = product.entities[entity_id]
     attrs = []
     if label and 'label' in entity:
         attrs.append(Attr('label', Raw(f'{const.code}.label')))
-    if any('display' in it for it in entity['fields']):
+    if has_display(product, entity_id):
         attrs.append(Attr('display', Raw(f'{const.code}.display')))
     if not label and entity_id in product.icons:
         attrs.append(Attr('icon', Raw(f'{const.code}.Icon')))
@@ -475,18 +513,18 @@ def list_filter(screen: Screen, entity: dict, const: Raw, name: str):
     """A filter of a list: the status one lists the statuses of the workflow."""
     if name != 'status' or 'workflow' not in entity:
         return Str(name)
-    screen.translate(language=True)
+    screen.translate('language')
     screen.code.use('@/bazis/ui/status-badge', 'statusOptions')
     options = Call('statusOptions', [Raw(f'{const.code}.type'), Raw('language')])
     return Obj([('field', Str('status')), ('options', options)])
 
 
-def create_action(screen: Screen, action: dict, state: Raw, label) -> Obj:
+def create_action(screen: Screen, form: Form) -> Obj:
     """The action of a list opening a create form."""
     screen.code.use('lucide-react', icon_name(CREATE_ICON))
     return Obj([
-        ('id', Str(action['id'])), ('label', label), ('icon', Raw(icon_name(CREATE_ICON))),
-        ('permission', Str('add')), ('onClick', Raw(f'{state.code}.onOpen')),
+        ('id', Str(form.action['id'])), ('label', form.label), ('icon', Raw(icon_name(CREATE_ICON))),
+        ('permission', Str('add')), ('onClick', Raw(f'{form.state.code}.onOpen')),
     ])
 
 
@@ -507,7 +545,7 @@ def bulk_action(screen: Screen, const: Raw, index: int, bulk: dict) -> Obj:
         statement = f'const transit = useItemsTransit({const.code}.path);'
         screen.hook('transit', statement, '@/bazis/react/statusy', 'useItemsTransit')
         if label is None:
-            screen.translate(language=True)
+            screen.translate('language')
             screen.code.use('@/bazis/ui/status-badge', 'transitName')
             label = Call('transitName', [Raw(f'{const.code}.type'), Str(bulk['transit']), Raw('language')])
         run = Call('transit.mutateAsync', [Obj([('id', Raw('item')), ('transit', Str(bulk['transit']))])])
@@ -549,22 +587,30 @@ def render_card(product: Product, data: dict) -> str:
         render_props = []
     else:
         render_props = [*([history] if history is not None else []), *related.values()]
-    destroys = [(i, it) for i, it in enumerate(data.get('actions', [])) if it['primitive'] == 'destroy']
-    if destroys:
-        attrs.append(Attr('actions', Arr([destroy_action(screen, const, i, it) for i, it in destroys])))
-    header_actions = [header_action(screen, const, *it) for it in screen.create_forms(const)]
+    card_actions = [
+        destroy_action(screen, const, i, it) if it['primitive'] == 'destroy' else update_action(screen, const, i, it)
+        for i, it in enumerate(data.get('actions', []))
+        if it['primitive'] == 'destroy' or it.get('mode') == 'update'
+    ]
+    if card_actions:
+        attrs.append(Attr('actions', Arr(card_actions)))
+    header = header_actions(screen)
 
     if render_props:
         body = Jsx('', [], [*children, *render_props]) if len(children) + len(render_props) > 1 else render_props[0]
-        children = [Arrow(['item', 'meta'] if needs_meta(render_props) else ['item'], body)]
-    screen.code.use('@/bazis/ui/app-shell', 'Screen')
+        children = [render_prop(render_props, body)]
     screen.code.use('@/bazis/ui/resource-card', 'ResourceCard')
-    screen_props = screen_attrs(screen, product.parent(data))
-    if header_actions:
-        actions = header_actions[0] if len(header_actions) == 1 else Jsx('', [], header_actions)
-        screen_props.append(Attr('actions', actions))
     card = Jsx('ResourceCard', attrs, children)
-    return screen.write(Jsx('Screen', screen_props, [card, *screen.after]))
+    return screen.write(screen_element(screen, [card], header, product.parent(data)))
+
+
+def screen_element(screen: Screen, body: list, actions=None, parent: dict | None = None) -> Jsx:
+    """`Screen` with its title, its parent, its description and the actions of its header, then the body and what follows it."""
+    screen.code.use('@/bazis/ui/app-shell', 'Screen')
+    attrs = screen_attrs(screen, parent)
+    if actions is not None:
+        attrs.append(Attr('actions', actions))
+    return Jsx('Screen', attrs, [*body, *screen.after])
 
 
 def card_section(screen: Screen, index: int, section: dict) -> Obj:
@@ -591,7 +637,7 @@ def transit_bar(screen: Screen, const: Raw) -> Jsx:
     attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('id', Raw('id'))]
     parent = screen.product.parent(screen.data)
     if parent is not None:
-        back = If(Raw('done === null'), navigate(screen.route(parent['id'])))
+        back = If(Raw('done === null'), screen.go(screen.route(parent['id'])))
         attrs.append(Attr('onDone', Arrow(['done'], Block([back]))))
     return Jsx('TransitBar', attrs)
 
@@ -612,14 +658,36 @@ def destroy_action(screen: Screen, const: Raw, index: int, action: dict) -> Raw:
     return Raw(f'{name}.action')
 
 
-def header_action(screen: Screen, const: Raw, action: dict, state: Raw, label) -> Jsx:
-    """The action of a card opening a create form, in the header of the screen."""
-    screen.code.use('@/bazis/ui/screens', 'ScreenAction')
-    return Jsx('ScreenAction', [
-        Attr('id', action['id']), Attr('label', label),
-        Attr('requires', Obj([('path', Raw(f'{const.code}.path')), ('can', Str('add'))])),
-        Attr('onClick', Raw(f'{state.code}.onOpen')),
+def update_action(screen: Screen, const: Raw, index: int, action: dict) -> Obj:
+    """The update form of the item of a card (`UpdateFormAction`), opened by an action of the card that the user may change."""
+    state = screen.form_state('UpdateFormAction', action['id'])
+    label = screen.text('actions', index, 'label') or screen.package_text('card.edit')
+    screen.form_action('UpdateFormAction', state, const, action, label, screen.text('actions', index, 'description'))
+    return Obj([
+        ('id', Str(action['id'])), ('label', label), ('permission', Str('change')),
+        ('onClick', Raw(f'{state.code}.onOpen')),
     ])
+
+
+def header_actions(screen: Screen) -> Jsx | None:
+    """
+    The create forms of the actions of a screen opened from its header (`ScreenAction`), each
+    shown once the user may add an item of its entity; None without them.
+    """
+    forms = screen.create_forms()
+    if not forms:
+        return None
+    screen.code.use('@/bazis/ui/screens', 'ScreenAction')
+    screen.code.use('lucide-react', icon_name(CREATE_ICON))
+    buttons = [
+        Jsx('ScreenAction', [
+            Attr('id', it.action['id']), Attr('label', it.label), Attr('icon', Raw(icon_name(CREATE_ICON))),
+            Attr('requires', Obj([('path', Raw(f'{it.entity.code}.path')), ('can', Str('add'))])),
+            Attr('onClick', Raw(f'{it.state.code}.onOpen')),
+        ])
+        for it in forms
+    ]
+    return buttons[0] if len(buttons) == 1 else Jsx('', [], buttons)
 
 
 def needs_meta(parts: list) -> bool:
@@ -627,11 +695,19 @@ def needs_meta(parts: list) -> bool:
 
 
 def content(parts: list) -> Arrow:
-    """The content of a tab: its related sections and its history, given the item and its permission meta."""
-    body = parts[0] if len(parts) == 1 else Jsx('', [], parts)
+    """The content of a tab: its related sections and its history."""
+    return render_prop(parts, parts[0] if len(parts) == 1 else Jsx('', [], parts))
+
+
+def render_prop(parts: list, body) -> Arrow:
+    """
+    A function of the item of a card and of its permission meta rendering the parts of the card
+    (the body): the parameters that they use, the item for the history, the meta for an "add
+    here" shown while the user may change the item.
+    """
     meta = needs_meta(parts)
-    history = any(isinstance(it, Jsx) and it.name == 'StatusHistory' for it in parts)
-    params = ['item' if history else '_', 'meta'] if meta else ['item']
+    item = any(isinstance(it, Jsx) and it.name == 'StatusHistory' for it in parts)
+    params = ['item' if item else '_', 'meta'] if meta else ['item'] if item else []
     return Arrow(params, body)
 
 
@@ -652,7 +728,7 @@ def related_list(screen: Screen, index: int, related: dict) -> Jsx:
         attrs.append(Attr('title', title))
     attrs.append(Attr('columns', Arr([Str(it) for it in related['columns']])))
     if 'open' in related:
-        attrs.append(Attr('onOpen', Arrow(['item'], navigate(screen.route(related['open'], 'item')))))
+        attrs.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(related['open'], 'item')))))
     element = _Related('RelatedList', attrs)
     if 'add' in related:
         add = related['add']
@@ -673,12 +749,174 @@ def related_list(screen: Screen, index: int, related: dict) -> Jsx:
 
 
 def render_dashboard(product: Product, data: dict) -> str:
+    """
+    A dashboard: the create forms of its actions in its header, its tiles, its charts and its
+    last items, each of its own entity (`Dashboard` is the screen: its forms are its children).
+    """
     screen = Screen(product, data)
+    spec = data['dashboard']
+    attrs = screen_attrs(screen)
+    if (actions := header_actions(screen)) is not None:
+        attrs.append(Attr('actions', actions))
+    if spec.get('tiles'):
+        attrs.append(Attr('tiles', Arr([tile(screen, i, it) for i, it in enumerate(spec['tiles'])])))
+    if spec.get('charts'):
+        charts = [chart(screen, i, it) for i, it in enumerate(spec['charts'])]
+        attrs.append(Attr('charts', charts[0] if len(charts) == 1 else Jsx('', [], charts)))
+    if spec.get('recent'):
+        attrs.append(Attr('recent', Arr([recent_list(screen, i, it) for i, it in enumerate(spec['recent'])])))
     screen.code.use('@/bazis/ui/dashboard', 'Dashboard')
-    return screen.write(Jsx('Dashboard', screen_attrs(screen)))
+    return screen.write(Jsx('Dashboard', attrs, screen.after))
 
 
-RENDERERS = {'list': render_list, 'card': render_card, 'dashboard': render_dashboard}
+def tile(screen: Screen, index: int, spec: dict) -> Obj:
+    """A tile counting the items of its filter, with the icon of its entity, opening its list."""
+    const = screen.entity(spec['entity'])
+    props = [('id', Str(spec['id'])), ('path', Raw(f'{const.code}.path'))]
+    if 'filter' in spec:
+        props.append(('filter', filter_value(screen, spec['filter'])))
+    props.append(('label', screen.text('dashboard', 'tiles', index, 'label')))
+    if 'tone' in spec:
+        props.append(('tone', Str(spec['tone'])))
+    if spec['entity'] in screen.product.icons:
+        props.append(('icon', Raw(f'{const.code}.Icon')))
+    if 'open' in spec:
+        props.append(('onOpen', Arrow([], screen.go(screen.route(spec['open'])))))
+    return Obj(props)
+
+
+def chart(screen: Screen, index: int, spec: dict) -> Jsx:
+    """A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`)."""
+    const = screen.entity(spec['entity'])
+    attrs = [Attr('id', spec['id']), Attr('path', Raw(f'{const.code}.path'))]
+    by_status = spec['by'] == 'status' and 'workflow' in screen.product.entities[spec['entity']]
+    if not by_status:
+        attrs.append(Attr('field', spec['by']))
+    attrs += [Attr('label', screen.text('dashboard', 'charts', index, 'label')), Attr('kind', spec['kind'])]
+    if 'bucket' in spec:
+        attrs.append(Attr('bucket', spec['bucket']))
+    if 'last' in spec:
+        attrs.append(Attr('last', Raw(str(spec['last']))))
+    name = 'StatusChart' if by_status else 'TimeChart'
+    screen.code.use('@/bazis/ui/charts', name)
+    return Jsx(name, attrs)
+
+
+def recent_list(screen: Screen, index: int, spec: dict) -> Obj:
+    """The last items of an entity, each opening its card."""
+    const = screen.entity(spec['entity'])
+    props = [
+        ('id', Str(spec['id'])), ('path', Raw(f'{const.code}.path')),
+        ('label', screen.text('dashboard', 'recent', index, 'label')),
+        ('columns', Arr([Str(it) for it in spec['columns']])),
+    ]
+    if 'sort' in spec:
+        props.append(('sort', Arr([Str(it) for it in spec['sort']])))
+    if 'limit' in spec:
+        props.append(('limit', Raw(str(spec['limit']))))
+    if has_display(screen.product, spec['entity']):
+        props.append(('display', Raw(f'{const.code}.display')))
+    if 'open' in spec:
+        props.append(('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
+    return Obj(props)
+
+
+def render_board(product: Product, data: dict) -> str:
+    """
+    A board: the items in a column for each status, moved by their transits (by the menu of a
+    card, and by drag and drop in `BoardDnd`).
+    """
+    screen = Screen(product, data)
+    spec = data['board']
+    entity_id = data['entity']
+    const = screen.entity(entity_id)
+    attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('entity', entity_id)]
+    if 'columns' in spec:
+        attrs.append(Attr('columns', Arr([Str(it) for it in spec['columns']])))
+    attrs.append(Attr('title', spec['card']['title']))
+    if 'fields' in spec['card']:
+        attrs.append(Attr('fields', Arr([Str(it) for it in spec['card']['fields']])))
+    if 'badge' in spec['card']:
+        attrs.append(Attr('badge', spec['card']['badge']))
+    if 'filters' in spec:
+        entity = product.entities[entity_id]
+        attrs.append(Attr('filters', Arr([list_filter(screen, entity, const, it) for it in spec['filters']])))
+    if spec.get('move'):
+        attrs.append(Attr('move'))
+    if 'open' in spec:
+        attrs.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
+    attrs += entity_attrs(product, entity_id, const, label=False)
+    screen.code.use('@/bazis/ui/resource-board', 'ResourceBoard')
+    board = Jsx('ResourceBoard', attrs)
+    if spec.get('move'):
+        screen.code.use('@/bazis/ui/board-dnd', 'BoardDnd')
+        board = Jsx('BoardDnd', [], [board])
+    return screen.write(screen_element(screen, [board], header_actions(screen)))
+
+
+def render_calendar(product: Product, data: dict) -> str:
+    """
+    A calendar: the items on their days; its "add" opens the create form with the selected day
+    in the field of the calendar.
+    """
+    screen = Screen(product, data)
+    spec = data['calendar']
+    entity_id = data['entity']
+    const = screen.entity(entity_id)
+    attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('entity', entity_id), Attr('field', spec['field'])]
+    if 'end' in spec:
+        attrs.append(Attr('end', spec['end']))
+    if 'label' in spec:
+        attrs.append(Attr('label', Arr([Str(it) for it in spec['label']])))
+    if 'tone' in spec:
+        attrs.append(Attr('tone', Obj([('field', Str(spec['tone']['field'])), ('tone', Str(spec['tone']['tone']))])))
+    if 'views' in spec:
+        attrs.append(Attr('views', Arr([Str(it) for it in spec['views']])))
+    if 'open' in spec:
+        attrs.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
+    if 'add' in spec:
+        attrs.append(Attr('add', calendar_add(screen, const, spec)))
+    if has_display(product, entity_id):
+        attrs.append(Attr('display', Raw(f'{const.code}.display')))
+    screen.code.use('@/bazis/ui/resource-calendar', 'ResourceCalendar')
+    return screen.write(screen_element(screen, [Jsx('ResourceCalendar', attrs)], header_actions(screen)))
+
+
+def calendar_add(screen: Screen, const: Raw, spec: dict) -> Obj:
+    """The add of a calendar: its create form opened with the selected day in the field of the calendar."""
+    add = spec['add']
+    state = screen.form_state('CreateFormAction', add['id'])
+    label = screen.text('calendar', 'add', 'label') or screen.package_text('form.create')
+    screen.form_action('CreateFormAction', state, const, add, label)
+    screen.code.use('lucide-react', icon_name(CREATE_ICON))
+    open_with = Call(f'{state.code}.onOpenWith', [Obj([(spec['field'], Raw('day'))])])
+    return Obj([
+        ('id', Str(add['id'])), ('label', label), ('icon', Raw(icon_name(CREATE_ICON))),
+        ('onAdd', Arrow(['day'], Block([open_with]))),
+    ])
+
+
+def render_form(product: Product, data: dict) -> str:
+    """A form as a page: the create form of the entity, or the update form of the item of its route, then the screen `then`."""
+    screen = Screen(product, data)
+    spec = data['form']
+    const = screen.entity(data['entity'])
+    attrs = [Attr('path', Raw(f'{const.code}.path'))]
+    if spec['mode'] == 'update':
+        screen.hook('id', "const { id = '' } = useParams();", 'react-router', 'useParams')
+        attrs.append(Attr('id', Raw('id')))
+    if 'fields' in spec:
+        attrs.append(Attr('fields', Arr([Str(it) for it in spec['fields']])))
+    if 'then' in spec:
+        attrs.append(Attr('onSaved', screen.on_saved(spec['then'])))
+    screen.code.use('@/bazis/ui/resource-form', 'ResourceForm')
+    return screen.write(screen_element(screen, [Jsx('ResourceForm', attrs)], header_actions(screen)))
+
+
+RENDERERS = {
+    'list': render_list, 'card': render_card, 'dashboard': render_dashboard, 'board': render_board,
+    'calendar': render_calendar, 'form': render_form,
+}
 
 
 def render_entities(product: Product) -> str:

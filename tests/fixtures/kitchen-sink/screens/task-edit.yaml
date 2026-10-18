@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# An update form as a page, the task of its route, with every field of the update.
+spec: bazis-screen/1
+id: task-edit
+title: {en: Edit the task, ru: Изменение задачи}
+route: /tasks/:id/edit
+entity: task
+roles: [manager]
+primitive: form
+form: {mode: update, then: task-summary}
+states: [loading, error, forbidden, invalid]

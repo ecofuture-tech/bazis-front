@@ -25,6 +25,7 @@ from pathlib import Path
 from . import access
 from .design import check_icon
 from .issues import DECLARE_ROLES, DECLARE_WORKFLOWS, EXPORT_HINT, Document, Issues
+from .names import SCREEN_CONSTANTS, camel, component_name, constant_name
 
 
 #: the field of an entity with a workflow: its status (bazis-statusy)
@@ -42,6 +43,8 @@ REQUIRED_STATES = {
 
 #: the route of the home of the frontend
 HOME_ROUTE = '/'
+#: the action of the edit of a card (`card.edit`), its button `action:edit`
+CARD_EDIT = 'edit'
 
 #: the types of the fields of the days of a calendar and of the charts by date
 DATES = ('date', 'datetime')
@@ -162,6 +165,7 @@ def check_product(doc: Document, contract: dict | None, issues: Issues) -> Produ
         entities={},
     )
     entities = index(doc, data.get('entities', []), ('entities',), 'entity', issues)
+    _check_entity_names(doc, data.get('entities', []), issues)
     for i, item in enumerate(data.get('entities', [])):
         if entities[item['id']] is item:
             product.entities[item['id']] = _entity(doc, item, ('entities', i), issues)
@@ -177,6 +181,21 @@ def check_product(doc: Document, contract: dict | None, issues: Issues) -> Produ
         for entity in product.entities.values():
             _check_entity_contract(doc, entity, product, contract, issues)
     return product
+
+
+def _check_entity_names(doc: Document, items: list[dict], issues: Issues) -> None:
+    """The constants of the entities in the generated screens: one for each, none a name of theirs (P032)."""
+    named: dict[str, str] = {}
+    for i, item in enumerate(items):
+        name = constant_name(item['id'])
+        other = named.setdefault(name, item['id'])
+        if name in SCREEN_CONSTANTS:
+            problem = f'The generated screens name the entity `{item["id"]}` `{name}`, a name of their own.'
+        elif other != item['id']:
+            problem = f'The generated screens name the entities `{other}` and `{item["id"]}` alike, `{name}`.'
+        else:
+            continue
+        issues.add(doc, ('entities', i, 'id'), 'P032', problem, 'Rename the entity.')
 
 
 def _entity(doc: Document, data: dict, path: tuple, issues: Issues) -> Entity:
@@ -599,6 +618,7 @@ def check_screens(
     """
     screens = {Path(doc.file).stem: doc.data if doc.valid else None for doc in docs}
     routes = {}
+    components: dict[str, str] = {}
     for doc in docs:
         if not doc.valid:
             continue
@@ -608,6 +628,12 @@ def check_screens(
             issues.add(
                 doc, ('id',), 'S003', f'The id `{data["id"]}` differs from the file name `{stem}`.',
                 f'Rename the file to `{data["id"]}.yaml` or the id to `{stem}`.',
+            )
+        component = component_name(data['id'])
+        if (other := components.setdefault(component, data['id'])) != data['id']:
+            issues.add(
+                doc, ('id',), 'S033', f'The screen `{data["id"]}` has the component of the screen `{other}`, `{component}`.',
+                'Rename one of the screens.',
             )
         if data['route'] in routes:
             issues.add(
@@ -1193,25 +1219,40 @@ def _check_screen_refs(doc: Document, screens: dict, issues: Issues) -> None:
     """
     data = doc.data
     primitive = data['primitive']
-    seen = set()
+    # the actions by the name of their state in the generated code; the edit of a card is its
+    # action `edit` (`action:edit`)
+    named: dict[str, str] = {}
+    if primitive == 'card' and data['card'].get('edit'):
+        named[camel(CARD_EDIT)] = CARD_EDIT
+
+    def renamed(path: tuple, action_id: str) -> None:
+        name = camel(action_id)
+        if (other := named.setdefault(name, action_id)) != action_id:
+            issues.add(
+                doc, path, 'S033', f'The action `{action_id}` has the name of the action `{other}` in the code, `{name}`.',
+                'Rename one of the actions.',
+            )
+
     for path, action in screen_actions(data):
         problem = None
-        if action['id'] in seen:
+        if action['id'] == CARD_EDIT and primitive == 'card' and data['card'].get('edit'):
+            problem = f'The action `{CARD_EDIT}` is that of the edit of the card (`card.edit`), its button `action:edit`.'
+        elif action['id'] in named.values():
             problem = f'The action `{action["id"]}` is declared twice.'
         elif action['primitive'] == 'destroy' and primitive != 'card':
             problem = 'An item is destroyed from its card: `destroy` is an action of a card.'
         elif action.get('mode') == 'update' and primitive != 'card':
             problem = 'An item is updated from its card: an update form is an action of a card.'
-        seen.add(action['id'])
+        renamed((*path, 'id'), action['id'])
         if problem:
             issues.add(doc, path, 'S010', problem, 'Fix or remove the action.')
     for path, action_id in _added_actions(data):
-        if action_id in seen:
+        if action_id in named.values():
             issues.add(
                 doc, path, 'S010', f'The action `{action_id}` is declared twice.',
                 'Give the action of "add" an id of its own.',
             )
-        seen.add(action_id)
+        renamed(path, action_id)
     for path, target, kind in _targets(data):
         if target not in screens:
             issues.add(

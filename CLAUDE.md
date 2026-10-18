@@ -107,9 +107,9 @@ tests of the hooks and the contract tests of the components. The
 title of a task is not empty (`MinLengthValidator`), for the scenario of a failing
 submit. `sample/spec/` is a complete valid spec of the sample: the permissions
 of the declared roles cover its `access`, and `tests/test_spec.py` checks it against
-the contract. `sample/frontend-overlay/` holds the custom screens of the sample (product
-code, the reference of screens written from specs: those that `bazis_front screens` does
-not generate yet, `custom: true` in their specs) with the texts they use (`src/i18n/`) and
+the contract. `sample/frontend-overlay/` holds the custom screen of the sample (product
+code: the list of the tasks, with what its spec cannot say, `custom: true`) with the texts
+it uses (`src/i18n/`) and
 `e2e/` (`fixtures/`, the files that the scenarios upload, and
 `custom/`, the tests of what no scenario says: the custom actions, the downloads, the
 language, the card read again after a step is added in the section after it, a row found by
@@ -262,9 +262,10 @@ job of CI.
   printer of prettier (its documents, groups, conditional groups and the rules of the
   assignments, the arguments, the arrows and JSX that the generator uses), so the text is
   that of `prettier` 3 of the template without Node: the `frontend` job checks it with
-  prettier. A screen that it does not compose yet (`screens.unsupported`: a form, a board, a
-  calendar, a dashboard with parts, `list.map`, `extend`, an update form) refuses the
-  generation until it is `custom`. `--check` and `front.W010` render again and compare byte
+  prettier. Every primitive is generated with every key of its spec (a key is a prop of its
+  component, nothing inferred); a screen that it does not compose (`screens.unsupported`:
+  `extend`, not generated yet, and a form screen of an update without `:id` in its route)
+  refuses the generation until it is `custom`. `--check` and `front.W010` render again and compare byte
   for byte; the lock records the hashes of the specs (product.yaml, the screens,
   theme.yaml) and of the files (`screens`); a file edited since is not overwritten without
   `--force`, the files of the lock outside `src/screens/generated/` are never touched, and
@@ -272,7 +273,9 @@ job of CI.
   compares the screens of the sample with `tests/fixtures/screens/` (write it again with
   `BAZIS_FRONT_WRITE_FIXTURES=1`) and renders the kitchen sink of
   `tests/fixtures/kitchen-sink/` (the screens of the sample that the generator composes
-  beyond the sample, which the `frontend` job also builds).
+  beyond the sample, which the `frontend` job also builds). The names that the code gives
+  the ids (components, entity constants, the states of the actions) are those of
+  `spec/names.py`, whose clashes the checks refuse (P032, S033).
 - `spec/shots.py` (`bazis_front shots`) renders `frontend/e2e/generated/shots.ts` from specs
   without errors (every screen as the first of its roles, in each color mode of the theme;
   the screen of an item through the first item of a screen that opens it; a list also

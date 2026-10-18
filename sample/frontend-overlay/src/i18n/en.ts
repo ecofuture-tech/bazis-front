@@ -12,21 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The texts of the custom screens of the sample in English (the home, the list, the board
-// and the calendar of the tasks); those of the specs are generated (`GENERATED_MESSAGES`).
+// The texts of the custom screen of the sample in English (the list of the tasks); those of
+// the specs are generated (`GENERATED_MESSAGES`).
 
 import type { Messages } from '@/bazis/i18n';
 
 export const en: Messages = {
-  'home.title': 'Overview',
-  'home.description': 'The tasks of the team at a glance, and where to go next.',
-  'home.drafts': 'Drafts',
-  'home.in_progress': 'In progress',
-  'home.done': 'Done',
-  'home.review': 'To review',
-  'home.by_status': 'By status',
-  'home.by_week': 'Created by week',
-  'home.last_tasks': 'The last tasks',
   'tasks.title': 'Tasks',
   'tasks.description': 'The tasks of the team, from the draft to the report.',
   'tasks.new': 'New task',
@@ -35,8 +26,4 @@ export const en: Messages = {
   'tasks.count': 'Count the tasks',
   'tasks.no_location': 'No task has a location.',
   'tasks.start_all': 'Start',
-  'tasks.board': 'Board',
-  'tasks.board_description': 'The tasks by status, moved by their transits.',
-  'tasks.calendar': 'Calendar',
-  'tasks.calendar_description': 'The tasks on the days they were created.',
 };

@@ -7,7 +7,7 @@ route: /tasks
 entity: task
 roles: [manager, viewer]
 primitive: list
-custom: true  # written by hand: `bazis_front screens` does not generate `list.map` yet
+custom: true  # written by hand: the counts by status and the custom action `count` are an extension, not generated yet
 list:
   columns: [title, status, priority, assignee, dt_created]
   filters: [status, assignee, priority, dt_created]

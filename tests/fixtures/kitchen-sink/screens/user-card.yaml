@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A plain card: no workflow, no texts, no parent, a related list without history and without an
+# "add here"; its code uses no navigation and no translation.
+spec: bazis-screen/1
+id: user-card
+route: /users/:id
+entity: user
+roles: [manager]
+primitive: card
+card:
+  sections:
+    - {id: main, fields: [username]}
+  related:
+    - {id: tasks, entity: task, relation: assignee, columns: [title, status]}
+states: [loading, error, forbidden, not_found]

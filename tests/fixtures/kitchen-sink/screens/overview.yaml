@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A dashboard of two entities: a tile of two conditions, one chart by a date, the last items
+# without an order, the create forms of both entities in its header.
+spec: bazis-screen/1
+id: overview
+title: {en: Overview, ru: Обзор}
+route: /overview
+roles: [manager, viewer]
+primitive: dashboard
+dashboard:
+  tiles:
+    - {id: started-reviews, entity: task, filter: {status: in_progress, title: Review the plan}, label: tiles.started_reviews, open: task-list}
+    - {id: steps, entity: step, label: {en: Steps, ru: Шаги}}
+  charts:
+    - {id: steps-by-day, entity: step, by: dt_created, kind: line, label: {en: Steps by day, ru: Шаги по дням}}
+  recent:
+    - {id: steps, entity: step, columns: [title], label: {en: Steps, ru: Шаги}}
+  actions:
+    - {id: create-task, primitive: form, entity: task, mode: create, fields: [title], then: task-card}
+    - {id: create-step, primitive: form, entity: step, mode: create, then: home}
+states: [loading, error]

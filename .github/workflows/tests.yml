@@ -210,8 +210,10 @@ jobs:
           python manage.py bazis_front add resource-list resource-card resource-form status-badge status-history transit-bar file-field live-query notification-center task-progress async-result map charts date-picker resource-board board-dnd resource-calendar screens avatar scroll-area separator switch tooltip
           # the generated screens: the product and the screens of the sample over the starters
           # (the design of the preset is kept), with the kitchen sink of the generator (its
-          # list generated, a card without tabs), and the code of the custom screens of the
-          # sample; the home that init generated from the starter is deleted
+          # list generated with its map, a card without tabs with an update form, forms as
+          # pages, a board without drag and drop, a calendar with its add, a dashboard of two
+          # entities), and the code of the custom screens of the sample; the home that init
+          # generated from the starter is deleted
           cp spec/product.yaml "$BS_BASE_DIR/spec/product.yaml"
           cp -R spec/screens/. "$BS_BASE_DIR/spec/screens/"
           cp -R ../tests/fixtures/kitchen-sink/screens/. "$BS_BASE_DIR/spec/screens/"

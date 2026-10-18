@@ -115,9 +115,14 @@ def test_the_texts_of_the_specs_are_the_generated_messages(tmp_path):
 
 def test_the_parts_that_the_sample_does_not_have(tmp_path):
     """
-    The kitchen sink: a generated list with its create form, its bulk action and its status
-    filter; a card without tabs (its history and its related list under its heading) with a
-    create form in its header and a delete that describes itself; the tone of the rows.
+    The kitchen sink: a generated list with its map, its create form, its bulk action and its
+    status filter; a card without tabs (its history and its related list under its heading)
+    with a create form in its header, an update form and a delete that describes itself; the
+    tone of the rows; forms as pages; a board without drag and drop and with a badge; a
+    calendar with its add and its tone; a dashboard of two entities; forms that show a screen
+    without an item after them, whose code takes no saved item; a plain card, whose code
+    uses no navigation, no translation and no item (the lint of the frontend job refuses them
+    unused).
     """
     shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
     shutil.copytree(KITCHEN_SINK / 'screens', tmp_path / 'spec' / 'screens', dirs_exist_ok=True)
@@ -131,6 +136,8 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     edit_screen(tmp_path, 'task-list', lambda data: data['list'].update(
         highlight={'field': 'urgent', 'tone': 'warning', 'label': {'en': 'Urgent', 'ru': 'Срочно'}},
     ))
+    edit_screen(tmp_path, 'task-flow', lambda data: data['board']['card'].update(badge='urgent'))
+    edit_screen(tmp_path, 'task-schedule', lambda data: data['calendar'].update(tone={'field': 'urgent', 'tone': 'danger'}))
     files = rendered(tmp_path)
     task_list = files[f'{screens.GENERATED_DIR}/task-list.tsx']
     assert '        {...createForm}\n' in task_list
@@ -142,20 +149,64 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
         "          fieldValue(row, 'urgent') === true ? t('screens.task-list.list.highlight.label') : undefined\n"
         '        }\n'
     ) in task_list
+    # the map beside the list: the open task selected, a marker opening it
+    assert (
+        '      <ResourceMap\n        path={TASK.path}\n        entity="task"\n        field="location"\n'
+        '        selected={id}\n'
+    ) in task_list
 
     summary = files[f'{screens.GENERATED_DIR}/task-summary.tsx']
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
-    assert '        actions={[deleteAction.action]}\n' in summary
     assert '      {deleteAction.confirm}\n' in summary
     # the children of the card, given its item: no tabs
     assert '        {(item) => (\n          <>\n            <TransitBar path={TASK.path} id={id} />\n' in summary
     # an "add here" of `when: always` is not gated by the permission to change the item
     assert "add={{ id: 'add-step', label: t('form.create'), fields: ['title'] }}" in summary
     assert '      actions={\n        <ScreenAction\n' in summary
+    # the update form, an action of the card shown to whom may change the item
+    assert "{ id: 'edit', label: t('card.edit'), permission: 'change', onClick: editForm.onOpen }," in summary
+    assert '      <UpdateFormAction\n        {...editForm}\n        path={TASK.path}\n        id={id}\n' in summary
     # a card under the list whose route its route continues; the others at their own
     routes = files[f'{screens.GENERATED_DIR}/routes.tsx']
     assert '      <Route path="/tasks/:id" element={<TaskCardScreen />} />\n    </Route>\n' in routes
     assert '    <Route path="/tasks/:id/summary" element={<TaskSummaryScreen />} />\n' in routes
+
+    # the forms as pages: a create, then the card of the item; an update of the item of the route
+    new = files[f'{screens.GENERATED_DIR}/task-new.tsx']
+    assert "onSaved={(saved) => void navigate(routeTo('task-card', saved.data.id))}" in new
+    edit = files[f'{screens.GENERATED_DIR}/task-edit.tsx']
+    assert "  const { id = '' } = useParams();\n" in edit
+    assert '      <ResourceForm\n        path={TASK.path}\n        id={id}\n' in edit
+    assert 'fields=' not in edit
+
+    # a board without `move` is not in `BoardDnd`; its badge, some of its columns
+    flow = files[f'{screens.GENERATED_DIR}/task-flow.tsx']
+    assert 'BoardDnd' not in flow and '        move\n' not in flow
+    assert "        columns={['draft', 'in_progress']}\n        title=\"title\"\n        badge=\"urgent\"\n" in flow
+    assert "requires={{ path: TASK.path, can: 'add' }}" in flow
+    assert "onSaved={() => void navigate(routeTo('task-flow'))}" in flow
+
+    # the add of a calendar fills its field with the selected day
+    schedule = files[f'{screens.GENERATED_DIR}/task-schedule.tsx']
+    assert (
+        '          onAdd: (day) => {\n            addForm.onOpenWith({ dt_created: day });\n          },\n'
+    ) in schedule
+    assert "        tone={{ field: 'urgent', tone: 'danger' }}\n" in schedule
+    assert '      <CreateFormAction\n        {...addForm}\n' in schedule
+
+    # a dashboard of two entities: a tile of two conditions, a chart by a date, the forms of both
+    overview = files[f'{screens.GENERATED_DIR}/overview.tsx']
+    assert "filter: Filter.and(Filter.where('status', 'in_progress'), Filter.where('title', 'Review the plan'))," in overview
+    assert "label: t('tiles.started_reviews')," in overview
+    assert '        <TimeChart\n' in overview and 'StatusChart' not in overview
+    assert "requires={{ path: STEP.path, can: 'add' }}" in overview
+    assert "onSaved={() => void navigate(routeTo('home'))}" in overview
+
+    # a plain card: no workflow, no texts, no parent, a related list without history and add
+    user = files[f'{screens.GENERATED_DIR}/user-card.tsx']
+    assert 'useNavigate' not in user and 'useLanguage' not in user
+    assert '    <Screen id="user-card">\n' in user
+    assert '        {() => (\n          <RelatedList\n' in user
 
 
 def test_the_routes_of_the_home(tmp_path):
@@ -274,19 +325,31 @@ def test_the_files_of_a_screen_no_longer_generated_are_deleted(frontend, root):
 
 
 @pytest.mark.django_db
-def test_a_screen_that_is_not_generated_yet_must_be_custom(frontend, root):
+def test_a_screen_that_is_not_generated_must_be_custom(frontend, root):
+    """An extension is not generated yet; an update form must have the item in its route."""
     generate()
-    edit_screen(root, 'task-board', lambda data: data.pop('custom'))
-    shutil.rmtree(frontend / 'src' / 'screens' / 'task-board')
+    edit_screen(root, 'task-board', lambda data: data.update(extend=True))
+    (frontend / 'src' / 'screens' / 'task-board').mkdir()
+    (frontend / 'src' / 'screens' / 'task-board' / 'extend.tsx').write_text(
+        'export const extension = {};\n', encoding='utf-8',
+    )
     before = {it: it.read_bytes() for it in (frontend / screens.GENERATED_DIR).iterdir()}
     message = (
-        'The screen `task-board` has a board, which `bazis_front screens` does not generate yet: declare it '
+        'The screen `task-board` has `extend`, which `bazis_front screens` does not generate yet: declare it '
         '`custom: true`'
     )
     with pytest.raises(CommandError, match=message):
         generate()
     assert {it: it.read_bytes() for it in (frontend / screens.GENERATED_DIR).iterdir()} == before
     assert check_screens(None)[0].msg.startswith(message)
+
+    edit_screen(root, 'task-board', lambda data: data.pop('extend'))
+    (root / 'spec' / 'screens' / 'task-edit.yaml').write_text(yaml.safe_dump({
+        'spec': 'bazis-screen/1', 'id': 'task-edit', 'route': '/edit', 'entity': 'task', 'primitive': 'form',
+        'form': {'mode': 'update'}, 'states': ['loading', 'error', 'forbidden', 'invalid'],
+    }), encoding='utf-8')
+    with pytest.raises(CommandError, match=r'The screen `task-edit` updates an item, but its route `/edit` does not '):
+        generate()
 
 
 def test_the_screens_need_a_frontend(tmp_path, settings):

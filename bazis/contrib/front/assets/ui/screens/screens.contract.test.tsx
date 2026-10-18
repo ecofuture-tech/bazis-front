@@ -14,7 +14,7 @@
 
 // The contract of what the generated screens use: the create form of an action, opened from a
 // button or with fixed values, sent, closed when saved or cancelled, in a dialog and as a
-// page; the action of the header shown once the backend allows it; the deletion of the item of
+// page; the update form of an item, sent and closed when saved or cancelled; the action of the header shown once the backend allows it; the deletion of the item of
 // a card, shown when the user may delete it, followed by the route `then`, a refusal kept on
 // the card; and the props of an extension joined with the generated ones. Keep it passing
 // when the component is changed.
@@ -31,6 +31,7 @@ import {
   extended,
   ScreenAction,
   useDestroyCardAction,
+  UpdateFormAction,
   type CreateFormActionProps,
 } from '@/bazis/ui/screens';
 import { toast } from '@/bazis/ui/state-panel';
@@ -137,6 +138,61 @@ describe('CreateFormAction', () => {
       expect(screen.queryByTestId('action:submit')).toBeNull();
     });
     expect(onSaved).not.toHaveBeenCalled();
+  });
+});
+
+/** A screen with the update form of the item: a button opens it. */
+function Updating({ onSaved }: Pick<CreateFormActionProps, 'onSaved'>) {
+  const edit = UpdateFormAction.use();
+  return (
+    <Screen id="item-card" title="Item">
+      <button type="button" data-bz="action:edit" onClick={edit.onOpen}>
+        Edit
+      </button>
+      <UpdateFormAction {...edit} path={ITEMS as never} id={ITEM_ID} fields={['title']} title="Edit the item" onSaved={onSaved} mode="dialog" />
+    </Screen>
+  );
+}
+
+describe('UpdateFormAction', () => {
+  function updateBackend() {
+    return new Backend()
+      .on('GET', `${ITEM}schema_update/`, createSchema)
+      .on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report' }) })
+      .on('PATCH', ITEM, created('Final report'));
+  }
+
+  it('updates the item and closes', async () => {
+    const onSaved = vi.fn();
+    const backend = updateBackend();
+    renderWithBazis(<Updating onSaved={onSaved} />, backend);
+    expect(screen.queryByTestId('action:submit')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('action:edit'));
+    const title = await screen.findByTestId<HTMLInputElement>('field:title');
+    expect(title.value).toBe('Report');
+    fireEvent.change(title, { target: { value: 'Final report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledWith({ data: expect.objectContaining({ id: ITEM_ID }) as unknown });
+    });
+    expect(screen.queryByTestId('action:submit')).toBeNull();
+    expect(backend.calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
+      data: { id: ITEM_ID, type: 'test.item', attributes: { title: 'Final report' } },
+    });
+  });
+
+  it('closes without saving when cancelled', async () => {
+    const onSaved = vi.fn();
+    const backend = updateBackend();
+    renderWithBazis(<Updating onSaved={onSaved} />, backend);
+    fireEvent.click(screen.getByTestId('action:edit'));
+    fireEvent.click(await screen.findByTestId('action:cancel'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('action:submit')).toBeNull();
+    });
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(backend.requests('PATCH')).toEqual([]);
   });
 });
 

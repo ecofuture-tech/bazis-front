@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A create form as a page, then the card of the task.
+spec: bazis-screen/1
+id: task-new
+title: {en: New task, ru: Новая задача}
+description: {en: The task is created as a draft., ru: Задача создаётся черновиком.}
+route: /tasks/new
+entity: task
+roles: [manager]
+primitive: form
+form: {mode: create, fields: [title, assignee, priority], then: task-card}
+states: [loading, error, forbidden, invalid]

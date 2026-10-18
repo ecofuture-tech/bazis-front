@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # A card without tabs: its history and its related list under its heading, a create form in
-# the header and a delete that says what it deletes.
+# the header, an update form and a delete that says what it deletes.
 spec: bazis-screen/1
 id: task-summary
 title: {en: Summary, ru: Сводка}
@@ -25,4 +25,9 @@ actions:
     then: task-list
     description: {en: The task and its steps are deleted., ru: Задача удаляется вместе с шагами.}
   - {id: create, primitive: form, mode: create, fields: [title], then: task-summary}
+  - id: edit
+    primitive: form
+    mode: update
+    fields: [title, priority]
+    description: {en: The title and the priority of the task., ru: Название и приоритет задачи.}
 states: [loading, error, forbidden, not_found]

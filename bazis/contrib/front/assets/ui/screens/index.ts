@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { CreateFormAction, ScreenAction, useDestroyCardAction } from './actions.js';
-export type { CreateForm, CreateFormActionProps, DestroyCardAction, DestroyCardActionOptions, ScreenActionProps } from './actions.js';
+export { CreateFormAction, ScreenAction, UpdateFormAction, useDestroyCardAction } from './actions.js';
+export type {
+  CreateForm,
+  CreateFormActionProps,
+  DestroyCardAction,
+  DestroyCardActionOptions,
+  ScreenActionProps,
+  UpdateFormActionProps,
+} from './actions.js';
 export { extended } from './extension.js';
 export type { ScreenExtension } from './extension.js';

@@ -13,10 +13,12 @@ import { ListCardLayout } from '@/bazis/ui/app-shell';
 const DraftTasksScreen = lazyScreen(() =>
   import('@/screens/generated/draft-tasks').then((module) => module.DraftTasksScreen),
 );
-const HomeScreen = lazyScreen(() => import('@/screens/home').then((module) => module.HomeScreen));
-const TaskBoardScreen = lazyScreen(() => import('@/screens/task-board').then((module) => module.TaskBoardScreen));
+const HomeScreen = lazyScreen(() => import('@/screens/generated/home').then((module) => module.HomeScreen));
+const TaskBoardScreen = lazyScreen(() =>
+  import('@/screens/generated/task-board').then((module) => module.TaskBoardScreen),
+);
 const TaskCalendarScreen = lazyScreen(() =>
-  import('@/screens/task-calendar').then((module) => module.TaskCalendarScreen),
+  import('@/screens/generated/task-calendar').then((module) => module.TaskCalendarScreen),
 );
 const TaskCardScreen = lazyScreen(() =>
   import('@/screens/generated/task-card').then((module) => module.TaskCardScreen),

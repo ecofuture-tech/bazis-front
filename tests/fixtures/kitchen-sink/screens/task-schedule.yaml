@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
+# A calendar of a week: an item added on the selected day, a create form in its header.
+spec: bazis-screen/1
+id: task-schedule
+title: {en: Schedule, ru: Расписание}
+route: /schedule
+entity: task
+roles: [manager, viewer]
+primitive: calendar
+calendar:
+  field: dt_created
+  views: [week]
+  add: {id: add, fields: [title], label: {en: Add a task, ru: Добавить задачу}}
+actions:
+  - {id: create, primitive: form, mode: create, then: task-card}
+states: [loading, empty, error, forbidden]

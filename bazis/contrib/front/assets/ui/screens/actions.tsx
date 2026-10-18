@@ -15,7 +15,8 @@
 // The actions of the specs (`actions` of a screen) as the screens generated from them use
 // them: the create form of an entity (`primitive: form`, `mode: create`), opened by an action
 // of a list (`ListAction`), of a calendar (`add`, with the selected day fixed) or of the
-// header of a screen (`ScreenAction`); and the deletion of the item of a card
+// header of a screen (`ScreenAction`); the update form of the item of a card (`mode:
+// update`), opened by an action of `ResourceCard`; and the deletion of the item of a card
 // (`primitive: destroy`), an action of `ResourceCard` confirmed in a dialog
 // (`action:confirm-<id>`), which shows the screen `then` after it.
 
@@ -24,7 +25,7 @@ import { useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 
 import { useLanguage } from '@/bazis/i18n';
-import { useDestroy, type CreatePath, type DestroyPath, type FixedValues } from '@/bazis/react';
+import { useDestroy, type CreatePath, type DestroyPath, type FixedValues, type UpdatePath } from '@/bazis/react';
 import { Allowed, type NavRequirement } from '@/bazis/ui/app-shell';
 import type { CardAction } from '@/bazis/ui/resource-card';
 import { FormSurface, ResourceForm, type SavedDocument } from '@/bazis/ui/resource-form';
@@ -98,6 +99,37 @@ CreateFormAction.use = function useCreateForm(): CreateForm {
     },
   };
 };
+
+export interface UpdateFormActionProps extends Omit<CreateFormActionProps, 'path' | 'fixed'> {
+  /** The route set of the entity (`ROUTES` of the contract). */
+  path: UpdatePath;
+  /** The id of the item that it updates. */
+  id: string;
+}
+
+/**
+ * The update form of an item in `FormSurface` (a dialog or a page, as the theme composes the
+ * forms), closed when it is saved or cancelled; its state is `UpdateFormAction.use()`.
+ */
+export function UpdateFormAction({ open, onClose, path, id, fields, title, description, onSaved, mode }: UpdateFormActionProps) {
+  return (
+    <FormSurface open={open} title={title} description={description} onClose={onClose} mode={mode}>
+      <ResourceForm
+        path={path}
+        id={id}
+        fields={fields}
+        onSaved={(saved) => {
+          onClose();
+          onSaved?.(saved);
+        }}
+        onCancel={onClose}
+      />
+    </FormSurface>
+  );
+}
+
+/** The state of an update form, that of a create form (opened by `onOpen`): `{...edit}` gives it to `UpdateFormAction`. */
+UpdateFormAction.use = CreateFormAction.use;
 
 export interface ScreenActionProps {
   /** The id of the action in the specs: `action:<id>`. */

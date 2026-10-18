@@ -678,10 +678,10 @@ screen out of the navigation generated without `navigation` of product.yaml.
 the user may change the item of the card) or `always`. The module of a custom screen is
 never in `src/screens/generated/`, which `bazis_front screens` owns.
 
-`bazis_front screens` generates the lists and the cards, and the dashboards without parts;
-a form, a board, a calendar, a dashboard with tiles, charts, last items or actions,
-`list.map`, `extend` and an update form are not generated yet: such a screen is `custom:
-true`, else `bazis_front screens` refuses the specs and `front.W010` says which.
+`bazis_front screens` generates every primitive with every key of its spec; `extend` is not
+generated yet, and a form screen of an update needs the item in its route (`:id`): such a
+screen is `custom: true`, else `bazis_front screens` refuses the specs and `front.W010` says
+which.
 
 #### Tabs and bulk actions
 
@@ -931,6 +931,7 @@ warning there, never blocking `migrate` or `contract`.
 | `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages` |
 | `P030` | error | an anonymous role is not what bazis-permit gives the users who do not log in: its permit role is not `for_anonymous`, it has `access` without a permit role, or a selector of its access is not `all` |
 | `P031` | error | the `label` of an entity names a field that the entity does not declare |
+| `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`) |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -940,7 +941,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S007` | error | a screen references a field that its entity does not declare |
 | `S008` | error | a filter or a sort field cannot be filtered or sorted by in the contract |
 | `S009` | error | a state required by the primitive is missing |
-| `S010` | error | an action is not valid: a duplicate id, or not possible on the primitive |
+| `S010` | error | an action is not valid: a duplicate id (`edit` on a card with `edit: true`, which is its edit), or not possible on the primitive |
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
@@ -962,6 +963,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`) |
 | `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
+| `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`) |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -4544,6 +4546,7 @@ Its props, `DashboardProps`:
 - `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`.
 - `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`.
 - `recent?: readonly RecentListProps[]`
+- `children?: ReactNode`: What the screen shows after its parts, such as the create forms of its actions: in the screen, so that a form composed as a page takes its place.
 
 #### RecentList
 
@@ -5563,6 +5566,17 @@ Its props, `ScreenActionProps`:
 - `requires?: NavRequirement`: What the backend must allow the user for the action to be shown: `{path, can: 'add'}` for a create form.
 - `onClick: () => void`
 
+#### UpdateFormAction
+
+`UpdateFormAction(props: UpdateFormActionProps): Element`: The update form of an item in `FormSurface` (a dialog or a page, as the theme composes the forms), closed when it is saved or cancelled; its state is `UpdateFormAction.use()`.
+
+
+Its props, `UpdateFormActionProps`:
+
+- `extends Omit<CreateFormActionProps, 'path' | 'fixed'>`
+- `path: UpdatePath`: The route set of the entity (`ROUTES` of the contract).
+- `id: string`: The id of the item that it updates.
+
 #### useDestroyCardAction
 
 `useDestroyCardAction(options: DestroyCardActionOptions): DestroyCardAction`: The deletion of the item of a card, an action of `ResourceCard` (`actions`) shown when the user may delete it, run once confirmed in its dialog (once, whatever the clicks): a toast once it is deleted, then the route `then`; a toast of the error when the backend refuses it.
@@ -5612,6 +5626,7 @@ Its props, `ScreenActionProps`:
 
 - `CreateFormActionProps`: the props of `CreateFormAction`, listed with it
 - `ScreenActionProps`: the props of `ScreenAction`, listed with it
+- `UpdateFormActionProps`: the props of `UpdateFormAction`, listed with it
 
 ## API: the components: stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
 

@@ -14,15 +14,16 @@
 
 // The contract of the dashboard: `screen:<id>` with its title as a header or a hero, the tiles
 // `tile:<id>`, the links to the other screens `link:<screen>` (those of the navigation of
-// `AppShell` by default, once the backend allows what they require), the charts it is given, and the last
+// `AppShell` by default, once the backend allows what they require), the charts it is given, the last
 // items `recent:<id>` (a row `row:<id>` with a cell `cell:<field>` each, sorted and limited,
-// opened by a click, with the states of its list), and a state of its own (`state:loaded`, a
-// dashboard of links only). Keep it passing when the component is changed.
+// opened by a click, with the states of its list), a state of its own (`state:loaded`, a
+// dashboard of links only), and its children in its screen (where a form page takes the place
+// of its parts). Keep it passing when the component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AppShell } from '@/bazis/ui/app-shell';
+import { AppShell, useScreenPage } from '@/bazis/ui/app-shell';
 import { Dashboard, RecentList } from '@/bazis/ui/dashboard';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
@@ -119,6 +120,19 @@ describe('Dashboard', () => {
     const home = screen.getByTestId('screen:home');
     expect(within(home).getByTestId('link:about').getAttribute('href')).toBe('/about');
     expect(within(home).queryByTestId('link:home')).toBeNull();
+  });
+
+  it('shows its children in its screen, where a form composed as a page takes its place', () => {
+    function InScreen() {
+      return <p data-bz="in-screen">{useScreenPage() === null ? 'outside' : 'inside'}</p>;
+    }
+    renderWithBazis(
+      <Dashboard hero={false} title="Home">
+        <InScreen />
+      </Dashboard>,
+      new Backend(),
+    );
+    expect(within(screen.getByTestId('screen:home')).getByTestId('in-screen').textContent).toBe('inside');
   });
 });
 
