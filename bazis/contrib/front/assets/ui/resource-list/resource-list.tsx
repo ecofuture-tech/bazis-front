@@ -28,7 +28,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Filter, nextPage, pagination, prevPage } from '@/bazis/client';
 import { THEME, type Theme, type Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
-import type { ListPath } from '@/bazis/react';
+import type { FormField, ListPath } from '@/bazis/react';
 import { useBesideCard, useBesideList, useWide } from '@/bazis/ui/app-shell';
 import { EmptyState } from '@/bazis/ui/empty-state';
 import {
@@ -192,6 +192,11 @@ const ROW_TONES: Readonly<Record<Tone, string>> = {
   danger: 'bg-danger-soft [--row-mark:var(--color-danger)]',
 };
 
+/** Whether the values of a field are short by their nature and never wrap: a number, a date, a time. */
+function isShort(field: FormField | undefined): boolean {
+  return isNumeric(field) || (field?.kind === 'attribute' && ['date', 'date-time', 'time'].includes(field.format ?? ''));
+}
+
 function SortButton({ label, direction, onClick }: { label: ReactNode; direction: 'ascending' | 'descending' | undefined; onClick: () => void }) {
   const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ChevronsUpDown;
   return (
@@ -287,8 +292,10 @@ function TableView(
                     className={cn(
                       'px-(--space-cell-x) py-(--space-cell-y)',
                       index === 0
-                        ? cn('min-w-48 font-medium whitespace-normal text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
+                        ? cn('min-w-48 font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
                         : 'text-muted-foreground',
+                      // a text wraps in the width that the table gives its column, a long word too
+                      !isShort(field) && cn('whitespace-normal wrap-anywhere', index > 0 && 'min-w-32'),
                       isNumeric(field) && 'text-right tabular-nums',
                       field?.kind === 'attribute' && field.format === 'date-time' && 'tabular-nums',
                       hidden(name) && 'hidden',

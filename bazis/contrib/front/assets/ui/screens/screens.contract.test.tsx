@@ -51,7 +51,7 @@ const createSchema = runtimeSchema({
   day: { attribute: { type: 'string', format: 'date', title: 'Day' } },
 });
 
-/** A screen with a create form: a button opens it, another with a day fixed. */
+/** A screen with a create form: a button opens it, another starting with a day. */
 function Creating({ onSaved, mode }: Pick<CreateFormActionProps, 'onSaved' | 'mode'>) {
   const create = CreateFormAction.use();
   return (
@@ -68,7 +68,7 @@ function Creating({ onSaved, mode }: Pick<CreateFormActionProps, 'onSaved' | 'mo
       >
         New on a day
       </button>
-      <CreateFormAction {...create} path={ITEMS as never} fields={['title']} title="New item" onSaved={onSaved} mode={mode} />
+      <CreateFormAction {...create} path={ITEMS as never} fields={['title', 'day']} title="New item" onSaved={onSaved} mode={mode} />
     </Screen>
   );
 }
@@ -87,7 +87,7 @@ describe('CreateFormAction', () => {
       renderWithBazis(<Creating onSaved={onSaved} mode={mode} />, backend);
       expect(screen.queryByTestId('action:submit')).toBeNull();
 
-      // the click of a button opens it: its event is no fixed value
+      // the click of a button opens it: its event is no value of a field
       fireEvent.click(screen.getByTestId('action:create'));
       fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
       fireEvent.click(screen.getByTestId('action:submit'));
@@ -101,7 +101,7 @@ describe('CreateFormAction', () => {
     });
   }
 
-  it('sends the values it is opened with, and forgets them when opened again', async () => {
+  it('starts with the values it is opened with, which the user changes, and forgets them when opened again', async () => {
     const backend = new Backend()
       .on('GET', `${ITEMS}schema_create/`, createSchema)
       .on('POST', ITEMS, created('Visit'), 201);
@@ -109,23 +109,37 @@ describe('CreateFormAction', () => {
 
     fireEvent.click(screen.getByTestId('action:add-day'));
     fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Visit' } });
-    // a fixed field that the form does not name is not shown
-    expect(screen.queryByTestId('field:day')).toBeNull();
+    const day = screen.getByTestId<HTMLInputElement>('field:day');
+    expect(day.value).toBe('2026-10-18');
+    expect(day.readOnly).toBe(false);
     fireEvent.click(screen.getByTestId('action:submit'));
     await waitFor(() => {
       expect(screen.queryByTestId('action:submit')).toBeNull();
     });
+    // sent as it is, a change that the user did not make
     expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
       data: { type: 'test.item', attributes: { title: 'Visit', day: '2026-10-18' }, relationships: {} },
     });
 
-    fireEvent.click(screen.getByTestId('action:create'));
-    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Other' } });
+    fireEvent.click(screen.getByTestId('action:add-day'));
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Later' } });
+    fireEvent.change(screen.getByTestId('field:day'), { target: { value: '2026-10-19' } });
     fireEvent.click(screen.getByTestId('action:submit'));
     await waitFor(() => {
       expect(backend.calls.filter((call) => call.method === 'POST')).toHaveLength(2);
     });
     expect(backend.calls.filter((call) => call.method === 'POST')[1]?.body).toEqual({
+      data: { type: 'test.item', attributes: { title: 'Later', day: '2026-10-19' }, relationships: {} },
+    });
+
+    fireEvent.click(screen.getByTestId('action:create'));
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Other' } });
+    expect(screen.getByTestId<HTMLInputElement>('field:day').value).toBe('');
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(backend.calls.filter((call) => call.method === 'POST')).toHaveLength(3);
+    });
+    expect(backend.calls.filter((call) => call.method === 'POST')[2]?.body).toEqual({
       data: { type: 'test.item', attributes: { title: 'Other' }, relationships: {} },
     });
   });

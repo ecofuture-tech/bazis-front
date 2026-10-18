@@ -154,7 +154,10 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   each is once on the screen. A filter of `options` is the select of Radix (`Select` of
   shadcn/ui), named by the title of the field, its option of every item `data-value=""`.
   Below the breakpoint `md` (`useWide` of `app-shell`) the rows are cards (`phoneLayout`,
-  `composition.list_phone` of the theme), a table there scrolling sideways. The column `status` of an item of a statusy model is the
+  `composition.list_phone` of the theme), a table there scrolling sideways. A text of a cell
+  (a string, the label of a related item) wraps in the width that the table gives its
+  column, at least 8rem (12rem the first), never a date, a time or a number: a long value
+  makes a row higher, not the table wider. The column `status` of an item of a statusy model is the
   badge of its status (`status:<id>`, the tone of the theme). The menu of its view
   (`action:view`) hides the columns but the first (their cells stay, hidden, for the
   scenarios that find a row by them) and sets the density of the rows of the table
@@ -243,13 +246,18 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `action:next-period` and `action:today`. A day `day:<YYYY-MM-DD>` has the number of all its
   items in `data-count` and its first three items in a month (all in a week), `row:<id>` with
   a cell `cell:<field>` per field of `label` (the `label` of the resource of the contract by
-  default), in a tone of the theme while the boolean field of `tone` is true; a click on a
+  default), each on a line of its own, cut to the width of the day with its whole text in its
+  title, the first after the time of a date-time on the day it starts (on the next line when
+  they do not fit together), in a tone of the theme while the boolean field of `tone` is
+  true; a week at the width of a phone is a list of its days; a click on a
   day selects it, and the list of the selected day (today at first) has all its items,
   `row:<id>` again (below `md` the days of a month have a dot and only the list has the items,
   so that no hidden copy of a row is in the page). One
   list of the period (`<field>__gte`, `<field>__lt`; the first 500 items, a warning when
   there are more), `state:empty` with the days still shown. `add` is the button
-  `action:<id>` (when the backend allows the create) that gives the screen the selected day.
+  `action:<id>` (when the backend allows the create) that gives the screen the value of the
+  field on the selected day, which its create form starts with: the day of a date, the start
+  of the day in the time zone of the browser of a date-time, whose time the user sets.
 - **`resource-card`** reads the item with `crud_actions` and `custom_actions` and its fields from
   `schema_retrieve/` of the item; its heading is the name of the item (`itemName`), else the
   values of its `label` fields (the first two fields of the sections by default), never its
@@ -422,8 +430,9 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   transit of any item of the route set with this dialog (the board).
 - **`screens`** is what the screens generated from the specs use besides the components of
   their primitives: the create form of an action (`CreateFormAction` in `FormSurface`, opened
-  by `onOpen`, the `onClick` of an action, or `onOpenWith` with fixed values, the day of a
-  calendar; closed when saved or cancelled, then `onSaved`), an action of the header of a
+  by `onOpen`, the `onClick` of an action, or `onOpenWith` with the values that it starts
+  with, which the user may change, the day of a calendar; closed when saved or cancelled,
+  then `onSaved`), an action of the header of a
   screen (`ScreenAction`, shown once the backend allows what it `requires`), the deletion of
   the item of a card (`useDestroyCardAction`: `action`, an action of `ResourceCard` shown when
   the user may delete the item, opens `confirm`, the dialog to render in the screen, whose

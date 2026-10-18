@@ -17,10 +17,11 @@
 // language), moved by `action:previous-period`, `action:next-period` and `action:today`, the
 // states of its list (one list of the period, `<field>__gte` and `<field>__lt` in the format
 // of the field), a day `day:<YYYY-MM-DD>` with the number of all its items in `data-count`,
-// its first items `row:<id>` with their cells `cell:<field>`, the list of the selected day
-// with all of them (only there at the width of a phone: no hidden copy of a row), an item
-// opened by a click, and the action that creates an item given the selected day. Keep it
-// passing when the component is changed.
+// its first items `row:<id>` with their cells `cell:<field>` (after the time of a date-time),
+// the list of the selected day with all of them (only there at the width of a phone: no
+// hidden copy of a row), an item opened by a click, and the action that creates an item
+// given the value of the field on the selected day (the day of a date, its start of a
+// date-time). Keep it passing when the component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -172,6 +173,10 @@ describe('ResourceCalendar', () => {
     await waitFor(() => {
       expect(within(calendar).getByTestId('day:2026-10-15').getAttribute('data-count')).toBe('1');
     });
+    // the item of the day has its time, before its label
+    const row = within(within(calendar).getByTestId('day:2026-10-15')).getByTestId('row:a');
+    const time = new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(at);
+    expect(row.textContent).toBe(`${time}Task a`);
     const after = new Date(end);
     after.setDate(after.getDate() + 1);
     expect(lists(server)[0]).toContain(`filter=at__gte=${start.toISOString()}&at__lt=${after.toISOString()}`);
@@ -194,7 +199,7 @@ describe('ResourceCalendar', () => {
     expect(lists(server)[0]).toMatch(/filter=\(due__gte=[\d-]+\|until__gte=[\d-]+\)&due__lt=/);
   });
 
-  it('gives the action that creates an item the selected day, when the user may create', async () => {
+  it('gives the action that creates an item the value of the field on the selected day, when the user may create', async () => {
     const onAdd = vi.fn();
     const add = { id: 'add', label: 'Add', onAdd };
     const forbidden = renderWithBazis(
@@ -213,6 +218,17 @@ describe('ResourceCalendar', () => {
     fireEvent.click(within(screen.getByTestId('day:2026-10-20')).getAllByRole('button')[0] as HTMLElement);
     fireEvent.click(screen.getByTestId('action:add'));
     expect(onAdd).toHaveBeenLastCalledWith('2026-10-20');
+  });
+
+  it('gives the action of a date-time the start of the selected day in the time zone of the browser', async () => {
+    const onAdd = vi.fn();
+    renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="at" add={{ id: 'add', label: 'Add', onAdd }} now={now} />,
+      new Backend().on('GET', `${ITEMS}schema_list/`, schema).on('GET', ITEMS, listDocument([], { meta: { for_create: true } })),
+    );
+    fireEvent.click(await screen.findByTestId('action:add'));
+    // a moment that the form shows as the local midnight of the day, its time for the user to set
+    expect(onAdd).toHaveBeenLastCalledWith(new Date(2026, 9, 15).toISOString());
   });
 
   it('marks an error and a forbidden list', async () => {

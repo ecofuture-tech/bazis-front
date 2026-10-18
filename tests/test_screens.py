@@ -242,10 +242,10 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "requires={{ path: TASK.path, can: 'add' }}" in flow
     assert "onSaved={() => void navigate(routeTo('task-flow'))}" in flow
 
-    # the add of a calendar fills its field with the selected day
+    # the add of a calendar opens its form starting with the value of its field on the selected day
     schedule = files[f'{screens.GENERATED_DIR}/user-schedule.tsx']
     assert (
-        '              onAdd: (day) => {\n                addForm.onOpenWith({ dt_first_login: day });\n'
+        '              onAdd: (value) => {\n                addForm.onOpenWith({ dt_first_login: value });\n'
     ) in schedule
     assert "            tone: { field: 'urgent', tone: 'danger' },\n" in schedule
     assert '      <CreateFormAction\n        {...addForm}\n' in schedule

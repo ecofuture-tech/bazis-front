@@ -94,13 +94,20 @@ function readable(title: string, name: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/**
+ * The title of a field of the route set of `path`: that of its runtime schema (`title`), else
+ * that of the contract, else its name as words; never a name of the code.
+ */
+export function fieldTitle(path: string, name: string, title?: string): string {
+  return readable(title ?? resourceAt(path)?.fields[name]?.title ?? name, name);
+}
+
 function fieldsOf(path: string, query: { data?: JsonSchema | undefined; isPending: boolean }): Fields {
   const schema = query.data;
   const fields = new Map((schema ? resourceSchema(schema).fields : []).map((it) => [it.name, it]));
-  const contract = resourceAt(path)?.fields;
   return {
     fields,
-    title: (name) => readable(fields.get(name)?.title ?? contract?.[name]?.title ?? name, name),
+    title: (name) => fieldTitle(path, name, fields.get(name)?.title),
     ready: !query.isPending,
     loaded: schema !== undefined,
     has: (name) => schema === undefined || fields.has(name),

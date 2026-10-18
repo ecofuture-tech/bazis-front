@@ -30,6 +30,7 @@ export { FieldValue, ItemValue, titleFromText } from './field-value.js';
 export type { FieldValueProps, ItemValueProps } from './field-value.js';
 export {
   choiceOptions,
+  fieldTitle,
   fieldValue,
   formatValue,
   fromLocalDateTime,

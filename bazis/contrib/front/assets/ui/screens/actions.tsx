@@ -14,7 +14,7 @@
 
 // The actions of the specs (`actions` of a screen) as the screens generated from them use
 // them: the create form of an entity (`primitive: form`, `mode: create`), opened by an action
-// of a list (`ListAction`), of a calendar (`add`, with the selected day fixed) or of the
+// of a list (`ListAction`), of a calendar (`add`, starting with the selected day) or of the
 // header of a screen (`ScreenAction`); the update form of the item of a card (`mode:
 // update`), opened by an action of `ResourceCard`; and the deletion of the item of a card
 // (`primitive: destroy`), an action of `ResourceCard` confirmed in a dialog
@@ -25,7 +25,7 @@ import { useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 
 import { useLanguage } from '@/bazis/i18n';
-import { useDestroy, type CreatePath, type DestroyPath, type FixedValues, type UpdatePath } from '@/bazis/react';
+import { useDestroy, type CreatePath, type DestroyPath, type UpdatePath } from '@/bazis/react';
 import { Allowed, type NavRequirement } from '@/bazis/ui/app-shell';
 import type { CardAction } from '@/bazis/ui/resource-card';
 import { FormSurface, ResourceForm, type SavedDocument } from '@/bazis/ui/resource-form';
@@ -33,15 +33,15 @@ import { toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-/** Whether the create form of a screen is open, and with which fixed values: `CreateFormAction.use()`. */
+/** Whether the create form of a screen is open, and with which values: `CreateFormAction.use()`. */
 export interface CreateForm {
   open: boolean;
-  /** The values of the fields fixed by the last `onOpenWith`; none after `onOpen`. */
-  fixed: FixedValues | undefined;
+  /** The values that the form starts with, of the last `onOpenWith`; none after `onOpen`. */
+  initial: Readonly<Record<string, unknown>> | undefined;
   /** Opens the form: the `onClick` of an action (its event is not read). */
   onOpen: () => void;
-  /** Opens the form with fields fixed, such as the day of a calendar: `{due_date: day}`. */
-  onOpenWith: (fixed: FixedValues) => void;
+  /** Opens the form starting with these values, which the user may change: the day of a calendar, `{due_date: day}`. */
+  onOpenWith: (initial: Readonly<Record<string, unknown>>) => void;
   onClose: () => void;
 }
 
@@ -52,8 +52,8 @@ export interface CreateFormActionProps {
   path: CreatePath;
   /** The fields of the form (`fields` of the action); every field of the create schema by default. */
   fields?: readonly string[];
-  /** The values of fields that the user does not change (`ResourceForm` `fixed`). */
-  fixed?: FixedValues | undefined;
+  /** The values that the form starts with, which the user may change (`ResourceForm` `initial`). */
+  initial?: Readonly<Record<string, unknown>> | undefined;
   title: ReactNode;
   description?: ReactNode;
   /** Called with the saved document once the form is closed: the screen `then` of the action. */
@@ -66,13 +66,13 @@ export interface CreateFormActionProps {
  * The create form of an action in `FormSurface` (a dialog or a page, as the theme composes the
  * forms), closed when it is saved or cancelled; its state is `CreateFormAction.use()`.
  */
-export function CreateFormAction({ open, onClose, path, fields, fixed, title, description, onSaved, mode }: CreateFormActionProps) {
+export function CreateFormAction({ open, onClose, path, fields, initial, title, description, onSaved, mode }: CreateFormActionProps) {
   return (
     <FormSurface open={open} title={title} description={description} onClose={onClose} mode={mode}>
       <ResourceForm
         path={path}
         fields={fields}
-        fixed={fixed}
+        initial={initial}
         onSaved={(saved) => {
           onClose();
           onSaved?.(saved);
@@ -85,14 +85,14 @@ export function CreateFormAction({ open, onClose, path, fields, fixed, title, de
 
 /** The state of a create form: `{...create}` gives it to `CreateFormAction`. */
 CreateFormAction.use = function useCreateForm(): CreateForm {
-  const [state, setState] = useState<{ open: boolean; fixed: FixedValues | undefined }>({ open: false, fixed: undefined });
+  const [state, setState] = useState<Pick<CreateForm, 'open' | 'initial'>>({ open: false, initial: undefined });
   return {
     ...state,
     onOpen: () => {
-      setState({ open: true, fixed: undefined });
+      setState({ open: true, initial: undefined });
     },
-    onOpenWith: (fixed) => {
-      setState({ open: true, fixed });
+    onOpenWith: (initial) => {
+      setState({ open: true, initial });
     },
     onClose: () => {
       setState((current) => ({ ...current, open: false }));
@@ -100,7 +100,7 @@ CreateFormAction.use = function useCreateForm(): CreateForm {
   };
 };
 
-export interface UpdateFormActionProps extends Omit<CreateFormActionProps, 'path' | 'fixed'> {
+export interface UpdateFormActionProps extends Omit<CreateFormActionProps, 'path' | 'initial'> {
   /** The route set of the entity (`ROUTES` of the contract). */
   path: UpdatePath;
   /** The id of the item that it updates. */

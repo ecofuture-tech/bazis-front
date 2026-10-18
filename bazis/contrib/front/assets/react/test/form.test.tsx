@@ -177,6 +177,45 @@ describe('useResourceForm with fixed values', () => {
   });
 });
 
+describe('useResourceForm with initial values', () => {
+  it('starts a create with them, sends them as changes and lets the user change them', async () => {
+    // a create from the day of a calendar: the screen gives the value, the user may change it
+    const backend = new Backend()
+      .on('GET', `${PARENT}schema_create/`, parentSchema('create'))
+      .on('POST', PARENT, { data: { ...item('Bike', null).data, id: '8' } }, 201);
+    const { result, rerender } = render(
+      ({ price }: { price: number }) => useResourceForm(PARENT, { initial: { price, is_active: true } }),
+      backend,
+      undefined,
+      { price: 20 },
+    );
+    await ready(result);
+    expect(result.current.values).toMatchObject({ price: 20, is_active: true });
+    // the default of the schema is no change
+    expect(result.current.dirty).toEqual(['price']);
+    act(() => {
+      result.current.setValue('price', 25);
+    });
+    // a new object of the same values at every render keeps the change of the user
+    rerender({ price: 20 });
+    expect(result.current.values.price).toBe(25);
+    // forgetting the changes of the user starts again with the initial values
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.values.price).toBe(20);
+    act(() => {
+      result.current.setValue('name', 'Bike');
+    });
+    await act(async () => {
+      await result.current.submit();
+    });
+    expect(backend.calls.find((it) => it.method === 'POST')?.body).toEqual({
+      data: { type: 'entity.parent_entity', attributes: { price: 20, name: 'Bike' }, relationships: {} },
+    });
+  });
+});
+
 describe('useResourceForm with an id: an update', () => {
   function backend() {
     return new Backend()

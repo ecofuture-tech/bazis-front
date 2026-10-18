@@ -1458,7 +1458,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
 | `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (read when it opens) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
 | `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status; the screen readers are told the drag in the language of the interface, by the name of the item and of the status, never an id | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
-| `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`, `add`: `{id, label, onAdd(day)}`) | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
+| `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`, `add`: `{id, label, onAdd(value)}`, the value of `field` on the selected day: the day of a date, its start in the time zone of the browser of a date-time) | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
 | `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`; `tabs`: `{id, title, sections, content}`, `content` a node or `(item, meta) => node`, the children above them); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>`; `tab:<id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
@@ -1529,7 +1529,7 @@ of the specs and the paths of `ROUTES`.
 | `list.bulk` (a transition, a deletion) | `bulk` of `ResourceList`: `{id, label, run: (id) => transit.mutateAsync({id, transit: '<transit>'})}` with `const transit = useItemsTransit(path)` of `@/bazis/react/statusy`, or `run: (id) => destroy.mutateAsync(id)` with `permission: 'delete'` |
 | `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
 | `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`title` and `fields` of `card`, `badge`, `columns`, `filters`, `move` for `move: true`, `onOpen`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
-| `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (day) => …}}`: the create form in `FormSurface` with the day as `fixed={{<field>: day}}` of `ResourceForm`, shown read-only when `fields` names it) |
+| `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (value) => …}}`: the create form in `FormSurface` starting with the value as `initial={{<field>: value}}` of `ResourceForm`, which the user may change: the time of a date-time) |
 | the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
@@ -3470,10 +3470,15 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
   - The deletion of a card (`useDestroyCardAction` of `@/bazis/ui/screens`, new) asks
     `card.delete_title` (a question) and says `card.delete_confirm` (what the deletion
     does).
+  - `add.onAdd` of `ResourceCalendar` gets the value of its field on the selected day: the
+    day of a date as before, the start of the day in the time zone of the browser (ISO) of
+    a date-time instead of the day; give it to the form as `initial` (the user may change
+    it), not `fixed`.
   - New: `@/bazis/ui/screens` (the actions and the extensions of the generated screens),
     `useErrorMessage` and the type `DestroyPath` of `@/bazis/react`, `errorText` of the
     client, `useBesideList`, `NavEntry` and `NavGroup` of `@/bazis/ui/app-shell` (`items`
-    of `AppShell` takes groups of links; `useNavItems` still gives the links).
+    of `AppShell` takes groups of links; `useNavItems` still gives the links), `initial` of
+    `useResourceForm` and `ResourceForm`, `fieldTitle` of `@/bazis/ui/resource`.
 - New errors of `check` and `screens` that a product of 0.2.0 may meet: two entities that the
   generated code would name alike (P032), the screens of an item without `:id` (S038), the
   links of the navigation (S030), the code of a custom screen (S028, S029), a field twice in
@@ -3921,7 +3926,7 @@ Its props, `BazisProviderProps`:
 
 #### useResourceForm
 
-`useResourceForm<P extends CreatePath>(path: P, options?: { id?: undefined; fixed?: FixedValues; }): ResourceForm<CreateResponse<P>>`: A form of a resource bound to its runtime schema: `schema_create/` without an id, `schema_update/` of the item with one, so that the fields are those the current user may set.
+`useResourceForm<P extends CreatePath>(path: P, options?: { id?: undefined; fixed?: FixedValues; initial?: Readonly<Record<string, unknown>>; }): ResourceForm<CreateResponse<P>>`: A form of a resource bound to its runtime schema: `schema_create/` without an id, `schema_update/` of the item with one, so that the fields are those the current user may set.
 
 `useResourceForm<P extends UpdatePath>(path: P, options: { id: string; fixed?: FixedValues; }): ResourceForm<UpdateResponse<P>>`
 
@@ -3935,7 +3940,7 @@ Its props, `BazisProviderProps`:
 - `fields: readonly FormField[]`: The fields of the runtime schema in its order; the user may not change `readOnly` ones.
 - `values: Readonly<Record<string, unknown>>`: The value of every field: the value of an attribute, the id of the related item of a to-one relationship (null for none), the ids of the related items of a to-many one (an array).
 - `setValue(name: string, value: unknown): void`
-- `dirty: readonly string[]`: The fields whose value differs from the initial one; only they are submitted.
+- `dirty: readonly string[]`: The fields whose value differs from that of the schema or of the item (the `initial` and the `fixed` values among them); only they are submitted.
 - `errors: Readonly<Record<string, readonly string[]>>`: The validation errors of the last submit by field (`ApiError.fieldErrors()`), in the language of the interface (`useErrorMessage`).
 - `submitError: Error | null`: The error of the last submit, also when it has errors by field.
 - `isSubmitting: boolean`
@@ -5095,6 +5100,10 @@ Its props, `ItemValueProps`:
 
 `choiceOptions(field: FormField | undefined): { value: string; label: string; }[] | null`: The choices of an attribute with choices as options (the value as text, the label of `enumDict`, else the value), in their order; null for another field.
 
+#### fieldTitle
+
+`fieldTitle(path: string, name: string, title?: string): string`: The title of a field of the route set of `path`: that of its runtime schema (`title`), else that of the contract, else its name as words; never a name of the code.
+
 #### fieldValue
 
 `fieldValue(resource: ResourceObject, name: string): unknown`: The value of a field of a resource object: an attribute, the id of the related item of a to-one relationship (null for none), the ids of a to-many one; undefined when it is absent.
@@ -5403,7 +5412,7 @@ Its props, `RelationPickerProps`:
 - `useAnyList: (path: string, query?: Omit<QueryOptions, "include"> | undefined) => UseQueryResult<ListDocument>`: `useList(path, query)`.
 - `useAnyLists: (path: string, queries: readonly Omit<QueryOptions, "include">[]) => UseQueryResult<ListDocument>[]`: `useLists(path, queries)`: several lists of a route set, a query each.
 - `useAnyRelated: (path: string, id: string) => UseQueryResult<ResourceObject | null>`: `useRelatedItem(path, id)`: null when the user may not view the item.
-- `useAnyResourceForm: (path: string, options: { id?: string | undefined; fixed?: Readonly<Record<string, unknown>> | undefined; }) => ResourceForm<SavedDocument>`: `useResourceForm(path, {id, fixed})`: a create without an id.
+- `useAnyResourceForm: (path: string, options: { id?: string | undefined; fixed?: Readonly<Record<string, unknown>> | undefined; initial?: Readonly<Record<string, unknown>> | undefined; }) => ResourceForm<...>`: `useResourceForm(path, {id, fixed, initial})`: a create without an id.
 - `useAnySchema: (path: string, kind: "list" | "create" | "retrieve" | "update" | "transit", id?: string | undefined) => UseQueryResult<Readonly<Record<string, unknown>>>`: `useSchema(path, kind)` of the route set, `useSchema(path, kind, id)` of an item.
 - `SOFT_TONES: Readonly<Record<Tone, string>>`: The soft colors of each tone that the theme derives from the tokens: a background and the text on it.
 - `StatusLabelProps`: the props of `StatusLabel`, listed with it
@@ -5489,7 +5498,7 @@ Its props, `ResourceCalendarProps`:
 
 - `id: string`
 - `label: ReactNode`
-- `onAdd: (day: string) => void`: Called with the selected day (`YYYY-MM-DD`): the form of the screen fills the field with it.
+- `onAdd: (value: string) => void`: Called with the value of `field` on the selected day, which the create form of the screen starts with: the day (`YYYY-MM-DD`) of a date, the start of the day in the time zone of the browser (ISO) of a date-time, whose time the user sets.
 - `icon?: ComponentType<{ className?: string; }>`
 
 #### The types and the constants of `@/bazis/ui/resource-calendar`
@@ -5604,8 +5613,8 @@ Its props, `FormSurfaceProps`:
 
 Its props, `ResourceFormProps`:
 
-- either: `path: CreatePath`; `id?: undefined`
-- or: `path: UpdatePath`; `id: string`
+- either: `path: CreatePath`: A create: the route set.; `id?: undefined`; `initial?: Readonly<Record<string, unknown>> | undefined`: The values that the create starts with in place of the defaults of the schema, which the user may change (`useResourceForm` `initial`): the day of a calendar.
+- or: `path: UpdatePath`; `id: string`; `initial?: undefined`
 - `fields?: readonly string[]`: The fields, in this order (those the runtime schema does not have are left out); by default every field of the schema but the `fixed` ones and the reverse relationships (`isReverse`: the core deletes the unlinked items of a reverse foreign key).
 - `fixed?: FixedValues`: The values of fields that the screen sets and the user does not change (`useResourceForm` `fixed`): the item of a card that a related item is added to, `{request: id}`.
 - `onSaved?: (saved: SavedDocument) => void`: Called with the saved document.
@@ -5740,7 +5749,7 @@ Its props, `CreateFormActionProps`:
 - `onClose: () => void`
 - `path: CreatePath`: The route set of the entity (`ROUTES` of the contract).
 - `fields?: readonly string[]`: The fields of the form (`fields` of the action); every field of the create schema by default.
-- `fixed?: FixedValues | undefined`: The values of fields that the user does not change (`ResourceForm` `fixed`).
+- `initial?: Readonly<Record<string, unknown>> | undefined`: The values that the form starts with, which the user may change (`ResourceForm` `initial`).
 - `title: ReactNode`
 - `description?: ReactNode`
 - `onSaved?: (saved: SavedDocument) => void`: Called with the saved document once the form is closed: the screen `then` of the action.
@@ -5766,7 +5775,7 @@ Its props, `ScreenActionProps`:
 
 Its props, `UpdateFormActionProps`:
 
-- `extends Omit<CreateFormActionProps, 'path' | 'fixed'>`
+- `extends Omit<CreateFormActionProps, 'path' | 'initial'>`
 - `path: UpdatePath`: The route set of the entity (`ROUTES` of the contract).
 - `id: string`: The id of the item that it updates.
 
@@ -5776,12 +5785,12 @@ Its props, `UpdateFormActionProps`:
 
 #### CreateForm
 
-`interface CreateForm`: Whether the create form of a screen is open, and with which fixed values: `CreateFormAction.use()`.
+`interface CreateForm`: Whether the create form of a screen is open, and with which values: `CreateFormAction.use()`.
 
 - `open: boolean`
-- `fixed: FixedValues | undefined`: The values of the fields fixed by the last `onOpenWith`; none after `onOpen`.
+- `initial: Readonly<Record<string, unknown>> | undefined`: The values that the form starts with, of the last `onOpenWith`; none after `onOpen`.
 - `onOpen: () => void`: Opens the form: the `onClick` of an action (its event is not read).
-- `onOpenWith: (fixed: FixedValues) => void`: Opens the form with fields fixed, such as the day of a calendar: `{due_date: day}`.
+- `onOpenWith: (initial: Readonly<Record<string, unknown>>) => void`: Opens the form starting with these values, which the user may change: the day of a calendar, `{due_date: day}`.
 - `onClose: () => void`
 
 #### DestroyCardAction

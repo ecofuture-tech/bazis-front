@@ -28,14 +28,19 @@ import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 // the contract of the product with the resource of the tests, whose `children` is a reverse
-// relationship (the foreign key on the related model)
+// relationship (the foreign key on the related model) and whose `plan` is a field that the
+// backend sets itself (not in the create schema)
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   return {
     ...contract,
     RESOURCES: {
       ...contract.RESOURCES,
-      'test.item': { fields: { children: { relation: 'test.unknown', many: true, reverse: true } }, search: [] },
+      'test.item': {
+        path: '/api/test/item/',
+        fields: { children: { relation: 'test.unknown', many: true, reverse: true }, plan: { title: 'Plan of the item' } },
+        search: [],
+      },
     },
   };
 });
@@ -238,6 +243,29 @@ describe('ResourceForm', () => {
     expect(state.textContent).toContain('Overlaps another item');
     expect(state.textContent).toContain('Ends before it starts');
     expect(state.textContent).not.toContain('Taken');
+  });
+
+  it('names the fields of the errors that the form does not show by their titles', async () => {
+    const invalid = (detail: string, pointer: string) => ({ status: 422, code: 'ERR_ITEM_INVALID', detail, source: { pointer } });
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, schema)
+      .on(
+        'POST',
+        ITEMS,
+        {
+          errors: [
+            // a field of the schema not in the form, a field of the contract only, a field of neither
+            invalid('Not yours', '/data/relationships/owner'),
+            invalid('No plan is active', '/data/relationships/plan'),
+            invalid('Too late', '/data/attributes/starts_on'),
+          ],
+        },
+        422,
+      );
+    renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
+
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect((await screen.findByTestId('state:invalid')).textContent).toBe('Owner: Not yours Plan of the item: No plan is active Starts on: Too late');
   });
 
   it('shows an error of the item alone in the form', async () => {

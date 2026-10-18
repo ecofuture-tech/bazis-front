@@ -874,8 +874,8 @@ def render_board(product: Product, data: dict) -> str:
 
 def render_calendar(product: Product, data: dict) -> str:
     """
-    A calendar: the items on their days; its "add" opens the create form with the selected day
-    in the field of the calendar.
+    A calendar: the items on their days; its "add" opens the create form starting with the
+    selected day in the field of the calendar.
     """
     screen = Screen(product, data)
     spec = data['calendar']
@@ -901,16 +901,20 @@ def render_calendar(product: Product, data: dict) -> str:
 
 
 def calendar_add(screen: Screen, const: Raw, spec: dict) -> Obj:
-    """The add of a calendar: its create form opened with the selected day in the field of the calendar."""
+    """
+    The add of a calendar: its create form opened with the value of the field of the calendar
+    on the selected day (`onAdd`: the day of a date, its start of a date-time), which the user
+    may change.
+    """
     add = spec['add']
     state = screen.form_state('CreateFormAction', add['id'])
     label = screen.text('calendar', 'add', 'label') or screen.package_text('form.create')
     screen.form_action('CreateFormAction', state, const, add, label)
     screen.code.use('lucide-react', icon_name(CREATE_ICON))
-    open_with = Call(f'{state.code}.onOpenWith', [Obj([(spec['field'], Raw('day'))])])
+    open_with = Call(f'{state.code}.onOpenWith', [Obj([(spec['field'], Raw('value'))])])
     return Obj([
         ('id', Str(add['id'])), ('label', label), ('icon', Raw(icon_name(CREATE_ICON))),
-        ('onAdd', Arrow(['day'], Block([open_with]))),
+        ('onAdd', Arrow(['value'], Block([open_with]))),
     ])
 
 

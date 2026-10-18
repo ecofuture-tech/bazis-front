@@ -17,12 +17,14 @@
 // week at a time, `calendar:<entity>` with the days it shows in `data-from` and `data-to`,
 // moved by `action:previous-period`, `action:next-period` and `action:today`. A day
 // `day:<YYYY-MM-DD>` has the number of its items in `data-count` and its first items
-// `row:<id>` (a cell `cell:<field>` per field of its label); a click on a day selects it, and
+// `row:<id>` (a cell `cell:<field>` per field of its label, a line each, after the time of a
+// date-time on the day it starts); a click on a day selects it, and
 // the list of the selected day (today at first) shows all its items, `row:<id>` again. A month
 // at the width of a phone has a dot on the days with items, which only the list of the day
 // shows: no hidden copy of a row is in the page. The
-// action that creates an item (`action:<id>`) is given the selected day. One list of the
-// period (its first `LIMIT` items, the days of a date-time in the time zone of the browser).
+// action that creates an item (`action:<id>`) is given the value of the field on the selected
+// day. One list of the period (its first `LIMIT` items, the days of a date-time in the time
+// zone of the browser).
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useId, useState, type ComponentType, type ReactNode } from 'react';
@@ -59,8 +61,12 @@ export type CalendarView = 'month' | 'week';
 export interface CalendarAdd {
   id: string;
   label: ReactNode;
-  /** Called with the selected day (`YYYY-MM-DD`): the form of the screen fills the field with it. */
-  onAdd: (day: string) => void;
+  /**
+   * Called with the value of `field` on the selected day, which the create form of the screen
+   * starts with: the day (`YYYY-MM-DD`) of a date, the start of the day in the time zone of
+   * the browser (ISO) of a date-time, whose time the user sets.
+   */
+  onAdd: (value: string) => void;
   icon?: ComponentType<{ className?: string }>;
 }
 
@@ -161,31 +167,40 @@ interface ItemProps {
   display: Readonly<Record<string, FieldDisplay>>;
   tone: Tone | undefined;
   onOpen: ((id: string) => void) | undefined;
-  /** The time of a date-time before the label (the list of a day). */
-  time?: string | undefined;
+  /** The time of a date-time that starts on the day shown. */
+  time: string | undefined;
   className?: string;
 }
 
-/** An item: its label, a button that opens it. */
+/**
+ * An item, a button that opens it: its time and the first field of its label on a line, the
+ * first field on a line of its own when they do not fit together, then each other field on a
+ * line, each cut to the width of the item with its whole text in its title.
+ */
 function Item({ item, label, meta, display, tone, onOpen, time, className }: ItemProps) {
+  const [first, ...others] = label;
+  const value = (name: string, look?: string) => (
+    <span key={name} ref={titleFromText} data-bz={`cell:${name}`} className={cn('min-w-0 truncate', look)}>
+      <ItemValue item={item} name={name} fields={meta} display={display[name]} />
+    </span>
+  );
   const content = (
     <>
-      {time !== undefined && <span className="shrink-0 text-muted-foreground tabular-nums">{time}</span>}
-      {label.length > 0 ? (
-        label.map((name) => (
-          <span key={name} ref={titleFromText} data-bz={`cell:${name}`} className="min-w-0 truncate">
-            <ItemValue item={item} name={name} fields={meta} display={display[name]} />
+      <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+        {time !== undefined && <span className="tabular-nums">{time}</span>}
+        {first === undefined ? (
+          <span title={itemLabel(item)} className="max-w-full min-w-0 truncate font-medium">
+            {itemLabel(item)}
           </span>
-        ))
-      ) : (
-        <span title={itemLabel(item)} className="min-w-0 truncate">
-          {itemLabel(item)}
-        </span>
-      )}
+        ) : (
+          value(first, 'max-w-full font-medium')
+        )}
+      </span>
+      {others.map((name) => value(name))}
     </>
   );
   const look = cn(
-    'flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left',
+    'grid w-full min-w-0 content-start gap-0.5 rounded-md px-1.5 py-1 text-left pointer-coarse:min-h-11',
     tone ? SOFT_TONES[tone] : 'bg-primary-soft text-primary-ink',
     className,
   );
@@ -239,7 +254,8 @@ export function ResourceCalendar({
   const to = keys[keys.length - 1] ?? today;
   const labels = label ?? resourceAt(path)?.label ?? [];
 
-  // the format of the bounds is that of the field: the list waits for its schema
+  // the format of the bounds (and of the day of a new item) is that of the field: the list
+  // waits for its schema
   const spec = meta.fields.get(field);
   const date = spec?.kind === 'attribute' && spec.format === 'date';
   const bound = (day: string) => (date ? day : parseDay(day).toISOString());
@@ -291,6 +307,11 @@ export function ResourceCalendar({
   const canAdd = add !== undefined && document !== undefined && permitted(document.meta, 'add');
   const selectedItems = items.get(selected) ?? [];
   const toneOf = (item: ResourceObject) => (tone && fieldValue(item, tone.field) === true ? tone.tone : undefined);
+  // the time of a date-time on the day it starts (not on the next days of an item that spans days)
+  const timeOn = (item: ResourceObject, day: string) => {
+    const moment = date ? null : fieldValue(item, field);
+    return typeof moment === 'string' && dayOf(moment, false) === day ? time.format(new Date(moment)) : undefined;
+  };
 
   function cell(day: Date) {
     const key = isoDate(day);
@@ -307,7 +328,8 @@ export function ResourceCalendar({
         data-count={dayItems.length}
         className={cn(
           'grid min-w-0 content-start gap-1 bg-card',
-          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : 'min-h-40 p-1.5',
+          // a week at the width of a phone is a list of its days: a day without items is low
+          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : 'p-1.5 sm:min-h-40',
           outside && 'bg-muted text-muted-foreground',
         )}
       >
@@ -353,7 +375,7 @@ export function ResourceCalendar({
         {dot ? null : (
           <div className="grid min-w-0 gap-1 text-xs">
             {shown.map((item) => (
-              <Item key={item.id} item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} />
+              <Item key={item.id} item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} time={timeOn(item, key)} />
             ))}
             {dayItems.length > shown.length && (
               <button
@@ -442,7 +464,7 @@ export function ResourceCalendar({
             type="button"
             data-bz={`action:${add.id}`}
             onClick={() => {
-              add.onAdd(selected);
+              add.onAdd(bound(selected));
             }}
           >
             {Add && <Add />}
@@ -480,15 +502,11 @@ export function ResourceCalendar({
               <p className="text-sm text-muted-foreground">{t('calendar.no_items')}</p>
             ) : (
               <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5 text-sm">
-                {selectedItems.map((item) => {
-                  const moment = date ? null : fieldValue(item, field);
-                  const at = typeof moment === 'string' && dayOf(moment, false) === selected ? time.format(new Date(moment)) : undefined;
-                  return (
-                    <li key={item.id}>
-                      <Item item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} time={at} className="py-1.5 pointer-coarse:min-h-11" />
-                    </li>
-                  );
-                })}
+                {selectedItems.map((item) => (
+                  <li key={item.id}>
+                    <Item item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} time={timeOn(item, selected)} className="py-1.5" />
+                  </li>
+                ))}
               </ul>
             )}
           </section>

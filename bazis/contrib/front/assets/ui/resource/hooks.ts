@@ -100,10 +100,10 @@ export const useAnyFilterFields = useFilterFields as unknown as (
   path: string,
 ) => UseQueryResult<FilterFieldsDocument>;
 
-/** `useResourceForm(path, {id, fixed})`: a create without an id. */
+/** `useResourceForm(path, {id, fixed, initial})`: a create without an id. */
 export const useAnyResourceForm = useResourceForm as unknown as (
   path: string,
-  options: { id?: string; fixed?: FixedValues },
+  options: { id?: string; fixed?: FixedValues; initial?: Readonly<Record<string, unknown>> },
 ) => ResourceForm<SavedDocument>;
 
 /** `useDownload(path)`: `mutate(id)` saves the file of the item. */

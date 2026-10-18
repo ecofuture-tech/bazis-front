@@ -25,14 +25,24 @@ import { useState, type ReactNode, type SubmitEvent } from 'react';
 import { ApiError, type ErrorObject } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
 import { useErrorMessage, type CreatePath, type FixedValues, type ResourceForm as Form, type UpdatePath } from '@/bazis/react';
-import { FieldInput, isReverse, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
+import { FieldInput, fieldTitle, isReverse, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export type ResourceFormProps = (
-  | { /** A create: the route set. */ path: CreatePath; id?: undefined }
-  | { /** An update: the route set and the item. */ path: UpdatePath; id: string }
+  | {
+      /** A create: the route set. */
+      path: CreatePath;
+      id?: undefined;
+      /**
+       * The values that the create starts with in place of the defaults of the schema, which
+       * the user may change (`useResourceForm` `initial`): the day of a calendar. They are
+       * sent unless the user empties them.
+       */
+      initial?: Readonly<Record<string, unknown>> | undefined;
+    }
+  | { /** An update: the route set and the item. */ path: UpdatePath; id: string; initial?: undefined }
 ) & {
   /**
    * The fields, in this order (those the runtime schema does not have are left out); by
@@ -57,11 +67,13 @@ export type ResourceFormProps = (
 /**
  * The messages of a failed submit that no field shows: the errors of the item as a whole
  * (`/data`: an invariant of `validate_item`), of an included item (`/included/<index>`) and
- * of the request, then those of the fields that the form does not show, with their names;
- * after `form.check` when a field shows an error.
+ * of the request, then those of the fields that the form does not show, with their titles
+ * (`fieldTitle`: a field that the backend checks and the user does not fill, chosen by the
+ * backend); after `form.check` when a field shows an error.
  */
 function formMessages(
   form: Form<unknown>,
+  path: string,
   shown: ReadonlySet<string>,
   t: Translate,
   message: (error: ErrorObject) => string,
@@ -78,7 +90,10 @@ function formMessages(
   const names = Object.keys(form.errors);
   const others = names
     .filter((name) => !shown.has(name))
-    .map((name) => `${name}: ${(form.errors[name] ?? []).join(' ')}`);
+    .map((name) => {
+      const title = fieldTitle(path, name, form.fields.find((it) => it.name === name)?.title);
+      return `${title}: ${(form.errors[name] ?? []).join(' ')}`;
+    });
   return [...(names.some((name) => shown.has(name)) ? [t('form.check')] : []), ...general, ...others];
 }
 
@@ -115,6 +130,7 @@ export function ResourceFormBody({
   id,
   fields,
   fixed,
+  initial,
   onSaved,
   onCancel,
   submitLabel,
@@ -122,6 +138,7 @@ export function ResourceFormBody({
   const form = useAnyResourceForm(path, {
     ...(id === undefined ? {} : { id }),
     ...(fixed === undefined ? {} : { fixed }),
+    ...(initial === undefined ? {} : { initial }),
   });
   // the fields whose file uploads: the form waits for them
   const [uploading, setUploading] = useState<ReadonlySet<string>>(() => new Set());
@@ -147,7 +164,7 @@ export function ResourceFormBody({
     return [isFixed(name) ? { ...field, readOnly: true } : field];
   });
   const failure = form.submitError ? errorState(form.submitError) : null;
-  const messages = formMessages(form, new Set(shown.map((it) => it.name)), t, message);
+  const messages = formMessages(form, path, new Set(shown.map((it) => it.name)), t, message);
 
   const busy = form.isSubmitting || uploading.size > 0;
 

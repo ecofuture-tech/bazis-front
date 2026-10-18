@@ -45,7 +45,10 @@ export interface ResourceForm<Saved> {
    */
   values: Readonly<Record<string, unknown>>;
   setValue(name: string, value: unknown): void;
-  /** The fields whose value differs from the initial one; only they are submitted. */
+  /**
+   * The fields whose value differs from that of the schema or of the item (the `initial` and
+   * the `fixed` values among them); only they are submitted.
+   */
   dirty: readonly string[];
   /** The validation errors of the last submit by field (`ApiError.fieldErrors()`), in the language of the interface (`useErrorMessage`). */
   errors: Readonly<Record<string, readonly string[]>>;
@@ -75,8 +78,8 @@ function same(a: unknown, b: unknown): boolean {
   return Object.is(a, b) || JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** The initial values: the defaults of the schema on a create, the item on an update. */
-function initialValues(fields: readonly FormField[], item: Item | undefined): Record<string, unknown> {
+/** The values before any change: the defaults of the schema on a create, the item on an update. */
+function originalValues(fields: readonly FormField[], item: Item | undefined): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const field of fields) {
     if (item === undefined) {
@@ -142,12 +145,14 @@ const NO_FIXED: FixedValues = {};
  * to-many relationship, `many: true`, with all its related items: its value is their ids);
  * a 422 gives the `errors` by field. `fixed` values
  * are those of their fields whatever `setValue` sets, and are sent like a change when they
- * differ from the initial values (the backend still decides: a read-only field is never
- * sent).
+ * differ from the original values (the backend still decides: a read-only field is never
+ * sent). `initial` values (a create only: the day of a calendar) are those that the form
+ * starts with in place of the defaults of the schema, changed by the user and sent like his
+ * changes.
  */
 export function useResourceForm<P extends CreatePath>(
   path: P,
-  options?: { id?: undefined; fixed?: FixedValues },
+  options?: { id?: undefined; fixed?: FixedValues; initial?: Readonly<Record<string, unknown>> },
 ): ResourceForm<CreateResponse<P>>;
 export function useResourceForm<P extends UpdatePath>(
   path: P,
@@ -155,7 +160,7 @@ export function useResourceForm<P extends UpdatePath>(
 ): ResourceForm<UpdateResponse<P>>;
 export function useResourceForm(
   path: string,
-  { id, fixed = NO_FIXED }: { id?: string; fixed?: FixedValues } = {},
+  { id, fixed = NO_FIXED, initial = NO_CHANGES }: { id?: string; fixed?: FixedValues; initial?: Readonly<Record<string, unknown>> } = {},
 ): ResourceForm<unknown> {
   const { api, scope, errorMessage } = useBazis();
   const queryClient = useQueryClient();
@@ -183,20 +188,26 @@ export function useResourceForm(
 
   const resource = useMemo(() => (schema.data ? resourceSchema(schema.data) : null), [schema.data]);
   const fields = resource?.fields ?? NO_FIELDS;
-  const initial = useMemo(
-    () => initialValues(fields, id === undefined ? undefined : item.data),
+  const original = useMemo(
+    () => originalValues(fields, id === undefined ? undefined : item.data),
     [fields, id, item.data],
   );
-  // the fixed values by their content: a screen may pass a new object at every render
+  // the initial and the fixed values by their content: a screen may pass a new object at
+  // every render; the initial ones are changes that the user did not make
+  const initialKey = JSON.stringify(initial);
   const fixedKey = JSON.stringify(fixed);
   const changed = useMemo(
-    () => ({ ...edits, ...(JSON.parse(fixedKey) as Record<string, unknown>) }),
-    [edits, fixedKey],
+    () => ({
+      ...(JSON.parse(initialKey) as Record<string, unknown>),
+      ...edits,
+      ...(JSON.parse(fixedKey) as Record<string, unknown>),
+    }),
+    [initialKey, edits, fixedKey],
   );
-  const values = useMemo(() => ({ ...initial, ...changed }), [initial, changed]);
+  const values = useMemo(() => ({ ...original, ...changed }), [original, changed]);
   const dirty = useMemo(
-    () => Object.keys(changed).filter((name) => !same(changed[name], initial[name])),
-    [changed, initial],
+    () => Object.keys(changed).filter((name) => !same(changed[name], original[name])),
+    [changed, original],
   );
 
   const loading = schema.isPending || (id !== undefined && item.isPending);
