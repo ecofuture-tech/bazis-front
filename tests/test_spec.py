@@ -908,11 +908,74 @@ CASES = [
         [('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
     ),
     (
+        'S040',
+        # the navigation is generated (none in the product): a report with `nav: false` is not
+        # linked, so only the filters of the board and of the list are reported
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
+         PRODUCT: lambda d: d.pop('navigation'),
+         DRAFTS: lambda d: [d.update(nav=False), d['list'].pop('filters')]},
+        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+    ),
+    (
+        'S040',
+        # the navigation is generated: a route with `:` is not linked either (the scenarios,
+        # which open the report, are left out)
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
+         PRODUCT: lambda d: [d.pop('navigation'), d.pop('scenarios')],
+         DRAFTS: lambda d: [d.update(route='/drafts/:kind'), d['list'].pop('filters')]},
+        [('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+    ),
+    (
+        'S040',
+        # the navigation is generated: an ordinary report is linked, and so is read
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
+         PRODUCT: lambda d: d.pop('navigation'),
+         DRAFTS: lambda d: d['list'].pop('filters')},
+        [('S040', f'{DRAFTS}#/list/filter'), ('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters')],
+    ),
+    (
+        'S040',
+        # a report with `nav: false` that the navigation of the product lists (in a group) is linked
+        # (S030: a screen with `nav: false` is no entry of the navigation)
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
+         DRAFTS: lambda d: [d.update(nav=False), d['list'].pop('filters')]},
+        [('S040', f'{DRAFTS}#/list/filter'), ('S040', f'{BOARD}#/board/filters'), ('S040', f'{LIST}#/list/filters'),
+         ('S030', f'{PRODUCT}#/navigation/1/items/1/screen')],
+    ),
+    (
         'S041',
-        # the add of a calendar by a date-time field, whose fields leave it out: the time cannot
-        # be picked (the field is also one that the create route does not take)
+        # the add of a calendar by a date-time field that the create route takes, whose fields
+        # leave it out: the time cannot be picked
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['create'].append('dt_created'),
+         CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title']})},
+        [('S041', f'{CALENDAR}#/calendar/add/fields')],
+    ),
+    (
+        'S041',
+        # the create route does not take the field: S034 only, the fields cannot give the time
         {CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title']})},
-        [('S041', f'{CALENDAR}#/calendar/add/fields'), ('S034', f'{CALENDAR}#/calendar/add')],
+        [('S034', f'{CALENDAR}#/calendar/add')],
+    ),
+    (
+        'S041',
+        # no S041: the fields list the field, or the add lists none (all the writable fields)
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['create'].append('dt_created'),
+         CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title', 'dt_created']})},
+        [],
+    ),
+    (
+        'S041',
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['create'].append('dt_created'), CALENDAR: lambda d: d['calendar'].update(add={'id': 'add'})},
+        [],
+    ),
+    (
+        'S041',
+        # no S041 for a date field: the day is all of it
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['create'].append('dt_created'),
+                              d['project']['resources']['tasks.task']['fields']['dt_created'].update(format='date')],
+         PRODUCT: lambda d: task(d)['fields'][2].update(type='date'),
+         CALENDAR: lambda d: d['calendar'].update(add={'id': 'add', 'fields': ['title']})},
+        [],
     ),
     (
         'S006',

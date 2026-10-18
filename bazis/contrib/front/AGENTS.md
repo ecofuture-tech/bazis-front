@@ -1036,8 +1036,8 @@ warning there, never blocking `migrate` or `contract`.
 | `S037` | warning | a dictionary of the product (src/i18n/<language>.ts) has a key of the texts of the specs (`screens.<id>...`) that no text of the specs has: of a screen, a section, a tab or an action that is not there, or a text that the spec does not give |
 | `S038` | error | a screen of an item has no `:id` in its route: a card or an update form that is not custom (the id of the item is in the route; a custom one finds its item itself) |
 | `S039` | error | a sort names a field twice (`planned_date` and `-planned_date`): a sort is the order of the items by default, by its first field, then by the next one for the items equal by it; keep the field once (the user sorts a list by the headers of its columns) |
-| `S040` | error | a list or a board has filters, or a list is a report (a `filter`, whose link in the navigation reads them), and the route set of its resource does not route the fields that the user may filter by (`route_filter_fields/`): its `actions` leave out `get_route_filter_fields`, and the filters show an error. Add it to `actions` (the frontend needs the routes of the list, of the item, of their schemas and of the fields of the filters), never remove the filters for it |
-| `S041` | warning | the add of a calendar whose `field` is a date-time lists `fields` without it: the item is created at the start of the selected day (00:00) and the user cannot pick the time. Add the field to `fields` of `add` (or omit `fields`: all the writable fields) |
+| `S040` | error | a list or a board has filters, or a list is a report (a `filter`, whose link in the navigation reads them), and the route set of its resource does not route the fields that the user may filter by (`route_filter_fields/`): its `actions` leave out `get_route_filter_fields`, and the filters show an error. Add it to `actions` (the frontend needs the routes of the list, of the item, of their schemas and of the fields of the filters), never remove the filters for it. A report that the navigation does not link (`nav: false`, a route with `:`, or not in the `navigation` of the product) is not checked |
+| `S041` | warning | the add of a calendar whose `field` is a date-time, which the create route takes (else S034), lists `fields` without it: the item is created at the start of the selected day (00:00) and the user cannot pick the time. Add the field to `fields` of `add` (or omit `fields`: all the writable fields) |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1306,7 +1306,7 @@ differ from the backend; `--check` does the same in CI.
   `other`: `client.action`). A route set that narrows its `actions` keeps those that the
   frontend reads: `action_list`, `action_retrieve` and their schemas (`action_schema_list`,
   `action_schema_retrieve`), the create and the update with theirs when the screens change
-  the items, and `get_route_filter_fields` while a list or a board filters them (S040).
+  the items, and `get_route_filter_fields` while a list or a board filters them, or a linked report reads them (S040).
   `fields` are the attributes and relationships of the item response: `title`, the title
   of the field in the OpenAPI in `LANGUAGE_CODE` (that of the route set, else the
   `verbose_name` of the model field, else the name of the field: S018), `type` (and
@@ -3494,7 +3494,8 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
 - New errors of `check` and `screens` that a product of 0.2.0 may meet: two entities that the
   generated code would name alike (P032), the screens of an item without `:id` (S038), the
   links of the navigation (S030), the code of a custom screen (S028, S029), a field twice in
-  a sort (S039), filters of a route set that does not route the fields of its filters (S040).
+  a sort (S039), filters of a route set that does not route the fields of its filters (S040), the add of a
+  calendar by a date-time field without it among its `fields` (S041, a warning).
 
 ## API: the client
 

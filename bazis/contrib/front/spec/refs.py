@@ -830,7 +830,7 @@ def _check_screen(
     resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
     if resource is not None:
         if primitive == 'calendar' and 'add' in section:
-            _check_calendar_add(doc, section, resource, issues)
+            _check_calendar_add(doc, section, entity, resource, issues)
         _check_queries(doc, (primitive,), section, entity, resource, issues)
         _check_filter_route(doc, primitive, section, entity, resource, product, issues)
         _check_search_contract(doc, entity, resource, contract, issues)
@@ -1051,20 +1051,9 @@ def _check_board(doc: Document, entity: Entity, issues: Issues) -> None:
 def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
     """
     A calendar: its days are those of date or date-time fields, its tone by a boolean field
-    (S023); the add of a date-time field lists it among its fields, to pick the time (S041).
+    (S023).
     """
     calendar = doc.data['calendar']
-    field = calendar['field']
-    if (
-        field in entity.fields and entity.fields[field].get('type') == 'datetime'
-        and 'fields' in calendar.get('add', {}) and field not in calendar['add']['fields']
-    ):
-        issues.add(
-            doc, ('calendar', 'add', 'fields'), 'S041',
-            f'The add of the calendar starts the item at the start of the selected day, in the date-time `{field}`, '
-            'which its fields leave out: the user cannot pick the time.',
-            f'Add `{field}` to the `fields` of `add`.',
-        )
     for key in ('field', 'end'):
         name = calendar.get(key)
         if name in entity.fields and entity.fields[name].get('type') not in DATES:
@@ -1080,13 +1069,25 @@ def _check_calendar(doc: Document, entity: Entity, issues: Issues) -> None:
         )
 
 
-def _check_calendar_add(doc: Document, calendar: dict, resource: dict, issues: Issues) -> None:
+def _check_calendar_add(doc: Document, calendar: dict, entity: Entity, resource: dict, issues: Issues) -> None:
     """
     The add of a calendar opens the create form with the selected day in the field of the
-    calendar: the create route of the entity must take that field, or the day is lost (S034).
+    calendar: the create route of the entity must take that field, or the day is lost (S034);
+    when it does, a date-time field is listed among the `fields` of the add, to pick the time
+    (S041).
     """
     field = calendar['field']
     if field in resource['create']:
+        if (
+            entity.fields.get(field, {}).get('type') == 'datetime'
+            and 'fields' in calendar['add'] and field not in calendar['add']['fields']
+        ):
+            issues.add(
+                doc, ('calendar', 'add', 'fields'), 'S041',
+                f'The add of the calendar starts the item at the start of the selected day, in the date-time `{field}`, '
+                'which its fields leave out: the user cannot pick the time.',
+                f'Add `{field}` to the `fields` of `add`.',
+            )
         return
     problem = (
         f'The add of the calendar creates the item on the selected day, in `{field}`, which the create '
