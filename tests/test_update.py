@@ -788,7 +788,7 @@ def test_update_never_deletes_a_file_of_the_template(product):
 
 def test_update_says_what_replaces_a_file_that_the_template_removed(product):
     """
-    The files of the template of 0.2.0 that the screens of the specs replace are kept, with
+    The files of the template of 0.1.0 that the screens of the specs replace are kept, with
     what replaces them: the name of the product, the home.
     """
     downgrade(product, 'template')

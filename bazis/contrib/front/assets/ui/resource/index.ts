@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { errorMessage as i18nErrorMessage } from '@/bazis/i18n';
-
-/**
- * The text of an error of the backend in the language of the interface: `errorMessage` of
- * `@/bazis/i18n`, where it moved in 0.3.0.
- *
- * @deprecated Import `errorMessage` of `@/bazis/i18n`; this one is removed in 0.4.0.
- */
-export const errorMessage = i18nErrorMessage;
-
 export { DateInput, DatesProvider, useDates } from './dates.js';
 export type { DateInputProps } from './dates.js';
 export { FieldInput } from './field-input.js';

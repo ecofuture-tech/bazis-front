@@ -24,12 +24,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { RESOURCES, TRANSITS } from '@/bazis/generated/contract';
 import { THEME } from '@/bazis/generated/theme';
-import { errorMessage as i18nErrorMessage } from '@/bazis/i18n';
 import type { FormField } from '@/bazis/react';
 import {
   choiceOptions,
   DatesProvider,
-  errorMessage,
   FieldInput,
   FieldValue,
   FilesProvider,
@@ -757,12 +755,5 @@ describe('the label of a related item', () => {
     expect(screen.getByTestId('field:short').textContent).toBe('7');
     // the start of a long id, the whole on hover
     expect(screen.getByTestId('field:long').textContent).toBe('#0f5c8a9e');
-  });
-});
-
-describe('errorMessage of 0.2.0', () => {
-  it('is that of the language until 0.4.0', () => {
-    // eslint-disable-next-line @typescript-eslint/no-deprecated -- the alias of 0.2.0 is checked
-    expect(errorMessage).toBe(i18nErrorMessage);
   });
 });

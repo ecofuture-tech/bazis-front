@@ -3418,44 +3418,17 @@ is an error there); the changes so far:
   product to them again, then `npm run format`; the links of `NAVIGATION` stay on their
   line (`// prettier-ignore`).
 
-From 0.1.0 to 0.2.0:
-
-- `lazyScreen` shows the loading state of the screens in its own `Suspense`, and the router
-  of the template has none: a `src/app/router.tsx` that the product changed may conflict on
-  its imports once. Take the lines of the template and remove the imports of `Suspense` and
-  `StatePanel` that nothing uses any more (`npm run lint` reports them); a `Suspense` of the
-  product around its own routes may stay.
-- Run `npm install` after `update` and before `contract`, which generates `schema.d.ts`
-  with the frontend: it brings the `@fontsource` packages of the template and the libraries
-  of the new components (recharts, react-day-picker, @dnd-kit).
-- `src/index.css` imports `src/bazis/generated/fonts.css`, which `bazis_front design`
-  writes: run `design` after `update` (the build fails without the file, `tsc` on
-  `list_phone` of a theme of 0.1.0). `theme.yaml` may name the layers of its tokens (see
-  [The design](#the-design)); a design that names none keeps its look. The `tokens.json` of
-  0.1.0 defines every color, font and radius, which hide the layers named over it (D012):
-  remove the colors and the fonts from `tokens.json` (and the radius, with a `shape`),
-  keeping there only what the product changes, such as its brand.
-- `contract.json` is of format 5 (the titles of the fields, the labels of the resources):
-  export the contract again, `check` reports `C002` until then. The components read the
-  titles and the labels from it; `check` then reports the fields without a title (S018), the
-  entities shown by their id (S019) and the entities without an icon in `icons` of
-  `theme.yaml` (D011). Declare `display` (`currency`, `unit`, `bar`, `phone`, `plain`) of
-  the fields that are money, measures, shares or phones, and `label` of an entity whose
-  resource labels nothing (product.yaml).
-- The filters of a list are the select of Radix, a boolean filter its chips: a test of the
-  product that chose a filter with `selectOption` chooses it with `fill` of the helpers, as
-  the generated tests do. The panels of the tabs of a card (`card.tabs`) stay in the DOM,
-  hidden: a test opens the tab before it fills or reads a control of it.
-
-From 0.2.0 to 0.3.0:
+A product of 0.1.0 goes to 0.3.0 in one run (0.2.0 was never published, its changes are in 0.3.0),
+with the steps of both versions in this order:
 
 ```bash
 pip install -U bazis-front
-python manage.py bazis_front update      # resolve the conflicts that it lists (below)
-(cd frontend && npm install)             # before the contract
-python manage.py bazis_front contract    # contract.json of format 6
-python manage.py bazis_front design
-python manage.py bazis_front check       # after `custom` and `navigation` in the specs (below)
+python manage.py bazis_front update      # exit 1 with conflicts is expected; resolve those it lists (steps 2, 3)
+(cd frontend && npm install)             # before the contract; `tsc` stays red until `screens` (step 8)
+python manage.py bazis_front contract    # contract.json of format 6, schema.d.ts
+python manage.py bazis_front design      # theme.css and the new fonts.css
+# steps 5 and 6: `custom` in the specs of the screens written by hand, `navigation` in product.yaml
+python manage.py bazis_front check
 python manage.py bazis_front screens     # also copies the components that they import
 (cd frontend && npm install)             # their npm dependencies, which `screens` adds
 python manage.py bazis_front e2e
@@ -3463,80 +3436,124 @@ python manage.py bazis_front shots --no-run
 cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
 ```
 
-- The template renders the screens of the specs (`src/screens/generated/`), and has no home
-  of its own: `/` is the screen of the specs at `/`, else the first link of the navigation.
-  After `update`, generate them with `bazis_front screens` (`front.W010` until then). Once
-  the product declares its entities, `check` asks for a screen of the specs at `/` that is a
-  `dashboard` with tiles (S026).
-- A `src/app/router.tsx` that the product changed conflicts once: its routes and its links
-  go to the specs. Replace the whole file by that of the template,
-  `frontend/.bazis/base/template@<version>/src/app/router.tsx` (taking the side of
-  bazis-front in each conflict keeps the lines of the product merged without one, such as
-  its imports), then apply the other changes of the product to it again: its own providers,
-  the routes that are not screens of the specs, the tiles of its maps (a `MapProvider tiles`
-  around `GeneratedProviders`). Move its links to `navigation` of `product.yaml` (with their
-  `icon`, `requires` and a `label` shorter than the title of the screen) and give each screen written by hand `custom` in its spec.
-- `src/app/product.ts` and the home `src/screens/home/index.tsx` are no longer in the
-  template: `update` keeps them and says what replaces them. The name of the product is
-  `product.name` of `product.yaml`: delete `product.ts` once nothing imports it. Delete the home, or
-  keep it with `custom: true` in `spec/screens/home.yaml`.
-- The dictionaries `src/i18n/en.ts` and `src/i18n/ru.ts` that the product changed conflict
-  too, the template having removed the texts of its home: keep the side of the frontend while
-  its screens use them, and remove the keys that no screen reads once they are generated (the
-  texts of a generated screen are those of its spec, in `GENERATED_MESSAGES`).
-- `contract.json` is of format 6 (`create`, the fields of the create route of a resource,
-  which the generated forms take, and `custom_actions`, the custom actions of its route set): export the contract again after `npm install`; `update`
-  says so, and `check` reports `C002` until then.
-- `screens` copies the components that the generated screens import and the frontend lacks
-  (`calendar` and `date-picker` for the dates of the forms) and sets their npm dependencies
-  (`react-day-picker`) in `package.json`: run `npm install` again, else `tsc` fails (TS2307).
-- The API of the copies (`npx tsc --noEmit` finds the code of the product that uses what
-  changed):
-  - `errorMessage` moved from `@/bazis/ui/resource` to `@/bazis/i18n` (the same function);
-    the import of `@/bazis/ui/resource` stays until 0.4.0, deprecated: import it from
-    `@/bazis/i18n`.
-  - `payloadErrors` of `@/bazis/ui/transit-bar` takes `message`, a function of an error to
-    its text (`useErrorMessage()` of `@/bazis/react`), in place of `t`.
-  - `BoardDrag` of `@/bazis/ui/resource-board` (a drag and drop of the product in place of
-    `board-dnd`): its `Column` takes `label` (the name of its status) and its `Card` takes
-    `label` (the name of its item, null without one), told to the screen readers.
-  - `useCan(path, 'add')` (the create actions, the links with `can: 'add'`) reads
-    `GET <path>?page[limit]=1&meta=for_create` instead of `<path>schema_create/` (which it
-    still reads without that meta): a mock of the backend in a test of the product answers
-    that list.
-  - `useDestroy(path)` shows a deleted item still shown as not found (an error 404 without a
-    request) instead of reading it again; `useDestroy(path, {leaving: true})` keeps its data
-    while its screen is left.
-  - The helpers of the end-to-end tests: `App.confirm(id)` confirms the dialog of an action
-    (`action:confirm-<id>`), which a deletion of a card shows: a test of the product that
-    deletes by `action(id)` confirms it then; `expectDay` takes `today±N`.
-  - `formatNumber` and `formatDecimal` of `@/bazis/i18n` (and the numbers of the texts)
-    group the digits by thousands from five digits only: `1234` (it was `1,234`), `12,345`;
-    `{useGrouping: true}` groups them as before. A test of the product that reads a number
-    of four digits reads it without the separator.
-  - The validation errors of the forms and of the actions (`errors` of `useResourceForm`,
-    `ActionMutation`) are in the language of the interface (`useErrorMessage`), no longer
-    the text of the backend: a test of the product that reads one reads the translated
-    text.
-  - `ResourceCard` takes `after`, rendered under its sections and its tabs: the related
-    lists and the history of a card without tabs go there (`children` stays under the
-    heading, for the transits).
-  - The deletion of a card (`useDestroyCardAction` of `@/bazis/ui/screens`, new) asks
-    `card.delete_title` (a question) and says `card.delete_confirm` (what the deletion
-    does).
-  - `add.onAdd` of `ResourceCalendar` gets the value of its field on the selected day: the
-    day of a date as before, the start of the day in the time zone of the browser (ISO) of
-    a date-time instead of the day; give it to the form as `initial` (the user may change
-    it), not `fixed`.
-  - `permission` of a `ListAction` and of a `CardAction` also takes the name of a custom
-    action (`action_<name>`), allowed by `custom_actions` of the meta.
-  - New: `@/bazis/ui/screens` (the actions and the extensions of the generated screens,
-    `useCustomAction`), `customActionAt`, `useAnyAction` and `useAnyItemAction` of
-    `@/bazis/ui/resource`, `useErrorMessage` and the type `DestroyPath` of `@/bazis/react`, `errorText` of the
-    client, `useBesideList`, `NavEntry` and `NavGroup` of `@/bazis/ui/app-shell` (`items`
-    of `AppShell` takes groups of links; `useNavItems` still gives the links), `initial` of
-    `useResourceForm` and `ResourceForm`, `fieldTitle` of `@/bazis/ui/resource`.
-- New errors of `check` and `screens` that a product of 0.2.0 may meet: two entities that the
+1. `update` copies the assets that the new version requires and the frontend lacks
+   (`dashboard`, `stat-card`, the shadcn/ui components on Radix, the libraries of charts,
+   dates and drag and drop), merges the template and the copies, and lists the files that
+   conflict. It then ends with exit 1: the files are updated, and a second `update` does not
+   merge again. Run `npm install` at once (the `@fontsource` packages, the new libraries),
+   before `contract`, which generates `schema.d.ts` with the frontend. `npx tsc --noEmit`
+   and `npm test` fail with `TS2307` (`@/screens/generated/*`) until `screens` (step 8):
+   `update` says "run screens".
+2. A `src/app/router.tsx` that the product changed conflicts: replace the whole file by that
+   of the template, `frontend/.bazis/base/template@<version>/src/app/router.tsx`. Taking the
+   side of bazis-front in each conflict is not enough: the lines of the product merged
+   without a conflict, such as its imports, stay. Then apply the other changes of the
+   product to it again: its own providers, the routes that are not screens of the specs,
+   the tiles of its maps (a `MapProvider tiles` around `GeneratedProviders`). Move its links
+   to `navigation` (step 6).
+3. `src/i18n/en.ts` and `src/i18n/ru.ts` that the product changed conflict too, the template
+   having removed the texts of its home: keep the side of the frontend while its screens use
+   them, and remove the keys that no screen reads once they are generated (the texts of a
+   generated screen are those of its spec, in `GENERATED_MESSAGES`). `src/app/product.ts`
+   and the home `src/screens/home/index.tsx` are no longer in the template: `update` keeps
+   them and says what replaces them. The name of the product is `product.name` of
+   `product.yaml` (it replaces `PRODUCT_NAME`). If the product put `MAP_TILES` in
+   `product.ts` (the guide of 0.1.0 suggested it), move it to `router.tsx` (or another file)
+   before you delete `product.ts`: the `MapProvider` of the router imports it. Delete the
+   home, or keep it with `custom: true` in `spec/screens/home.yaml`.
+4. `design` after `update`: `src/index.css` imports `src/bazis/generated/fonts.css`, which
+   only `design` writes, and the theme of 0.1.0 lacks `list_phone`. `theme.yaml` may name
+   the layers of its tokens (see [The design](#the-design)); a design that names none keeps
+   its look. The `tokens.json` of 0.1.0 defines every color, font and radius, which hide the
+   layers named over it (D012): remove the colors and the fonts from `tokens.json` (and the
+   radius, with a `shape`), keeping there only what the product changes, such as its brand.
+   `contract.json` is of format 6 (the titles of the fields, the labels of the resources,
+   `create`, `custom_actions`): `check` reports `C002` until it is exported again, then the
+   fields without a title (S018), the entities shown by their id (S019) and the entities
+   without an icon in `icons` of `theme.yaml` (D011). Declare `display` (`currency`, `unit`,
+   `bar`, `phone`, `plain`) of the fields that are money, measures, shares or phones, and
+   `label` of an entity whose resource labels nothing (product.yaml).
+5. Give every screen written by hand `custom` in its spec (`true` for
+   `src/screens/<id>/index.tsx`, `{module, export}` otherwise), before `check` and
+   `screens`: every screen of 0.1.0 is one. `screens` refuses a screen that has
+   `src/screens/<id>/index.tsx` and no `custom` (S029) and writes nothing, also on the
+   first run. Then `e2e` and `shots` behave as before. Later, screen by screen, remove
+   `custom` and the file, move its texts to the spec and run `screens` and `shots` again;
+   what the specs do not say goes to `extend`.
+6. Move the links of the router to `navigation` of `product.yaml` with their `icon` and
+   `requires`. The `label` of a link is the title of the screen by default, a text in one
+   language: a link whose old label was a key of the dictionaries of the product
+   (`t('nav.tasks')`) keeps it as `label: nav.tasks` (the dictionaries `src/i18n/*.ts`
+   stay), or becomes `{en: …, ru: …}`; so does the `title` of a screen (S027 warns of the
+   texts that miss a language of the product).
+7. `check` has no errors. The template renders the screens of the specs
+   (`src/screens/generated/`) and has no home of its own: `/` is the screen of the specs at
+   `/`, else the first link of the navigation. Once the product declares its entities,
+   `check` asks for a screen of the specs at `/` that is a `dashboard` with tiles (S026).
+8. `screens` renders `src/screens/generated/` (`front.W010` until then) and copies the
+   components that the generated screens import and the frontend lacks (`calendar` and
+   `date-picker` for the dates of the forms), setting their npm dependencies
+   (`react-day-picker`): run `npm install` again, else `tsc` fails (`TS2307`). From here
+   `npx tsc --noEmit` is green again.
+9. `e2e`, `shots --no-run`, then `tsc`, lint, tests and the build: `tsc` finds the code of
+   the product that uses what changed (below).
+
+The API of the copies that 0.2.0 changed (never published):
+
+- `lazyScreen` shows the loading state of the screens in its own `Suspense`, and the router
+  of the template has none: a `src/app/router.tsx` that the product changed may conflict on
+  its imports once. Take the lines of the template and remove the imports of `Suspense` and
+  `StatePanel` that nothing uses any more (`npm run lint` reports them); a `Suspense` of the
+  product around its own routes may stay.
+- The filters of a list are the select of Radix, a boolean filter its chips: a test of the
+  product that chose a filter with `selectOption` chooses it with `fill` of the helpers, as
+  the generated tests do. The panels of the tabs of a card (`card.tabs`) stay in the DOM,
+  hidden: a test opens the tab before it fills or reads a control of it.
+
+The API of the copies that 0.3.0 changed:
+
+- `payloadErrors` of `@/bazis/ui/transit-bar` takes `message`, a function of an error to
+  its text (`useErrorMessage()` of `@/bazis/react`), in place of `t`.
+- `BoardDrag` of `@/bazis/ui/resource-board` (a drag and drop of the product in place of
+  `board-dnd`): its `Column` takes `label` (the name of its status) and its `Card` takes
+  `label` (the name of its item, null without one), told to the screen readers.
+- `useCan(path, 'add')` (the create actions, the links with `can: 'add'`) reads
+  `GET <path>?page[limit]=1&meta=for_create` instead of `<path>schema_create/` (which it
+  still reads without that meta): a mock of the backend in a test of the product answers
+  that list.
+- `useDestroy(path)` shows a deleted item still shown as not found (an error 404 without a
+  request) instead of reading it again; `useDestroy(path, {leaving: true})` keeps its data
+  while its screen is left.
+- The helpers of the end-to-end tests: `App.confirm(id)` confirms the dialog of an action
+  (`action:confirm-<id>`), which a deletion of a card shows: a test of the product that
+  deletes by `action(id)` confirms it then; `expectDay` takes `today±N`.
+- `formatNumber` and `formatDecimal` of `@/bazis/i18n` (and the numbers of the texts)
+  group the digits by thousands from five digits only: `1234` (it was `1,234`), `12,345`;
+  `{useGrouping: true}` groups them as before. A test of the product that reads a number
+  of four digits reads it without the separator.
+- The validation errors of the forms and of the actions (`errors` of `useResourceForm`,
+  `ActionMutation`) are in the language of the interface (`useErrorMessage`), no longer
+  the text of the backend: a test of the product that reads one reads the translated
+  text.
+- `ResourceCard` takes `after`, rendered under its sections and its tabs: the related
+  lists and the history of a card without tabs go there (`children` stays under the
+  heading, for the transits).
+- The deletion of a card (`useDestroyCardAction` of `@/bazis/ui/screens`, new) asks
+  `card.delete_title` (a question) and says `card.delete_confirm` (what the deletion
+  does).
+- `add.onAdd` of `ResourceCalendar` gets the value of its field on the selected day: the
+  day of a date as before, the start of the day in the time zone of the browser (ISO) of
+  a date-time instead of the day; give it to the form as `initial` (the user may change
+  it), not `fixed`.
+- `permission` of a `ListAction` and of a `CardAction` also takes the name of a custom
+  action (`action_<name>`), allowed by `custom_actions` of the meta.
+- New: `@/bazis/ui/screens` (the actions and the extensions of the generated screens,
+  `useCustomAction`), `customActionAt`, `useAnyAction` and `useAnyItemAction` of
+  `@/bazis/ui/resource`, `useErrorMessage` and the type `DestroyPath` of `@/bazis/react`, `errorText` of the
+  client, `useBesideList`, `NavEntry` and `NavGroup` of `@/bazis/ui/app-shell` (`items`
+  of `AppShell` takes groups of links; `useNavItems` still gives the links), `initial` of
+  `useResourceForm` and `ResourceForm`, `fieldTitle` of `@/bazis/ui/resource`.
+- New errors of `check` and `screens` that a product of 0.1.0 may meet: two entities that the
   generated code would name alike (P032), the screens of an item without `:id` (S038), the
   links of the navigation (S030), the code of a custom screen (S028, S029), a field twice in
   a sort (S039), filters of a route set that does not route the fields of its filters (S040), the add of a
@@ -5470,7 +5487,6 @@ Its props, `RelationPickerProps`:
 
 #### The types and the constants of `@/bazis/ui/resource`
 
-- `errorMessage: (error: ErrorObject, t: Translate) => string`: The text of an error of the backend in the language of the interface: `errorMessage` of `@/bazis/i18n`, where it moved in 0.3.0.
 - `DateInputProps`: the props of `DateInput`, listed with it
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
