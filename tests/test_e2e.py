@@ -23,6 +23,7 @@ lock in a frontend, the deletion of the tests of a removed scenario, `--check` a
 import json
 import os
 import shutil
+from datetime import timedelta
 from io import StringIO
 from pathlib import Path
 
@@ -536,6 +537,7 @@ def test_the_declarations_of_the_sample_create_the_data_of_its_specs(sample_app,
 def test_the_e2e_data_of_the_sample(monkeypatch):
     from django.apps import apps
     from django.contrib.auth import get_user_model
+    from django.utils import timezone
 
     from tasks.e2e import TASK
 
@@ -549,18 +551,22 @@ def test_the_e2e_data_of_the_sample(monkeypatch):
     # a run of the scenarios: a task of a scenario with its step, the task of the viewer changed
     created = task_model.objects.create(title='Write the report')
     apps.get_model('tasks.Step').objects.create(task=created, title='Book the room')
-    task_model.objects.filter(title=TASK).update(report='Done')
+    task_model.objects.filter(title=TASK).update(report='Done', due=timezone.now() - timedelta(days=40))
     monkeypatch.setenv('E2E_PASSWORD', 'second-password-1')
     call_command('e2e_data', stdout=StringIO())
-    # the next run starts from the same data, and sets the password of the test users again
+    # the next run only adds: it deletes nothing, creates its task once and moves its date to
+    # the day of the run, and sets the password of the test users again
     for username, role in (('manager', 'manager'), ('viewer', 'viewer')):
         user = get_user_model().objects.get(username=username)
         assert user.check_password('second-password-1')
         assert user.role_current.slug == role and list(user.roles.values_list('slug', flat=True)) == [role]
-    assert list(task_model.objects.values_list('title', 'report', 'status_id')) == [(TASK, '', 'draft')]
+    assert sorted(task_model.objects.values_list('title', 'report', 'status_id')) == [
+        (TASK, 'Done', 'draft'), ('Write the report', '', 'draft'),
+    ]
+    assert task_model.objects.get(title=TASK).due.date() == timezone.now().date()
     # no point: the scenarios write the points through the API
-    assert task_model.objects.get().location is None
-    assert not apps.get_model('tasks.Step').objects.exists()
+    assert task_model.objects.get(title=TASK).location is None
+    assert apps.get_model('tasks.Step').objects.get().task == created
     # the roles are those that `migrate` applied from the declarations
     assert set(apps.get_model('permit.Role').objects.values_list('pk', flat=True)) == roles
 

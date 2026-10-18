@@ -18,7 +18,7 @@
 // the filters of the list of the tasks (a date range among them) fit the width of the page,
 // and a long title (a word without a space among its words) keeps every screen that shows it
 // within the width of the page, of a phone and of a desktop (the task stays: `e2e_data`
-// deletes it before the next run, and the manager may not).
+// only adds, and the manager may not delete it).
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
 

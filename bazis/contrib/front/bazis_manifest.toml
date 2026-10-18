@@ -97,7 +97,7 @@ text = "a choice is shown, offered and filtered by its label: the runtime schema
 text = "an item added from the card of its parent fixes the relationship: RelatedList of resource-card (card.related of the spec) or ResourceForm fixed={{<relation>: id}} (useResourceForm(path, {fixed})), never a form of the product that sets the value in an effect"
 
 [[pitfalls]]
-text = "`manage.py e2e_data` runs before every run of the end-to-end tests and gives the same data every time: it deletes the items of the previous runs (those the scenarios created, and its own, created again), never keeps them; else the lists grow and their sums (a budget) drift from run to run"
+text = "`manage.py e2e_data` runs before every run of the end-to-end tests and only adds: it never deletes a user or a record (of the previous runs, of the scenarios, its own), finds its records by a key of their own, creates those that are missing and sets their dates and the password again; the scenarios count only the records of `e2e_data` and change only the items they create, since the items of the runs pile up"
 
 [[pitfalls]]
 text = "the frontend is not a security boundary: permissions are checked by the backend, the frontend only reads the permission meta and the runtime schemas"

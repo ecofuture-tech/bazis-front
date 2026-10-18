@@ -2652,18 +2652,23 @@ E2E_PASSWORD=... python manage.py e2e_data
   scenario expects the day of such an item as `today+3` (`expect: {day: {today+3: 1}}`);
 - it never creates a role, a permission, a status or a transit: a role of a `test_user`
   that the migrations did not create is an error of the command;
-- **it runs before every run of the tests and gives the same data every time**: it
-  deletes what the previous runs left, the items that the scenarios created (in a
-  database of the end-to-end tests of their own: every item of the models they create; in
-  a shared one, those of the test users or of a marker such as a prefix of the titles,
-  never the data of others) and the items it creates itself, then creates them again in
-  their initial state (a scenario may have run a transit on one), and sets the password of
-  the test users again, so that the tests log in with the current `E2E_PASSWORD`; it runs
-  in one transaction. Never "create it when it is missing": the items of the runs pile up,
-  the lists grow (a row leaves the first page), and what they add up to changes (an
-  approved request of a previous run spends the budget of a department, and a scenario
-  that approves fails one day). The sample resets every task
+- **it only adds, and runs before every run of the tests**: it never deletes a user or a
+  record, neither those of the previous runs and of the scenarios nor its own (no option
+  of its own such as `--clean`, also at the end of a task): they stay for the user to log in
+  and look at, and a database shared with others is never emptied. Run again, it finds its
+  records by a key of their own (`update_or_create` by the title) and creates those that
+  are missing, sets their dates relative to the day of the run again, and sets the password
+  of the test users again, so that the tests log in with the current `E2E_PASSWORD`; it runs
+  in one transaction. The sample creates its task once and moves its date
   (`sample/tasks/e2e.py`).
+- since the items of the runs pile up, a count of a scenario (`rows`, `tile`, `day`) is of
+  the records of `e2e_data` alone (a filter or a title that no scenario creates), and a
+  scenario that changes an item (a transit, an edit) creates that item itself, never changes
+  a record of `e2e_data` that another opens. A scenario finds its item by its texts
+  (`open_item`, `move`: the first row that has them), so on a database that keeps the items
+  of the previous runs it may find the item of a previous run with the same texts (a task
+  already moved) and fail: run the tests on a new database (CI does) or give the items of
+  the scenarios texts that no previous run has.
 
 The scenarios share the database and run one at a time (`playwright.config.ts`); none
 should depend on another: a scenario opens an item that `e2e_data` creates, or one it

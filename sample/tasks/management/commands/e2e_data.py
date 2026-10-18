@@ -25,8 +25,8 @@ class Command(BaseCommand):
         'Create the data of the end-to-end tests on top of the migrations (`migrate` applies the '
         'declared roles, statuses and transits): the test users of the roles of the specs, with the '
         'password of E2E_PASSWORD, and the task that a scenario opens. It runs before every run '
-        'of the tests, on their own database: the tasks of the previous runs are deleted, the '
-        'password of the test users is set again.'
+        'of the tests and only adds: nothing is deleted, the task is created once and due on the day '
+        'of the run, the password of the test users is set again.'
     )
 
     def handle(self, *args, **options):
@@ -38,4 +38,4 @@ class Command(BaseCommand):
                 create_test_data(password)
         except LookupError as error:
             raise CommandError(str(error)) from None
-        self.stdout.write(f'Reset the test users {", ".join(TEST_USERS)} and the data of the scenarios.')
+        self.stdout.write(f'Set the test users {", ".join(TEST_USERS)} and the data of the scenarios.')

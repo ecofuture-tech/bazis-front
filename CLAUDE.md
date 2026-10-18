@@ -102,7 +102,7 @@ an invalidation hint, never data), and notifies the assignee of a finished task 
 `notify` of bazis-notify (the type `tasks.finished` of `tasks/notifications.py`, stored, in
 the language of his profile, delivered live by bazis-notify itself: never published a
 second time), which the scenario `manager-is-notified-of-a-finished-task` expects (the
-bell lists it with `useInbox`; `e2e_data` deletes the notifications of the test users;
+bell lists it with `useInbox`; `e2e_data` only adds, so a notification of a previous run stays;
 `tests/test_notify.py` replaces the Redis of bazis-ws). The sample has no Kafka and
 no `bg_scheduler`: a request with `X-Async-Background` runs at once
 (`async_request.W001` is silenced in `sample/settings.py`), and the task of bazis-bg of the

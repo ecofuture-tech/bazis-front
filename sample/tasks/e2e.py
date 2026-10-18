@@ -18,11 +18,9 @@ migrations (the roles, statuses and transits are declared in `tasks/roles.py` an
 `tasks/workflow.py`, which `migrate` applies):
 the test users of the roles, the `test_user` of the roles of `sample/spec/product.yaml`, and
 the task that a scenario opens (the points are written by a scenario, through the API, as a
-product writes them). Every run starts the scenarios from the
-same data: the tasks of the previous runs (those the scenarios created, with their steps) are
-deleted, so that the lists do not grow from run to run and the task of the viewer is a draft
-again, and so are the notifications of the test users (bazis-notify): a scenario finds only
-the notification it caused.
+product writes them). It only adds: the tasks of the previous runs, the notifications and the
+users stay for the user to look at; a run creates only what is missing and sets the date of
+its task again.
 """
 
 from django.apps import apps as global_apps
@@ -46,9 +44,8 @@ def create_test_data(password: str) -> None:
     The data of the end-to-end tests on top of the migrations: the test user of each role,
     with his names and the password (set again when the user exists, so that the tests log in
     with the current E2E_PASSWORD, and the language of the profile cleared), and the task that the
-    scenario of the viewer opens, created again after the tasks of the previous runs are
-    deleted (the database of the end-to-end tests is theirs). A role that `migrate` did not
-    apply is an error: this data never creates one.
+    scenario of the viewer opens, created once and due on the day of the run. Nothing is deleted. A role that `migrate` did
+    not apply is an error: this data never creates one.
     """
     role_model = global_apps.get_model('permit', 'Role')
     for username, (slug, first_name, last_name) in TEST_USERS.items():
@@ -68,10 +65,5 @@ def create_test_data(password: str) -> None:
         if hasattr(user, 'language'):
             user.language = None
         user.save()
-    task_model = global_apps.get_model('tasks', 'Task')
-    # the tasks of the previous runs: those the scenarios created, and the task of the viewer,
-    # which a run may have changed
-    task_model.objects.all().delete()
-    # due now: on the day of the run in the calendar of the tasks
-    task_model.objects.create(title=TASK, due=timezone.now())
-    global_apps.get_model('notify', 'Notification').objects.filter(user__username__in=TEST_USERS).delete()
+    # due now, set again at every run: on the day of the run in the calendar of the tasks
+    global_apps.get_model('tasks', 'Task').objects.update_or_create(title=TASK, defaults={'due': timezone.now()})
