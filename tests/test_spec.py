@@ -475,6 +475,14 @@ CASES = [
         [('S002', f'{LIST}#/actions/0')],
     ),
     (
+        'S002',
+        # a bulk action is one of a transition, a deletion or a custom action: a custom action
+        # without its label beside a transition or a deletion is none of them
+        {LIST: lambda d: [d['list']['bulk'][0].update(action='escalate'),
+                          d['list']['bulk'].append({'id': 'delete-all', 'primitive': 'destroy', 'action': 'escalate'})]},
+        [('S002', f'{LIST}#/list/bulk/0'), ('S002', f'{LIST}#/list/bulk/2')],
+    ),
+    (
         'S003',
         {CARD: lambda d: d.update(id='task-item', route='/tasks')},
         # a card at the route of a list has no `:id` either
@@ -870,6 +878,14 @@ CASES = [
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_escalate'].update(method='get')},
         [('S032', f'{DRAFTS}#/actions/0/action'), ('S032', f'{CARD}#/actions/1/action'),
          ('S032', f'{LIST}#/list/bulk/1/action')],
+    ),
+    (
+        'S032',
+        # an action that requires of the item what a list does not tell per row: on the rows and
+        # in a bulk action, not on the card
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_escalate'].update(
+            access_action='approve')},
+        [('S032', f'{DRAFTS}#/actions/0/action'), ('S032', f'{LIST}#/list/bulk/1/action')],
     ),
     (
         'S010',
@@ -1352,6 +1368,26 @@ def test_a_link_that_requires_an_add_without_a_create_route(contract):
 
     edit(root, CONTRACT, lambda d: [d['project']['resources']['tasks.task']['actions'].pop('action_create')])
     assert ('S030', f'{PRODUCT}#/navigation/2/items/0/requires') in issues(root)
+
+
+@pytest.mark.django_db
+def test_a_custom_action_of_the_route_set_named_as_one_of_an_item(contract):
+    """
+    The route set has `/escalate/` beside `/{item_id}/escalate/` (S032): the toolbar of a list
+    runs the first, whose body requires a property, the rows the second, whose body does not.
+    """
+    root = contract.parent.parent
+    edit(root, CONTRACT, lambda d: d['project']['resources']['tasks.task']['custom_actions'].update(action_escalate_all={
+        'name': 'escalate', 'item': False, 'method': 'post', 'access_action': None,
+        'body': {'type': 'object', 'properties': {'level': {'type': 'integer'}}, 'required': ['level']},
+    }))
+    edit(root, DRAFTS, lambda d: d['actions'].append(
+        {'id': 'escalate-all', 'primitive': 'custom', 'action': 'escalate', 'label': {'en': 'Escalate all', 'ru': 'Повысить все'}},
+    ))
+    assert issues(root) == [('S032', f'{DRAFTS}#/actions/1')]
+
+    edit(root, DRAFTS, lambda d: d['actions'][1].update(fields=['level']))
+    assert issues(root) == []
 
 
 def test_a_missing_product_spec(root):

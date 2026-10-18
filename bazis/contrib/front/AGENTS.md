@@ -659,17 +659,22 @@ A `form` screen has `form: {mode: create | update, fields, then}`. Actions are `
 
 A **custom action** (`primitive: custom`) is a button that calls a custom action of the route
 set of the entity, a POST declared with `http_post` (`custom_actions` of its resource in the
-contract, with the JSON Schemas of its body and response): `action` is its name in its path
+contract, with the JSON Schema of its body): `action` is its name in its path
 (`escalate` of `/{item_id}/escalate/`), `label` its button (required). On a card it is an
 action of the item; on a list an action of the route set in the toolbar, or one of an item on
 each row when its id is in `list.row_actions`; `list.bulk` runs one of an item on the
-selected rows (`{id, action, label}`) with an empty body. `fields` are the properties of its
+selected rows (`{id, action, label}`) with an empty body. A route set may have an action of
+an item and one of the route set of the same name (`/{item_id}/export/` and `/export/`): the
+toolbar runs the second, the card, the rows and a bulk action the first. `fields` are the properties of its
 body that its dialog asks for (a property named as a field of the entity takes its title and
 the labels of its choices), `confirm: true` confirms one without fields in a dialog (`title`,
 `description`), `message` is the toast once it is done; the queries of the resource are
 refetched. The button shows when the backend lets the user run it: on a card and in the
 toolbar by `custom_actions` of the meta of bazis-permit, on the rows and in a bulk action
-when the row may be changed (or deleted) as its `access_action` requires. S032 checks it
+when the row may be changed (or deleted) as its `access_action` requires: a list tells of each
+row only these (`for_change`, `for_delete`), so an action that requires another access of the
+item runs on its card (S032). A click on a row while its action runs sends nothing; on
+another row it runs beside it. S032 checks it
 against the contract; an action declared with GET reads and belongs to an extension
 (`useActionQuery`), what the contract cannot say (its response shown, a task followed) too:
 
@@ -1067,7 +1072,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, or `screens` is run) |
 | `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
-| `S032` | error | a custom action (`primitive: custom`) or a custom bulk action is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list; or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
+| `S032` | error | a custom action (`primitive: custom`) or a custom bulk action is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
 | `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`), or two custom bulk actions of a list |
 | `S034` | error | the add of a calendar creates the item on the selected day, in a field that the create route of its resource does not take (a date that the backend sets, such as that of the creation: the day is lost), or the resource has no create route |
 | `S035` | warning | the buttons of the create forms of a screen cannot be told apart: two create actions (or the add of a calendar) with the same label, or without one (both say `Create`), or a create action of a dashboard without a label |
@@ -1514,7 +1519,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `task-progress` | `TaskProgress` (the task of its `id`), `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
 | `async-result` | `AsyncResult` (`start`: what `useAsyncRequest` resolved to), `asyncResult(status, response)`, `RESULT_PATH` (the texts `async.<view>`) | `async:<pending\|processing\|completed\|failed>`, `state:<error\|forbidden\|not_found>` | `async_background` |
 | `map` | `ResourceMap` (`list.map`: the items with a point in `field`), `MapProvider` (the tiles of the maps, `OSM_TILES` by default, and the map of the point fields of the forms), `nearFilter(field, point, meters)`, `nearSort(field, point, {farthest?})`, `useGeolocation()`, `LeafletMap`, `MapPointControl` | `map:<entity>` (`aria-busy` while it loads) with `marker:<id>`; in a form `map:<field>` and `action:locate-<field>` | npm `leaflet` |
-| `screens` (copied with the generated screens) | the parts of the generated screens: `ScreenAction` (an action in the header of a screen, shown when its `requires` is allowed), `CreateFormAction` (the create form of an action, `CreateFormAction.use()` its state), `useDestroyCardAction` (the delete of a card: its `action` and its confirmation `confirm`), `useCustomAction` (a custom action of the route set: its `action` of a card or of the toolbar of a list, `row`, `bulk` and its `dialog`), `extended` and `ScreenExtension` (the extension of a screen, `extend`) | `action:<id>`, `action:confirm-<id>` (the confirmation of a delete or of a custom action), `action:submit` and `action:cancel` (the dialog of a custom action with fields, its fields `field:<property>`), the marks of `FormSurface` and `ResourceForm` | |
+| `screens` (copied with the generated screens) | the parts of the generated screens: `ScreenAction` (an action in the header of a screen, shown when its `requires` is allowed), `CreateFormAction` (the create form of an action, `CreateFormAction.use()` its state), `useDestroyCardAction` (the delete of a card: its `action` and its confirmation `confirm`), `useCustomAction` (a custom action of the route set or of its items, `target`: its `action` of a card or of the toolbar of a list, `row`, `bulk` and its `dialog`), `extended` and `ScreenExtension` (the extension of a screen, `extend`) | `action:<id>`, `action:confirm-<id>` (the confirmation of a delete or of a custom action), `action:submit` and `action:cancel` (the dialog of a custom action with fields, its fields `field:<property>`), the marks of `FormSurface` and `ResourceForm` | |
 
 They read what the backend reports and decide nothing: `state-panel` maps the errors of the
 backend to the states (401 and 403 `forbidden`, 404 `not_found`, 422 `invalid`, else
@@ -1578,7 +1583,7 @@ of the specs and the paths of `ROUTES`.
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, titled by `title` of the action, a question, `Delete this item?` by default, and saying its `description`: the deletion runs once confirmed) |
-| an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`path`, `action`, `item` of a card, `fields`, `confirm`, `message`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
+| an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`path`, `action`, `target`: `route` in the toolbar of a list, else `item`, `item` of a card, `fields`, `confirm`, `message`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
 | `states` | the components render them (`state:<state>`); `StatePanel` of `@/bazis/ui/state-panel` for a screen of your own |
 
 ```tsx
@@ -5180,7 +5185,7 @@ Its props, `ItemValueProps`:
 
 #### customActionAt
 
-`customActionAt(path: string, name: string): (ContractCustomAction & { readonly key: CustomActionName; }) | undefined`: The custom action `name` (its name in the path) of the route set of `path` in the contract, with its name in the permission meta (`action_<name>` of `custom_actions`); undefined when the contract does not have it.
+`customActionAt(path: string, name: string, item: boolean): (ContractCustomAction & { readonly key: CustomActionName; }) | undefined`: The custom action `name` (its name in the path) of the items (`item`) or of the route set of `path` in the contract, with its name in the permission meta (`action_<name>` of `custom_actions`); undefined when the contract does not have it.
 
 #### fieldTitle
 
@@ -5915,7 +5920,7 @@ Its props, `UpdateFormActionProps`:
 
 - `action: { id: string; label: ReactNode; permission: CustomActionName; onClick: () => void; }`: The button of the card of its item (`ResourceCard` `actions`), or of the toolbar of a list for an action of the route set (`ResourceList` `actions`): shown when the backend lists it in `custom_actions` of the meta.
 - `row: RowAction`: The button of the rows of a list (`ResourceList` `rowActions`): shown on a row that the list lets the user change (or delete) when the action requires it (`access_action`).
-- `bulk: BulkAction`: The action on the selected rows of a list (`ResourceList` `bulk`, `bulk:<id>`), called on each with an empty body, on the rows that it lets the user change (or delete) as `row`.
+- `bulk: BulkAction`: The action on the selected rows of a list (`ResourceList` `bulk`, `bulk:<id>`), called on each with an empty body, on the rows that it lets the user change (or delete) as `row`, with the same rule of S032.
 - `dialog: ReactNode`: Its dialog, rendered in the screen.
 
 #### CustomActionOptions
@@ -5926,6 +5931,7 @@ Its props, `UpdateFormActionProps`:
 - `label: ReactNode`: The label of its button, also the title of its dialog by default.
 - `path: string`: The route set of the entity (`ROUTES` of the contract).
 - `action: string`: The name of the custom action in its path (`escalate` of `<path><id>/escalate/`), as `custom_actions` of the contract has it.
+- `target: 'item' | 'route'`: Whether it is the action of an item (`<path><id>/<action>/`: on a card, the rows and the selected rows of a list) or of the route set (`<path><action>/`: the toolbar of a list); a route set may have both under one name.
 - `item?: string`: The item of a card, whose action it is; none on a list (a row or the selected rows give theirs).
 - `fields?: readonly string[]`: The properties of the body that its dialog asks for, in this order; none by default (an empty body).
 - `title?: ReactNode`: The title of its dialog: the label by default.

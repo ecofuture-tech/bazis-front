@@ -438,10 +438,11 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   the user may delete the item, opens `confirm`, the dialog to render in the screen, whose
   button `action:confirm-<id>` deletes it once, whatever the clicks; a toast after it, then
   the route `then`; a refusal is a toast of its error, the card stays), a custom action of
-  the route set (`useCustomAction`: `action`, a button of a card or of the toolbar of a list
+  the route set or of its items (`useCustomAction`, by its `target`: `action`, a button of a card or of the toolbar of a list
   shown when `custom_actions` of the meta has it, `row` and `bulk`, shown on the rows that
   the user may change or delete as its `access_action` requires, and `dialog`, the dialog of
-  its `fields` or of its confirmation; done, a toast, the queries of the resource refetched)
+  its `fields` or of its confirmation; once per item at a time; done, a toast, the queries of
+  the resource refetched)
   and the extension of a generated screen (`ScreenExtension<P>` of the
   props `P` of the component of its primitive, so that the asset requires none of them;
   `extended` joins the actions, `actions`, `rowActions`, `bulk`, and the `children` and

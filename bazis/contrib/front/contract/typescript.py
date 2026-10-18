@@ -138,7 +138,7 @@ def render(contract: dict) -> str:
             'The resources: model, route set, path, actions, fields (title, type, relation, '
             'filter and order labels), the attributes that label an item (none: its id), the '
             'search fields (none: no search), the fields that its create takes and its custom '
-            'actions with the JSON Schemas of their body and response.',
+            'actions with the JSON Schema of their body.',
             'RESOURCES',
             resources,
         ),

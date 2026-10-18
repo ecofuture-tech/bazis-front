@@ -17,11 +17,12 @@
 // page; the update form of an item, sent and closed when saved or cancelled; the action of the header shown once the backend allows it; the deletion of the item of
 // a card, shown when the user may delete it, followed by the route `then`, a refusal kept on
 // the card; a custom action of the route set of the contract, on a card, a row, the selected
-// rows and the toolbar of a list, shown as the backend allows it, its fields in a dialog;
-// and the props of an extension joined with the generated ones. Keep it passing when the
+// rows and the toolbar of a list (one of an item and one of the route set of the same name
+// told apart), shown as the backend allows it, its fields in a dialog, once per item at a time,
+// a refusal in its dialog or in a toast; and the props of an extension joined with the generated ones. Keep it passing when the
 // component is changed.
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
@@ -47,7 +48,7 @@ import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resourc
 
 // the contract of the product with the resource of the tests and its custom actions: of an
 // item, which requires its change, its body a priority with a default; of the route set,
-// without a body
+// without a body; `export` of the route set and of an item alike, without a body
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   const priority = { enum: ['low', 'high'], title: 'Priority', type: 'string' };
@@ -64,12 +65,12 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
             name: 'escalate',
             item: true,
             method: 'post',
-            public: false,
             access_action: 'change',
             body: { type: 'object', properties: { priority: { $ref: '#/$defs/Priority', default: 'high' } }, $defs: { Priority: priority } },
-            response: null,
           },
-          action_count: { name: 'count', item: false, method: 'post', public: false, access_action: null, body: null, response: null },
+          action_count: { name: 'count', item: false, method: 'post', access_action: null, body: null },
+          action_export: { name: 'export', item: false, method: 'post', access_action: null, body: null },
+          action_export_item: { name: 'export', item: true, method: 'post', access_action: null, body: null },
         },
       },
     },
@@ -413,7 +414,7 @@ const listSchema = runtimeSchema(
   { list: true },
 );
 
-const ESCALATE: CustomActionOptions = { id: 'escalate', label: 'Escalate', path: ITEMS, action: 'escalate' };
+const ESCALATE: CustomActionOptions = { id: 'escalate', label: 'Escalate', path: ITEMS, action: 'escalate', target: 'item' };
 
 /** The card of the item with the custom action `escalate`. */
 function EscalatingCard(options: Partial<CustomActionOptions>) {
@@ -428,7 +429,7 @@ function EscalatingCard(options: Partial<CustomActionOptions>) {
 
 /** A list with the custom actions of the route set (`count`) in its toolbar, and `escalate` on its rows and on the selected ones. */
 function EscalatingList() {
-  const count = useCustomAction({ id: 'count', label: 'Count', path: ITEMS, action: 'count' });
+  const count = useCustomAction({ id: 'count', label: 'Count', path: ITEMS, action: 'count', target: 'route' });
   const escalate = useCustomAction({ ...ESCALATE, confirm: true });
   const escalateAll = useCustomAction({ ...ESCALATE, id: 'escalate-all' });
   return (
@@ -446,6 +447,21 @@ function EscalatingList() {
       {escalate.dialog}
     </>
   );
+}
+
+/** A list with `export` of the route set in its toolbar and `export` of an item on its rows, both at once. */
+function ExportingList() {
+  const exportAll = useCustomAction({ id: 'export-all', label: 'Export', path: ITEMS, action: 'export', target: 'route' });
+  const exportRow = useCustomAction({ id: 'export', label: 'Export', path: ITEMS, action: 'export', target: 'item' });
+  return <ResourceList path={ITEMS as never} entity="item" columns={['title']} layout="table" actions={[exportAll.action]} rowActions={[exportRow.row]} />;
+}
+
+function exportingBackend(listed: readonly string[]) {
+  return new Backend()
+    .on('GET', `${ITEMS}schema_list/`, listSchema)
+    .on('GET', ITEMS, listDocument([resource('a', { title: 'First' }), resource('b', { title: 'Second' })], {
+      meta: { for_change: [], custom_actions: listed },
+    }));
 }
 
 describe('useCustomAction', () => {
@@ -542,6 +558,57 @@ describe('useCustomAction', () => {
       expect(backend.requests('POST')).toContain(`POST ${ITEMS}count/`);
     });
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('runs the action of the route set from the toolbar and that of an item of the same name on the rows', async () => {
+    const backend = exportingBackend(['action_export']).on('POST', `${ITEMS}export/`, {}).on('POST', `${ITEMS}a/export/`, {});
+    renderWithBazis(<ExportingList />, backend);
+    await screen.findByTestId('state:loaded');
+    // the toolbar by `action_export` of the meta, the rows by their access (none required)
+    fireEvent.click(screen.getByTestId('action:export-all'));
+    fireEvent.click(screen.getAllByTestId('action:export')[0] as HTMLElement);
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEMS}export/`, `POST ${ITEMS}a/export/`]);
+    });
+  });
+
+  it('runs on two rows at once, and once on a row clicked again before its answer', async () => {
+    const backend = exportingBackend([]).on('POST', `${ITEMS}a/export/`, {}).on('POST', `${ITEMS}b/export/`, {});
+    renderWithBazis(<ExportingList />, backend);
+    await screen.findByTestId('state:loaded');
+    const [first, second] = screen.getAllByTestId('action:export') as [HTMLElement, HTMLElement];
+    fireEvent.click(first);
+    fireEvent.click(second);
+    fireEvent.click(first);
+    await waitFor(() => {
+      expect(backend.requests('POST')).toHaveLength(2);
+    });
+    expect(backend.requests('POST').sort()).toEqual([`POST ${ITEMS}a/export/`, `POST ${ITEMS}b/export/`]);
+  });
+
+  it('tells a refusal without a dialog in a toast', async () => {
+    vi.mocked(toast).mockClear();
+    const backend = exportingBackend([]).on('POST', `${ITEMS}a/export/`, errors(403), 403);
+    renderWithBazis(<ExportingList />, backend);
+    await screen.findByTestId('state:loaded');
+    fireEvent.click(screen.getAllByTestId('action:export')[0] as HTMLElement);
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({ title: 'Export', description: 'HTTP 403', tone: 'danger' });
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('keeps its dialog open and says that the user may not, refused', async () => {
+    vi.mocked(toast).mockClear();
+    const backend = cardBackend({ crud_actions: ['view'], custom_actions: ['action_escalate'] })
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('POST', `${ITEM}escalate/`, errors(403), 403);
+    renderWithBazis(<EscalatingCard fields={['priority']} />, backend);
+    fireEvent.click(await screen.findByTestId('action:escalate'));
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect(within(await screen.findByRole('dialog')).getByTestId('state:forbidden')).toBeTruthy();
+    expect(screen.getByTestId('action:submit')).toBeTruthy();
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it('is not in the toolbar when the backend does not list it', async () => {

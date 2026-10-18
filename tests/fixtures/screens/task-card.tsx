@@ -35,6 +35,7 @@ export function TaskCardScreen() {
     label: t('screens.task-card.actions.escalate.label'),
     path: TASK.path,
     action: 'escalate',
+    target: 'item',
     item: id,
     fields: ['priority'],
     description: t('screens.task-card.actions.escalate.description'),

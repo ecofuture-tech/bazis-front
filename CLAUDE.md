@@ -150,7 +150,7 @@ job of CI.
   attributes and the relationships of the request of their create route, which S034 reads,
   and `custom_actions`, the routes of the kind `other` of their route set (but the ids of
   the list of the core and the transits, `resources.NOT_CUSTOM`) with the standalone JSON
-  Schemas of their body and response, which S032 reads).
+  Schema of their body, which S032 reads).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the

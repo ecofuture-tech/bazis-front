@@ -501,7 +501,7 @@ def list_actions(screen: Screen, const: Raw) -> list[Attr]:
         if action['id'] in creates:
             toolbar.append(creates[action['id']])
         elif action['primitive'] == 'custom':
-            name = custom_action(screen, const, ('actions', i), action)
+            name = custom_action(screen, const, ('actions', i), action, 'item' if action['id'] in rows else 'route')
             if action['id'] in rows:
                 row_actions[action['id']] = Raw(f'{name}.row')
             else:
@@ -571,16 +571,19 @@ def highlight_attrs(screen: Screen, highlight: dict) -> list[Attr]:
     return attrs
 
 
-def custom_action(screen: Screen, const: Raw, path: tuple, action: dict, item: Raw | None = None, bulk: bool = False) -> str:
+def custom_action(
+    screen: Screen, const: Raw, path: tuple, action: dict, target: str, item: Raw | None = None, bulk: bool = False,
+) -> str:
     """
-    A custom action (`useCustomAction`) at the path of its spec, `<id>Action`, of the item of a
-    card (`item`), its dialog written after the screen; of a bulk action, `<id>Bulk`, without a
+    A custom action (`useCustomAction`) at the path of its spec, `<id>Action`, of the items
+    (`target` item) or of the route set (`route`, the toolbar of a list), of the item of a card
+    (`item`), its dialog written after the screen; of a bulk action, `<id>Bulk`, without a
     dialog (it asks for nothing).
     """
     name = camel(action['id']) + ('Bulk' if bulk else 'Action')
     options = [
         ('id', Str(action['id'])), ('label', screen.text(*path, 'label')),
-        ('path', Raw(f'{const.code}.path')), ('action', Str(action['action'])),
+        ('path', Raw(f'{const.code}.path')), ('action', Str(action['action'])), ('target', Str(target)),
     ]
     if item is not None:
         options.append(('item', item))
@@ -602,7 +605,7 @@ def custom_action(screen: Screen, const: Raw, path: tuple, action: dict, item: R
 def bulk_action(screen: Screen, const: Raw, index: int, bulk: dict) -> Obj | Raw:
     if 'action' in bulk:
         # a custom action of the items, without a dialog: `<id>Bulk`
-        return Raw(custom_action(screen, const, ('list', 'bulk', index), bulk, bulk=True) + '.bulk')
+        return Raw(custom_action(screen, const, ('list', 'bulk', index), bulk, 'item', bulk=True) + '.bulk')
     props = [('id', Str(bulk['id']))]
     label = screen.text('list', 'bulk', index, 'label')
     if 'transit' in bulk:
@@ -658,7 +661,7 @@ def render_card(product: Product, data: dict) -> str:
         elif action.get('mode') == 'update':
             card_actions.append(update_action(screen, const, i, action))
         elif action['primitive'] == 'custom':
-            card_actions.append(Raw(custom_action(screen, const, ('actions', i), action, Raw('id')) + '.action'))
+            card_actions.append(Raw(custom_action(screen, const, ('actions', i), action, 'item', Raw('id')) + '.action'))
     if card_actions:
         attrs.append(Attr('actions', Arr(card_actions)))
     header = header_actions(screen)

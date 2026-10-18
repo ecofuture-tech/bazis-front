@@ -215,7 +215,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "        filters={[{ field: 'status', options: statusOptions(TASK.type, language) }]}\n" in places
     assert "run: (item) => transit.mutateAsync({ id: item, transit: 'start' })," in places
     # a custom action of the route set in the toolbar, after the create form, its dialog after the list
-    assert "    action: 'count',\n    fields: ['priority'],\n" in places
+    assert "    action: 'count',\n    target: 'route',\n    fields: ['priority'],\n" in places
     assert '          countAction.action,\n        ]}\n' in places and '      {countAction.dialog}\n' in places
     assert "rowTone={(row) => (fieldValue(row, 'urgent') === true ? 'warning' : undefined)}" in places
     assert (
@@ -235,7 +235,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
     assert '      {deleteAction.confirm}\n' in summary
     # a custom action of the item, among the actions of the card
-    assert "    action: 'escalate',\n    item: id,\n    confirm: false,\n  });\n" in summary
+    assert "    action: 'escalate',\n    target: 'item',\n    item: id,\n    confirm: false,\n  });\n" in summary
     assert '              escalateAction.action,\n' in summary and '      {escalateAction.dialog}\n' in summary
     # no tabs: the transits under the heading, the related list and the history under the sections
     assert '            children: <TransitBar path={TASK.path} id={id} />,\n' in summary

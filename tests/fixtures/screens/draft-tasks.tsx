@@ -23,6 +23,7 @@ export function DraftTasksScreen() {
     label: t('screens.draft-tasks.actions.escalate.label'),
     path: TASK.path,
     action: 'escalate',
+    target: 'item',
     title: t('screens.draft-tasks.actions.escalate.title'),
     description: t('screens.draft-tasks.actions.escalate.description'),
     confirm: true,

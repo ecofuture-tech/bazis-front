@@ -29,7 +29,7 @@ export const ROUTES = {
 /** The JSON:API type of a resource. */
 export type ResourceType = keyof typeof ROUTES;
 
-/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search), the fields that its create takes and its custom actions with the JSON Schemas of their body and response. */
+/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search), the fields that its create takes and its custom actions with the JSON Schema of their body. */
 export const RESOURCES = {
   "bg.task": {
     actions: {
@@ -45,8 +45,6 @@ export const RESOURCES = {
         item: true,
         method: "get",
         name: "download",
-        public: false,
-        response: null,
       },
     },
     fields: {
@@ -240,20 +238,6 @@ export const RESOURCES = {
         item: false,
         method: "post",
         name: "clear",
-        public: false,
-        response: {
-          properties: {
-            deleted: {
-              title: "Deleted",
-              type: "integer",
-            },
-          },
-          required: [
-            "deleted",
-          ],
-          title: "ClearResult",
-          type: "object",
-        },
       },
       action_read_all: {
         access_action: null,
@@ -261,20 +245,6 @@ export const RESOURCES = {
         item: false,
         method: "post",
         name: "read_all",
-        public: false,
-        response: {
-          properties: {
-            read: {
-              title: "Read",
-              type: "integer",
-            },
-          },
-          required: [
-            "read",
-          ],
-          title: "ReadAllResult",
-          type: "object",
-        },
       },
       action_unread_count: {
         access_action: null,
@@ -282,20 +252,6 @@ export const RESOURCES = {
         item: false,
         method: "get",
         name: "unread_count",
-        public: false,
-        response: {
-          properties: {
-            unread_count: {
-              title: "Unread Count",
-              type: "integer",
-            },
-          },
-          required: [
-            "unread_count",
-          ],
-          title: "UnreadCount",
-          type: "object",
-        },
       },
     },
     fields: {
@@ -490,21 +446,6 @@ export const RESOURCES = {
         item: false,
         method: "post",
         name: "count",
-        public: false,
-        response: {
-          description: "The task of bazis-bg that counts them (the resource `bg.task`).",
-          properties: {
-            task: {
-              title: "Task",
-              type: "string",
-            },
-          },
-          required: [
-            "task",
-          ],
-          title: "CountStarted",
-          type: "object",
-        },
       },
       action_escalate: {
         access_action: "change",
@@ -533,31 +474,6 @@ export const RESOURCES = {
         item: true,
         method: "post",
         name: "escalate",
-        public: false,
-        response: {
-          $defs: {
-            Priority: {
-              enum: [
-                "low",
-                "normal",
-                "high",
-              ],
-              title: "Priority",
-              type: "string",
-            },
-          },
-          description: "The priority of the task after the action.",
-          properties: {
-            priority: {
-              $ref: "#/$defs/Priority",
-            },
-          },
-          required: [
-            "priority",
-          ],
-          title: "Escalated",
-          type: "object",
-        },
       },
     },
     fields: {
@@ -680,8 +596,6 @@ export const RESOURCES = {
         item: true,
         method: "get",
         name: "download",
-        public: false,
-        response: null,
       },
     },
     fields: {

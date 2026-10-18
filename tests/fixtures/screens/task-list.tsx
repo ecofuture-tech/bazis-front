@@ -29,6 +29,7 @@ export function TaskListScreen() {
     label: t('screens.task-list.list.bulk.escalate-all.label'),
     path: TASK.path,
     action: 'escalate',
+    target: 'item',
   });
   return (
     <Screen

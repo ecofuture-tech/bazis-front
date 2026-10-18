@@ -1002,39 +1002,50 @@ def _check_custom_actions(doc: Document, entity: Entity, resource: dict, issues:
     """
     The custom actions of a list or a card, and the custom bulk actions of a list, against the
     resource of the contract (S032): a custom action of its route set declared with POST (one
-    declared with GET reads), of an item on a card and in a bulk action; the fields that its
-    dialog asks for are properties of its body, and the body needs nothing else (a property
-    that the body requires is among them; a bulk action asks for none).
+    declared with GET reads), of an item on a card, on the rows and in a bulk action (the route
+    set may have an action of the same name for its toolbar); on the rows of a list and in a
+    bulk action, one that requires nothing of the item but what a list tells of each row (its
+    view, its change or its delete); the fields that its dialog asks for are properties of its body, and
+    the body needs nothing else (a property that the body requires is among them; a bulk action
+    asks for none).
     """
     data = doc.data
     # where each runs: on an item (a card, the rows of a list, a bulk action) or on the route
     # set (the toolbar of a list)
     rows = set(data['list'].get('row_actions', [])) if data['primitive'] == 'list' else set()
     runs = [
-        (path, it['action'], it.get('fields', []), data['primitive'] == 'card' or it['id'] in rows)
+        (path, it['action'], it.get('fields', []), 'card' if data['primitive'] == 'card' else 'row' if it['id'] in rows else 'toolbar')
         for path, it in screen_actions(data) if it['primitive'] == 'custom'
     ]
     if data['primitive'] == 'list':
-        runs += [(('list', 'bulk', i), it['action'], None, True) for i, it in enumerate(data['list'].get('bulk', [])) if 'action' in it]
+        runs += [(('list', 'bulk', i), it['action'], None, 'bulk') for i, it in enumerate(data['list'].get('bulk', [])) if 'action' in it]
     if not runs:
         return
-    declared = {it['name']: it for it in resource['custom_actions'].values()}
-    posts = ', '.join(sorted(name for name, it in declared.items() if it['method'] == 'post')) or 'none'
-    for path, name, fields, of_item in runs:
-        action = declared.get(name)
+    # by the name in the path and whether it is of an item: `/export/` and `/{item_id}/export/`
+    declared = {(it['name'], it['item']): it for it in resource['custom_actions'].values()}
+    posts = ', '.join(sorted({name for (name, _), it in declared.items() if it['method'] == 'post'})) or 'none'
+    for path, name, fields, where in runs:
+        of_item = where != 'toolbar'
+        action = declared.get((name, of_item))
         problem, hint = None, None
-        if action is None:
+        if action is None and (name, not of_item) not in declared:
             problem = f'The resource `{entity.data["resource"]}` has no custom action `{name}` in the contract.'
             hint = f'Use a custom action of its route set declared with POST: {posts}.'
+        elif action is None and of_item:
+            problem = f'The custom action `{name}` is one of the route set, not of an item.'
+            hint = 'Run it from the toolbar of a list (`actions` of a list, not in `list.row_actions`).'
+        elif action is None:
+            problem = f'The custom action `{name}` is one of an item, and the toolbar of a list has none.'
+            hint = 'Run it on each row (its id in `list.row_actions`), on the card of the item, or as a bulk action.'
         elif action['method'] != 'post':
             problem = f'The custom action `{name}` is declared with {action["method"].upper()}: it reads, a button runs a POST.'
             hint = 'Read it in the code of the screen (`useActionQuery`, `useItemActionQuery`), or declare the action with POST.'
-        elif of_item and not action['item']:
-            problem = f'The custom action `{name}` is one of the route set, not of an item.'
-            hint = 'Run it from the toolbar of a list (`actions` of a list, not in `list.row_actions`).'
-        elif not of_item and action['item']:
-            problem = f'The custom action `{name}` is one of an item, and the toolbar of a list has none.'
-            hint = 'Run it on each row (its id in `list.row_actions`), on the card of the item, or as a bulk action.'
+        elif where in ('row', 'bulk') and action['access_action'] not in (None, 'view', 'change', 'delete'):
+            problem = (
+                f'The custom action `{name}` requires `{action["access_action"]}` on the item: '
+                'a list has no meta of it per row.'
+            )
+            hint = 'Run it on the card of the item, or declare it with `access_action` change or delete.'
         if problem:
             issues.add(doc, (*path, 'action'), 'S032', problem, hint)
             continue

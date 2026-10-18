@@ -99,15 +99,17 @@ export function resourceAt(path: string): ContractResource | undefined {
 }
 
 /**
- * The custom action `name` (its name in the path) of the route set of `path` in the contract,
- * with its name in the permission meta (`action_<name>` of `custom_actions`); undefined when
- * the contract does not have it.
+ * The custom action `name` (its name in the path) of the items (`item`) or of the route set of
+ * `path` in the contract, with its name in the permission meta (`action_<name>` of
+ * `custom_actions`); undefined when the contract does not have it. A route set may have both,
+ * `<path>export/` and `<path><id>/export/`.
  */
 export function customActionAt(
   path: string,
   name: string,
+  item: boolean,
 ): (ContractCustomAction & { readonly key: CustomActionName }) | undefined {
-  const found = Object.entries(resourceAt(path)?.custom_actions ?? {}).find(([, it]) => it.name === name);
+  const found = Object.entries(resourceAt(path)?.custom_actions ?? {}).find(([, it]) => it.name === name && it.item === item);
   return found && { ...found[1], key: found[0] as CustomActionName };
 }
 

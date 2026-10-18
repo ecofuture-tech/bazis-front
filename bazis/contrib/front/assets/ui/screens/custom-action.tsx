@@ -43,6 +43,12 @@ export interface CustomActionOptions {
   path: string;
   /** The name of the custom action in its path (`escalate` of `<path><id>/escalate/`), as `custom_actions` of the contract has it. */
   action: string;
+  /**
+   * Whether it is the action of an item (`<path><id>/<action>/`: on a card, the rows and the
+   * selected rows of a list) or of the route set (`<path><action>/`: the toolbar of a list);
+   * a route set may have both under one name.
+   */
+  target: 'item' | 'route';
   /** The item of a card, whose action it is; none on a list (a row or the selected rows give theirs). */
   item?: string;
   /** The properties of the body that its dialog asks for, in this order; none by default (an empty body). */
@@ -67,12 +73,16 @@ export interface CustomAction {
   action: { id: string; label: ReactNode; permission: CustomActionName; onClick: () => void };
   /**
    * The button of the rows of a list (`ResourceList` `rowActions`): shown on a row that the
-   * list lets the user change (or delete) when the action requires it (`access_action`).
+   * list lets the user change (or delete) when the action requires it (`access_action`). A
+   * list tells of each row only that (`for_change`, `for_delete`), so the check of the specs
+   * (S032) puts on the rows only an action that requires nothing else of the item (none,
+   * `view`, `change` or `delete`); another runs on the card, by the meta of its item.
    */
   row: RowAction;
   /**
    * The action on the selected rows of a list (`ResourceList` `bulk`, `bulk:<id>`), called on
-   * each with an empty body, on the rows that it lets the user change (or delete) as `row`.
+   * each with an empty body, on the rows that it lets the user change (or delete) as `row`,
+   * with the same rule of S032.
    */
   bulk: BulkAction;
   /** Its dialog, rendered in the screen. */
@@ -137,6 +147,7 @@ export function useCustomAction({
   label,
   path,
   action,
+  target,
   item,
   fields = [],
   title,
@@ -150,44 +161,46 @@ export function useCustomAction({
   // the item of the open dialog (none for an action of the route set); null while it is closed
   const [open, setOpen] = useState<{ item: string | undefined } | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
-  // set by the first submit until its request ends: the clicks after it send nothing
-  const running = useRef(false);
-  const declared = customActionAt(path, action);
+  // the items (the route set: '') whose request runs: a click on one of them again sends
+  // nothing, one on another item runs beside it
+  const running = useRef(new Set<string>());
+  const declared = customActionAt(path, action, target === 'item');
   if (declared === undefined) {
-    throw new Error(`The contract has no custom action "${action}" of ${path}: export the contract again.`);
+    throw new Error(`The contract has no custom action "${action}" of the ${target} of ${path}: export the contract again.`);
   }
   const { body } = declared;
-  const mutation = declared.item ? ofItem : ofRoute;
+  const mutation = target === 'item' ? ofItem : ofRoute;
   const asks = fields.length > 0 || confirm;
 
-  const send = (target: string | undefined, payload: Readonly<Record<string, unknown>>) =>
-    declared.item ? ofItem.mutateAsync({ id: target ?? '', body: payload }) : ofRoute.mutateAsync(payload);
+  const send = (on: string | undefined, payload: Readonly<Record<string, unknown>>) =>
+    target === 'item' ? ofItem.mutateAsync({ id: on ?? '', body: payload }) : ofRoute.mutateAsync(payload);
 
-  function submit(target: string | undefined, payload: Readonly<Record<string, unknown>>) {
-    if (running.current) return;
-    running.current = true;
-    send(target, payload).then(
+  function submit(on: string | undefined, payload: Readonly<Record<string, unknown>>) {
+    const key = on ?? '';
+    if (running.current.has(key)) return;
+    running.current.add(key);
+    send(on, payload).then(
       () => {
-        running.current = false;
+        running.current.delete(key);
         setOpen(null);
         toast({ title: label, description: message ?? t('action.done') });
       },
       (error: unknown) => {
-        running.current = false;
+        running.current.delete(key);
         // the dialog shows the errors; without one, a toast
         if (!asks) toast({ title: label, description: error instanceof Error ? error.message : t('action.failed'), tone: 'danger' });
       },
     );
   }
 
-  function start(target?: string) {
+  function start(on?: string) {
     mutation.reset();
     if (!asks) {
-      submit(target, {});
+      submit(on, {});
       return;
     }
     setValues(defaults(body, fields));
-    setOpen({ item: target });
+    setOpen({ item: on });
   }
 
   const shown = new Set(fields);
@@ -262,7 +275,7 @@ export function useCustomAction({
       },
     },
     row: { id, label, permission, onClick: start },
-    bulk: { id, label, permission, run: (target) => send(target, {}) },
+    bulk: { id, label, permission, run: (on) => send(on, {}) },
     dialog,
   };
 }

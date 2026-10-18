@@ -298,10 +298,9 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
     `actions` (`action_<name>`, the name of `custom_actions` of bazis-permit): `name`, the part
     of their path after the collection (`count`) or the item (`escalate` of
     `{item_id}/escalate/`) that `client.action` and `client.itemAction` take; `item`, whether
-    it is an action of an item; `method`; `public` and `access_action` as the route declares
-    them (`access_action` null without one); `body` and `response`, the JSON Schemas of its
-    JSON body and of its successful JSON response, each standalone (the components it
-    references in its `$defs`), null without one.
+    it is an action of an item; `method`; `access_action` as the route declares it (null
+    without one); `body`, the JSON Schema of its JSON body, standalone (the components it
+    references in its `$defs`), null without one: what the buttons of the specs need (S032).
     """
     result = {}
     for path, item in openapi.get('paths', {}).items():
@@ -318,21 +317,10 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 'name': relative.removeprefix(ITEM_PREFIX).rstrip('/'),
                 'item': relative.startswith(ITEM_PREFIX),
                 'method': method,
-                'public': bool(meta.get('public')),
                 'access_action': meta.get('access_action'),
                 'body': _standalone(openapi, body) if body is not None else None,
-                'response': _response_schema(openapi, operation),
             }
     return result
-
-
-def _response_schema(openapi: dict, operation: dict) -> dict | None:
-    """The standalone JSON Schema of the first successful JSON response of an operation."""
-    for status in sorted(operation.get('responses', {})):
-        schema = operation['responses'][status].get('content', {}).get('application/json', {}).get('schema')
-        if status.startswith('2') and schema is not None:
-            return _standalone(openapi, schema)
-    return None
 
 
 def _standalone(openapi: dict, schema: dict) -> dict:

@@ -104,7 +104,11 @@
               "action": {"description": "A custom action of an item, run with an empty body: its name in its path, as `custom_actions` of the contract has it.", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
               "label": {"description": "The label of its button.", "$ref": "#/$defs/text"}
             },
-            "oneOf": [{"required": ["transit"]}, {"required": ["primitive"]}, {"required": ["action", "label"]}]
+            "oneOf": [
+              {"required": ["transit"], "properties": {"primitive": false, "action": false}},
+              {"required": ["primitive"], "properties": {"transit": false, "action": false}},
+              {"required": ["action", "label"], "properties": {"transit": false, "primitive": false}}
+            ]
           }
         }
       }

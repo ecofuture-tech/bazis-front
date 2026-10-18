@@ -96,30 +96,28 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert task['create'] == [
         'assignee', 'attachment', 'due', 'location', 'priority', 'report', 'status', 'title', 'watchers',
     ]
-    # the custom actions with their schemas, standalone: of the collection (its response the
-    # id of a task of bazis-bg) and of an item (which requires the change of the item); not the
+    # the custom actions with the standalone schema of their body, what the buttons of the specs
+    # need: of the collection and of an item (which requires the change of the item); not the
     # ids of the list of the core or the transits of bazis-statusy (`NOT_CUSTOM`)
     custom = task['custom_actions']
     assert sorted(custom) == ['action_count', 'action_escalate']
     assert resources['users.user']['custom_actions'] == {}
     priority = {'enum': ['low', 'normal', 'high'], 'title': 'Priority', 'type': 'string'}
     count = custom['action_count']
-    assert {key: count[key] for key in ('name', 'item', 'method', 'public', 'access_action')} == {
-        'name': 'count', 'item': False, 'method': 'post', 'public': False, 'access_action': None,
+    assert set(count) == {'name', 'item', 'method', 'access_action', 'body'}
+    assert {key: count[key] for key in ('name', 'item', 'method', 'access_action')} == {
+        'name': 'count', 'item': False, 'method': 'post', 'access_action': None,
     }
     assert count['body']['properties'] == {'priority': {'anyOf': [{'$ref': '#/$defs/Priority'}, {'type': 'null'}]}}
     assert count['body']['$defs'] == {'Priority': priority}
-    assert count['response']['properties'] == {'task': {'title': 'Task', 'type': 'string'}}
     escalate = custom['action_escalate']
     assert {key: escalate[key] for key in ('name', 'item', 'method', 'access_action')} == {
         'name': 'escalate', 'item': True, 'method': 'post', 'access_action': 'change',
     }
     assert escalate['body']['properties'] == {'priority': {'$ref': '#/$defs/Priority', 'default': 'high'}}
-    # an action without a JSON response (a download of bazis-bg) or a body (a GET)
+    # an action without a body (a GET)
     download = resources['bg.task']['custom_actions']['action_download']
-    assert (download['name'], download['item'], download['method'], download['body'], download['response']) == (
-        'download', True, 'get', None, None,
-    )
+    assert download == {'name': 'download', 'item': True, 'method': 'get', 'access_action': None, 'body': None}
 
     fields = task['fields']
     assert fields['title'] == {'title': 'Title', 'type': 'string', 'filter': 'title', 'order': 'title'}
