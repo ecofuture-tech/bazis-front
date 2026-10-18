@@ -250,14 +250,16 @@ def test_the_end_to_end_tests_of_the_template_test_only_their_frontend():
     """
     `npm run e2e` of a product tests the frontend that it starts itself, on E2E_PORT, and fails
     when the port is taken, so that a server of another app already there is never tested in
-    its place; a running frontend is tested only when E2E_BASE_URL names it. The browser has
+    its place; a running frontend is tested only when E2E_BASE_URL names it. The server
+    optimizes the dependencies again as it starts, so that it never reloads the pages of the
+    tests once it finds a dependency late. The browser has
     a fixed time zone and language, so that the dates and the texts of the scenarios do not
     depend on the machine. The frontend job compiles and lints the config, the e2e job runs it.
     """
     config = (ASSETS / 'template' / 'playwright.config.ts').read_text(encoding='utf-8')
     assert 'reuseExistingServer: false' in config and 'reuseExistingServer: true' not in config
     assert "const port = process.env.E2E_PORT ?? '5173';" in config
-    assert 'command: `npm run dev -- --port ${port} --strictPort`' in config
+    assert 'command: `npm run dev -- --port ${port} --strictPort --force`' in config
     assert 'process.env.E2E_BASE_URL ?? `http://localhost:${port}`' in config
     assert "timezoneId: 'UTC'" in config and 'locale: LANGUAGE' in config
 

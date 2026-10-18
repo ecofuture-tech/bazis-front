@@ -47,11 +47,14 @@ export default defineConfig({
   // the tests start their own dev server, never reuse one: a server already on the port fails
   // the run instead of being tested in place of this frontend (E2E_BASE_URL names a running
   // one). It is ready when the backend of BAZIS_API_URL (as for `npm run dev`) answers its
-  // health check through the proxy.
+  // health check through the proxy. It optimizes the dependencies again as it starts
+  // (`--force`), from every import of the sources: with the cache of a previous server, a
+  // dependency that a screen imports since then (a chart, a board) would be optimized only
+  // once a page imports it, and the dev server would reload the pages of the tests then.
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `npm run dev -- --port ${port} --strictPort`,
+        command: `npm run dev -- --port ${port} --strictPort --force`,
         url: `${baseURL}/api/healthcheck`,
         reuseExistingServer: false,
       },

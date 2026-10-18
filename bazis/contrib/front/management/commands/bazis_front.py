@@ -656,9 +656,11 @@ class Command(BaseCommand):
                         f'{issue["selector"]}: {issue["message"]}'
                     )
         taken = [it for it in report['shots'] if it['file'] is not None]
+        retried = sum(bool(it.get('retried')) for it in report['shots'])
+        again = f', {retried} shot again (the proxy of the dev server, a reload of the page)' if retried else ''
         summary = (
             f'{len(taken)} screenshots of {len(report["shots"])}, {report["errors"]} errors, '
-            f'{report["warnings"]} warnings: {path}.'
+            f'{report["warnings"]} warnings{again}: {path}.'
         )
         if not taken:
             raise CommandError(

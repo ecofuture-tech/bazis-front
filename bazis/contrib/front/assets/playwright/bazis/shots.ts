@@ -20,7 +20,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, type Page, type Response, type TestInfo } from '@playwright/test';
+import { expect, type ConsoleMessage, type JSHandle, type Page, type Request, type Response, type TestInfo } from '@playwright/test';
 
 import { App, bz, loginAs, stubForeignImages, type Product, type Role, type ScreenId } from '.';
 
@@ -44,6 +44,7 @@ export const CODES = {
   V016: ['warning', 'a list, a board, a calendar or the last items of a dashboard show no item, but the list searched for nothing: the screenshot does not show them'],
   V017: ['warning', 'a text cut by an ellipsis to a few characters: its box is narrower than 4 em, too narrow to be read (the item of a narrow day of a calendar, a narrow column)'],
   V018: ['warning', 'a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap'],
+  V019: ['error', 'the page loaded again between its check and its screenshot, also when the screen was shot again: the screenshot (a blank page, a page that loads) is not of the screen checked'],
 } as const;
 
 /** A code of the checks of a screenshot. */
@@ -85,6 +86,12 @@ export interface ShotResult {
   readonly mode: 'light' | 'dark';
   readonly width: number;
   readonly variant: 'empty' | 'form' | null;
+  /**
+   * Whether the screen was shot a second time: the proxy of the dev server did not reach the
+   * backend the first time (`unproxied`), or the page loaded again between its check and its
+   * screenshot (V019); the result is that of the second time.
+   */
+  readonly retried: boolean;
   /** The screenshot, relative to the directory of the shots; null when it was not taken. */
   readonly file: string | null;
   readonly issues: readonly ShotIssue[];
@@ -120,7 +127,9 @@ function oneLine(text: string, length = 400): string {
  * checks what it renders (`check`) and what the page did once the user was logged in (`listen`)
  * and takes a screenshot of the whole page; writes the screenshot and its result into the
  * directory of the shots (`shotsDir`). A screen that cannot be reached is the issue V001 of
- * its result, and fails the test.
+ * its result, and fails the test. When the proxy of the dev server did not reach the backend
+ * (`unproxied`, from the login on) or the page loaded again between its check and its
+ * screenshot, the screen is shot once again (`retried` of the result), the user still logged in.
  */
 export async function shoot<P extends Product>(page: Page, product: P, shot: Shot<P>, info: TestInfo): Promise<void> {
   const width = page.viewportSize()?.width ?? 0;
@@ -132,22 +141,52 @@ export async function shoot<P extends Product>(page: Page, product: P, shot: Sho
     writeFileSync(path.join(directory, `${name}.json`), `${JSON.stringify(result, null, 2)}\n`);
   };
   const base = { screen: shot.screen, role: shot.role, mode: shot.mode, width, variant: shot.variant };
-  let heard = (): ShotIssue[] => [];
+  // the answers of the proxy that did not reach the backend, from the login on
+  let unreached = 0;
+  const proxy = (response: Response) => {
+    if (api(response.url()) && unproxied(response)) unreached += 1;
+  };
+  page.on('response', proxy);
+  let app: App<P> | null = null;
   try {
-    const app = await enter(page, product, shot);
-    heard = listen(page);
-    await reach(page, app, shot);
-    // the empty state of a search offers no creation: its text only is checked
-    const searched = shot.variant === 'empty';
-    const creates = searched ? [] : shot.creates;
-    const issues = await check(page, { phone: width <= PHONE, dark: shot.mode === 'dark', creates, searched });
-    await page.screenshot({ path: path.join(directory, `${name}.png`), fullPage: true });
-    write({ ...base, file: `${name}.png`, issues: [...issues, ...heard()] });
-  } catch (error) {
-    const message = oneLine(error instanceof Error ? error.message : String(error));
-    const issue: ShotIssue = { code: 'V001', severity: CODES.V001[0], selector: bz('screen', shot.screen), message };
-    write({ ...base, file: null, issues: [issue, ...heard()] });
-    throw error;
+    for (let retried = false; ; retried = true) {
+      const before = unreached;
+      let heard: Listened = { issues: () => [], stop: () => undefined };
+      let checked: JSHandle<Document> | null = null;
+      try {
+        app ??= await enter(page, product, shot);
+        heard = listen(page);
+        await reach(page, app, shot);
+        // the empty state of a search offers no creation: its text only is checked
+        const searched = shot.variant === 'empty';
+        const creates = searched ? [] : shot.creates;
+        checked = await page.evaluateHandle(() => document);
+        const issues = await check(page, { phone: width <= PHONE, dark: shot.mode === 'dark', creates, searched });
+        if (unreached > before && !retried) continue;
+        await page.screenshot({ path: path.join(directory, `${name}.png`), fullPage: true });
+        // another document since the check: the page loaded again (the dev server of Vite
+        // reloads the pages once it has optimized a dependency that it found late), the
+        // screenshot shows it as it loads (a blank page), not the screen checked
+        const reloaded = !(await checked.evaluate((it) => it === document).catch(() => false));
+        if (reloaded && !retried) continue;
+        const blank: ShotIssue[] = reloaded
+          ? [{ code: 'V019', severity: CODES.V019[0], selector: bz('screen', shot.screen), message: 'The page loaded again between its check and its screenshot, also when the screen was shot again.' }]
+          : [];
+        write({ ...base, retried, file: `${name}.png`, issues: [...blank, ...issues, ...heard.issues()] });
+        return;
+      } catch (error) {
+        if (unreached > before && !retried) continue;
+        const message = oneLine(error instanceof Error ? error.message : String(error));
+        const issue: ShotIssue = { code: 'V001', severity: CODES.V001[0], selector: bz('screen', shot.screen), message };
+        write({ ...base, retried, file: null, issues: [issue, ...heard.issues()] });
+        throw error;
+      } finally {
+        heard.stop();
+        await checked?.dispose();
+      }
+    }
+  } finally {
+    page.off('response', proxy);
   }
 }
 
@@ -172,6 +211,11 @@ function expected(response: Response): boolean {
   );
 }
 
+/** Whether a URL is that of the API. */
+function api(url: string): boolean {
+  return new URL(url).pathname.startsWith('/api/');
+}
+
 /**
  * An answer of the proxy of the dev server of Vite that did not reach the backend, not of the
  * backend: a 500 of the type `text/plain` without a charset and without a body (its error is
@@ -182,39 +226,56 @@ function unproxied(response: Response): boolean {
   return response.status() === 500 && response.headers()['content-type'] === 'text/plain';
 }
 
+/** What `listen` heard so far, and the end of the listening. */
+interface Listened {
+  readonly issues: () => ShotIssue[];
+  readonly stop: () => void;
+}
+
 /**
  * Listens to the page from now on: its errors that nothing caught (V011), the errors written
  * to its console (V012, but the failed loads of resources, which V013 reports), and its
  * requests to the API (`/api/`) that failed or were answered with an error status (V013, but
  * the refusals that a screen shows as its state and the requests that the page cancelled);
- * returns what it heard so far, at most `MAX_ISSUES` of each code.
+ * gives what it heard so far, at most `MAX_ISSUES` of each code, until it stops.
  */
-function listen(page: Page): () => ShotIssue[] {
+function listen(page: Page): Listened {
   const heard: Found[] = [];
-  const api = (url: string) => new URL(url).pathname.startsWith('/api/');
-  page.on('pageerror', (error) => {
+  const onPageError = (error: Error) => {
     heard.push({ code: 'V011', selector: 'page', message: oneLine(error.message) });
-  });
-  page.on('console', (message) => {
+  };
+  const onConsole = (message: ConsoleMessage) => {
     if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) {
       heard.push({ code: 'V012', selector: 'console', message: oneLine(message.text()) });
     }
-  });
-  page.on('response', (response) => {
-    if (!api(response.url()) || response.status() < 400 || expected(response)) return;
-    const { pathname } = new URL(response.url());
-    const status = `${String(response.status())} ${response.statusText()}`.trim();
-    const message = unproxied(response)
-      ? `${status}: the proxy of the dev server did not reach the backend (its output says why), not an answer of the backend; take the screenshots again`
+  };
+  const onResponse = (answer: Response) => {
+    if (!api(answer.url()) || answer.status() < 400 || expected(answer)) return;
+    const { pathname } = new URL(answer.url());
+    const status = `${String(answer.status())} ${answer.statusText()}`.trim();
+    const message = unproxied(answer)
+      ? `${status}: the proxy of the dev server did not reach the backend (its output says why), not an answer of the backend, also when the screen was shot again`
       : status;
-    heard.push({ code: 'V013', selector: `${response.request().method()} ${pathname}`, message });
-  });
-  page.on('requestfailed', (request) => {
+    heard.push({ code: 'V013', selector: `${answer.request().method()} ${pathname}`, message });
+  };
+  const onRequestFailed = (request: Request) => {
     const failure = request.failure()?.errorText ?? '';
     if (!api(request.url()) || failure === 'net::ERR_ABORTED') return;
     heard.push({ code: 'V013', selector: `${request.method()} ${new URL(request.url()).pathname}`, message: failure });
-  });
-  return () => capped(heard.map((it) => ({ ...it, severity: CODES[it.code][0] })));
+  };
+  page.on('pageerror', onPageError);
+  page.on('console', onConsole);
+  page.on('response', onResponse);
+  page.on('requestfailed', onRequestFailed);
+  return {
+    issues: () => capped(heard.map((it) => ({ ...it, severity: CODES[it.code][0] }))),
+    stop: () => {
+      page.off('pageerror', onPageError);
+      page.off('console', onConsole);
+      page.off('response', onResponse);
+      page.off('requestfailed', onRequestFailed);
+    },
+  };
 }
 
 /** Opens the screen of a shot and waits until it has rendered a state and nothing loads. */

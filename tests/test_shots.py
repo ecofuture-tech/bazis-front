@@ -280,9 +280,10 @@ def fake_playwright(monkeypatch, results: list[dict]) -> list:
 
 def result(
     screen: str, mode: str, width: int, *issues: tuple[str, str], variant: str | None = None, role: str = 'manager',
+    retried: bool = False,
 ) -> dict:
     return {
-        'screen': screen, 'role': role, 'mode': mode, 'width': width, 'variant': variant,
+        'screen': screen, 'role': role, 'mode': mode, 'width': width, 'variant': variant, 'retried': retried,
         'file': f'{screen}-{role}-{mode}-{width}.png',
         'issues': [
             {'code': code, 'severity': severity, 'selector': f'[data-bz="screen:{screen}"]', 'message': 'Wrong.'}
@@ -331,17 +332,21 @@ def test_shots_gathers_the_report(root, monkeypatch):
     assert [not_shot[key] for key in ('screen', 'variant', 'mode', 'width')] == [
         missing[key] for key in ('screen', 'variant', 'mode', 'width')
     ]
-    assert not_shot['issues'][0]['code'] == 'V001'
+    assert not_shot['issues'][0]['code'] == 'V001' and not_shot['retried'] is False
     assert f'{len(results)} screenshots of {len(results) + 1}, 2 errors, 1 warnings' in str(error.value)
     # not stale: no command brings the screens up to date
     [warning] = check_shots(None)
     assert warning.id == 'front.W009' and 'has 2 errors' in warning.msg
     assert 'front.W009' not in checks.COMMANDS
 
-    # a clean report
-    fake_playwright(monkeypatch, every_result(root))
+    assert 'shot again' not in str(error.value)
+
+    # a clean report, a shot taken again after the proxy failed
+    clean = every_result(root)
+    clean[0] = {**clean[0], 'retried': True}
+    fake_playwright(monkeypatch, clean)
     out = shoot()
-    assert '0 errors, 0 warnings' in out
+    assert '0 errors, 0 warnings, 1 shot again (the proxy of the dev server, a reload of the page)' in out
     assert check_shots(None) == []
 
 

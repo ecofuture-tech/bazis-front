@@ -284,6 +284,21 @@ test('a text cut to a few characters', async ({ page }) => {
   expect(issue).toMatchObject({ code: 'V017', severity: 'warning', selector: '[data-bz="cell:group"]', message: 'The text "Bachata for beginners" is cut to 40 px.' });
 });
 
+test('a value of a card of a board beside a long term', async ({ page }) => {
+  // the field of a card of `ResourceBoard` (its width in a column): its term kept whole squeezes
+  // its value to nothing; the value that moves under a term that leaves it less than 6rem keeps its width
+  const truncate = 'min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap';
+  const card = (row: string, term: string, value: string) =>
+    `<dl data-bz="row:1" style="width: 240px; font-size: 14px"><div style="display: flex; align-items: baseline; ${row}"><dt style="${term}">Inventory number of the equipment</dt><dd data-bz="cell:inventory_number" style="margin: 0; ${value}">PRN-0042</dd></div></dl>`;
+  await show(page, card('gap: 8px', 'flex-shrink: 0', truncate));
+  expect(await found(page, LIGHT)).toEqual([
+    ['V017', '[data-bz="cell:inventory_number"]'],
+    ['V010', '[data-bz="cell:inventory_number"]'],
+  ]);
+  await show(page, card('flex-wrap: wrap; column-gap: 8px', 'min-width: 0', `flex: 1 1 6rem; ${truncate}`));
+  expect(await found(page, LIGHT)).toEqual([]);
+});
+
 test('at most ten issues of a code', async ({ page }) => {
   await show(page, '<p style="color: #ccc">Faint</p>'.repeat(12));
   const issues = await check(page, LIGHT);
@@ -300,7 +315,7 @@ test.describe('shoot', () => {
     await serve(page, { '/tasks': `<!doctype html><html><body>${screen}</body></html>` });
     await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info);
     const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult;
-    expect(result).toMatchObject({ screen: 'task-list', role: null, mode: 'light', width: 1280, file: 'task-list-nobody-light-1280.png' });
+    expect(result).toMatchObject({ screen: 'task-list', role: null, mode: 'light', width: 1280, retried: false, file: 'task-list-nobody-light-1280.png' });
     expect(result.issues.map((it) => [it.code, it.severity])).toEqual([['V004', 'error']]);
     expect(readFileSync(path.join(directory, 'task-list-nobody-light-1280.png')).length).toBeGreaterThan(0);
   });
@@ -395,6 +410,102 @@ test.describe('shoot', () => {
     const form = JSON.parse(readFileSync(path.join(directory, 'task-list.form-nobody-light-1280.json'), 'utf8')) as ShotResult;
     expect(form).toMatchObject({ variant: 'form', issues: [] });
     expect(readFileSync(path.join(directory, 'task-list.form-nobody-light-1280.png')).length).toBeGreaterThan(0);
+  });
+
+  /**
+   * A screen whose list renders its state once the API answers it, and the API: its proxy that
+   * does not reach the backend for the first `failures` requests (a 500 without a body), then the list.
+   */
+  async function proxied(page: Page, failures: number): Promise<string[]> {
+    const answered: string[] = [];
+    const list = `<section data-bz="screen:task-list"></section><script>
+      fetch('/api/v1/tasks/task/').then((response) => {
+        const screen = document.querySelector('[data-bz="screen:task-list"]');
+        if (response.ok) screen.innerHTML = '<div data-bz="state:loaded"><h1>Tasks</h1></div>';
+      });
+    </script>`;
+    await serve(page, { '/tasks': `<!doctype html><html><body>${list}</body></html>` });
+    await page.route('http://bazis.test/api/**', async (route) => {
+      const failed = answered.length < failures;
+      answered.push(failed ? '500' : '200');
+      await (failed
+        ? route.fulfill({ status: 500, contentType: 'text/plain', body: '' })
+        : route.fulfill({ contentType: 'application/vnd.api+json', body: '{"data": [], "meta": {}}' }));
+    });
+    return answered;
+  }
+
+  test('shoots a screen again once when the proxy of the dev server did not reach the backend', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    const answered = await proxied(page, 1);
+    await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info);
+    const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult;
+    // the first time the screen renders no state: no V001, no V013, the result of the second time
+    expect(result).toMatchObject({ retried: true, file: 'task-list-nobody-light-1280.png', issues: [] });
+    expect(answered).toEqual(['500', '200']);
+  });
+
+  test('reports the proxy of the dev server that did not reach the backend twice', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    const answered = await proxied(page, 2);
+    await expect(shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info)).rejects.toThrow();
+    const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult;
+    expect(result).toMatchObject({ retried: true, file: null });
+    expect(result.issues.map((it) => [it.code, it.selector])).toEqual([
+      ['V001', '[data-bz="screen:task-list"]'],
+      ['V013', 'GET /api/v1/tasks/task/'],
+    ]);
+    expect(result.issues[1]?.message).toMatch(/did not reach the backend .*also when the screen was shot again$/);
+    expect(answered).toEqual(['500', '500']);
+  });
+
+  /**
+   * A screen that loads again once it has been checked (as the dev server of Vite reloads the
+   * pages): its texts made long by the check and put back (V015), the first `reloads` times
+   * that it is shown; gives the times it was served.
+   */
+  async function reloading(page: Page, reloads: number): Promise<string[]> {
+    const served: string[] = [];
+    const list = `<section data-bz="screen:task-list"><div data-bz="state:loaded"><h1>Tasks</h1>
+      <p data-bz="cell:title"><span data-text>Write the report</span></p></div></section>
+      <script>
+        let changes = 0;
+        new MutationObserver((records) => {
+          changes += records.length;
+          if (changes === 2 && Number(sessionStorage.getItem('reloads') ?? 0) < ${String(reloads)}) {
+            sessionStorage.setItem('reloads', String(Number(sessionStorage.getItem('reloads') ?? 0) + 1));
+            location.reload();
+          }
+        }).observe(document.querySelector('[data-text]'), { characterData: true, subtree: true });
+      </script>`;
+    await page.route('http://bazis.test/tasks', async (route) => {
+      served.push('/tasks');
+      await route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><body>${list}</body></html>` });
+    });
+    return served;
+  }
+
+  test('shoots a screen again once when the page loaded again after its check', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    const served = await reloading(page, 1);
+    await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info);
+    const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult;
+    expect(result).toMatchObject({ retried: true, file: 'task-list-nobody-light-1280.png', issues: [] });
+    // shown, loaded again, shown again
+    expect(served).toHaveLength(3);
+  });
+
+  test('reports V019 when the page loaded again after its check twice', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    await reloading(page, 2);
+    await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info);
+    const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult;
+    expect(result).toMatchObject({ retried: true, file: 'task-list-nobody-light-1280.png' });
+    expect(result.issues.map((it) => [it.code, it.severity, it.selector])).toEqual([['V019', 'error', '[data-bz="screen:task-list"]']]);
   });
 
   test('writes V001 when the screen is not reached', async ({ page }, info) => {

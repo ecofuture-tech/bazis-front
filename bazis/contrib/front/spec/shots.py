@@ -292,7 +292,8 @@ def run(frontend: Path) -> None:
 def collect(frontend: Path, specs: Specs) -> dict:
     """
     The report of the screenshots, written to `.scratch/shots/report.json`: the results that
-    `shoot` wrote, by screen, role, color mode and width, with the number of their errors and
+    `shoot` wrote, by screen, role, color mode and width (`retried`: shot a second time after the
+    proxy of the dev server did not reach the backend or the page loaded again), with the number of their errors and
     warnings. A shot of the specs without a result at a width of the run (or at all) is the
     error V001: its test did not finish.
     """
@@ -311,7 +312,7 @@ def collect(frontend: Path, specs: Specs) -> dict:
                 if (shot['screen'], shot['variant'], shot['role'], mode, width) not in done:
                     results.append({
                         'screen': shot['screen'], 'role': shot['role'], 'mode': mode, 'width': width,
-                        'variant': shot['variant'], 'file': None,
+                        'variant': shot['variant'], 'retried': False, 'file': None,
                         'issues': [{
                             'code': NOT_SHOT, 'severity': 'error', 'selector': f'[data-bz="screen:{shot["screen"]}"]',
                             'message': 'No result: its test did not finish (see the output of Playwright).',
