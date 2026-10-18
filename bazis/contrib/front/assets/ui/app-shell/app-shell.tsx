@@ -246,7 +246,7 @@ function NavGroupEntry({ group, vertical, onNavigate }: { group: NavGroup; verti
   const heading = useId();
   return (
     <AnyAllowed requirements={group.items.map((it) => it.requires)}>
-      <li className={cn('flex gap-1', vertical ? 'flex-col pt-3' : 'items-center')}>
+      <li data-nav-group="" className={cn('flex gap-1', vertical ? 'flex-col pt-3' : 'items-center')}>
         <span
           id={heading}
           className={cn(
@@ -266,12 +266,18 @@ function NavGroupEntry({ group, vertical, onNavigate }: { group: NavGroup; verti
   );
 }
 
+/** A link of the navigation outside the groups right after a group: set apart from its links by a line. */
+const AFTER_GROUP = {
+  vertical: '[[data-nav-group]+&]:mt-2 [[data-nav-group]+&]:border-t [[data-nav-group]+&]:border-sidebar-border [[data-nav-group]+&]:pt-2',
+  horizontal: '[[data-nav-group]+&]:ml-1 [[data-nav-group]+&]:border-l [[data-nav-group]+&]:border-border [[data-nav-group]+&]:pl-2',
+};
+
 /** A link of the navigation, `nav:<screen>`, shown once the backend allows what it requires. */
 function NavLinkEntry({ item, vertical, onNavigate }: { item: NavItem; vertical: boolean; onNavigate?: (() => void) | undefined }) {
   const Icon = item.icon;
   return (
     <Allowed requirement={item.requires}>
-      <li>
+      <li className={vertical ? AFTER_GROUP.vertical : AFTER_GROUP.horizontal}>
         <NavLink
           to={item.to}
           end={item.end}
