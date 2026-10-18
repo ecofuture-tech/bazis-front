@@ -17,8 +17,7 @@
 // with the task fixed while the user may change the task; the card is read again after a step
 // is added: `e2e/custom/related.spec.ts`) and its status history.
 
-import { ArrowLeft } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
 import { ROUTES } from '@/bazis/generated/contract';
 import { useLanguage } from '@/bazis/i18n';
@@ -30,7 +29,6 @@ import { toast } from '@/bazis/ui/state-panel';
 import { StatusBadge, statusName, statusOf } from '@/bazis/ui/status-badge';
 import { StatusHistory } from '@/bazis/ui/status-history';
 import { TransitBar } from '@/bazis/ui/transit-bar';
-import { Button } from '@/components/ui/button';
 
 const TASKS = ROUTES['tasks.task'];
 const STEPS = ROUTES['tasks.step'];
@@ -41,18 +39,8 @@ export function TaskCardScreen() {
   const destroy = useDestroy(TASKS);
   const { language, t } = useLanguage();
   return (
-    <Screen
-      id="task-card"
-      title={t('task.title')}
-      actions={
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/tasks">
-            <ArrowLeft />
-            {t('task.all')}
-          </Link>
-        </Button>
-      }
-    >
+    // the card heads the screen with its task: the link back to the list instead of a title
+    <Screen id="task-card" parent={{ screen: 'task-list', label: t('tasks.title'), to: '/tasks' }}>
       <ResourceCard
         path={TASKS}
         id={id}

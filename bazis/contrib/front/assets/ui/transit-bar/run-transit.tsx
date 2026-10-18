@@ -19,9 +19,9 @@
 
 import { useState, type ReactNode } from 'react';
 
-import { ApiError } from '@/bazis/client';
+import { ApiError, errorText, type ErrorObject } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { objectFields } from '@/bazis/react';
+import { objectFields, useErrorMessage } from '@/bazis/react';
 import { useItemsTransit, type Transit, type TransitPath } from '@/bazis/react/statusy';
 import { FieldInput } from '@/bazis/ui/resource';
 import { statusName, transitName, transitTarget } from '@/bazis/ui/status-badge';
@@ -34,11 +34,13 @@ const PAYLOAD_POINTER = /^\/payload\/([^/]+)/;
 /**
  * The errors of a transit: those of the fields of its payload by name (`source.pointer`
  * `/payload/<name>`, a name of `names`), and the others (its validators, a field that the
- * dialog does not show, an error that is not of the backend).
+ * dialog does not show, an error that is not of the backend), each the text that `message`
+ * gives (in the language of the interface with `useErrorMessage`).
  */
 export function payloadErrors(
   error: unknown,
   names: readonly string[],
+  message: (error: ErrorObject) => string = errorText,
 ): { fields: Record<string, string[]>; others: string[] } {
   const fields: Record<string, string[]> = {};
   const others: string[] = [];
@@ -48,9 +50,9 @@ export function payloadErrors(
   }
   for (const item of error.errors) {
     const name = PAYLOAD_POINTER.exec(item.source?.pointer ?? '')?.[1];
-    const message = item.detail ?? item.title ?? item.code ?? '';
-    if (name !== undefined && names.includes(name)) (fields[name] ??= []).push(message);
-    else others.push(name === undefined ? message : `${name}: ${message}`);
+    const text = message(item);
+    if (name !== undefined && names.includes(name)) (fields[name] ??= []).push(text);
+    else others.push(name === undefined ? text : `${name}: ${text}`);
   }
   if (!others.length && !Object.keys(fields).length) others.push(error.message);
   return { fields, others };
@@ -83,6 +85,7 @@ export function useRunTransit(path: TransitPath, onDone?: (item: unknown) => voi
   const [open, setOpen] = useState<{ id: string; transit: Transit } | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const { language, t } = useLanguage();
+  const errorMessage = useErrorMessage();
 
   function run(id: string, transit: Transit, payload?: Record<string, unknown>) {
     mutation.mutate(
@@ -117,6 +120,7 @@ export function useRunTransit(path: TransitPath, onDone?: (item: unknown) => voi
   const errors = payloadErrors(
     mutation.error,
     fields.map((it) => it.name),
+    errorMessage,
   );
   const dialog = (
     <Dialog

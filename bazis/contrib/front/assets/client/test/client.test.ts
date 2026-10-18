@@ -15,7 +15,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError, createClient, Filter } from '../src/index.js';
-import type { ClientOptions } from '../src/index.js';
+import type { ClientOptions, ErrorObject } from '../src/index.js';
 import type { paths } from './fixtures/schema.js';
 import { BASE, recordingFetch } from './support.js';
 
@@ -331,6 +331,7 @@ describe('action', () => {
     const apiError = error as ApiError;
     expect(apiError.status).toBe(422);
     expect(apiError.bodyErrors()).toEqual({ date_to: ['Input should be a valid date'], items: ['Too many'], query: ['Too short'] });
+    expect(apiError.bodyErrors((it) => it.code ?? '')).toEqual({ date_to: ['ERR_VALIDATE'], items: ['ERR_VALIDATE'], query: ['ERR_VALIDATE'] });
     expect(apiError.fieldErrors()).toEqual({});
   });
 });
@@ -444,6 +445,10 @@ describe('errors', () => {
       { message: 'Legacy', included: null, field: null },
       { message: 'Whole item', included: null, field: null },
     ]);
+    // the text of each error given by the caller (the components translate them by type)
+    const type = (it: ErrorObject) => it.title ?? '-';
+    expect(apiError.fieldErrors(type)).toEqual({ name: ['missing', 'too_long'], price: ['decimal_parsing'], parent_entity: ['value_error'] });
+    expect(apiError.formErrors(type).map((it) => it.message)).toEqual(['-', '-', '-']);
     expect(apiError.message).toBe(
       'Field required; Input should be a valid decimal; Too long; Not a valid UUID; Bad id; Legacy; Whole item',
     );

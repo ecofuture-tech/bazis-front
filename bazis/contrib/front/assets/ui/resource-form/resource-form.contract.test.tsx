@@ -192,6 +192,25 @@ describe('ResourceForm', () => {
     expect(screen.getByTestId('field:title').getAttribute('aria-invalid')).toBe('true');
   });
 
+  it('shows the validation errors of Pydantic in the language of the interface', async () => {
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, schema).on(
+      'POST',
+      ITEMS,
+      {
+        errors: [
+          { status: 422, code: 'ERR_VALIDATE', title: 'missing', detail: 'Field required', source: { pointer: '/data/attributes/title' } },
+        ],
+      },
+      422,
+    );
+    renderWithBazis(<ResourceForm path={ITEMS as never} />, backend);
+
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect(await screen.findByTestId('state:invalid')).toBeTruthy();
+    // the text of `validation.required`, not the English of Pydantic
+    expect(screen.getByTestId('error:title').textContent).not.toMatch(/^(Field required|validation\.required|)$/);
+  });
+
   it('shows the errors of the item at its fields, the others in the form', async () => {
     // the invariants of the item (`validate_item` of the core: 422 `ERR_ITEM_INVALID`): of a
     // field, of the item as a whole, of an included item

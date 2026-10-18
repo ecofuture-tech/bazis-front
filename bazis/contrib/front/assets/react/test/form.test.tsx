@@ -96,7 +96,7 @@ describe('useResourceForm without an id: a create', () => {
       .on('GET', `${PARENT}schema_create/`, parentSchema('create'))
       // the errors of a create of the sample without a title (their messages replaced)
       .on('POST', PARENT, sample.create_422, 422);
-    const { result } = render(() => useResourceForm(PARENT), backend);
+    const { result, session, rerender } = render(() => useResourceForm(PARENT), backend);
     await ready(result);
     act(() => {
       result.current.setValue('price', 5);
@@ -113,6 +113,10 @@ describe('useResourceForm without an id: a create', () => {
     expect(result.current.submitError?.message).toBe('<detail>');
     expect(result.current.values.price).toBe(5);
     expect(result.current.dirty).toEqual(['price']);
+    // in the language of the interface: `errorMessage` of the provider
+    session.errorMessage = (error) => `${error.code ?? ''}:${error.title ?? ''}`;
+    rerender();
+    expect(result.current.errors).toEqual({ title: ['ERR_VALIDATE:missing'] });
   });
 });
 

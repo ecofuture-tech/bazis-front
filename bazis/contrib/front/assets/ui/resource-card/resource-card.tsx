@@ -25,6 +25,7 @@ import type { PermitMeta } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import type { ItemPath } from '@/bazis/react';
+import { useScreenPage } from '@/bazis/ui/app-shell';
 import {
   FieldValue,
   fieldValue,
@@ -136,12 +137,21 @@ interface SectionsProps {
 }
 
 /**
+ * The card heads its screen, a screen without a title (`h1`; its sections and its related
+ * lists `h2`); else it is under the title (`h2`, its parts `h3`).
+ */
+export function useHeadsScreen(): boolean {
+  return useScreenPage()?.titled === false;
+}
+
+/**
  * The sections with the fields that the user may see in the item (`schema_retrieve/`); a
  * section without any is left out. With `editable`, the fields that the edit does not change
  * are marked read-only.
  */
 function Sections({ sections, item, fields, values, display, editable }: SectionsProps) {
   const { t } = useLanguage();
+  const Title = useHeadsScreen() ? 'h2' : 'h3';
   return sections.map((section) => {
     const names = section.fields.filter((name) => fields.has(name));
     if (!names.length) return null;
@@ -152,7 +162,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
         className="rounded-xl border bg-card text-card-foreground shadow-xs"
       >
         {section.title !== undefined && (
-          <h3 className="border-b px-(--space-card) py-3 text-sm font-semibold">{section.title}</h3>
+          <Title className="border-b px-(--space-card) py-3 text-sm font-semibold">{section.title}</Title>
         )}
         <dl className="grid gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2">
           {names.map((name) => {
@@ -242,6 +252,7 @@ export function ResourceCard({
   const fields = useItemFields(path, id);
   const [editing, setEditing] = useState(false);
   const { t } = useLanguage();
+  const Heading = useHeadsScreen() ? 'h1' : 'h2';
   const document = item.data;
   // the sections wait for the titles of their fields
   if (!document || !fields.ready) {
@@ -278,14 +289,14 @@ export function ResourceCard({
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           {/* the item is the subject of its screen: above the title of the screen */}
-          <h2
+          <Heading
             className={cn(
               'font-display font-semibold tracking-tight break-words',
               THEME.preset === 'portal' ? 'text-3xl md:text-4xl' : 'text-2xl',
             )}
           >
             {heading}
-          </h2>
+          </Heading>
           {badge?.(data)}
         </div>
         <div className="flex flex-wrap gap-2">

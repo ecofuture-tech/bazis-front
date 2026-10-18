@@ -169,14 +169,27 @@ function orderLabels(path: string): ReadonlyMap<string, string> {
 const META = ['pagination', 'for_create', 'for_change', 'for_delete'];
 const SEARCH_DELAY = 300;
 
+/**
+ * The first column of the table stays at the left of a table wider than its list (after the
+ * checkboxes of the selection, a column of 2.5rem whatever the density, its `min-width`: a table
+ * wider than its list gives a column no more than its content otherwise): the rows are opaque, the
+ * hover mixed with the card, so that its cells take the color of their row (`bg-inherit`) over
+ * the columns that scroll under them, and draw the focus ring of their row, which they cover;
+ * the leftmost one draws the mark of a tone or of the selection of its row (`--row-mark`).
+ */
+const ROW = 'bg-card hover:bg-[color-mix(in_oklab,var(--color-muted)_50%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-muted)_50%,var(--color-card))]';
+const STICKY = 'sticky z-[1] bg-inherit [tr:focus-visible>&]:shadow-[inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
+const LEFTMOST =
+  'shadow-[inset_3px_0_0_var(--row-mark,transparent)] [tr:focus-visible>&]:shadow-[inset_3px_0_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
+
 /** The colors of a highlighted row of a table, by its tone: the soft colors of the theme. */
 const ROW_TONES: Readonly<Record<Tone, string>> = {
-  neutral: 'bg-neutral-soft shadow-[inset_3px_0_0_var(--color-neutral)]',
-  primary: 'bg-primary-soft shadow-[inset_3px_0_0_var(--color-primary)]',
-  info: 'bg-info-soft shadow-[inset_3px_0_0_var(--color-info)]',
-  success: 'bg-success-soft shadow-[inset_3px_0_0_var(--color-success)]',
-  warning: 'bg-warning-soft shadow-[inset_3px_0_0_var(--color-warning)]',
-  danger: 'bg-danger-soft shadow-[inset_3px_0_0_var(--color-danger)]',
+  neutral: 'bg-neutral-soft [--row-mark:var(--color-neutral)]',
+  primary: 'bg-primary-soft [--row-mark:var(--color-primary)]',
+  info: 'bg-info-soft [--row-mark:var(--color-info)]',
+  success: 'bg-success-soft [--row-mark:var(--color-success)]',
+  warning: 'bg-warning-soft [--row-mark:var(--color-warning)]',
+  danger: 'bg-danger-soft [--row-mark:var(--color-danger)]',
 };
 
 function SortButton({ label, direction, onClick }: { label: ReactNode; direction: 'ascending' | 'descending' | undefined; onClick: () => void }) {
@@ -215,16 +228,17 @@ function TableView(
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           {selection && (
-            <TableHead className="sticky top-0 z-10 w-10 bg-muted px-(--space-cell-x)">
+            <TableHead className="sticky top-0 left-0 z-20 w-10 min-w-10 bg-muted px-0 text-center">
               <PageCheckbox rows={rows} selection={selection} onSelect={props.onSelect} />
             </TableHead>
           )}
-          {columns.map((name) => (
+          {columns.map((name, index) => (
             <TableHead
               key={name}
               aria-sort={sorted(name)}
               className={cn(
                 'sticky top-0 z-10 h-10 bg-muted px-(--space-cell-x) text-xs font-medium text-muted-foreground',
+                index === 0 && (selection ? 'left-10 z-20' : 'left-0 z-20'),
                 isNumeric(fields.fields.get(name)) && 'text-right',
                 hidden(name) && 'hidden',
               )}
@@ -252,14 +266,15 @@ function TableView(
               aria-selected={selected === undefined ? undefined : row.id === selected}
               className={cn(
                 'border-border/70',
+                ROW,
                 tone && ROW_TONES[tone],
-                'data-[state=selected]:bg-primary-soft data-[state=selected]:shadow-[inset_3px_0_0_var(--primary)]',
+                'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--primary)]',
                 onOpen && cn('cursor-pointer', FOCUS),
               )}
               {...opener(row.id, onOpen)}
             >
               {selection && (
-                <TableCell className="w-10 px-(--space-cell-x) py-(--space-cell-y)">
+                <TableCell className={cn('left-0 w-10 min-w-10 px-0 py-(--space-cell-y) text-center', STICKY, LEFTMOST)}>
                   <RowCheckbox id={row.id} selection={selection} onSelect={props.onSelect} />
                 </TableCell>
               )}
@@ -271,7 +286,9 @@ function TableView(
                     data-bz={`cell:${name}`}
                     className={cn(
                       'px-(--space-cell-x) py-(--space-cell-y)',
-                      index === 0 ? 'min-w-48 font-medium whitespace-normal text-foreground' : 'text-muted-foreground',
+                      index === 0
+                        ? cn('min-w-48 font-medium whitespace-normal text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
+                        : 'text-muted-foreground',
                       isNumeric(field) && 'text-right tabular-nums',
                       field?.kind === 'attribute' && field.format === 'date-time' && 'tabular-nums',
                       hidden(name) && 'hidden',

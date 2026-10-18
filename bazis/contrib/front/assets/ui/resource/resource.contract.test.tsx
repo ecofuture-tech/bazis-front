@@ -24,10 +24,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { RESOURCES, TRANSITS } from '@/bazis/generated/contract';
 import { THEME } from '@/bazis/generated/theme';
+import { errorMessage as i18nErrorMessage } from '@/bazis/i18n';
 import type { FormField } from '@/bazis/react';
 import {
   choiceOptions,
   DatesProvider,
+  errorMessage,
   FieldInput,
   FieldValue,
   FilesProvider,
@@ -439,7 +441,7 @@ describe('FieldValue', () => {
           <FieldValue field={attribute('done', 'boolean')} value={true} />
         </span>
         <span data-bz="field:count">
-          <FieldValue field={attribute('count', 'number')} value={1234.5} />
+          <FieldValue field={attribute('count', 'number')} value={12345.5} />
         </span>
         <span data-bz="field:day">
           <FieldValue field={attribute('day', 'string', { format: 'date' })} value="2026-10-08" />
@@ -449,14 +451,17 @@ describe('FieldValue', () => {
       { language: russian },
     );
     expect(screen.getByTestId('field:done').textContent).toBe('Да');
-    expect(screen.getByTestId('field:count').textContent).toMatch(/^1\s234,5$/);
+    expect(screen.getByTestId('field:count').textContent).toMatch(/^12\s345,5$/);
     expect(screen.getByTestId('field:day').textContent).toMatch(/^8 окт\. 2026\sг\.$/);
     expect(formatSize(1536, { language: 'ru', t: (key, params) => `${key}:${String(params?.size)}` })).toBe('size.kb:1,5');
   });
 
-  it('shows a number of `display: plain` without the separators of its thousands', () => {
+  it('groups the thousands of a number from five digits, never those of `display: plain`', () => {
     const year = attribute('year', 'integer');
+    expect(formatValue(year, 2020)).toBe('2020');
+    expect(formatValue(year, -1234.5)).toBe('-1234.5');
     expect(formatValue(year, 18770)).toBe('18,770');
+    expect(formatValue(year, 18770, { language: 'ru', t: (key) => key })).toMatch(/^18\s770$/);
     expect(formatValue(year, 18770, undefined, 'plain')).toBe('18770');
     render(<FieldValue field={year} value={1877} display="plain" />);
     expect(screen.getByText('1877')).toBeTruthy();
@@ -482,7 +487,8 @@ describe('FieldValue', () => {
     // a DecimalField: its exact digits
     expect(formatValue(price, '45000.10', undefined, { currency: 'EUR' })).toBe('€45,000.10');
     expect(formatValue(attribute('total', 'number'), 12, undefined, { currency: 'EUR' })).toBe('€12.00');
-    expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1,200 pcs');
+    expect(formatValue(attribute('copies', 'integer'), 12000, undefined, { unit: 'pcs' })).toBe('12,000 pcs');
+    expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1200 pcs');
     expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50 kg');
     expect(formatValue(price, null, undefined, { unit: 'kg' })).toBe('—');
     // a code that is not of ISO 4217: after the number, as a unit, never an error of the render
@@ -737,5 +743,12 @@ describe('the label of a related item', () => {
     expect(screen.getByTestId('field:short').textContent).toBe('7');
     // the start of a long id, the whole on hover
     expect(screen.getByTestId('field:long').textContent).toBe('#0f5c8a9e');
+  });
+});
+
+describe('errorMessage of 0.2.0', () => {
+  it('is that of the language until 0.4.0', () => {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- the alias of 0.2.0 is checked
+    expect(errorMessage).toBe(i18nErrorMessage);
   });
 });

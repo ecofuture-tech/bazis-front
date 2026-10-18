@@ -19,7 +19,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, type RenderHookResult } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import { createClient } from '@/bazis/client';
+import { createClient, type ErrorObject } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
 
 import { BazisProvider } from '../src/index.js';
@@ -100,10 +100,11 @@ export function createQueryClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-/** The session of the provider and its language: change them, then `rerender()`. */
+/** The session of the provider, its language and its texts of the errors: change them, then `rerender()`. */
 export interface Session {
   value: string;
   language?: string | undefined;
+  errorMessage?: ((error: ErrorObject) => string) | undefined;
 }
 
 /** Renders a hook inside the providers, with the session `s1`. */
@@ -122,7 +123,7 @@ export function render<Result, Props>(
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <BazisProvider client={api} session={session.value} language={session.language}>
+        <BazisProvider client={api} session={session.value} language={session.language} errorMessage={session.errorMessage}>
           {children}
         </BazisProvider>
       </QueryClientProvider>

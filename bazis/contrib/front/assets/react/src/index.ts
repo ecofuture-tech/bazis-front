@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { BazisProvider, useApi, useSessionKey } from './context.js';
+export { BazisProvider, useApi, useErrorMessage, useSessionKey } from './context.js';
 export type { Api, BazisProviderProps } from './context.js';
 export { useAction, useActionQuery, useItemAction, useItemActionQuery } from './actions.js';
 export { useDownload, useDownloadUrl } from './download.js';

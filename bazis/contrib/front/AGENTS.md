@@ -387,14 +387,16 @@ labels of the fields").
 
 **Display** (optional) of an attribute says how the screens show its value, the only
 place where the spec speaks of it: `plain`, a number without the separators of its
-thousands (a year, a code: `1877`, not `1,877`); `{currency: RUB}`, a sum in the currency
+thousands (a code: `18770`, not `18,770`); `{currency: RUB}`, a sum in the currency
 (ISO 4217); `{unit: pcs}`, a quantity followed by its unit; `{bar: 100}`, a number as a bar
 of its share of the maximum (a progress); `phone`, a phone number to call. `plain` and
 `bar` are of an `integer` or a `number`, `currency` and `unit` also of a `string` (a
 DecimalField), `phone` of a `string` (S020). The screen gives it to the components, as
-it gives them the columns of a list: `display={{year: 'plain', price: {currency: 'RUB'}}}`
-of `ResourceList` and `ResourceCard` (`display` of `FieldValue` for a value of its own); a
-number without `display` is grouped by thousands. A phone is a link to call it (a number
+it gives them the columns of a list: `display={{code: 'plain', price: {currency: 'RUB'}}}`
+of `ResourceList` and `ResourceCard` (`display` of `FieldValue` for a value of its own). The
+components group every number by thousands from five digits, as most languages write it
+(`formatNumber` of `@/bazis/i18n`: a year `2020` and `1234` as they are, `12,345`), so a
+year needs no `display`. A phone is a link to call it (a number
 written without separators shown in groups, `+7 916 123-45-67`), a bar a `meter` next to
 the number.
 
@@ -572,7 +574,10 @@ S008), its `columns`, the card a row opens (`open`), and `add`, "add here": the 
 `add.id` of the card opens the create form of the related entity (`add.fields`, all its
 fields but the relationship when omitted) with the relationship fixed to the item. A scenario
 runs it as an action of the card (`action: add-step`), fills the form (never the fixed
-relationship: P022) and submits it; the card stays. In the screen it is `RelatedList`
+relationship: P022) and submits it; the card stays. A card lists by default the items of
+every entity of the product that references its entity by a to-one relationship and has a
+list screen (the loans of a book and of a reader); the contract has no reverse relationship
+for them unless the route set of the card shows one. In the screen it is `RelatedList`
 ("Related items" in
 [Choices, filters, permissions and relationships](#choices-filters-permissions-and-relationships)):
 
@@ -1332,7 +1337,7 @@ of the specs and the paths of `ROUTES`.
 
 | Spec | Component |
 |---|---|
-| a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell` (a card: `parent`, the link back to its list); the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
+| a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell` (a card: `parent`, the link back to its list, and no `title`: the card heads the screen with the label of its item, its `h1`, instead of the name of the entity); the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
 | `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control; `display` of the entity; the `status` of a statusy model is its badge, no `cells` needed; the icon of the entity in `icon`) |
 | `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
 | `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only; `label` and `display` of the entity), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy) |
@@ -1410,7 +1415,7 @@ export function TaskCardScreen() {
   const navigate = useNavigate();
   const destroy = useDestroy(TASKS);
   return (
-    <Screen id="task-card" title="Task" parent={{ screen: 'task-list', label: 'Tasks', to: '/tasks' }}>
+    <Screen id="task-card" parent={{ screen: 'task-list', label: 'Tasks', to: '/tasks' }}>
       <ResourceCard
         path={TASKS}
         id={id}
@@ -2536,7 +2541,13 @@ client".
   item that are not of a field (an invariant of `validate_item`, an included item) from
   `ApiError.formErrors()` at the form, and other errors from `ApiError.message`. A form of
   the product does it as `ResourceForm` does (`form.errors` of `useResourceForm`,
-  `FieldInput`); any other error, and the state it puts a screen in, is shown with
+  `FieldInput`). The messages are in the language of the interface: `errorMessage` of
+  `@/bazis/i18n` translates the validation errors of Pydantic by their type (`Field
+  required` as `validation.required` of the dictionaries) and leaves the messages of the
+  validators of the product as the backend says them; `BazisProvider` of
+  `src/app/providers.tsx` gives it to the hooks (`form.errors`, `errors` of `useAction`), and
+  `useErrorMessage()` to the code of the product (`error.formErrors(message)`). Any other
+  error, and the state it puts a screen in, is shown with
   `StatePanel` of `@/bazis/ui/state-panel` (`errorState(error)`: 401 and 403 `forbidden`,
   404 `not_found`, 422 `invalid`, else `error`), the only mapping of the errors of the
   backend: the components and the `ErrorBoundary` of `src/app/errors.tsx` use it.
@@ -3239,9 +3250,13 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 
 - `readonly name: "ApiError"`
 - `constructor(status: number, errors: readonly ErrorObject[])`
-- `fieldErrors(): Record<string, string[]>`: The messages of the errors of attributes and relationships of the item, by their name (`source.pointer` `/data/attributes/<name>`, `/data/relationships/<name>`), for forms.
-- `bodyErrors(): Record<string, string[]>`: The messages of the errors of the fields of a JSON body that is not a JSON:API document (the body of a custom action, `client.action`), by their name: `source.pointer` `/<name>` (an error of a nested value belongs to its field, `/<name>/0`); the others (of the body as a whole, of a parameter: `/query/…`, `/header/…`, `/cookie/…`, of the request) are not given.
-- `formErrors(): FormError[]`: The errors that `fieldErrors()` does not give, for the form as a whole: of the item (`/data`), of an included item (`/included/<index>`), of a parameter or of the request; all the errors of a relationships endpoint.
+- `fieldErrors(message?: (error: ErrorObject) => string): Record<string, string[]>`: The messages of the errors of attributes and relationships of the item, by their name (`source.pointer` `/data/attributes/<name>`, `/data/relationships/<name>`), for forms.
+- `bodyErrors(message?: (error: ErrorObject) => string): Record<string, string[]>`: The messages of the errors of the fields of a JSON body that is not a JSON:API document (the body of a custom action, `client.action`), by their name: `source.pointer` `/<name>` (an error of a nested value belongs to its field, `/<name>/0`); the others (of the body as a whole, of a parameter: `/query/…`, `/header/…`, `/cookie/…`, of the request) are not given.
+- `formErrors(message?: (error: ErrorObject) => string): FormError[]`: The errors that `fieldErrors()` does not give, for the form as a whole: of the item (`/data`), of an included item (`/included/<index>`), of a parameter or of the request; all the errors of a relationships endpoint.
+
+#### errorText
+
+`errorText(error: ErrorObject): string`: The text of an error as the backend gives it: its `detail`, else its `title` or its `code`.
 
 #### ErrorObject
 
@@ -3469,11 +3484,16 @@ Its props, `BazisProviderProps`:
 - `client: Api`: The client of the backend (`createClient<paths>()`).
 - `session: string`: The current session: a value that changes whenever a user logs in or out, such as a number of the session (never the token).
 - `language?: string | undefined`: The language of the interface, which the client sends to the backend (`Accept-Language`): every query key of the hooks ends with it too, so that the texts of the backend (the titles of the schemas, the names of the statuses) of one language are never shown in another.
+- `errorMessage?: ((error: ErrorObject) => string) | undefined`: The text of an error of the backend for the user, in the language of the interface (`errorMessage` of `@/bazis/i18n`): that of the errors of the fields of the forms and of the actions.
 - `children: ReactNode`
 
 #### useApi
 
 `useApi(): Api`: The client of the backend.
+
+#### useErrorMessage
+
+`useErrorMessage(): (error: ErrorObject) => string`: The text of an error of the backend for the user: `errorMessage` of `BazisProvider`.
 
 #### useSessionKey
 
@@ -3512,7 +3532,7 @@ Its props, `BazisProviderProps`:
 
 #### ActionMutation
 
-`type ActionMutation<Response, Variables>`: A mutation of an action, with the errors of its body by field (`ApiError.bodyErrors()` of the last call: a 422 of the validation of the body, `/<field>`); its `error` is the `ApiError` (`StatePanel` `errorState(error)` shows it).
+`type ActionMutation<Response, Variables>`: A mutation of an action, with the errors of its body by field (`ApiError.bodyErrors()` of the last call: a 422 of the validation of the body, `/<field>`, in the language of the interface: `useErrorMessage`); its `error` is the `ApiError` (`StatePanel` `errorState(error)` shows it).
 
 - and the members of `UseMutationResult<Response, Error, Variables>`
 - `errors: Readonly<Record<string, readonly string[]>>`
@@ -3602,7 +3622,7 @@ Its props, `BazisProviderProps`:
 - `values: Readonly<Record<string, unknown>>`: The value of every field: the value of an attribute, the id of the related item of a to-one relationship (null for none), the ids of the related items of a to-many one (an array).
 - `setValue(name: string, value: unknown): void`
 - `dirty: readonly string[]`: The fields whose value differs from the initial one; only they are submitted.
-- `errors: Readonly<Record<string, readonly string[]>>`: The validation errors of the last submit by field (`ApiError.fieldErrors()`).
+- `errors: Readonly<Record<string, readonly string[]>>`: The validation errors of the last submit by field (`ApiError.fieldErrors()`), in the language of the interface (`useErrorMessage`).
 - `submitError: Error | null`: The error of the last submit, also when it has errors by field.
 - `isSubmitting: boolean`
 - `submit(): Promise<Saved | null>`: Creates or updates the item with the changed fields.
@@ -3987,6 +4007,10 @@ Its props, `SocketProviderProps`:
 
 ### `@/bazis/i18n`
 
+#### errorMessage
+
+`errorMessage(error: ErrorObject, t: Translate): string`: The text of an error of the backend in the language of the interface: a validation error of Pydantic (`ERR_VALIDATE`, its type in `title`: `missing`, `string_too_short`…) by the key `validation.<key>` of the dictionaries, its limit as `count`; else, and when its limit is not a number (a date), its text (`errorText`: a validator of the product says it in the language of the request).
+
 #### formatDate
 
 `formatDate(value: string | Date, language: string): string`: A date of the backend (`2026-10-08`, read as that day wherever the user is) or a Date; the text when it is not a date.
@@ -3997,11 +4021,11 @@ Its props, `SocketProviderProps`:
 
 #### formatDecimal
 
-`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it has (`45,000.10` in English, `45 000,10` in Russian) unless `options` sets them; a sum is `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`).
+`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it has (`45,000.10` in English, `45 000,10` in Russian, grouped as `formatNumber` groups) unless `options` sets them; a sum is `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`).
 
 #### formatNumber
 
-`formatNumber(value: number, language: string, options?: Intl.NumberFormatOptions): string`: A number: `1,234.5` in English, `1 234,5` in Russian.
+`formatNumber(value: number, language: string, options?: Intl.NumberFormatOptions): string`: A number: `12,345.5` in English, `12 345,5` in Russian, grouped by thousands from five digits (`1234.5`); `{useGrouping: false}` never groups it.
 
 #### formatTime
 
@@ -4199,6 +4223,7 @@ Its props, `ScreenProps`:
 
 - `target: HTMLElement | null`
 - `claim: (open: boolean) => void`: A form page opens (true) or closes (false).
+- `titled: boolean`: The screen has a title, its `h1`; without one, its card is headed by its item, `h1`.
 
 #### ScreenParent
 
@@ -5031,11 +5056,12 @@ Its props, `RelationPickerProps`:
 
 #### The types and the constants of `@/bazis/ui/resource`
 
+- `errorMessage: (error: ErrorObject, t: Translate) => string`: The text of an error of the backend in the language of the interface: `errorMessage` of `@/bazis/i18n`, where it moved in 0.3.0.
 - `DateInputProps`: the props of `DateInput`, listed with it
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
 - `ItemValueProps`: the props of `ItemValue`, listed with it
-- `type FieldDisplay = 'plain' | 'phone' | { currency: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a year, a code); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum.
+- `type FieldDisplay = 'plain' | 'phone' | { currency: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum.
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
@@ -5518,7 +5544,7 @@ Its props, `TaskProgressProps`:
 
 #### payloadErrors
 
-`payloadErrors(error: unknown, names: readonly string[]): { fields: Record<string, string[]>; others: string[]; }`: The errors of a transit: those of the fields of its payload by name (`source.pointer` `/payload/<name>`, a name of `names`), and the others (its validators, a field that the dialog does not show, an error that is not of the backend).
+`payloadErrors(error: unknown, names: readonly string[], message?: (error: ErrorObject) => string): { fields: Record<string, string[]>; others: string[]; }`: The errors of a transit: those of the fields of its payload by name (`source.pointer` `/payload/<name>`, a name of `names`), and the others (its validators, a field that the dialog does not show, an error that is not of the backend), each the text that `message` gives (in the language of the interface with `useErrorMessage`).
 
 #### useRunTransit
 

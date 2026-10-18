@@ -172,7 +172,7 @@ describe('ResourceCard', () => {
     );
     await screen.findByTestId('state:loaded');
     expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Yes');
-    expect(screen.getByTestId('field:year').textContent).toBe('1,877');
+    expect(screen.getByTestId('field:year').textContent).toBe('1877');
     labelled.unmount();
     // an empty label: the first two fields of the sections, never an empty heading
     renderWithBazis(
@@ -180,7 +180,7 @@ describe('ResourceCard', () => {
       server,
     );
     await screen.findByTestId('state:loaded');
-    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('12,000 · 1,877');
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('12,000 · 1877');
   });
 
   it('is in the language of the interface: the backend is asked in it, the values are formatted in it', async () => {
@@ -281,6 +281,29 @@ describe('ResourceCard', () => {
       expect(screen.getByTestId('field:title').tagName).toBe('DD');
     });
   }
+
+  it('heads a screen without a title, its h1, and is under the title of another', async () => {
+    const server = backend({ crud_actions: ['view'] });
+    const { unmount } = renderWithBazis(
+      <Screen id="item-card" parent={{ screen: 'item-list', label: 'Items', to: '/items' }}>
+        <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} />
+      </Screen>,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    // its sections one below
+    expect(screen.getAllByRole('heading').map((it) => it.tagName)).toEqual(['H1', 'H2']);
+    unmount();
+    renderWithBazis(
+      <Screen id="item-list" title="Items">
+        <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} />
+      </Screen>,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    expect(screen.getAllByRole('heading').map((it) => it.tagName)).toEqual(['H1', 'H2', 'H3']);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Items');
+  });
 
   it('shows the edit as a page in place of the screen', async () => {
     renderWithBazis(

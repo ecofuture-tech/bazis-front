@@ -189,6 +189,23 @@ describe('AppShell', () => {
     });
   }
 
+  it('shows a title that is a node (a logo) in the header and in the drawer of a phone', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    try {
+      renderWithBazis(
+        <AppShell title={<img src="/logo.svg" alt="Acme" />} navigation="sidebar" items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      expect(screen.getAllByAltText('Acme').length).toBeGreaterThan(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Open the menu' }));
+      expect(screen.getByRole('dialog').querySelector('[data-slot="sheet-title"] img')?.getAttribute('alt')).toBe('Acme');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('puts the session under the tools at the foot of the sidebar, which wrap', () => {
     function Tool({ id }: { id: string }) {
       return <button type="button" data-bz={`action:${id}`} />;

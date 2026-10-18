@@ -17,6 +17,8 @@
 // `Intl.PluralRules` (`<key>.one`, `<key>.few`, `<key>.other`, … with the parameter
 // `count`). The dictionaries of the product are merged over those of the package.
 
+import { formatNumber } from './format.js';
+
 /** A dictionary: the text of each key in one language. */
 export type Messages = Readonly<Record<string, string>>;
 
@@ -59,6 +61,6 @@ export function translate(dictionaries: readonly Messages[], locale: string, key
   return text.replace(PARAM, (match, name: string) => {
     const value = params[name];
     if (value === undefined) return match;
-    return typeof value === 'number' ? value.toLocaleString(locale) : value;
+    return typeof value === 'number' ? formatNumber(value, locale) : value;
   });
 }

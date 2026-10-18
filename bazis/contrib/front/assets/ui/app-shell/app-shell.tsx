@@ -301,7 +301,7 @@ function Drawer({
         <SheetContent side={side} className="w-72 gap-0 bg-sidebar p-0 text-sidebar-foreground">
           <SheetHeader className="h-14 justify-center border-b border-sidebar-border px-4">
             <SheetTitle>
-              <Brand title={typeof title === 'string' ? title : undefined} />
+              <Brand title={title} />
             </SheetTitle>
             <SheetDescription className="sr-only">{t('shell.menu_description')}</SheetDescription>
           </SheetHeader>
@@ -328,7 +328,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
         <div className="flex min-h-dvh flex-col [--bleed:1rem] [--sticky-top:4rem] md:[--bleed:var(--space-page-x)]">
           <header className="sticky top-0 z-30 h-16 border-b bg-background">
             <div className="mx-auto flex h-full w-full max-w-6xl items-center gap-6 px-4 md:px-(--space-page-x)">
-              <Brand title={typeof title === 'string' ? title : undefined} />
+              <Brand title={title} />
               <div className="hidden md:block">
                 <Navigation items={items} vertical={false} />
               </div>
@@ -342,7 +342,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
                   </div>
                 )}
                 <div className="md:hidden">
-                  <Drawer title={typeof title === 'string' ? title : undefined} items={items} session={session} side="right" />
+                  <Drawer title={title} items={items} session={session} side="right" />
                 </div>
               </div>
             </div>
@@ -360,7 +360,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
       <div className="min-h-dvh [--bleed:1rem] [--sticky-top:3.5rem] md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:[--bleed:var(--space-page-x)] md:[--sticky-top:4rem]">
         <aside className="sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
           <div className="flex h-16 shrink-0 items-center px-5">
-            <Brand title={typeof title === 'string' ? title : undefined} />
+            <Brand title={title} />
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">
             <Navigation items={items} vertical />
@@ -378,8 +378,8 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
         </aside>
         <div className="flex min-w-0 flex-col">
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
-            <Drawer title={typeof title === 'string' ? title : undefined} items={items} session={session} side="left" />
-            <Brand title={typeof title === 'string' ? title : undefined} />
+            <Drawer title={title} items={items} session={session} side="left" />
+            <Brand title={title} />
             <div className="ml-auto flex items-center gap-1">
               {!wide && tools}
               <LanguageToggle />
@@ -404,6 +404,8 @@ export interface ScreenPage {
   target: HTMLElement | null;
   /** A form page opens (true) or closes (false). */
   claim: (open: boolean) => void;
+  /** The screen has a title, its `h1`; without one, its card is headed by its item, `h1`. */
+  titled: boolean;
 }
 
 const PageContext = createContext<ScreenPage | null>(null);
@@ -437,20 +439,23 @@ export interface ScreenProps {
   children: ReactNode;
 }
 
-/** The link back to the parent of a screen: an arrow below `xl`, its label and a chevron from it. */
-function Breadcrumb({ parent }: { parent: ScreenParent }) {
+/**
+ * The link back to the parent of a screen: an arrow below `xl`, its label from it, and a
+ * chevron before the title of the screen (none on a screen that its card heads).
+ */
+function Breadcrumb({ parent, titled }: { parent: ScreenParent; titled: boolean }) {
   const { t } = useLanguage();
   return (
     <nav aria-label={t('screen.breadcrumb')} className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
       <Link
         to={parent.to}
         data-bz={`nav:${parent.screen}`}
-        className="-ml-2 inline-flex size-9 items-center justify-center gap-1 rounded-md outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 xl:ml-0 xl:size-auto xl:px-1.5 xl:py-1"
+        className="-ml-2 inline-flex size-9 items-center justify-center gap-1 rounded-md outline-none pointer-coarse:min-h-11 pointer-coarse:min-w-11 hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 xl:ml-0 xl:size-auto xl:px-1.5 xl:py-1"
       >
         <ArrowLeft className="size-4 xl:hidden" aria-hidden="true" />
         <span className="max-xl:sr-only">{parent.label}</span>
       </Link>
-      <ChevronRight className="hidden size-4 opacity-60 xl:block" aria-hidden="true" />
+      {titled && <ChevronRight className="hidden size-4 opacity-60 xl:block" aria-hidden="true" />}
     </nav>
   );
 }
@@ -467,7 +472,8 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
   const claim = useCallback((open: boolean) => {
     setPages((count) => count + (open ? 1 : -1));
   }, []);
-  const page = useMemo(() => ({ target, claim }), [target, claim]);
+  const titled = title !== undefined;
+  const page = useMemo(() => ({ target, claim, titled }), [target, claim, titled]);
   // the header sticks under the top of the page with the sidebar, never under a top bar
   const sticky = navigation !== 'topbar';
   const portal = THEME.preset === 'portal';
@@ -486,7 +492,7 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
               )}
             >
               <div className="flex min-w-0 items-center gap-1">
-                {parent !== undefined && <Breadcrumb parent={parent} />}
+                {parent !== undefined && <Breadcrumb parent={parent} titled={titled} />}
                 {title !== undefined && (
                   <h1
                     title={typeof title === 'string' ? title : undefined}

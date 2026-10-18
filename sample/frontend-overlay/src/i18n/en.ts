@@ -47,8 +47,6 @@ export const en: Messages = {
   'tasks.board_description': 'The tasks by status, moved by their transits.',
   'tasks.calendar': 'Calendar',
   'tasks.calendar_description': 'The tasks on the days they were created.',
-  'task.title': 'Task',
-  'task.all': 'All tasks',
   'task.details': 'Details',
   'task.report': 'Report',
   'task.delete': 'Delete',

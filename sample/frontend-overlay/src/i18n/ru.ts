@@ -46,8 +46,6 @@ export const ru: Messages = {
   'tasks.board_description': 'Задачи по статусам, переводимые их переходами.',
   'tasks.calendar': 'Календарь',
   'tasks.calendar_description': 'Задачи в дни их создания.',
-  'task.title': 'Задача',
-  'task.all': 'Все задачи',
   'task.details': 'Подробности',
   'task.report': 'Отчёт',
   'task.delete': 'Удалить',

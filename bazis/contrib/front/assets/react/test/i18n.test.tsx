@@ -22,6 +22,7 @@ import type { paths } from '@/bazis/generated/schema';
 import {
   createLanguageStore,
   defaultLanguage,
+  errorMessage,
   followProfileLanguage,
   formatDate,
   formatDateTime,
@@ -83,14 +84,16 @@ describe('translate', () => {
   it('chooses the plural form of the language by `count`, and formats the numbers in it', () => {
     const messages = [MESSAGES.ru ?? {}, MESSAGES.en ?? {}];
     const unread = (count: number, locale = 'ru') => translate(messages, locale, 'notifications.unread', { count });
-    expect([unread(1), unread(2), unread(5), unread(21), unread(1500)]).toEqual([
+    expect([unread(1), unread(2), unread(5), unread(21), unread(15000)]).toEqual([
       'Уведомления, 1 непрочитанное',
       'Уведомления, 2 непрочитанных',
       'Уведомления, 5 непрочитанных',
       'Уведомления, 21 непрочитанное',
-      expect.stringMatching(/^Уведомления, 1\s500 непрочитанных$/),
+      expect.stringMatching(/^Уведомления, 15\s000 непрочитанных$/),
     ]);
-    expect(translate([MESSAGES.en ?? {}], 'en', 'notifications.unread', { count: 1500 })).toBe('Notifications, 1,500 unread');
+    expect(translate([MESSAGES.en ?? {}], 'en', 'notifications.unread', { count: 15000 })).toBe('Notifications, 15,000 unread');
+    // as formatNumber: grouped from five digits
+    expect(translate([MESSAGES.en ?? {}], 'en', 'notifications.unread', { count: 1500 })).toBe('Notifications, 1500 unread');
   });
 
   it('has a Russian text for every text of the package', () => {
@@ -195,8 +198,13 @@ describe('the formats', () => {
   });
 
   it('are those of the language of the interface', () => {
-    expect(formatNumber(1234.5, 'en')).toBe('1,234.5');
-    expect(formatNumber(1234.5, 'ru')).toMatch(/^1\s234,5$/);
+    expect(formatNumber(12345.5, 'en')).toBe('12,345.5');
+    expect(formatNumber(12345.5, 'ru')).toMatch(/^12\s345,5$/);
+    // grouped from five digits, as most languages write a number (a year), unless told
+    expect(formatNumber(2020, 'en')).toBe('2020');
+    expect(formatNumber(-1234.5, 'ru')).toBe('-1234,5');
+    expect(formatNumber(1234.5, 'en', { useGrouping: true })).toBe('1,234.5');
+    expect(formatNumber(12345, 'en', { useGrouping: false })).toBe('12345');
     // the spaces of the formats depend on the version of ICU
     expect(formatDate('2026-10-08', 'en')).toBe('Oct 8, 2026');
     expect(formatDate('2026-10-08', 'ru')).toMatch(/^8 окт\. 2026\sг\.$/);
@@ -216,20 +224,46 @@ describe('the formats', () => {
     // more digits than a double keeps
     expect(formatDecimal('12345678901234567.89', 'en')).toBe('12,345,678,901,234,567.89');
     // a sum, in the currency of the product
-    expect(formatDecimal('1500.50', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^1\s500,50\s₽$/);
-    expect(formatDecimal('1500.50', 'en', { maximumFractionDigits: 0 })).toBe('1,501');
+    expect(formatDecimal('15000.50', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^15\s000,50\s₽$/);
+    expect(formatDecimal('1500.50', 'ru', { style: 'currency', currency: 'RUB' })).toMatch(/^1500,50\s₽$/);
+    expect(formatDecimal('15000.50', 'en', { maximumFractionDigits: 0 })).toBe('15,001');
     // only the minimum: the maximum of Intl, never below it
     expect(formatDecimal('1.5', 'en', { minimumFractionDigits: 2 })).toBe('1.50');
     expect(formatDecimal('1.23456', 'en', { minimumFractionDigits: 2 })).toBe('1.235');
     // the exponent of Python for a small value of a field with 7 decimal places or more
     expect(formatDecimal('0E-8', 'en')).toBe('0.00000000');
     expect(formatDecimal('1.0E-7', 'en')).toBe('0.00000010');
-    expect(formatDecimal('1.5E+3', 'ru')).toMatch(/^1\s500$/);
-    expect(formatDecimal(1234.5, 'en')).toBe('1,234.5');
+    expect(formatDecimal('1.5E+4', 'ru')).toMatch(/^15\s000$/);
+    expect(formatDecimal(12345.5, 'en')).toBe('12,345.5');
+    expect(formatDecimal(1234.5, 'en')).toBe('1234.5');
     expect(formatDecimal('n/a', 'en')).toBe('n/a');
     // the value of a field as it is: none is shown as FieldValue shows it
     expect(formatDecimal(null, 'en')).toBe('—');
     expect(formatDecimal(undefined, 'en')).toBe('—');
+  });
+});
+
+describe('errorMessage', () => {
+  it('translates the validation errors of Pydantic by their type, the others as the backend says them', () => {
+    const t = (key: string, params?: Readonly<Record<string, string | number>>) =>
+      params === undefined ? key : `${key}:${String(params.count)}`;
+    const validation = (title: string, detail: string) => ({ status: 422, code: 'ERR_VALIDATE', title, detail });
+    expect(errorMessage(validation('missing', 'Field required'), t)).toBe('validation.required');
+    // the limit of the message, for the plural forms
+    expect(errorMessage(validation('string_too_short', 'String should have at least 3 characters'), t)).toBe('validation.min_length:3');
+    expect(errorMessage(validation('greater_than', 'Input should be greater than 0.5'), t)).toBe('validation.gt:0.5');
+    expect(errorMessage(validation('less_than_equal', 'Input should be less than or equal to -1'), t)).toBe('validation.le:-1');
+    // a limit that is not a number (a date, a time): the message as it is
+    expect(errorMessage(validation('greater_than', 'Input should be greater than 2020-01-01'), t)).toBe(
+      'Input should be greater than 2020-01-01',
+    );
+    expect(errorMessage(validation('less_than', 'Input should be less than 10:30:00'), t)).toBe('Input should be less than 10:30:00');
+    // a validator of the product, a type without a text, another error: the detail
+    expect(errorMessage(validation('value_error', 'Value error, the period ends before it starts'), t)).toBe(
+      'Value error, the period ends before it starts',
+    );
+    expect(errorMessage({ status: 403, code: 'ERR_FORBIDDEN', title: 'missing', detail: 'Forbidden' }, t)).toBe('Forbidden');
+    expect(errorMessage({ status: 422, code: 'ERR_VALIDATE', title: 'missing' }, t)).toBe('validation.required');
   });
 });
 

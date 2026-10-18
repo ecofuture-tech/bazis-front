@@ -47,7 +47,7 @@ export interface ResourceForm<Saved> {
   setValue(name: string, value: unknown): void;
   /** The fields whose value differs from the initial one; only they are submitted. */
   dirty: readonly string[];
-  /** The validation errors of the last submit by field (`ApiError.fieldErrors()`). */
+  /** The validation errors of the last submit by field (`ApiError.fieldErrors()`), in the language of the interface (`useErrorMessage`). */
   errors: Readonly<Record<string, readonly string[]>>;
   /** The error of the last submit, also when it has errors by field. */
   submitError: Error | null;
@@ -157,7 +157,7 @@ export function useResourceForm(
   path: string,
   { id, fixed = NO_FIXED }: { id?: string; fixed?: FixedValues } = {},
 ): ResourceForm<unknown> {
-  const { api, scope } = useBazis();
+  const { api, scope, errorMessage } = useBazis();
   const queryClient = useQueryClient();
   const schema = useQuery(schemaQuery(api, path, id === undefined ? 'create' : 'update', id, scope));
   const item = useQuery({
@@ -214,7 +214,7 @@ export function useResourceForm(
       }));
     },
     dirty,
-    errors: submitError instanceof ApiError ? submitError.fieldErrors() : {},
+    errors: submitError instanceof ApiError ? submitError.fieldErrors(errorMessage) : {},
     submitError,
     isSubmitting: mutation.isPending,
     submit: async () => {

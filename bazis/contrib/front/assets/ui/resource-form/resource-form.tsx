@@ -22,9 +22,9 @@
 import { LoaderCircle } from 'lucide-react';
 import { useState, type ReactNode, type SubmitEvent } from 'react';
 
-import { ApiError } from '@/bazis/client';
+import { ApiError, type ErrorObject } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
-import type { CreatePath, FixedValues, ResourceForm as Form, UpdatePath } from '@/bazis/react';
+import { useErrorMessage, type CreatePath, type FixedValues, type ResourceForm as Form, type UpdatePath } from '@/bazis/react';
 import { FieldInput, isReverse, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -60,10 +60,15 @@ export type ResourceFormProps = (
  * of the request, then those of the fields that the form does not show, with their names;
  * after `form.check` when a field shows an error.
  */
-function formMessages(form: Form<unknown>, shown: ReadonlySet<string>, t: Translate): string[] {
+function formMessages(
+  form: Form<unknown>,
+  shown: ReadonlySet<string>,
+  t: Translate,
+  message: (error: ErrorObject) => string,
+): string[] {
   const error = form.submitError;
   if (!(error instanceof ApiError)) return [];
-  const general = error.formErrors().map(({ message, included, field }) => {
+  const general = error.formErrors(message).map(({ message, included, field }) => {
     if (included === null) return message;
     const index = String(included + 1);
     return field === null
@@ -121,6 +126,7 @@ export function ResourceFormBody({
   // the fields whose file uploads: the form waits for them
   const [uploading, setUploading] = useState<ReadonlySet<string>>(() => new Set());
   const { t } = useLanguage();
+  const message = useErrorMessage();
 
   if (form.status !== 'ready') {
     const state = form.status === 'loading' ? 'loading' : errorState(form.error);
@@ -141,7 +147,7 @@ export function ResourceFormBody({
     return [isFixed(name) ? { ...field, readOnly: true } : field];
   });
   const failure = form.submitError ? errorState(form.submitError) : null;
-  const messages = formMessages(form, new Set(shown.map((it) => it.name)), t);
+  const messages = formMessages(form, new Set(shown.map((it) => it.name)), t, message);
 
   const busy = form.isSubmitting || uploading.size > 0;
 

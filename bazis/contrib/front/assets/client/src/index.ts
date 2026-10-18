@@ -23,7 +23,7 @@ export type {
 } from './client.js';
 export { dispositionName, saveFile } from './download.js';
 export type { DownloadedFile } from './download.js';
-export { ApiError } from './errors.js';
+export { ApiError, errorText } from './errors.js';
 export type { ErrorObject, FormError } from './errors.js';
 export { Filter } from './filter.js';
 export type { FilterValue } from './filter.js';

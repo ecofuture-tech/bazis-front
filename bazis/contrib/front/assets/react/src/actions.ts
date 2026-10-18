@@ -28,6 +28,7 @@ import {
   type ActionName,
   type BodyOf,
   type EndpointOf,
+  type ErrorObject,
   type HttpMethod,
   type QueryParams,
   type ResponseOf,
@@ -94,7 +95,8 @@ export interface ActionHookOptions<M extends HttpMethod> {
 
 /**
  * A mutation of an action, with the errors of its body by field (`ApiError.bodyErrors()` of
- * the last call: a 422 of the validation of the body, `/<field>`); its `error` is the
+ * the last call: a 422 of the validation of the body, `/<field>`, in the language of the
+ * interface: `useErrorMessage`); its `error` is the
  * `ApiError` (`StatePanel` `errorState(error)` shows it).
  */
 export type ActionMutation<Response, Variables> = UseMutationResult<Response, Error, Variables> & {
@@ -103,8 +105,9 @@ export type ActionMutation<Response, Variables> = UseMutationResult<Response, Er
 
 function withErrors<Response, Variables>(
   mutation: UseMutationResult<Response, Error, Variables>,
+  message: (error: ErrorObject) => string,
 ): ActionMutation<Response, Variables> {
-  return { ...mutation, errors: mutation.error instanceof ApiError ? mutation.error.bodyErrors() : {} };
+  return { ...mutation, errors: mutation.error instanceof ApiError ? mutation.error.bodyErrors(message) : {} };
 }
 
 /**
@@ -116,7 +119,7 @@ export function useAction<P extends ActionPath, N extends ActionName<paths, P, M
   name: N,
   { method = 'post' as M, invalidate = true }: ActionHookOptions<M> = {},
 ): ActionMutation<ActionResponse<P, N, M>, ActionVariables<ActionBody<P, N, M>>> {
-  const { api } = useBazis();
+  const { api, errorMessage } = useBazis();
   const queryClient = useQueryClient();
   return withErrors(
     useMutation({
@@ -124,6 +127,7 @@ export function useAction<P extends ActionPath, N extends ActionName<paths, P, M
         loose(api).action(path, name, body, { method }) as Promise<ActionResponse<P, N, M>>,
       onSuccess: () => (invalidate ? invalidateResource(queryClient, path) : undefined),
     }),
+    errorMessage,
   );
 }
 
@@ -133,7 +137,7 @@ export function useItemAction<P extends ActionPath, N extends ActionName<paths, 
   name: N,
   { method = 'post' as M, invalidate = true }: ActionHookOptions<M> = {},
 ): ActionMutation<ActionResponse<P, N, M, Item>, { id: string; body?: ActionBody<P, N, M, Item> }> {
-  const { api } = useBazis();
+  const { api, errorMessage } = useBazis();
   const queryClient = useQueryClient();
   return withErrors(
     useMutation({
@@ -141,6 +145,7 @@ export function useItemAction<P extends ActionPath, N extends ActionName<paths, 
         loose(api).itemAction(path, id, name, body, { method }) as Promise<ActionResponse<P, N, M, Item>>,
       onSuccess: () => (invalidate ? invalidateResource(queryClient, path) : undefined),
     }),
+    errorMessage,
   );
 }
 

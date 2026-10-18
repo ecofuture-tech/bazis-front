@@ -59,7 +59,8 @@ export interface FormError {
   field: string | null;
 }
 
-function messageOf(error: ErrorObject): string {
+/** The text of an error as the backend gives it: its `detail`, else its `title` or its `code`. */
+export function errorText(error: ErrorObject): string {
   return error.detail ?? error.title ?? error.code ?? '';
 }
 
@@ -87,14 +88,16 @@ export class ApiError extends Error {
    * The messages of the errors of attributes and relationships of the item, by their name
    * (`source.pointer` `/data/attributes/<name>`, `/data/relationships/<name>`), for forms.
    * Errors of nested values belong to the field that contains them (the id of a related item,
-   * `/data/relationships/<name>/data/<index>/id`, to its relationship).
+   * `/data/relationships/<name>/data/<index>/id`, to its relationship). `message` gives the
+   * text of an error, `errorText` by default (`useErrorMessage` of the hooks: in the language of
+   * the interface).
    */
-  fieldErrors(): Record<string, string[]> {
+  fieldErrors(message: (error: ErrorObject) => string = errorText): Record<string, string[]> {
     const fields: Record<string, string[]> = {};
     for (const error of this.errors) {
       const name = fieldOf(error);
       if (name !== undefined) {
-        (fields[name] ??= []).push(messageOf(error));
+        (fields[name] ??= []).push(message(error));
       }
     }
     return fields;
@@ -105,14 +108,14 @@ export class ApiError extends Error {
    * (the body of a custom action, `client.action`), by their name: `source.pointer`
    * `/<name>` (an error of a nested value belongs to its field, `/<name>/0`); the others
    * (of the body as a whole, of a parameter: `/query/…`, `/header/…`, `/cookie/…`, of the
-   * request) are not given.
+   * request) are not given. `message` as in `fieldErrors`.
    */
-  bodyErrors(): Record<string, string[]> {
+  bodyErrors(message: (error: ErrorObject) => string = errorText): Record<string, string[]> {
     const fields: Record<string, string[]> = {};
     for (const error of this.errors) {
       const name = BODY_POINTER.exec(error.source?.pointer ?? '')?.[1];
       if (name !== undefined) {
-        (fields[name] ??= []).push(messageOf(error));
+        (fields[name] ??= []).push(message(error));
       }
     }
     return fields;
@@ -121,15 +124,15 @@ export class ApiError extends Error {
   /**
    * The errors that `fieldErrors()` does not give, for the form as a whole: of the item
    * (`/data`), of an included item (`/included/<index>`), of a parameter or of the request;
-   * all the errors of a relationships endpoint.
+   * all the errors of a relationships endpoint. `message` as in `fieldErrors`.
    */
-  formErrors(): FormError[] {
+  formErrors(message: (error: ErrorObject) => string = errorText): FormError[] {
     return this.errors
       .filter((error) => fieldOf(error) === undefined)
       .map((error) => {
         const included = INCLUDED_POINTER.exec(error.source?.pointer ?? '');
         return {
-          message: messageOf(error),
+          message: message(error),
           included: included ? Number(included[1]) : null,
           field: included?.[2] ?? null,
         };

@@ -125,7 +125,7 @@
       "else": {"required": ["type"], "not": {"required": ["many"]}}
     },
     "display": {
-      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a year, a code); `{currency: <ISO 4217 code>}`, a sum in the currency; `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`.",
+      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a code of five digits or more; a number below 10,000, such as a year, has none without it); `{currency: <ISO 4217 code>}`, a sum in the currency; `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`.",
       "oneOf": [
         {"enum": ["plain", "phone"]},
         {

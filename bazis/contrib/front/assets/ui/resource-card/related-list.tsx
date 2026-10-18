@@ -29,6 +29,8 @@ import type { SavedDocument } from '@/bazis/ui/resource';
 import { FormSurface, ResourceFormBody } from '@/bazis/ui/resource-form';
 import { ResourceList, type ResourceListProps } from '@/bazis/ui/resource-list';
 
+import { useHeadsScreen } from './resource-card.js';
+
 /** "Add here": the create of a related item from the card. */
 export interface RelatedAdd {
   /** The button `action:<id>` that opens the form. */
@@ -84,12 +86,13 @@ export interface RelatedListProps
 export function RelatedList({ path, entity, relation, item, itemPath, title, add, forms, ...list }: RelatedListProps) {
   const refreshCard = useRefreshItem(itemPath, item);
   const [adding, setAdding] = useState(false);
+  const Title = useHeadsScreen() ? 'h2' : 'h3';
   const close = () => {
     setAdding(false);
   };
   return (
     <section aria-label={typeof title === 'string' ? title : undefined} className="grid gap-3">
-      {title !== undefined && <h3 className="font-display text-base font-semibold">{title}</h3>}
+      {title !== undefined && <Title className="font-display text-base font-semibold">{title}</Title>}
       <ResourceList
         {...list}
         path={path}

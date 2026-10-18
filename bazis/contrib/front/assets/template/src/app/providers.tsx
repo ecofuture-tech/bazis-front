@@ -15,17 +15,20 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 
-import { followSessionLanguage, getLanguage, languageStore } from '@/app/language';
+import { followSessionLanguage, getLanguage, languageStore, t } from '@/app/language';
 import { getToken, logout, onSessionChange, useSession } from '@/app/session';
-import { ApiError, createClient } from '@/bazis/client';
+import { ApiError, createClient, type ErrorObject } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
-import { LanguageProvider } from '@/bazis/i18n';
+import { errorMessage, LanguageProvider } from '@/bazis/i18n';
 import { BazisProvider, type Api } from '@/bazis/react';
 import { MESSAGES } from '@/i18n';
 
 // The API is on the origin of the frontend: the dev server proxies /api (vite.config.ts). The
 // client sends the language of the interface (`Accept-Language`).
 const api: Api = createClient<paths>({ token: getToken, language: getLanguage });
+
+// the errors of the backend in the language of the interface (the validation of the fields)
+const describeError = (error: ErrorObject) => errorMessage(error, t);
 
 // an expired or revoked token ends the session, whether a query or a mutation finds it out
 function endSessionOn401(error: Error): void {
@@ -92,7 +95,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <LanguageProvider store={languageStore} messages={MESSAGES}>
       <QueryClientProvider client={queryClient}>
-        <BazisProvider client={api} session={session} language={language}>
+        <BazisProvider client={api} session={session} language={language} errorMessage={describeError}>
           {children}
         </BazisProvider>
       </QueryClientProvider>

@@ -350,7 +350,8 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
 
 /**
  * How the value of a field is shown (`display` of the field of an entity of the specs):
- * `plain`, a number without the separators of its thousands (a year, a code); `phone`, a
+ * `plain`, a number without the separators of its thousands (a code of five digits or more:
+ * a number below 10,000 has none anyway, a year as it is written); `phone`, a
  * phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity
  * followed by its unit; `{bar}`, a number with a bar of its share of the maximum.
  */
@@ -373,7 +374,8 @@ function formatPhone(value: string): string {
  * English by default): a choice by its label (`enumDict` of the backend, the choices of an
  * array each), else by its type and format, the numbers, the sums, the quantities and the
  * phones as `display` says and the dates with `Intl`, a point (GeoJSON) as its coordinates
- * (`formatPoint`); `—` for no value.
+ * (`formatPoint`); `—` for no value. A number is grouped by thousands from five digits
+ * (`formatNumber`: a year `2020`, `12,345`), never with `display: plain`.
  */
 export function formatValue(
   field: FormField | undefined,
@@ -399,7 +401,9 @@ export function formatValue(
     }
     return `${formatDecimal(value, language)} ${'currency' in display ? display.currency : display.unit}`;
   }
-  if (typeof value === 'number') return formatNumber(value, language, display === 'plain' ? { useGrouping: false } : undefined);
+  if (typeof value === 'number') {
+    return formatNumber(value, language, display === 'plain' ? { useGrouping: false } : undefined);
+  }
   if (typeof value === 'string') {
     if (display === 'phone') return formatPhone(value);
     const format = field?.kind === 'attribute' ? field.format : null;

@@ -27,9 +27,9 @@ import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach } from 'vitest';
 
-import { createClient } from '@/bazis/client';
+import { createClient, type ErrorObject } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
-import { createLanguageStore, LanguageProvider, type LanguageStore } from '@/bazis/i18n';
+import { createLanguageStore, errorMessage, LanguageProvider, translator, type LanguageStore } from '@/bazis/i18n';
 import { BazisProvider } from '@/bazis/react';
 
 // `getByTestId('state:loaded')` finds `data-bz="state:loaded"`, as the scenarios do
@@ -287,10 +287,15 @@ function Providers({
   const [api] = useState(() =>
     createClient<paths>({ baseUrl: BASE, fetch: backend.fetch, xhr: backend.xhr, language: store.get }),
   );
+  // the errors of the backend in the language of the store, as the template's
+  const [message] = useState(() => {
+    const t = translator(store);
+    return (error: ErrorObject) => errorMessage(error, t);
+  });
   return (
     <LanguageProvider store={store}>
       <QueryClientProvider client={queryClient}>
-        <BazisProvider client={api} session="test" language={language}>
+        <BazisProvider client={api} session="test" language={language} errorMessage={message}>
           {children}
         </BazisProvider>
       </QueryClientProvider>

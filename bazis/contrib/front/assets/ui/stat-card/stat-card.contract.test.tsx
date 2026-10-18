@@ -37,14 +37,14 @@ describe('StatCard', () => {
     expect(tile.getAttribute('data-value')).toBeNull();
     unmount();
 
-    const server = new Backend().on('GET', ITEMS, listDocument([resource('a')], { count: 1234 }));
+    const server = new Backend().on('GET', ITEMS, listDocument([resource('a')], { count: 12345 }));
     renderWithBazis(
       <StatCard id="done" path={ITEMS as never} filter={Filter.where('done', true)} label="Done" tone="success" icon={Icon} />,
       server,
     );
     const loaded = within(await screen.findByTestId('tile:done')).findByTestId('state:loaded');
-    expect((await loaded).textContent).toBe((1234).toLocaleString('en'));
-    expect(screen.getByTestId('tile:done').getAttribute('data-value')).toBe('1234');
+    expect((await loaded).textContent).toBe('12,345');
+    expect(screen.getByTestId('tile:done').getAttribute('data-value')).toBe('12345');
     // one item of the list and its pagination, filtered
     const [request] = server.requests('GET').map((it) => decodeURIComponent(it));
     expect(request).toContain('filter=done=true');

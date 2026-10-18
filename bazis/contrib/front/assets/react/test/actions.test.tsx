@@ -72,7 +72,7 @@ describe('useAction', () => {
 
   it('gives the errors of the body by field, and the error of the request', async () => {
     const backend = new Backend().on('POST', COUNT, sample.action_count_422, 422);
-    const { result } = await loaded(backend);
+    const { result, session, rerender } = await loaded(backend);
     act(() => {
       result.current.count.mutate({ priority: null });
     });
@@ -81,6 +81,10 @@ describe('useAction', () => {
     });
     expect(result.current.count.errors).toEqual({ priority: ['<detail>'] });
     expect(backend.requests()).toEqual([`POST ${COUNT}`]);
+    // in the language of the interface: `errorMessage` of the provider
+    session.errorMessage = (error) => `${error.code ?? ''}:${error.title ?? ''}`;
+    rerender();
+    expect(result.current.count.errors).toEqual({ priority: ['ERR_VALIDATE:enum'] });
 
     // an anonymous user: an error of the request, of no field
     backend.on('POST', COUNT, sample.action_count_403, 403);

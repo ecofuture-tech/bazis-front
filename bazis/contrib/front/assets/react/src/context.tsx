@@ -14,7 +14,7 @@
 
 import { createContext, use, useMemo, type ReactNode } from 'react';
 
-import type { BazisClient } from '@/bazis/client';
+import { errorText, type BazisClient, type ErrorObject } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
 
 /** The client of the backend, typed by the generated `paths`. */
@@ -25,6 +25,7 @@ interface Bazis {
   session: string;
   /** The last item of the query keys: the session and the language. */
   scope: string;
+  errorMessage: (error: ErrorObject) => string;
 }
 
 const BazisContext = createContext<Bazis | null>(null);
@@ -45,14 +46,20 @@ export interface BazisProviderProps {
    * never shown in another. None: the keys end with the session only.
    */
   language?: string | undefined;
+  /**
+   * The text of an error of the backend for the user, in the language of the interface
+   * (`errorMessage` of `@/bazis/i18n`): that of the errors of the fields of the forms and of
+   * the actions. None: the text of the backend (`errorText` of the client).
+   */
+  errorMessage?: ((error: ErrorObject) => string) | undefined;
   children: ReactNode;
 }
 
 /** Gives the hooks the client, the session and the language; inside the `QueryClientProvider`. */
-export function BazisProvider({ client, session, language, children }: BazisProviderProps) {
+export function BazisProvider({ client, session, language, errorMessage = errorText, children }: BazisProviderProps) {
   const value = useMemo(
-    () => ({ api: client, session, scope: language === undefined ? session : `${session}:${language}` }),
-    [client, session, language],
+    () => ({ api: client, session, scope: language === undefined ? session : `${session}:${language}`, errorMessage }),
+    [client, session, language, errorMessage],
   );
   return <BazisContext value={value}>{children}</BazisContext>;
 }
@@ -66,6 +73,11 @@ export function useBazis(): Bazis {
 /** The client of the backend. */
 export function useApi(): Api {
   return useBazis().api;
+}
+
+/** The text of an error of the backend for the user: `errorMessage` of `BazisProvider`. */
+export function useErrorMessage(): (error: ErrorObject) => string {
+  return useBazis().errorMessage;
 }
 
 /**
