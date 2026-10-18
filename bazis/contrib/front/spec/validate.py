@@ -451,6 +451,9 @@ def check_dictionaries(root: Path, docs: list[tuple[Document, str]], issues: Iss
 
 #: the code of the screens of the product in its frontend: `custom`, `extend`
 SCREENS_DIR = 'src/screens'
+GENERATED_DIR = f'{SCREENS_DIR}/generated'
+#: the router of the template, which imports the generated screens since they are generated
+ROUTER_TSX = 'src/app/router.tsx'
 #: the extension of a generated screen, in `<SCREENS_DIR>/<id>/`
 EXTEND_FILE = 'extend.tsx'
 EXTENSION = 'extension'
@@ -468,6 +471,19 @@ def exports(path: Path, name: str) -> bool:
     return re.search(declared, text, re.M) is not None or re.search(listed, text, re.M) is not None
 
 
+def needs_screens(frontend: Path, lock: dict) -> bool:
+    """
+    Whether the frontend lacks the generated screens that its router imports: a frontend made
+    before `bazis_front screens`, whose template is updated since (before the update, its
+    router is its own, and the screens are not generated yet).
+    """
+    router = frontend / ROUTER_TSX
+    return (
+        'screens' not in lock and router.is_file()
+        and f"from '@/{GENERATED_DIR.removeprefix('src/')}/" in router.read_text(encoding='utf-8')
+    )
+
+
 def check_screen_code(root: Path, docs: list[Document], issues: Issues, generating: bool) -> None:
     """
     The code of the screens in `frontend/src/screens/`, once the frontend exists: a `custom`
@@ -479,7 +495,8 @@ def check_screen_code(root: Path, docs: list[Document], issues: Issues, generati
     frontend = root / frontend_lock.FRONTEND_DIR
     screens, code = frontend / SCREENS_DIR, (frontend / 'src').is_dir()
     try:
-        generated = generating or 'screens' in (frontend_lock.read(frontend) or {})
+        lock = frontend_lock.read(frontend) or {}
+        generated = generating or 'screens' in lock or needs_screens(frontend, lock)
     except frontend_lock.LockError:
         # front.W001 reports it
         generated = generating

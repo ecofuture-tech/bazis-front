@@ -1340,7 +1340,9 @@ def test_the_module_of_a_custom_screen(root, module):
 def test_two_implementations_once_the_screens_are_generated(root):
     """
     S029 is told once the frontend generates its screens (the lock has `screens`), never for
-    the module of another custom screen.
+    the module of another custom screen. It is told too when the router of the template imports
+    the generated screens although the lock lacks them yet (`needs_screens`), and not while the
+    router is the product's own.
     """
     edit(root, f'{SCREENS}/draft-tasks/index.tsx', lambda d: 'export function DraftTasksScreen() {}\n')
     edit(root, LOCK, lambda d: lock('client', 'react', *HOOKS, 'template'))
@@ -1352,6 +1354,27 @@ def test_two_implementations_once_the_screens_are_generated(root):
     # the module of the custom list, in the folder of the drafts
     edit(root, f'{SCREENS}/draft-tasks/index.tsx', lambda d: 'export function TaskListScreen() {}\n')
     edit(root, LIST, lambda d: [d.update(custom={'module': '@/screens/draft-tasks', 'export': 'TaskListScreen'}), d.pop('extend')])
+    assert issues(root) == []
+
+
+def test_two_implementations_when_the_router_imports_the_generated_screens(root):
+    """
+    A router that imports `@/screens/generated` and a lock without `screens` (a frontend made
+    before `screens`, updated since): `check` tells S029 for a screen of its own; with the
+    router of the product, or a `custom` screen, it says nothing.
+    """
+    router = 'frontend/src/app/router.tsx'
+    edit(root, f'{SCREENS}/draft-tasks/index.tsx', lambda d: 'export function DraftTasksScreen() {}\n')
+    edit(root, LOCK, lambda d: lock('client', 'react', *HOOKS, 'template'))
+
+    edit(root, router, lambda d: "import { routes } from '@/screens/home';\n")
+    assert issues(root) == []
+    assert issues(root, generating=True) == [('S029', DRAFTS)]
+
+    edit(root, router, lambda d: "import { routes } from '@/screens/generated/routes';\n")
+    assert issues(root) == [('S029', DRAFTS)]
+
+    edit(root, DRAFTS, lambda d: d.update(custom=True))
     assert issues(root) == []
 
 

@@ -416,7 +416,7 @@ class Command(BaseCommand):
         update.apply(root, frontend, lock, plan)
         if spec_validate.contract_outdated(root):
             self.stdout.write(spec_validate.CONTRACT_OUTDATED)
-        if spec_screens.needs_screens(frontend, lock):
+        if spec_validate.needs_screens(frontend, lock):
             self.stdout.write(spec_screens.NEEDS_SCREENS)
         install = (
             f'`npm install` (its {update.PACKAGE_JSON} changed), ' if plan.dependencies_changed else ''

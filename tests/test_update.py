@@ -446,7 +446,7 @@ def test_update_of_a_frontend_made_before_the_screens(product):
     shutil.rmtree(product / 'frontend' / screens.GENERATED_DIR)
 
     def own_router(path, text):
-        if path != screens.ROUTER_TSX:
+        if path != validate.ROUTER_TSX:
             return text
         return ''.join(it for it in text.splitlines(keepends=True) if "from '@/screens/generated/" not in it)
 

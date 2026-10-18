@@ -732,7 +732,9 @@ an edited file (`--force` drops the edits) and `front.W010` reports it.
 `check` reports a missing module or export (S028); once the frontend generates its screens, a
 `frontend/src/screens/<id>/index.tsx` of a screen that is not custom (S029: two
 implementations; the code of an extension is `extend.tsx`; `screens` refuses it also on its
-first run, before the lock has `screens`, and `--force` does not lift it); a screen with `extend` without
+first run, before the lock has `screens`, and `--force` does not lift it; `check` tells it also
+before the lock has `screens`, once `src/app/router.tsx` imports `@/screens/generated`, and
+says nothing while the router is the product's own); a screen with `extend` without
 `export const extension` in `frontend/src/screens/<id>/extend.tsx`, or a custom screen with
 `extend` (S031: a custom screen extends itself in its own code).
 
@@ -1069,7 +1071,7 @@ warning there, never blocking `migrate` or `contract`.
 | `S026` | warning | the frontend has no home of its own: the product declares entities, and no screen has the route `/` (it leads to the first link of the navigation), the screen there is not a dashboard, or a dashboard has no tile |
 | `S027` | warning | a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them (a key of the dictionaries is in all); the frontend shows the text of another language |
 | `S028` | error | a custom screen has no code: the module of `custom` (`frontend/src/screens/<id>/index.tsx` for `custom: true`) is missing, or does not export its component |
-| `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, or `screens` is run) |
+| `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run) |
 | `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
 | `S032` | error | a custom action (`primitive: custom`) or a custom bulk action is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
@@ -3485,7 +3487,8 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
    `src/screens/<id>/index.tsx`, `{module, export}` otherwise), before `check` and
    `screens`: every screen of 0.1.0 is one. `screens` refuses a screen that has
    `src/screens/<id>/index.tsx` and no `custom` (S029) and writes nothing, also on the
-   first run. Then `e2e` and `shots` behave as before. Later, screen by screen, remove
+   first run; `check` tells it too once the router of the updated template imports the
+   generated screens. Then `e2e` and `shots` behave as before. Later, screen by screen, remove
    `custom` and the file, move its texts to the spec and run `screens` and `shots` again;
    what the specs do not say goes to `extend`.
 6. Move the links of the router to `navigation` of `product.yaml` with their `icon` and
@@ -3494,7 +3497,7 @@ cd frontend && npx tsc --noEmit && npm run lint && npm test && npm run build
    (`t('nav.tasks')`) keeps it as `label: nav.tasks` (the dictionaries `src/i18n/*.ts`
    stay), or becomes `{en: …, ru: …}`; so does the `title` of a screen (S027 warns of the
    texts that miss a language of the product).
-7. `check` has no errors. The template renders the screens of the specs
+7. `check` has no errors (S029 is among them while a screen of 0.1.0 has no `custom`). The template renders the screens of the specs
    (`src/screens/generated/`) and has no home of its own: `/` is the screen of the specs at
    `/`, else the first link of the navigation. Once the product declares its entities,
    `check` asks for a screen of the specs at `/` that is a `dashboard` with tiles (S026).

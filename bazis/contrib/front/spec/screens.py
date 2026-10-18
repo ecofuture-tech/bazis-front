@@ -63,6 +63,7 @@ from .tsx import (
 )
 from .tsx import render as printed
 from .validate import (
+    GENERATED_DIR,
     PRODUCT_FILE,
     PRODUCT_SCHEMA,
     SCREEN_SCHEMA,
@@ -77,7 +78,6 @@ from .validate import (
 )
 
 
-GENERATED_DIR = 'src/screens/generated'
 HOME_ROUTE = '/'
 
 #: the icons of the links of the navigation without one of their own or of their entity
@@ -1367,23 +1367,6 @@ def assets(rendered: dict[str, str]) -> list[str]:
     targets = {it.target: it.name for it in load_registry().values()}
     modules = {f'src/{it}' for text in rendered.values() for it in COPY.findall(text)}
     return sorted(targets[it] for it in modules if it in targets)
-
-
-#: the router of the template, which imports the generated screens since they are generated
-ROUTER_TSX = 'src/app/router.tsx'
-
-
-def needs_screens(frontend: Path, lock: dict) -> bool:
-    """
-    Whether the frontend lacks the generated screens that its router imports: a frontend made
-    before `bazis_front screens`, whose template is updated since (before the update, its
-    router is its own, and the screens are not generated yet).
-    """
-    router = frontend / ROUTER_TSX
-    return (
-        'screens' not in lock and router.is_file()
-        and f"from '@/{GENERATED_DIR.removeprefix('src/')}/" in router.read_text(encoding='utf-8')
-    )
 
 
 #: what `front.W010` and `bazis_front update` say of a frontend that `needs_screens`

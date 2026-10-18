@@ -182,7 +182,7 @@ job of CI.
   edited or missing generated screens, or the components that they import missing
   (`screens --check`, without Node and the database; only when the lock has `screens` and
   the specs have no errors), or none at all while `src/app/router.tsx` imports them
-  (`screens.needs_screens`: a frontend made before them, once `update` gave it the router of
+  (`validate.needs_screens`: a frontend made before them, once `update` gave it the router of
   the template; before, its router is its own, and generated screens would be refused
   beside its own, S029; `update` says it too). A new check id gets its pitfall in `bazis_manifest.toml`
   (`tests/test_manifest.py` checks that the ids exist).
@@ -283,7 +283,9 @@ job of CI.
   `--force`, the files of the lock outside `src/screens/generated/` are never touched, and
   the components that the code imports are copied (`copy.add_assets`). It refuses a screen that is not `custom` and has
   `src/screens/<id>/index.tsx` (S029) also on the first run, when the lock has no `screens`
-  (`validate(generating=True)`; `check` leaves it alone). `tests/test_screens.py`
+  (`validate(generating=True)`). `check` tells it from the same moment as soon as the router of the
+  frontend imports the generated screens (`validate.needs_screens`), before the lock has `screens`;
+  while the router is the product's own, `check` says nothing. `tests/test_screens.py`
   compares the screens of the sample with `tests/fixtures/screens/` (write it again with
   `BAZIS_FRONT_WRITE_FIXTURES=1`) and renders the kitchen sink of
   `tests/fixtures/kitchen-sink/` (the screens that the generator composes beyond the

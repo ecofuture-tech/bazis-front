@@ -167,7 +167,7 @@ def check_screens(app_configs, **kwargs):
     lock = frontend_lock.read_valid(frontend)
     if lock is None:
         return []
-    if screens.needs_screens(frontend, lock):
+    if validate.needs_screens(frontend, lock):
         return [Warning(screens.NEEDS_SCREENS, id='front.W010')]
     if 'screens' not in lock:
         return []

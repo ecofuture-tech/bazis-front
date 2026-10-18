@@ -552,12 +552,15 @@ def test_screens_refuse_a_screen_of_its_own_on_the_first_run_too(frontend, root)
     """
     A frontend of 0.1.0 has the code of its screens and no `screens` in its lock: `screens`
     refuses a screen that has `index.tsx` and no `custom` (S029) before it writes anything,
-    and `--force` (about the edited generated files) does not lift it; `custom` does.
+    and `--force` (about the edited generated files) does not lift it; `custom` does. `check`
+    tells it too, as the router of this frontend imports the generated screens.
     """
     own = frontend / 'src' / 'screens' / 'draft-tasks' / 'index.tsx'
     own.parent.mkdir(parents=True, exist_ok=True)
     own.write_text('export function DraftTasksScreen() {}\n', encoding='utf-8')
-    assert 'screens' not in read_lock(root) and validate(root).errors == []
+    assert 'screens' not in read_lock(root)
+    [issue] = validate(root).errors
+    assert issue.code == 'S029' and issue.file == 'spec/screens/draft-tasks.yaml'
     before = read_lock(root)
 
     for args in ((), ('--force',), ('--check',)):
