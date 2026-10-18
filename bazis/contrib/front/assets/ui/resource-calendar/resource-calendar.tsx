@@ -18,7 +18,8 @@
 // moved by `action:previous-period`, `action:next-period` and `action:today`. A day
 // `day:<YYYY-MM-DD>` has the number of its items in `data-count` and its first items
 // `row:<id>` (a cell `cell:<field>` per field of its label, a line each, after the time of a
-// date-time on the day it starts); a click on a day selects it, and
+// date-time on the day it starts, to its `end` on the same day: the start alone in a day of a
+// month, the range in its tooltip); a click on a day selects it, and
 // the list of the selected day (today at first) shows all its items, `row:<id>` again. A month
 // at the width of a phone has a dot on the days with items, which only the list of the day
 // shows: no hidden copy of a row is in the page. The filters of the user (`FilterBar` of
@@ -181,8 +182,10 @@ interface ItemProps {
   display: Readonly<Record<string, FieldDisplay>>;
   tone: Tone | undefined;
   onOpen: ((id: string) => void) | undefined;
-  /** The time of a date-time that starts on the day shown. */
+  /** The time of a date-time that starts on the day shown: its start, or its start to its end on that day. */
   time: string | undefined;
+  /** The start to the end of an item whose `time` is its start alone (a day of a month), its tooltip. */
+  range?: string | undefined;
   className?: string;
 }
 
@@ -191,7 +194,7 @@ interface ItemProps {
  * first field on a line of its own when they do not fit together, then each other field on a
  * line, each cut to the width of the item with its whole text in its title.
  */
-function Item({ item, label, meta, display, tone, onOpen, time, className }: ItemProps) {
+function Item({ item, label, meta, display, tone, onOpen, time, range, className }: ItemProps) {
   const [first, ...others] = label;
   const value = (name: string, look?: string) => (
     <span key={name} ref={titleFromText} data-bz={`cell:${name}`} className={cn('min-w-0 truncate', look)}>
@@ -201,7 +204,11 @@ function Item({ item, label, meta, display, tone, onOpen, time, className }: Ite
   const content = (
     <>
       <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-        {time !== undefined && <span className="tabular-nums">{time}</span>}
+        {time !== undefined && (
+          <span title={range} className="tabular-nums">
+            {time}
+          </span>
+        )}
         {first === undefined ? (
           <span title={itemLabel(item)} className="max-w-full min-w-0 truncate font-medium">
             {itemLabel(item)}
@@ -339,10 +346,17 @@ export function ResourceCalendar({
   const canAdd = add !== undefined && document !== undefined && permitted(document.meta, 'add');
   const selectedItems = items.get(selected) ?? [];
   const toneOf = (item: ResourceObject) => (tone && fieldValue(item, tone.field) === true ? tone.tone : undefined);
-  // the time of a date-time on the day it starts (not on the next days of an item that spans days)
-  const timeOn = (item: ResourceObject, day: string) => {
+  // the time of a date-time on the day it starts (not on the next days of an item that spans
+  // days): its start, and its range to its end on the same day; a day of a month shows the start
+  // alone, the range in its tooltip
+  const timesOn = (item: ResourceObject, day: string, compact = false): Pick<ItemProps, 'time' | 'range'> => {
     const moment = date ? null : fieldValue(item, field);
-    return typeof moment === 'string' && dayOf(moment, false) === day ? time.format(new Date(moment)) : undefined;
+    if (typeof moment !== 'string' || dayOf(moment, false) !== day) return { time: undefined };
+    const start = new Date(moment);
+    const until = end === undefined ? null : fieldValue(item, end);
+    if (typeof until !== 'string' || dayOf(until, false) !== day) return { time: time.format(start) };
+    const range = time.formatRange(start, new Date(until));
+    return compact ? { time: time.format(start), range } : { time: range };
   };
 
   function cell(day: Date) {
@@ -407,7 +421,7 @@ export function ResourceCalendar({
         {dot ? null : (
           <div className="grid min-w-0 gap-1 text-xs">
             {shown.map((item) => (
-              <Item key={item.id} item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} time={timeOn(item, key)} />
+              <Item key={item.id} item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} {...timesOn(item, key, view === 'month')} />
             ))}
             {dayItems.length > shown.length && (
               <button
@@ -549,7 +563,7 @@ export function ResourceCalendar({
               <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5 text-sm">
                 {selectedItems.map((item) => (
                   <li key={item.id}>
-                    <Item item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} time={timeOn(item, selected)} className="py-1.5" />
+                    <Item item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} {...timesOn(item, selected)} className="py-1.5" />
                   </li>
                 ))}
               </ul>

@@ -38,6 +38,7 @@ const schema = runtimeSchema(
     due: { attribute: { type: 'string', format: 'date', title: 'Due' } },
     until: { attribute: { type: 'string', format: 'date', title: 'Until' } },
     at: { attribute: { type: 'string', format: 'date-time', title: 'At' } },
+    finish: { attribute: { type: 'string', format: 'date-time', title: 'Finish' } },
   },
   { list: true },
 );
@@ -184,6 +185,43 @@ describe('ResourceCalendar', () => {
     expect(lists(server)[0]).toContain(`filter=at__gte=${start.toISOString()}&at__lt=${after.toISOString()}`);
     fireEvent.click(within(calendar).getByTestId('view:month'));
     expect(calendar.getAttribute('data-from')).toBe(iso(weekOf(new Date(2026, 9, 1))));
+  });
+
+  it('shows the time of an item to its end on the same day, its start alone in a day of a month', async () => {
+    const at = new Date(2026, 9, 15, 10, 0);
+    const finish = new Date(2026, 9, 15, 11, 30);
+    const late = new Date(2026, 9, 15, 23, 0);
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on(
+        'GET',
+        ITEMS,
+        listDocument([
+          item('a', { at: at.toISOString(), finish: finish.toISOString() }),
+          // it ends on the next day: its start alone
+          item('b', { at: late.toISOString(), finish: new Date(2026, 9, 16, 1, 0).toISOString() }),
+        ]),
+      );
+    renderWithBazis(
+      <ResourceCalendar path={ITEMS as never} entity="item" field="at" end="finish" label={['title']} views={['week', 'month']} now={now} />,
+      server,
+    );
+    const calendar = screen.getByTestId('calendar:item');
+    const time = new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' });
+    const range = time.formatRange(at, finish);
+    const day = () => within(within(calendar).getByTestId('day:2026-10-15'));
+    await waitFor(() => {
+      expect(day().getByTestId('row:a').textContent).toBe(`${range}Task a`);
+    });
+    expect(day().getByTestId('row:b').textContent).toBe(`${time.format(late)}Task b`);
+    // the list of the selected day (today) has the range too
+    const listed = within(screen.getByRole('region', { name: /October 15/ }));
+    expect(listed.getByTestId('row:a').textContent).toBe(`${range}Task a`);
+    fireEvent.click(within(calendar).getByTestId('view:month'));
+    await waitFor(() => {
+      expect(day().getByTestId('row:a').textContent).toBe(`${time.format(at)}Task a`);
+    });
+    expect(day().getByTestId('row:a').querySelector('[title]')?.getAttribute('title')).toBe(range);
   });
 
   it('shows an item that spans days on each of them', async () => {
