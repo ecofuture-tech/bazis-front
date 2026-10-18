@@ -28,6 +28,7 @@ the notification it caused.
 from django.apps import apps as global_apps
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 
 
 #: the test users of the roles of spec/product.yaml (`test_user`): the slug of the role of
@@ -71,5 +72,6 @@ def create_test_data(password: str) -> None:
     # the tasks of the previous runs: those the scenarios created, and the task of the viewer,
     # which a run may have changed
     task_model.objects.all().delete()
-    task_model.objects.create(title=TASK)
+    # due now: on the day of the run in the calendar of the tasks
+    task_model.objects.create(title=TASK, due=timezone.now())
     global_apps.get_model('notify', 'Notification').objects.filter(user__username__in=TEST_USERS).delete()

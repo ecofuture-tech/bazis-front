@@ -59,6 +59,9 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     watchers = models.ManyToManyField(
         settings.AUTH_USER_MODEL, verbose_name=_('Watchers'), blank=True, related_name='watched_tasks',
     )
+    # a date-time that the create takes: the calendar of the tasks, whose "add" starts a new
+    # task at the selected day and the user sets its time (`manager-plans-on-the-calendar`)
+    due = models.DateTimeField(_('Due'), blank=True, null=True)
 
     class Meta:
         verbose_name = _('Task')

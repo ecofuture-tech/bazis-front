@@ -44,11 +44,16 @@ the task, the scenario `manager-adds-a-watcher`; its `priority` has choices, who
 labels the runtime schemas give translated, `enumDict`, which the frontend shows, offers and
 filters by; its `location` is a geography `PointField`, GeoJSON in the API and `format: point`
 in the contract, on the map of the list of the tasks (`list.map`), written through the API by
-the scenario `manager-places-a-task` (`e2e_data` places no point); its route set
+the scenario `manager-places-a-task` (`e2e_data` places no point); its `due` is a date-time
+that the create takes, the field of the calendar of the tasks whose `add` the scenarios run
+(`e2e_data` creates the task of the viewer due now); its route set
 has the custom action `count` (`TaskRouteSet.action_count`, `POST /api/v1/tasks/task/count/`,
 a JSON body `{priority}`, 403 without a user), which queues `tasks.bg.count.CountTasks` and
 answers with the id of its task, the reference of `client.action`/`useAction` captured by
-`tests/test_react_fixture.py`; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
+`tests/test_react_fixture.py`, and the custom action of an item `escalate`
+(`POST /api/v1/tasks/task/{id}/escalate/`, a JSON body `{priority}`, high by default, with
+`access_action` change: listed in `custom_actions` of the drafts of the manager only, 403 on
+the others, `tests/test_escalate.py`), the custom actions of the specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
 `card.related` of the card of a task, added there with the task fixed, to a draft only:
 `Step.validate_item`, `tests/test_steps.py`), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
@@ -142,7 +147,10 @@ job of CI.
   out; 5: `title` of the fields, their titles in the OpenAPI, which S018 compares with
   their names, and `label` of the resources, the attributes that label an item, the groups
   of `resources.LABEL_FIELDS`, which S017 and S019 read; 6: `create` of the resources, the
-  attributes and the relationships of the request of their create route, which S034 reads).
+  attributes and the relationships of the request of their create route, which S034 reads,
+  and `custom_actions`, the routes of the kind `other` of their route set (but the ids of
+  the list of the core and the transits, `resources.NOT_CUSTOM`) with the standalone JSON
+  Schemas of their body and response, which S032 reads).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the

@@ -51,10 +51,10 @@ LABEL_FIELDS = (
 
 def resources(openapi: dict) -> dict:
     """
-    `{type: {model, route_set, path, actions, fields, label, search, create[, other_routes]}}`. A
-    resource is described by the route set the core uses as the default route of its model
-    (the last one declared); other route sets of the same model are listed in
-    `other_routes`.
+    `{type: {model, route_set, path, actions, fields, label, search, create, custom_actions[,
+    other_routes]}}`. A resource is described by the route set the core uses as the default
+    route of its model (the last one declared); other route sets of the same model are listed
+    in `other_routes`.
     """
     route_sets = _route_sets(openapi)
     models = {it['resource']: it['model'] for it in models_info()}
@@ -83,6 +83,7 @@ def resources(openapi: dict) -> dict:
             # searches (`bazis.W007` reports the others); none, a `search` is 400
             'search': route_search_fields(main_cls) if scope is not None else [],
             'create': _create_fields(openapi, main['operations']),
+            'custom_actions': _custom_actions(openapi, main['path'], main['operations']),
         }
         if others:
             entry['other_routes'] = [
@@ -279,6 +280,86 @@ def _create_fields(openapi: dict, operations: list[dict]) -> list[str]:
         name for part in ('attributes', 'relationships')
         for name in _resolve(openapi, props.get(part, {})).get('properties', {})
     )
+
+
+#: the prefix of the path of a route of an item, relative to the path of the collection
+ITEM_PREFIX = '{item_id}/'
+
+#: the routes of the kind `other` of every route set of the core and of bazis-statusy that
+#: are not actions of the product: the ids of a list (`/_id/`) and the transits, which the
+#: section `statusy` describes and the specs run with `primitive: transit`
+NOT_CUSTOM = frozenset({'action_list_id', 'action_transit'})
+
+
+def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> dict:
+    """
+    The custom actions of the route set, the operations of the kind `other` (but those of
+    `NOT_CUSTOM`), by their name in
+    `actions` (`action_<name>`, the name of `custom_actions` of bazis-permit): `name`, the part
+    of their path after the collection (`count`) or the item (`escalate` of
+    `{item_id}/escalate/`) that `client.action` and `client.itemAction` take; `item`, whether
+    it is an action of an item; `method`; `public` and `access_action` as the route declares
+    them (`access_action` null without one); `body` and `response`, the JSON Schemas of its
+    JSON body and of its successful JSON response, each standalone (the components it
+    references in its `$defs`), null without one.
+    """
+    result = {}
+    for path, item in openapi.get('paths', {}).items():
+        for method, operation in item.items():
+            meta = operation.get('x-bazis') if isinstance(operation, dict) else None
+            if (
+                not meta or meta.get('kind') != 'other' or meta['action'] in NOT_CUSTOM
+                or not any(it is operation for it in operations)
+            ):
+                continue
+            relative = path.removeprefix(collection)
+            body = operation.get('requestBody', {}).get('content', {}).get('application/json', {}).get('schema')
+            result[meta['action']] = {
+                'name': relative.removeprefix(ITEM_PREFIX).rstrip('/'),
+                'item': relative.startswith(ITEM_PREFIX),
+                'method': method,
+                'public': bool(meta.get('public')),
+                'access_action': meta.get('access_action'),
+                'body': _standalone(openapi, body) if body is not None else None,
+                'response': _response_schema(openapi, operation),
+            }
+    return result
+
+
+def _response_schema(openapi: dict, operation: dict) -> dict | None:
+    """The standalone JSON Schema of the first successful JSON response of an operation."""
+    for status in sorted(operation.get('responses', {})):
+        schema = operation['responses'][status].get('content', {}).get('application/json', {}).get('schema')
+        if status.startswith('2') and schema is not None:
+            return _standalone(openapi, schema)
+    return None
+
+
+def _standalone(openapi: dict, schema: dict) -> dict:
+    """
+    A schema of the OpenAPI as a schema of its own: its reference followed, and the
+    components that it references (`#/components/schemas/<name>`) in its `$defs`
+    (`#/$defs/<name>`), as Pydantic gives the schema of a model alone.
+    """
+    definitions: dict[str, dict] = {}
+
+    def own(node):
+        if isinstance(node, list):
+            return [own(it) for it in node]
+        if not isinstance(node, dict):
+            return node
+        result = {key: own(value) for key, value in node.items()}
+        ref = node.get('$ref')
+        if isinstance(ref, str) and ref.startswith('#/components/schemas/'):
+            name = ref.rsplit('/', 1)[-1]
+            result['$ref'] = f'#/$defs/{name}'
+            if name not in definitions:
+                definitions[name] = {}
+                definitions[name] = own(openapi['components']['schemas'][name])
+        return result
+
+    result = own(_resolve(openapi, schema))
+    return {**result, '$defs': definitions} if definitions else result
 
 
 def _labels(prop: dict, scope: QueryScope | None) -> dict:

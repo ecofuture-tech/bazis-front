@@ -29,7 +29,7 @@ export const ROUTES = {
 /** The JSON:API type of a resource. */
 export type ResourceType = keyof typeof ROUTES;
 
-/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search) and the fields that its create takes. */
+/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search), the fields that its create takes and its custom actions with the JSON Schemas of their body and response. */
 export const RESOURCES = {
   "bg.task": {
     actions: {
@@ -38,6 +38,17 @@ export const RESOURCES = {
       action_retrieve: "item",
     },
     create: [],
+    custom_actions: {
+      action_download: {
+        access_action: null,
+        body: null,
+        item: true,
+        method: "get",
+        name: "download",
+        public: false,
+        response: null,
+      },
+    },
     fields: {
       args: {
         filter: "args",
@@ -222,6 +233,71 @@ export const RESOURCES = {
       get_route_filter_fields: "schema",
     },
     create: [],
+    custom_actions: {
+      action_clear: {
+        access_action: null,
+        body: null,
+        item: false,
+        method: "post",
+        name: "clear",
+        public: false,
+        response: {
+          properties: {
+            deleted: {
+              title: "Deleted",
+              type: "integer",
+            },
+          },
+          required: [
+            "deleted",
+          ],
+          title: "ClearResult",
+          type: "object",
+        },
+      },
+      action_read_all: {
+        access_action: null,
+        body: null,
+        item: false,
+        method: "post",
+        name: "read_all",
+        public: false,
+        response: {
+          properties: {
+            read: {
+              title: "Read",
+              type: "integer",
+            },
+          },
+          required: [
+            "read",
+          ],
+          title: "ReadAllResult",
+          type: "object",
+        },
+      },
+      action_unread_count: {
+        access_action: null,
+        body: null,
+        item: false,
+        method: "get",
+        name: "unread_count",
+        public: false,
+        response: {
+          properties: {
+            unread_count: {
+              title: "Unread Count",
+              type: "integer",
+            },
+          },
+          required: [
+            "unread_count",
+          ],
+          title: "UnreadCount",
+          type: "object",
+        },
+      },
+    },
     fields: {
       action: {
         filter: "action",
@@ -310,6 +386,7 @@ export const RESOURCES = {
       "task",
       "title",
     ],
+    custom_actions: {},
     fields: {
       dt_created: {
         filter: "dt_created",
@@ -353,6 +430,7 @@ export const RESOURCES = {
       action_create: "create",
       action_delete_relationships: "relationship",
       action_destroy: "delete",
+      action_escalate: "other",
       action_list: "collection",
       action_list_id: "other",
       action_post_relationships: "relationship",
@@ -370,6 +448,7 @@ export const RESOURCES = {
     create: [
       "assignee",
       "attachment",
+      "due",
       "location",
       "priority",
       "report",
@@ -377,6 +456,110 @@ export const RESOURCES = {
       "title",
       "watchers",
     ],
+    custom_actions: {
+      action_count: {
+        access_action: null,
+        body: {
+          $defs: {
+            Priority: {
+              enum: [
+                "low",
+                "normal",
+                "high",
+              ],
+              title: "Priority",
+              type: "string",
+            },
+          },
+          description: "The tasks to count: those of a priority, all without one.",
+          properties: {
+            priority: {
+              anyOf: [
+                {
+                  $ref: "#/$defs/Priority",
+                },
+                {
+                  type: "null",
+                },
+              ],
+            },
+          },
+          title: "CountRequest",
+          type: "object",
+        },
+        item: false,
+        method: "post",
+        name: "count",
+        public: false,
+        response: {
+          description: "The task of bazis-bg that counts them (the resource `bg.task`).",
+          properties: {
+            task: {
+              title: "Task",
+              type: "string",
+            },
+          },
+          required: [
+            "task",
+          ],
+          title: "CountStarted",
+          type: "object",
+        },
+      },
+      action_escalate: {
+        access_action: "change",
+        body: {
+          $defs: {
+            Priority: {
+              enum: [
+                "low",
+                "normal",
+                "high",
+              ],
+              title: "Priority",
+              type: "string",
+            },
+          },
+          description: "The priority that the task takes: high by default.",
+          properties: {
+            priority: {
+              $ref: "#/$defs/Priority",
+              default: "high",
+            },
+          },
+          title: "EscalateRequest",
+          type: "object",
+        },
+        item: true,
+        method: "post",
+        name: "escalate",
+        public: false,
+        response: {
+          $defs: {
+            Priority: {
+              enum: [
+                "low",
+                "normal",
+                "high",
+              ],
+              title: "Priority",
+              type: "string",
+            },
+          },
+          description: "The priority of the task after the action.",
+          properties: {
+            priority: {
+              $ref: "#/$defs/Priority",
+            },
+          },
+          required: [
+            "priority",
+          ],
+          title: "Escalated",
+          type: "object",
+        },
+      },
+    },
     fields: {
       assignee: {
         filter: "assignee",
@@ -404,6 +587,13 @@ export const RESOURCES = {
         format: "date-time",
         order: "dt_updated",
         title: "Update time",
+        type: "string",
+      },
+      due: {
+        filter: "due",
+        format: "date-time",
+        order: "due",
+        title: "Due",
         type: "string",
       },
       location: {
@@ -483,6 +673,17 @@ export const RESOURCES = {
       get_route_filter_fields: "schema",
     },
     create: [],
+    custom_actions: {
+      action_download: {
+        access_action: null,
+        body: null,
+        item: true,
+        method: "get",
+        name: "download",
+        public: false,
+        response: null,
+      },
+    },
     fields: {
       extension: {
         filter: "extension",
@@ -548,6 +749,7 @@ export const RESOURCES = {
       "roles",
       "username",
     ],
+    custom_actions: {},
     fields: {
       date_joined: {
         filter: "date_joined",

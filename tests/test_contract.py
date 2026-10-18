@@ -94,8 +94,32 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert 'other_routes' not in task
     # the fields that the create takes: never a date that the backend sets (`dt_created`)
     assert task['create'] == [
-        'assignee', 'attachment', 'location', 'priority', 'report', 'status', 'title', 'watchers',
+        'assignee', 'attachment', 'due', 'location', 'priority', 'report', 'status', 'title', 'watchers',
     ]
+    # the custom actions with their schemas, standalone: of the collection (its response the
+    # id of a task of bazis-bg) and of an item (which requires the change of the item); not the
+    # ids of the list of the core or the transits of bazis-statusy (`NOT_CUSTOM`)
+    custom = task['custom_actions']
+    assert sorted(custom) == ['action_count', 'action_escalate']
+    assert resources['users.user']['custom_actions'] == {}
+    priority = {'enum': ['low', 'normal', 'high'], 'title': 'Priority', 'type': 'string'}
+    count = custom['action_count']
+    assert {key: count[key] for key in ('name', 'item', 'method', 'public', 'access_action')} == {
+        'name': 'count', 'item': False, 'method': 'post', 'public': False, 'access_action': None,
+    }
+    assert count['body']['properties'] == {'priority': {'anyOf': [{'$ref': '#/$defs/Priority'}, {'type': 'null'}]}}
+    assert count['body']['$defs'] == {'Priority': priority}
+    assert count['response']['properties'] == {'task': {'title': 'Task', 'type': 'string'}}
+    escalate = custom['action_escalate']
+    assert {key: escalate[key] for key in ('name', 'item', 'method', 'access_action')} == {
+        'name': 'escalate', 'item': True, 'method': 'post', 'access_action': 'change',
+    }
+    assert escalate['body']['properties'] == {'priority': {'$ref': '#/$defs/Priority', 'default': 'high'}}
+    # an action without a JSON response (a download of bazis-bg) or a body (a GET)
+    download = resources['bg.task']['custom_actions']['action_download']
+    assert (download['name'], download['item'], download['method'], download['body'], download['response']) == (
+        'download', True, 'get', None, None,
+    )
 
     fields = task['fields']
     assert fields['title'] == {'title': 'Title', 'type': 'string', 'filter': 'title', 'order': 'title'}
@@ -236,6 +260,7 @@ def test_a_resource_is_described_by_the_default_route_of_its_model(sample_app):
             'search': ['title'],
             # no create route: no field to create
             'create': [],
+            'custom_actions': {},
             'other_routes': [{'path': '/api/v1/archive/task/', 'route_set': 'archive.TaskRouteSet'}],
         },
     }
@@ -502,9 +527,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0011_assignee_label')
+    unapply('tasks', '0012_due')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0011_assignee_label.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0012_due.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -512,12 +537,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0011_assignee_label' in messages[0].msg
+    assert 'tasks.0012_due' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0011_assignee_label')
+    unapply('tasks', '0012_due')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )

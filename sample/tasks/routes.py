@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from bazis.contrib.permit.routes_abstract import PermitRouteBase
 from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
 from bazis.core.routes_abstract.initial import http_post
-from bazis.core.schemas.enums import RouteKind
+from bazis.core.schemas.enums import CrudAccessAction, RouteKind
 
 from .models import Task
 
@@ -34,6 +34,18 @@ class CountStarted(BaseModel):
     """The task of bazis-bg that counts them (the resource `bg.task`)."""
 
     task: str
+
+
+class EscalateRequest(BaseModel):
+    """The priority that the task takes: high by default."""
+
+    priority: Task.Priority = Task.Priority.HIGH
+
+
+class Escalated(BaseModel):
+    """The priority of the task after the action."""
+
+    priority: Task.Priority
 
 
 class TaskRouteSet(StatusyRouteSetBase):
@@ -64,6 +76,23 @@ class TaskRouteSet(StatusyRouteSetBase):
 
         task = CountTasks.delay(priority=data.priority, author=self.inject.user)
         return CountStarted(task=str(task.pk))
+
+    @http_post(
+        '/{item_id}/escalate/', response_model=Escalated, kind=RouteKind.OTHER,
+        access_action=CrudAccessAction.CHANGE,
+    )
+    def action_escalate(self, item_id: str, data: EscalateRequest, **kwargs):
+        """
+        A custom action of an item (`client.itemAction(path, id, 'escalate', body)`, the
+        action `primitive: custom` of the specs on the card, the rows and the bulk actions of
+        the tasks): sets the priority of the task. It requires the change of the item
+        (`access_action`): bazis-permit takes the item into `self.item`, locked, and answers
+        403 for a task the user may not change (the manager changes the drafts only), and
+        lists it in `custom_actions` of the item only when he may.
+        """
+        self.item.priority = data.priority
+        self.item.save()
+        return Escalated(priority=self.item.priority)
 
 
 class StepRouteSet(PermitRouteBase):
