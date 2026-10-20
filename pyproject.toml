@@ -80,7 +80,8 @@ test = [
     "bazis-users>=2.9.0",
     "bazis-authing>=2.7.0",
     "bazis-permit>=2.11.0",
-    "bazis-statusy>=2.12.0",
+    # the fixture of the hooks: the runtime schema of a list has the meta `for_transit` (2.13)
+    "bazis-statusy>=2.13.0",
     "bazis-uploadable>=2.7.0",
     "bazis-ws>=2.7.0",
     "bazis-notify>=0.1.0",

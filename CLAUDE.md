@@ -491,7 +491,10 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   hooks read and normalized so that they do not depend on the versions of Python and
   Pydantic (the keywords of the schemas the hooks read, the titles of fields only, the
   definitions renamed, fixed ids, dates and error messages):
-  `tests/test_react_fixture.py` captures them through the API and fails when they differ. After a change of the core or of bazis-statusy, write the
+  `tests/test_react_fixture.py` captures them through the API and fails when they differ, so
+  the lower bounds of the `test` extra are the versions it is captured from (bazis-statusy
+  2.13.0: the runtime schema of a list has the meta `for_transit`, which the assets do not
+  read; the `lowest-direct` job of CI installs them). After a change of the core or of bazis-statusy, write the
   fixture again with `BAZIS_FRONT_WRITE_FIXTURES=1 python -m pytest ../tests/test_react_fixture.py`
   (from `sample/`, as the other tests) and run the tests of the hooks.
 - Every query key ends with the session of `BazisProvider`, against the requests still

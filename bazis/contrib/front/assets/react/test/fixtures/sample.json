@@ -998,6 +998,18 @@
             "default": null,
             "title": "Number of elements by status"
           },
+          "for_transit": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Available transits"
+          },
           "status_allowed": {
             "anyOf": [
               {
