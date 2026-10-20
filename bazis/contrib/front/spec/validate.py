@@ -484,6 +484,34 @@ def needs_screens(frontend: Path, lock: dict) -> bool:
     )
 
 
+def check_public_routes(root: Path, product_doc: Document, docs: list[Document], issues: Issues) -> None:
+    """
+    A router that routes the generated screens (it imports `@/screens/generated/routes`) also
+    routes the public ones, `PUBLIC_ROUTES` (S048): a router of the product changed before
+    0.4.0 routes `SCREEN_ROUTES` only, and a user without a session never reaches the public
+    screens. A router that routes no generated screen is the product's own business.
+    """
+    router = root / frontend_lock.FRONTEND_DIR / ROUTER_TSX
+    if not product_doc.valid or not router.is_file():
+        return
+    roles = {it['id']: it for it in product_doc.data.get('roles', [])}
+    public = [Path(it.file).stem for it in docs if it.valid and refs.is_public(it.data, roles)]
+    module = f"@/{GENERATED_DIR.removeprefix('src/')}/routes"
+    # the names that it imports of the module of the routes, if it imports it
+    pattern = rf'''^import\s*\{{([^}}]*)\}}\s*from\s*['"]{re.escape(module)}['"]'''
+    imports = re.findall(pattern, router.read_text(encoding='utf-8'), re.M)
+    if not public or not imports or any(re.search(r'\bPUBLIC_ROUTES\b', it) for it in imports):
+        return
+    file = router.relative_to(root).as_posix()
+    issues.add(
+        Document('screens', file), (), 'S048',
+        f'{file} routes the generated screens without the public ones ({", ".join(public)}): it does not '
+        f'import `PUBLIC_ROUTES` of `{module}`, and a user without a session never reaches them.',
+        'Run `manage.py bazis_front update` and take the router of the template, or route `PUBLIC_ROUTES` '
+        'in its layout outside `RequireSession`, as the template does.',
+    )
+
+
 def check_screen_code(root: Path, docs: list[Document], issues: Issues, generating: bool) -> None:
     """
     The code of the screens in `frontend/src/screens/`, once the frontend exists: a `custom`
@@ -612,6 +640,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = Fa
     refs.check_navigation(product_doc, screens, product, contract, issues)
     refs.check_anonymous_roles(product_doc, screens, product, issues)
     check_screen_code(root, screen_docs, issues, generating)
+    check_public_routes(root, product_doc, screen_docs, issues)
     languages = product_doc.data.get('languages', []) if product_doc.valid else []
     documents = [(product_doc, PRODUCT_SCHEMA), *((it, SCREEN_SCHEMA) for it in screen_docs)]
     for doc, schema in documents:

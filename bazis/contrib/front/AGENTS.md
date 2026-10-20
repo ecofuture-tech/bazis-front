@@ -1131,6 +1131,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S045` | error | a public screen leads to a screen that is not public (`open`, `then`, a tile, the last items, a related section), or a card is in the layout of a list (its route continues the route of the list) that is not public when the card is, or public when it is not, or a public card links back to a list that is not public |
 | `S046` | error | a custom action of a public screen (`primitive: custom`) is not declared `public=True` in the contract (`public` of its `custom_actions`): bazis-permit refuses it to anonymous users. Declare it `public=True` (with its throttle) and export the contract again |
 | `S047` | warning | the product has an anonymous role that no screen lists in its `roles`: the users who do not log in have no screen |
+| `S048` | error | `src/app/router.tsx` routes the generated screens (it imports `@/screens/generated/routes`) without the public ones: it does not import `PUBLIC_ROUTES`, and a user without a session never reaches them (a router of the product changed before 0.4.0). Run `bazis_front update` and take the router of the template, or route `PUBLIC_ROUTES` in its layout outside `RequireSession`, as the template does |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -3714,7 +3715,9 @@ The API of the copies that 0.4.0 changes:
 
 - `src/app/router.tsx` of the template routes the public screens (`PUBLIC_ROUTES`, see
   [The public screens](#the-public-screens)) in the layout of the screens, outside
-  `RequireSession`: a router that the product changed conflicts once. Take the file of the
+  `RequireSession`: `update` merges a router that the product changed, with a conflict where
+  it changed the same lines (the routes, the layout), and `check` refuses one that routes the
+  generated screens without `PUBLIC_ROUTES` (S048). For a conflict, take the file of the
   template and apply the changes of the product to it again; a product that routed the
   screens of its anonymous users by hand lists the anonymous role in `roles` of their specs
   and removes its own routes and layout.
@@ -3726,7 +3729,8 @@ The API of the copies that 0.4.0 changes:
 - New errors of `check`: a scenario of an anonymous role on a screen that is not public
   (P035), a public screen that writes through the routes of the entities (S044), that leads
   to a screen that is not public (S045) or whose custom action is not `public=True` (S046),
-  and an anonymous role without a screen (S047, a warning); of `shots`, a screen that sent
+  an anonymous role without a screen (S047, a warning) and a router without the public
+  screens (S048); of `shots`, a screen that sent
   its role to the login (V020).
 
 ## API: the client

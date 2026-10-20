@@ -1221,6 +1221,16 @@ CASES = [
         [('S045', 'spec/screens/guest-task.yaml#/roles')],
     ),
     (
+        'S048',
+        # the router of a product changed before 0.4.0 routes the generated screens of a session
+        # only, not the public screen of the guests
+        {'frontend/src/app/router.tsx': lambda d: (
+            "import { BrowserRouter } from 'react-router';\n\n"
+            "import { SCREEN_ROUTES } from \"@/screens/generated/routes\";\n"
+        )},
+        [('S048', 'frontend/src/app/router.tsx')],
+    ),
+    (
         'S046',
         # the action of the guests is not declared `public=True`
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(public=False)},
@@ -1437,8 +1447,9 @@ def test_a_custom_action_of_the_toolbar_of_a_list_changes_no_item(contract):
 def layer_of(file: str) -> str:
     if file in (CONTRACT, LOCK):
         return 'contract'
-    # the dictionaries of the frontend, against the texts of the screens
-    if file.startswith(f'{I18N}/'):
+    # the dictionaries of the frontend, against the texts of the screens, and its router, against
+    # the public screens
+    if file.startswith(f'{I18N}/') or file == 'frontend/src/app/router.tsx':
         return 'screens'
     return 'product' if file == PRODUCT else file.split('/')[1]
 
@@ -1550,7 +1561,7 @@ def test_two_implementations_when_the_router_imports_the_generated_screens(root)
     assert issues(root) == []
     assert issues(root, generating=True) == [('S029', DRAFTS)]
 
-    edit(root, router, lambda d: "import { routes } from '@/screens/generated/routes';\n")
+    edit(root, router, lambda d: "import { PUBLIC_ROUTES, SCREEN_ROUTES } from '@/screens/generated/routes';\n")
     assert issues(root) == [('S029', DRAFTS)]
 
     edit(root, DRAFTS, lambda d: d.update(custom=True))

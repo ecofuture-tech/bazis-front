@@ -124,6 +124,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S045': (ERROR, 'a public screen leads to a screen that is not public (`open`, `then`, a tile, the last items, a related section), or a card is shown in the layout of a list (its route continues the route of the list) that is not public when it is, or public when it is not'),
     'S046': (ERROR, 'a custom action of a public screen (`primitive: custom`) is not declared `public=True` in the contract: bazis-permit refuses it to anonymous users'),
     'S047': (WARNING, 'the product has an anonymous role that no screen lists in its `roles`: the users who do not log in have no screen'),
+    'S048': (ERROR, 'the router of the frontend routes the generated screens (it imports `@/screens/generated/routes`) without the public ones, `PUBLIC_ROUTES`: a user without a session never reaches them'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

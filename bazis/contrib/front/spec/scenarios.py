@@ -473,9 +473,8 @@ class _Scenario:
             # a card, those of the rows as bulk actions, and those of the route set from the
             # toolbar of a list (the guest of a public screen with a public action)
             screen = self.state.screen
-            of_item = screen['primitive'] == 'card'
             self.require(
-                path, of_item or action_id not in screen.get('list', {}).get('row_actions', []),
+                path, screen['primitive'] == 'card' or action_id not in screen.get('list', {}).get('row_actions', []),
                 'A custom action of the rows of a list is run on each row: run it on the card of the item, '
                 'or as a bulk action of the list.',
             )
@@ -484,8 +483,7 @@ class _Scenario:
                 return
             if action.get('confirm'):
                 self.confirm = 'optional' if custom else 'required'
-            if of_item:
-                self.changes_item(path, 'runs a custom action on')
+            self.changes_item(path, 'runs a custom action on')
             return
         if action['primitive'] == 'destroy':
             self.confirm = 'optional' if custom else 'required'
@@ -618,13 +616,11 @@ class _Scenario:
         """
         The saved submit of the open form: a create form (of the screen, of a dashboard, of the
         add of a calendar or of "add here" of a card) makes an item, which it returns; "add here"
-        and any other form (the edit of a card, a custom action of its item) change the item of
-        the card, whose values an edit updates when the scenario created it; a custom action of
-        the toolbar of a list changes none.
+        and any other form (the edit of a card, a custom action) change the item of the card,
+        whose values an edit updates when the scenario created it (a list has no item: an action
+        of its toolbar changes none).
         """
         values, custom = self.state.values, form is not None and form.get('primitive') == 'custom'
-        if custom and (self.state.screen or {}).get('primitive') != 'card':
-            return None
         if form is not None and not custom and form.get('mode', 'create') == 'create':
             made = _Made(form.get('entity', (self.state.screen or {}).get('entity')), dict(values))
             self.made.append(made)

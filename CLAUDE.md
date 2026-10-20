@@ -227,7 +227,8 @@ job of CI.
   a text, or a map of the languages) are found in the documents by their schema
   (`validate.text_paths`) and checked against `languages` (S027); `check` also reads the
   code of the screens of the product in `frontend/src/screens/` (`custom`, `extend`: S028,
-  S029, S031).
+  S029, S031) and its router, which routes the public screens once it routes the generated
+  ones (`PUBLIC_ROUTES`: S048).
 - `spec/issues.py` has the codes (`CODES`, with their severity); a code never changes its
   meaning. A new code gets a case in `tests/test_spec.py` (`CASES` must cover every code)
   and a row in the table of `bazis/contrib/front/AGENTS.md` (tested).
