@@ -397,9 +397,11 @@ the items of its entity (a report: filter them by the fields of its `list.filter
 whose route set creates). Its `icon` is a name of lucide
 (D013), by default the icon of its entity (`icons` of theme.yaml), `square-kanban` for a
 board, `calendar-days` for a calendar, `list-filter` for a report, `house` for the home.
-A link opens a screen without an item in its route, not a form of the items (the form of a
-custom action is linked, shown to every user of the screen: it requires nothing), once
-(S030). The generated navigation is made from it (`src/screens/generated/navigation.ts`).
+A link opens a screen without an item in its route, not a form of the items, once (S030).
+The form of a custom action is linked, shown to the users whose list of its entity lists the
+action (`custom_actions`): a role whose list is refused (403) gets no link even if it may call
+the action. On a public screen it is shown at once; it takes no `requires` (S030). The
+generated navigation is made from it (`src/screens/generated/navigation.ts`).
 Without `navigation`: the home, then of each entity in the order of `entities` its list, its
 board, its calendar, its reports and the forms of its custom actions, but the screens with
 `nav: false`.
@@ -1134,7 +1136,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S027` | warning | a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them (a key of the dictionaries is in all); the frontend shows the text of another language |
 | `S028` | error | a custom screen has no code: the module of `custom` (`frontend/src/screens/<id>/index.tsx` for `custom: true`) is missing, or does not export its component |
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run) |
-| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
+| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, the form of a custom action (it requires its action, `custom_actions` of the list: remove `requires`), or `can: add` of a resource without a create route |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
 | `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
 | `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`), or two custom bulk actions of a list |
@@ -1989,7 +1991,9 @@ set of the screen) that he may view its items, `can: 'add'` add one (`useCan(pat
 'view' | 'add')` of `@/bazis/react`: the runtime schema of the list, which bazis-permit
 refuses with 403 without a permission of the model, and `for_create` of a list of one item
 (the runtime schema of the create without that meta); the screens read the same schema of
-the list, so a user who may not add is told so without a refused request), `filters`
+the list, so a user who may not add is told so without a refused request), `can:
+'action_<name>'` call a custom action of the collection (`custom_actions` of a list of one
+item: the link of the form of the action, hidden when the list is refused), `filters`
 that the backend lets him filter its list by these fields (`route_filter_fields/`: a
 report by a field hidden from him). A link without `requires` is always shown.
 
@@ -2309,11 +2313,12 @@ answer of the action has them, a `response_model`), with a link to the screen `t
 Without a `result`, the action is done with a toast and the screen `then` is shown; a form of
 an action has one of them. `then` is a screen without an item (the action saves none, S006).
 It reads no runtime schema, only the contract: on a public screen it is the form of a guest,
-whose action is declared `public=True` (S046), and the navigation links it as a list, without
-`requires`. Its scenario fills the properties it asks for (P023) and expects the result:
+whose action is declared `public=True` (S046), and the navigation links it at once; on
+another screen its link requires the action (`can: 'action_<name>'`, "The navigation follows
+the backend"). Its scenario fills the properties it asks for (P023) and expects the result:
 
 ```yaml
-# spec/screens/suggest-task.yaml
+# a public form whose body also takes an assignee (that of the sample takes `title` only)
 id: suggest-task
 title: {en: Suggest a task, ru: Предложить задачу}
 route: /suggest
@@ -4955,7 +4960,7 @@ Its props, `ScreenProps`:
 `interface NavRequirement`: What the backend must let the user do for a link to be shown, read from the runtime (the frontend never decides by his role; the backend checks every request anyway).
 
 - `path: string`: The route set of the screen (`ROUTES` of the contract).
-- `can?: Can`: View its items (its list), the default, or add one: `useCan` of `@/bazis/react`.
+- `can?: Can`: View its items (its list), the default, add one, or call a custom action of the collection (`'action_<name>'`: the link of the form of the action): `useCan` of `@/bazis/react`.
 - `filters?: readonly string[]`: Fields that the user may filter its list by (`route_filter_fields/`): the link of a report filtered by a field that his field permissions hide, whose filter the backend answers with 400.
 
 #### ScreenPage

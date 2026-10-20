@@ -720,9 +720,10 @@ def check_navigation(
 ) -> None:
     """
     The navigation of product.yaml: each link opens a screen of the specs without an item, not
-    a form, without `nav: false`, linked once, what it `requires` the backend allows on the
-    items of the entity of its screen (one with an entity; `can: add` of a resource with a
-    create route in the contract), and each group is declared once (S030); their icons are
+    a form of the items, without `nav: false`, linked once, what it `requires` the backend
+    allows on the items of the entity of its screen (one with an entity, not the form of a
+    custom action, which requires its action; `can: add` of a resource with a create route in
+    the contract), and each group is declared once (S030); their icons are
     those of lucide-react (D013). A screen that does not follow its schema is accepted
     unchecked.
     """
@@ -800,6 +801,14 @@ def _check_requires(
     issues: Issues,
 ) -> None:
     if screen is None:
+        return
+    if action_form(screen) is not None:
+        issues.add(
+            doc, path, 'S030',
+            f'The link of the form of a custom action `{link["screen"]}` requires its action (`custom_actions` '
+            'of the list), nothing on a public screen.',
+            'Remove `requires`.',
+        )
         return
     if 'entity' not in screen:
         issues.add(

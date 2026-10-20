@@ -102,7 +102,10 @@ function navLinks(entries: readonly NavEntry[]): readonly NavItem[] {
 export interface NavRequirement {
   /** The route set of the screen (`ROUTES` of the contract). */
   path: string;
-  /** View its items (its list), the default, or add one: `useCan` of `@/bazis/react`. */
+  /**
+   * View its items (its list), the default, add one, or call a custom action of the collection
+   * (`'action_<name>'`: the link of the form of the action): `useCan` of `@/bazis/react`.
+   */
   can?: Can;
   /**
    * Fields that the user may filter its list by (`route_filter_fields/`): the link of a

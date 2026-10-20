@@ -912,19 +912,20 @@ CASES = [
         'S030',
         # what the backend allows required of the home, which has no entity; the card of an item
         # in a group, a group declared twice with a screen linked twice, an unknown screen, the
-        # board with `nav: false`
+        # board with `nav: false`; the form of a custom action with a requirement of its own
         {PRODUCT: lambda d: d.update(navigation=[
             {'screen': 'home', 'requires': {'can': 'view'}},
             {'group': 'tasks', 'title': 'list.actions', 'items': [{'screen': 'task-list'}, {'screen': 'task-card'}]},
             {'group': 'tasks', 'title': 'list.actions', 'items': [{'screen': 'draft-tasks'}, {'screen': 'task-list'}]},
             {'screen': 'reports'},
             {'screen': 'task-board'},
+            {'screen': 'suggest-task', 'requires': {'can': 'add'}},
         ]),
          BOARD: lambda d: d.update(nav=False)},
         [('S030', f'{PRODUCT}#/navigation/0/requires'),
          ('S030', f'{PRODUCT}#/navigation/1/items/1/screen'), ('S030', f'{PRODUCT}#/navigation/2/group'),
          ('S030', f'{PRODUCT}#/navigation/2/items/1/screen'), ('S030', f'{PRODUCT}#/navigation/3/screen'),
-         ('S030', f'{PRODUCT}#/navigation/4/screen')],
+         ('S030', f'{PRODUCT}#/navigation/4/screen'), ('S030', f'{PRODUCT}#/navigation/5/requires')],
     ),
     (
         'S031',

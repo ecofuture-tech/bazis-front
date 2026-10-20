@@ -266,7 +266,8 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
     text; a calendar with its add and its tone; a dashboard of two entities, a tile with its
     own icon, the aggregates of a tile and of a chart; forms that show a screen without an item after them, whose code takes no saved
-    item; the form of a custom action without a result, then a list; a plain card, whose code uses no navigation, no translation and no item (the lint of
+    item; the form of a custom action without a result, then a list, linked once the backend
+    lists its action; a plain card, whose code uses no navigation, no translation and no item (the lint of
     the frontend job refuses them unused).
     """
     kitchen_sink(tmp_path)
@@ -284,6 +285,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     ))
     edit_screen(tmp_path, 'task-flow', lambda data: data['board']['card'].update(badge='urgent'))
     edit_screen(tmp_path, 'user-schedule', lambda data: data['calendar'].update(tone={'field': 'urgent', 'tone': 'danger'}))
+    edit_product(tmp_path, lambda data: data['navigation'].append({'screen': 'task-suggestion'}))
     files = rendered(tmp_path)
     places = files[f'{screens.GENERATED_DIR}/task-places.tsx']
     assert '        {...createForm}\n' in places
@@ -345,6 +347,10 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "            submitLabel: t('screens.task-suggestion.form.submit'),\n" in suggestion
     assert "            onDone: () => void navigate(routeTo('task-list')),\n" in suggestion
     assert 'result' not in suggestion and 'requires' not in suggestion
+    # its link is shown to whom the backend lists the action; that of a public form, at once
+    navigation = files[f'{screens.GENERATED_DIR}/navigation.ts']
+    assert "      requires: { path: ENTITIES.task.path, can: 'action_suggest' },\n" in navigation
+    assert "{ screen: 'suggest-task', label: t('screens.suggest-task.title'), to: '/suggest', icon: SendIcon, public: true }," in navigation
 
     # a board without `move` is not in `BoardDnd`; its badge, some of its columns, its empty text
     flow = files[f'{screens.GENERATED_DIR}/task-flow.tsx']

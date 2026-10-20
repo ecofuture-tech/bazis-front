@@ -83,7 +83,7 @@
       "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
     },
     "nav_link": {
-      "description": "The link of a screen (`nav:<screen>`), labelled by its `label`, else by the title of the screen. It is shown to the users whom the backend lets view the items of the route set of its entity (and filter them by the fields of `list.filter` of a report); `requires.can: add` asks that they may add one too.",
+      "description": "The link of a screen (`nav:<screen>`), labelled by its `label`, else by the title of the screen. It is shown to the users whom the backend lets view the items of the route set of its entity (and filter them by the fields of `list.filter` of a report); `requires.can: add` asks that they may add one too. The link of the form of a custom action is shown to the users whose list of its entity lists the action (`custom_actions`), at once on a public screen; it takes no `requires` (S030).",
       "type": "object",
       "additionalProperties": false,
       "required": ["screen"],

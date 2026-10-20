@@ -39,7 +39,8 @@ from .resources import resources
 #: resource, `label`; 6: the fields that the create route of a resource takes, `create`,
 #: and its custom actions, `custom_actions`; 7: whether a custom action is open to anonymous
 #: users, `public`; 8: the format `decimal` of the attributes of a `DecimalField`; 9: the
-#: decimal places of such an attribute, `places`
+#: decimal places of such an attribute, `places`, and the JSON Schema of the JSON answer of
+#: a custom action, `custom_actions[].response`
 CONTRACT_FORMAT = 9
 
 #: the directory of the contract in the product root

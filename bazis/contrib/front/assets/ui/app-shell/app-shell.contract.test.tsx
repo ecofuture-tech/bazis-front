@@ -29,7 +29,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { THEME } from '@/bazis/generated/theme';
 import { AppShell, ListCardLayout, Screen, setColorMode, useNavItems } from '@/bazis/ui/app-shell';
-import { Backend, errors, ITEMS, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 const items = [
   { screen: 'home', label: 'Home', to: '/', end: true },
@@ -116,6 +116,36 @@ describe('AppShell', () => {
     expect(screen.queryByTestId('nav:item-list')).toBeNull();
     // no filter fields are read for a link without `filters`
     expect(server.requests('GET')).not.toContain(`GET ${ITEMS}route_filter_fields/`);
+  });
+
+  it('shows the link of the form of a custom action once the backend lists the action, never when it refuses the list', async () => {
+    const links = [
+      { screen: 'home', label: 'Home', to: '/', end: true },
+      { screen: 'item-export', label: 'Export', to: '/export', requires: { path: ITEMS, can: 'action_export' as const } },
+      { screen: 'item-import', label: 'Import', to: '/import', requires: { path: ITEMS, can: 'action_import' as const } },
+      { screen: 'item-new', label: 'New item', to: '/items/new', requires: { path: ITEMS, can: 'add' as const } },
+    ];
+    const shell = (
+      <AppShell title="Product" navigation="sidebar" items={links}>
+        <Screen id="home">home</Screen>
+      </AppShell>
+    );
+    const listed = new Backend().on('GET', ITEMS, listDocument([], { meta: { custom_actions: ['action_export'] } }));
+    const first = renderWithBazis(shell, listed);
+    expect(await screen.findByTestId('nav:item-export')).toBeTruthy();
+    expect(screen.queryByTestId('nav:item-import')).toBeNull();
+    first.unmount();
+
+    // a role that may not view the items gets no link of the action, even one it may call
+    const refused = new Backend()
+      .on('GET', ITEMS, errors(403), 403)
+      .on('GET', `${ITEMS}schema_create/`, { title: 'create' });
+    renderWithBazis(shell, refused);
+    await waitFor(() => {
+      expect(refused.requests('GET').some((it) => decodeURIComponent(it).includes('custom_actions'))).toBe(true);
+    });
+    expect(await screen.findByTestId('nav:item-new')).toBeTruthy();
+    expect(screen.queryByTestId('nav:item-export')).toBeNull();
   });
 
   const grouped = [
