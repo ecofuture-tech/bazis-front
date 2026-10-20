@@ -37,6 +37,7 @@ import yaml
 
 from bazis.contrib.front.checks import check_screens
 from bazis.contrib.front.spec import screens
+from bazis.contrib.front.spec.refs import parent
 from bazis.contrib.front.spec.validate import validate
 from bazis.contrib.front.vendor.lock import digest
 
@@ -65,6 +66,13 @@ def generate(*args) -> str:
 
 def edit_screen(root: Path, screen_id: str, change) -> None:
     path = root / 'spec' / 'screens' / f'{screen_id}.yaml'
+    data = yaml.safe_load(path.read_text(encoding='utf-8'))
+    change(data)
+    path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding='utf-8')
+
+
+def edit_product(root: Path, change) -> None:
+    path = root / 'spec' / 'product.yaml'
     data = yaml.safe_load(path.read_text(encoding='utf-8'))
     change(data)
     path.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding='utf-8')
@@ -481,7 +489,16 @@ def test_the_routes_of_the_home(tmp_path):
     edit_screen(tmp_path, 'home', lambda data: data.update(route='/home'))
     routes = rendered(tmp_path)[f'{screens.GENERATED_DIR}/routes.tsx']
     assert "import { Navigate, Route } from 'react-router';\n" in routes
-    assert '    <Route index element={<Navigate to="/home" replace />} />\n' in routes
+    redirect = '    <Route index element={<Navigate to="/home" replace />} />\n'
+    # among the routes of a session, as the home is
+    assert routes.index(redirect) > routes.index('export const SCREEN_ROUTES')
+
+    # the first link a public screen: among the public routes, a user without a session lands there
+    edit_product(tmp_path, lambda data: data['navigation'].insert(0, data['navigation'].pop()))
+    routes = rendered(tmp_path)[f'{screens.GENERATED_DIR}/routes.tsx']
+    redirect = '    <Route index element={<Navigate to="/public" replace />} />\n'
+    assert routes.index('export const PUBLIC_ROUTES') < routes.index(redirect) < routes.index('export const SCREEN_ROUTES')
+    edit_product(tmp_path, lambda data: data['navigation'].append(data['navigation'].pop(0)))
 
     edit_screen(tmp_path, 'task-list', lambda data: data.update(route='/'))
     edit_screen(tmp_path, 'task-card', lambda data: data.update(route='/:id'))
@@ -489,6 +506,27 @@ def test_the_routes_of_the_home(tmp_path):
     assert 'Navigate' not in routes and ' index' not in routes
     assert '    <Route path="/" element={<ListCardLayout list={<TaskListScreen />} />}>\n' in routes
     assert '      <Route path="/:id" element={<TaskCardScreen />} />\n' in routes
+
+
+def test_a_card_links_back_to_a_list_as_public_as_it():
+    """
+    A card outside the layout of a list links back to a list that opens it, one as public as
+    the card first (a guest is never sent to the login), then one without a filter; the list
+    in whose layout it is, whatever the others.
+    """
+    roles = {'visitor': {'id': 'visitor', 'anonymous': True}, 'manager': {'id': 'manager'}}
+    card = {'id': 'task', 'route': '/task/:id', 'primitive': 'card', 'roles': ['visitor']}
+    closed = {'id': 'a-list', 'route': '/a', 'primitive': 'list', 'roles': ['manager'], 'list': {'open': 'task'}}
+    public = {
+        'id': 'b-list', 'route': '/b', 'primitive': 'list', 'roles': ['visitor'],
+        'list': {'open': 'task', 'filter': {'priority': 'high'}},
+    }
+    every = {it['id']: it for it in (closed, public)}
+    assert parent(card, {**every, 'task': card}, roles) is public
+    of_session = {**card, 'roles': ['manager']}
+    assert parent(of_session, {**every, 'task': of_session}, roles) is closed
+    hosted = {**card, 'route': '/a/:id'}
+    assert parent(hosted, {**every, 'task': hosted}, roles) is closed
 
 
 @pytest.mark.django_db

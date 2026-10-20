@@ -1205,6 +1205,22 @@ CASES = [
         [('S045', f'{PUBLIC}#/list/open')],
     ),
     (
+        'S045',
+        # a public card outside the layout of a list (its route continues none) links back to
+        # the list that opens it, which is of a session
+        {'spec/screens/guest-task.yaml': lambda d: {
+             'spec': 'bazis-screen/1', 'id': 'guest-task', 'route': '/guest-task/:id', 'entity': 'task',
+             'primitive': 'card', 'roles': ['visitor'], 'card': {'sections': [{'id': 'main', 'fields': ['title']}]},
+             'states': ['loading', 'error', 'forbidden', 'not_found'],
+         },
+         'spec/screens/all-tasks.yaml': lambda d: {
+             'spec': 'bazis-screen/1', 'id': 'all-tasks', 'route': '/all-tasks', 'entity': 'task',
+             'primitive': 'list', 'roles': ['manager'], 'list': {'columns': ['title'], 'open': 'guest-task'},
+             'states': ['loading', 'empty', 'error', 'forbidden'],
+         }},
+        [('S045', 'spec/screens/guest-task.yaml#/roles')],
+    ),
+    (
         'S046',
         # the action of the guests is not declared `public=True`
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(public=False)},
@@ -1400,6 +1416,22 @@ def test_an_anonymous_role_logs_in_as_nobody(contract):
     edit(root, PRODUCT, lambda d: [d['roles'][2].pop('test_user'), d['roles'][2].pop('anonymous'),
                                    d['roles'][2].pop('permit')])
     assert ('P002', f'{PRODUCT}#/roles/2') in issues(root)
+
+
+@pytest.mark.django_db
+def test_a_custom_action_of_the_toolbar_of_a_list_changes_no_item(contract):
+    """
+    The guest of the sample runs `suggest`, a custom action of the route set, from the toolbar
+    of the public list: it changes no item, so no P033 as for one of the item of a card; an
+    action of the rows of a list is still run on its card or as a bulk action (P022).
+    """
+    root = contract.parent.parent
+    suggests = read(root / PRODUCT)['scenarios'][18]
+    assert suggests['id'] == 'visitor-suggests-a-task'
+    assert suggests['steps'][1] == {'action': 'suggest'}
+    assert issues(root) == []
+    edit(root, PUBLIC, lambda d: d['list'].update(row_actions=['suggest']))
+    assert ('P022', f'{PRODUCT}#/scenarios/18/steps/1/action') in issues(root)
 
 
 def layer_of(file: str) -> str:

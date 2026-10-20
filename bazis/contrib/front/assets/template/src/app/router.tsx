@@ -43,9 +43,10 @@ function publicLinks(entries: readonly NavEntry[]): NavEntry[] {
 
 /**
  * The layout of the application (a sidebar or a top bar, `navigation` of spec/design/theme.yaml)
- * around the screens. With a session: every link, the logout and the tools (the notifications,
- * the live queries). Without one: the links of the public screens and the sign-in, which comes
- * back here after the login. Without a login (no bazis-users) every screen is open.
+ * around every screen, public or not, so that it stays mounted between them. With a session:
+ * every link, the logout and the tools (the notifications, the live queries). Without one: the
+ * links of the public screens and the sign-in, which comes back here after the login. Without a
+ * login (no bazis-users) every screen is open.
  */
 function Layout() {
   const token = useToken();
@@ -85,7 +86,7 @@ function RequireSession() {
     const from = location.pathname + location.search;
     return <Navigate to="/login" replace state={{ from }} />;
   }
-  return <Layout />;
+  return <Outlet />;
 }
 
 export function AppRouter() {
@@ -103,9 +104,11 @@ export function AppRouter() {
               }
             />
           )}
-          {/* the public screens (an anonymous role of the specs), with or without a session */}
-          <Route element={<Layout />}>{PUBLIC_ROUTES}</Route>
-          <Route element={<RequireSession />}>{SCREEN_ROUTES}</Route>
+          <Route element={<Layout />}>
+            {/* the public screens (an anonymous role of the specs), with or without a session */}
+            {PUBLIC_ROUTES}
+            <Route element={<RequireSession />}>{SCREEN_ROUTES}</Route>
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

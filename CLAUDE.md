@@ -127,7 +127,8 @@ it uses (`src/i18n/`) and
 language, the card read again after a step is added in the section after it, a row found by
 the label of a related item read after the rows (`late-labels.spec.ts`), the layout with the styles of a product, `layout.spec.ts`: the foot of the sidebar
 with the tools of the sample, the filters of the list of the tasks, a date range among
-them, at the width of a phone, and a long title that no screen lets widen the page), copied over a frontend made from the sample by the `e2e`
+them, at the width of a phone, and a long title that no screen lets widen the page; the public screen of the guest, its sign-in
+and the layout kept across it and a screen of a session, `public.spec.ts`), copied over a frontend made from the sample by the `e2e`
 job of CI.
 
 ### The contract export

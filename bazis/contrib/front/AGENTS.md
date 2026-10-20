@@ -1796,7 +1796,8 @@ the list or in its place (`composition.list_card` of the theme):
 public when one of its `roles` is an anonymous role of `spec/product.yaml` (`anonymous:
 true`), and its route is in `PUBLIC_ROUTES`, outside `RequireSession`, which sends a user
 without a session to the login. The specs say nothing else (no key `public`): a screen
-without `roles` is never public. The layout is the same `AppShell`: with a session, every
+without `roles` is never public. The layout is the same `AppShell`, one route around every
+screen (`RequireSession` within it), mounted once across them: with a session, every
 link, the logout and the tools; without one (`session={null}`), only the links of the
 public screens (`public: true` of their `NavItem`, a group with its public links), no tools
 (the notifications and the live queries need a session) and the sign-in `action:sign-in`
