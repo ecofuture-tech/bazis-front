@@ -104,6 +104,43 @@ def index(doc: Document, items: list[dict], path: tuple, kind: str, issues: Issu
     return result
 
 
+def is_public(screen: dict, roles: dict[str, dict]) -> bool:
+    """
+    Whether a screen is public: one of its `roles` is an anonymous role of product.yaml
+    (`roles`, by id). The frontend routes it outside the screens of a session
+    (`PUBLIC_ROUTES`); a screen without `roles` is never public.
+    """
+    return any(roles.get(it, {}).get('anonymous') for it in screen.get('roles', []))
+
+
+def host(card: dict, screens: dict[str, dict | None]) -> dict | None:
+    """
+    The list in whose layout a card is shown, beside it or in its place: the route of the
+    card is `<its route>/:id`.
+    """
+    return next(
+        (
+            it for it in screens.values()
+            if it is not None and it['primitive'] == 'list' and f'{it["route"].rstrip("/")}/:id' == card['route']
+        ),
+        None,
+    )
+
+
+def parent(card: dict, screens: dict[str, dict | None], roles: dict[str, dict]) -> dict | None:
+    """
+    The screen that a card links back to: its host, else the first list that opens it, one
+    as public as the card first, then one without a filter.
+    """
+    public = is_public(card, roles)
+    opening = [
+        it for it in screens.values()
+        if it is not None and it['primitive'] == 'list' and it['list'].get('open') == card['id']
+    ]
+    opening.sort(key=lambda it: (is_public(it, roles) != public, 'filter' in it['list']))
+    return host(card, screens) or (opening[0] if opening else None)
+
+
 def statusy_model(contract: dict, resource: str) -> dict | None:
     return (contract['capabilities'].get('statusy') or {}).get('models', {}).get(resource)
 
@@ -686,6 +723,25 @@ def check_navigation(
                 _check_requires(doc, (*path, 'requires'), link, screens.get(link['screen']), product, contract, issues)
 
 
+def check_anonymous_roles(doc: Document, screens: dict[str, dict | None], product: Product | None, issues: Issues) -> None:
+    """
+    Each anonymous role of product.yaml has a screen, one that lists it in its `roles` (S047);
+    not told while a screen does not follow its schema.
+    """
+    if product is None or None in screens.values():
+        return
+    used = {role for screen in screens.values() for role in screen.get('roles', [])}
+    for i, role in enumerate(doc.data.get('roles', [])):
+        if role.get('anonymous') and role['id'] not in used:
+            issues.add(
+                doc, ('roles', i), 'S047',
+                f'No screen lists the anonymous role `{role["id"]}` in its `roles`: the users who do not log in '
+                'have no screen.',
+                f'List `{role["id"]}` in `roles` of the screens of the guests (they are public, outside the '
+                'screens of a session), or remove the role.',
+            )
+
+
 def _check_link(
     doc: Document, path: tuple, screen_id: str, screens: dict[str, dict | None], linked: set[str], issues: Issues
 ) -> None:
@@ -814,6 +870,10 @@ def _check_screen(
                 doc, ('roles', i), 'S005', f'The role `{role}` is not in spec/product.yaml.',
                 'Use the id of a role of `roles`.',
             )
+    public = is_public(data, product.roles)
+    if public:
+        _check_public_writes(doc, issues)
+    _check_layers(doc, public, product, screens, issues)
     if primitive == 'dashboard':
         _check_dashboard(doc, product, screens, contract, issues)
         return
@@ -834,10 +894,79 @@ def _check_screen(
             _check_calendar_add(doc, section, entity, resource, issues)
         _check_queries(doc, (primitive,), section, entity, resource, issues)
         if primitive in ('list', 'card'):
-            _check_custom_actions(doc, entity, resource, issues)
+            _check_custom_actions(doc, entity, resource, public, issues)
         _check_filter_route(doc, primitive, section, entity, resource, product, issues)
         _check_search_contract(doc, entity, resource, contract, issues)
     _check_related_sections(doc, entity, product, screens, contract, issues)
+
+
+def _check_public_writes(doc: Document, issues: Issues) -> None:
+    """
+    A public screen does not create, change or delete through the routes of the entities
+    (S044): bazis-permit refuses them to anonymous users whatever their roles; a guest writes
+    through a custom action declared `public=True` (S046).
+    """
+    data = doc.data
+    primitive = data['primitive']
+    section = data[primitive]
+    writes = [(('primitive',), 'is a form')] if primitive == 'form' else []
+    writes += [
+        (path, f'has the {"deletion" if it["primitive"] == "destroy" else "form"} `{it["id"]}`')
+        for path, it in screen_actions(data) if it['primitive'] in ('form', 'destroy')
+    ]
+    if primitive == 'card' and section.get('edit'):
+        writes.append((('card', 'edit'), 'edits its item'))
+    writes += [
+        (('card', 'related', i, 'add'), f'adds the related items of `{it["id"]}`')
+        for i, it in enumerate(related_sections(data)) if 'add' in it
+    ]
+    if primitive == 'calendar' and 'add' in section:
+        writes.append((('calendar', 'add'), 'adds an item on a day'))
+    if primitive == 'list' and 'bulk' in section:
+        writes.append((('list', 'bulk'), 'has bulk actions'))
+    if primitive == 'board' and section.get('move'):
+        writes.append((('board', 'move'), 'moves the items between its columns'))
+    for path, what in writes:
+        issues.add(
+            doc, path, 'S044',
+            f'The public screen {what}: bazis-permit refuses to anonymous users every create, change and '
+            'deletion through the routes of the entities.',
+            'Remove it, or let the guests do it with a custom action of the route set declared `public=True` '
+            '(`primitive: custom`); or remove the anonymous role from `roles` if the screen is not for them.',
+        )
+
+
+def _check_layers(doc: Document, public: bool, product: Product, screens: dict, issues: Issues) -> None:
+    """
+    The screens that a public screen leads to are public (S045): an anonymous user is sent
+    to the login by the others. A card is in the layout of its list (`host`) when both are
+    public or neither, and a public card links back to a public list.
+    """
+    data = doc.data
+    hint = 'List an anonymous role in `roles` of both screens, or of neither.'
+    if public:
+        for path, target_id, _ in _targets(data):
+            if (target := screens.get(target_id)) is not None and not is_public(target, product.roles):
+                issues.add(
+                    doc, path, 'S045',
+                    f'The public screen leads to `{target_id}`, which is not public: an anonymous user is sent '
+                    'to the login.', hint,
+                )
+    if data['primitive'] != 'card':
+        return
+    if (layout := host(data, screens)) is not None and is_public(layout, product.roles) != public:
+        issues.add(
+            doc, ('route',), 'S045',
+            f'The card is shown in the layout of the list `{layout["id"]}` (its route continues the route of '
+            f'the list), which is {"not " if public else ""}public, and the card is {"" if public else "not "}public.',
+            hint,
+        )
+    elif public and (back := parent(data, screens, product.roles)) is not None and not is_public(back, product.roles):
+        issues.add(
+            doc, ('roles',), 'S045',
+            f'The public card links back to `{back["id"]}`, the list that opens it, which is not public.',
+            'Open the card from a public list too, or list an anonymous role in `roles` of the list.',
+        )
 
 
 def _screen_entity(doc: Document, path: tuple, entity_id: str, product: Product, issues: Issues) -> Entity | None:
@@ -999,7 +1128,7 @@ def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
             _check_bulk_transit(doc, ('list', 'bulk', i, 'transit'), action['transit'], entity, issues)
 
 
-def _check_custom_actions(doc: Document, entity: Entity, resource: dict, issues: Issues) -> None:
+def _check_custom_actions(doc: Document, entity: Entity, resource: dict, public: bool, issues: Issues) -> None:
     """
     The custom actions of a list or a card, and the custom bulk actions of a list, against the
     resource of the contract (S032): a custom action of its route set declared with POST (one
@@ -1008,7 +1137,7 @@ def _check_custom_actions(doc: Document, entity: Entity, resource: dict, issues:
     bulk action, one that requires nothing of the item but what a list tells of each row (its
     view, its change or its delete); the fields that its dialog asks for are properties of its body, and
     the body needs nothing else (a property that the body requires is among them; a bulk action
-    asks for none).
+    asks for none). On a public screen, one declared `public=True` (S046).
     """
     data = doc.data
     # where each runs: on an item (a card, the rows of a list, a bulk action) or on the route
@@ -1050,6 +1179,14 @@ def _check_custom_actions(doc: Document, entity: Entity, resource: dict, issues:
         if problem:
             issues.add(doc, (*path, 'action'), 'S032', problem, hint)
             continue
+        if public and where != 'bulk' and not action['public']:
+            issues.add(
+                doc, (*path, 'action'), 'S046',
+                f'The custom action `{name}` of the public screen is not declared `public=True`: bazis-permit '
+                'refuses it to anonymous users.',
+                f'Declare it with `public=True` (a throttle limits it: BAZIS_THROTTLE_PUBLIC) and {EXPORT_HINT}; '
+                'or remove the action from the public screen.',
+            )
         body = action['body'] or {}
         properties = body.get('properties', {})
         for i, prop in enumerate(fields or []):

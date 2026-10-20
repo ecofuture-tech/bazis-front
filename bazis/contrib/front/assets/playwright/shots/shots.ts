@@ -14,6 +14,10 @@ export const PRODUCT = {
     viewer: {
       username: "viewer",
     },
+    visitor: {
+      anonymous: true,
+      username: null,
+    },
   },
   screens: {
     "draft-tasks": {
@@ -21,6 +25,9 @@ export const PRODUCT = {
     },
     home: {
       route: "/",
+    },
+    "public-tasks": {
+      route: "/public",
     },
     "task-board": {
       route: "/board",
@@ -54,6 +61,10 @@ test.describe('light', () => {
 
   test('home as viewer', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'home', role: 'viewer', mode: 'light', via: null, creates: ['create'], variant: null }, info);
+  });
+
+  test('public-tasks', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'public-tasks', role: 'visitor', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
   test('task-board', async ({ page }, info) => {
@@ -110,6 +121,10 @@ test.describe('dark', () => {
 
   test('home', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'home', role: 'manager', mode: 'dark', via: null, creates: ['create'], variant: null }, info);
+  });
+
+  test('public-tasks', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'public-tasks', role: 'visitor', mode: 'dark', via: null, creates: [], variant: null }, info);
   });
 
   test('task-board', async ({ page }, info) => {

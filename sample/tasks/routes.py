@@ -14,7 +14,7 @@
 
 from django.apps import apps
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from bazis.contrib.permit.routes_abstract import PermitRouteBase
 from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
@@ -48,6 +48,18 @@ class Escalated(BaseModel):
     priority: Task.Priority
 
 
+class SuggestRequest(BaseModel):
+    """The title of the task that a guest suggests."""
+
+    title: str = Field(min_length=1, max_length=255)
+
+
+class Suggested(BaseModel):
+    """The task suggested, a draft."""
+
+    task: str
+
+
 class TaskRouteSet(StatusyRouteSetBase):
     """
     The tasks. The files are routed by bazis-uploadable itself
@@ -76,6 +88,18 @@ class TaskRouteSet(StatusyRouteSetBase):
 
         task = CountTasks.delay(priority=data.priority, author=self.inject.user)
         return CountStarted(task=str(task.pk))
+
+    @http_post('/suggest/', response_model=Suggested, kind=RouteKind.OTHER, public=True)
+    def action_suggest(self, data: SuggestRequest, **kwargs):
+        """
+        A custom action of the route set open to anonymous users (`public=True`, limited by the
+        throttle of the core, `BAZIS_THROTTLE_PUBLIC`): a guest suggests a task, created as a
+        draft for the team, the action of the public screen of the specs (`public-tasks`). A
+        guest creates nothing through the create route: bazis-permit refuses it to anonymous
+        users.
+        """
+        task = Task.objects.create(title=data.title)
+        return Suggested(task=str(task.pk))
 
     @http_post(
         '/{item_id}/escalate/', response_model=Escalated, kind=RouteKind.OTHER,

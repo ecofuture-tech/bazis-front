@@ -22,7 +22,7 @@ import path from 'node:path';
 
 import { expect, type ConsoleMessage, type JSHandle, type Page, type Request, type Response, type TestInfo } from '@playwright/test';
 
-import { App, bz, loginAs, stubForeignImages, type Product, type Role, type ScreenId } from '.';
+import { App, bz, LOGIN_ROUTE, loginAs, stubForeignImages, type Product, type Role, type ScreenId } from '.';
 
 /** The checks of a screenshot: their severity and what they find. */
 export const CODES = {
@@ -45,6 +45,7 @@ export const CODES = {
   V017: ['warning', 'a text cut by an ellipsis to a few characters: its box is narrower than 4 em, too narrow to be read (the item of a narrow day of a calendar, a narrow column)'],
   V018: ['warning', 'a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap'],
   V019: ['error', 'the page loaded again between its check and its screenshot, also when the screen was shot again: the screenshot (a blank page, a page that loads) is not of the screen checked'],
+  V020: ['error', 'the screen was not shot: the router sent the user to the login, the route of the screen needs a session that the role does not have (a screen without an anonymous role in its `roles` shot as one, or a router of the frontend that is not the one of the template)'],
 } as const;
 
 /** A code of the checks of a screenshot. */
@@ -127,7 +128,7 @@ function oneLine(text: string, length = 400): string {
  * checks what it renders (`check`) and what the page did once the user was logged in (`listen`)
  * and takes a screenshot of the whole page; writes the screenshot and its result into the
  * directory of the shots (`shotsDir`). A screen that cannot be reached is the issue V001 of
- * its result, and fails the test. When the proxy of the dev server did not reach the backend
+ * its result (V020 when the router sent the user to the login), and fails the test. When the proxy of the dev server did not reach the backend
  * (`unproxied`, from the login on) or the page loaded again between its check and its
  * screenshot, the screen is shot once again (`retried` of the result), the user still logged in.
  */
@@ -177,7 +178,9 @@ export async function shoot<P extends Product>(page: Page, product: P, shot: Sho
       } catch (error) {
         if (unreached > before && !retried) continue;
         const message = oneLine(error instanceof Error ? error.message : String(error));
-        const issue: ShotIssue = { code: 'V001', severity: CODES.V001[0], selector: bz('screen', shot.screen), message };
+        // on the login: the route of the screen needs a session (V020), not a failure of the run
+        const code = new URL(page.url()).pathname === LOGIN_ROUTE ? 'V020' : 'V001';
+        const issue: ShotIssue = { code, severity: CODES[code][0], selector: bz('screen', shot.screen), message };
         write({ ...base, retried, file: null, issues: [issue, ...heard.issues()] });
         throw error;
       } finally {
@@ -198,14 +201,14 @@ async function enter<P extends Product>(page: Page, product: P, shot: Shot<P>): 
 }
 
 /**
- * A refusal that a screen shows as its state, not an error of the page: 403 and 404 of what
- * it reads (`state:forbidden`, `state:not_found`), but of the fields of its filters
- * (`route_filter_fields/`), which no screen shows as its state: the route set does not route
- * them.
+ * A refusal that a screen shows as its state, not an error of the page: 401, 403 and 404 of
+ * what it reads (`state:forbidden`, also that of a public screen read by a user without a
+ * session; `state:not_found`), but of the fields of its filters (`route_filter_fields/`),
+ * which no screen shows as its state: the route set does not route them.
  */
 function expected(response: Response): boolean {
   return (
-    [403, 404].includes(response.status()) &&
+    [401, 403, 404].includes(response.status()) &&
     response.request().method() === 'GET' &&
     !new URL(response.url()).pathname.endsWith('/route_filter_fields/')
   );

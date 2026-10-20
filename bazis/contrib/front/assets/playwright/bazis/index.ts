@@ -74,8 +74,8 @@ const SEEN = 'data-bz-seen';
 /** The marks of a failure shown since the step started. */
 const NEW_FAILED = FAILURES.map((it) => `${it}:not([${SEEN}])`).join(', ');
 
-/** The login screen of the template (`LoginForm`). */
-const LOGIN_ROUTE = '/login';
+/** The login screen of the template (`LoginForm`), where the router sends a user without a session. */
+export const LOGIN_ROUTE = '/login';
 
 /** The files that `upload` takes, `e2e/fixtures/` of the frontend. */
 const FIXTURES = path.join(import.meta.dirname, '..', 'fixtures');

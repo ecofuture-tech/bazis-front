@@ -225,7 +225,7 @@ them:
 | `frontend/src/bazis/ui/<component>/` | 3. Components (`assets/ui`) | the components (`@/bazis/ui/<component>`), each with its contract test; `init` copies those that the template requires (`state-panel`, `app-shell`, `login-form`), `manage.py bazis_front screens` those that the generated screens import, `manage.py bazis_front add` the others (`add map` also sets Leaflet in `package.json`: `npm install` then) | the product, keeping the contract tests passing |
 | `frontend/src/components/ui/`, `frontend/src/lib/` | 3. Components | shadcn/ui components: those of the components copied by bazis-front, others with `npx shadcn add <name>` | the product |
 | `spec/` (in the product root) | 4. Specs | the specs: `product.yaml` (roles, entities, access, scenarios), `screens/<id>.yaml`, `design/`; validated against the contract, its scenarios generate the end-to-end tests and its design the theme | the product; checked by `manage.py bazis_front check` |
-| `frontend/src/screens/generated/` | 4. Specs | the screens of the specs, their routes (`SCREEN_ROUTES`), the navigation of `spec/product.yaml`, the texts of the specs (`GENERATED_MESSAGES`), the providers and the tools of the layout | only `manage.py bazis_front screens` |
+| `frontend/src/screens/generated/` | 4. Specs | the screens of the specs, their routes (`PUBLIC_ROUTES`, `SCREEN_ROUTES`), the navigation of `spec/product.yaml`, the texts of the specs (`GENERATED_MESSAGES`), the providers and the tools of the layout | only `manage.py bazis_front screens` |
 | `frontend/e2e/generated/` | 4. Specs | the end-to-end tests of the scenarios of `spec/product.yaml`, and `product.ts` (the test users and the routes of the specs); `shots.ts`, the screenshots of the screens | only `manage.py bazis_front e2e` (`shots`: `bazis_front shots`) |
 | `frontend/.scratch/shots/` | 4. Specs | the screenshots and `report.json` of the last `bazis_front shots`; ignored by Git | only `manage.py bazis_front shots` |
 | `frontend/e2e/bazis/` | 4. Specs | the helpers of the end-to-end tests (Playwright, through `data-bz`) | bazis-front; not edited |
@@ -531,9 +531,10 @@ dashboard a row of its last items, `open_item: {in: <recent>, where: {...}}`),
 `select: {where: {...}}` and `bulk: <id>` (rows of a list with `bulk` selected, then a bulk
 action run on them; P022 without a selection), `move: {where: {...}, to: <status>}` (an item
 of a board with `move: true` moved to a column that a transition without a payload leads to:
-P024), `action: <action of the screen>` (a custom action, `primitive: custom`, only on a
-card: P022; one with `fields` opens its dialog, filled with `fill` and run with `submit`,
-P023 for a property it does not ask for; one with `confirm: true` is confirmed),
+P024), `action: <action of the screen>` (a custom action, `primitive: custom`, on a card,
+or one of the route set in the toolbar of a list: P022 for one of `list.row_actions`, run
+as a bulk action; one with `fields` opens its dialog, filled with `fill` and run with
+`submit`, P023 for a property it does not ask for; one with `confirm: true` is confirmed),
 `fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
 `edit: true`; a `file` field is uploaded, a file of `e2e/fixtures/` of the frontend,
 never filled: P022; a to-many relationship, `many: true`, is filled with the list of the
@@ -566,8 +567,9 @@ its service `password` (P026). A role of the users who do not log in (the guests
 public site, the form of a public action) is `anonymous: true`, without a `test_user`: its
 scenarios log in as nobody. Its permit role is one that bazis-permit gives anonymous users
 (`Role(..., for_anonymous=True)`), or none when they use only the public routes and actions
-(no `access` then); anonymous users match no selector but `all` (P030). Its screens are
-routed outside the screens of a session (see
+(no `access` then); anonymous users match no selector but `all` (P030). A screen is public
+when one of its `roles` is anonymous: the frontend routes it outside the screens of a
+session, and a scenario of the role opens only public screens (P035; see
 [The routes and the navigation](#the-routes-and-the-navigation)). `bazis_front e2e` turns
 each scenario into a Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
 
@@ -692,7 +694,8 @@ refetched. The button shows when the backend lets the user run it: on a card and
 toolbar by `custom_actions` of the meta of bazis-permit, on the rows and in a bulk action
 when the row may be changed (or deleted) as its `access_action` requires: a list tells of each
 row only these (`for_change`, `for_delete`), so an action that requires another access of the
-item runs on its card (S032). A click on a row while its action runs sends nothing; on
+item runs on its card (S032). On a public screen an action is one declared `public=True`,
+`public` of its `custom_actions` in the contract (S046). A click on a row while its action runs sends nothing; on
 another row it runs beside it. S032 checks it
 against the contract; an action declared with GET reads and belongs to an extension
 (`useActionQuery`), what the contract cannot say (its response shown, a task followed) too:
@@ -1080,6 +1083,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`) |
 | `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is |
 | `P034` | warning | a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs |
+| `P035` | error | a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`), by `open`, `open_item` or the `then` of a form: the frontend sends a user without a session to the login. List the role in `roles` of the screen, or give the scenario a role that logs in |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -1123,6 +1127,10 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S041` | warning | the add of a calendar whose `field` is a date-time, which the create route takes (else S034), lists `fields` without it: the item is created at the start of the selected day (00:00) and the user cannot pick the time. Add the field to `fields` of `add` (or omit `fields`: all the writable fields) |
 | `S042` | error | the add of a calendar has a `time` or a `duration` that it cannot use: `field` (and `end`, for a duration) is not a date-time, the calendar has no `end`, or the form of the add does not send the end (left out of its `fields`, or not taken by the create route). Remove the key, or give the calendar its date-time `end` and the form the field |
 | `S043` | warning | the add of a calendar by date-times shows `end` in its form without `duration`: the form starts with the end empty, which the user fills for every item. Give the add the usual length of an item in minutes (`duration: 30`), which the user may change |
+| `S044` | error | a public screen (an anonymous role in its `roles`) creates, changes or deletes through the routes of the entities, which bazis-permit always refuses to anonymous users: a form (a create or an update action, a form screen, `card.edit`, "add here", the add of a calendar, a create form of a dashboard), a deletion, `list.bulk` or `board.move`. A guest writes through a custom action declared `public=True` (`primitive: custom`) |
+| `S045` | error | a public screen leads to a screen that is not public (`open`, `then`, a tile, the last items, a related section), or a card is in the layout of a list (its route continues the route of the list) that is not public when the card is, or public when it is not, or a public card links back to a list that is not public |
+| `S046` | error | a custom action of a public screen (`primitive: custom`) is not declared `public=True` in the contract (`public` of its `custom_actions`): bazis-permit refuses it to anonymous users. Declare it `public=True` (with its throttle) and export the contract again |
+| `S047` | warning | the product has an anonymous role that no screen lists in its `roles`: the users who do not log in have no screen |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1549,7 +1557,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | Component | What | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel` (the state of a screen or of a part of it, `inline`, with a `skeleton` while it loads), `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login; `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard` (the list next to its card shows its first columns), `useBesideList` (a list in the card next to its list, a related list, shows the cards of a phone), `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below | `nav:<screen>` (the navigation and the link of `parent`), `screen:<id>`, `action:logout`, `action:language` (the current code in `data-value`) | |
+| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`; `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login or before it, with `signIn` then, see [The public screens](#the-public-screens); `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard` (the list next to its card shows its first columns), `useBesideList` (a list in the card next to its list, a related list, shows the cards of a phone), `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below | `nav:<screen>` (the navigation and the link of `parent`), `screen:<id>`, `action:logout`, `action:sign-in`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `ItemValue` (a field of an item as a cell: the status of a statusy model as its badge), `workflowStatuses(type)` (the statuses of a workflow, the initial one first, then in the order of its transits), `DateInput` with `DatesProvider` (the control of the dates, the calendar of `date-picker`), `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
@@ -1732,10 +1740,12 @@ export function TaskCardScreen() {
 
 ### The routes and the navigation
 
-The routes of the screens of the specs are `SCREEN_ROUTES` of
-`src/screens/generated/routes.tsx`, inside `RequireSession` of `src/app/router.tsx`: the
+The routes of the screens of the specs are `PUBLIC_ROUTES` and `SCREEN_ROUTES` of
+`src/screens/generated/routes.tsx`, the public screens and the others, which
+`src/app/router.tsx` puts in its layout, the others inside `RequireSession`: the
 route of each spec, `/` the index (the layout route `/` of a list there with its cards;
-without a screen at `/`, a redirect to the first link of the navigation), a card under the
+without a screen at `/`, a redirect to the first link of the navigation, public when that
+screen is), a card under the
 list whose route its route continues (below). Each screen is imported with `lazyScreen` of `src/app/lazy.tsx`, a custom one from
 its module (its own chunk,
 loaded when its route is first shown, under the `ErrorBoundary` of the layout: a static
@@ -1750,13 +1760,6 @@ it again:
 ```tsx
 const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
 ```
-
-The screens of the users who do not log in (an `anonymous` role of the specs) are routes
-outside `RequireSession`, which sends a user without a session to the login: in a layout of
-their own, `AppShell` with their links and `session={null}` (a link to `/login` in its
-`tools`), its `ErrorBoundary` as in `RequireSession`, and their screens
-read only what the backend gives anonymous users (a 401/403 of another route is the
-`forbidden` state of a screen, never a redirect).
 
 The npm libraries that every page loads (React with the router, TanStack Query, the Radix
 primitives of the layout) are chunks of their own, listed by package in `manualChunks` of
@@ -1786,6 +1789,27 @@ the list or in its place (`composition.list_card` of the theme):
   <Route path=":id" element={<TaskCardScreen />} />
 </Route>
 ```
+
+#### The public screens
+
+**The public screens**, those of the users who do not log in, are generated: a screen is
+public when one of its `roles` is an anonymous role of `spec/product.yaml` (`anonymous:
+true`), and its route is in `PUBLIC_ROUTES`, outside `RequireSession`, which sends a user
+without a session to the login. The specs say nothing else (no key `public`): a screen
+without `roles` is never public. The layout is the same `AppShell`: with a session, every
+link, the logout and the tools; without one (`session={null}`), only the links of the
+public screens (`public: true` of their `NavItem`, a group with its public links), no tools
+(the notifications and the live queries need a session) and the sign-in `action:sign-in`
+(`signIn` of `AppShell`), which opens `/login` and comes back to the screen after the
+login. Their screens read only what the backend gives anonymous users (a permit role
+`for_anonymous`; a 401/403 is the `forbidden` state of a screen, never a redirect). A
+guest writes only through a custom action declared `public=True` (S046; its throttle,
+`BAZIS_THROTTLE_PUBLIC`, limits him): bazis-permit refuses every create, change and deletion
+of the routes of the entities to anonymous users, so a public screen has no form, deletion,
+bulk action or move (S044). A public screen leads only to public screens, and a card is in
+the layout of its list when both are public or neither (S045). A product without anonymous
+roles has `PUBLIC_ROUTES` null and the router of before. Registration and the reset of a
+password are not in the packages: a guest who needs an account is given one.
 
 ## Composing beyond the specs
 
@@ -2353,7 +2377,7 @@ function Notifications() {
   <BrowserRouter>…</BrowserRouter>
 </SocketProvider>
 
-// RequireSession: the tools are mounted once
+// the layout of src/app/router.tsx: the tools are mounted once, with a session only
 <AppShell
   …
   tools={<><LiveQuery /><Notifications /></>}
@@ -2759,8 +2783,8 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
 
 ### What it shoots
 
-- Every screen as the first of its `roles` (the first role of the product for a screen
-  without), in each color mode of the theme (`mode`, and the tokens of the dark mode), at the
+- Every screen as the first of its `roles` (the first role of the product that logs in for a
+  screen without: it is not public), in each color mode of the theme (`mode`, and the tokens of the dark mode), at the
   width of a desktop (1280×800) and of a phone (390×844): the projects `desktop` and `phone`
   of `frontend/playwright.shots.config.ts`. The screen of an item is reached through the
   first item of a screen that opens it (`open` of a list, of a board or a calendar, of the
@@ -2862,6 +2886,7 @@ with the number of the small controls and the first five of them.
 | `V017` | warning | a text cut by an ellipsis to a few characters, its box narrower than 4 em: the item of a narrow day of a calendar, a narrow column; give it the width of a line of its own or let it wrap |
 | `V018` | warning | a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap; let them wrap (`whitespace-normal wrap-anywhere` with a `min-w-*` and the same `max-w-*`, so that a long text does not narrow the columns of short words either) |
 | `V019` | error | the page loaded again between its check and its screenshot, also when the screen was shot again: the screenshot (a blank page, a page that loads) is not of the screen checked; the dev server reloads the pages (a dependency optimized late by a running frontend of `E2E_BASE_URL`, a file of the frontend changed during the run): take the screenshots again |
+| `V020` | error | the screen was not shot: the router sent the user to the login, the route of the screen needs a session that the role does not have. An anonymous role shoots only public screens; a frontend whose `src/app/router.tsx` is its own (from before 0.4.0) routes no public screen: take the router of the template |
 
 ### The checklist of the screenshots
 
@@ -3683,6 +3708,25 @@ The API of the copies that 0.3.0 changed:
   a sort (S039), filters of a route set that does not route the fields of its filters (S040), the add of a
   calendar by a date-time field without it among its `fields` (S041, a warning), and its end
   shown empty in the form (S043, a warning: `duration`).
+
+The API of the copies that 0.4.0 changes:
+
+- `src/app/router.tsx` of the template routes the public screens (`PUBLIC_ROUTES`, see
+  [The public screens](#the-public-screens)) in the layout of the screens, outside
+  `RequireSession`: a router that the product changed conflicts once. Take the file of the
+  template and apply the changes of the product to it again; a product that routed the
+  screens of its anonymous users by hand lists the anonymous role in `roles` of their specs
+  and removes its own routes and layout.
+- `AppShell` takes `signIn`, the sign-in shown in the place of the session while it is null
+  (`action:sign-in`), and a `NavItem` takes `public`; `LOGIN_ROUTE` of the helpers of the
+  end-to-end tests is the route of the login.
+- `contract.json` is of format 7 (`public` of the custom actions, which S046 reads): `check`
+  reports `C002` until it is exported again.
+- New errors of `check`: a scenario of an anonymous role on a screen that is not public
+  (P035), a public screen that writes through the routes of the entities (S044), that leads
+  to a screen that is not public (S045) or whose custom action is not `public=True` (S046),
+  and an anonymous role without a screen (S047, a warning); of `shots`, a screen that sent
+  its role to the login (V020).
 
 ## API: the client
 
@@ -4680,7 +4724,7 @@ The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The co
 
 #### AppShell
 
-`AppShell(props: AppShellProps): Element`: The layout of the screens of a logged-in user.
+`AppShell(props: AppShellProps): Element`: The layout of the screens.
 
 
 Its props, `AppShellProps`:
@@ -4689,6 +4733,7 @@ Its props, `AppShellProps`:
 - `navigation?: Navigation`: `navigation` of the theme by default.
 - `items: readonly NavEntry[]`: The links of the navigation and their groups.
 - `session?: ShellSession | null`
+- `signIn?: (() => void) | undefined`: The sign-in of a user without a session (`action:sign-in`), shown in the place of the session while it is null: it opens the login.
 - `tools?: ReactNode`: The tools of the product next to the color mode, such as the notifications (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at the foot of the sidebar (a row that wraps, above the session) or, on a phone, in its header.
 - `children: ReactNode`
 
@@ -4736,6 +4781,7 @@ Its props, `ScreenProps`:
 - `end?: boolean`: Active only on this exact path (the home `/`).
 - `icon?: ComponentType<{ className?: string; }>`: Its icon, such as an icon of lucide-react.
 - `requires?: NavRequirement`: What the backend must allow the user: the link is shown once it does (always without).
+- `public?: boolean`: The link of a public screen (an anonymous role of the specs), also shown without a session.
 
 #### NavRequirement
 
@@ -4763,7 +4809,7 @@ Its props, `ScreenProps`:
 
 #### ShellSession
 
-`interface ShellSession`: The session of the user; null without a login (no bazis-users).
+`interface ShellSession`: The session of the user; null without a login (no bazis-users), or before the user logs in.
 
 - `user?: ReactNode`: Who is logged in.
 - `onLogout: () => void`
@@ -6356,3 +6402,4 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `type Values = Readonly<Record<string, string | number | boolean | null>>`: The values of fields by name, scalars as in the specs.
 - `type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>`: The values of the fields of a form by name: a scalar, or the labels of the related items of a to-many relationship (a list, `[]` for none).
 - `type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid'`: The states that the screens render (`state:<state>`).
+- `LOGIN_ROUTE: "/login"`: The login screen of the template (`LoginForm`), where the router sends a user without a session.

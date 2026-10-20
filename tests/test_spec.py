@@ -136,6 +136,8 @@ def steps(data, scenario):
 
 PRODUCT, LIST, CARD = 'spec/product.yaml', 'spec/screens/task-list.yaml', 'spec/screens/task-card.yaml'
 DRAFTS = 'spec/screens/draft-tasks.yaml'
+#: the public screen of the sample: its role `visitor` is anonymous
+PUBLIC = 'spec/screens/public-tasks.yaml'
 HOME, BOARD, CALENDAR = 'spec/screens/home.yaml', 'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml'
 THEME, TOKENS, CONTRACT = 'spec/design/theme.yaml', 'spec/design/tokens.json', 'contract/contract.json'
 LOCK = 'frontend/bazis-front.lock.json'
@@ -215,7 +217,7 @@ CASES = [
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/2/id'), ('P003', f'{PRODUCT}#/entities/0/fields/9/id')],
+        [('P003', f'{PRODUCT}#/roles/3/id'), ('P003', f'{PRODUCT}#/entities/0/fields/9/id')],
     ),
     (
         'P004',
@@ -451,14 +453,16 @@ CASES = [
         'P030',
         # anonymous roles: one whose permit role is not for anonymous users (`guest`), one
         # without a permit role that has access, one with a selector of a user
-        {PRODUCT: lambda d: [d['roles'].extend([{'id': 'visitor', 'permit': 'guest', 'anonymous': True},
+        {PRODUCT: lambda d: [d['roles'].extend([{'id': 'stranger', 'permit': 'guest', 'anonymous': True},
                                                 {'id': 'walker', 'anonymous': True},
                                                 {'id': 'public', 'permit': 'viewer', 'anonymous': True}]),
                              task(d)['access'].update(walker={'view': 'all'}, public={'view': 'assignee'})]},
         [
-            ('P030', f'{PRODUCT}#/roles/2/permit'),
+            ('P030', f'{PRODUCT}#/roles/3/permit'),
             ('P030', f'{PRODUCT}#/entities/0/access/walker'),
             ('P030', f'{PRODUCT}#/entities/0/access/public/view'),
+            # and no screen of theirs
+            ('S047', f'{PRODUCT}#/roles/3'), ('S047', f'{PRODUCT}#/roles/4'), ('S047', f'{PRODUCT}#/roles/5'),
         ],
     ),
     (
@@ -500,13 +504,13 @@ CASES = [
             {'move': {'where': {'title': 'Review the plan'}, 'to': 'in_progress'}},
         ]})},
         [
-            ('P033', f'{PRODUCT}#/scenarios/18/steps/2/bulk'),
-            ('P033', f'{PRODUCT}#/scenarios/18/steps/4/transit'),
-            ('P033', f'{PRODUCT}#/scenarios/18/steps/6/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/18/steps/9/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/18/steps/12/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/18/steps/13/action'),
-            ('P033', f'{PRODUCT}#/scenarios/18/steps/15/move'),
+            ('P033', f'{PRODUCT}#/scenarios/19/steps/2/bulk'),
+            ('P033', f'{PRODUCT}#/scenarios/19/steps/4/transit'),
+            ('P033', f'{PRODUCT}#/scenarios/19/steps/6/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/19/steps/9/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/19/steps/12/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/19/steps/13/action'),
+            ('P033', f'{PRODUCT}#/scenarios/19/steps/15/move'),
         ],
     ),
     (
@@ -521,6 +525,12 @@ CASES = [
             ('P034', f'{PRODUCT}#/scenarios/1/steps/2/open_item/where'),
             ('P034', f'{PRODUCT}#/scenarios/13/steps/1/move/where'),
         ],
+    ),
+    (
+        'P035',
+        # the guest opens a screen of a session first: the frontend sends him to the login
+        {PRODUCT: lambda d: steps(d, 18).insert(0, {'open': 'task-list'})},
+        [('P035', f'{PRODUCT}#/scenarios/18/steps/0/open')],
     ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
@@ -577,11 +587,12 @@ CASES = [
         'S008',
         {CONTRACT: remove_labels},
         # the filter of the drafts (a report) is by the status too, and so are the tiles of the
-        # home, its chart by status and the columns of the board; its last tasks are sorted
+        # home, its chart by status and the columns of the board; its last tasks are sorted, as
+        # the public list
         [('S008', f'{DRAFTS}#/list/filter/status'), ('S008', f'{DRAFTS}#/list/sort/0'),
          ('S008', f'{HOME}#/dashboard/tiles/0/filter/status'), ('S008', f'{HOME}#/dashboard/tiles/1/filter/status'),
          ('S008', f'{HOME}#/dashboard/tiles/2/filter/status'), ('S008', f'{HOME}#/dashboard/charts/0/by'),
-         ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{BOARD}#/board/by'),
+         ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{PUBLIC}#/list/sort/0'), ('S008', f'{BOARD}#/board/by'),
          ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0')],
     ),
     ('S009', {LIST: lambda d: d['states'].remove('empty')}, [('S009', f'{LIST}#/states')]),
@@ -910,7 +921,7 @@ CASES = [
         {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-escalates-a-draft', 'role': 'manager', 'steps': [
             {'open': 'draft-tasks'}, {'action': 'escalate'},
         ]})},
-        [('P022', f'{PRODUCT}#/scenarios/18/steps/1/action')],
+        [('P022', f'{PRODUCT}#/scenarios/19/steps/1/action')],
     ),
     (
         'P023',
@@ -1158,6 +1169,53 @@ CASES = [
                                           d['calendar']['add'].update(fields=['title', 'due', 'ends'], duration=30)]},
         [],
     ),
+    # the public screens: an anonymous role (`visitor`) in their roles
+    (
+        'S044',
+        # a public board moves its items, a public calendar adds one; both open a card of a
+        # session
+        {BOARD: lambda d: d['roles'].append('visitor'), CALENDAR: lambda d: d['roles'].append('visitor')},
+        [('S044', f'{BOARD}#/board/move'), ('S045', f'{BOARD}#/board/open'),
+         ('S044', f'{CALENDAR}#/calendar/add'), ('S045', f'{CALENDAR}#/calendar/open')],
+    ),
+    (
+        'S044',
+        # a public card: its deletion, its edit and "add here"; its deletion leads to a list of
+        # a session, its custom action is not public, and it is in the layout of a list of a
+        # session
+        {CARD: lambda d: d['roles'].append('visitor')},
+        [('S044', f'{CARD}#/actions/0'), ('S044', f'{CARD}#/card/edit'), ('S044', f'{CARD}#/card/related/0/add'),
+         ('S045', f'{CARD}#/actions/0/then'), ('S045', f'{CARD}#/route'), ('S046', f'{CARD}#/actions/1/action')],
+    ),
+    (
+        'S044',
+        # a public list with a create form and bulk actions, whose card is of a session; a
+        # public dashboard with a create form, whose tiles and last items lead to a session
+        {LIST: lambda d: [d['roles'].append('visitor'), d.pop('extend')],
+         HOME: lambda d: d['roles'].append('visitor')},
+        [('S044', f'{HOME}#/dashboard/actions/0'), ('S045', f'{HOME}#/dashboard/actions/0/then'),
+         ('S045', f'{HOME}#/dashboard/tiles/0/open'), ('S045', f'{HOME}#/dashboard/recent/0/open'),
+         ('S045', f'{CARD}#/route'), ('S044', f'{LIST}#/actions/0'), ('S044', f'{LIST}#/list/bulk'),
+         ('S045', f'{LIST}#/list/open'), ('S045', f'{LIST}#/actions/0/then')],
+    ),
+    (
+        'S045',
+        # the public list opens a card of a session
+        {PUBLIC: lambda d: d['list'].update(open='task-card')},
+        [('S045', f'{PUBLIC}#/list/open')],
+    ),
+    (
+        'S046',
+        # the action of the guests is not declared `public=True`
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(public=False)},
+        [('S046', f'{PUBLIC}#/actions/0/action')],
+    ),
+    (
+        'S047',
+        # no screen of the guests (nor their scenario)
+        {PUBLIC: lambda d: d.__delitem__('roles'), PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-1])},
+        [('S047', f'{PRODUCT}#/roles/2')],
+    ),
     (
         'S006',
         # a row of a list and a row of the last items open an item in a custom card that finds
@@ -1329,23 +1387,19 @@ def test_issues(contract, code, edits, expected, monkeypatch):
 @pytest.mark.django_db
 def test_an_anonymous_role_logs_in_as_nobody(contract):
     """
-    The users who do not log in (`anonymous: true`, the permit role `viewer` of the sample is
-    for anonymous users): no `test_user` and no P025 for its scenarios; the schema refuses a
-    test user of an anonymous role and a role that is neither anonymous nor of a permit role.
+    The users who do not log in (`anonymous: true`: the role `visitor` of the sample, whose
+    permit role `viewer` is for anonymous users): no `test_user` and no P025 for its
+    scenarios; the schema refuses a test user of an anonymous role and a role that is neither
+    anonymous nor of a permit role.
     """
     root = contract.parent.parent
-
-    def anonymous(data):
-        data['roles'][1].pop('test_user')
-        data['roles'][1]['anonymous'] = True
-
-    edit(root, PRODUCT, anonymous)
+    assert read(root / PRODUCT)['roles'][2] == {'id': 'visitor', 'permit': 'viewer', 'title': 'Visitor', 'anonymous': True}
     assert issues(root) == []
-    edit(root, PRODUCT, lambda d: d['roles'][1].update(test_user={'username': 'viewer'}))
-    assert issues(root) == [('P002', f'{PRODUCT}#/roles/1')]
-    edit(root, PRODUCT, lambda d: [d['roles'][1].pop('test_user'), d['roles'][1].pop('anonymous'),
-                                   d['roles'][1].pop('permit')])
-    assert ('P002', f'{PRODUCT}#/roles/1') in issues(root)
+    edit(root, PRODUCT, lambda d: d['roles'][2].update(test_user={'username': 'viewer'}))
+    assert issues(root) == [('P002', f'{PRODUCT}#/roles/2')]
+    edit(root, PRODUCT, lambda d: [d['roles'][2].pop('test_user'), d['roles'][2].pop('anonymous'),
+                                   d['roles'][2].pop('permit')])
+    assert ('P002', f'{PRODUCT}#/roles/2') in issues(root)
 
 
 def layer_of(file: str) -> str:
@@ -1607,7 +1661,7 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
     ]}))
     # a day from the day of the run, as the dates of `e2e_data`
     edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'].insert(15, {'expect': {'day': {'today': 1, 'today+3': 0, 'today-1': 0}}}))
-    steps = f'{PRODUCT}#/scenarios/18/steps'
+    steps = f'{PRODUCT}#/scenarios/19/steps'
     assert issues(root) == [
         ('P022', f'{steps}/1/expect/tile/overdue'),
         ('P022', f'{steps}/2/expect/day'),
@@ -1865,7 +1919,7 @@ def test_a_product_without_a_login_needs_no_test_users(root):
     def change(data):
         data['packages'].remove('users')
         for role in data['roles']:
-            role.pop('test_user')
+            role.pop('test_user', None)
 
     edit(root, PRODUCT, change)
     assert issues(root) == []
@@ -2020,7 +2074,8 @@ def test_several_grants_of_one_operation(contract):
         return [(it.code, it.path) for it in validate(root).issues]
 
     grants = ['assignee', {'selector': 'status_author', 'statuses': ['done']}]
-    edit(root, PRODUCT, lambda d: task(d)['access']['viewer'].update(view=grants))
+    # the guests of the sample view all the tasks through the permit role of the viewer too
+    edit(root, PRODUCT, lambda d: [task(d)['access']['viewer'].update(view=grants), task(d)['access'].pop('visitor')])
     # the viewer views all the tasks: `view.all.all` covers both
     assert found() == []
     viewer_permissions('tasks.task.item.view.assignee.all', 'tasks.task.item.view.status_author.done')

@@ -610,6 +610,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = Fa
     product = refs.check_product(product_doc, contract, issues)
     screens = refs.check_screens(screen_docs, product, contract, issues)
     refs.check_navigation(product_doc, screens, product, contract, issues)
+    refs.check_anonymous_roles(product_doc, screens, product, issues)
     check_screen_code(root, screen_docs, issues, generating)
     languages = product_doc.data.get('languages', []) if product_doc.valid else []
     documents = [(product_doc, PRODUCT_SCHEMA), *((it, SCREEN_SCHEMA) for it in screen_docs)]

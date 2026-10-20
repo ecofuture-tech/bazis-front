@@ -299,8 +299,9 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
     of their path after the collection (`count`) or the item (`escalate` of
     `{item_id}/escalate/`) that `client.action` and `client.itemAction` take; `item`, whether
     it is an action of an item; `method`; `access_action` as the route declares it (null
-    without one); `body`, the JSON Schema of its JSON body, standalone (the components it
-    references in its `$defs`), null without one: what the buttons of the specs need (S032).
+    without one); `public`, whether anonymous users may call it (`public=True`, S046);
+    `body`, the JSON Schema of its JSON body, standalone (the components it references in its
+    `$defs`), null without one: what the buttons of the specs need (S032).
     """
     result = {}
     for path, item in openapi.get('paths', {}).items():
@@ -318,6 +319,7 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 'item': relative.startswith(ITEM_PREFIX),
                 'method': method,
                 'access_action': meta.get('access_action'),
+                'public': meta['public'],
                 'body': _standalone(openapi, body) if body is not None else None,
             }
     return result

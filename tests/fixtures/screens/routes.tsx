@@ -14,6 +14,9 @@ const DraftTasksScreen = lazyScreen(() =>
   import('@/screens/generated/draft-tasks').then((module) => module.DraftTasksScreen),
 );
 const HomeScreen = lazyScreen(() => import('@/screens/generated/home').then((module) => module.HomeScreen));
+const PublicTasksScreen = lazyScreen(() =>
+  import('@/screens/generated/public-tasks').then((module) => module.PublicTasksScreen),
+);
 const TaskBoardScreen = lazyScreen(() =>
   import('@/screens/generated/task-board').then((module) => module.TaskBoardScreen),
 );
@@ -28,9 +31,19 @@ const TaskListScreen = lazyScreen(() =>
 );
 
 /**
- * The routes of the screens, inside `RequireSession` of src/app/router.tsx: a card whose route
- * is that of a list followed by `/:id` beside the list or in its place (`ListCardLayout`); `/`
- * without a screen leads to the first link of the navigation.
+ * The routes of the public screens (an anonymous role in their `roles`), outside `RequireSession`
+ * of src/app/router.tsx: shown without a session; null without them.
+ */
+export const PUBLIC_ROUTES = (
+  <>
+    <Route path="/public" element={<PublicTasksScreen />} />
+  </>
+);
+
+/**
+ * The routes of the other screens, inside `RequireSession` of src/app/router.tsx: a card whose
+ * route is that of a list followed by `/:id` beside the list or in its place (`ListCardLayout`);
+ * `/` without a screen leads to the first link of the navigation.
  */
 export const SCREEN_ROUTES = (
   <>

@@ -45,7 +45,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 6
+    assert data['format'] == 7
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -98,26 +98,31 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     ]
     # the custom actions with the standalone schema of their body, what the buttons of the specs
     # need: of the collection and of an item (which requires the change of the item); not the
-    # ids of the list of the core or the transits of bazis-statusy (`NOT_CUSTOM`)
+    # ids of the list of the core or the transits of bazis-statusy (`NOT_CUSTOM`); whether
+    # anonymous users may call them (`public=True`: `suggest`, the action of the guests)
     custom = task['custom_actions']
-    assert sorted(custom) == ['action_count', 'action_escalate']
+    assert sorted(custom) == ['action_count', 'action_escalate', 'action_suggest']
     assert resources['users.user']['custom_actions'] == {}
     priority = {'enum': ['low', 'normal', 'high'], 'title': 'Priority', 'type': 'string'}
     count = custom['action_count']
-    assert set(count) == {'name', 'item', 'method', 'access_action', 'body'}
-    assert {key: count[key] for key in ('name', 'item', 'method', 'access_action')} == {
-        'name': 'count', 'item': False, 'method': 'post', 'access_action': None,
+    assert set(count) == {'name', 'item', 'method', 'access_action', 'public', 'body'}
+    assert {key: count[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
+        'name': 'count', 'item': False, 'method': 'post', 'access_action': None, 'public': False,
     }
     assert count['body']['properties'] == {'priority': {'anyOf': [{'$ref': '#/$defs/Priority'}, {'type': 'null'}]}}
     assert count['body']['$defs'] == {'Priority': priority}
     escalate = custom['action_escalate']
-    assert {key: escalate[key] for key in ('name', 'item', 'method', 'access_action')} == {
-        'name': 'escalate', 'item': True, 'method': 'post', 'access_action': 'change',
+    assert {key: escalate[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
+        'name': 'escalate', 'item': True, 'method': 'post', 'access_action': 'change', 'public': False,
     }
     assert escalate['body']['properties'] == {'priority': {'$ref': '#/$defs/Priority', 'default': 'high'}}
+    suggest = custom['action_suggest']
+    assert {key: suggest[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
+        'name': 'suggest', 'item': False, 'method': 'post', 'access_action': None, 'public': True,
+    }
     # an action without a body (a GET)
     download = resources['bg.task']['custom_actions']['action_download']
-    assert download == {'name': 'download', 'item': True, 'method': 'get', 'access_action': None, 'body': None}
+    assert download == {'name': 'download', 'item': True, 'method': 'get', 'access_action': None, 'public': False, 'body': None}
 
     fields = task['fields']
     assert fields['title'] == {'title': 'Title', 'type': 'string', 'filter': 'title', 'order': 'title'}

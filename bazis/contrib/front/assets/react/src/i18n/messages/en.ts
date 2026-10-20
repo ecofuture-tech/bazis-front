@@ -166,6 +166,7 @@ export const en: Messages = {
   'shell.menu': 'Open the menu',
   'shell.menu_description': 'The navigation of the application',
   'shell.navigation': 'Main',
+  'shell.sign_in': 'Log in',
   'size.bytes': '{size} B',
   'size.gb': '{size} GB',
   'size.kb': '{size} KB',

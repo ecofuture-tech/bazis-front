@@ -14,14 +14,15 @@
 
 // The layout of the application: the navigation (a sidebar, a drawer on a phone, or a top
 // bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>` (those that
-// require a permission shown once the backend allows it), the session
-// (the user and the logout, `action:logout`), the language (`action:language`, with more
-// than one language), the color mode, the tools of the product (the notifications), the
-// toasts, and the screens, each wrapped in `Screen` (`screen:<id>`) with its title, its
-// actions and the link back to the screen it was opened from (`nav:<screen>`).
+// require a permission shown once the backend allows it), the session (the user and the
+// logout, `action:logout`; without one, the sign-in `action:sign-in`), the language
+// (`action:language`, with more than one language), the color mode, the tools of the product
+// (the notifications), the toasts, and the screens, each wrapped in `Screen` (`screen:<id>`)
+// with its title, its actions and the link back to the screen it was opened from
+// (`nav:<screen>`).
 
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ArrowLeft, ChevronRight, LogOut, Menu } from 'lucide-react';
+import { ArrowLeft, ChevronRight, LogIn, LogOut, Menu } from 'lucide-react';
 import {
   createContext,
   useCallback,
@@ -57,6 +58,8 @@ export interface NavItem {
   icon?: ComponentType<{ className?: string }>;
   /** What the backend must allow the user: the link is shown once it does (always without). */
   requires?: NavRequirement;
+  /** The link of a public screen (an anonymous role of the specs), also shown without a session. */
+  public?: boolean;
 }
 
 /** Links of the navigation under a heading, shown while the backend allows the user one of them. */
@@ -92,7 +95,7 @@ export interface NavRequirement {
   filters?: readonly string[];
 }
 
-/** The session of the user; null without a login (no bazis-users). */
+/** The session of the user; null without a login (no bazis-users), or before the user logs in. */
 export interface ShellSession {
   /** Who is logged in. */
   user?: ReactNode;
@@ -109,6 +112,11 @@ export interface AppShellProps {
   /** The links of the navigation and their groups. */
   items: readonly NavEntry[];
   session?: ShellSession | null;
+  /**
+   * The sign-in of a user without a session (`action:sign-in`), shown in the place of the
+   * session while it is null: it opens the login.
+   */
+  signIn?: (() => void) | undefined;
   /**
    * The tools of the product next to the color mode, such as the notifications
    * (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at
@@ -354,16 +362,31 @@ function Session({ session, compact = false }: { session: ShellSession; compact?
   );
 }
 
+/** The session of the user, else the sign-in when there is one, else nothing. */
+function Account({ session, signIn, compact = false }: { session: ShellSession | null; signIn: (() => void) | undefined; compact?: boolean }) {
+  const { t } = useLanguage();
+  if (session) return <Session session={session} compact={compact} />;
+  if (!signIn) return null;
+  return (
+    <Button type="button" size="sm" data-bz="action:sign-in" className={cn(!compact && 'w-full')} onClick={signIn}>
+      <LogIn />
+      {t('shell.sign_in')}
+    </Button>
+  );
+}
+
 /** The drawer of the navigation on a phone; closed when the route changes. */
 function Drawer({
   title,
   items,
   session,
+  signIn,
   side,
 }: {
   title: ReactNode;
   items: readonly NavEntry[];
   session: ShellSession | null;
+  signIn: (() => void) | undefined;
   side: 'left' | 'right';
 }) {
   const [open, setOpen] = useState(false);
@@ -387,9 +410,9 @@ function Drawer({
           <div className="flex-1 overflow-y-auto p-3">
             <Navigation items={items} vertical onNavigate={close} />
           </div>
-          {session && (
+          {(session || signIn) && (
             <div className="border-t border-sidebar-border p-3">
-              <Session session={session} />
+              <Account session={session} signIn={signIn} />
             </div>
           )}
         </SheetContent>
@@ -398,8 +421,8 @@ function Drawer({
   );
 }
 
-/** The layout of the screens of a logged-in user. */
-export function AppShell({ title, navigation = THEME.navigation, items, session = null, tools, children }: AppShellProps) {
+/** The layout of the screens. */
+export function AppShell({ title, navigation = THEME.navigation, items, session = null, signIn, tools, children }: AppShellProps) {
   const wide = useWide();
   const links = useMemo(() => navLinks(items), [items]);
   if (navigation === 'topbar') {
@@ -416,13 +439,13 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
                 {tools}
                 <LanguageToggle />
                 <ColorModeToggle />
-                {session && (
+                {(session || signIn) && (
                   <div className="hidden md:block">
-                    <Session session={session} compact />
+                    <Account session={session} signIn={signIn} compact />
                   </div>
                 )}
                 <div className="md:hidden">
-                  <Drawer title={title} items={items} session={session} side="right" />
+                  <Drawer title={title} items={items} session={session} signIn={signIn} side="right" />
                 </div>
               </div>
             </div>
@@ -453,12 +476,12 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
               <LanguageToggle className="text-muted-foreground" />
               {wide && tools}
             </div>
-            {session && <Session session={session} />}
+            <Account session={session} signIn={signIn} />
           </div>
         </aside>
         <div className="flex min-w-0 flex-col">
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
-            <Drawer title={title} items={items} session={session} side="left" />
+            <Drawer title={title} items={items} session={session} signIn={signIn} side="left" />
             <Brand title={title} />
             <div className="ml-auto flex items-center gap-1">
               {!wide && tools}

@@ -37,7 +37,7 @@ from typing import NamedTuple
 from ..vendor import lock as frontend_lock
 from ..vendor.registry import load as load_registry
 from .names import camel, component_name, constant_name, pascal
-from .refs import screen_actions
+from .refs import host, is_public, parent, screen_actions
 from .tsx import (
     SPREAD,
     Arr,
@@ -196,6 +196,11 @@ class Product:
         self.entities = {it['id']: it for it in specs.product.get('entities', [])}
         self.icons = (specs.theme or {}).get('icons', {})
         self.screens = {key: value for key, value in specs.screens.items() if value is not None}
+        self.roles = {it['id']: it for it in specs.product.get('roles', [])}
+
+    def public(self, screen: dict) -> bool:
+        """Whether an anonymous role uses the screen: it is routed outside the screens of a session."""
+        return is_public(screen, self.roles)
 
     def generated(self) -> list[dict]:
         return [it for it in self.screens.values() if not it.get('custom')]
@@ -208,29 +213,12 @@ class Product:
         return self.specs.product.get('packages', [])
 
     def host(self, card: dict) -> dict | None:
-        """
-        The list in whose layout a card is shown, beside it or in its place: the route of the
-        card is `<its route>/:id`.
-        """
-        return next(
-            (
-                it for it in self.screens.values()
-                if it['primitive'] == 'list' and f'{it["route"].rstrip("/")}/:id' == card['route']
-            ),
-            None,
-        )
+        """The list in whose layout a card is shown (`refs.host`)."""
+        return host(card, self.screens)
 
     def parent(self, card: dict) -> dict | None:
-        """
-        The screen that a card links back to: its host, else the first list that opens it, one
-        without a filter first.
-        """
-        opening = [
-            it for it in self.screens.values()
-            if it['primitive'] == 'list' and it['list'].get('open') == card['id']
-        ]
-        opening.sort(key=lambda it: 'filter' in it['list'])
-        return self.host(card) or (opening[0] if opening else None)
+        """The screen that a card links back to (`refs.parent`)."""
+        return parent(card, self.screens, self.roles)
 
 
 def route_to(product: Product, screen_id: str, item: str | None = None) -> Call:
@@ -1123,20 +1111,26 @@ def render_routes(product: Product) -> str:
     screens = sorted(product.screens.values(), key=lambda it: it['id'])
     nested = {it['id']: product.host(it) for it in screens if it['primitive'] == 'card'}
     hosted: dict[str, list[dict]] = {}
-    for card_id, host in nested.items():
-        if host is not None:
-            hosted.setdefault(host['id'], []).append(product.screens[card_id])
+    for card_id, layout in nested.items():
+        if layout is not None:
+            hosted.setdefault(layout['id'], []).append(product.screens[card_id])
     if hosted:
         code.use('@/bazis/ui/app-shell', 'ListCardLayout')
-    routes = [
-        route_element(product, it, hosted.get(it['id'], []))
-        for it in screens if nested.get(it['id']) is None
-    ]
+    # the public screens and those of a session, a card with the list in whose layout it is
+    # (S045: both are public or neither)
+    routes: dict[bool, list[Jsx]] = {True: [], False: []}
+    for it in screens:
+        if nested.get(it['id']) is None:
+            routes[product.public(it)].append(route_element(product, it, hosted.get(it['id'], [])))
     if all(it['route'] != HOME_ROUTE for it in screens) and (home := first_link(product)) is not None:
         code.use('react-router', 'Navigate')
-        redirect = Jsx('Navigate', [Attr('to', home), Attr('replace')])
-        routes.insert(0, Jsx('Route', [Attr('index'), Attr('element', redirect)]))
+        redirect = Jsx('Navigate', [Attr('to', home['route']), Attr('replace')])
+        routes[product.public(home)].insert(0, Jsx('Route', [Attr('index'), Attr('element', redirect)]))
     lazy = '\n'.join(printed(lazy_screen(it).doc()) for it in screens)
+
+    def fragment(name: str, items: list[Jsx]) -> str:
+        return printed(Const(name, Jsx('', [], items) if items else Raw('null'), exported=True).doc())
+
     return module(
         header(f'{SPEC_DIR}/screens/'),
         *code.imports(),
@@ -1145,10 +1139,14 @@ def render_routes(product: Product) -> str:
             'generated ones and those written by hand (`custom`).',
         ) + '\n' + lazy if lazy else '',
         doc_comment(
-            'The routes of the screens, inside `RequireSession` of src/app/router.tsx: a card whose route',
-            'is that of a list followed by `/:id` beside the list or in its place (`ListCardLayout`); `/`',
-            'without a screen leads to the first link of the navigation.',
-        ) + '\n' + printed(Const('SCREEN_ROUTES', Jsx('', [], routes) if routes else Raw('null'), exported=True).doc()),
+            'The routes of the public screens (an anonymous role in their `roles`), outside `RequireSession`',
+            'of src/app/router.tsx: shown without a session; null without them.',
+        ) + '\n' + fragment('PUBLIC_ROUTES', routes[True]),
+        doc_comment(
+            'The routes of the other screens, inside `RequireSession` of src/app/router.tsx: a card whose',
+            'route is that of a list followed by `/:id` beside the list or in its place (`ListCardLayout`);',
+            '`/` without a screen leads to the first link of the navigation.',
+        ) + '\n' + fragment('SCREEN_ROUTES', routes[False]),
     )
 
 
@@ -1173,11 +1171,11 @@ def default_navigation(product: Product) -> list[dict]:
     return [{'screen': it['id']} for it in links]
 
 
-def first_link(product: Product) -> str | None:
-    """The route of the first link of the navigation (of its first group), None without any."""
+def first_link(product: Product) -> dict | None:
+    """The screen of the first link of the navigation (of its first group), None without any."""
     for item in product.specs.product.get('navigation', default_navigation(product)):
         for link in item['items'] if 'group' in item else [item]:
-            return product.screens[link['screen']]['route']
+            return product.screens[link['screen']]
     return None
 
 
@@ -1206,6 +1204,8 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
         if data['primitive'] == 'list' and 'filter' in data['list']:
             requires.append(('filters', Arr([Str(it) for it in data['list']['filter']])))
         props.append(('requires', Obj(requires)))
+    if product.public(data):
+        props.append(('public', Raw('true')))
     return Obj(props)
 
 
@@ -1246,7 +1246,7 @@ def render_navigation(product: Product) -> str:
         doc_comment(
             'The links of the navigation (`nav:<screen>`), labelled by their `label` or the titles of',
             'their screens in the language of the interface, each shown once the backend allows the',
-            'user what it `requires`.',
+            'user what it `requires`; without a session, only those of the public screens (`public`).',
         ) + '\n' + printed(navigation.doc()),
     )
 

@@ -15,8 +15,8 @@
 """
 The screenshots of the screens (`bazis_front shots`), the visual check of a frontend:
 `frontend/e2e/generated/shots.ts` shoots every screen of the specs as the first of its roles
-(of the product without one) in each color mode of the theme, and as each other role in the
-first color mode, at the widths of the projects of `playwright.shots.config.ts`, with the helper `shoot` of `e2e/bazis/shots.ts`, which checks
+(without one, of the roles of the product that log in: the screen is not public) in each
+color mode of the theme, and as each other role in the first color mode, at the widths of the projects of `playwright.shots.config.ts`, with the helper `shoot` of `e2e/bazis/shots.ts`, which checks
 what each screen renders (the codes `V0xx` of `CODES` there) and writes its screenshot and
 its result into `frontend/.scratch/shots/`; `collect` gathers the results into `report.json`.
 
@@ -84,7 +84,12 @@ def plan(specs: Specs) -> tuple[list[dict], dict[str, str]]:
     The shots of the screens of the specs, by screen id (without the color mode), and the
     screens that are not shot with why.
     """
-    roles = [it['id'] for it in specs.product.get('roles', [])]
+    # a screen without roles is shot as the roles that log in: it is not public
+    closed = [it['id'] for it in specs.product.get('roles', []) if not it.get('anonymous')]
+
+    def users(screen: dict) -> list:
+        return screen.get('roles') or closed or [None]
+
     screens = sorted(specs.screens.items())
     # the screens that open an item: the lists first, those without a filter of their own
     # (all the items) before the reports
@@ -95,7 +100,7 @@ def plan(specs: Specs) -> tuple[list[dict], dict[str, str]]:
     every, first = modes(specs), modes(specs)[:1]
     shots, skipped = [], {}
     for screen_id, screen in screens:
-        candidates = screen.get('roles') or roles or [None]
+        candidates = users(screen)
         # each role of the screen with the screen that opens its items for him (None for a
         # screen without an id)
         reached = [(candidate, None) for candidate in candidates]
@@ -108,7 +113,7 @@ def plan(specs: Specs) -> tuple[list[dict], dict[str, str]]:
                     (
                         {'screen': parent, 'part': opens(data)[screen_id]}
                         for parent, data in opening
-                        if candidate is None or not data.get('roles') or candidate in data['roles']
+                        if candidate is None or candidate in users(data)
                     ),
                     None,
                 )) is not None

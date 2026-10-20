@@ -63,6 +63,7 @@ BULK = 'e2e/generated/manager-starts-tasks-at-once.spec.ts'
 CALENDAR = 'e2e/generated/viewer-reads-the-calendar.spec.ts'
 ESCALATES = 'e2e/generated/manager-escalates-a-task.spec.ts'
 PLANS = 'e2e/generated/manager-plans-on-the-calendar.spec.ts'
+SUGGESTS = 'e2e/generated/visitor-suggests-a-task.spec.ts'
 
 
 def generate(*args) -> str:
@@ -379,7 +380,7 @@ def test_a_refused_submit_leads_to_no_other_screen(tmp_path):
 
     edit_product(tmp_path, scenario)
     found = [(it.code, it.location) for it in validate(tmp_path).issues]
-    assert found == [('P022', 'spec/product.yaml#/scenarios/18/steps/4/expect/screen')]
+    assert found == [('P022', 'spec/product.yaml#/scenarios/19/steps/4/expect/screen')]
 
 
 def test_the_product_module():
@@ -389,19 +390,15 @@ def test_the_product_module():
     assert text.endswith('} as const;\n')
 
 
-def test_an_anonymous_role_does_not_log_in(tmp_path):
-    """The product module marks an anonymous role; its scenarios open the application with loginAs as the others."""
-    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
-
-    def anonymous(data):
-        data['roles'][1].pop('test_user')
-        data['roles'][1]['anonymous'] = True
-
-    edit_product(tmp_path, anonymous)
-    files = rendered(tmp_path)
-    assert '    viewer: {\n      anonymous: true,\n      username: null,\n    },\n' in files[e2e.PRODUCT_TS]
+def test_an_anonymous_role_does_not_log_in():
+    """
+    The product module marks an anonymous role (`visitor` of the sample); its scenarios open the
+    application with loginAs as the others.
+    """
+    files = rendered(REPOSITORY / 'sample')
+    assert '    visitor: {\n      anonymous: true,\n      username: null,\n    },\n' in files[e2e.PRODUCT_TS]
     assert '    manager: {\n      username: "manager",\n    },\n' in files[e2e.PRODUCT_TS]
-    assert any("loginAs(page, PRODUCT, 'viewer')" in text for text in files.values())
+    assert "loginAs(page, PRODUCT, 'visitor')" in files[SUGGESTS]
 
 
 @pytest.mark.django_db
@@ -412,11 +409,11 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     assert sorted(files) == [
         STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
         HOME, BULK,
-        e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS,
+        e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS, SUGGESTS,
     ]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 18 end-to-end tests' in out
+    assert 'Generated 19 end-to-end tests' in out
     # a to-many relationship is filled with the list of the labels of its items, in the step
     # and in its title
     assert "test.step('fill: {watchers: []}'" in files[WATCHER]
@@ -428,7 +425,7 @@ def test_e2e_writes_the_tests_and_the_lock(root):
             path: digest((root / path).read_bytes())
             for path in [
                 'spec/product.yaml', 'spec/screens/draft-tasks.yaml', 'spec/screens/home.yaml',
-                'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml', 'spec/screens/task-card.yaml',
+                'spec/screens/public-tasks.yaml', 'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml', 'spec/screens/task-card.yaml',
                 'spec/screens/task-list.yaml',
             ]
         },
@@ -465,7 +462,7 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert sorted(read_lock(root)['e2e']['generated']) == [
         STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
         HOME, BULK,
-        e2e.PRODUCT_TS, CALENDAR, DRAFTS,
+        e2e.PRODUCT_TS, CALENDAR, DRAFTS, SUGGESTS,
     ]
     generate('--check')
 
@@ -489,7 +486,7 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     assert sorted(read_lock(root)['e2e']['generated']) == [
         STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
         HOME, BULK,
-        e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS,
+        e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS, SUGGESTS,
     ]
 
 

@@ -15,7 +15,8 @@
 // The contract of the layout: `nav:<screen>` of the navigation (the current one
 // `aria-current="page"`; a link that `requires` a permission only once the backend allows
 // it; a group under its heading while one of its links is shown, also in the menu of a
-// phone), `screen:<id>`, the logout `action:logout` with a session only, the color mode, the
+// phone), `screen:<id>`, the logout `action:logout` with a session only, the sign-in
+// `action:sign-in` without one, the color mode, the
 // language (`action:language`, with more than one language), the tools of the product mounted
 // once, the link of a screen back to its parent (`nav:<screen>`); and the list with its card
 // (`ListCardLayout`), side by side or one at a time.
@@ -246,7 +247,32 @@ describe('AppShell', () => {
     );
     expect(screen.getByTestId('screen:home')).toBeTruthy();
     expect(screen.queryByTestId('action:logout')).toBeNull();
+    expect(screen.queryByTestId('action:sign-in')).toBeNull();
   });
+
+  for (const navigation of ['sidebar', 'topbar'] as const) {
+    it(`offers the sign-in without a session, never with one (${navigation})`, () => {
+      const signIn = vi.fn();
+      const { unmount } = renderWithBazis(
+        <AppShell title="Product" navigation={navigation} items={items} signIn={signIn}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      expect(screen.queryByTestId('action:logout')).toBeNull();
+      fireEvent.click(screen.getByTestId('action:sign-in'));
+      expect(signIn).toHaveBeenCalledOnce();
+      unmount();
+      renderWithBazis(
+        <AppShell title="Product" navigation={navigation} items={items} session={{ onLogout: vi.fn() }} signIn={signIn}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      expect(screen.getByTestId('action:logout')).toBeTruthy();
+      expect(screen.queryByTestId('action:sign-in')).toBeNull();
+    });
+  }
 
   for (const [navigation, wide] of [['sidebar', true], ['sidebar', false], ['topbar', true]] as const) {
     it(`mounts the tools once (${navigation}, ${wide ? 'wide' : 'a phone'})`, () => {

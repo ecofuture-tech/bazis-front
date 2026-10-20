@@ -166,6 +166,7 @@ export const ru: Messages = {
   'shell.menu': 'Открыть меню',
   'shell.menu_description': 'Навигация приложения',
   'shell.navigation': 'Основная навигация',
+  'shell.sign_in': 'Войти',
   'size.bytes': '{size} Б',
   'size.gb': '{size} ГБ',
   'size.kb': '{size} КБ',

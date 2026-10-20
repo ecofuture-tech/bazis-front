@@ -25,9 +25,13 @@ navigation:
     items:
       - {screen: task-board}
       - {screen: task-calendar}
+  - {screen: public-tasks, icon: globe}   # public: shown also to the guests, who do not log in
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
+  # the guests, who do not log in: the permit role `viewer` is also that of the anonymous
+  # users (tasks/roles.py); their screens are public (`public-tasks`)
+  - {id: visitor, permit: viewer, title: Visitor, anonymous: true}
 entities:
   - id: task
     resource: tasks.task
@@ -55,6 +59,7 @@ entities:
         change: {selector: all, statuses: [draft]}
         transit: [start, finish]
       viewer: {view: all}
+      visitor: {view: all}
   - id: user
     resource: users.user
     title: {en: User, ru: Пользователь}
@@ -308,3 +313,13 @@ scenarios:
       - submit: {}
       - open_item: {where: {title: Plan on the calendar}}
       - expect: {screen: task-card, status: draft}
+  # a guest, without a login: the public list of the tasks, and a task suggested with the
+  # public custom action `suggest`
+  - id: visitor-suggests-a-task
+    role: visitor
+    steps:
+      - open: public-tasks
+      - action: suggest
+      - fill: {title: Suggested by a guest}
+      - submit: {}
+      - expect: {screen: public-tasks}

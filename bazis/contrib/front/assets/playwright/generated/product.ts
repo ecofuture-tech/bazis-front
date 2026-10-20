@@ -10,6 +10,10 @@ export const PRODUCT = {
     viewer: {
       username: "viewer",
     },
+    visitor: {
+      anonymous: true,
+      username: null,
+    },
   },
   screens: {
     "draft-tasks": {
@@ -17,6 +21,9 @@ export const PRODUCT = {
     },
     home: {
       route: "/",
+    },
+    "public-tasks": {
+      route: "/public",
     },
     "task-board": {
       route: "/board",

@@ -54,7 +54,11 @@ answers with the id of its task, the reference of `client.action`/`useAction` ca
 `tests/test_react_fixture.py`, and the custom action of an item `escalate`
 (`POST /api/v1/tasks/task/{id}/escalate/`, a JSON body `{priority}`, high by default, with
 `access_action` change: listed in `custom_actions` of the drafts of the manager only, 403 on
-the others, `tests/test_escalate.py`), the custom actions of the specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
+the others, `tests/test_escalate.py`), and the custom action `suggest` open to anonymous
+users (`public=True`, `POST /api/v1/tasks/task/suggest/`, a JSON body `{title}`), which
+creates a task: the action of the public screen `public-tasks` of the anonymous role
+`visitor` of the specs (the permit role `viewer`, `for_anonymous`), whom bazis-permit refuses
+the create route (`tests/test_suggest.py`), the custom actions of the specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
 `card.related` of the card of a task, added there with the task fixed, to a draft only:
 `Step.validate_item`, `tests/test_steps.py`), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
@@ -152,7 +156,8 @@ job of CI.
   attributes and the relationships of the request of their create route, which S034 reads,
   and `custom_actions`, the routes of the kind `other` of their route set (but the ids of
   the list of the core and the transits, `resources.NOT_CUSTOM`) with the standalone JSON
-  Schema of their body, which S032 reads).
+  Schema of their body, which S032 reads; 7: `public` of the custom actions, open to
+  anonymous users, which S046 reads).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the
@@ -273,8 +278,9 @@ job of CI.
 - `spec/screens.py` (`bazis_front screens`, also run by `init`) renders
   `frontend/src/screens/generated/` from specs without errors: a module per screen that is
   not custom (`<id>.tsx`), `entities.ts`, `screens.ts` (`routeTo`), `routes.tsx`
-  (`SCREEN_ROUTES`, a fragment that `src/app/router.tsx` of the template puts in
-  `RequireSession`; custom screens by `lazyScreen` of their modules), `navigation.ts`,
+  (`PUBLIC_ROUTES`, the screens with an anonymous role in their `roles`, `refs.is_public`,
+  outside `RequireSession` of `src/app/router.tsx` of the template, and `SCREEN_ROUTES`,
+  the others, inside it; custom screens by `lazyScreen` of their modules), `navigation.ts`,
   `messages.ts` (`GENERATED_MESSAGES`: every text of the specs by the key of its place,
   merged under the dictionaries of the product by `src/i18n/index.ts`), `product.ts`,
   `providers.tsx` and `tools.tsx`. The code is printed by `spec/tsx.py`, a port of the

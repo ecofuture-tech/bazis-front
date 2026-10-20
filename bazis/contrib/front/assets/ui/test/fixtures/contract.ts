@@ -45,6 +45,7 @@ export const RESOURCES = {
         item: true,
         method: "get",
         name: "download",
+        public: false,
       },
     },
     fields: {
@@ -238,6 +239,7 @@ export const RESOURCES = {
         item: false,
         method: "post",
         name: "clear",
+        public: false,
       },
       action_read_all: {
         access_action: null,
@@ -245,6 +247,7 @@ export const RESOURCES = {
         item: false,
         method: "post",
         name: "read_all",
+        public: false,
       },
       action_unread_count: {
         access_action: null,
@@ -252,6 +255,7 @@ export const RESOURCES = {
         item: false,
         method: "get",
         name: "unread_count",
+        public: false,
       },
     },
     fields: {
@@ -396,6 +400,7 @@ export const RESOURCES = {
       action_schema_retrieve: "schema",
       action_schema_transit: "schema",
       action_schema_update: "schema",
+      action_suggest: "other",
       action_transit: "other",
       action_update: "update",
       action_update_relationships: "relationship",
@@ -446,6 +451,7 @@ export const RESOURCES = {
         item: false,
         method: "post",
         name: "count",
+        public: false,
       },
       action_escalate: {
         access_action: "change",
@@ -474,6 +480,30 @@ export const RESOURCES = {
         item: true,
         method: "post",
         name: "escalate",
+        public: false,
+      },
+      action_suggest: {
+        access_action: null,
+        body: {
+          description: "The title of the task that a guest suggests.",
+          properties: {
+            title: {
+              maxLength: 255,
+              minLength: 1,
+              title: "Title",
+              type: "string",
+            },
+          },
+          required: [
+            "title",
+          ],
+          title: "SuggestRequest",
+          type: "object",
+        },
+        item: false,
+        method: "post",
+        name: "suggest",
+        public: true,
       },
     },
     fields: {
@@ -596,6 +626,7 @@ export const RESOURCES = {
         item: true,
         method: "get",
         name: "download",
+        public: false,
       },
     },
     fields: {

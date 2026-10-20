@@ -29,7 +29,7 @@ not create (P033), or finds one by the texts of the items that a scenario create
 from dataclasses import dataclass, field
 
 from .issues import Document, Issues
-from .refs import Entity, Product, related_fields, related_sections, screen_actions
+from .refs import Entity, Product, is_public, related_fields, related_sections, screen_actions
 
 
 #: the package whose users log in: the role of a scenario then needs a `test_user`
@@ -276,9 +276,20 @@ class _Scenario:
                 f'Create spec/screens/{screen_id}.yaml or use an existing screen.',
             )
         screen = self.screens.get(screen_id)
+        if screen is not None and self.closed(screen):
+            self.add(
+                path, 'P035',
+                f'The scenario of the anonymous role `{self.role}` opens `{screen_id}`, which is not public: '
+                'the frontend sends a user without a session to the login.',
+                f'List `{self.role}` in `roles` of `{screen_id}`, or give the scenario a role that logs in.',
+            )
         self.state = _State(screen, known=screen is not None)
         if screen is not None and screen['primitive'] == 'form':
             self.state.form = screen['form']
+
+    def closed(self, screen: dict) -> bool:
+        """Whether the role is anonymous and the screen is not public: the frontend sends him to the login (P035)."""
+        return bool(self.product.roles.get(self.role, {}).get('anonymous')) and not is_public(screen, self.product.roles)
 
     def lead(self, path, screen_id) -> None:
         """
@@ -344,7 +355,7 @@ class _Scenario:
                 'scenario does not know its id.',
                 'Open a list and reach the item with `open_item`, or after a form with `then`.',
             )
-        if screen.get('roles') and self.role not in screen['roles']:
+        if screen.get('roles') and self.role not in screen['roles'] and not self.closed(screen):
             self.add(
                 path, 'P022', f'The screen `{screen_id}` is not for the role `{self.role}`.',
                 'Add the role to the `roles` of the screen, or open another screen.',
@@ -458,11 +469,14 @@ class _Scenario:
             return
         custom = (self.state.screen or {}).get('custom')
         if action['primitive'] == 'custom':
-            # a list runs one on each row (or of the route set, its toolbar): the scenarios run
-            # those of the item of a card, and those of the rows as bulk actions
+            # a list runs those of its rows on each row: the scenarios run those of the item of
+            # a card, those of the rows as bulk actions, and those of the route set from the
+            # toolbar of a list (the guest of a public screen with a public action)
+            screen = self.state.screen
+            of_item = screen['primitive'] == 'card'
             self.require(
-                path, self.state.screen['primitive'] == 'card',
-                'A custom action of a list is run on a row or from its toolbar: run it on the card of the item, '
+                path, of_item or action_id not in screen.get('list', {}).get('row_actions', []),
+                'A custom action of the rows of a list is run on each row: run it on the card of the item, '
                 'or as a bulk action of the list.',
             )
             if action.get('fields'):
@@ -470,7 +484,8 @@ class _Scenario:
                 return
             if action.get('confirm'):
                 self.confirm = 'optional' if custom else 'required'
-            self.changes_item(path, 'runs a custom action on')
+            if of_item:
+                self.changes_item(path, 'runs a custom action on')
             return
         if action['primitive'] == 'destroy':
             self.confirm = 'optional' if custom else 'required'
@@ -603,10 +618,13 @@ class _Scenario:
         """
         The saved submit of the open form: a create form (of the screen, of a dashboard, of the
         add of a calendar or of "add here" of a card) makes an item, which it returns; "add here"
-        and any other form (the edit of a card, a custom action) change the item of the card,
-        whose values an edit updates when the scenario created it.
+        and any other form (the edit of a card, a custom action of its item) change the item of
+        the card, whose values an edit updates when the scenario created it; a custom action of
+        the toolbar of a list changes none.
         """
         values, custom = self.state.values, form is not None and form.get('primitive') == 'custom'
+        if custom and (self.state.screen or {}).get('primitive') != 'card':
+            return None
         if form is not None and not custom and form.get('mode', 'create') == 'create':
             made = _Made(form.get('entity', (self.state.screen or {}).get('entity')), dict(values))
             self.made.append(made)

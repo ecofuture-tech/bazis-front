@@ -344,6 +344,7 @@ test.describe('shoot', () => {
       console.error('Each child in a list should have a unique "key" prop.');
       fetch('/api/v1/tasks/task/');
       fetch('/api/v1/tasks/task/1/');
+      fetch('/api/v1/tasks/task/2/');
       fetch('/api/v1/tasks/task/', { method: 'POST' });
       fetch('/api/v1/tasks/step/route_filter_fields/');
       fetch('/api/v1/tasks/step/schema_list/');
@@ -359,9 +360,17 @@ test.describe('shoot', () => {
         await route.fulfill({ status: 500, contentType: 'text/plain', body: '' });
         return;
       }
-      // a list that fails, an item refused (the screen shows it as its state), a create
-      // refused, the fields of the filters of a route set that does not route them
-      const status = request.method() === 'POST' ? 403 : pathname.endsWith('/1/') || pathname.endsWith('/route_filter_fields/') ? 404 : 500;
+      // a list that fails, items refused (the screen shows it as its state: also a 401 of a
+      // user without a session), a create refused, the fields of the filters of a route set
+      // that does not route them
+      const status =
+        request.method() === 'POST'
+          ? 403
+          : pathname.endsWith('/2/')
+            ? 401
+            : pathname.endsWith('/1/') || pathname.endsWith('/route_filter_fields/')
+              ? 404
+              : 500;
       await route.fulfill({ status, contentType: 'application/vnd.api+json', body: '{"errors": []}' });
     });
     await shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info);
@@ -516,6 +525,19 @@ test.describe('shoot', () => {
     const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-dark-1280.json'), 'utf8')) as ShotResult;
     expect(result.file).toBeNull();
     expect(result.issues).toMatchObject([{ code: 'V001', severity: 'error', selector: '[data-bz="screen:task-list"]' }]);
+  });
+
+  test('writes V020 when the router sends the user to the login', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    await serve(page, {
+      '/tasks': `<!doctype html><html><body><script>location.replace('/login')</script></body></html>`,
+      '/login': '<!doctype html><html><body><form><button type="submit" data-bz="action:submit">Log in</button></form></body></html>',
+    });
+    await expect(shoot(page, PRODUCT, { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null }, info)).rejects.toThrow();
+    const result = JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult;
+    expect(result.file).toBeNull();
+    expect(result.issues).toMatchObject([{ code: 'V020', severity: 'error', selector: '[data-bz="screen:task-list"]' }]);
   });
 
   test('writes V001 when the screen renders no state', async ({ page }, info) => {
