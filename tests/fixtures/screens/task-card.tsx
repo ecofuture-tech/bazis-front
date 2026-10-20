@@ -53,6 +53,7 @@ export function TaskCardScreen() {
           { id: 'main', fields: ['title', 'status', 'assignee', 'watchers', 'attachment', 'priority', 'location'] },
           { id: 'report', title: t('screens.task-card.card.sections.report.title'), fields: ['report'] },
         ]}
+        display={TASK.display}
         edit
         badge={(item) => <StatusBadge resource={item} />}
         tabs={[

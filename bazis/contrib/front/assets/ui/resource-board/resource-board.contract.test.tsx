@@ -24,10 +24,10 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { TRANSITS } from '@/bazis/generated/contract';
 import { BoardDragProvider, ResourceBoard, type BoardDrag } from '@/bazis/ui/resource-board';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
-// the menus are positioned with ResizeObserver, which jsdom does not have
 beforeAll(() => {
   vi.stubGlobal(
     'ResizeObserver',
@@ -49,26 +49,17 @@ const schema = runtimeSchema(
   { list: true },
 );
 
-const task = (id: string, status: string, extra: Record<string, unknown> = {}) =>
-  resource(id, { title: `Task ${id}`, count: 2, late: false, ...extra }, { status: { type: 'statusy.status', id: status } });
+const task = (id: string, status: string, extra: Record<string, unknown> = {}, type = 'test.item') =>
+  resource(id, { title: `Task ${id}`, count: 2, late: false, ...extra }, { status: { type: 'statusy.status', id: status } }, type);
 
-function action(id: string, transit: string, payload: unknown) {
-  return {
-    code: 'ACTION_TRANSIT',
-    endpoint: { url: `${ITEMS}${id}/transit/`, method: 'POST', body: { type: 'object', properties: { transit: { type: 'string', default: transit }, payload } } },
-    restricts: null,
-    resource: { type: 'test.item', id },
-  };
-}
-
-const NO_PAYLOAD = { anyOf: [{ type: 'object' }, { type: 'null' }] };
-const REPORT = { type: 'object', required: ['report'], properties: { report: { type: 'string', title: 'Report' } } };
+/** A list of the board with the transits that the user may run on its items (`for_transit`). */
+const moving = (items: readonly unknown[], forTransit: Record<string, readonly string[]>, count?: number) =>
+  listDocument(items, { meta: { for_transit: forTransit }, ...(count === undefined ? {} : { count }) });
 
 function backend(list: unknown, status = 200, transit: [unknown, number] = [{ data: task('a', 'done') }, 200]) {
   return new Backend()
     .on('GET', `${ITEMS}schema_list/`, schema)
     .on('GET', ITEMS, list, status)
-    .on('GET', `${ITEMS}a/`, { data: task('a', 'draft'), meta: { state_actions: [action('a', 'start', NO_PAYLOAD), action('a', 'finish', REPORT)] } })
     .on('POST', `${ITEMS}a/transit/`, ...transit);
 }
 
@@ -79,6 +70,21 @@ const board = (props: Partial<Parameters<typeof ResourceBoard>[0]> = {}) => (
 function open(trigger: HTMLElement) {
   fireEvent.keyDown(trigger, { key: 'Enter' });
 }
+
+const lists = (server: Backend) =>
+  server
+    .requests('GET')
+    .filter((it) => it.startsWith(`GET ${ITEMS}?`))
+    .map((it) => decodeURIComponent(it));
+
+// a transit of the contract of the product that takes a payload, if it has one: the board
+// asks for it with the JSON Schema of the contract (`for_transit` gives the ids only)
+const CONTRACT: Readonly<
+  Record<string, { transits: readonly { id: string; dst: string; payload: { schema: { properties?: object } } | null }[] }>
+> = TRANSITS;
+const WITH_PAYLOAD = Object.entries(CONTRACT).flatMap(([type, model]) =>
+  model.transits.flatMap((it) => (it.payload ? [{ type, transit: it.id, dst: it.dst, fields: Object.keys(it.payload.schema.properties ?? {}) }] : [])),
+)[0];
 
 describe('ResourceBoard', () => {
   it('is loading, then shows a column per status, its items, its number and more of them', async () => {
@@ -97,12 +103,11 @@ describe('ResourceBoard', () => {
     // the badge of a field while it is true
     expect(row.textContent).toContain('Late');
     // a list per column, filtered by its status
-    const lists = server.requests('GET').filter((it) => it.startsWith(`GET ${ITEMS}?`)).map((it) => decodeURIComponent(it));
-    expect(lists.some((it) => it.includes('status=draft'))).toBe(true);
-    expect(lists.some((it) => it.includes('status=done'))).toBe(true);
+    expect(lists(server).some((it) => it.includes('status=draft'))).toBe(true);
+    expect(lists(server).some((it) => it.includes('status=done'))).toBe(true);
     fireEvent.click(within(draft).getByTestId('action:more'));
     await waitFor(() => {
-      expect(server.requests('GET').map((it) => decodeURIComponent(it)).some((it) => it.includes('status=draft') && it.includes('page[limit]=2'))).toBe(true);
+      expect(lists(server).some((it) => it.includes('status=draft') && it.includes('page[limit]=2'))).toBe(true);
     });
   });
 
@@ -119,7 +124,7 @@ describe('ResourceBoard', () => {
 
   it('opens an item by a click, not by its menu, and moves it by a transit of its menu', async () => {
     const onOpen = vi.fn();
-    const server = backend(listDocument([task('a', 'draft')]));
+    const server = backend(moving([task('a', 'draft')], { a: ['start'] }));
     renderWithBazis(board({ onOpen, columns: ['draft'], move: true }), server);
     const row = await screen.findByTestId('row:a');
     open(within(row).getByTestId('action:move'));
@@ -132,13 +137,23 @@ describe('ResourceBoard', () => {
     expect(onOpen).toHaveBeenCalledWith('a');
   });
 
+  it('reads the transits of the cards with the lists of the columns, not of each card', async () => {
+    const server = backend(moving([task('a', 'draft'), task('b', 'draft')], { a: ['start'], b: ['start'] }));
+    renderWithBazis(board({ columns: ['draft'], move: true }), server);
+    await screen.findByTestId('row:b');
+    expect(lists(server).every((it) => it.includes('meta=pagination,for_transit'))).toBe(true);
+    open(within(screen.getByTestId('row:a')).getByTestId('action:move'));
+    expect(await screen.findByTestId('move:start')).toBeTruthy();
+    expect(server.requests('GET').filter((it) => /\/item\/[ab]\//.test(it))).toEqual([]);
+  });
+
   it('lists the moves in the order of the specs, and asks to confirm a transit that they confirm', async () => {
-    const server = backend(listDocument([task('a', 'draft')]));
-    renderWithBazis(board({ columns: ['draft'], move: true, transits: [{ id: 'finish' }, { id: 'start', confirm: true }] }), server);
+    const server = backend(moving([task('a', 'draft')], { a: ['finish', 'start'] }));
+    renderWithBazis(board({ columns: ['draft'], move: true, transits: [{ id: 'start', confirm: true }, { id: 'finish' }] }), server);
     open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));
     await screen.findByTestId('move:start');
     const moves = screen.getAllByRole('menuitem').map((it) => it.getAttribute('data-bz'));
-    expect(moves).toEqual(['move:finish', 'move:start']);
+    expect(moves).toEqual(['move:start', 'move:finish']);
     fireEvent.click(screen.getByTestId('move:start'));
     fireEvent.click(await screen.findByTestId('action:confirm-start'));
     await waitFor(() => {
@@ -146,15 +161,18 @@ describe('ResourceBoard', () => {
     });
   });
 
-  it('asks for the payload of a transit in a dialog', async () => {
-    renderWithBazis(board({ columns: ['draft'], move: true }), backend(listDocument([task('a', 'draft')])));
+  it.runIf(WITH_PAYLOAD)('asks for the payload of a transit of the contract in a dialog', async () => {
+    if (!WITH_PAYLOAD) return;
+    const { type, transit, dst, fields } = WITH_PAYLOAD;
+    const server = backend(moving([task('a', 'draft', {}, type)], { a: [transit] }));
+    renderWithBazis(board({ columns: ['draft'], move: true }), server);
     open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));
-    fireEvent.click(await screen.findByTestId('move:finish'));
-    expect(await screen.findByTestId('field:report')).toBeTruthy();
+    fireEvent.click(await screen.findByTestId(`move:${dst}`));
+    for (const name of fields) expect(await screen.findByTestId(`field:${name}`)).toBeTruthy();
   });
 
   it('shows the refusal of a move by its menu', async () => {
-    renderWithBazis(board({ columns: ['draft'], move: true }), backend(listDocument([task('a', 'draft')]), 200, [errors(403), 403]));
+    renderWithBazis(board({ columns: ['draft'], move: true }), backend(moving([task('a', 'draft')], { a: ['start'] }), 200, [errors(403), 403]));
     const row = await screen.findByTestId('row:a');
     expect(screen.queryByTestId('error:move')).toBeNull();
     open(within(row).getByTestId('action:move'));
@@ -165,38 +183,7 @@ describe('ResourceBoard', () => {
     expect(within(screen.getByTestId('column:draft')).getByTestId('row:a')).toBeTruthy();
   });
 
-  it('reads the transits of a card when its menu opens, not with the board', async () => {
-    const server = backend(listDocument([task('a', 'draft'), task('b', 'draft'), task('c', 'draft')]));
-    renderWithBazis(board({ columns: ['draft'], move: true }), server);
-    await screen.findByTestId('row:c');
-    expect(screen.getAllByTestId('action:move')).toHaveLength(3);
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    const items = () => server.requests('GET').filter((it) => /\/item\/[abc]\//.test(it));
-    expect(items()).toEqual([]);
-    open(within(screen.getByTestId('row:a')).getByTestId('action:move'));
-    expect(await screen.findByTestId('move:start')).toBeTruthy();
-    expect(items()).toEqual([`GET ${ITEMS}a/?meta=state_actions`]);
-  });
-
-  it('says when a card has no transit once its menu opens, and hides its menu as it closes', async () => {
-    const server = backend(listDocument([task('a', 'draft'), task('b', 'draft')])).on('GET', `${ITEMS}a/`, {
-      data: task('a', 'draft'),
-      meta: { state_actions: [] },
-    });
-    renderWithBazis(board({ columns: ['draft'], move: true }), server);
-    const row = await screen.findByTestId('row:a');
-    open(await within(row).findByTestId('action:move'));
-    expect(await screen.findByText('No moves now')).toBeTruthy();
-    expect(screen.queryByTestId('move:start')).toBeNull();
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
-    await waitFor(() => {
-      expect(within(row).queryByTestId('action:move')).toBeNull();
-    });
-    // the other cards keep theirs, unread
-    expect(within(screen.getByTestId('row:b')).getByTestId('action:move')).toBeTruthy();
-  });
-
-  /** A drag and drop that gives the test the drop of the board. */
+  /** A drag and drop that gives the test the drop of the board, and marks the cards it drags. */
   function dragOf(): { drag: BoardDrag; drop: (id: string, status: string) => void } {
     let dropped: ((id: string, status: string) => void) | undefined;
     const drag: BoardDrag = {
@@ -205,38 +192,54 @@ describe('ResourceBoard', () => {
         return children;
       },
       Column: ({ children }: { children: ReactNode }) => children,
-      Card: ({ children }: { children: ReactNode }) => children,
+      Card: ({ id, children }: { id: string; children: ReactNode }) => <div data-bz={`drag:${id}`}>{children}</div>,
     };
     return { drag, drop: (id, status) => dropped?.(id, status) };
   }
 
+  it('gives a card without a transit neither its menu nor its drag', async () => {
+    const { drag } = dragOf();
+    renderWithBazis(
+      <BoardDragProvider drag={drag}>{board({ columns: ['draft'], move: true })}</BoardDragProvider>,
+      backend(moving([task('a', 'draft'), task('b', 'draft')], { b: ['start'] })),
+    );
+    const row = await screen.findByTestId('row:a');
+    expect(within(row).queryByTestId('action:move')).toBeNull();
+    expect(screen.queryByTestId('drag:a')).toBeNull();
+    expect(within(screen.getByTestId('row:b')).getByTestId('action:move')).toBeTruthy();
+    expect(screen.getByTestId('drag:b')).toBeTruthy();
+  });
+
   it('runs the transit of a card dropped on a column whose status it leads to, and shows its refusal', async () => {
     const { drag, drop } = dragOf();
-    const server = backend(listDocument([task('a', 'draft')]));
-    const moved = renderWithBazis(<BoardDragProvider drag={drag}>{board({ columns: ['draft', 'start'], move: true })}</BoardDragProvider>, server);
+    const server = backend(moving([task('a', 'draft')], { a: ['start'] }));
+    const moved = renderWithBazis(<BoardDragProvider drag={drag}>{board({ columns: ['draft', 'start', 'done'], move: true })}</BoardDragProvider>, server);
     await screen.findAllByTestId('row:a');
+    // a column that no transit of the card leads to: nothing is sent
+    drop('a', 'done');
     // the contract of the tests knows no status of its transits: the transit names the column
     drop('a', 'start');
     await waitFor(() => {
-      expect(server.calls.find((it) => it.method === 'POST')?.body).toEqual({ transit: 'start' });
+      expect(server.calls.filter((it) => it.method === 'POST').map((it) => it.body)).toEqual([{ transit: 'start' }]);
     });
     moved.unmount();
 
     const refusing = dragOf();
     renderWithBazis(
       <BoardDragProvider drag={refusing.drag}>{board({ columns: ['draft', 'start'], move: true })}</BoardDragProvider>,
-      backend(listDocument([task('a', 'draft')]), 200, [errors(422), 422]),
+      backend(moving([task('a', 'draft')], { a: ['start'] }), 200, [errors(422), 422]),
     );
     await screen.findAllByTestId('row:a');
     refusing.drop('a', 'start');
     expect(within(await screen.findByTestId('error:move')).getByTestId('state:invalid')).toBeTruthy();
   });
 
-  it('moves no card without `move`: no menu, no drag and drop', async () => {
+  it('moves no card without `move`: no transits read, no menu, no drag and drop', async () => {
     const { drag, drop } = dragOf();
-    const server = backend(listDocument([task('a', 'draft')]));
+    const server = backend(moving([task('a', 'draft')], { a: ['start'] }));
     renderWithBazis(<BoardDragProvider drag={drag}>{board({ columns: ['draft', 'start'] })}</BoardDragProvider>, server);
     await screen.findAllByTestId('row:a');
+    expect(lists(server).every((it) => !it.includes('for_transit'))).toBe(true);
     expect(screen.queryByTestId('action:move')).toBeNull();
     drop('a', 'start');
     await new Promise((resolve) => setTimeout(resolve, 50));

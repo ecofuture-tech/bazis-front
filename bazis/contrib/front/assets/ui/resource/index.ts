@@ -66,6 +66,7 @@ export {
 } from './points.js';
 export type { GeoJsonPoint, LatLng, PointControlProps } from './points.js';
 export {
+  ITEM_META,
   text,
   useAnyAction,
   useAnyFilterFields,

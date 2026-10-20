@@ -201,12 +201,12 @@
       }
     },
     "dashboard": {
-      "description": "An overview of the entities: tiles that count the items of a filter, charts of the items by status or by date, the last items of an entity and the create forms of entities. A count is a list of one item of the API, with its pagination (the core has no aggregates).",
+      "description": "An overview of the entities: tiles that count the items of a filter or show an aggregate of a field of them, charts of the items by status or by date, the last items of an entity and the create forms of entities. A tile and a chart are the aggregates of a list of the API (`meta=aggregates` of the core, bazis 2.17): over the items that the user may view with the filter, of the fields that the route set filters by.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "tiles": {
-          "description": "The count of the items of an entity with the `filter` of a list (`tile:<id>`, the number in `data-value`); a click opens the list `open`.",
+          "description": "The count of the items of an entity with the `filter` of a list, or the aggregate `value` of a field of them (`tile:<id>`, the number in `data-value`); a click opens the list `open`.",
           "type": "array",
           "items": {
             "type": "object",
@@ -216,6 +216,19 @@
               "id": {"$ref": "#/$defs/id"},
               "entity": {"$ref": "#/$defs/id"},
               "filter": {"$ref": "#/$defs/filter"},
+              "value": {
+                "description": "The aggregate of a field of the items that the tile shows instead of their number: its sum or average (a number field), its minimum or maximum (a number or a date field), `{sum: amount}` (S049), shown as the `display` of the field; a field that the route set filters by (S050).",
+                "type": "object",
+                "minProperties": 1,
+                "maxProperties": 1,
+                "additionalProperties": false,
+                "properties": {
+                  "sum": {"$ref": "#/$defs/field"},
+                  "avg": {"$ref": "#/$defs/field"},
+                  "min": {"$ref": "#/$defs/field"},
+                  "max": {"$ref": "#/$defs/field"}
+                }
+              },
               "tone": {"$ref": "#/$defs/tone"},
               "label": {"$ref": "#/$defs/label"},
               "icon": {"description": "The icon of the tile, a lucide icon (D013); that of its entity (`icons` of theme.yaml) by default.", "$ref": "#/$defs/icon"},
@@ -224,7 +237,7 @@
           }
         },
         "charts": {
-          "description": "The items of an entity by its status (`status` of an entity with a workflow: a count for each status) or by a date or a date-time field (a count for each `bucket`, the `last` ones up to the current one), `chart:<id>`.",
+          "description": "The items of an entity by its status (`status` of an entity with a workflow: a count for each status) or by a date or a date-time field (a count for each `bucket`, the `last` ones up to the current one), or the sum or the average `value` of a field of them, `chart:<id>`.",
           "type": "array",
           "items": {
             "type": "object",
@@ -237,6 +250,17 @@
               "kind": {"enum": ["donut", "bar", "line"]},
               "bucket": {"enum": ["day", "week", "month"]},
               "last": {"type": "integer", "minimum": 1},
+              "value": {
+                "description": "The aggregate of a number field of the items that the chart shows instead of their number: its sum or average, `{sum: amount}` (S049); a field that the route set filters by (S050).",
+                "type": "object",
+                "minProperties": 1,
+                "maxProperties": 1,
+                "additionalProperties": false,
+                "properties": {
+                  "sum": {"$ref": "#/$defs/field"},
+                  "avg": {"$ref": "#/$defs/field"}
+                }
+              },
               "label": {"$ref": "#/$defs/label"}
             }
           }

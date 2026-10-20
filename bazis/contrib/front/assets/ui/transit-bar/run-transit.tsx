@@ -25,7 +25,7 @@ import { ApiError, errorText, type ErrorObject } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { objectFields, useErrorMessage } from '@/bazis/react';
 import { useItemsTransit, type Transit, type TransitPath } from '@/bazis/react/statusy';
-import { FieldInput } from '@/bazis/ui/resource';
+import { FieldInput, statusyModel } from '@/bazis/ui/resource';
 import { statusName, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -76,6 +76,26 @@ function defaults(transit: Transit): Record<string, unknown> {
 export interface DeclaredTransit {
   id: string;
   confirm?: boolean;
+}
+
+/**
+ * A transit of an item that its list gives (`for_transit` of bazis-statusy: its id only), with
+ * the JSON Schema of its payload from the contract (`TRANSITS`): allowed, the validators not
+ * called (a refusal of one is the 422 of the transit).
+ */
+export function listedTransit(item: { type: string; id: string }, id: string): Transit {
+  const payload = statusyModel(item.type)?.transits.find((it) => it.id === id)?.payload;
+  return {
+    id,
+    allowed: true,
+    restricts: [],
+    payload: payload?.schema ?? null,
+    hint: null,
+    hintTitle: null,
+    hintAction: null,
+    resource: { type: item.type, id: item.id },
+    related: [],
+  };
 }
 
 /** The transits of the backend in the order of the specs, those that the specs do not declare after them. */

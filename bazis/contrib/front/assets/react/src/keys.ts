@@ -28,6 +28,8 @@ export interface QueryOptions {
   fields?: Readonly<Record<string, readonly string[] | undefined>> | undefined;
   include?: readonly string[] | undefined;
   meta?: readonly string[] | undefined;
+  aggregate?: readonly string[] | undefined;
+  group?: string | undefined;
 }
 
 // a filter is in a key as its expression; absent options are left out

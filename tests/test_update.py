@@ -179,7 +179,7 @@ def test_update_replaces_unchanged_copies(product):
     out = StringIO()
     with pytest.raises(CommandError, match=f'The copies are not those of bazis-front {__version__}'):
         call_command('bazis_front', 'update', '--check', stdout=out)
-    assert f'client: {OLD} -> {__version__} (8 files unchanged in the frontend replaced)\n' in out.getvalue()
+    assert f'client: {OLD} -> {__version__} (9 files unchanged in the frontend replaced)\n' in out.getvalue()
     assert CLIENT not in out.getvalue()
     assert files(product) == before
     [warning] = w004()
@@ -227,7 +227,7 @@ def test_update_applies_a_change_of_bazis_front(product):
     )
 
     out = update()
-    assert f'client: {OLD} -> {__version__} (8 files unchanged in the frontend replaced)\n' in out
+    assert f'client: {OLD} -> {__version__} (9 files unchanged in the frontend replaced)\n' in out
     assert path.read_text(encoding='utf-8') == upstream(CLIENT)
     assert_updated(product, 'client')
 

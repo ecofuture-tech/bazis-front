@@ -12,8 +12,9 @@ test('manager-starts-from-the-home', async ({ page }) => {
   await test.step('open: home', async () => {
     await app.open('home');
   });
-  await test.step('expect: {tile: {review: 1}}', async () => {
+  await test.step('expect: {tile: {review: 1, review-hours: 2.5}}', async () => {
     await app.expectTile('review', 1);
+    await app.expectTile('review-hours', 2.5);
   });
   await test.step('action: create', async () => {
     await app.action('create');

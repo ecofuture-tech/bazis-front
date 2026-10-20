@@ -6,6 +6,7 @@
       "source": "client/src",
       "target": "src/bazis/client",
       "files": [
+        "aggregates.ts",
         "client.ts",
         "download.ts",
         "errors.ts",

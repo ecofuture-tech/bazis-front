@@ -14,8 +14,8 @@
 
 // The contract of the drag and drop of the boards: the board is loading until @dnd-kit is
 // loaded, a column is where a card is dropped (its status the id of the drop), a card is
-// dragged by its id, and a card dropped on another column runs the transit of the item to its
-// status. @dnd-kit is replaced by a fake that
+// dragged by its id (one with a transit, `for_transit` of its list), and a card dropped on
+// another column runs the transit of the item to its status. @dnd-kit is replaced by a fake that
 // records the drops and the drags it is asked for: jsdom has no pointer to drag with. Keep it
 // passing when the component is changed.
 
@@ -78,17 +78,11 @@ const schema = runtimeSchema({ title: { attribute: { type: 'string', title: 'Tit
 
 describe('BoardDnd', () => {
   it('drops a card on a column: the transit of the item to its status', async () => {
-    const start = {
-      code: 'ACTION_TRANSIT',
-      endpoint: { url: `${ITEMS}a/transit/`, method: 'POST', body: { type: 'object', properties: { transit: { type: 'string', default: 'start' }, payload: { anyOf: [{ type: 'object' }, { type: 'null' }] } } } },
-      restricts: null,
-      resource: { type: 'test.item', id: 'a' },
-    };
     const item = resource('a', { title: 'A' }, { status: { type: 'statusy.status', id: 'draft' } });
     const server = new Backend()
       .on('GET', `${ITEMS}schema_list/`, schema)
-      .on('GET', ITEMS, listDocument([item]))
-      .on('GET', `${ITEMS}a/`, { data: item, meta: { state_actions: [start] } })
+      // the transits that the user may run on the items of the list (`for_transit`)
+      .on('GET', ITEMS, listDocument([item], { meta: { for_transit: { a: ['start'] } } }))
       .on('POST', `${ITEMS}a/transit/`, { data: item });
     renderWithBazis(
       <BoardDnd>
@@ -125,7 +119,9 @@ describe('BoardDnd', () => {
       <BoardDnd>
         <ResourceBoard path={ITEMS as never} entity="item" columns={['draft', 'start']} title="title" move />
       </BoardDnd>,
-      new Backend().on('GET', `${ITEMS}schema_list/`, schema).on('GET', ITEMS, listDocument([item, unnamed])),
+      new Backend()
+        .on('GET', `${ITEMS}schema_list/`, schema)
+        .on('GET', ITEMS, listDocument([item, unnamed], { meta: { for_transit: { 'item-0001': ['start'], 'item-0002': ['start'] } } })),
     );
     await screen.findAllByTestId('row:item-0002');
     const part = (id: string): Part => ({ id, data: { current: { label: fake.labels.get(id) ?? null } } });

@@ -298,6 +298,8 @@ interface Query {
   fields?: Readonly<Record<string, readonly string[] | undefined>>;
   include?: readonly string[];
   meta?: readonly string[];
+  aggregate?: readonly string[];
+  group?: string;
 }
 
 interface Send {
@@ -321,6 +323,8 @@ function queryString(query: Query = {}): string {
   }
   if (query.include?.length) params.set('include', query.include.join(','));
   if (query.meta?.length) params.set('meta', query.meta.join(','));
+  if (query.aggregate?.length) params.set('aggregate', query.aggregate.join(','));
+  if (query.group !== undefined) params.set('group', query.group);
   const text = params.toString();
   return text ? `?${text}` : '';
 }

@@ -37,6 +37,7 @@ export function DraftTasksScreen() {
         filters={['assignee']}
         filter={FILTER}
         sort={['-dt_created']}
+        display={TASK.display}
         icon={TASK.Icon}
         onOpen={(item) => void navigate(routeTo('task-card', item))}
         rowActions={[escalateAction.row]}

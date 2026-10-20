@@ -52,7 +52,8 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_schema_list",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -112,7 +113,8 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_schema_create",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -191,7 +193,8 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_schema_retrieve",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -270,7 +273,8 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_schema_update",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -319,7 +323,8 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "get_route_filter_fields",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -397,6 +402,42 @@
             }
           },
           {
+            "name": "aggregate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas",
+              "title": "Aggregate"
+            },
+            "description": "The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month",
+              "title": "Group"
+            },
+            "description": "The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month"
+          },
+          {
             "name": "meta",
             "in": "query",
             "required": false,
@@ -436,7 +477,9 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_list_id",
-          "kind": "other"
+          "kind": "other",
+          "public": false,
+          "access_action": "view"
         }
       }
     },
@@ -514,6 +557,42 @@
             }
           },
           {
+            "name": "aggregate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas",
+              "title": "Aggregate"
+            },
+            "description": "The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month",
+              "title": "Group"
+            },
+            "description": "The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month"
+          },
+          {
             "name": "meta",
             "in": "query",
             "required": false,
@@ -552,14 +631,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_list",
-          "kind": "collection"
+          "kind": "collection",
+          "public": false
         }
       },
       "post": {
@@ -594,7 +674,7 @@
           "content": {
             "application/vnd.api+json": {
               "schema": {
-                "$ref": "#/components/schemas/entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b"
+                "$ref": "#/components/schemas/entity__child_entity__schema_create__0f9c648c45a15fa55af4364480f54bcf"
               }
             }
           }
@@ -628,14 +708,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_create",
-          "kind": "create"
+          "kind": "create",
+          "public": false
         }
       }
     },
@@ -780,14 +861,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_retrieve",
-          "kind": "item"
+          "kind": "item",
+          "public": false
         }
       },
       "patch": {
@@ -832,7 +914,7 @@
           "content": {
             "application/vnd.api+json": {
               "schema": {
-                "$ref": "#/components/schemas/entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b"
+                "$ref": "#/components/schemas/entity__child_entity__schema_update__7918eb4bafd7b04e4ed51608730bcd37"
               }
             }
           }
@@ -876,14 +958,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_update",
-          "kind": "update"
+          "kind": "update",
+          "public": false
         }
       },
       "delete": {
@@ -946,14 +1029,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_destroy",
-          "kind": "delete"
+          "kind": "delete",
+          "public": false
         }
       }
     },
@@ -1071,7 +1155,8 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_post_relationships",
-          "kind": "relationship"
+          "kind": "relationship",
+          "public": false
         }
       },
       "patch": {
@@ -1187,7 +1272,8 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_update_relationships",
-          "kind": "relationship"
+          "kind": "relationship",
+          "public": false
         }
       },
       "delete": {
@@ -1303,7 +1389,8 @@
           "resource": "entity.child_entity",
           "route_set": "entity.routes.ChildEntityRouteSet",
           "action": "action_delete_relationships",
-          "kind": "relationship"
+          "kind": "relationship",
+          "public": false
         }
       }
     },
@@ -1354,7 +1441,8 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_schema_list",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -1414,7 +1502,8 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_schema_create",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -1493,7 +1582,8 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_schema_retrieve",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -1572,7 +1662,8 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_schema_update",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -1621,7 +1712,8 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "get_route_filter_fields",
-          "kind": "schema"
+          "kind": "schema",
+          "public": false
         }
       }
     },
@@ -1699,6 +1791,42 @@
             }
           },
           {
+            "name": "aggregate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas",
+              "title": "Aggregate"
+            },
+            "description": "The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month",
+              "title": "Group"
+            },
+            "description": "The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month"
+          },
+          {
             "name": "meta",
             "in": "query",
             "required": false,
@@ -1738,7 +1866,9 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_list_id",
-          "kind": "other"
+          "kind": "other",
+          "public": false,
+          "access_action": "view"
         }
       }
     },
@@ -1816,6 +1946,42 @@
             }
           },
           {
+            "name": "aggregate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas",
+              "title": "Aggregate"
+            },
+            "description": "The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month",
+              "title": "Group"
+            },
+            "description": "The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month"
+          },
+          {
             "name": "meta",
             "in": "query",
             "required": false,
@@ -1854,14 +2020,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_list",
-          "kind": "collection"
+          "kind": "collection",
+          "public": false
         }
       },
       "post": {
@@ -1896,7 +2063,7 @@
           "content": {
             "application/vnd.api+json": {
               "schema": {
-                "$ref": "#/components/schemas/entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4"
+                "$ref": "#/components/schemas/entity__parent_entity__schema_create__0a6413306ab47e51147a3febdb0a919f"
               }
             }
           }
@@ -1930,14 +2097,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_create",
-          "kind": "create"
+          "kind": "create",
+          "public": false
         }
       }
     },
@@ -2114,14 +2282,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_retrieve",
-          "kind": "item"
+          "kind": "item",
+          "public": false
         }
       },
       "patch": {
@@ -2166,7 +2335,7 @@
           "content": {
             "application/vnd.api+json": {
               "schema": {
-                "$ref": "#/components/schemas/entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c"
+                "$ref": "#/components/schemas/entity__parent_entity__schema_update__d5602ec1cc21f58a3757036f8c1a889e"
               }
             }
           }
@@ -2210,14 +2379,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_update",
-          "kind": "update"
+          "kind": "update",
+          "public": false
         }
       },
       "delete": {
@@ -2280,14 +2450,15 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         },
         "x-bazis": {
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_destroy",
-          "kind": "delete"
+          "kind": "delete",
+          "public": false
         }
       }
     },
@@ -2405,7 +2576,8 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_post_relationships",
-          "kind": "relationship"
+          "kind": "relationship",
+          "public": false
         }
       },
       "patch": {
@@ -2521,7 +2693,8 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_update_relationships",
-          "kind": "relationship"
+          "kind": "relationship",
+          "public": false
         }
       },
       "delete": {
@@ -2637,13 +2810,64 @@
           "resource": "entity.parent_entity",
           "route_set": "entity.routes.ParentEntityRouteSet",
           "action": "action_delete_relationships",
-          "kind": "relationship"
+          "kind": "relationship",
+          "public": false
         }
       }
     }
   },
   "components": {
     "schemas": {
+      "AggregatesGroup": {
+        "properties": {
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group",
+          "values"
+        ],
+        "title": "AggregatesGroup",
+        "description": "The aggregates of the objects of one value of the `group` field.\n\nTags: RAG, EXPORT"
+      },
       "FieldListModel": {
         "properties": {
           "fields": {
@@ -3001,12 +3225,13 @@
         ],
         "title": "ValidationError"
       },
-      "___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes": {
+      "___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Attributes__Attributes": {
         "properties": {
           "child_name": {
             "type": "string",
             "maxLength": 255,
             "title": "child name",
+            "blank": false,
             "filterLabel": "child_name",
             "nullable": false,
             "orderLabel": "child_name"
@@ -3089,13 +3314,14 @@
             "orderLabel": "dt_updated"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "child_name"
         ],
-        "title": "___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes"
+        "title": "___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Attributes__Attributes"
       },
-      "___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities": {
+      "___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships__Relationships__Data__parent_entities": {
         "properties": {
           "data": {
             "anyOf": [
@@ -3114,7 +3340,7 @@
           }
         },
         "type": "object",
-        "title": "___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
+        "title": "___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships__Relationships__Data__parent_entities"
       },
       "___entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes": {
         "properties": {
@@ -3340,12 +3566,13 @@
         "type": "object",
         "title": "___entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
       },
-      "___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes": {
+      "___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Attributes__Attributes": {
         "properties": {
           "child_name": {
             "type": "string",
             "maxLength": 255,
             "title": "child name",
+            "blank": false,
             "filterLabel": "child_name",
             "nullable": false,
             "orderLabel": "child_name"
@@ -3428,10 +3655,11 @@
             "orderLabel": "dt_updated"
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes"
+        "title": "___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Attributes__Attributes"
       },
-      "___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities": {
+      "___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships__Relationships__Data__parent_entities": {
         "properties": {
           "data": {
             "anyOf": [
@@ -3450,14 +3678,15 @@
           }
         },
         "type": "object",
-        "title": "___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities"
+        "title": "___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships__Relationships__Data__parent_entities"
       },
-      "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes": {
+      "___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Attributes__Attributes": {
         "properties": {
           "name": {
             "type": "string",
             "maxLength": 255,
             "title": "name",
+            "blank": false,
             "filterLabel": "name",
             "nullable": false,
             "orderLabel": "name"
@@ -3549,6 +3778,7 @@
             ],
             "title": "State",
             "default": "state_one",
+            "blank": false,
             "enumDict": {
               "state_four": "State four",
               "state_one": "State one",
@@ -3615,13 +3845,14 @@
             "readOnly": true
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
         ],
-        "title": "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes"
+        "title": "___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Attributes__Attributes"
       },
-      "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities": {
+      "___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__child_entities": {
         "properties": {
           "data": {
             "anyOf": [
@@ -3641,9 +3872,9 @@
           }
         },
         "type": "object",
-        "title": "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities"
+        "title": "___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__child_entities"
       },
-      "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities": {
+      "___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__dependent_entities": {
         "properties": {
           "data": {
             "anyOf": [
@@ -3662,9 +3893,9 @@
           }
         },
         "type": "object",
-        "title": "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"
+        "title": "___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__dependent_entities"
       },
-      "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity": {
+      "___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__extended_entity": {
         "properties": {
           "data": {
             "anyOf": [
@@ -3680,7 +3911,7 @@
           }
         },
         "type": "object",
-        "title": "___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
+        "title": "___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__extended_entity"
       },
       "___entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes": {
         "properties": {
@@ -4122,12 +4353,13 @@
         "type": "object",
         "title": "___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
       },
-      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes": {
+      "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Attributes__Attributes": {
         "properties": {
           "name": {
             "type": "string",
             "maxLength": 255,
             "title": "name",
+            "blank": false,
             "filterLabel": "name",
             "nullable": false,
             "orderLabel": "name"
@@ -4219,6 +4451,7 @@
             ],
             "title": "State",
             "default": "state_one",
+            "blank": false,
             "enumDict": {
               "state_four": "State four",
               "state_one": "State one",
@@ -4285,10 +4518,11 @@
             "readOnly": true
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes"
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Attributes__Attributes"
       },
-      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities": {
+      "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__child_entities": {
         "properties": {
           "data": {
             "anyOf": [
@@ -4308,9 +4542,9 @@
           }
         },
         "type": "object",
-        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities"
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__child_entities"
       },
-      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities": {
+      "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities": {
         "properties": {
           "data": {
             "anyOf": [
@@ -4329,9 +4563,9 @@
           }
         },
         "type": "object",
-        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities"
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities"
       },
-      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null": {
+      "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities_null": {
         "properties": {
           "data": {
             "anyOf": [
@@ -4350,9 +4584,9 @@
           }
         },
         "type": "object",
-        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null"
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities_null"
       },
-      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity": {
+      "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity": {
         "properties": {
           "data": {
             "anyOf": [
@@ -4368,9 +4602,9 @@
           }
         },
         "type": "object",
-        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity"
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity"
       },
-      "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null": {
+      "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity_null": {
         "properties": {
           "data": {
             "anyOf": [
@@ -4386,14 +4620,14 @@
           }
         },
         "type": "object",
-        "title": "___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null"
+        "title": "___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity_null"
       },
-      "__entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships": {
+      "__entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships": {
         "properties": {
           "parent_entities": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"
+                "$ref": "#/components/schemas/___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships__Relationships__Data__parent_entities"
               },
               {
                 "type": "null"
@@ -4405,8 +4639,9 @@
             "orderLabel": "parent_entities"
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "__entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships"
+        "title": "__entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships"
       },
       "__entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships": {
         "properties": {
@@ -4448,12 +4683,12 @@
         "type": "object",
         "title": "__entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships"
       },
-      "__entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships": {
+      "__entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships": {
         "properties": {
           "parent_entities": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities"
+                "$ref": "#/components/schemas/___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships__Relationships__Data__parent_entities"
               },
               {
                 "type": "null"
@@ -4465,13 +4700,14 @@
             "orderLabel": "parent_entities"
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "__entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships"
+        "title": "__entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships"
       },
-      "__entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships": {
+      "__entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships": {
         "properties": {
           "child_entities": {
-            "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities",
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__child_entities",
             "title": "child entities",
             "blank": true,
             "filterLabel": "child_entities",
@@ -4481,7 +4717,7 @@
           "extended_entity": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__extended_entity"
               },
               {
                 "type": "null"
@@ -4495,7 +4731,7 @@
           "dependent_entities": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__dependent_entities"
               },
               {
                 "type": "null"
@@ -4507,8 +4743,9 @@
             "orderLabel": "dependent_entities"
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "__entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships"
+        "title": "__entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships"
       },
       "__entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships": {
         "properties": {
@@ -4594,10 +4831,10 @@
         "type": "object",
         "title": "__entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships"
       },
-      "__entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships": {
+      "__entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships": {
         "properties": {
           "child_entities": {
-            "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities",
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__child_entities",
             "title": "child entities",
             "blank": true,
             "filterLabel": "child_entities",
@@ -4607,7 +4844,7 @@
           "extended_entity": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity"
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity"
               },
               {
                 "type": "null"
@@ -4621,7 +4858,7 @@
           "dependent_entities": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities"
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities"
               },
               {
                 "type": "null"
@@ -4635,7 +4872,7 @@
           "extended_entity_null": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null"
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity_null"
               },
               {
                 "type": "null"
@@ -4649,7 +4886,7 @@
           "dependent_entities_null": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null"
+                "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities_null"
               },
               {
                 "type": "null"
@@ -4661,8 +4898,9 @@
             "orderLabel": "dependent_entities_null"
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "__entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships"
+        "title": "__entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships"
       },
       "_entity__child_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
         "properties": {},
@@ -4685,7 +4923,7 @@
         "type": "object",
         "title": "_entity__child_entity__schema_create__ResourceIdentifierSchema__entity__parent_entity"
       },
-      "_entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5": {
+      "_entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1": {
         "properties": {
           "id": {
             "anyOf": [
@@ -4710,11 +4948,11 @@
             "default": "add"
           },
           "attributes": {
-            "$ref": "#/components/schemas/___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes",
+            "$ref": "#/components/schemas/___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Attributes__Attributes",
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/components/schemas/__entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships",
+            "$ref": "#/components/schemas/__entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships",
             "title": "Relationships"
           }
         },
@@ -4723,10 +4961,52 @@
           "attributes",
           "relationships"
         ],
-        "title": "_entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5"
+        "title": "_entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1"
       },
-      "_entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed": {
+      "_entity__child_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef": {
         "properties": {
+          "aggregates": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AggregatesGroup"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregates",
+            "description": "\n        The aggregates of `aggregate` (`count` without it) over all the objects of the list\n        with its filter and search, not its page: by the term (`sum(amount)`), or a list of\n        `{group, values}` ordered by the value of `group` (None last).\n        "
+          },
           "pagination": {
             "anyOf": [
               {
@@ -4737,11 +5017,11 @@
               }
             ],
             "title": "Pagination",
-            "description": "\nProvides pagination metadata, including count, limit, and offset, as a\nPaginationMeta object.\n"
+            "description": "\n        Provides pagination metadata, including count, limit, and offset, as a\n        PaginationMeta object.\n        "
           }
         },
         "type": "object",
-        "title": "_entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed"
+        "title": "_entity__child_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef"
       },
       "_entity__child_entity__schema_list__ResourceIdentifierSchema__entity__parent_entity": {
         "properties": {
@@ -4869,7 +5149,7 @@
         "type": "object",
         "title": "_entity__child_entity__schema_update__ResourceIdentifierSchema__entity__parent_entity"
       },
-      "_entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5": {
+      "_entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1": {
         "properties": {
           "id": {
             "type": "string",
@@ -4887,11 +5167,11 @@
             "default": "change"
           },
           "attributes": {
-            "$ref": "#/components/schemas/___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes",
+            "$ref": "#/components/schemas/___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Attributes__Attributes",
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/components/schemas/__entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships",
+            "$ref": "#/components/schemas/__entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships",
             "title": "Relationships"
           }
         },
@@ -4901,7 +5181,7 @@
           "attributes",
           "relationships"
         ],
-        "title": "_entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5"
+        "title": "_entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1"
       },
       "_entity__parent_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43": {
         "properties": {},
@@ -4957,7 +5237,7 @@
         "type": "object",
         "title": "_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__extended_entity"
       },
-      "_entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d": {
+      "_entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67": {
         "properties": {
           "id": {
             "anyOf": [
@@ -4982,11 +5262,11 @@
             "default": "add"
           },
           "attributes": {
-            "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes",
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Attributes__Attributes",
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/components/schemas/__entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships",
+            "$ref": "#/components/schemas/__entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships",
             "title": "Relationships"
           }
         },
@@ -4995,10 +5275,52 @@
           "attributes",
           "relationships"
         ],
-        "title": "_entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"
+        "title": "_entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67"
       },
-      "_entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed": {
+      "_entity__parent_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef": {
         "properties": {
+          "aggregates": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AggregatesGroup"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregates",
+            "description": "\n        The aggregates of `aggregate` (`count` without it) over all the objects of the list\n        with its filter and search, not its page: by the term (`sum(amount)`), or a list of\n        `{group, values}` ordered by the value of `group` (None last).\n        "
+          },
           "pagination": {
             "anyOf": [
               {
@@ -5009,11 +5331,11 @@
               }
             ],
             "title": "Pagination",
-            "description": "\nProvides pagination metadata, including count, limit, and offset, as a\nPaginationMeta object.\n"
+            "description": "\n        Provides pagination metadata, including count, limit, and offset, as a\n        PaginationMeta object.\n        "
           }
         },
         "type": "object",
-        "title": "_entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed"
+        "title": "_entity__parent_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef"
       },
       "_entity__parent_entity__schema_list__ResourceIdentifierSchema__entity__child_entity": {
         "properties": {
@@ -5272,7 +5594,7 @@
         "type": "object",
         "title": "_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity_null"
       },
-      "_entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820": {
+      "_entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831": {
         "properties": {
           "id": {
             "type": "string",
@@ -5290,11 +5612,11 @@
             "default": "change"
           },
           "attributes": {
-            "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes",
+            "$ref": "#/components/schemas/___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Attributes__Attributes",
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/components/schemas/__entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships",
+            "$ref": "#/components/schemas/__entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships",
             "title": "Relationships"
           }
         },
@@ -5304,12 +5626,12 @@
           "attributes",
           "relationships"
         ],
-        "title": "_entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820"
+        "title": "_entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831"
       },
-      "entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b": {
+      "entity__child_entity__schema_create__0f9c648c45a15fa55af4364480f54bcf": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/_entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5",
+            "$ref": "#/components/schemas/_entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1",
             "title": "Data"
           },
           "meta": {
@@ -5327,7 +5649,7 @@
         "required": [
           "data"
         ],
-        "title": "entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b"
+        "title": "entity__child_entity__schema_create__0f9c648c45a15fa55af4364480f54bcf"
       },
       "entity__child_entity__schema_list__386a7615d4b5616073650f2ac25f8e34": {
         "properties": {
@@ -5344,7 +5666,7 @@
           "meta": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/_entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed"
+                "$ref": "#/components/schemas/_entity__child_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef"
               },
               {
                 "type": "null"
@@ -5382,10 +5704,10 @@
         ],
         "title": "entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644"
       },
-      "entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b": {
+      "entity__child_entity__schema_update__7918eb4bafd7b04e4ed51608730bcd37": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/_entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5",
+            "$ref": "#/components/schemas/_entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1",
             "title": "Data"
           },
           "meta": {
@@ -5403,12 +5725,12 @@
         "required": [
           "data"
         ],
-        "title": "entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b"
+        "title": "entity__child_entity__schema_update__7918eb4bafd7b04e4ed51608730bcd37"
       },
-      "entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4": {
+      "entity__parent_entity__schema_create__0a6413306ab47e51147a3febdb0a919f": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/_entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d",
+            "$ref": "#/components/schemas/_entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67",
             "title": "Data"
           },
           "meta": {
@@ -5426,7 +5748,7 @@
         "required": [
           "data"
         ],
-        "title": "entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4"
+        "title": "entity__parent_entity__schema_create__0a6413306ab47e51147a3febdb0a919f"
       },
       "entity__parent_entity__schema_list__5ca3fd138a0659ea6e93d756730cf5e4": {
         "properties": {
@@ -5443,7 +5765,7 @@
           "meta": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/_entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed"
+                "$ref": "#/components/schemas/_entity__parent_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef"
               },
               {
                 "type": "null"
@@ -5481,10 +5803,10 @@
         ],
         "title": "entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1"
       },
-      "entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c": {
+      "entity__parent_entity__schema_update__d5602ec1cc21f58a3757036f8c1a889e": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/_entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820",
+            "$ref": "#/components/schemas/_entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831",
             "title": "Data"
           },
           "meta": {
@@ -5502,7 +5824,7 @@
         "required": [
           "data"
         ],
-        "title": "entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c"
+        "title": "entity__parent_entity__schema_update__d5602ec1cc21f58a3757036f8c1a889e"
       }
     }
   }

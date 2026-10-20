@@ -47,7 +47,10 @@ in the contract, on the map of the list of the tasks (`list.map`), written throu
 the scenario `manager-places-a-task` (`e2e_data` places no point); its `due` is a date-time
 that the create takes, the field of the calendar of the tasks (filtered by the assignee and
 the priority) whose `add` at 09:00 the scenarios run (`e2e_data` creates the task of the
-viewer due now); its route set
+viewer due now); its `hours` is a `DecimalField` (a `string` with `display: {unit: h}` in
+the spec), whose sum the home shows in the tile `review-hours` (2.5, the hours that
+`e2e_data` gives the task of the viewer) and in the chart `hours-by-month` (the aggregates
+of the core); its route set
 has the custom action `count` (`TaskRouteSet.action_count`, `POST /api/v1/tasks/task/count/`,
 a JSON body `{priority}`, 403 without a user), which queues `tasks.bg.count.CountTasks` and
 answers with the id of its task, the reference of `client.action`/`useAction` captured by
@@ -492,9 +495,10 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   Pydantic (the keywords of the schemas the hooks read, the titles of fields only, the
   definitions renamed, fixed ids, dates and error messages):
   `tests/test_react_fixture.py` captures them through the API and fails when they differ, so
-  the lower bounds of the `test` extra are the versions it is captured from (bazis-statusy
-  2.13.0: the runtime schema of a list has the meta `for_transit`, which the assets do not
-  read; the `lowest-direct` job of CI installs them). After a change of the core or of bazis-statusy, write the
+  the lower bounds of the dependencies and of the `test` extra are the versions it is
+  captured from (bazis 2.17.0: the runtime schema of a list has the meta `aggregates`;
+  bazis-statusy 2.13.0: the meta `for_transit`, which the boards read; the `lowest-direct`
+  job of CI installs them). After a change of the core or of bazis-statusy, write the
   fixture again with `BAZIS_FRONT_WRITE_FIXTURES=1 python -m pytest ../tests/test_react_fixture.py`
   (from `sample/`, as the other tests) and run the tests of the hooks.
 - Every query key ends with the session of `BazisProvider`, against the requests still

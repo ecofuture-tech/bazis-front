@@ -77,7 +77,7 @@ describe('Dashboard', () => {
         ]}
         charts={<div data-bz="chart:by-status" />}
       />,
-      new Backend().on('GET', ITEMS, listDocument([], { count: 4 })),
+      new Backend().on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 4 } } })),
     );
     await waitFor(() => {
       expect(screen.getByTestId('tile:mine').getAttribute('data-value')).toBe('4');
@@ -143,7 +143,8 @@ describe('Dashboard', () => {
     const others = '/api/test/other/';
     const server = new Backend()
       .on('GET', `${ITEMS}schema_list/`, schema)
-      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { count: 1 }))
+      // the list of the last items, and the aggregates of the tile
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { meta: { aggregates: { count: 1 } } }))
       .on('GET', `${others}schema_list/`, errors(403), 403)
       .hold('GET', `${OTHER_CHART}schema_list/`);
     renderWithBazis(

@@ -28,6 +28,7 @@ export function TaskBoardScreen() {
           move
           transits={TASK.transits}
           onOpen={(item) => void navigate(routeTo('task-card', item))}
+          display={TASK.display}
           icon={TASK.Icon}
         />
       </BoardDnd>

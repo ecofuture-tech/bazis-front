@@ -514,10 +514,13 @@ export class App<P extends Product = Product> {
     await expect(this.screen().locator('[data-bz^="row:"]')).toHaveCount(count);
   }
 
-  /** The tile of the current dashboard counts this number of items, `tile:<id>` (its `data-value`). */
-  async expectTile(id: string, count: number): Promise<void> {
+  /**
+   * The tile of the current dashboard shows this number, `tile:<id>` (its `data-value`): the count
+   * of its items, or the number of its `value` (`2.5`).
+   */
+  async expectTile(id: string, value: number): Promise<void> {
     await this.settled();
-    await expect(this.screen().locator(bz('tile', id))).toHaveAttribute('data-value', String(count));
+    await expect(this.screen().locator(bz('tile', id))).toHaveAttribute('data-value', String(value));
   }
 
   /**

@@ -23,6 +23,7 @@ import { ArrowRight, LoaderCircle } from 'lucide-react';
 
 import { useLanguage } from '@/bazis/i18n';
 import { useTransits, type TransitPath } from '@/bazis/react/statusy';
+import { ITEM_META } from '@/bazis/ui/resource';
 import { statusTone, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,8 @@ export interface TransitBarProps {
 
 /** The transits of an item, with the dialog of their payloads. */
 export function TransitBar({ path, id, transits: declared = [], onDone }: TransitBarProps) {
-  const transits = useTransits(path, id);
+  // the retrieve of the card of the item (`ResourceCard`): one request for both
+  const transits = useTransits(path, id, ITEM_META);
   const { start, mutation, open, dialog } = useRunTransit(path, onDone, declared);
   const { language, t } = useLanguage();
 

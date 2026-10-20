@@ -62,6 +62,9 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     # a date-time that the create takes: the calendar of the tasks, whose "add" starts a new
     # task at the selected day and the user sets its time (`manager-plans-on-the-calendar`)
     due = models.DateTimeField(_('Due'), blank=True, null=True)
+    # a decimal: the hours of the work, summed by the dashboard of the home (a tile and a chart,
+    # the aggregates of the list of the core)
+    hours = models.DecimalField(_('Hours'), max_digits=6, decimal_places=1, blank=True, null=True)
 
     class Meta:
         verbose_name = _('Task')

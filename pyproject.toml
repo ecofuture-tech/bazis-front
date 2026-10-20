@@ -66,7 +66,8 @@ classifiers = [
     "Framework :: FastAPI",
 ]
 dependencies = [
-    "bazis>=2.16.0",
+    # the aggregates of a list (`meta=aggregates`), which the tiles and the charts read
+    "bazis>=2.17.0",
     # the validation of the specs (`bazis_front check`): YAML files and JSON Schema 2020-12
     "PyYAML>=6.0.1",
     "jsonschema>=4.18",
@@ -80,7 +81,7 @@ test = [
     "bazis-users>=2.9.0",
     "bazis-authing>=2.7.0",
     "bazis-permit>=2.11.0",
-    # the fixture of the hooks: the runtime schema of a list has the meta `for_transit` (2.13)
+    # the meta `for_transit` of a list (2.13), which the boards read
     "bazis-statusy>=2.13.0",
     "bazis-uploadable>=2.7.0",
     "bazis-ws>=2.7.0",

@@ -50,7 +50,6 @@ export const ru: Messages = {
   'board.empty_column': 'Нет записей',
   'board.more': 'Показать ещё',
   'board.move': 'Перевести в',
-  'board.no_moves': 'Сейчас переводов нет',
   'board.no_transit': 'Нельзя перевести в «{status}»',
   'bulk.apply': 'Применить',
   'bulk.clear': 'Снять выбор',

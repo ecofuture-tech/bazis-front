@@ -50,7 +50,6 @@ export const en: Messages = {
   'board.empty_column': 'No items',
   'board.more': 'Show more',
   'board.move': 'Move to',
-  'board.no_moves': 'No moves now',
   'board.no_transit': 'It cannot be moved to {status}',
   'bulk.apply': 'Apply',
   'bulk.clear': 'Clear the selection',

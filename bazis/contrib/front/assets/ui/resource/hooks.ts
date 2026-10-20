@@ -21,7 +21,7 @@
 
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 
-import type { PaginationLinks, PaginationMeta, PermitMeta } from '@/bazis/client';
+import type { AggregatesMeta, PaginationLinks, PaginationMeta, PermitMeta } from '@/bazis/client';
 import {
   useAction,
   useDownload,
@@ -43,11 +43,20 @@ import {
 
 import type { ResourceObject } from './fields.js';
 
-/** A list: its items, its pages and its meta (`pagination`, the permission meta). */
+/**
+ * A list: its items, its pages and its meta (`pagination`, the permission meta, the transits
+ * of its items, `for_transit` of bazis-statusy, and its `aggregates`).
+ */
 export interface ListDocument {
   data: readonly ResourceObject[];
   links?: PaginationLinks | null;
-  meta?: (PermitMeta & { pagination?: PaginationMeta | null }) | null;
+  meta?:
+    | (PermitMeta & {
+        pagination?: PaginationMeta | null;
+        for_transit?: Readonly<Record<string, readonly string[]>> | null;
+        aggregates?: AggregatesMeta | null;
+      })
+    | null;
 }
 
 /** An item and its meta (`crud_actions`). */
@@ -55,6 +64,13 @@ export interface ItemDocument {
   data: ResourceObject;
   meta?: PermitMeta | null;
 }
+
+/**
+ * The meta of the retrieve of an item that its card reads (`ResourceCard`) and the transits
+ * of the card (`TransitBar`): one request for both. The core leaves out a name that the route
+ * set does not have (`state_actions` of a model that is not statusy).
+ */
+export const ITEM_META: readonly string[] = ['crud_actions', 'custom_actions', 'state_actions'];
 
 /** The document that a create or an update returns. */
 export interface SavedDocument {

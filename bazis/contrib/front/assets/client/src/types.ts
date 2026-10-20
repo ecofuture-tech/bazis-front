@@ -162,6 +162,13 @@ export type ListOptions<Operation> = RequestOptions &
     /** Field names, `-` before a name for the descending order. */
     sort?: readonly string[];
     page?: Page;
+    /**
+     * The terms of `meta: ['aggregates']` (bazis 2.17): `count`, `sum(<field>)`, `avg(…)`,
+     * `min(…)`, `max(…)`, `count(<field>)`; `count` without it.
+     */
+    aggregate?: readonly string[];
+    /** The aggregates by the values of a field: `<field>`, or `<date field>:day|week|month`. */
+    group?: string;
   };
 
 /** The query of an operation on one item. */

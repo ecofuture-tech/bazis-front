@@ -16,6 +16,7 @@ export const ENTITIES = {
     type: 'tasks.task',
     path: ROUTES['tasks.task'],
     title: 'entities.task.title',
+    display: { hours: { unit: 'h' } },
     transits: [{ id: 'start' }, { id: 'finish' }],
     Icon: SquareCheckIcon,
   },

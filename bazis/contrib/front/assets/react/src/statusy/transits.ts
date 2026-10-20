@@ -16,7 +16,9 @@
 // that the current user may run on the item now (its status and their permissions): each
 // with the endpoint and the JSON Schema of its body (`{transit, payload}`), and in
 // `restricts` the errors of its validators, which make it fail. An entry may be a list: a
-// transit and those of related items that run with it.
+// transit and those of related items that run with it. A list of the items (bazis-statusy
+// 2.13) gives their ids by item in `meta: ['for_transit']`, without the validators: a board
+// reads them there (resource-board), not from the retrieve of each item.
 
 import {
   useMutation,
@@ -109,34 +111,22 @@ export function transits(document: {
 }
 
 /**
- * The transits that the current user may run on the item now, from
- * `meta: ['state_actions']` of its retrieve (the query of `useItem` with this meta). Run
- * one with `useTransit`. What the item must satisfy before a transit is
+ * The transits that the current user may run on the item now, from `meta.state_actions` of
+ * its retrieve. `meta` is that of the retrieve, with `state_actions`: the meta of another
+ * query of the item, so that both are one request (`ITEM_META` of the card, `useItem` with
+ * the same meta). Run one with `useTransit`. What the item must satisfy before a transit is
  * `useSchema(path, 'transit', id)`.
  */
 export function useTransits(
   path: TransitPath,
   id: string,
+  meta: readonly string[] = ['state_actions'],
 ): UseQueryResult<readonly Transit[]> {
   const { api, scope } = useBazis();
   return useQuery({
-    ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id, { meta: ['state_actions'] }, scope),
+    ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id, { meta }, scope),
     select: transits,
   });
-}
-
-/**
- * Reads the transits of any item of the route set when asked (the drop of an item on a column
- * of a board): the query of `useTransits`, fetched again unless it is fresh.
- */
-export function useTransitsOf(path: TransitPath): (id: string) => Promise<readonly Transit[]> {
-  const { api, scope } = useBazis();
-  const queryClient = useQueryClient();
-  return (id) =>
-    queryClient.query({
-      ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id, { meta: ['state_actions'] }, scope),
-      select: transits,
-    });
 }
 
 /** What a transit does to the queries: those of an item it hides removed, those of its resource refetched. */

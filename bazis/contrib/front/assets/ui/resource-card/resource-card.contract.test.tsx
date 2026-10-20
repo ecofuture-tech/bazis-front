@@ -77,7 +77,7 @@ describe('ResourceCard', () => {
 
   it('gives a section of the product the item and its permission meta', async () => {
     // what the user may do on the item (`crud_actions` and `custom_actions` of the card),
-    // without another request
+    // without another request; its transits (`state_actions`, those of its `TransitBar`) with them
     const server = backend({ crud_actions: ['view', 'change'], custom_actions: ['action_report'] });
     renderWithBazis(
       <ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections}>
@@ -93,7 +93,7 @@ describe('ResourceCard', () => {
     await screen.findByTestId('state:loaded');
     expect(screen.getByTestId('field:mine').textContent).toBe('Report change report');
     const reads = server.requests('GET').filter((it) => it.startsWith(`GET ${ITEM}?`));
-    expect(reads).toEqual([`GET ${ITEM}?meta=crud_actions%2Ccustom_actions`]);
+    expect(reads).toEqual([`GET ${ITEM}?meta=crud_actions%2Ccustom_actions%2Cstate_actions`]);
   });
 
   it('shows its sections and its content in tabs, the first one shown, every one mounted', async () => {

@@ -47,7 +47,7 @@ text = "the screens in frontend/src/screens/generated/ (their routes, the naviga
 check = "front.W010"
 
 [[pitfalls]]
-text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-permit>=2.7.0 (the selectors, the filters restricted to the fields the user sees), bazis-statusy>=2.12.0 (the translated payload schemas, the initial status of each model), bazis-uploadable>=2.7.0 (the files of their author, their download route), bazis-bg>=2.6.0 (the download of the file of a task); an older installed package is the warning front.W006 (the error C004 of `bazis_front check`): upgrade it"
+text = "the assets follow the protocol of recent Bazis packages: bazis-ws>=2.5.0 (the socket is open at `subscribed`), bazis-authing>=2.6.0 (the logout), bazis-permit>=2.7.0 (the selectors, the filters restricted to the fields the user sees), bazis-statusy>=2.13.0 (the translated payload schemas, the initial status of each model, the transits of the items of a list), bazis-uploadable>=2.7.0 (the files of their author, their download route), bazis-bg>=2.6.0 (the download of the file of a task); an older installed package is the warning front.W006 (the error C004 of `bazis_front check`): upgrade it"
 check = "front.W006"
 
 [[pitfalls]]

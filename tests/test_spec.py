@@ -217,7 +217,7 @@ CASES = [
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/3/id'), ('P003', f'{PRODUCT}#/entities/0/fields/9/id')],
+        [('P003', f'{PRODUCT}#/roles/3/id'), ('P003', f'{PRODUCT}#/entities/0/fields/10/id')],
     ),
     (
         'P004',
@@ -254,7 +254,7 @@ CASES = [
     (
         'P012',
         {PRODUCT: lambda d: task(d)['fields'].append({'id': 'due_date', 'type': 'date'})},
-        [('P012', f'{PRODUCT}#/entities/0/fields/9')],
+        [('P012', f'{PRODUCT}#/entities/0/fields/10')],
     ),
     (
         'P013',
@@ -649,9 +649,10 @@ CASES = [
         {LIST: lambda d: d['list'].update(filter={'dt_created': '2026-01-01'}),
          CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['dt_created'].pop('filter')],
          CALENDAR: lambda d: d['calendar'].update(field='dt_created')},
-        # and the filter of the user by it, the chart of the home by week and the days of the
-        # calendar by it (whose add is S034: the backend sets the date)
-        [('S008', f'{HOME}#/dashboard/charts/1/by'), ('S034', f'{CALENDAR}#/calendar/add'),
+        # and the filter of the user by it, the charts of the home by week and by month and the
+        # days of the calendar by it (whose add is S034: the backend sets the date)
+        [('S008', f'{HOME}#/dashboard/charts/1/by'), ('S008', f'{HOME}#/dashboard/charts/2/by'),
+         ('S034', f'{CALENDAR}#/calendar/add'),
          ('S008', f'{CALENDAR}#/calendar/field'),
          ('S008', f'{LIST}#/list/filters/3'), ('S008', f'{LIST}#/list/filter/dt_created')],
     ),
@@ -773,7 +774,26 @@ CASES = [
                           d['dashboard']['charts'].append({'id': 'users', 'entity': 'user', 'by': 'status',
                                                            'kind': 'donut', 'label': {'en': 'Users', 'ru': 'Пользователи'}})]},
         [('S021', f'{HOME}#/dashboard/charts/0/by'), ('S021', f'{HOME}#/dashboard/charts/1/bucket'),
-         ('S021', f'{HOME}#/dashboard/charts/1/last'), ('S021', f'{HOME}#/dashboard/charts/2/by')],
+         ('S021', f'{HOME}#/dashboard/charts/1/last'), ('S021', f'{HOME}#/dashboard/charts/3/by')],
+    ),
+    (
+        'S049',
+        # the sum of a text, the maximum of a relationship, the average of a date; the minimum
+        # of a date is a date
+        {HOME: lambda d: [d['dashboard']['tiles'][0].update(value={'min': 'due'}),
+                          d['dashboard']['tiles'][3].update(value={'max': 'assignee'}),
+                          d['dashboard']['tiles'][4].update(value={'sum': 'title'}),
+                          d['dashboard']['charts'][2].update(value={'avg': 'due'})]},
+        [('S049', f'{HOME}#/dashboard/tiles/3/value/max'), ('S049', f'{HOME}#/dashboard/tiles/4/value/sum'),
+         ('S049', f'{HOME}#/dashboard/charts/2/value/avg')],
+    ),
+    (
+        'S050',
+        # the hours that the route set does not filter by; a field that the entity does not declare
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['hours'].pop('filter')],
+         HOME: lambda d: d['dashboard']['tiles'][0].update(value={'sum': 'rank'})},
+        [('S007', f'{HOME}#/dashboard/tiles/0/value/sum'), ('S050', f'{HOME}#/dashboard/tiles/4/value/sum'),
+         ('S050', f'{HOME}#/dashboard/charts/2/value/sum')],
     ),
     (
         'S022',
@@ -842,11 +862,12 @@ CASES = [
     ('S026', {HOME: lambda d: d.update(route='/home')}, [('S026', 'spec/screens')]),
     (
         'S026',
-        # a list at `/`, a dashboard without tiles (whose tile the scenario of the home expects)
+        # a list at `/`, a dashboard without tiles (whose tiles the scenario of the home expects)
         {HOME: lambda d: [d.update(route='/home'), d['dashboard'].pop('tiles')],
          LIST: lambda d: d.update(route='/')},
         [('S026', f'{HOME}#/dashboard'), ('S026', f'{LIST}#/primitive'),
-         ('P022', f'{PRODUCT}#/scenarios/12/steps/1/expect/tile/review')],
+         ('P022', f'{PRODUCT}#/scenarios/12/steps/1/expect/tile/review'),
+         ('P022', f'{PRODUCT}#/scenarios/12/steps/1/expect/tile/review-hours')],
     ),
     (
         'S027',

@@ -71,7 +71,7 @@ they make.
 | `useAction`, `useItemAction` | `POST path{name}/`, `POST path{id}/{name}/` (`client.action`, `client.itemAction`) | `mutate(body)`, `mutate({id, body})`: the response of the custom action, typed by its OpenAPI; `errors`, those of its body by field (`ApiError.bodyErrors()`); the queries of the resource refetched unless `invalidate: false` |
 | `useActionQuery`, `useItemActionQuery` | `GET path{name}/?<query>`, `GET path{id}/{name}/?<query>` (`client.action`, `client.itemAction` with `method: 'get'`) | a query of a custom action declared with GET (a summary, a report, a check, the content a screen shows) with its query parameters, typed by its OpenAPI (`query` required with a required parameter): its response, typed by its OpenAPI, `error` the `ApiError`; no request while `id` or `query` is null; refetched with the queries of its resource |
 | `useApi`, `useSessionKey` | | the client; the session of the provider |
-| `useTransits` (statusy) | `GET path{id}/?meta=state_actions` | the transits the user may run now |
+| `useTransits` (statusy) | `GET path{id}/?meta=<meta>` (`state_actions` by default) | the transits the user may run now |
 | `useTransit` (statusy) | `POST path{id}/transit/` | `mutate({transit, payload})`; the item, or null on 204 |
 | `useUpload` (uploadable) | `POST path`, multipart, with XMLHttpRequest | the created item, null when aborted, with its progress |
 | `SocketProvider`, `useSocket` (ws) | the socket of bazis-ws | the state of the socket |
@@ -131,8 +131,8 @@ it. A successful mutation invalidates
 `['bazis', path]`: the lists, the items and the schemas of the resource (a change may affect
 other items and what the user may change), and is pending until the active ones are
 refetched; a destroy and a transit answered with 204 remove `['bazis', path, 'item', id]`
-first. `useTransits` is the query of `useItem(path, id, {meta: ['state_actions']})`: both
-share it.
+first. `useTransits(path, id, meta)` is the query of `useItem(path, id, {meta})`: both share
+it (the card and its transits, one request with `ITEM_META` of the components).
 
 Two mechanisms keep the data of one user from the next one, and both are needed:
 
@@ -233,7 +233,9 @@ status and the permissions `…item.transit.<selector>.<status>.<transit>`), eac
 takes none (`dict | None`); an entry that is a list is a transit with the transits of
 related items (`related`). The names of the transits are in `TRANSITS` of `contract.ts`.
 `useSchema(path, 'transit', id)` is what the item must satisfy before a transit
-(`schema_transit/`), not the payload.
+(`schema_transit/`), not the payload. The transits of the items of a list are its
+`meta: ['for_transit']` (bazis-statusy 2.13): `{<id>: [<transit>]}`, the ids of those each
+item may run now, without the validators (a board).
 
 `useTransit` posts `{transit, payload}`: 200 with the item; 204 when the user can no longer
 view it (null: leave its screen); 403 when the transit is not allowed now; 400 when a

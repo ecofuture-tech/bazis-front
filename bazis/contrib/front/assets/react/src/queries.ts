@@ -39,10 +39,11 @@ import {
 } from './types.js';
 
 /**
- * A page of a list: `filter`, `search`, `sort`, `page`, `fields` and `meta` as in
- * `api.list`. While the next page (or another filter) loads, `data` keeps the previous page
- * of the same list (`isPlaceholderData`). Read the pages with `nextPage`, `prevPage` and
- * `pagination` of the client (`meta: ['pagination']` for the count).
+ * A page of a list: `filter`, `search`, `sort`, `page`, `fields`, `meta`, `aggregate` and
+ * `group` as in `api.list`. While the next page (or another filter) loads, `data` keeps the
+ * previous page of the same list (`isPlaceholderData`). Read the pages with `nextPage`,
+ * `prevPage` and `pagination` of the client (`meta: ['pagination']` for the count), the
+ * aggregates with `aggregateValues` and `aggregateGroups` (`meta: ['aggregates']`).
  */
 export function useList<P extends ListPath>(
   path: P,
@@ -63,9 +64,8 @@ export function useList<P extends ListPath>(
 
 /**
  * Several lists of a route set at once, a query each, keyed as `useList` keys them (the same
- * request shares its cache): the numbers of the items of the statuses of a workflow, or of
- * the weeks of a date (`page: {limit: 1}`, `meta: ['pagination']`, the `filter` of each),
- * the columns of a board.
+ * request shares its cache): the columns of a board, the status of each in its `filter`;
+ * none while a query waits for what it needs (`[]`).
  */
 export function useLists<P extends ListPath>(
   path: P,

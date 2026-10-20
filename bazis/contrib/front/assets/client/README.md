@@ -76,7 +76,7 @@ Every operation takes the path of a route set and, for an item, its id:
 
 | Method | Request |
 |---|---|
-| `list(path, {filter, search, sort, page, fields, meta})` | `GET path` |
+| `list(path, {filter, search, sort, page, fields, meta, aggregate, group})` | `GET path` |
 | `create(path, document, {include, meta})` | `POST path`, `application/vnd.api+json` |
 | `retrieve(path, id, {include, fields, meta})` | `GET path{id}/` |
 | `update(path, id, document, {include, meta})` | `PATCH path{id}/`, `application/vnd.api+json` |
@@ -183,6 +183,15 @@ endpoint is a `completed` task with that status.
 on a list, of the item on an item, by its name in `x-bazis`: what the action declares, not a
 check in its own code). It is false when the meta was not requested. The backend checks every request itself: use it only to adapt the
 interface.
+
+`meta: ['aggregates']` of a list (bazis 2.17) gives the aggregates of the core over its
+objects with its filter and search, never its page: `aggregate` the terms (`count`,
+`sum(<field>)`, `avg(…)`, `min(…)`, `max(…)`, `count(…)`), `group` a field or
+`<date field>:day|week|month`. `aggregateValues(document)` reads the values by term without
+`group` (`{"count": 3, "sum(amount)": "60.50"}`: a DecimalField as its digits, a date as
+its ISO text, null over no object), `aggregateGroups(document)` the groups with it
+(`[{group, values}]`, the group null last). A field that the filter of the list does not
+reach for the user, or too many groups, is a 400 `ERR_AGGREGATE`.
 
 ## The filter grammar
 

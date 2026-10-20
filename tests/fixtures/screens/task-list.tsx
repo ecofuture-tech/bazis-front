@@ -65,6 +65,7 @@ export function TaskListScreen() {
             ],
             sort: ['-dt_created'],
             search: true,
+            display: TASK.display,
             icon: TASK.Icon,
             selected: id,
             onOpen: (item) => void navigate(routeTo('task-card', item)),

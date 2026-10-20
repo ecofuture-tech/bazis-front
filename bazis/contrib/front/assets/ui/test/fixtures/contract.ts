@@ -410,6 +410,7 @@ export const RESOURCES = {
       "assignee",
       "attachment",
       "due",
+      "hours",
       "location",
       "priority",
       "report",
@@ -540,6 +541,12 @@ export const RESOURCES = {
         format: "date-time",
         order: "due",
         title: "Due",
+        type: "string",
+      },
+      hours: {
+        filter: "hours",
+        order: "hours",
+        title: "Hours",
         type: "string",
       },
       location: {

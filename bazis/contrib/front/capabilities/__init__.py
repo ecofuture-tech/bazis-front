@@ -60,9 +60,10 @@ CAPABILITIES = {
         'filter of a route restricted to the fields the user sees (2.7)',
     ),
     'statusy': Capability(
-        'bazis-statusy', 'bazis.contrib.statusy', needs_db=True, minimum='2.12.0',
-        needs='the JSON Schemas of the transit payloads with their lazy titles as texts (2.8) '
-        'and the initial status of each model, `Workflow(initial=...)` (2.12)',
+        'bazis-statusy', 'bazis.contrib.statusy', needs_db=True, minimum='2.13.0',
+        needs='the JSON Schemas of the transit payloads with their lazy titles as texts (2.8), '
+        'the initial status of each model, `Workflow(initial=...)` (2.12), and the transits of '
+        'the items of a list, the meta `for_transit`, which the boards read (2.13)',
     ),
     'uploadable': Capability(
         'bazis-uploadable', 'bazis.contrib.uploadable', minimum='2.7.0',

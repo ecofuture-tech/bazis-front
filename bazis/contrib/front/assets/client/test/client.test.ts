@@ -68,6 +68,19 @@ describe('list', () => {
     ]);
   });
 
+  it('sends the terms of the aggregates and their group after the meta', async () => {
+    const { api, calls } = setup([json({ data: [], links: {} })]);
+    await api.list(PARENT, {
+      filter: Filter.where('is_active', true),
+      meta: ['aggregates'],
+      aggregate: ['count', 'sum(price)'],
+      group: 'dt_created:month',
+    });
+    expect(calls[0]?.url).toBe(
+      `${BASE}${PARENT}?filter=is_active%3Dtrue&meta=aggregates&aggregate=count%2Csum%28price%29&group=dt_created%3Amonth`,
+    );
+  });
+
   it('encodes the filter expression as a query parameter once more', async () => {
     const { api, calls } = setup([json({ data: [], links: {} })]);
     await api.list(PARENT, {

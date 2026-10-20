@@ -16,7 +16,7 @@ import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { useItem, useList } from '../src/index.js';
-import { transits, useItemsTransit, useTransit, useTransits, useTransitsOf } from '../src/statusy/index.js';
+import { transits, useItemsTransit, useTransit, useTransits } from '../src/statusy/index.js';
 import sample from './fixtures/sample.json' with { type: 'json' };
 import { Backend, cachedKeys, PARENT, render } from './support.js';
 
@@ -85,6 +85,20 @@ describe('useTransits', () => {
     expect(cachedKeys(queryClient)).toEqual([
       ['bazis', PARENT, 'item', '7', { meta: ['state_actions'] }, 's1'],
     ]);
+  });
+
+  it('shares the retrieve of another query of the item with its meta', async () => {
+    const meta = ['crud_actions', 'state_actions'];
+    const backend = new Backend().on('GET', `${PARENT}7/?meta=crud_actions%2Cstate_actions`, draft);
+    const { result } = render(
+      () => ({ transits: useTransits(PARENT, '7', meta), item: useItem(PARENT, '7', { meta }) }),
+      backend,
+    );
+    await waitFor(() => {
+      expect(result.current.transits.data?.map((it) => it.id)).toEqual(['start']);
+    });
+    expect(result.current.item.data).toEqual(draft);
+    expect(backend.requests()).toEqual([`GET ${PARENT}7/?meta=crud_actions%2Cstate_actions`]);
   });
 });
 
@@ -169,26 +183,5 @@ describe('useItemsTransit', () => {
     expect(backend.requests()).toContain(`GET ${PARENT}`);
     // the item that the user can no longer view: its queries removed, the list kept
     expect(cachedKeys(queryClient)).toEqual([['bazis', PARENT, 'list', {}, 's1']]);
-  });
-});
-
-describe('useTransitsOf', () => {
-  it('reads the transits of an item when asked, by the query of useTransits', async () => {
-    const backend = new Backend().on('GET', `${PARENT}7/${META}`, draft);
-    const { result } = render(() => ({ of: useTransitsOf(PARENT), transits: useTransits(PARENT, '7') }), backend);
-    await waitFor(() => {
-      expect(result.current.transits.data).toEqual(transits(draft));
-    });
-    backend.on('GET', `${PARENT}7/${META}`, inProgress);
-    let read: unknown;
-    await act(async () => {
-      read = await result.current.of('7');
-    });
-    // fetched again, and given to useTransits
-    expect(read).toEqual(transits(inProgress));
-    await waitFor(() => {
-      expect(result.current.transits.data).toEqual(transits(inProgress));
-    });
-    expect(backend.requests()).toEqual([`GET ${PARENT}7/${META}`, `GET ${PARENT}7/${META}`]);
   });
 });

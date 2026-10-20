@@ -265,7 +265,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     header, an update form, a delete that describes itself and a custom action; the tone of
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
     text; a calendar with its add and its tone; a dashboard of two entities, a tile with its
-    own icon; forms that show a screen without an item after them, whose code takes no saved
+    own icon, the aggregates of a tile and of a chart; forms that show a screen without an item after them, whose code takes no saved
     item; a plain card, whose code uses no navigation, no translation and no item (the lint of
     the frontend job refuses them unused).
     """
@@ -354,14 +354,17 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "            tone: { field: 'urgent', tone: 'danger' },\n" in schedule
     assert '      <CreateFormAction\n        {...addForm}\n' in schedule
 
-    # a dashboard of two entities: a tile of two conditions, a tile with its own icon, a chart by
-    # a date, the forms of both, one then the home
+    # a dashboard of two entities: a tile of two conditions, a tile with its own icon, a tile of
+    # the latest date of a field, a chart by a date, one of an average, the forms of both, one
+    # then the home
     overview = files[f'{screens.GENERATED_DIR}/overview.tsx']
     assert "filter: Filter.and(Filter.where('status', 'in_progress'), Filter.where('title', 'Review the plan'))," in overview
     assert "label: t('async.processing')," in overview
     assert "import { FootprintsIcon, PlusIcon } from 'lucide-react';\n" in overview
     assert '              icon: FootprintsIcon,\n' in overview
     assert '        <TimeChart\n' in overview and 'StatusChart' not in overview
+    assert "              value: { max: 'due' },\n              display: TASK.display,\n" in overview
+    assert "                  value={{ avg: 'hours' }}\n" in overview
     assert "requires={{ path: STEP.path, can: 'add' }}" in overview
     assert "onSaved={() => void navigate(routeTo('home'))}" in overview
 

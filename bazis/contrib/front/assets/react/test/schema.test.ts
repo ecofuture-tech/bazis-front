@@ -54,6 +54,12 @@ describe('resourceSchema', () => {
           nullable: true, type: 'string', format: 'date-time', enum: null, labels: null, blank: false,
           schema: expect.objectContaining({ default: null }) as unknown,
         },
+        // a nullable DecimalField: a number or its digits written, no single type
+        {
+          kind: 'attribute', name: 'hours', title: 'Hours', required: false, readOnly: false,
+          nullable: true, type: null, format: null, enum: null, labels: null, blank: false,
+          schema: expect.objectContaining({ anyOf: [{ type: 'number' }, { type: 'string' }, { type: 'null' }] }) as unknown,
+        },
         // the initial status, which bazis-statusy accepts on a create
         {
           kind: 'relation', name: 'status', title: 'Current status', required: false,
@@ -86,6 +92,7 @@ describe('resourceSchema', () => {
       ['priority', 'attribute', false],
       ['location', 'attribute', false],
       ['due', 'attribute', false],
+      ['hours', 'attribute', false],
       ['assignee', 'relation', false],
       ['attachment', 'relation', false],
       ['watchers', 'relation', false],
@@ -145,6 +152,7 @@ describe('resourceSchema', () => {
         ['priority', 'Priority', false],
         ['location', 'Location', false],
         ['due', 'Due', false],
+        ['hours', 'Hours', false],
         ['status', 'Current status', false],
         ['status_author', 'status author', false],
         ['assignee', 'Assignee', false],
@@ -152,7 +160,7 @@ describe('resourceSchema', () => {
         ['watchers', 'Watchers', false],
       ]);
       expect(fields[0]).toMatchObject({ type: 'string', format: 'date-time' });
-      expect(fields[10]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });
+      expect(fields[11]).toMatchObject({ kind: 'relation', relation: 'users.user', many: false });
       expect(fields[5]).toMatchObject({ labels: { low: 'Low', normal: 'Normal', high: 'High' } });
     }
   });

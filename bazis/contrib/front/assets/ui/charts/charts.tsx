@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The charts of a dashboard: the number of the items of a route set by status (`StatusChart`)
-// or by day, week or month of a date field (`TimeChart`), each a count of the pagination of a
-// list of one item (the core has no aggregates: a query per value, cached and refreshed by
-// TanStack Query), drawn by recharts (`chart-view.tsx`, loaded with the first chart shown) in
+// The charts of a dashboard: the number of the items of a route set, or the sum or the average
+// of a field of them (`value`), by status (`StatusChart`) or by day, week or month of a date
+// field (`TimeChart`), each one query of the aggregates of the list of the core grouped by the
+// status or by the day (the month) of the field (`meta: ['aggregates']` with `group`, bazis
+// 2.17; an aggregate that it refuses, 400 `ERR_AGGREGATE`, is the error of the chart with the
+// text of the backend), drawn by recharts (`chart-view.tsx`, loaded with the first chart shown) in
 // the colors of the series of the theme, a status in that of its tone (`statuses` of the theme,
 // the color of its badge). Marked `chart:<id>` with the states of its lists
 // (`state:<state>`) and each value `value:<key>` with the number in `data-value`: the
@@ -23,7 +25,7 @@
 
 import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 
-import { Filter, pagination } from '@/bazis/client';
+import { aggregateGroups, Filter, type AggregatesGroup } from '@/bazis/client';
 import { THEME, type Tone } from '@/bazis/generated/theme';
 import { formatNumber, isoDate, useLanguage, weekStart } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
@@ -137,29 +139,39 @@ export function Chart({
   );
 }
 
-/** The counts of the lists of one item each, and their state: the first error, else loaded. */
-function counts(
-  lists: readonly {
-    status: 'pending' | 'error' | 'success';
-    data?: ListDocument | undefined;
-    error: unknown;
-  }[],
-) {
-  const failed = lists.find((it) => it.status === 'error');
-  const state: ViewState = failed
-    ? errorState(failed.error)
-    : lists.some((it) => it.status === 'pending')
-      ? 'loading'
-      : 'loaded';
-  return {
-    state,
-    error: failed?.error,
-    values: lists.map((it) => (it.data ? (pagination(it.data)?.count ?? 0) : 0)),
-  };
+/** What a chart shows of a field of the items instead of their number: its sum or its average. */
+export type ChartMeasure = { readonly sum: string } | { readonly avg: string };
+
+/** The terms of the aggregates of a measure: an average by its sum and its count, which add up over the days of a period. */
+function terms(value: ChartMeasure | undefined): string[] {
+  if (!value) return ['count'];
+  if ('sum' in value) return [`sum(${value.sum})`];
+  return [`sum(${value.avg})`, `count(${value.avg})`];
 }
 
-function countQuery(filter: Filter) {
-  return { filter, page: { limit: 1 }, meta: ['pagination' as const] };
+/** The measure of the items of groups: their number, or the sum or the average of the field. */
+function measure(groups: readonly AggregatesGroup[], value: ChartMeasure | undefined): number {
+  const total = (term: string) => groups.reduce((sum, it) => sum + Number(it.values[term] ?? 0), 0);
+  if (!value) return total('count');
+  if ('sum' in value) return total(`sum(${value.sum})`);
+  const count = total(`count(${value.avg})`);
+  return count === 0 ? 0 : total(`sum(${value.avg})`) / count;
+}
+
+/** The query of the aggregates of the items by `group`: a list of one item. */
+function groupsQuery(filter: Filter | undefined, group: string, value: ChartMeasure | undefined) {
+  return { ...(filter ? { filter } : {}), page: { limit: 1 }, meta: ['aggregates'], aggregate: terms(value), group };
+}
+
+/** The groups of the query of the aggregates, and its state; loading without the query. */
+function groupsOf(list: { status: 'pending' | 'error' | 'success'; data?: ListDocument | undefined; error: unknown } | undefined): {
+  state: ViewState;
+  error: unknown;
+  groups: readonly AggregatesGroup[];
+} {
+  if (list?.status === 'error') return { state: errorState(list.error), error: list.error, groups: [] };
+  if (list?.status !== 'success' || !list.data) return { state: 'loading', error: undefined, groups: [] };
+  return { state: 'loaded', error: undefined, groups: aggregateGroups(list.data) ?? [] };
 }
 
 function and(filter: Filter | undefined, ...conditions: readonly Filter[]): Filter {
@@ -177,32 +189,35 @@ export interface StatusChartProps {
   filter?: Filter | undefined;
   /** The statuses it shows, in this order; all of the workflow by default. */
   statuses?: readonly string[] | undefined;
+  /** What it shows of a field of the items instead of their number: `{sum: 'amount'}`. */
+  value?: ChartMeasure | undefined;
   className?: string;
 }
 
-/** The number of the items of a statusy model by status: a list of one item per status. */
-export function StatusChart({ id, path, label, kind = 'donut', filter, statuses, className }: StatusChartProps) {
+/** The number of the items of a statusy model by status, or a measure of a field of them. */
+export function StatusChart({ id, path, label, kind = 'donut', filter, statuses, value, className }: StatusChartProps) {
   const { language } = useLanguage();
   const type = typeAt(path) ?? '';
   const shown = statuses ?? workflowStatuses(type);
-  const lists = useAnyLists(
-    path,
-    shown.map((it) => countQuery(and(filter, Filter.where('status', it)))),
-  );
-  const { state, error, values } = counts(lists);
+  // a model without statuses (no statusy model of the contract) shows none, without a query
+  const [list] = useAnyLists(path, shown.length ? [groupsQuery(filter, 'status', value)] : []);
+  const { state, error, groups } = groupsOf(list);
   return (
     <Chart
       id={id}
       label={label}
       kind={kind}
       series
-      state={state}
+      state={shown.length ? state : 'loaded'}
       error={error}
       className={className}
-      values={shown.map((it, index) => ({
+      values={shown.map((it) => ({
         key: it,
         label: statusName(type, it, language),
-        value: values[index] ?? 0,
+        value: measure(
+          groups.filter((group) => group.group === it),
+          value,
+        ),
         tone: THEME.statuses[it],
       }))}
     />
@@ -244,15 +259,20 @@ export interface TimeChartProps {
   /** The number of the periods, the current one the last: 12 by default. */
   last?: number;
   filter?: Filter | undefined;
+  /** What it shows of a field of the items instead of their number: `{sum: 'amount'}`. */
+  value?: ChartMeasure | undefined;
   /** The current moment (the tests); the moment of the first render by default. */
   now?: Date | undefined;
   className?: string;
 }
 
 /**
- * The number of the items by period of a date field, the last periods to the current one: a
- * list of one item per period (`<field>__gte` its first day, `<field>__lt` the next one; the
- * first moment of a day in the time zone of the browser for a date-time).
+ * The number of the items by period of a date field, or a measure of a field of them, the last
+ * periods to the current one: the aggregates of the items from the first day of the first
+ * period to the end of the last one (`<field>__gte`, `<field>__lt`: the first moment of a day in
+ * the time zone of the browser for a date-time) grouped by month, or by day (in the time zone of
+ * the backend) added up into the days and the weeks (from the first day of the week of the
+ * language).
  */
 export function TimeChart({
   id,
@@ -263,48 +283,51 @@ export function TimeChart({
   bucket = 'week',
   last = 12,
   filter,
+  value,
   now,
   className,
 }: TimeChartProps) {
   const { language } = useLanguage();
   const fields = useListFields(path);
   const time = now?.getTime();
-  const periods = useMemo(() => {
+  // the first days of the periods, and that of the period after the last one
+  const starts = useMemo(() => {
     const current = periodStart(time === undefined ? new Date() : new Date(time), bucket, weekStart(language));
-    return Array.from({ length: last }, (_, index) => shifted(current, bucket, index - last + 1));
+    return Array.from({ length: last + 1 }, (_, index) => shifted(current, bucket, index - last + 1));
   }, [time, bucket, last, language]);
+  const periods = starts.slice(0, -1);
+  const keys = starts.map(isoDate);
   const spec = fields.fields.get(field);
   const date = spec?.kind === 'attribute' && spec.format === 'date';
   const bound = (it: Date) => (date ? isoDate(it) : it.toISOString());
-  // the format of the bounds is that of the field: the queries wait for its schema
-  const lists = useAnyLists(
-    path,
-    fields.ready
-      ? periods.map((it) =>
-          countQuery(
-            and(
-              filter,
-              Filter.where(`${field}__gte`, bound(it)),
-              Filter.where(`${field}__lt`, bound(shifted(it, bucket, 1))),
-            ),
-          ),
-        )
-      : [],
+  const range = and(
+    filter,
+    Filter.where(`${field}__gte`, bound(starts[0] ?? new Date())),
+    Filter.where(`${field}__lt`, bound(starts[last] ?? new Date())),
   );
-  const { state, error, values } = counts(lists);
+  // the format of the bounds is that of the field: the query waits for its schema
+  const [list] = useAnyLists(
+    path,
+    fields.ready ? [groupsQuery(range, `${field}:${bucket === 'month' ? 'month' : 'day'}`, value)] : [],
+  );
+  const { state, error, groups } = groupsOf(list);
   const format = new Intl.DateTimeFormat(language, LABELS[bucket]);
   return (
     <Chart
       id={id}
       label={label}
       kind={kind}
-      state={fields.ready ? state : 'loading'}
+      state={state}
       error={error}
       className={className}
       values={periods.map((it, index) => ({
-        key: isoDate(it),
+        key: keys[index] ?? '',
         label: format.format(it),
-        value: values[index] ?? 0,
+        // the groups whose first day (ISO, as the backend writes it) is in the period
+        value: measure(
+          groups.filter((group) => group.group !== null && group.group >= (keys[index] ?? '') && group.group < (keys[index + 1] ?? '')),
+          value,
+        ),
       }))}
     />
   );

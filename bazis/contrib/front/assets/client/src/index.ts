@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export { aggregateGroups, aggregateValues } from './aggregates.js';
+export type { AggregatesGroup, AggregatesMeta, AggregateValue, AggregateValues } from './aggregates.js';
 export { AUTH_POLL_INTERVAL, BACKGROUND_HEADER, createClient } from './client.js';
 export type {
   BazisClient,

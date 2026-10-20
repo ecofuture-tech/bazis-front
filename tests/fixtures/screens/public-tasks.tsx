@@ -33,6 +33,7 @@ export function PublicTasksScreen() {
         entity="task"
         columns={['title', 'status', 'priority', 'dt_created']}
         sort={['-dt_created']}
+        display={TASK.display}
         icon={TASK.Icon}
         actions={[suggestAction.action]}
         emptyMessage={t('screens.public-tasks.list.empty')}

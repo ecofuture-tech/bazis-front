@@ -193,10 +193,13 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 - **`empty-state`**: nothing to show, with the actions that fill it (`state:empty`); the
   icon of the entity, a title and a hint (`state.empty.title`, `state.empty.hint` by
   default).
-- **`stat-card`** (a figure of a dashboard): the count of the pagination of a list of one
-  item of `path` with its `filter` (the core has no aggregates), `tile:<id>` with the number
-  in `data-value` once loaded, the states of the list; `onOpen` makes the whole tile a
-  button named by its label.
+- **`stat-card`** (a figure of a dashboard): the aggregates of the core over the list of
+  `path` with its `filter` (a list of one item with `meta.aggregates`, bazis 2.17): the
+  number of its items, or the `{sum}`, `{avg}`, `{min}` or `{max}` of a field of `value`
+  (a sum in the `currency` or a quantity in the `unit` of its `display`, a date of `min` or
+  `max` as a date); `tile:<id>` with the number in `data-value` once loaded (a date as its
+  ISO text), the states of the list (the message of a 400 `ERR_AGGREGATE` as its error);
+  `onOpen` makes the whole tile a button named by its label.
 - **`dashboard`** (`primitive: dashboard`, the home of the starters): its title in the header
   of the screen, or as a hero (`data-slot="hero"`, the default of a portal), the tiles of
   `stat-card`, the links to the other screens of the navigation (`link:<screen>`, each once
@@ -205,15 +208,18 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   of `limit` items in the order of `sort`, a row `row:<id>` with a cell `cell:<field>` each, a
   button when it opens). Never a path of the API or the name of a resource; the screen is
   marked `state:loaded`, so that a dashboard of links only has a state too.
-- **`charts`**: the number of the items of a route set per status (`StatusChart`, the
-  statuses of the workflow by default, the initial one first, `workflowStatuses` of
-  `resource`) or per day, week or month of a date field (`TimeChart`, the last periods to
-  the current one; the bounds `<field>__gte` and `<field>__lt` in the format of the field, the
-  first moment of a day in the time zone of the browser for a date-time), a list of one item
-  each with its pagination (the core has no aggregates), drawn by recharts (`chart-view.tsx`,
+- **`charts`**: the number of the items of a route set, or the `{sum}` or `{avg}` of a
+  field of `value`, per status (`StatusChart`, the statuses of the workflow by default, the
+  initial one first, `workflowStatuses` of `resource`) or per day, week or month of a date
+  field (`TimeChart`, the last periods to the current one; the bounds `<field>__gte` and
+  `<field>__lt` of the range in the format of the field, the first moment of a day in the
+  time zone of the browser for a date-time), one list of one item with the groups of the
+  aggregates of the core (`group=status`, `group=<field>:day|month`; the days folded into
+  the weeks of the language; the groups of the backend are in its time zone; an average is a
+  sum and a count, the group without a value never shown), drawn by recharts (`chart-view.tsx`,
   lazy) as a ring, bars or a line in the colors of the series of the theme (`--chart-1` …
   `--chart-6`), a status in the color of its tone (`statuses` of the theme, that of its badge,
-  `--color-<tone>`; `tone` of a value of `Chart`); `chart:<id>` with the states of its lists (`empty` when every value is 0) and
+  `--color-<tone>`; `tone` of a value of `Chart`); `chart:<id>` with the states of its list (`empty` when every value is 0, the message of a 400 `ERR_AGGREGATE` as its error) and
   each value as text, `value:<key>` with its number in `data-value` (the legend of a ring, a
   list for the screen readers under bars and a line).
 - **`date-picker`**: under `DatePickerProvider`, the date fields of the forms and the ranges
@@ -229,11 +235,12 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   page), the filters of the user as those of a list (`FilterBar`); a card `row:<id>` with its
   title (the button that opens it: the whole card), its fields `cell:<field>`, a badge of a
   boolean field while it is true (`badge`) and, with `move` (not by default), its menu `action:move`: the
-  transits that the user may run on it now (`state_actions` of its item, read when the menu
-  opens or the card is dropped, never with each card; `No moves now` without one),
+  transits that the user may run on it now (`meta.for_transit` of the list of its column,
+  bazis-statusy 2.13, in the same request: their ids, without the validators, whose refusal
+  is the 422 of the transit; a card without one has no menu and cannot be dragged),
   `move:<status>` (the status the transit leads to; the transit itself when the contract
-  does not know it), disabled when restricted. A click on the menu never opens the card. A transit whose action
-  takes a payload asks for it in the dialog of `useRunTransit` of `transit-bar`; the columns
+  does not know it). A click on the menu never opens the card. A transit whose action
+  takes a payload (its JSON Schema from `TRANSITS` of the contract) asks for it in the dialog of `useRunTransit` of `transit-bar`; the columns
   are read again after it. The refusal of a transit run without the dialog (by the menu or a
   drop) is shown above the columns, `error:move`. **`board-dnd`** (`BoardDnd` around a board
   with `move`): a card dragged with
@@ -426,8 +433,9 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   it shows them. Its contract test replaces Leaflet with a fake (jsdom draws no map). A point
   field of a form (`FieldInput` with the `path` of its route set) is the text `<latitude>,
   <longitude>` and, under `MapProvider`, a map where a click places it.
-- **`transit-bar`** shows the transits of `meta.state_actions` (disabled with the errors of
-  their validators when restricted); a transit whose action takes a typed payload opens a
+- **`transit-bar`** shows the transits of `meta.state_actions` of the item (disabled with
+  the errors of their validators when restricted), in the request of the card
+  (`ITEM_META` of `resource`: the meta of `ResourceCard`); a transit whose action takes a typed payload opens a
   dialog with its fields, and the errors of a 422 (`/payload/<name>`) are shown by field.
   `onDone(null)`: the user can no longer view the item. `useRunTransit(path)` runs the
   transit of any item of the route set with this dialog (the board).

@@ -17,13 +17,15 @@ version of bazis-front, merged with the changes of the product).
 
 ### Setup
 
-`pip install bazis-front` (needs bazis 2.15.0 or newer) and add `"bazis.contrib.front"` to
+`pip install bazis-front` (needs bazis 2.17.0 or newer: the aggregates of the lists, which the
+tiles and the charts of the dashboards read) and add `"bazis.contrib.front"` to
 `BS_INSTALLED_APPS`. The assets follow the protocol of recent versions of the packages of
 the capabilities: bazis-ws 2.5.0 (the socket is open once the server sends `subscribed`),
 bazis-authing 2.6.0 (the logout endpoint), bazis-permit 2.7.0 (the selectors of the
 contract, also many-to-many and reverse relations, and the filter of a route restricted to
-the fields the user sees), bazis-statusy 2.12.0 (the JSON Schemas of the transit payloads
-with their titles translated, and the initial status of each model, `Workflow(initial=...)`),
+the fields the user sees), bazis-statusy 2.13.0 (the JSON Schemas of the transit payloads
+with their titles translated, the initial status of each model, `Workflow(initial=...)`, and
+the transits of the items of a list, `for_transit`, which the boards read),
 bazis-uploadable 2.7.0 (the files of their author, for every route, and their download
 route with its access check), bazis-bg 2.6.0 (the download route of the file of a task).
 An older one that the project installs is the warning
@@ -545,7 +547,8 @@ had, `[]` for none: P022 for one value; a date or a date-time takes a day of the
 `field_readonly`, `field_absent` (a field the screen shows that the user may not see:
 not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
 current card, without an open form, show these texts; a file its name), `rows`,
-`tile` (`{<tile>: count}`: the counts of tiles of the current dashboard), `day`
+`tile` (`{<tile>: number}`: the values of tiles of the current dashboard, a count or the
+aggregate of their `value`), `day`
 (`{today: count}`, `{today+3: count}`, `{2026-10-07: count}`: the items of days of the
 current calendar; a day from the day of the run, `today±<n>` in UTC, for the dates that
 `e2e_data` sets from the day of the run),
@@ -865,13 +868,15 @@ route: /
 roles: [librarian, reader]
 primitive: dashboard
 dashboard:
-  tiles:                         # tile:<id>, the count in data-value; a click opens the list `open`
+  tiles:                         # tile:<id>, the number in data-value; a click opens the list `open`
     - {id: on-hand, entity: loan, filter: {status: issued}, tone: info, label: tiles.on_hand}
     - {id: overdue, entity: loan, filter: {is_overdue: true}, tone: danger, label: tiles.overdue, open: overdue-loans}
     - {id: books, entity: book, label: tiles.books, open: book-list}
+    - {id: fines, entity: loan, filter: {is_overdue: true}, value: {sum: fine}, label: tiles.fines}
   charts:                        # chart:<id>: by the status of a workflow, or by a date per bucket
     - {id: by-status, entity: loan, by: status, kind: donut, label: charts.by_status}
     - {id: issued-by-week, entity: loan, by: dt_issued, bucket: week, last: 12, kind: bar, label: charts.issued}
+    - {id: fines-by-month, entity: loan, by: dt_issued, bucket: month, last: 6, kind: line, value: {sum: fine}, label: charts.fines}
   recent:                        # recent:<id>, its rows row:<id> with their cells cell:<column>
     - {id: last-loans, entity: loan, columns: [book, reader, due_date, status], sort: [-dt_issued], limit: 5, open: loan-card, label: recent.loans}
   actions:                       # action:<id>, a create form of its entity
@@ -880,37 +885,47 @@ states: [loading, error]
 ```
 
 The `label` of a part is a key of the dictionaries of the frontend or a text. A tile counts
-the items of its entity with its `filter` (as `list.filter`: S008, S014); `open` is a list
+the items of its entity with its `filter` (as `list.filter`: S008, S014), or shows the
+aggregate of its `value` over them: `{sum: <field>}`, `{avg: …}` of a number, `{min: …}`,
+`{max: …}` of a number or a date (S049), formatted by the `display` of the field (a sum in a
+`currency`, a quantity in a `unit`); `open` is a list
 of the entity, that of a row of the last items a card of it (S006). **A tile, a chart and
 the last items are shown to the users whom the backend lets view their entity**
 (`useCan(path, 'view')`, `Viewable` of the dashboard): one dashboard serves every role of the
 screen, the tiles of the invoices shown to the receptionist and not to the doctor who may
 not view them, without an `extend` (a part of an entity that no role of the screen may view
 is never shown). A chart is by `status`
-(an entity with a workflow: a count for each status) or by a field `date` or `datetime`, a
-count for each `bucket` (`day`, `week`, `month`; a week by default), the `last` ones up to the
-current one (12 by default) (S021).
+(an entity with a workflow: a value for each status) or by a field `date` or `datetime`, a
+value for each `bucket` (`day`, `week`, `month`; a week by default), the `last` ones up to the
+current one (12 by default) (S021); the value is the count of the items, or the `{sum: …}`
+or `{avg: …}` of a number field of its `value` (S049).
 
-**The data of a dashboard, a board and a calendar comes from the lists of the API**: the
-core has no aggregates, and none is needed. A count is a list of one item with its
-pagination, `GET <path>?page[limit]=1&meta=pagination&filter=<filter>`, its
-`meta.pagination.count` (`useList` and `pagination` of the hooks); a chart by status is one
-count per status of the workflow (`filter=status=<id>`, the statuses of
-`CAPABILITIES.statusy.models`), a chart by date one count per bucket
-(`filter=<field>__gte=<start>&<field>__lt=<end>`); the last items are a list sorted by
-`sort` with `page[limit]`; a board lists each column with `filter=status=<id>` (more items
-by its pagination), a calendar the items of the period shown with a range of its field (a
-month in one list of up to 500 items). A dashboard over thousands of items is a few count
-requests, which the cache of the queries keeps and the live updates refresh; a sum
-(`sum(amount)`) needs a custom action of the backend, read with `useActionQuery`. The fields
-they filter and sort by are those of the contract (S008).
+**The data of a dashboard, a board and a calendar comes from the lists of the API**. A tile
+and a chart are the aggregates of the core (bazis 2.17) over the list of their entity with
+its filter: `GET <path>?page[limit]=1&meta=aggregates&aggregate=<terms>&filter=<filter>`,
+its `meta.aggregates` (`aggregateValues` of the client: `{count: 3}`, `{"sum(fine)": "60.50"}`,
+a DecimalField summed as its digits); a chart adds `group=status` (one request, a group for
+each status) or `group=<field>:day|month` over the range of its periods
+(`filter=<field>__gte=<start>&<field>__lt=<end>`; the days folded into the weeks of the
+language of the user), its groups `[{group, values}]` (`aggregateGroups`); an average is a
+sum and a count, so that the periods of days folded into a week weigh their items. The
+core aggregates only the fields that the filter of the list reaches for the user (S050);
+over too many groups it answers 400 `ERR_AGGREGATE`, which the part shows as its error. The
+last items are a list sorted by `sort` with `page[limit]`; a board lists each column with
+`filter=status=<id>` (more items by its pagination), a calendar the items of the period
+shown with a range of its field (a month in one list of up to 500 items). A dashboard over
+thousands of items is a few requests, which the cache of the queries keeps and the live
+updates refresh. The fields they filter and sort by are those of the contract (S008).
 
 A board shows the items of an entity with a workflow (S022) in a column for each status of
 `columns` (the statuses of the workflow, all of them in their order by default); an item
 shows its `card.title`, its `card.fields` and a badge while its boolean field `card.badge` is
 true (S022). With `move: true` an item moves to the column of a status that a transit
-allowed to it leads to (the transits of the item, `useTransits`); a transit with a payload
-opens its dialog, a column without a transit takes nothing.
+allowed to it leads to: the lists of the columns ask for `meta: ['for_transit']` of
+bazis-statusy 2.13 (the ids of the transits that each item may run now, in the same
+request), and an item without one cannot be dragged and has no menu of its moves; a transit
+with a payload opens its dialog (the JSON Schema of the payload from `TRANSITS` of the
+contract), a column without a transit takes nothing.
 
 ```yaml
 primitive: board
@@ -978,7 +993,7 @@ read), `action:<id>` (in a row too: a row action), its confirmation `action:conf
 `select:all` the rows of the page), `bulk:<id>`, its confirmation `action:confirm-bulk` and
 its failures `error:bulk` (`list.bulk`); `tab:<id>` (`role="tab"`, its panel, `role="tabpanel"`
 named by its `aria-controls`, kept in the page, hidden, while another tab is shown:
-`card.tabs`); `tile:<id>` (its count in `data-value`), `chart:<id>`, `recent:<id>` (a
+`card.tabs`); `tile:<id>` (its number in `data-value`), `chart:<id>`, `recent:<id>` (a
 dashboard); `board:<entity>`, `column:<status>`, the menu of an item `action:move` with
 `move:<status>` (a board); `calendar:<entity>` (the days shown, `data-from` and `data-to`,
 `YYYY-MM-DD`; `action:previous-period`, `action:next-period`), `day:<YYYY-MM-DD>` (the
@@ -1051,7 +1066,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `C001` | error | contract/contract.json cannot be read |
 | `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
 | `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or assets of a package are there without it |
-| `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.12.0, bazis-uploadable 2.7.0, bazis-bg 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
+| `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.13.0, bazis-uploadable 2.7.0, bazis-bg 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
@@ -1132,6 +1147,8 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S046` | error | a custom action of a public screen (`primitive: custom`) is not declared `public=True` in the contract (`public` of its `custom_actions`): bazis-permit refuses it to anonymous users. Declare it `public=True` (with its throttle) and export the contract again |
 | `S047` | warning | the product has an anonymous role that no screen lists in its `roles`: the users who do not log in have no screen |
 | `S048` | error | `src/app/router.tsx` routes the generated screens (it imports `@/screens/generated/routes`) without the public ones: it does not import `PUBLIC_ROUTES`, and a user without a session never reaches them (a router of the product changed before 0.4.0). Run `bazis_front update` and take the router of the template, or route `PUBLIC_ROUTES` in its layout outside `RequireSession`, as the template does |
+| `S049` | error | The `value` of a tile or a chart aggregates a field of a type that its function does not take: `sum` and `avg` take a number (`integer`, `number`, a DecimalField: a `string` with a `currency` or a `unit` display), `min` and `max` (a tile) also a date. Aggregate a number or a date, or count the items without `value` |
+| `S050` | error | The `value` of a tile or a chart aggregates a field that the route set of the entity does not filter by (no `filter` in the contract): the core aggregates the fields that the filter of the list reaches for the user (400 `ERR_AGGREGATE`). Make the field filtered by in the route set, or show another one |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1563,18 +1580,18 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `ItemValue` (a field of an item as a cell: the status of a statusy model as its badge), `workflowStatuses(type)` (the statuses of a workflow, the initial one first, then in the order of its transits), `DateInput` with `DatesProvider` (the control of the dates, the calendar of `date-picker`), `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
-| `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects (the count of the pagination of a list of one item), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded), `state:<loading\|loaded\|error\|forbidden>` | |
+| `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects, or the aggregate of their field of `value` (`{sum}`, `{avg}`, `{min}`, `{max}`, formatted by `display`), from the aggregates of the core (a list of one item with `meta.aggregates`), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded, a date of `min` or `max` as its ISO text), `state:<loading\|loaded\|error\|forbidden>` | |
 | `dashboard` | `Dashboard` (`tiles`: the props of `StatCard`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
-| `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
+| `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), both the count of the items or the `{sum}` or `{avg}` of a field of `value`, from the groups of the aggregates of the core, `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
-| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (read when it opens; with none, the menu says so and the card hides `action:move` once it is closed, while its status stays) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
+| `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, the transits of `meta.for_transit` of the lists of the columns (bazis-statusy 2.13), `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (the transits of `for_transit` of its list; an item without one has no `action:move` and cannot be dragged) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
 | `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status; the screen readers are told the drag in the language of the interface, by the name of the item and of the status, never an id | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
 | `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `filters`: those of a list, `onOpen`, `add`: `{id, label, time, duration, fields, onAdd(initial)}`, the values the form starts with: `field` on the selected day (the day of a date, of a date-time the moment of `time` in the time zone of the browser), `end` `duration` minutes later, the related item or the choice of a filter of the user by a field of `fields`); an item shows its time to its `end` on the same day (`10:00–11:30`), in a day of a month its start with the range in its title | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
 | `resource-card` | `ResourceCard` (`children`: a node or `(item, meta) => node`, `meta` the permission meta of the item, `crud_actions` and `custom_actions`; `forms`: `'dialog'` or `'page'`; `tabs`: `{id, title, sections, content}`, `content` a node or `(item, meta) => node`, the children above them); `RelatedList`: a related section, its `rowActions`, the card (`itemPath`, `item`) read again after an add, in its `children` or after it, see [Related items](#choices-filters-permissions-and-relationships) | `state:<loading\|loaded\|error\|forbidden\|not_found>`, `field:<name>`, `action:edit`, `action:<id>`; a related section `list:<entity>` and `action:<add.id>`; `tab:<id>` | |
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
-| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
+| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation), from `state_actions` of the request of the item that its card shares (`ITEM_META`); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`): `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
 | `live-query` | `LiveQuery`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` and `CAPABILITIES.notify.resource` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter`: a bell with the count of the unread notifications, their list (a click marks one read and opens it, `onOpen`), mark all read, a toast for each new one (`toasts`); `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only, which also has `clear`: forget those of the session); the stored notifications are deleted only with `onDeleteAll={inbox.deleteAll}`, after a confirmation | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` (`useNotifications`), `action:delete-notifications` and `action:confirm-delete-notifications` (`onDeleteAll`) | none (its source: `notify` or `ws`) |
@@ -1638,7 +1655,7 @@ of the specs and the paths of `ROUTES`.
 | an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | `primitive: custom` in the spec when a button, its fields and its toast say it all ("Custom actions of the specs"); else a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
 | `card.tabs` | `tabs` of `ResourceCard`: `{id, title, sections: [...]}`, a related section or the history as its `content` (`(item, meta) => <RelatedList …/>`, `(item) => <StatusHistory resource={item} />`); the `TransitBar` in the `children`, above the tabs |
 | `list.bulk` (a transition, a deletion) | `bulk` of `ResourceList`: `{id, label, run: (id) => transit.mutateAsync({id, transit: '<transit>'})}` with `const transit = useItemsTransit(path)` of `@/bazis/react/statusy`, or `run: (id) => destroy.mutateAsync(id)` with `permission: 'delete'` |
-| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`; each in `<Viewable path={…}>` of `@/bazis/ui/dashboard`, as a tile and the last items, so that a role the backend does not let view the entity sees none of them), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
+| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, value, display, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`, `value`; each in `<Viewable path={…}>` of `@/bazis/ui/dashboard`, as a tile and the last items, so that a role the backend does not let view the entity sees none of them), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
 | `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`title` and `fields` of `card`, `badge`, `columns`, `filters`, `move` and `transits={ENTITY.transits}` for `move: true` (the moves in the order of `workflow.transitions`, with their `confirm`), `onOpen`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
 | `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (initial) => …}}`: `initial` is an object of the values the create form starts with (`{<field>: day}`, the moment of `time` for a date-time, `end`, the choice of a filter), given as `initial={initial}` to the `ResourceForm` in `FormSurface`, which the user may change; the generated screen passes `onAdd: <form>.onOpenWith` of `CreateFormAction.use()`) |
 | the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
@@ -2628,7 +2645,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog, or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, count)` (`data-value` of `tile:<id>`, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
+  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, value)` (`data-value` of `tile:<id>`, a count or an aggregate, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
@@ -2701,9 +2718,10 @@ E2E_PASSWORD=... python manage.py e2e_data
     of its submits), never an item of a previous run with the same texts (a task already
     moved). An item of `e2e_data` is found by texts that no scenario gives the items it
     creates (P034 reports them);
-  - a count (`rows`, `tile`, `day`) is of the records of `e2e_data` alone: a filter or a
-    title that no scenario gives its items (the tile `review` of the sample counts the task
-    of `e2e_data` by its title), never the items that the scenarios add at every run;
+  - a count or an aggregate (`rows`, `tile`, `day`) is of the records of `e2e_data` alone: a
+    filter or a title that no scenario gives its items (the tiles `review` and `review-hours`
+    of the sample count the task of `e2e_data` by its title and sum its hours), never the
+    items that the scenarios add at every run;
   - a notification is one that came since its test started (`expectNotification`, by its
     time): those of the previous runs stay in the list.
 
@@ -3000,7 +3018,7 @@ edit `src/bazis/client/` or `src/bazis/react/`; put what the product needs aroun
   path and its id (`useItem(ROUTES['app.model'], id)`).
 
 ```tsx
-import { Filter, can, nextPage, pagination } from '@/bazis/client';
+import { Filter, aggregateGroups, aggregateValues, can, nextPage, pagination } from '@/bazis/client';
 import { CAPABILITIES, ROUTES } from '@/bazis/generated/contract';
 import { useDestroy, useItem, useList, useResourceForm } from '@/bazis/react';
 import { useTransit, useTransits } from '@/bazis/react/statusy';   // with bazis-statusy
@@ -3019,6 +3037,12 @@ const list = useList(TASKS, {
 // list.data keeps the previous page while the next one loads (list.isPlaceholderData)
 const next = list.data && nextPage(list.data);      // { limit, offset } or null
 const count = list.data && pagination(list.data)?.count;
+// the aggregates of the core over the list with its filter (bazis 2.17): a value by term,
+// or the groups of `group` (`<field>`, `<date field>:day|week|month`)
+const totals = useList(TASKS, { filter, page: { limit: 1 }, meta: ['aggregates'], aggregate: ['count', 'sum(hours)'] });
+const sum = totals.data && aggregateValues(totals.data)?.['sum(hours)'];   // "12.5": a DecimalField as its digits
+const byStatus = useList(TASKS, { page: { limit: 1 }, meta: ['aggregates'], aggregate: ['count'], group: 'status' });
+const groups = byStatus.data && aggregateGroups(byStatus.data);          // [{ group: 'draft', values: { count: 3 } }]
 
 const item = useItem(TASKS, id, { include: ['assignee'], meta: ['crud_actions'] });
 const editable = can(item.data?.meta, 'change');
@@ -3089,9 +3113,13 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
 
 ### The transits (bazis-statusy)
 
-- `useTransits(path, id)` reads `meta.state_actions` of the item: the transits the user may
-  run now (allowed unless a validator restricts them, with the JSON Schema of the payload
-  they require), their names in `TRANSITS` of `contract.ts`. `useTransit(path, id)` runs
+- `useTransits(path, id, meta?)` reads `meta.state_actions` of the item: the transits the
+  user may run now (allowed unless a validator restricts them, with the JSON Schema of the
+  payload they require), their names in `TRANSITS` of `contract.ts`; `meta` is that of
+  another query of the item with `state_actions` (`ITEM_META` of `@/bazis/ui/resource`, that
+  of `ResourceCard`), so that both are one request. The transits of the items of a list are
+  `meta: ['for_transit']` of the list (bazis-statusy 2.13: `{<id>: [<transit>]}`, their ids
+  only, without the validators), read by the boards. `useTransit(path, id)` runs
   one: it resolves to the item, or to null when the user can no longer view it (leave its
   screen).
 
@@ -3741,6 +3769,21 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 
 ### `@/bazis/client`
 
+#### aggregateGroups
+
+`aggregateGroups(document: ListDocument): readonly AggregatesGroup[] | null`: The groups of a list asked for with `group`; null without the meta.
+
+#### aggregateValues
+
+`aggregateValues(document: ListDocument): AggregateValues | null`: The values of the terms of a list asked for without `group`; null without the meta.
+
+#### AggregatesGroup
+
+`interface AggregatesGroup`: A group of `group`: its value as a string (a choice, `true`, the id of a related item, the first day of a bucket), null for the objects without one.
+
+- `group: string | null`
+- `values: AggregateValues`
+
 #### createClient
 
 `createClient<Paths>(options?: ClientOptions): BazisClient<Paths>`: Creates a client of a Bazis API: `createClient<paths>({ baseUrl, token })`.
@@ -3955,6 +3998,8 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `search?: string`
 - `sort?: readonly string[]`: Field names, `-` before a name for the descending order.
 - `page?: Page`
+- `aggregate?: readonly string[]`: The terms of `meta: ['aggregates']` (bazis 2.17): `count`, `sum(<field>)`, `avg(…)`, `min(…)`, `max(…)`, `count(<field>)`; `count` without it.
+- `group?: string`: The aggregates by the values of a field: `<field>`, or `<date field>:day|week|month`.
 
 #### Page
 
@@ -4009,6 +4054,9 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 
 #### The types and the constants of `@/bazis/client`
 
+- `type AggregatesMeta = AggregateValues | readonly AggregatesGroup[]`: `meta.aggregates`: the values without `group`, the groups with it.
+- `type AggregateValue = number | string | null`: The value of a term: a count an integer, an average a number, a sum of a decimal field its digits as a string (`"60.50"`), a minimum or a maximum of a date ISO 8601; null over no object (a count is 0).
+- `type AggregateValues = Readonly<Record<string, AggregateValue>>`: The values of the terms by term, as written in `aggregate` (`sum(amount)`).
 - `AUTH_POLL_INTERVAL: 1500`: How often `authWait` asks the auth endpoint of bazis-authing, in milliseconds.
 - `BACKGROUND_HEADER: "X-Async-Background"`: The header that asks bazis-async-request to run a request in the background: the value of `async_request.header` of the contract, which the client does not read.
 - `type CollectionSchemaKind = 'list' | 'create'`: Runtime schemas of a route set; `transit` exists on bazis-statusy route sets.
@@ -4142,6 +4190,8 @@ Its props, `BazisProviderProps`:
 - `fields?: Readonly<Record<string, readonly string[] | undefined>> | undefined`
 - `include?: readonly string[] | undefined`
 - `meta?: readonly string[] | undefined`
+- `aggregate?: readonly string[] | undefined`
+- `group?: string | undefined`
 
 #### useCan
 
@@ -4161,11 +4211,11 @@ Its props, `BazisProviderProps`:
 
 #### useList
 
-`useList<P extends ListPath>(path: P, query?: ListQuery<P>): UseQueryResult<ListResponse<P>>`: A page of a list: `filter`, `search`, `sort`, `page`, `fields` and `meta` as in `api.list`.
+`useList<P extends ListPath>(path: P, query?: ListQuery<P>): UseQueryResult<ListResponse<P>>`: A page of a list: `filter`, `search`, `sort`, `page`, `fields`, `meta`, `aggregate` and `group` as in `api.list`.
 
 #### useLists
 
-`useLists<P extends ListPath>(path: P, queries: readonly ListQuery<P>[]): UseQueryResult<ListResponse<P>>[]`: Several lists of a route set at once, a query each, keyed as `useList` keys them (the same request shares its cache): the numbers of the items of the statuses of a workflow, or of the weeks of a date (`page: {limit: 1}`, `meta: ['pagination']`, the `filter` of each), the columns of a board.
+`useLists<P extends ListPath>(path: P, queries: readonly ListQuery<P>[]): UseQueryResult<ListResponse<P>>[]`: Several lists of a route set at once, a query each, keyed as `useList` keys them (the same request shares its cache): the columns of a board, the status of each in its `filter`; none while a query waits for what it needs (`[]`).
 
 #### useSchema
 
@@ -4299,11 +4349,7 @@ The hooks copied with a package (`frontend/src/bazis/react/<package>/`), and the
 
 #### useTransits
 
-`useTransits(path: TransitPath, id: string): UseQueryResult<readonly Transit[]>`: The transits that the current user may run on the item now, from `meta: ['state_actions']` of its retrieve (the query of `useItem` with this meta).
-
-#### useTransitsOf
-
-`useTransitsOf(path: TransitPath): (id: string) => Promise<readonly Transit[]>`: Reads the transits of any item of the route set when asked (the drop of an item on a column of a board): the query of `useTransits`, fetched again unless it is fresh.
+`useTransits(path: TransitPath, id: string, meta?: readonly string[]): UseQueryResult<readonly Transit[]>`: The transits that the current user may run on the item now, from `meta.state_actions` of its retrieve.
 
 #### Transit
 
@@ -4717,7 +4763,7 @@ Its props, `LanguageProviderProps`:
 - `type Params = Readonly<Record<string, string | number>>`: The parameters of a text: `{name}` in the text is replaced by `params.name`.
 - `type Translate = (key: string, params?: Params) => string`: A translation of a key with its parameters in the current language: `t('list.page', {from, to})`.
 
-## API: the components: app-shell, async-result, board-dnd, charts, dashboard, date-picker, empty-state, file-field, live-query, login-form, map
+## API: the components: app-shell, async-result, board-dnd, charts, dashboard, date-picker, empty-state, file-field, live-query, login-form
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -4921,7 +4967,7 @@ Its props, `ChartProps`:
 
 #### StatusChart
 
-`StatusChart(props: StatusChartProps): Element`: The number of the items of a statusy model by status: a list of one item per status.
+`StatusChart(props: StatusChartProps): Element`: The number of the items of a statusy model by status, or a measure of a field of them.
 
 
 Its props, `StatusChartProps`:
@@ -4932,11 +4978,12 @@ Its props, `StatusChartProps`:
 - `kind?: ChartKind`: A ring by default.
 - `filter?: Filter | undefined`: The items it counts; every item that the user may view without.
 - `statuses?: readonly string[] | undefined`: The statuses it shows, in this order; all of the workflow by default.
+- `value?: ChartMeasure | undefined`: What it shows of a field of the items instead of their number: `{sum: 'amount'}`.
 - `className?: string`
 
 #### TimeChart
 
-`TimeChart(props: TimeChartProps): Element`: The number of the items by period of a date field, the last periods to the current one: a list of one item per period (`<field>__gte` its first day, `<field>__lt` the next one; the first moment of a day in the time zone of the browser for a date-time).
+`TimeChart(props: TimeChartProps): Element`: The number of the items by period of a date field, or a measure of a field of them, the last periods to the current one: the aggregates of the items from the first day of the first period to the end of the last one (`<field>__gte`, `<field>__lt`: the first moment of a day in the time zone of the browser for a date-time) grouped by month, or by day (in the time zone of the backend) added up into the days and the weeks (from the first day of the week of the language).
 
 
 Its props, `TimeChartProps`:
@@ -4949,6 +4996,7 @@ Its props, `TimeChartProps`:
 - `bucket?: ChartBucket`: A week by default (from the first day of the week of the language).
 - `last?: number`: The number of the periods, the current one the last: 12 by default.
 - `filter?: Filter | undefined`
+- `value?: ChartMeasure | undefined`: What it shows of a field of the items instead of their number: `{sum: 'amount'}`.
 - `now?: Date | undefined`: The current moment (the tests); the moment of the first render by default.
 - `className?: string`
 
@@ -5136,6 +5184,10 @@ Its props, `LoginFormProps`:
 
 - `LoginFormProps`: the props of `LoginForm`, listed with it
 
+## API: the components: map, notification-center
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
 ### `@/bazis/ui/map`
 
 #### LeafletMap
@@ -5236,10 +5288,6 @@ Its props, `ResourceMapProps`:
 - `OSM_TILES: MapTiles`: The tiles of OpenStreetMap, the default: their usage policy allows light use with this attribution; a product in production sets the tiles of its provider (`MapProvider tiles`) and lets their host in its Content Security Policy (`img-src`).
 - `LeafletMapProps`: the props of `LeafletMap`, listed with it
 - `ResourceMapProps`: the props of `ResourceMap`, listed with it
-
-## API: the components: notification-center
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/notification-center`
 
@@ -5602,11 +5650,11 @@ Its props, `FileViewProps`:
 
 #### ListDocument
 
-`interface ListDocument`: A list: its items, its pages and its meta (`pagination`, the permission meta).
+`interface ListDocument`: A list: its items, its pages and its meta (`pagination`, the permission meta, the transits of its items, `for_transit` of bazis-statusy, and its `aggregates`).
 
 - `data: readonly ResourceObject[]`
 - `links?: PaginationLinks | null`
-- `meta?: (PermitMeta & { pagination?: PaginationMeta | null; }) | null`
+- `meta?: (PermitMeta & { pagination?: PaginationMeta | null; for_transit?: Readonly<Record<string, readonly string[]>> | null; aggregates?: AggregatesMeta | null; }) | null`
 
 #### SavedDocument
 
@@ -5675,6 +5723,7 @@ Its props, `RelationPickerProps`:
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
+- `ITEM_META: readonly string[]`: The meta of the retrieve of an item that its card reads (`ResourceCard`) and the transits of the card (`TransitBar`): one request for both.
 - `useAnyAction: (path: string, name: string) => ActionMutation<unknown, Readonly<Record<string, unknown>>>`: `useAction(path, name)`: a custom action of the route set (POST), `mutateAsync(body)`.
 - `useAnyFilterFields: (path: string) => UseQueryResult<FilterFieldsDocument>`: `useFilterFields(path)`.
 - `useAnyItem: (path: string, id: string, query?: Pick<QueryOptions, "include" | "fields" | "meta"> | undefined) => UseQueryResult<ItemDocument>`: `useItem(path, id, query)`.
@@ -6149,7 +6198,7 @@ Its props, `UpdateFormActionProps`:
 
 #### StatCard
 
-`StatCard(props: StatCardProps): Element`: The number of the items that a filter selects, as a tile.
+`StatCard(props: StatCardProps): Element`: The number of the items that a filter selects, or an aggregate of a field of them, as a tile.
 
 
 Its props, `StatCardProps`:
@@ -6157,6 +6206,8 @@ Its props, `StatCardProps`:
 - `id: string`: The id of the tile in the specs: `tile:<id>`.
 - `path: ListPath`: The route set whose items it counts (`ROUTES` of the contract).
 - `filter?: Filter | undefined`: The items it counts (`filter` of the tile); every item that the user may view without.
+- `value?: TileValue | undefined`: What it shows of a field of the items instead of their number: `{sum: 'amount'}`.
+- `display?: Readonly<Record<string, FieldDisplay>>`: How the fields are shown (`display` of the entity of the specs): that of the field of `value`.
 - `label: ReactNode`
 - `tone?: Tone`: The tone of the theme of its icon; neutral by default.
 - `icon?: ComponentType<{ className?: string; }>`: Its icon, such as the icon of the entity (lucide-react).
@@ -6298,6 +6349,10 @@ Its props, `TaskProgressProps`:
 
 `inDeclaredOrder<T extends { id: string; }>(transits: readonly T[], declared: readonly DeclaredTransit[]): T[]`: The transits of the backend in the order of the specs, those that the specs do not declare after them.
 
+#### listedTransit
+
+`listedTransit(item: { type: string; id: string; }, id: string): Transit`: A transit of an item that its list gives (`for_transit` of bazis-statusy: its id only), with the JSON Schema of its payload from the contract (`TRANSITS`): allowed, the validators not called (a refusal of one is the 422 of the transit).
+
 #### payloadErrors
 
 `payloadErrors(error: unknown, names: readonly string[], message?: (error: ErrorObject) => string): { fields: Record<string, string[]>; others: string[]; }`: The errors of a transit: those of the fields of its payload by name (`source.pointer` `/payload/<name>`, a name of `names`), and the others (its validators, a field that the dialog does not show, an error that is not of the backend), each the text that `message` gives (in the language of the interface with `useErrorMessage`).
@@ -6393,7 +6448,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `expectFieldAbsent(field: string): Promise<void>`: The user may not see the field: the current screen, once loaded, has no `field:<name>` (a card, the open form) and no cell `cell:<name>` (a list).
 - `expectValues(values: Readonly<Record<string, string>>): Promise<void>`: The fields of the current card show these texts: the text of each `field:<name>` contains its text (a file: its name).
 - `expectRows(count: number): Promise<void>`: The list of the current screen has this number of rows, `row:<id>`.
-- `expectTile(id: string, count: number): Promise<void>`: The tile of the current dashboard counts this number of items, `tile:<id>` (its `data-value`).
+- `expectTile(id: string, value: number): Promise<void>`: The tile of the current dashboard shows this number, `tile:<id>` (its `data-value`): the count of its items, or the number of its `value` (`2.5`).
 - `expectDay(day: string, count: number): Promise<void>`: The day of the calendar of the current screen has this number of items, `day:<date>` (its `data-count`): the calendar (`calendar:<entity>`, the days it shows from `data-from` to `data-to`) is first moved to the period of the day (`action:previous-period`, `action:next-period`).
 - `expectError(field: string): Promise<void>`: A field shows a validation error, `error:<name>`.
 - `expectNotification(text: string): Promise<void>`: The user has a notification whose text contains this text, that came since this test started (its time, `<time datetime>`; one of a previous run does not count): the bell (`action:notifications`) opens the list of the notifications (`list:notifications`), which waits for it (`notification:<key>`), and is closed again.

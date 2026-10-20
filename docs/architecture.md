@@ -111,7 +111,7 @@ current user, read-only where they may not change them; it submits the changed a
 document and maps a 422 to the fields). They are typed by the generated `paths` of the
 product and contain no UI. The hooks of a package are a separate asset that `init` copies
 only when the product has its capability (`requires` in the registry): the transits of
-bazis-statusy (`useTransits` from `meta.state_actions`, `useTransit`) in
+bazis-statusy (`useTransits` from `meta.state_actions` of the request of the item, `useTransit`) in
 `@/bazis/react/statusy`, the uploads of bazis-uploadable (`useUpload`, with its progress and
 abort) in `@/bazis/react/uploadable`, the socket of bazis-ws in `@/bazis/react/ws`
 (`SocketProvider`: one connection a page with the token of the session, sent in its first
@@ -172,15 +172,16 @@ point on a Leaflet map, and the map of a point field of the forms, given to the 
 fields by `MapProvider`, with the tiles of the product). The login form takes the
 logins of bazis-authing: the password through its service `password`, and a button for a
 service whose page opens in a window. The parts of the screens of the other primitives
-are components too: `dashboard` (the home: the tiles of `stat-card`, the counts of filtered
-lists, `page[limit]=1` with `meta=pagination`; the links of the navigation; the charts of
-`charts`; the last items), `resource-board` (a column per status of a workflow, a card moved
-by a transit of bazis-statusy; its drag and drop in `board-dnd`), `resource-calendar` (the
+are components too: `dashboard` (the home: the tiles of `stat-card`, the aggregates of the
+core over filtered lists, `page[limit]=1` with `meta=aggregates`; the links of the
+navigation; the charts of `charts`, the groups of those aggregates; the last items),
+`resource-board` (a column per status of a workflow, a card moved by a transit of
+bazis-statusy that `meta.for_transit` of its list gives; its drag and drop in `board-dnd`), `resource-calendar` (the
 items on the days of a date field, a month or a week, and the list of a day), the tabs of
 `resource-card` and the bulk actions of `resource-list` (a request per selected row: the core
 has no bulk endpoint), with `empty-state` and `date-picker` (the dates of the forms and the
-filters). The core has no aggregates, so a part reads lists only: one per status, one per
-period.
+filters). A tile and a chart are one request each: the aggregates of the core (bazis 2.17),
+a value or a group per status or per period.
 They are listed
 in `assets/registry.json` with what they require (`requires.assets`: other components, the
 hooks, the shadcn/ui components; `requires.capabilities`), copied by

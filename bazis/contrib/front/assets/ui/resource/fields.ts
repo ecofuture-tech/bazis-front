@@ -273,11 +273,18 @@ export function localizedName(item: ContractName | undefined, id: string, langua
   return names[language] ?? names[baseLanguage(language)] ?? names[LANGUAGE] ?? Object.values(names)[0] ?? id;
 }
 
-/** A statusy model of bazis-statusy: its statuses and its transits (`TRANSITS` of the contract). */
+/**
+ * A statusy model of bazis-statusy: its statuses and its transits (`TRANSITS` of the
+ * contract), each with the JSON Schema of its payload when it requires one.
+ */
 interface StatusyModel {
   initial?: string;
   statuses: readonly ContractName[];
-  transits: readonly (ContractName & { src?: string; dst?: string })[];
+  transits: readonly (ContractName & {
+    src?: string;
+    dst?: string;
+    payload?: { required: boolean; schema: JsonSchema } | null;
+  })[];
 }
 
 /** The statusy model of a JSON:API type, undefined for a type that is not one. */

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bazis-front sample\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-18 12:30+0000\n"
+"POT-Creation-Date: 2026-10-20 12:26+0000\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -27,7 +27,7 @@ msgstr "Обычный"
 msgid "High"
 msgstr "Высокий"
 
-#: tasks/models.py:39 tasks/models.py:95
+#: tasks/models.py:39 tasks/models.py:98
 msgid "Title"
 msgstr "Название"
 
@@ -59,27 +59,31 @@ msgstr "Наблюдатели"
 msgid "Due"
 msgstr "Срок"
 
-#: tasks/models.py:67 tasks/models.py:94
+#: tasks/models.py:67
+msgid "Hours"
+msgstr "Часы"
+
+#: tasks/models.py:70 tasks/models.py:97
 msgid "Task"
 msgstr "Задача"
 
-#: tasks/models.py:68
+#: tasks/models.py:71
 msgid "Tasks"
 msgstr "Задачи"
 
-#: tasks/models.py:83 tasks/notifications.py:25
+#: tasks/models.py:86 tasks/notifications.py:25
 msgid "Task finished"
 msgstr "Задача завершена"
 
-#: tasks/models.py:98
+#: tasks/models.py:101
 msgid "Step"
 msgstr "Шаг"
 
-#: tasks/models.py:99
+#: tasks/models.py:102
 msgid "Steps"
 msgstr "Шаги"
 
-#: tasks/models.py:105
+#: tasks/models.py:108
 msgid "A step is added to a draft task only"
 msgstr "Шаг добавляется только к черновику задачи"
 

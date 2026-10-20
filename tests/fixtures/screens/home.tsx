@@ -66,6 +66,16 @@ export function HomeScreen() {
           tone: 'warning',
           icon: TASK.Icon,
         },
+        {
+          id: 'review-hours',
+          path: TASK.path,
+          filter: Filter.where('title', 'Review the plan'),
+          value: { sum: 'hours' },
+          display: TASK.display,
+          label: t('screens.home.dashboard.tiles.review-hours.label'),
+          tone: 'warning',
+          icon: TASK.Icon,
+        },
       ]}
       charts={
         <>
@@ -88,6 +98,18 @@ export function HomeScreen() {
               last={12}
             />
           </Viewable>
+          <Viewable path={TASK.path}>
+            <TimeChart
+              id="hours-by-month"
+              path={TASK.path}
+              field="dt_created"
+              label={t('screens.home.dashboard.charts.hours-by-month.label')}
+              kind="line"
+              bucket="month"
+              last={6}
+              value={{ sum: 'hours' }}
+            />
+          </Viewable>
         </>
       }
       recent={[
@@ -98,6 +120,7 @@ export function HomeScreen() {
           columns: ['title', 'status', 'dt_created'],
           sort: ['-dt_created'],
           limit: 5,
+          display: TASK.display,
           onOpen: (item) => void navigate(routeTo('task-card', item)),
         },
       ]}

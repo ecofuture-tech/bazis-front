@@ -847,11 +847,18 @@ def render_dashboard(product: Product, data: dict) -> str:
 
 
 def tile(screen: Screen, index: int, spec: dict) -> Obj:
-    """A tile counting the items of its filter, with its icon (that of its entity), opening its list."""
+    """
+    A tile counting the items of its filter, or showing an aggregate of a field of them (shown
+    as the display of the entity says), with its icon (that of its entity), opening its list.
+    """
     const = screen.entity(spec['entity'])
     props = [('id', Str(spec['id'])), ('path', Raw(f'{const.code}.path'))]
     if 'filter' in spec:
         props.append(('filter', filter_value(screen, spec['filter'])))
+    if 'value' in spec:
+        props.append(('value', aggregate_value(spec['value'])))
+        if has_display(screen.product, spec['entity']):
+            props.append(('display', Raw(f'{const.code}.display')))
     props.append(('label', screen.text('dashboard', 'tiles', index, 'label')))
     if 'tone' in spec:
         props.append(('tone', Str(spec['tone'])))
@@ -880,10 +887,17 @@ def chart(screen: Screen, index: int, spec: dict) -> Jsx:
         attrs.append(Attr('bucket', spec['bucket']))
     if 'last' in spec:
         attrs.append(Attr('last', Raw(str(spec['last']))))
+    if 'value' in spec:
+        attrs.append(Attr('value', aggregate_value(spec['value'])))
     name = 'StatusChart' if by_status else 'TimeChart'
     screen.code.use('@/bazis/ui/charts', name)
     screen.code.use('@/bazis/ui/dashboard', 'Viewable')
     return Jsx('Viewable', [Attr('path', Raw(f'{const.code}.path'))], [Jsx(name, attrs)])
+
+
+def aggregate_value(value: dict) -> Obj:
+    """The `value` of a tile or a chart as its prop: `{ sum: 'amount' }`."""
+    return Obj([(func, Str(name)) for func, name in value.items()])
 
 
 def recent_list(screen: Screen, index: int, spec: dict) -> Obj:

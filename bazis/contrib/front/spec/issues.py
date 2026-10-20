@@ -125,6 +125,8 @@ CODES: dict[str, tuple[str, str]] = {
     'S046': (ERROR, 'a custom action of a public screen (`primitive: custom`) is not declared `public=True` in the contract: bazis-permit refuses it to anonymous users'),
     'S047': (WARNING, 'the product has an anonymous role that no screen lists in its `roles`: the users who do not log in have no screen'),
     'S048': (ERROR, 'the router of the frontend routes the generated screens (it imports `@/screens/generated/routes`) without the public ones, `PUBLIC_ROUTES`: a user without a session never reaches them'),
+    'S049': (ERROR, 'the `value` of a tile or a chart of a dashboard aggregates a field of a type that its function does not take: `sum` and `avg` a number (a DecimalField: a `string` with a `currency` or a `unit` display), `min` and `max` also a date'),
+    'S050': (ERROR, 'the field of the `value` of a tile or a chart of a dashboard cannot be aggregated: its route set does not filter by it in the contract, and the core aggregates only the fields that the filter of the list reaches'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

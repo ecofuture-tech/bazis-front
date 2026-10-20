@@ -15,20 +15,22 @@
 // The board of a statusy model (`primitive: board` of the specs): a column `column:<status>`
 // per status of its workflow (the number of its items in `data-count`), its items as cards
 // `row:<id>` with a cell `cell:<field>` per field, more of them by `action:more`. With `move`, a
-// card moves to another column by a transit of bazis-statusy: its menu `action:move` lists the
-// transits that the user may run on it now (`move:<status>`, the status it leads to), and a
-// card dropped on a column (`BoardDragProvider`, board-dnd) runs the transit to it; a transit
-// whose action takes a payload asks for it in a dialog, one that the specs confirm asks for its
-// confirmation (`useRunTransit` of transit-bar), the moves in the order of the specs; the
-// refusal of a transit run without it is shown above the columns (`error:move`). A list of one
-// page per column (the core has no aggregates), refetched after a transit.
+// card moves to another column by a transit of bazis-statusy: the list of each column gives the
+// transits that the user may run on its cards now (`for_transit`, bazis-statusy 2.13), a card
+// with one has the menu `action:move` of them (`move:<status>`, the status it leads to, in the
+// order of the specs) and is dragged, one without has neither; a card dropped on a column
+// (`BoardDragProvider`, board-dnd) runs its transit to it; a transit whose action takes a payload
+// (the JSON Schema of the contract) asks for it in a dialog, one that the specs confirm asks for
+// its confirmation (`useRunTransit` of transit-bar); the refusal of a transit (the validators of
+// the backend, which `for_transit` does not call: 422) is shown above the columns
+// (`error:move`). A list of one page per column, refetched after a transit.
 
 import { ArrowRightLeft, SearchX } from 'lucide-react';
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 
 import { Filter, pagination } from '@/bazis/client';
 import { formatNumber, useLanguage } from '@/bazis/i18n';
-import { useTransits, useTransitsOf, type TransitPath } from '@/bazis/react/statusy';
+import type { Transit, TransitPath } from '@/bazis/react/statusy';
 import { EmptyState } from '@/bazis/ui/empty-state';
 import type { Tone } from '@/bazis/generated/theme';
 import {
@@ -49,7 +51,7 @@ import {
 import { statusName, statusOf, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast, type ViewState } from '@/bazis/ui/state-panel';
 import { FilterBar, listFilters, type ListFilter } from '@/bazis/ui/resource-list';
-import { inDeclaredOrder, useRunTransit, type DeclaredTransit, type TransitRun } from '@/bazis/ui/transit-bar';
+import { inDeclaredOrder, listedTransit, useRunTransit, type DeclaredTransit, type TransitRun } from '@/bazis/ui/transit-bar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -93,29 +95,12 @@ export interface ResourceBoardProps {
   icon?: ComponentType<{ className?: string }>;
 }
 
-interface MovesProps {
-  path: TransitPath;
-  item: ResourceObject;
-  type: string;
-  run: TransitRun;
-  declared: readonly DeclaredTransit[];
-}
-
-/**
- * The menu of the moves of a card (`action:move`). The transits are read when it opens: once it
- * has shown that the user may run none on the item in its status, it is hidden as it closes,
- * until the item is in another status.
- */
-function MoveMenu({ path, item, type, run, declared }: MovesProps) {
-  const { t } = useLanguage();
-  const [open, setOpen] = useState(false);
-  // the status of the item when its transits were read empty
-  const [noneIn, setNoneIn] = useState<string | null | undefined>();
-  const status = statusOf(item);
-  if (!open && noneIn !== undefined && noneIn === status) return null;
+/** The menu of the moves of a card (`action:move`): the transits that the user may run on its item now. */
+function MoveMenu({ item, moves, run }: { item: ResourceObject; moves: readonly Transit[]; run: TransitRun }) {
+  const { language, t } = useLanguage();
   return (
     // modal: false, so that the dialog of a payload opens as the menu closes
-    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -129,47 +114,23 @@ function MoveMenu({ path, item, type, run, declared }: MovesProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <MoveItems
-          path={path}
-          item={item}
-          type={type}
-          run={run}
-          declared={declared}
-          onNone={() => {
-            setNoneIn(status);
-          }}
-        />
+        {moves.map((transit) => {
+          const target = transitTarget(item.type, transit.id);
+          return (
+            <DropdownMenuItem
+              key={transit.id}
+              data-bz={`move:${target ?? transit.id}`}
+              onSelect={() => {
+                run.start(item.id, transit);
+              }}
+            >
+              {target === null ? transitName(item.type, transit.id, language) : statusName(item.type, target, language)}
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-/** The items of the menu of the moves: the transits that the user may run on the item now. */
-function MoveItems({ path, item, type, run, declared, onNone }: MovesProps & { onNone: () => void }) {
-  const { id } = item;
-  const transits = useTransits(path, id);
-  const { language, t } = useLanguage();
-  const none = transits.isSuccess && transits.data.length === 0;
-  useEffect(() => {
-    if (none) onNone();
-  }, [none, onNone]);
-  if (transits.isPending) return <DropdownMenuItem disabled>{t('state.loading.title')}</DropdownMenuItem>;
-  if (transits.isError || !transits.data.length) return <DropdownMenuItem disabled>{t('board.no_moves')}</DropdownMenuItem>;
-  return inDeclaredOrder(transits.data, declared).map((transit) => {
-    const target = transitTarget(type, transit.id);
-    return (
-      <DropdownMenuItem
-        key={transit.id}
-        data-bz={`move:${target ?? transit.id}`}
-        disabled={!transit.allowed}
-        onSelect={() => {
-          run.start(id, transit);
-        }}
-      >
-        {target === null ? transitName(type, transit.id, language) : statusName(type, target, language)}
-      </DropdownMenuItem>
-    );
-  });
 }
 
 interface CardProps {
@@ -271,11 +232,10 @@ export function ResourceBoard({
       filter: and(filter, Filter.where('status', status)),
       ...(sort ? { sort } : {}),
       page: { limit: limits[status] ?? pageSize },
-      meta: ['pagination'],
+      meta: move ? ['pagination', 'for_transit'] : ['pagination'],
     })),
   );
   const run = useRunTransit(path, undefined, declared);
-  const transitsOf = useTransitsOf(path);
   const { Area, Column, Card } = useBoardDrag(move);
 
   const failed = lists.find((it) => it.status === 'error');
@@ -288,13 +248,19 @@ export function ResourceBoard({
         ? 'empty'
         : 'loaded';
 
+  // the transits that the user may run on each card now, by its id: those of its column
+  const forTransit = lists.reduce<Readonly<Record<string, readonly string[]>>>(
+    (all, it) => ({ ...all, ...it.data?.meta?.for_transit }),
+    {},
+  );
+  const movesOf = (item: ResourceObject) =>
+    inDeclaredOrder((forTransit[item.id] ?? []).map((id) => listedTransit(item, id)), declared);
+
   // a card dropped on a column: the transit of the item to its status, if the user may run it now
-  async function drop(id: string, status: string) {
+  function drop(id: string, status: string) {
     const item = rows.flat().find((it) => it.id === id);
     if (!item || statusOf(item) === status) return;
-    const transit = (await transitsOf(id).catch(() => [])).find(
-      (it) => it.allowed && (transitTarget(type, it.id) ?? it.id) === status,
-    );
+    const transit = movesOf(item).find((it) => (transitTarget(item.type, it.id) ?? it.id) === status);
     if (transit) run.start(id, transit);
     else toast({ title: t('board.no_transit', { status: statusName(type, status, language) }), tone: 'danger' });
   }
@@ -346,11 +312,7 @@ export function ResourceBoard({
             </div>
           }
         >
-          <Area
-            onDrop={(id, status) => {
-              void drop(id, status);
-            }}
-          >
+          <Area onDrop={drop}>
             <div className="flex snap-x gap-4 overflow-x-auto pb-2">
               {statuses.map((status, index) => {
                 const items = rows[index] ?? [];
@@ -374,34 +336,45 @@ export function ResourceBoard({
                         </p>
                       ) : (
                         <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                          {items.map((item) => (
-                            <li key={item.id}>
-                              <Card id={item.id} label={itemName(item)}>
-                                <BoardCard
-                                  item={item}
-                                  title={title}
-                                  fields={fields}
-                                  meta={meta}
-                                  badge={
-                                    badge !== undefined &&
-                                    fieldValue(item, badge) === true && (
-                                      <span
-                                        className={cn(
-                                          'relative shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
-                                          SOFT_TONES[badgeTone],
-                                        )}
-                                      >
-                                        {meta.title(badge)}
-                                      </span>
-                                    )
-                                  }
-                                  display={display}
-                                  onOpen={onOpen}
-                                  moves={move && <MoveMenu path={path} item={item} type={type} run={run} declared={declared} />}
-                                />
-                              </Card>
-                            </li>
-                          ))}
+                          {items.map((item) => {
+                            const moves = move ? movesOf(item) : [];
+                            const card = (
+                              <BoardCard
+                                item={item}
+                                title={title}
+                                fields={fields}
+                                meta={meta}
+                                badge={
+                                  badge !== undefined &&
+                                  fieldValue(item, badge) === true && (
+                                    <span
+                                      className={cn(
+                                        'relative shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+                                        SOFT_TONES[badgeTone],
+                                      )}
+                                    >
+                                      {meta.title(badge)}
+                                    </span>
+                                  )
+                                }
+                                display={display}
+                                onOpen={onOpen}
+                                moves={moves.length > 0 && <MoveMenu item={item} moves={moves} run={run} />}
+                              />
+                            );
+                            return (
+                              // a card without a transit is not dragged
+                              <li key={item.id}>
+                                {moves.length > 0 ? (
+                                  <Card id={item.id} label={itemName(item)}>
+                                    {card}
+                                  </Card>
+                                ) : (
+                                  card
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
                       {items.length < count && (

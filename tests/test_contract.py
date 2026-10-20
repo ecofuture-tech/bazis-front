@@ -94,7 +94,8 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert 'other_routes' not in task
     # the fields that the create takes: never a date that the backend sets (`dt_created`)
     assert task['create'] == [
-        'assignee', 'attachment', 'due', 'location', 'priority', 'report', 'status', 'title', 'watchers',
+        'assignee', 'attachment', 'due', 'hours', 'location', 'priority', 'report', 'status', 'title',
+        'watchers',
     ]
     # the custom actions with the standalone schema of their body, what the buttons of the specs
     # need: of the collection and of an item (which requires the change of the item); not the
@@ -530,9 +531,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0012_due')
+    unapply('tasks', '0013_hours')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0012_due.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0013_hours.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -540,12 +541,12 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0012_due' in messages[0].msg
+    assert 'tasks.0013_hours' in messages[0].msg
 
 
 @pytest.mark.django_db
 def test_the_database_is_not_needed_without_permit_and_statusy(sample_app, monkeypatch):
-    unapply('tasks', '0012_due')
+    unapply('tasks', '0013_hours')
     monkeypatch.setitem(
         capabilities.CAPABILITIES, 'permit', capabilities.Capability('bazis-permit', 'not.installed')
     )
@@ -752,10 +753,11 @@ def test_the_packages_are_not_older_than_the_protocol_of_the_assets(monkeypatch)
     assert [name for name, _, _ in capabilities.outdated(['permit', 'statusy'])] == ['permit']
     assert 'bazis-permit>=2.7.0' in check_packages(None)[0].msg
     # bazis-statusy: the JSON Schemas of the payloads with their titles translated (2.8), the
-    # initial status of each model (2.12)
-    versions['bazis-statusy'] = '2.11.0'
+    # initial status of each model (2.12), the transits of the items of a list (2.13)
+    versions['bazis-statusy'] = '2.12.0'
     assert [name for name, _, _ in capabilities.outdated(['statusy'])] == ['statusy']
-    assert 'bazis-statusy>=2.12.0' in check_packages(None)[1].msg
+    assert 'bazis-statusy>=2.13.0' in check_packages(None)[1].msg
+    assert 'for_transit' in check_packages(None)[1].msg
 
 
 def test_the_default_language_is_a_code_of_the_languages():

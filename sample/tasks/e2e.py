@@ -20,8 +20,10 @@ the test users of the roles, the `test_user` of the roles of `sample/spec/produc
 the task that a scenario opens (the points are written by a scenario, through the API, as a
 product writes them). It only adds: the tasks of the previous runs, the notifications and the
 users stay for the user to look at; a run creates only what is missing and sets the date of
-its task again.
+its task (and its hours) again.
 """
+
+from decimal import Decimal
 
 from django.apps import apps as global_apps
 from django.contrib.auth import get_user_model
@@ -37,6 +39,8 @@ TEST_USERS = {'manager': ('manager', 'Mary', 'Manager'), 'viewer': ('viewer', 'V
 #: the title of the task that the scenario of the viewer opens; no scenario creates a task
 #: with this title, so that the scenarios do not depend on their order
 TASK = 'Review the plan'
+#: the hours of that task
+HOURS = Decimal('2.5')
 
 
 def create_test_data(password: str) -> None:
@@ -65,5 +69,8 @@ def create_test_data(password: str) -> None:
         if hasattr(user, 'language'):
             user.language = None
         user.save()
-    # due now, set again at every run: on the day of the run in the calendar of the tasks
-    global_apps.get_model('tasks', 'Task').objects.update_or_create(title=TASK, defaults={'due': timezone.now()})
+    # due now, set again at every run: on the day of the run in the calendar of the tasks; its
+    # hours, the sum of the tile `review-hours` of the home (no scenario sets the hours)
+    global_apps.get_model('tasks', 'Task').objects.update_or_create(
+        title=TASK, defaults={'due': timezone.now(), 'hours': HOURS},
+    )

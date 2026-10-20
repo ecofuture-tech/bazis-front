@@ -31,6 +31,7 @@ import {
   fieldValue,
   isLongText,
   isNumeric,
+  ITEM_META,
   itemLabel,
   itemName,
   permitted,
@@ -255,7 +256,7 @@ export function ResourceCard({
   tabs = [],
   forms,
 }: ResourceCardProps) {
-  const item = useAnyItem(path, id, { meta: ['crud_actions', 'custom_actions'] });
+  const item = useAnyItem(path, id, { meta: ITEM_META });
   const fields = useItemFields(path, id);
   const [editing, setEditing] = useState(false);
   const { t } = useLanguage();

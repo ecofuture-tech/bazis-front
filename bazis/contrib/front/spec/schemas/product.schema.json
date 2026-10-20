@@ -439,11 +439,11 @@
             "error": {"description": "A field with a validation error.", "$ref": "#/$defs/field_id"},
             "notification": {"description": "A notification of the user (bazis-notify or bazis-ws: `packages` has `notify` or `ws`) whose text contains this text, in the list of the notifications.", "type": "string", "minLength": 1},
             "tile": {
-              "description": "The counts of tiles of the current dashboard, by the id of the tile.",
+              "description": "The numbers of tiles of the current dashboard, by the id of the tile: the count of its items, or the number of its `value` (`2.5`).",
               "type": "object",
               "minProperties": 1,
               "propertyNames": {"$ref": "#/$defs/id"},
-              "additionalProperties": {"type": "integer", "minimum": 0}
+              "additionalProperties": {"type": "number"}
             },
             "day": {
               "description": "The numbers of the items of days of the current calendar, by the day: YYYY-MM-DD, or today, today+<n>, today-<n> days from the day of the run (in UTC), as the dates of the data of e2e_data.",

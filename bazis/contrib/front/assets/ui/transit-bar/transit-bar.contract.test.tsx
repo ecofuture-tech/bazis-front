@@ -21,6 +21,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ITEM_META, useAnyItem } from '@/bazis/ui/resource';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource } from '@/bazis/ui/testing';
 import { TransitBar } from '@/bazis/ui/transit-bar';
 
@@ -60,7 +61,29 @@ function backend() {
   });
 }
 
+/** The card of the item, as `ResourceCard` reads it. */
+function Card() {
+  const item = useAnyItem(ITEMS, ITEM_ID, { meta: ITEM_META });
+  return item.data ? <p data-bz="card">{item.data.data.id}</p> : null;
+}
+
 describe('TransitBar', () => {
+  it('reads the transits with the retrieve of the card of the item: one request', async () => {
+    const server = backend();
+    renderWithBazis(
+      <>
+        <Card />
+        <TransitBar path={ITEMS as never} id={ITEM_ID} />
+      </>,
+      server,
+    );
+    expect(await screen.findByTestId('transit:start')).toBeTruthy();
+    expect(await screen.findByTestId('card')).toBeTruthy();
+    expect(server.requests('GET').map((it) => decodeURIComponent(it))).toEqual([
+      `GET ${ITEM}?meta=${ITEM_META.join(',')}`,
+    ]);
+  });
+
   it('is loading, then marks the transits', async () => {
     const { unmount } = renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, new Backend().hold('GET', ITEM));
     expect(screen.getByTestId('state:loading')).toBeTruthy();

@@ -115,6 +115,22 @@
             "default": null,
             "nullable": true,
             "title": "Due"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Hours"
           }
         },
         "type": "object"
@@ -454,6 +470,22 @@
             "default": null,
             "nullable": true,
             "title": "Due"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Hours"
           }
         },
         "type": "object"
@@ -721,6 +753,22 @@
             "default": null,
             "nullable": true,
             "title": "Due"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Hours"
           }
         },
         "type": "object"
@@ -929,6 +977,24 @@
       },
       "Def30": {
         "properties": {
+          "aggregates": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "items": {
+                  "$ref": "#/$defs/Def31"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Aggregates"
+          },
           "for_change": {
             "anyOf": [
               {
@@ -1028,7 +1094,7 @@
           "pagination": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def31"
+                "$ref": "#/$defs/Def32"
               },
               {
                 "type": "null"
@@ -1041,6 +1107,30 @@
         "type": "object"
       },
       "Def31": {
+        "properties": {
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "values": {
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "group",
+          "values"
+        ],
+        "type": "object"
+      },
+      "Def32": {
         "properties": {
           "count": {
             "title": "Count",
@@ -1200,6 +1290,22 @@
             "default": null,
             "nullable": true,
             "title": "Due"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Hours"
           }
         },
         "required": [
@@ -1540,6 +1646,22 @@
             "default": null,
             "nullable": true,
             "title": "Due"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Hours"
           }
         },
         "type": "object"
@@ -2098,6 +2220,22 @@
             "default": null,
             "nullable": true,
             "title": "Due"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Hours"
           }
         },
         "type": "object"
@@ -2293,7 +2431,8 @@
         "report": "",
         "priority": "normal",
         "location": null,
-        "due": null
+        "due": null,
+        "hours": null
       },
       "relationships": {
         "status": {
@@ -2398,7 +2537,8 @@
         "report": "",
         "priority": "normal",
         "location": null,
-        "due": null
+        "due": null,
+        "hours": null
       },
       "relationships": {
         "status": {

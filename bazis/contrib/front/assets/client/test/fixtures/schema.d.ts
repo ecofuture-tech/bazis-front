@@ -437,6 +437,20 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AggregatesGroup
+         * @description The aggregates of the objects of one value of the `group` field.
+         *
+         *     Tags: RAG, EXPORT
+         */
+        AggregatesGroup: {
+            /** Group */
+            group: string | null;
+            /** Values */
+            values: {
+                [key: string]: number | string | null;
+            };
+        };
+        /**
          * FieldListModel
          * @description Response model for a list of filterable fields.
          */
@@ -571,8 +585,8 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
-        /** ___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes */
-        ___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes: {
+        /** ___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Attributes__Attributes */
+        ___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Attributes__Attributes: {
             /** child name */
             child_name: string;
             /** child description */
@@ -597,8 +611,8 @@ export interface components {
              */
             readonly dt_updated?: string;
         };
-        /** ___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities */
-        ___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities: {
+        /** ___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships__Relationships__Data__parent_entities */
+        ___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships__Relationships__Data__parent_entities: {
             /** Data */
             data?: (components["schemas"]["_entity__child_entity__schema_create__ResourceIdentifierSchema__entity__parent_entity"][] | null) | null;
         };
@@ -664,8 +678,8 @@ export interface components {
             /** Data */
             data?: (components["schemas"]["_entity__child_entity__schema_retrieve__ResourceIdentifierSchema__entity__parent_entity"][] | null) | null;
         };
-        /** ___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes */
-        ___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes: {
+        /** ___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Attributes__Attributes */
+        ___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Attributes__Attributes: {
             /** child name */
             child_name?: string;
             /** child description */
@@ -690,13 +704,13 @@ export interface components {
              */
             readonly dt_updated?: string;
         };
-        /** ___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities */
-        ___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities: {
+        /** ___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships__Relationships__Data__parent_entities */
+        ___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships__Relationships__Data__parent_entities: {
             /** Data */
             data?: (components["schemas"]["_entity__child_entity__schema_update__ResourceIdentifierSchema__entity__parent_entity"][] | null) | null;
         };
-        /** ___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes */
-        ___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes: {
+        /** ___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Attributes__Attributes */
+        ___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Attributes__Attributes: {
             /** name */
             name: string;
             /** description */
@@ -740,18 +754,18 @@ export interface components {
             /** extended_entity_price */
             readonly extended_entity_price?: number | string;
         };
-        /** ___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities */
-        ___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities: {
+        /** ___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__child_entities */
+        ___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__child_entities: {
             /** Data */
             data?: components["schemas"]["_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__child_entity"][] | null;
         };
-        /** ___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities */
-        ___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities: {
+        /** ___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__dependent_entities */
+        ___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__dependent_entities: {
             /** Data */
             data?: (components["schemas"]["_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__dependent_entity"][] | null) | null;
         };
-        /** ___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity */
-        ___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity: {
+        /** ___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__extended_entity */
+        ___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__extended_entity: {
             /** Data */
             data?: (components["schemas"]["_entity__parent_entity__schema_create__ResourceIdentifierSchema__entity__extended_entity"] | null) | null;
         };
@@ -875,8 +889,8 @@ export interface components {
             /** Data */
             data?: (components["schemas"]["_entity__parent_entity__schema_retrieve__ResourceIdentifierSchema__entity__extended_entity"] | null) | null;
         };
-        /** ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes */
-        ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes: {
+        /** ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Attributes__Attributes */
+        ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Attributes__Attributes: {
             /** name */
             name?: string;
             /** description */
@@ -920,35 +934,35 @@ export interface components {
             /** extended_entity_price */
             readonly extended_entity_price?: number | string;
         };
-        /** ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities */
-        ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities: {
+        /** ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__child_entities */
+        ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__child_entities: {
             /** Data */
             data?: components["schemas"]["_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__child_entity"][] | null;
         };
-        /** ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities */
-        ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities: {
+        /** ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities */
+        ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities: {
             /** Data */
             data?: (components["schemas"]["_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity"][] | null) | null;
         };
-        /** ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null */
-        ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null: {
+        /** ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities_null */
+        ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities_null: {
             /** Data */
             data?: (components["schemas"]["_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__dependent_entity_null"][] | null) | null;
         };
-        /** ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity */
-        ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity: {
+        /** ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity */
+        ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity: {
             /** Data */
             data?: (components["schemas"]["_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity"] | null) | null;
         };
-        /** ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null */
-        ___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null: {
+        /** ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity_null */
+        ___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity_null: {
             /** Data */
             data?: (components["schemas"]["_entity__parent_entity__schema_update__ResourceIdentifierSchema__entity__extended_entity_null"] | null) | null;
         };
-        /** __entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships */
-        __entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships: {
+        /** __entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships */
+        __entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships: {
             /** parent_entities */
-            parent_entities?: (components["schemas"]["___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"] | null) | null;
+            parent_entities?: (components["schemas"]["___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships__Relationships__Data__parent_entities"] | null) | null;
         };
         /** __entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships */
         __entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships: {
@@ -960,19 +974,19 @@ export interface components {
             /** parent_entities */
             parent_entities?: (components["schemas"]["___entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships__Relationships__Data__parent_entities"] | null) | null;
         };
-        /** __entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships */
-        __entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships: {
+        /** __entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships */
+        __entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships: {
             /** parent_entities */
-            parent_entities?: (components["schemas"]["___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships__Relationships__Data__parent_entities"] | null) | null;
+            parent_entities?: (components["schemas"]["___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships__Relationships__Data__parent_entities"] | null) | null;
         };
-        /** __entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships */
-        __entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships: {
+        /** __entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships */
+        __entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships: {
             /** child entities */
-            child_entities?: components["schemas"]["___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__child_entities"];
+            child_entities?: components["schemas"]["___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__child_entities"];
             /** extended_entity */
-            extended_entity?: (components["schemas"]["___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__extended_entity"] | null) | null;
+            extended_entity?: (components["schemas"]["___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__extended_entity"] | null) | null;
             /** dependent_entities */
-            dependent_entities?: (components["schemas"]["___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"] | null) | null;
+            dependent_entities?: (components["schemas"]["___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships__Relationships__Data__dependent_entities"] | null) | null;
         };
         /** __entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships */
         __entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships: {
@@ -992,18 +1006,18 @@ export interface components {
             /** dependent_entities */
             dependent_entities?: (components["schemas"]["___entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships__Relationships__Data__dependent_entities"] | null) | null;
         };
-        /** __entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships */
-        __entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships: {
+        /** __entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships */
+        __entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships: {
             /** child entities */
-            child_entities?: components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__child_entities"];
+            child_entities?: components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__child_entities"];
             /** extended_entity */
-            extended_entity?: (components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity"] | null) | null;
+            extended_entity?: (components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity"] | null) | null;
             /** dependent_entities */
-            dependent_entities?: (components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities"] | null) | null;
+            dependent_entities?: (components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities"] | null) | null;
             /** extended_entity_null */
-            extended_entity_null?: (components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__extended_entity_null"] | null) | null;
+            extended_entity_null?: (components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__extended_entity_null"] | null) | null;
             /** dependent_entities_null */
-            dependent_entities_null?: (components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships__Relationships__Data__dependent_entities_null"] | null) | null;
+            dependent_entities_null?: (components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships__Relationships__Data__dependent_entities_null"] | null) | null;
         };
         /** _entity__child_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43 */
         _entity__child_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43: Record<string, never>;
@@ -1020,8 +1034,8 @@ export interface components {
              */
             type?: string;
         };
-        /** _entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5 */
-        _entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5: {
+        /** _entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1 */
+        _entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1: {
             /** Id */
             id?: string | null;
             /**
@@ -1035,16 +1049,25 @@ export interface components {
              */
             "bs:action"?: string;
             /** Attributes */
-            attributes: components["schemas"]["___entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Attributes__Attributes"];
+            attributes: components["schemas"]["___entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Attributes__Attributes"];
             /** Relationships */
-            relationships: components["schemas"]["__entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5_None__Relationships"];
+            relationships: components["schemas"]["__entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_None__Relationships"];
         };
-        /** _entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed */
-        _entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed: {
+        /** _entity__child_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef */
+        _entity__child_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef: {
+            /**
+             * Aggregates
+             * @description The aggregates of `aggregate` (`count` without it) over all the objects of the list
+             *             with its filter and search, not its page: by the term (`sum(amount)`), or a list of
+             *             `{group, values}` ordered by the value of `group` (None last).
+             */
+            aggregates?: {
+                [key: string]: number | string | null;
+            } | components["schemas"]["AggregatesGroup"][] | null;
             /**
              * Pagination
              * @description Provides pagination metadata, including count, limit, and offset, as a
-             *     PaginationMeta object.
+             *             PaginationMeta object.
              */
             pagination?: components["schemas"]["PaginationMeta"] | null;
         };
@@ -1135,8 +1158,8 @@ export interface components {
              */
             type?: string;
         };
-        /** _entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5 */
-        _entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5: {
+        /** _entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1 */
+        _entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1: {
             /**
              * Id
              * Format: uuid
@@ -1153,9 +1176,9 @@ export interface components {
              */
             "bs:action"?: string;
             /** Attributes */
-            attributes: components["schemas"]["___entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Attributes__Attributes"];
+            attributes: components["schemas"]["___entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Attributes__Attributes"];
             /** Relationships */
-            relationships: components["schemas"]["__entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5_False__Relationships"];
+            relationships: components["schemas"]["__entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1_False__Relationships"];
         };
         /** _entity__parent_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43 */
         _entity__parent_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43: Record<string, never>;
@@ -1199,8 +1222,8 @@ export interface components {
              */
             type?: string;
         };
-        /** _entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d */
-        _entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d: {
+        /** _entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67 */
+        _entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67: {
             /** Id */
             id?: string | null;
             /**
@@ -1214,16 +1237,25 @@ export interface components {
              */
             "bs:action"?: string;
             /** Attributes */
-            attributes: components["schemas"]["___entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Attributes__Attributes"];
+            attributes: components["schemas"]["___entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Attributes__Attributes"];
             /** Relationships */
-            relationships: components["schemas"]["__entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d_None__Relationships"];
+            relationships: components["schemas"]["__entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67_None__Relationships"];
         };
-        /** _entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed */
-        _entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed: {
+        /** _entity__parent_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef */
+        _entity__parent_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef: {
+            /**
+             * Aggregates
+             * @description The aggregates of `aggregate` (`count` without it) over all the objects of the list
+             *             with its filter and search, not its page: by the term (`sum(amount)`), or a list of
+             *             `{group, values}` ordered by the value of `group` (None last).
+             */
+            aggregates?: {
+                [key: string]: number | string | null;
+            } | components["schemas"]["AggregatesGroup"][] | null;
             /**
              * Pagination
              * @description Provides pagination metadata, including count, limit, and offset, as a
-             *     PaginationMeta object.
+             *             PaginationMeta object.
              */
             pagination?: components["schemas"]["PaginationMeta"] | null;
         };
@@ -1421,8 +1453,8 @@ export interface components {
              */
             type?: string;
         };
-        /** _entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820 */
-        _entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820: {
+        /** _entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831 */
+        _entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831: {
             /**
              * Id
              * Format: uuid
@@ -1439,14 +1471,14 @@ export interface components {
              */
             "bs:action"?: string;
             /** Attributes */
-            attributes: components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Attributes__Attributes"];
+            attributes: components["schemas"]["___entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Attributes__Attributes"];
             /** Relationships */
-            relationships: components["schemas"]["__entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820_False__Relationships"];
+            relationships: components["schemas"]["__entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831_False__Relationships"];
         };
-        /** entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b */
-        entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b: {
+        /** entity__child_entity__schema_create__0f9c648c45a15fa55af4364480f54bcf */
+        entity__child_entity__schema_create__0f9c648c45a15fa55af4364480f54bcf: {
             /** Data */
-            data: components["schemas"]["_entity__child_entity__schema_create__ResourceSchema__8da93f55dad5c57d95321add931253a5"];
+            data: components["schemas"]["_entity__child_entity__schema_create__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1"];
             meta?: components["schemas"]["_entity__child_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"] | null;
         };
         /** entity__child_entity__schema_list__386a7615d4b5616073650f2ac25f8e34 */
@@ -1454,7 +1486,7 @@ export interface components {
             /** List data */
             data: components["schemas"]["_entity__child_entity__schema_list__ResourceSchema__8da93f55dad5c57d95321add931253a5"][];
             links: components["schemas"]["PaginationLinks"];
-            meta?: components["schemas"]["_entity__child_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed"] | null;
+            meta?: components["schemas"]["_entity__child_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef"] | null;
         };
         /** entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644 */
         entity__child_entity__schema_retrieve__81d40e5b3cff0553cf42eeb8abaab644: {
@@ -1462,16 +1494,16 @@ export interface components {
             data: components["schemas"]["_entity__child_entity__schema_retrieve__ResourceSchema__8da93f55dad5c57d95321add931253a5"];
             meta?: components["schemas"]["_entity__child_entity__schema_retrieve__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"] | null;
         };
-        /** entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b */
-        entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b: {
+        /** entity__child_entity__schema_update__7918eb4bafd7b04e4ed51608730bcd37 */
+        entity__child_entity__schema_update__7918eb4bafd7b04e4ed51608730bcd37: {
             /** Data */
-            data: components["schemas"]["_entity__child_entity__schema_update__ResourceSchema__8da93f55dad5c57d95321add931253a5"];
+            data: components["schemas"]["_entity__child_entity__schema_update__ResourceSchema__6f0f20e5c61bd4d1fe2b2605fceef3d1"];
             meta?: components["schemas"]["_entity__child_entity__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"] | null;
         };
-        /** entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4 */
-        entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4: {
+        /** entity__parent_entity__schema_create__0a6413306ab47e51147a3febdb0a919f */
+        entity__parent_entity__schema_create__0a6413306ab47e51147a3febdb0a919f: {
             /** Data */
-            data: components["schemas"]["_entity__parent_entity__schema_create__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"];
+            data: components["schemas"]["_entity__parent_entity__schema_create__ResourceSchema__089111d02caf507288adc9c6fbb5ef67"];
             meta?: components["schemas"]["_entity__parent_entity__schema_create__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"] | null;
         };
         /** entity__parent_entity__schema_list__5ca3fd138a0659ea6e93d756730cf5e4 */
@@ -1479,7 +1511,7 @@ export interface components {
             /** List data */
             data: components["schemas"]["_entity__parent_entity__schema_list__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"][];
             links: components["schemas"]["PaginationLinks"];
-            meta?: components["schemas"]["_entity__parent_entity__schema_list__MetaSchema__b8fb16061cd78b91777412368ef9f2ed"] | null;
+            meta?: components["schemas"]["_entity__parent_entity__schema_list__MetaSchema__d8aff28094ffbe92931217bda7f52cef"] | null;
         };
         /** entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1 */
         entity__parent_entity__schema_retrieve__c4e898ae8a4d44e5b51c9446002efbf1: {
@@ -1487,10 +1519,10 @@ export interface components {
             data: components["schemas"]["_entity__parent_entity__schema_retrieve__ResourceSchema__b5c40b7d631e15d763038b0ce15dc47d"];
             meta?: components["schemas"]["_entity__parent_entity__schema_retrieve__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"] | null;
         };
-        /** entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c */
-        entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c: {
+        /** entity__parent_entity__schema_update__d5602ec1cc21f58a3757036f8c1a889e */
+        entity__parent_entity__schema_update__d5602ec1cc21f58a3757036f8c1a889e: {
             /** Data */
-            data: components["schemas"]["_entity__parent_entity__schema_update__ResourceSchema__e6ff88a8c7ce381c4461f8c0562c8820"];
+            data: components["schemas"]["_entity__parent_entity__schema_update__ResourceSchema__d2d87366e1d5dfeaa5d20e12e265f831"];
             meta?: components["schemas"]["_entity__parent_entity__schema_update__MetaSchema__e71d7d1332fe9c82992798dc37f38e43"] | null;
         };
     };
@@ -1699,6 +1731,10 @@ export interface operations {
                 "page[offset]"?: number;
                 "page[limit]"?: number;
                 sort?: string;
+                /** @description The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas */
+                aggregate?: string | null;
+                /** @description The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month */
+                group?: string | null;
                 meta?: string;
             };
             header?: never;
@@ -1736,6 +1772,10 @@ export interface operations {
                 "page[offset]"?: number;
                 "page[limit]"?: number;
                 sort?: string;
+                /** @description The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas */
+                aggregate?: string | null;
+                /** @description The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month */
+                group?: string | null;
                 meta?: string;
             };
             header?: never;
@@ -1762,7 +1802,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1785,7 +1825,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/vnd.api+json": components["schemas"]["entity__child_entity__schema_create__93626a47c4245cfab6be461c5162bc1b"];
+                "application/vnd.api+json": components["schemas"]["entity__child_entity__schema_create__0f9c648c45a15fa55af4364480f54bcf"];
             };
         };
         responses: {
@@ -1807,7 +1847,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1863,7 +1903,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1912,7 +1952,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1937,7 +1977,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/vnd.api+json": components["schemas"]["entity__child_entity__schema_update__d95ce0f40b6813ea706010f1eb001b3b"];
+                "application/vnd.api+json": components["schemas"]["entity__child_entity__schema_update__7918eb4bafd7b04e4ed51608730bcd37"];
             };
         };
         responses: {
@@ -1968,7 +2008,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2338,6 +2378,10 @@ export interface operations {
                 "page[offset]"?: number;
                 "page[limit]"?: number;
                 sort?: string;
+                /** @description The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas */
+                aggregate?: string | null;
+                /** @description The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month */
+                group?: string | null;
                 meta?: string;
             };
             header?: never;
@@ -2375,6 +2419,10 @@ export interface operations {
                 "page[offset]"?: number;
                 "page[limit]"?: number;
                 sort?: string;
+                /** @description The aggregates of meta=aggregates: count, sum(f), avg(f), min(f), max(f), count(f), separated by commas */
+                aggregate?: string | null;
+                /** @description The field that groups meta=aggregates: a choice, a boolean, a to-one relation, or a date with :day, :week or :month */
+                group?: string | null;
                 meta?: string;
             };
             header?: never;
@@ -2401,7 +2449,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2424,7 +2472,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/vnd.api+json": components["schemas"]["entity__parent_entity__schema_create__8509ec513b410c8e220432d9eb9e50f4"];
+                "application/vnd.api+json": components["schemas"]["entity__parent_entity__schema_create__0a6413306ab47e51147a3febdb0a919f"];
             };
         };
         responses: {
@@ -2446,7 +2494,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2504,7 +2552,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2553,7 +2601,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2578,7 +2626,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/vnd.api+json": components["schemas"]["entity__parent_entity__schema_update__5d64eae243c0a30367473cd457e5934c"];
+                "application/vnd.api+json": components["schemas"]["entity__parent_entity__schema_update__d5602ec1cc21f58a3757036f8c1a889e"];
             };
         };
         responses: {
@@ -2609,7 +2657,7 @@ export interface operations {
                     "application/vnd.api+json": components["schemas"]["SchemaErrors"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;

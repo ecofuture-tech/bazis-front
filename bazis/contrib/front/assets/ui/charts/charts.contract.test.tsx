@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The contract of the charts: `chart:<id>` with the states of its lists, a count of a list of
-// one item per status (`status=<id>` and the filter of the chart) or per period of a date
-// field (`<field>__gte`, `<field>__lt`, in the format of the field), each value
+// The contract of the charts: `chart:<id>` with the state of its query, the aggregates of a list
+// of one item (`meta=aggregates`, the filter of the chart) grouped by status (`group=status`) or
+// by the days or the months of a date field within the periods (`<field>__gte`, `<field>__lt`,
+// in the format of the field), a count or a measure of a field (`value`), each value
 // `value:<key>` with its number in `data-value`, drawn in the colors of the series of the
 // theme. recharts is replaced by a fake that records what it is asked to draw: jsdom draws
 // no chart. Keep it passing when the component is changed.
@@ -24,7 +25,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
-import { weekStart } from '@/bazis/i18n';
+import { isoDate, weekStart } from '@/bazis/i18n';
 import { Chart, StatusChart, TimeChart } from '@/bazis/ui/charts';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, runtimeSchema } from '@/bazis/ui/testing';
 
@@ -147,8 +148,12 @@ describe('Chart', () => {
   });
 });
 
+/** A list of one item with the aggregates of its items by group (`meta.aggregates` with `group`). */
+const grouped = (groups: readonly { group: string | null; values: Record<string, unknown> }[]) =>
+  listDocument([], { meta: { aggregates: groups } });
+
 describe('StatusChart', () => {
-  it('counts the items of each status with a list of one item, within its filter', async () => {
+  it('counts the items of each status with one query of the aggregates, within its filter', async () => {
     const ui = (
       <StatusChart
         id="by-status"
@@ -162,43 +167,67 @@ describe('StatusChart', () => {
     const { unmount } = renderWithBazis(ui, pending);
     expect(within(screen.getByTestId('chart:by-status')).getByTestId('state:loading')).toBeTruthy();
     await waitFor(() => {
-      expect(pending.requests('GET')).toHaveLength(2);
+      expect(pending.requests('GET')).toHaveLength(1);
     });
-    const [draft, done] = pending.requests('GET');
     unmount();
     expect(lists(pending)).toEqual([
-      expect.stringContaining('filter=owner=me&status=draft'),
-      expect.stringContaining('filter=owner=me&status=done'),
+      expect.stringContaining('filter=owner=me&page[limit]=1&meta=aggregates&aggregate=count&group=status'),
     ]);
-    for (const it of lists(pending)) {
-      expect(it).toContain('page[limit]=1');
-      expect(it).toContain('meta=pagination');
-    }
 
-    const server = new Backend()
-      .on('GET', (draft ?? '').slice(4), listDocument([], { count: 3 }))
-      .on('GET', (done ?? '').slice(4), listDocument([], { count: 1 }));
+    // a status without items has no group; one that the chart does not show is left out
+    const server = new Backend().on(
+      'GET',
+      ITEMS,
+      grouped([
+        { group: 'archived', values: { count: 9 } },
+        { group: 'draft', values: { count: 3 } },
+      ]),
+    );
     renderWithBazis(ui, server);
     const chart = await screen.findByTestId('chart:by-status');
     await waitFor(() => {
       expect(within(chart).getByTestId('value:draft').getAttribute('data-value')).toBe('3');
     });
-    expect(within(chart).getByTestId('value:done').getAttribute('data-value')).toBe('1');
+    expect(within(chart).getByTestId('value:done').getAttribute('data-value')).toBe('0');
     // a ring by default, a status in the color of its tone (`statuses` of the theme, that of its
     // badge); the id of a status the contract does not name
     expect(within(chart).getByTestId('value:draft').textContent).toContain('draft');
     expect(await drawn('pie')).toEqual([
       ['draft', 3, 'var(--color-neutral)'],
-      ['done', 1, 'var(--color-success)'],
+      ['done', 0, 'var(--color-success)'],
     ]);
   });
 
-  it('marks the error of a list, a forbidden one, and a model without statuses as empty', async () => {
+  it('shows the sum or the average of a field of the items of each status', async () => {
+    const sum = new Backend().on('GET', ITEMS, grouped([{ group: 'draft', values: { 'sum(hours)': '7.50' } }]));
+    const summed = renderWithBazis(
+      <StatusChart id="hours" path={ITEMS as never} label="Hours" statuses={['draft']} value={{ sum: 'hours' }} />,
+      sum,
+    );
+    await waitFor(() => {
+      expect(within(screen.getByTestId('chart:hours')).getByTestId('value:draft').getAttribute('data-value')).toBe('7.5');
+    });
+    expect(lists(sum)[0]).toContain('aggregate=sum(hours)&group=status');
+    summed.unmount();
+    // an average by the sum and the count of the field
+    const average = new Backend().on('GET', ITEMS, grouped([{ group: 'draft', values: { 'sum(hours)': '9.00', 'count(hours)': 4 } }]));
+    renderWithBazis(<StatusChart id="hours" path={ITEMS as never} label="Hours" statuses={['draft']} value={{ avg: 'hours' }} />, average);
+    await waitFor(() => {
+      expect(within(screen.getByTestId('chart:hours')).getByTestId('value:draft').getAttribute('data-value')).toBe('2.25');
+    });
+    expect(lists(average)[0]).toContain('aggregate=sum(hours),count(hours)&group=status');
+  });
+
+  it('marks the error of its query with the text of the backend, a forbidden one, and a model without statuses as empty', async () => {
+    const refused = {
+      errors: [{ status: 400, code: 'ERR_AGGREGATE', detail: 'More than 1000 groups of status', source: { pointer: '/query/group' } }],
+    };
     const failed = renderWithBazis(
       <StatusChart id="s" path={ITEMS as never} label="S" statuses={['draft']} />,
-      new Backend().on('GET', ITEMS, errors(500), 500),
+      new Backend().on('GET', ITEMS, refused, 400),
     );
-    expect(await within(screen.getByTestId('chart:s')).findByTestId('state:error')).toBeTruthy();
+    const error = await within(screen.getByTestId('chart:s')).findByTestId('state:error');
+    expect(error.textContent).toContain('More than 1000 groups of status');
     failed.unmount();
     const forbidden = renderWithBazis(
       <StatusChart id="s" path={ITEMS as never} label="S" statuses={['draft']} />,
@@ -224,31 +253,29 @@ describe('TimeChart', () => {
   );
   const now = new Date(2026, 9, 15, 12, 30);
 
-  it('counts the items of each period of a date to the current one, after the schema of the field', async () => {
-    const held = new Backend().hold('GET', `${ITEMS}schema_list/`).on('GET', ITEMS, listDocument([]));
+  it('counts the items of each month of a date to the current one, after the schema of the field', async () => {
+    const held = new Backend().hold('GET', `${ITEMS}schema_list/`).on('GET', ITEMS, grouped([]));
     const { unmount } = renderWithBazis(
       <TimeChart id="due" path={ITEMS as never} field="due" bucket="month" last={3} label="Due" now={now} />,
       held,
     );
-    // the format of the bounds is that of the field: no count before its schema
+    // the format of the bounds is that of the field: no query before its schema
     expect(within(screen.getByTestId('chart:due')).getByTestId('state:loading')).toBeTruthy();
     expect(lists(held)).toEqual([]);
     unmount();
 
     const server = new Backend()
       .on('GET', `${ITEMS}schema_list/`, schema)
-      .on('GET', ITEMS, listDocument([], { count: 2 }));
+      .on(
+        'GET',
+        ITEMS,
+        grouped([
+          { group: '2026-08-01', values: { count: 1 } },
+          { group: '2026-10-01', values: { count: 2 } },
+        ]),
+      );
     renderWithBazis(
-      <TimeChart
-        id="due"
-        path={ITEMS as never}
-        field="due"
-        bucket="month"
-        last={3}
-        label="Due"
-        now={now}
-        kind="line"
-      />,
+      <TimeChart id="due" path={ITEMS as never} field="due" bucket="month" last={3} label="Due" now={now} kind="line" />,
       server,
     );
     const chart = await screen.findByTestId('chart:due');
@@ -258,16 +285,35 @@ describe('TimeChart', () => {
     expect(
       within(chart)
         .getAllByTestId(/^value:/)
-        .map((it) => it.getAttribute('data-bz')),
-    ).toEqual(['value:2026-08-01', 'value:2026-09-01', 'value:2026-10-01']);
-    const requests = lists(server);
-    expect(requests).toHaveLength(3);
-    expect(requests[2]).toContain('filter=due__gte=2026-10-01&due__lt=2026-11-01');
+        .map((it) => [it.getAttribute('data-bz'), it.getAttribute('data-value')]),
+    ).toEqual([
+      ['value:2026-08-01', '1'],
+      ['value:2026-09-01', '0'],
+      ['value:2026-10-01', '2'],
+    ]);
+    expect(lists(server)).toEqual([
+      expect.stringContaining('filter=due__gte=2026-08-01&due__lt=2026-11-01&page[limit]=1&meta=aggregates&aggregate=count&group=due:month'),
+    ]);
     expect(await drawn('line-chart')).toHaveLength(3);
   });
 
-  it('bounds a date-time by the first moment of a day in the time zone of the browser, a week from its first day', async () => {
-    const server = new Backend().on('GET', `${ITEMS}schema_list/`, schema).on('GET', ITEMS, listDocument([]));
+  it('adds up the days of a week from its first day, bounded in the time zone of the browser, and averages a field', async () => {
+    const start = new Date(2026, 9, 15);
+    while (start.getDay() !== weekStart('en') % 7) start.setDate(start.getDate() - 1);
+    const next = new Date(start);
+    next.setDate(next.getDate() + 7);
+    const previous = new Date(start);
+    previous.setDate(previous.getDate() - 7);
+    const day = (date: Date, shift: number) => isoDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + shift));
+    const server = new Backend().on('GET', `${ITEMS}schema_list/`, schema).on(
+      'GET',
+      ITEMS,
+      grouped([
+        { group: day(previous, 1), values: { 'sum(hours)': '2.0', 'count(hours)': 1 } },
+        { group: day(start, 0), values: { 'sum(hours)': '3.0', 'count(hours)': 2 } },
+        { group: day(start, 6), values: { 'sum(hours)': '6.0', 'count(hours)': 2 } },
+      ]),
+    );
     renderWithBazis(
       <TimeChart
         id="created"
@@ -277,24 +323,19 @@ describe('TimeChart', () => {
         now={now}
         last={2}
         filter={Filter.where('owner', 'me')}
+        value={{ avg: 'hours' }}
       />,
       server,
     );
     const chart = await screen.findByTestId('chart:created');
-    // all zero: empty
-    expect(await within(chart).findByTestId('state:empty')).toBeTruthy();
-    const start = new Date(2026, 9, 15);
-    while (start.getDay() !== weekStart('en') % 7) start.setDate(start.getDate() - 1);
-    const next = new Date(start);
-    next.setDate(next.getDate() + 7);
-    const previous = new Date(start);
-    previous.setDate(previous.getDate() - 7);
+    await waitFor(() => {
+      expect(within(chart).getByTestId(`value:${isoDate(start)}`).getAttribute('data-value')).toBe('2.25');
+    });
+    expect(within(chart).getByTestId(`value:${isoDate(previous)}`).getAttribute('data-value')).toBe('2');
     expect(lists(server)).toEqual([
       expect.stringContaining(
-        `filter=owner=me&dt_created__gte=${previous.toISOString()}&dt_created__lt=${start.toISOString()}&`,
-      ),
-      expect.stringContaining(
-        `filter=owner=me&dt_created__gte=${start.toISOString()}&dt_created__lt=${next.toISOString()}&`,
+        `filter=owner=me&dt_created__gte=${previous.toISOString()}&dt_created__lt=${next.toISOString()}&page[limit]=1` +
+          '&meta=aggregates&aggregate=sum(hours),count(hours)&group=dt_created:day',
       ),
     ]);
   });

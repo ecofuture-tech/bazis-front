@@ -40,6 +40,7 @@ export function TaskCalendarScreen() {
           fields: ['title', 'due'],
           onAdd: addTaskForm.onOpenWith,
         }}
+        display={TASK.display}
       />
       <CreateFormAction
         {...addTaskForm}

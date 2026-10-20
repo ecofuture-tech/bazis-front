@@ -46,6 +46,7 @@ entities:
       - {id: location, type: point}      # a PointField: on the map of the list, its coordinates on the card
       - {id: watchers, relation: user, many: true}   # a to-many relationship: chosen in the forms
       - {id: due, type: datetime}        # the calendar of the tasks, whose add takes its time
+      - {id: hours, type: string, display: {unit: h}}   # a decimal: summed by the tile and the chart of the home
     workflow:
       initial: draft
       statuses: [draft, in_progress, done]
@@ -233,12 +234,13 @@ scenarios:
       - fill: {watchers: []}
       - submit: {}
       - expect: {values: {title: Watch the release, watchers: '—'}}
-  # the home: a tile counted by the API, a task created from here and opened in the last ones
+  # the home: tiles of the aggregates of the API, a task created from here and opened in the last ones
   - id: manager-starts-from-the-home
     role: manager
     steps:
       - open: home
-      - expect: {tile: {review: 1}}
+      # the count of a tile, and the sum of the hours of another (the task of `e2e_data`)
+      - expect: {tile: {review: 1, review-hours: 2.5}}
       - action: create
       - fill: {title: Plan from the home}
       - submit: {}

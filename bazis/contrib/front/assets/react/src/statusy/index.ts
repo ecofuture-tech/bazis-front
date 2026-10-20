@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { transits, useItemsTransit, useTransit, useTransits, useTransitsOf } from './transits.js';
+export { transits, useItemsTransit, useTransit, useTransits } from './transits.js';
 export type { Transit, TransitPath, TransitResponse, TransitRestrict } from './transits.js';
