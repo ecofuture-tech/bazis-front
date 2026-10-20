@@ -27,7 +27,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Filter } from '@/bazis/client';
 import { isoDate, weekStart } from '@/bazis/i18n';
 import { Chart, StatusChart, TimeChart } from '@/bazis/ui/charts';
-import { Backend, errors, ITEMS, listDocument, renderWithBazis, runtimeSchema } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis } from '@/bazis/ui/testing';
 
 interface Drawn {
   data?: readonly { key: string; value: number; fill: string }[];
@@ -244,28 +244,10 @@ describe('StatusChart', () => {
 });
 
 describe('TimeChart', () => {
-  const schema = runtimeSchema(
-    {
-      due: { attribute: { type: 'string', format: 'date' } },
-      dt_created: { attribute: { type: 'string', format: 'date-time' } },
-    },
-    { list: true },
-  );
   const now = new Date(2026, 9, 15, 12, 30);
 
-  it('counts the items of each month of a date to the current one, after the schema of the field', async () => {
-    const held = new Backend().hold('GET', `${ITEMS}schema_list/`).on('GET', ITEMS, grouped([]));
-    const { unmount } = renderWithBazis(
-      <TimeChart id="due" path={ITEMS as never} field="due" bucket="month" last={3} label="Due" now={now} />,
-      held,
-    );
-    // the format of the bounds is that of the field: no query before its schema
-    expect(within(screen.getByTestId('chart:due')).getByTestId('state:loading')).toBeTruthy();
-    expect(lists(held)).toEqual([]);
-    unmount();
-
+  it('counts the items of each month of a date to the current one', async () => {
     const server = new Backend()
-      .on('GET', `${ITEMS}schema_list/`, schema)
       .on(
         'GET',
         ITEMS,
@@ -294,10 +276,12 @@ describe('TimeChart', () => {
     expect(lists(server)).toEqual([
       expect.stringContaining('filter=due__gte=2026-08-01&due__lt=2026-11-01&page[limit]=1&meta=aggregates&aggregate=count&group=due:month'),
     ]);
+    // the bounds are dates whatever the field: the chart reads no schema
+    expect(server.requests('GET').filter((it) => it.includes('schema_'))).toEqual([]);
     expect(await drawn('line-chart')).toHaveLength(3);
   });
 
-  it('adds up the days of a week from its first day, bounded in the time zone of the browser, and averages a field', async () => {
+  it('adds up the days of a week from its first day, bounded by dates of a date-time, and averages a field', async () => {
     const start = new Date(2026, 9, 15);
     while (start.getDay() !== weekStart('en') % 7) start.setDate(start.getDate() - 1);
     const next = new Date(start);
@@ -305,7 +289,7 @@ describe('TimeChart', () => {
     const previous = new Date(start);
     previous.setDate(previous.getDate() - 7);
     const day = (date: Date, shift: number) => isoDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + shift));
-    const server = new Backend().on('GET', `${ITEMS}schema_list/`, schema).on(
+    const server = new Backend().on(
       'GET',
       ITEMS,
       grouped([
@@ -334,7 +318,7 @@ describe('TimeChart', () => {
     expect(within(chart).getByTestId(`value:${isoDate(previous)}`).getAttribute('data-value')).toBe('2');
     expect(lists(server)).toEqual([
       expect.stringContaining(
-        `filter=owner=me&dt_created__gte=${previous.toISOString()}&dt_created__lt=${next.toISOString()}&page[limit]=1` +
+        `filter=owner=me&dt_created__gte=${isoDate(previous)}&dt_created__lt=${isoDate(next)}&page[limit]=1` +
           '&meta=aggregates&aggregate=sum(hours),count(hours)&group=dt_created:day',
       ),
     ]);

@@ -212,10 +212,10 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   field of `value`, per status (`StatusChart`, the statuses of the workflow by default, the
   initial one first, `workflowStatuses` of `resource`) or per day, week or month of a date
   field (`TimeChart`, the last periods to the current one; the bounds `<field>__gte` and
-  `<field>__lt` of the range in the format of the field, the first moment of a day in the
-  time zone of the browser for a date-time), one list of one item with the groups of the
-  aggregates of the core (`group=status`, `group=<field>:day|month`; the days folded into
-  the weeks of the language; the groups of the backend are in its time zone; an average is a
+  `<field>__lt` of the range are dates, of a date-time field too, which the backend reads in
+  its time zone, `TIME_ZONE` of the project, as it groups the items: the axis is in that time
+  zone), one list of one item with the groups of the aggregates of the core (`group=status`,
+  `group=<field>:day|month`; the days folded into the weeks of the language; an average is a
   sum and a count, the group without a value never shown), drawn by recharts (`chart-view.tsx`,
   lazy) as a ring, bars or a line in the colors of the series of the theme (`--chart-1` …
   `--chart-6`), a status in the color of its tone (`statuses` of the theme, that of its badge,
@@ -240,7 +240,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   is the 422 of the transit; a card without one has no menu and cannot be dragged),
   `move:<status>` (the status the transit leads to; the transit itself when the contract
   does not know it). A click on the menu never opens the card. A transit whose action
-  takes a payload (its JSON Schema from `TRANSITS` of the contract) asks for it in the dialog of `useRunTransit` of `transit-bar`; the columns
+  takes a payload (the contract says which, `TRANSITS`) asks for it in the dialog of `useRunTransit` of `transit-bar`, which reads the item first; the columns
   are read again after it. The refusal of a transit run without the dialog (by the menu or a
   drop) is shown above the columns, `error:move`. **`board-dnd`** (`BoardDnd` around a board
   with `move`): a card dragged with
@@ -438,7 +438,12 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   (`ITEM_META` of `resource`: the meta of `ResourceCard`); a transit whose action takes a typed payload opens a
   dialog with its fields, and the errors of a 422 (`/payload/<name>`) are shown by field.
   `onDone(null)`: the user can no longer view the item. `useRunTransit(path)` runs the
-  transit of any item of the route set with this dialog (the board).
+  transit of any item of the route set with this dialog (the board): the dialog of a payload
+  reads `state_actions` of the item once as it opens, in the request of its card
+  (`ITEM_META`: none when the card has read it), `state:loading` without fields until then,
+  so that the fields have the titles of the backend in the language of the user, and the
+  hint of the transit (the JSON Schema of `TRANSITS` of the contract if it cannot be read);
+  a transit without a payload reads nothing.
 - **`screens`** is what the screens generated from the specs use besides the components of
   their primitives: the create form of an action (`CreateFormAction` in `FormSurface`, opened
   by `onOpen`, the `onClick` of an action, or `onOpenWith` with the values that it starts

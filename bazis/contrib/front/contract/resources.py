@@ -29,6 +29,7 @@ import pydoc
 from django.apps import apps
 from django.contrib.gis.db.models import PointField
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import DecimalField
 
 from bazis.core.introspect import models_info
 from bazis.core.routes_abstract.jsonapi import JsonapiRouteBase
@@ -173,7 +174,9 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, mod
     `filterLabel` and `orderLabel` of the schema), absent when the scope of the route set
     does not take them (a field the LIST schema does not have, or cannot filter or order
     by: 400 `ERR_FILTER`; any field without a scope). A `PointField` of the model is the
-    format `point` of its GeoJSON object (`{"type": "Point", "coordinates": [lon, lat]}`).
+    format `point` of its GeoJSON object (`{"type": "Point", "coordinates": [lon, lat]}`), a
+    `DecimalField` the format `decimal` of its string (its exact digits), which the aggregates
+    of the core sum as a number.
     """
     resource = None
     for kind in FIELDS_KINDS:
@@ -190,8 +193,10 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, mod
         fields[name] = {'title': prop['title'], 'type': schema.get('type', 'object')}
         if 'format' in schema:
             fields[name]['format'] = schema['format']
-        elif fields[name]['type'] == 'object' and _is_point(model, prop.get('filterLabel', name)):
+        elif fields[name]['type'] == 'object' and _is_field(model, prop.get('filterLabel', name), PointField):
             fields[name]['format'] = 'point'
+        elif fields[name]['type'] == 'string' and _is_field(model, prop.get('filterLabel', name), DecimalField):
+            fields[name]['format'] = 'decimal'
         fields[name].update(_labels(prop, scope))
     for name, prop in _resolve(openapi, props.get('relationships', {})).get('properties', {}).items():
         data = _not_null(openapi, _not_null(openapi, prop).get('properties', {}).get('data', {}))
@@ -219,12 +224,12 @@ def label(fields: dict) -> list[str]:
     return []
 
 
-def _is_point(model: str | None, name: str) -> bool:
-    """Whether the field of the model of an attribute (its source) is a `PointField`."""
+def _is_field(model: str | None, name: str, kind: type) -> bool:
+    """Whether the field of the model of an attribute (its source) is of the class `kind`."""
     if model is None:
         return False
     try:
-        return isinstance(apps.get_model(model)._meta.get_field(name), PointField)
+        return isinstance(apps.get_model(model)._meta.get_field(name), kind)
     except FieldDoesNotExist:
         return False
 

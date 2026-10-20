@@ -100,6 +100,24 @@ describe('useTransits', () => {
     expect(result.current.item.data).toEqual(draft);
     expect(backend.requests()).toEqual([`GET ${PARENT}7/?meta=crud_actions%2Cstate_actions`]);
   });
+
+  it('reads nothing without an item, and not again over the data of the query it shares', async () => {
+    const meta = ['crud_actions', 'state_actions'];
+    const backend = new Backend().on('GET', `${PARENT}7/?meta=crud_actions%2Cstate_actions`, draft);
+    const none = render(() => useTransits(PARENT, null, meta), backend);
+    expect(none.result.current.fetchStatus).toBe('idle');
+    none.unmount();
+    expect(backend.requests()).toEqual([]);
+
+    // a dialog of a transit mounted beside the card: the transits of its retrieve, no request
+    const card = render(() => useItem(PARENT, '7', { meta }), backend);
+    await waitFor(() => {
+      expect(card.result.current.data).toEqual(draft);
+    });
+    const { result } = render(() => useTransits(PARENT, '7', meta), backend, card.queryClient);
+    expect(result.current.data?.map((it) => it.id)).toEqual(['start']);
+    expect(backend.requests()).toEqual([`GET ${PARENT}7/?meta=crud_actions%2Cstate_actions`]);
+  });
 });
 
 describe('useTransit', () => {

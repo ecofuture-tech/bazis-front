@@ -17,15 +17,17 @@
 // cancellation), which a dialog asks for first (`action:confirm-<transit>`); one whose action
 // takes a typed payload opens a dialog with its fields (`FieldInput`, `field:<name>`,
 // `error:<name>`, `action:submit`), which is its confirmation. A toast tells the status the
-// item moved to.
+// item moved to. The dialog of a transit of a list (a board: `for_transit`, its id only) reads
+// the transits of its item once as it opens, in the request of its card (`ITEM_META`): the
+// titles of the fields of the payload in the language of the user, and its hint.
 
 import { useState, type ReactNode } from 'react';
 
 import { ApiError, errorText, type ErrorObject } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { objectFields, useErrorMessage } from '@/bazis/react';
-import { useItemsTransit, type Transit, type TransitPath } from '@/bazis/react/statusy';
-import { FieldInput, statusyModel } from '@/bazis/ui/resource';
+import { useItemsTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
+import { FieldInput, ITEM_META, statusyModel } from '@/bazis/ui/resource';
 import { statusName, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -81,7 +83,8 @@ export interface DeclaredTransit {
 /**
  * A transit of an item that its list gives (`for_transit` of bazis-statusy: its id only), with
  * the JSON Schema of its payload from the contract (`TRANSITS`): allowed, the validators not
- * called (a refusal of one is the 422 of the transit).
+ * called (a refusal of one is the 422 of the transit). The dialog of `useRunTransit` asks for
+ * the payload by the schema of the backend, which it reads as it opens.
  */
 export function listedTransit(item: { type: string; id: string }, id: string): Transit {
   const payload = statusyModel(item.type)?.transits.find((it) => it.id === id)?.payload;
@@ -117,6 +120,90 @@ export interface TransitRun {
   dialog: ReactNode;
 }
 
+interface TransitFormProps {
+  path: TransitPath;
+  /** The item and the transit that `start` was given. */
+  open: { id: string; transit: Transit };
+  mutation: ReturnType<typeof useItemsTransit>;
+  run: (id: string, transit: Transit, payload?: Record<string, unknown>) => void;
+  onCancel: () => void;
+}
+
+/**
+ * The content of the dialog of a transit, mounted as it opens. The transit of a payload is
+ * that of the backend, with its payload in the language of the user: read in the request of
+ * the card (`ITEM_META`), which the transit bar has made and a board has not, and not read
+ * again when the card has it; that of `start` (the contract) when it cannot be read.
+ */
+function TransitForm({ path, open, mutation, run, onCancel }: TransitFormProps) {
+  const { language, t } = useLanguage();
+  const errorMessage = useErrorMessage();
+  const read = useTransits(path, open.transit.payload === null ? null : open.id, ITEM_META);
+  const transit = read.data?.find((it) => it.id === open.transit.id) ?? open.transit;
+  // the values that the user entered, over the defaults of the payload
+  const [entered, setEntered] = useState<Record<string, unknown>>({});
+  const values = { ...defaults(transit), ...entered };
+  const fields = read.isLoading ? [] : objectFields(transit.payload ?? {});
+  const target = transitTarget(transit.resource.type, transit.id);
+  // a transit without a payload is only confirmed: the status it leads to
+  const question =
+    transit.payload === null
+      ? target === null
+        ? t('action.confirm')
+        : t('transit.confirm', { status: statusName(transit.resource.type, target, language) })
+      : null;
+  const errors = payloadErrors(
+    mutation.error,
+    fields.map((it) => it.name),
+    errorMessage,
+  );
+  return (
+    <DialogContent>
+      <form
+        noValidate
+        className="grid gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          run(open.id, transit, question === null ? values : undefined);
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>{transitName(transit.resource.type, transit.id, language)}</DialogTitle>
+          <DialogDescription>{transit.hint ?? question ?? t('transit.fill')}</DialogDescription>
+        </DialogHeader>
+        {read.isLoading && <StatePanel inline state="loading" />}
+        {mutation.isError && errors.others.length > 0 && (
+          <StatePanel inline state={errorState(mutation.error)} error={mutation.error} message={errors.others.join(' ')} />
+        )}
+        {fields.map((field) => (
+          <FieldInput
+            key={field.name}
+            field={field}
+            value={values[field.name]}
+            errors={errors.fields[field.name]}
+            disabled={mutation.isPending}
+            onChange={(value) => {
+              setEntered({ ...entered, [field.name]: value });
+            }}
+          />
+        ))}
+        <DialogFooter>
+          <Button type="button" variant="outline" data-bz="action:cancel" onClick={onCancel}>
+            {t('action.cancel')}
+          </Button>
+          <Button
+            type="submit"
+            data-bz={question === null ? 'action:submit' : `action:confirm-${transit.id}`}
+            disabled={mutation.isPending || read.isLoading}
+          >
+            {transitName(transit.resource.type, transit.id, language)}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  );
+}
+
 /**
  * Runs the transits of the items of a route set (of an item, of the cards of a board);
  * `onDone` gets the item after one (null when the user can no longer view it); those that
@@ -129,9 +216,7 @@ export function useRunTransit(
 ): TransitRun {
   const mutation = useItemsTransit(path);
   const [open, setOpen] = useState<{ id: string; transit: Transit } | null>(null);
-  const [values, setValues] = useState<Record<string, unknown>>({});
   const { language, t } = useLanguage();
-  const errorMessage = useErrorMessage();
 
   function run(id: string, transit: Transit, payload?: Record<string, unknown>) {
     mutation.mutate(
@@ -159,24 +244,9 @@ export function useRunTransit(
       run(id, transit);
       return;
     }
-    setValues(defaults(transit));
     setOpen({ id, transit });
   }
 
-  const fields = open ? objectFields(open.transit.payload ?? {}) : [];
-  const target = open ? transitTarget(open.transit.resource.type, open.transit.id) : null;
-  // a transit without a payload is only confirmed: the status it leads to
-  const question =
-    open?.transit.payload === null
-      ? target === null
-        ? t('action.confirm')
-        : t('transit.confirm', { status: statusName(open.transit.resource.type, target, language) })
-      : null;
-  const errors = payloadErrors(
-    mutation.error,
-    fields.map((it) => it.name),
-    errorMessage,
-  );
   const dialog = (
     <Dialog
       open={open !== null}
@@ -185,60 +255,16 @@ export function useRunTransit(
       }}
     >
       {open && (
-        <DialogContent>
-          <form
-            noValidate
-            className="grid gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              run(open.id, open.transit, question === null ? values : undefined);
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>{transitName(open.transit.resource.type, open.transit.id, language)}</DialogTitle>
-              <DialogDescription>{open.transit.hint ?? question ?? t('transit.fill')}</DialogDescription>
-            </DialogHeader>
-            {mutation.isError && errors.others.length > 0 && (
-              <StatePanel
-                inline
-                state={errorState(mutation.error)}
-                error={mutation.error}
-                message={errors.others.join(' ')}
-              />
-            )}
-            {fields.map((field) => (
-              <FieldInput
-                key={field.name}
-                field={field}
-                value={values[field.name]}
-                errors={errors.fields[field.name]}
-                disabled={mutation.isPending}
-                onChange={(value) => {
-                  setValues({ ...values, [field.name]: value });
-                }}
-              />
-            ))}
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                data-bz="action:cancel"
-                onClick={() => {
-                  setOpen(null);
-                }}
-              >
-                {t('action.cancel')}
-              </Button>
-              <Button
-                type="submit"
-                data-bz={question === null ? 'action:submit' : `action:confirm-${open.transit.id}`}
-                disabled={mutation.isPending}
-              >
-                {transitName(open.transit.resource.type, open.transit.id, language)}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
+        <TransitForm
+          key={`${open.id} ${open.transit.id}`}
+          path={path}
+          open={open}
+          mutation={mutation}
+          run={run}
+          onCancel={() => {
+            setOpen(null);
+          }}
+        />
       )}
     </Dialog>
   );

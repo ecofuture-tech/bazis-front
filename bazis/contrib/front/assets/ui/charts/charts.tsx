@@ -35,7 +35,6 @@ import {
   titleFromText,
   typeAt,
   useAnyLists,
-  useListFields,
   workflowStatuses,
 } from '@/bazis/ui/resource';
 import { errorState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
@@ -267,12 +266,12 @@ export interface TimeChartProps {
 }
 
 /**
- * The number of the items by period of a date field, or a measure of a field of them, the last
- * periods to the current one: the aggregates of the items from the first day of the first
- * period to the end of the last one (`<field>__gte`, `<field>__lt`: the first moment of a day in
- * the time zone of the browser for a date-time) grouped by month, or by day (in the time zone of
- * the backend) added up into the days and the weeks (from the first day of the week of the
- * language).
+ * The number of the items by period of a date or a date-time field, or a measure of a field of
+ * them, the last periods to the current one: the aggregates of the items from the first day of
+ * the first period to the end of the last one (`<field>__gte`, `<field>__lt`: dates, which the
+ * backend reads in its time zone, `TIME_ZONE` of the project, as it groups the items) grouped
+ * by month, or by day added up into the days and the weeks (from the first day of the week of
+ * the language). The axis is in the time zone of the backend.
  */
 export function TimeChart({
   id,
@@ -288,7 +287,6 @@ export function TimeChart({
   className,
 }: TimeChartProps) {
   const { language } = useLanguage();
-  const fields = useListFields(path);
   const time = now?.getTime();
   // the first days of the periods, and that of the period after the last one
   const starts = useMemo(() => {
@@ -297,19 +295,12 @@ export function TimeChart({
   }, [time, bucket, last, language]);
   const periods = starts.slice(0, -1);
   const keys = starts.map(isoDate);
-  const spec = fields.fields.get(field);
-  const date = spec?.kind === 'attribute' && spec.format === 'date';
-  const bound = (it: Date) => (date ? isoDate(it) : it.toISOString());
   const range = and(
     filter,
-    Filter.where(`${field}__gte`, bound(starts[0] ?? new Date())),
-    Filter.where(`${field}__lt`, bound(starts[last] ?? new Date())),
+    Filter.where(`${field}__gte`, keys[0] ?? ''),
+    Filter.where(`${field}__lt`, keys[last] ?? ''),
   );
-  // the format of the bounds is that of the field: the query waits for its schema
-  const [list] = useAnyLists(
-    path,
-    fields.ready ? [groupsQuery(range, `${field}:${bucket === 'month' ? 'month' : 'day'}`, value)] : [],
-  );
+  const [list] = useAnyLists(path, [groupsQuery(range, `${field}:${bucket === 'month' ? 'month' : 'day'}`, value)]);
   const { state, error, groups } = groupsOf(list);
   const format = new Intl.DateTimeFormat(language, LABELS[bucket]);
   return (

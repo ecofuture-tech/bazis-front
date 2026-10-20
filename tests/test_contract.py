@@ -45,7 +45,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 7
+    assert data['format'] == 8
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -139,6 +139,8 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert fields['location'] == {
         'title': 'Location', 'type': 'object', 'format': 'point', 'filter': 'location', 'order': 'location'
     }
+    # a DecimalField: its digits as a string, a decimal by its model field
+    assert fields['hours'] == {'title': 'Hours', 'type': 'string', 'format': 'decimal', 'filter': 'hours', 'order': 'hours'}
     # another object (a JSONField) has no format
     assert 'format' not in resources['bg.task']['fields']['kwargs']
     # a file of bazis-uploadable: a relationship to its uploaded files
@@ -191,15 +193,20 @@ def test_the_label_is_the_first_group_of_label_fields_that_the_resource_has():
     assert label({'book': {'relation': 'library.book', 'many': False}}) == []
 
 
-def test_a_point_is_a_point_field_of_the_model():
-    from bazis.contrib.front.contract.resources import _is_point
+def test_a_point_and_a_decimal_are_fields_of_the_model():
+    from django.contrib.gis.db.models import PointField
+    from django.db.models import DecimalField
 
-    assert _is_point('tasks.Task', 'location')
+    from bazis.contrib.front.contract.resources import _is_field
+
+    assert _is_field('tasks.Task', 'location', PointField)
+    assert _is_field('tasks.Task', 'hours', DecimalField)
     # another field, a calculated one (none of the model), a path, no model
-    assert not _is_point('tasks.Task', 'title')
-    assert not _is_point('tasks.Task', 'distance')
-    assert not _is_point('tasks.Task', 'assignee__username')
-    assert not _is_point(None, 'location')
+    assert not _is_field('tasks.Task', 'title', PointField)
+    assert not _is_field('tasks.Task', 'title', DecimalField)
+    assert not _is_field('tasks.Task', 'distance', PointField)
+    assert not _is_field('tasks.Task', 'assignee__username', PointField)
+    assert not _is_field(None, 'location', PointField)
 
 
 def test_a_nested_union_is_flattened():

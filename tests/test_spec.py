@@ -788,6 +788,13 @@ CASES = [
          ('S049', f'{HOME}#/dashboard/charts/2/value/avg')],
     ),
     (
+        'S049',
+        # the hours of a string that is not a DecimalField in the contract (a text of the model):
+        # the core does not sum it
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['hours'].pop('format')]},
+        [('S049', f'{HOME}#/dashboard/tiles/4/value/sum'), ('S049', f'{HOME}#/dashboard/charts/2/value/sum')],
+    ),
+    (
         'S050',
         # the hours that the route set does not filter by; a field that the entity does not declare
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['hours'].pop('filter')],
@@ -1921,14 +1928,18 @@ def test_a_text_in_one_language_is_told_its_key(root):
 
 @pytest.mark.django_db
 def test_a_number_declared_for_a_string_names_the_decimal_field(contract):
-    # a DecimalField is a string of the API: the spec declares it `string`
+    # a DecimalField is a string of the API (the format `decimal` of the contract): the spec
+    # declares it `string`; a text declared a number is not told so
     root = contract.parent.parent
-    edit(root, PRODUCT, lambda d: [task(d)['fields'][0].update(type='number'),
+    hours = next(i for i, it in enumerate(task(read(root / PRODUCT))['fields']) if it['id'] == 'hours')
+    edit(root, PRODUCT, lambda d: [task(d)['fields'][hours].update(type='number'),
+                                   task(d)['fields'][0].update(type='number'),
                                    task(d)['fields'][2].update(type='date')])
     hints = {it.path: it.hint for it in validate(root).issues if it.code == 'P013'}
-    assert set(hints) == {'/entities/0/fields/0', '/entities/0/fields/2'}
-    assert 'A DecimalField is a string in the API' in hints['/entities/0/fields/0']
-    assert 'formatDecimal' in hints['/entities/0/fields/0']
+    assert set(hints) == {f'/entities/0/fields/{hours}', '/entities/0/fields/0', '/entities/0/fields/2'}
+    assert 'A DecimalField is a string in the API' in hints[f'/entities/0/fields/{hours}']
+    assert 'formatDecimal' in hints[f'/entities/0/fields/{hours}']
+    assert 'DecimalField' not in hints['/entities/0/fields/0']
     assert 'DecimalField' not in hints['/entities/0/fields/2']
 
 

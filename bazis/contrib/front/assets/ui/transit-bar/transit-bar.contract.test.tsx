@@ -82,6 +82,10 @@ describe('TransitBar', () => {
     expect(server.requests('GET').map((it) => decodeURIComponent(it))).toEqual([
       `GET ${ITEM}?meta=${ITEM_META.join(',')}`,
     ]);
+    // the dialog of a payload asks for it by the transit that the card read: no other request
+    fireEvent.click(screen.getByTestId('transit:finish'));
+    expect(await screen.findByTestId('field:report')).toBeTruthy();
+    expect(server.requests('GET').map((it) => decodeURIComponent(it))).toEqual([`GET ${ITEM}?meta=${ITEM_META.join(',')}`]);
   });
 
   it('is loading, then marks the transits', async () => {

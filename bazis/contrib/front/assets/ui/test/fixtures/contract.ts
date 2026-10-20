@@ -545,6 +545,7 @@ export const RESOURCES = {
       },
       hours: {
         filter: "hours",
+        format: "decimal",
         order: "hours",
         title: "Hours",
         type: "string",

@@ -112,20 +112,23 @@ export function transits(document: {
 
 /**
  * The transits that the current user may run on the item now, from `meta.state_actions` of
- * its retrieve. `meta` is that of the retrieve, with `state_actions`: the meta of another
- * query of the item, so that both are one request (`ITEM_META` of the card, `useItem` with
- * the same meta). Run one with `useTransit`. What the item must satisfy before a transit is
- * `useSchema(path, 'transit', id)`.
+ * its retrieve; none read while `id` is null. `meta` is that of the retrieve, with
+ * `state_actions`: the meta of another query of the item, so that both are one request
+ * (`ITEM_META` of the card, `useItem` with the same meta), which this hook does not read
+ * again when it mounts over its data (the other query refreshes it). Run one with
+ * `useTransit`. What the item must satisfy before a transit is `useSchema(path, 'transit', id)`.
  */
 export function useTransits(
   path: TransitPath,
-  id: string,
+  id: string | null,
   meta: readonly string[] = ['state_actions'],
 ): UseQueryResult<readonly Transit[]> {
   const { api, scope } = useBazis();
   return useQuery({
-    ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id, { meta }, scope),
+    ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id ?? '', { meta }, scope),
     select: transits,
+    enabled: id !== null,
+    refetchOnMount: false,
   });
 }
 

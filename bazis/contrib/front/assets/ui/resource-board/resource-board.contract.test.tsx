@@ -25,6 +25,7 @@ import type { ReactNode } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { TRANSITS } from '@/bazis/generated/contract';
+import { ITEM_META } from '@/bazis/ui/resource';
 import { BoardDragProvider, ResourceBoard, type BoardDrag } from '@/bazis/ui/resource-board';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
@@ -132,6 +133,8 @@ describe('ResourceBoard', () => {
     await waitFor(() => {
       expect(server.calls.find((it) => it.method === 'POST')?.body).toEqual({ transit: 'start' });
     });
+    // a transit without a payload runs without reading the item
+    expect(server.requests('GET').filter((it) => it.startsWith(`GET ${ITEMS}a/`))).toEqual([]);
     expect(onOpen).not.toHaveBeenCalled();
     fireEvent.click(within(row).getByRole('button', { name: 'Task a' }));
     expect(onOpen).toHaveBeenCalledWith('a');
@@ -161,7 +164,7 @@ describe('ResourceBoard', () => {
     });
   });
 
-  it.runIf(WITH_PAYLOAD)('asks for the payload of a transit of the contract in a dialog', async () => {
+  it.runIf(WITH_PAYLOAD)('asks for the payload of a transit of the contract in a dialog, by the schema of the contract without the item', async () => {
     if (!WITH_PAYLOAD) return;
     const { type, transit, dst, fields } = WITH_PAYLOAD;
     const server = backend(moving([task('a', 'draft', {}, type)], { a: [transit] }));
@@ -169,6 +172,41 @@ describe('ResourceBoard', () => {
     open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));
     fireEvent.click(await screen.findByTestId(`move:${dst}`));
     for (const name of fields) expect(await screen.findByTestId(`field:${name}`)).toBeTruthy();
+  });
+
+  it.runIf(WITH_PAYLOAD)('reads the payload of a transit of the item as its dialog opens, in the request of its card', async () => {
+    if (!WITH_PAYLOAD) return;
+    const { type, transit, dst } = WITH_PAYLOAD;
+    // the schema of the backend, in the language of the user: its titles, not those of the contract
+    const payload = { type: 'object', properties: { note: { type: 'string', title: 'A note of the backend' } } };
+    const action = {
+      code: 'ACTION_TRANSIT',
+      endpoint: {
+        url: `${ITEMS}a/transit/`,
+        method: 'POST',
+        body: { type: 'object', properties: { transit: { type: 'string', default: transit }, payload } },
+      },
+      restricts: null,
+      resource: { type, id: 'a' },
+    };
+    const list = moving([task('a', 'draft', {}, type)], { a: [transit] });
+    const reading = renderWithBazis(board({ columns: ['draft'], move: true }), backend(list).hold('GET', `${ITEMS}a/`));
+    open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));
+    fireEvent.click(await screen.findByTestId(`move:${dst}`));
+    // no fields while the item is read
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByTestId('state:loading')).toBeTruthy();
+    expect(within(dialog).queryByTestId(/^field:/)).toBeNull();
+    reading.unmount();
+
+    const server = backend(list).on('GET', `${ITEMS}a/`, { data: task('a', 'draft', {}, type), meta: { state_actions: [action] } });
+    renderWithBazis(board({ columns: ['draft'], move: true }), server);
+    open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));
+    fireEvent.click(await screen.findByTestId(`move:${dst}`));
+    expect((await screen.findByLabelText('A note of the backend')).getAttribute('data-bz')).toBe('field:note');
+    expect(server.requests('GET').filter((it) => it.startsWith(`GET ${ITEMS}a/`)).map((it) => decodeURIComponent(it))).toEqual([
+      `GET ${ITEMS}a/?meta=${ITEM_META.join(',')}`,
+    ]);
   });
 
   it('shows the refusal of a move by its menu', async () => {

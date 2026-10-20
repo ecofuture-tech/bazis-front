@@ -49,13 +49,13 @@ CARD_EDIT = 'edit'
 #: the types of the fields of the days of a calendar and of the charts by date
 DATES = ('date', 'datetime')
 #: the types of the fields that the aggregates of the core sum and average; also a
-#: DecimalField, a `string` with a `currency` or a `unit` display (`_check_display`)
+#: DecimalField, a `string` of the format `decimal` in the contract
 NUMBERS = ('integer', 'number')
 #: the types of the fields of the functions of the `value` of a tile or a chart (`aggregate`
 #: of the core: `sum` and `avg` of a number, `min` and `max` of a number or a date)
 AGGREGATED = {'sum': NUMBERS, 'avg': NUMBERS, 'min': NUMBERS + DATES, 'max': NUMBERS + DATES}
-#: the displays of a DecimalField, a `string` in the API that the core aggregates as a number
-DECIMAL_DISPLAYS = ('currency', 'unit')
+#: the format of the attribute of a DecimalField in the contract: its digits as a string
+DECIMAL = 'decimal'
 
 #: the format of a string attribute of the contract by the type of the specs
 FORMATS = {'date': 'date', 'datetime': 'date-time', 'time': 'time'}
@@ -553,7 +553,7 @@ def _check_field(
             return
         expected = None
     # a DecimalField is a string of its exact digits in the API, not a JSON number
-    decimal = item.get('type') in ('number', 'integer') and matches_type('string', actual)
+    decimal = item.get('type') in ('number', 'integer') and actual.get('format') == DECIMAL
     issues.add(
         doc, path, 'P013',
         f'The field `{item["id"]}` of `{name}` is {_describe(actual)} in the contract, '
@@ -1083,8 +1083,10 @@ def _check_chart(doc: Document, path: tuple, chart: dict, entity: Entity, issues
 def _check_value(doc: Document, path: tuple, value: dict, entity: Entity, resource: dict | None, issues: Issues) -> None:
     """
     The `value` of a tile or a chart, an aggregate of the core: a field of the entity (S007) of a
-    type that its function takes (S049), which the route set filters by in the contract (S050):
-    the core aggregates only the fields that the filter of the list reaches for the user.
+    type that its function takes (S049: a number, a DecimalField of the contract, a date for
+    `min` and `max`; a string is not checked without its field in the contract), which the
+    route set filters by in the contract (S050): the core aggregates only the fields that the
+    filter of the list reaches for the user.
     """
     ((func, name),) = value.items()
     field_path = (*path, 'value', func)
@@ -1092,20 +1094,19 @@ def _check_value(doc: Document, path: tuple, value: dict, entity: Entity, resour
     if field is None:
         _check_fields(doc, entity, [(field_path, name)], issues)
         return
-    display = field.get('display')
-    decimal = field.get('type') == 'string' and isinstance(display, dict) and next(iter(display)) in DECIMAL_DISPLAYS
+    actual = resource['fields'].get(name) if resource else None
+    decimal = field.get('type') == 'string' and (actual is None or actual.get('format') == DECIMAL)
     if field.get('type') not in AGGREGATED[func] and not decimal:
         types = ' or '.join(f'`{it}`' for it in AGGREGATED[func])
         declared = f'of the type `{field["type"]}`' if 'type' in field else 'a relationship'
         issues.add(
             doc, field_path, 'S049',
-            f'`{func}` of `{name}`, {declared}: it takes a field of the type {types}, '
-            'or a DecimalField (a `string` with a `currency` or a `unit` display).',
-            'Aggregate a number field (`type: integer` or `number`, a DecimalField `type: string` '
-            'with `display: {currency: ...}` or `{unit: ...}`), or a date by `min` or `max` (a '
-            'tile); count the items without `value`.',
+            f'`{func}` of `{name}`, {declared}: it takes a field of the type {types}, or a '
+            'DecimalField (a `string` of the format `decimal` in the contract).',
+            'Aggregate a number field (`type: integer` or `number`, a DecimalField of the model '
+            '`type: string`), or a date by `min` or `max` (a tile); count the items without '
+            '`value`.',
         )
-    actual = resource['fields'].get(name) if resource else None
     if actual is not None and 'filter' not in actual:
         issues.add(
             doc, field_path, 'S050',

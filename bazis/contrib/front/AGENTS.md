@@ -906,8 +906,9 @@ its filter: `GET <path>?page[limit]=1&meta=aggregates&aggregate=<terms>&filter=<
 its `meta.aggregates` (`aggregateValues` of the client: `{count: 3}`, `{"sum(fine)": "60.50"}`,
 a DecimalField summed as its digits); a chart adds `group=status` (one request, a group for
 each status) or `group=<field>:day|month` over the range of its periods
-(`filter=<field>__gte=<start>&<field>__lt=<end>`; the days folded into the weeks of the
-language of the user), its groups `[{group, values}]` (`aggregateGroups`); an average is a
+(`filter=<field>__gte=<start>&<field>__lt=<end>`, dates that the backend reads in its time
+zone, `TIME_ZONE` of the project, as it groups the items: the axis is in that time zone;
+the days folded into the weeks of the language of the user), its groups `[{group, values}]` (`aggregateGroups`); an average is a
 sum and a count, so that the periods of days folded into a week weigh their items. The
 core aggregates only the fields that the filter of the list reaches for the user (S050);
 over too many groups it answers 400 `ERR_AGGREGATE`, which the part shows as its error. The
@@ -924,8 +925,9 @@ true (S022). With `move: true` an item moves to the column of a status that a tr
 allowed to it leads to: the lists of the columns ask for `meta: ['for_transit']` of
 bazis-statusy 2.13 (the ids of the transits that each item may run now, in the same
 request), and an item without one cannot be dragged and has no menu of its moves; a transit
-with a payload opens its dialog (the JSON Schema of the payload from `TRANSITS` of the
-contract), a column without a transit takes nothing.
+with a payload (`TRANSITS` of the contract) opens its dialog, which reads the item once with
+the meta of its card for the payload in the language of the user, a column without a
+transit takes nothing.
 
 ```yaml
 primitive: board
@@ -1147,7 +1149,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S046` | error | a custom action of a public screen (`primitive: custom`) is not declared `public=True` in the contract (`public` of its `custom_actions`): bazis-permit refuses it to anonymous users. Declare it `public=True` (with its throttle) and export the contract again |
 | `S047` | warning | the product has an anonymous role that no screen lists in its `roles`: the users who do not log in have no screen |
 | `S048` | error | `src/app/router.tsx` routes the generated screens (it imports `@/screens/generated/routes`) without the public ones: it does not import `PUBLIC_ROUTES`, and a user without a session never reaches them (a router of the product changed before 0.4.0). Run `bazis_front update` and take the router of the template, or route `PUBLIC_ROUTES` in its layout outside `RequireSession`, as the template does |
-| `S049` | error | The `value` of a tile or a chart aggregates a field of a type that its function does not take: `sum` and `avg` take a number (`integer`, `number`, a DecimalField: a `string` with a `currency` or a `unit` display), `min` and `max` (a tile) also a date. Aggregate a number or a date, or count the items without `value` |
+| `S049` | error | The `value` of a tile or a chart aggregates a field of a type that its function does not take: `sum` and `avg` take a number (`integer`, `number`, a DecimalField: a `string` of the format `decimal` in the contract), `min` and `max` (a tile) also a date. Aggregate a number or a date, or count the items without `value` |
 | `S050` | error | The `value` of a tile or a chart aggregates a field that the route set of the entity does not filter by (no `filter` in the contract): the core aggregates the fields that the filter of the list reaches for the user (400 `ERR_AGGREGATE`). Make the field filtered by in the route set, or show another one |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
@@ -3113,8 +3115,8 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
 
 ### The transits (bazis-statusy)
 
-- `useTransits(path, id, meta?)` reads `meta.state_actions` of the item: the transits the
-  user may run now (allowed unless a validator restricts them, with the JSON Schema of the
+- `useTransits(path, id, meta?)` reads `meta.state_actions` of the item (nothing while `id`
+  is null): the transits the user may run now (allowed unless a validator restricts them, with the JSON Schema of the
   payload they require), their names in `TRANSITS` of `contract.ts`; `meta` is that of
   another query of the item with `state_actions` (`ITEM_META` of `@/bazis/ui/resource`, that
   of `ResourceCard`), so that both are one request. The transits of the items of a list are
@@ -3761,6 +3763,21 @@ The API of the copies that 0.4.0 changes:
   screens (S048); of `shots`, a screen that sent
   its role to the login (V020).
 
+The API of the copies that 0.5.0 changes (bazis 2.17, bazis-statusy 2.13):
+
+- `contract.json` is of format 8 (the format `decimal` of the attributes of a
+  `DecimalField`, which S049 reads): `check` reports `C002` until it is exported again.
+- `useTransitsOf` of `@/bazis/react/statusy` is removed: the transits of the items of a list
+  are `meta: ['for_transit']` of the list (`listedTransit(item, id)` of `transit-bar` makes
+  a `Transit` of one), those of an item `useTransits(path, id, meta)`, which shares the
+  request of the card with `ITEM_META` of `@/bazis/ui/resource`.
+- The tiles and the charts read the aggregates of the core (`meta=aggregates`) and take
+  `value`; the bounds of `TimeChart` are dates, read in the time zone of the backend. A board
+  has the moves of its cards with its lists (a card without one has no `action:move`), and
+  the message `board.no_moves` is no longer used.
+- New errors of `check`: the `value` of a tile or a chart of a field that its function does
+  not take (S049) or that the route set does not filter by (S050).
+
 ## API: the client
 
 <!-- Generated by scripts/gen_api_reference.mjs from the TypeScript of the assets: never edit it, run `npm run api-reference`. -->
@@ -4349,7 +4366,7 @@ The hooks copied with a package (`frontend/src/bazis/react/<package>/`), and the
 
 #### useTransits
 
-`useTransits(path: TransitPath, id: string, meta?: readonly string[]): UseQueryResult<readonly Transit[]>`: The transits that the current user may run on the item now, from `meta.state_actions` of its retrieve.
+`useTransits(path: TransitPath, id: string | null, meta?: readonly string[]): UseQueryResult<readonly Transit[]>`: The transits that the current user may run on the item now, from `meta.state_actions` of its retrieve; none read while `id` is null.
 
 #### Transit
 
@@ -4983,7 +5000,7 @@ Its props, `StatusChartProps`:
 
 #### TimeChart
 
-`TimeChart(props: TimeChartProps): Element`: The number of the items by period of a date field, or a measure of a field of them, the last periods to the current one: the aggregates of the items from the first day of the first period to the end of the last one (`<field>__gte`, `<field>__lt`: the first moment of a day in the time zone of the browser for a date-time) grouped by month, or by day (in the time zone of the backend) added up into the days and the weeks (from the first day of the week of the language).
+`TimeChart(props: TimeChartProps): Element`: The number of the items by period of a date or a date-time field, or a measure of a field of them, the last periods to the current one: the aggregates of the items from the first day of the first period to the end of the last one (`<field>__gte`, `<field>__lt`: dates, which the backend reads in its time zone, `TIME_ZONE` of the project, as it groups the items) grouped by month, or by day added up into the days and the weeks (from the first day of the week of the language).
 
 
 Its props, `TimeChartProps`:
