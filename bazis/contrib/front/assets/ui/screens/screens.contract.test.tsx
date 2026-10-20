@@ -22,7 +22,8 @@
 // a refusal in its dialog or in a toast; the form of a custom action of the route set as a
 // page, its fields read from the contract (a relationship a picker, a decimal on one line,
 // their labels), its errors, its result from the answer of the action, or done without one;
-// and the props of an extension joined with the generated ones. Keep it passing when the
+// the key of a custom action in the contract (`customActionKey`), which the link of its form
+// requires; and the props of an extension joined with the generated ones. Keep it passing when the
 // component is changed.
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -32,7 +33,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type * as Contract from '@/bazis/generated/contract';
 
-import { Screen } from '@/bazis/ui/app-shell';
+import { AppShell, Screen } from '@/bazis/ui/app-shell';
+import { customActionKey } from '@/bazis/ui/resource';
 import { ResourceCard, type ResourceCardProps } from '@/bazis/ui/resource-card';
 import { ResourceList } from '@/bazis/ui/resource-list';
 import {
@@ -55,7 +57,8 @@ import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resourc
 // watchers, relationships to the route set of the owners, `test.owner`, any product has none)
 // and its custom actions: of an item,
 // which requires its change, its body a priority with a default and a decimal price; of the
-// route set, without a body; `export` of the route set and of an item alike, without a body;
+// route set, without a body; `mark-done` of the route set, whose key is that of its method;
+// `export` of the route set and of an item alike, without a body;
 // `suggest` of the route set, its body a title, the owner and the watchers (their ids), the
 // hours (a decimal) and a note
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
@@ -90,6 +93,8 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
             },
           },
           action_count: { name: 'count', item: false, method: 'post', access_action: null, body: null },
+          // `@http_post('/mark-done/')` of the method `action_mark_done`: its key is named by the method
+          action_mark_done: { name: 'mark-done', item: false, method: 'post', access_action: null, body: null },
           action_export: { name: 'export', item: false, method: 'post', access_action: null, body: null },
           action_export_item: { name: 'export', item: true, method: 'post', access_action: null, body: null },
           action_suggest: {
@@ -778,6 +783,37 @@ describe('ActionForm', () => {
     });
     expect(toast).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('state:done')).toBeNull();
+  });
+});
+
+describe('customActionKey', () => {
+  it('is the key of the action in the contract, named by its method, not by its path', () => {
+    expect(customActionKey(ITEMS, 'mark-done')).toBe('action_mark_done');
+    expect(customActionKey(ITEMS, 'count')).toBe('action_count');
+    expect(() => customActionKey(ITEMS, 'unknown')).toThrow(/export the contract again/);
+  });
+
+  it('shows the link of the form of the action once the backend lists its key', async () => {
+    const links = [
+      { screen: 'home', label: 'Home', to: '/', end: true },
+      { screen: 'done', label: 'Done', to: '/done', requires: { path: ITEMS, can: customActionKey(ITEMS, 'mark-done') } },
+      { screen: 'count', label: 'Count', to: '/count', requires: { path: ITEMS, can: customActionKey(ITEMS, 'count') } },
+    ];
+    const shell = (
+      <AppShell title="Product" navigation="sidebar" items={links}>
+        <Screen id="home">home</Screen>
+      </AppShell>
+    );
+    const listed = new Backend().on('GET', ITEMS, listDocument([], { meta: { custom_actions: ['action_mark_done'] } }));
+    const first = renderWithBazis(shell, listed);
+    expect(await screen.findByTestId('nav:done')).toBeTruthy();
+    first.unmount();
+
+    // `action_` and the name in the path is no key of the meta (the same answer shows `count`)
+    const other = new Backend().on('GET', ITEMS, listDocument([], { meta: { custom_actions: ['action_mark-done', 'action_count'] } }));
+    renderWithBazis(shell, other);
+    expect(await screen.findByTestId('nav:count')).toBeTruthy();
+    expect(screen.queryByTestId('nav:done')).toBeNull();
   });
 });
 

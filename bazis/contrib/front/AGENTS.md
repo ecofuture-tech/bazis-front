@@ -1992,9 +1992,11 @@ set of the screen) that he may view its items, `can: 'add'` add one (`useCan(pat
 refuses with 403 without a permission of the model, and `for_create` of a list of one item
 (the runtime schema of the create without that meta); the screens read the same schema of
 the list, so a user who may not add is told so without a refused request), `can:
-'action_<name>'` call a custom action of the collection (`custom_actions` of a list of one
-item: the link of the form of the action, hidden when the list is refused), `filters`
-that the backend lets him filter its list by these fields (`route_filter_fields/`: a
+customActionKey(path, '<name>')` call a custom action of the collection (`customActionKey` of
+`@/bazis/ui/resource`: the key of the action in the contract, `action_<method>`, what
+`custom_actions` of bazis-permit lists, never `action_` and the name in the path; read from
+a list of one item: the link of the form of the action, hidden when the list is refused),
+`filters` that the backend lets him filter its list by these fields (`route_filter_fields/`: a
 report by a field hidden from him). A link without `requires` is always shown.
 
 ### Field permissions
@@ -2314,8 +2316,9 @@ Without a `result`, the action is done with a toast and the screen `then` is sho
 an action has one of them. `then` is a screen without an item (the action saves none, S006).
 It reads no runtime schema, only the contract: on a public screen it is the form of a guest,
 whose action is declared `public=True` (S046), and the navigation links it at once; on
-another screen its link requires the action (`can: 'action_<name>'`, "The navigation follows
-the backend"). Its scenario fills the properties it asks for (P023) and expects the result:
+another screen its link requires the action (`can: customActionKey(path, '<name>')`, the key
+of the action in the contract, "The navigation follows the backend"). Its scenario fills the
+properties it asks for (P023) and expects the result:
 
 ```yaml
 # a public form whose body also takes an assignee (that of the sample takes `title` only)
@@ -3873,8 +3876,9 @@ The API of the copies that 0.6.0 changes:
 - The dialog of a custom action reads its fields from the contract (`ActionFields` of
   `@/bazis/ui/screens`): a property named as a relationship of the entity is a picker. A
   custom screen of a guest that only sends a custom action may become the form of the action
-  (`primitive: form` with `form.action`, "The form of a custom action"). New issues of
-  `check`: S052, S053 and S054 (a warning).
+  (`primitive: form` with `form.action`, "The form of a custom action"), whose link requires
+  its action by its key in the contract (`customActionKey` of `@/bazis/ui/resource`). New
+  issues of `check`: S052, S053 and S054 (a warning).
 - A DecimalField in the forms, and a `Decimal` of a payload or of the body of a custom action,
   is typed on one line with a point or a comma and sent as `"2.5"` (it was a text of several
   lines, the comma refused by the backend); `objectFields` gives such a union the type
@@ -4960,7 +4964,7 @@ Its props, `ScreenProps`:
 `interface NavRequirement`: What the backend must let the user do for a link to be shown, read from the runtime (the frontend never decides by his role; the backend checks every request anyway).
 
 - `path: string`: The route set of the screen (`ROUTES` of the contract).
-- `can?: Can`: View its items (its list), the default, add one, or call a custom action of the collection (`'action_<name>'`: the link of the form of the action): `useCan` of `@/bazis/react`.
+- `can?: Can`: View its items (its list), the default, add one, or call a custom action of the collection (its key in the contract, `customActionKey(path, '<name>')` of `@/bazis/ui/resource`: the link of the form of the action): `useCan` of `@/bazis/react`.
 - `filters?: readonly string[]`: Fields that the user may filter its list by (`route_filter_fields/`): the link of a report filtered by a field that his field permissions hide, whose filter the backend answers with 400.
 
 #### ScreenPage
@@ -5530,7 +5534,11 @@ Its props, `ItemValueProps`:
 
 #### customActionAt
 
-`customActionAt(path: string, name: string, item: boolean): (ContractCustomAction & { readonly key: CustomActionName; }) | undefined`: The custom action `name` (its name in the path) of the items (`item`) or of the route set of `path` in the contract, with its name in the permission meta (`action_<name>` of `custom_actions`); undefined when the contract does not have it.
+`customActionAt(path: string, name: string, item: boolean): (ContractCustomAction & { readonly key: CustomActionName; }) | undefined`: The custom action `name` (its name in the path) of the items (`item`) or of the route set of `path` in the contract, with its key in the permission meta (`action_<method>` of `custom_actions`, by the method of the route set); undefined when the contract does not have it.
+
+#### customActionKey
+
+`customActionKey(path: string, name: string): CustomActionName`: The key of the custom action `name` (its name in the path) of the route set of `path` in the contract: `action_<method>`, what `custom_actions` of bazis-permit lists (`requires.can` of the link of the form of the action), never `action_` and the name in the path.
 
 #### fieldTitle
 

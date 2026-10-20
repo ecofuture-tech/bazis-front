@@ -104,7 +104,8 @@ export interface NavRequirement {
   path: string;
   /**
    * View its items (its list), the default, add one, or call a custom action of the collection
-   * (`'action_<name>'`: the link of the form of the action): `useCan` of `@/bazis/react`.
+   * (its key in the contract, `customActionKey(path, '<name>')` of `@/bazis/ui/resource`: the
+   * link of the form of the action): `useCan` of `@/bazis/react`.
    */
   can?: Can;
   /**

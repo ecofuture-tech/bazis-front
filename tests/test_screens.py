@@ -347,9 +347,11 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "            submitLabel: t('screens.task-suggestion.form.submit'),\n" in suggestion
     assert "            onDone: () => void navigate(routeTo('task-list')),\n" in suggestion
     assert 'result' not in suggestion and 'requires' not in suggestion
-    # its link is shown to whom the backend lists the action; that of a public form, at once
+    # its link is shown to whom the backend lists the action (its key in the contract); that of
+    # a public form, at once
     navigation = files[f'{screens.GENERATED_DIR}/navigation.ts']
-    assert "      requires: { path: ENTITIES.task.path, can: 'action_suggest' },\n" in navigation
+    assert "      requires: { path: ENTITIES.task.path, can: customActionKey(ENTITIES.task.path, 'suggest') },\n" in navigation
+    assert "import { customActionKey } from '@/bazis/ui/resource';\n" in navigation
     assert "{ screen: 'suggest-task', label: t('screens.suggest-task.title'), to: '/suggest', icon: SendIcon, public: true }," in navigation
 
     # a board without `move` is not in `BoardDnd`; its badge, some of its columns, its empty text

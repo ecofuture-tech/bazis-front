@@ -1242,8 +1242,9 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
     """
     The item of the link at a path of product.yaml, shown once the backend allows what it
     requires: to view the items of the entity of its screen (and filter them by the fields of
-    a report, add one with `requires.can: add`), the form of a custom action its action; at
-    once a screen without an entity and the public form of an action.
+    a report, add one with `requires.can: add`), the form of a custom action its action (its
+    key in the contract, `customActionKey`); at once a screen without an entity and the public
+    form of an action.
     """
     data = product.screens[link['screen']]
     if 'label' in link:
@@ -1257,8 +1258,9 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
     if icon is not None:
         code.use('lucide-react', icon_name(icon))
         props.append(('icon', Raw(icon_name(icon))))
-    # the form of an action requires its action (`custom_actions` of the list); a public one,
-    # nothing: the backend checks the action of a guest
+    # the form of an action requires its action, by its key in the contract (`action_<method>`,
+    # what `custom_actions` of the list has, not the name in the path); a public one, nothing:
+    # the backend checks the action of a guest
     form = action_form(data)
     if 'entity' in data and not (form is not None and product.public(data)):
         code.use('./entities', 'ENTITIES')
@@ -1267,7 +1269,8 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
         path = f'ENTITIES{member}.path'
         requires = [('path', Raw(path))]
         if form is not None:
-            requires.append(('can', Str(f'action_{form["action"]}')))
+            code.use('@/bazis/ui/resource', 'customActionKey')
+            requires.append(('can', Raw(f'customActionKey({path}, {quote(form["action"])})')))
         elif link.get('requires', {}).get('can') == 'add':
             requires.append(('can', Str('add')))
         if data['primitive'] == 'list' and 'filter' in data['list']:

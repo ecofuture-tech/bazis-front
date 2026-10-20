@@ -184,7 +184,9 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   errors).
 - **`app-shell`**: a link with `requires` is shown once the backend allows the user what it
   requires (`useCan` of the hooks: the runtime schema of the list of `path`, or
-  `for_create` of its list; `filters`: those fields in `route_filter_fields/` of the user), never before.
+  `for_create` of its list, or a custom action in `custom_actions` of its list by its key in
+  the contract, `customActionKey(path, '<name>')` of `resource`; `filters`: those fields in
+  `route_filter_fields/` of the user), never before.
   The top bar never widens the page: its row shows the links it has room for and the
   others, from the first that does not fit, in the menu `nav:more` (a dropdown menu of
   Radix, used with the keys; a group with its heading, the same `nav:<screen>` once it is

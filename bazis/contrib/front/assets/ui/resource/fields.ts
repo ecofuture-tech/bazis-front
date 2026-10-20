@@ -115,9 +115,9 @@ export function resourceAt(path: string): ContractResource | undefined {
 
 /**
  * The custom action `name` (its name in the path) of the items (`item`) or of the route set of
- * `path` in the contract, with its name in the permission meta (`action_<name>` of
- * `custom_actions`); undefined when the contract does not have it. A route set may have both,
- * `<path>export/` and `<path><id>/export/`.
+ * `path` in the contract, with its key in the permission meta (`action_<method>` of
+ * `custom_actions`, by the method of the route set); undefined when the contract does not
+ * have it. A route set may have both, `<path>export/` and `<path><id>/export/`.
  */
 export function customActionAt(
   path: string,
@@ -126,6 +126,20 @@ export function customActionAt(
 ): (ContractCustomAction & { readonly key: CustomActionName }) | undefined {
   const found = Object.entries(resourceAt(path)?.custom_actions ?? {}).find(([, it]) => it.name === name && it.item === item);
   return found && { ...found[1], key: found[0] as CustomActionName };
+}
+
+/**
+ * The key of the custom action `name` (its name in the path) of the route set of `path` in the
+ * contract: `action_<method>`, what `custom_actions` of bazis-permit lists (`requires.can` of
+ * the link of the form of the action), never `action_` and the name in the path. The contract
+ * must have it (the check of the specs, S032).
+ */
+export function customActionKey(path: string, name: string): CustomActionName {
+  const declared = customActionAt(path, name, false);
+  if (declared === undefined) {
+    throw new Error(`The contract has no custom action "${name}" of the route ${path}: export the contract again.`);
+  }
+  return declared.key;
 }
 
 /**
