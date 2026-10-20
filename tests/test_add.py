@@ -41,7 +41,7 @@ def test_add_copies_a_component_with_what_it_requires(product):
     frontend = product / 'frontend'
     assets = registry.load()
     # the components it requires that init did not copy, after them the component
-    added = ['empty-state', 'checkbox', 'dialog', 'dropdown-menu', 'select', 'table', 'resource-list']
+    added = ['empty-state', 'checkbox', 'dialog', 'select', 'table', 'resource-list']
     assert [line.split()[1] for line in out.splitlines() if line.startswith('Added ')] == added
     assert 'npm test' in out
     lock = read_lock(product)

@@ -88,7 +88,7 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | Component | Exports | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel`; `errorState`, `queryState`, `SkeletonLines`; `toast`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell`; `Screen` (`parent`: the link back to the screen it was opened from); `ListCardLayout`, `useBesideCard`, `useBesideList`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage`; `useWide` | `nav:<screen>` (also the link of `parent`), `screen:<id>`, `action:logout`, `action:sign-in` (without a session), `action:language` (its code in `data-value`) | |
+| `app-shell` | `AppShell`; `Screen` (`parent`: the link back to the screen it was opened from); `ListCardLayout`, `useBesideCard`, `useBesideList`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage`; `useWide` | `nav:<screen>` (also the link of `parent`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in` (without a session), `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList`; `FilterBar`; `BulkAction` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` and its checkbox `select:<id>` (`select:all`), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:view` (`menu:view` with `toggle:<column>` and `density:<density>`), `action:prev-page`, `action:next-page`; the bulk actions `bulk:<id>`, `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState` | `state:empty`, the `action:<id>` of its actions | |
@@ -185,6 +185,14 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 - **`app-shell`**: a link with `requires` is shown once the backend allows the user what it
   requires (`useCan` of the hooks: the runtime schema of the list of `path`, or
   `for_create` of its list; `filters`: those fields in `route_filter_fields/` of the user), never before.
+  The top bar never widens the page: its row shows the links it has room for and the
+  others, from the first that does not fit, in the menu `nav:more` (a dropdown menu of
+  Radix, used with the keys; a group with its heading, the same `nav:<screen>` once it is
+  open), which is shown as the current link (`data-current`) while the current link is in
+  it. The row is measured on a hidden copy of it laid out whole (without its marks) when
+  its place or the copy changes its size (`ResizeObserver`: the fonts, the language and the
+  links that the backend allows change it) and when the current link changes; without
+  `ResizeObserver` (jsdom) the row shows every link. Below `md` the drawer has every link.
   `ListCardLayout` renders the screen of a list and, as its child route, the
   screen of its card: next to the list on a wide screen (`split`; the list keeps its state
   and shows only its `compactColumns`, the first two by default, while the card is open) or

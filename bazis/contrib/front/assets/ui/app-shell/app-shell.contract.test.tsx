@@ -186,6 +186,29 @@ describe('AppShell', () => {
     expect(screen.queryByTestId('nav:item-new')).toBeNull();
   });
 
+  it('keeps every link of the top bar in its row where the row cannot be measured', () => {
+    // jsdom has no ResizeObserver: the links that a browser would put in the menu `nav:more`
+    // stay in the row, each once
+    const many = [
+      ...items,
+      ...Array.from({ length: 10 }, (_, index) => ({ screen: `screen-${String(index)}`, label: `Screen ${String(index)}`, to: `/screens/${String(index)}` })),
+      { group: 'help', label: 'Help', items: [{ screen: 'about', label: 'About', to: '/about' }] },
+    ];
+    renderWithBazis(
+      <AppShell title="Product" navigation="topbar" items={many}>
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      new Backend(),
+      { route: '/screens/9' },
+    );
+    const row = screen.getByRole('navigation', { name: 'Main' });
+    for (const screenId of ['home', 'task-list', 'screen-0', 'screen-9', 'about']) {
+      expect(row.contains(screen.getByTestId(`nav:${screenId}`))).toBe(true);
+    }
+    expect(screen.getByTestId('nav:screen-9').getAttribute('aria-current')).toBe('page');
+    expect(screen.queryByTestId('nav:more')).toBeNull();
+  });
+
   it('shows the groups in the menu of a phone', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     try {

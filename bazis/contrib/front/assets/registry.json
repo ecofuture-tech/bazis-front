@@ -215,7 +215,8 @@
           "testing",
           "button",
           "state-panel",
-          "sheet"
+          "sheet",
+          "dropdown-menu"
         ]
       },
       "files": [

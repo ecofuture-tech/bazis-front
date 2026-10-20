@@ -14,7 +14,8 @@
 
 // The layout of the application: the navigation (a sidebar, a drawer on a phone, or a top
 // bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>` (those that
-// require a permission shown once the backend allows it), the session (the user and the
+// require a permission shown once the backend allows it; those that the top bar has no room
+// for in its menu `nav:more`), the session (the user and the
 // logout, `action:logout`; without one, the sign-in `action:sign-in`), the language
 // (`action:language`, with more than one language), the color mode, the tools of the product
 // (the notifications), the toasts, and the screens, each wrapped in `Screen` (`screen:<id>`)
@@ -22,25 +23,36 @@
 // (`nav:<screen>`).
 
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ArrowLeft, ChevronRight, LogIn, LogOut, Menu } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Ellipsis, LogIn, LogOut, Menu } from 'lucide-react';
 import {
   createContext,
   useCallback,
   useContext,
   useId,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
+  type ComponentProps,
   type ComponentType,
   type ReactNode,
 } from 'react';
-import { Link, NavLink } from 'react-router';
+import { Link, NavLink, useLocation } from 'react-router';
 
 import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import { useCan, useFilterFields, type Can } from '@/bazis/react';
 import { Toaster } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
@@ -72,6 +84,11 @@ export interface NavGroup {
 
 /** An entry of the navigation: a link, or a group of links. */
 export type NavEntry = NavItem | NavGroup;
+
+/** The key of an entry among the entries. */
+function entryKey(entry: NavEntry): string {
+  return 'items' in entry ? `group:${entry.group}` : entry.screen;
+}
 
 /** The links of the entries, those of a group in its place. */
 function navLinks(entries: readonly NavEntry[]): readonly NavItem[] {
@@ -232,29 +249,200 @@ function AnyAllowed({ requirements, children }: { requirements: readonly (NavReq
   );
 }
 
-function Navigation({ items, vertical, onNavigate }: { items: readonly NavEntry[]; vertical: boolean; onNavigate?: () => void }) {
+interface EntryProps {
+  vertical: boolean;
+  onNavigate?: (() => void) | undefined;
+  /**
+   * In the copy of the row of the top bar that is measured: its items are marked by their
+   * entry (`data-nav-entry`), its links are not marked (`data-bz`).
+   */
+  copy?: boolean;
+}
+
+/** A link or a group of links of the navigation. */
+function Entry({ entry, ...props }: EntryProps & { entry: NavEntry }) {
+  return 'items' in entry ? <NavGroupEntry group={entry} {...props} /> : <NavLinkEntry item={entry} {...props} />;
+}
+
+/** The navigation of the sidebar and of the drawer of a phone. */
+function Navigation({ items, onNavigate }: { items: readonly NavEntry[]; onNavigate?: () => void }) {
   const { t } = useLanguage();
   return (
     <nav aria-label={t('shell.navigation')}>
-      <ul className={cn('flex gap-1', vertical ? 'flex-col' : 'items-center')}>
-        {items.map((entry) =>
-          'items' in entry ? (
-            <NavGroupEntry key={`group:${entry.group}`} group={entry} vertical={vertical} onNavigate={onNavigate} />
-          ) : (
-            <NavLinkEntry key={entry.screen} item={entry} vertical={vertical} onNavigate={onNavigate} />
-          ),
-        )}
+      <ul className="flex flex-col gap-1">
+        {items.map((entry) => (
+          <Entry key={entryKey(entry)} entry={entry} vertical onNavigate={onNavigate} />
+        ))}
       </ul>
     </nav>
   );
 }
 
-/** A group of links under its heading: hidden while the backend allows the user none of them. */
-function NavGroupEntry({ group, vertical, onNavigate }: { group: NavGroup; vertical: boolean; onNavigate?: (() => void) | undefined }) {
+/** The entries that the row of the top bar shows: those before `count`; `current`, the current link is after them. */
+interface Row {
+  count: number;
+  current: boolean;
+}
+
+const WHOLE: Row = { count: Infinity, current: false };
+
+/**
+ * The row of the top bar that `place` has room for, measured on `copy`, the row laid out whole
+ * (its items, then the button of the menu): the entries from the first that ends past the room
+ * that the button leaves go to the menu.
+ */
+function measureRow(place: Element, copy: Element, keys: readonly string[]): Row {
+  const width = place.getBoundingClientRect().width;
+  const start = copy.getBoundingClientRect().left;
+  const end = (element: Element) => element.getBoundingClientRect().right - start;
+  const items = [...copy.children];
+  const button = items.pop();
+  const last = items.at(-1);
+  if (!button || !last || end(last) <= width) return WHOLE;
+  const room = width - (end(button) - end(last));
+  const first = items.findIndex((it) => end(it) > room);
+  return {
+    count: keys.indexOf(items[first]?.getAttribute('data-nav-entry') ?? ''),
+    current: items.slice(first).some((it) => it.querySelector('[aria-current="page"]') !== null),
+  };
+}
+
+/**
+ * The navigation of the top bar: the entries that its row has room for, the others in its menu
+ * `nav:more`, shown as the current link while the current link is in it. The row is measured
+ * on a hidden copy of it laid out whole when the place of the row or the copy changes its size
+ * (`ResizeObserver`; without one, as in jsdom, the row shows every entry), and when the
+ * entries or the current link change.
+ */
+function TopNavigation({ items }: { items: readonly NavEntry[] }) {
+  const { t } = useLanguage();
+  const { pathname } = useLocation();
+  const place = useRef<HTMLDivElement>(null);
+  const copy = useRef<HTMLUListElement>(null);
+  const [row, setRow] = useState(WHOLE);
+  const keys = useMemo(() => items.map(entryKey), [items]);
+  // a new observer reports the sizes at once
+  useLayoutEffect(() => {
+    const box = place.current;
+    const whole = copy.current;
+    if (!box || !whole) return;
+    const observer = new ResizeObserver(() => {
+      const next = measureRow(box, whole, keys);
+      setRow((it) => (it.count === next.count && it.current === next.current ? it : next));
+    });
+    observer.observe(box);
+    observer.observe(whole);
+    return () => {
+      observer.disconnect();
+    };
+  }, [keys, pathname]);
+  const rest = items.slice(row.count);
+  return (
+    <div ref={place} className="hidden min-w-0 flex-1 md:block">
+      {typeof ResizeObserver === 'function' && (
+        <div aria-hidden="true" inert className="invisible h-0 overflow-hidden">
+          <ul ref={copy} className="flex w-max items-center gap-1">
+            {items.map((entry) => (
+              <Entry key={entryKey(entry)} entry={entry} vertical={false} copy />
+            ))}
+            <li>
+              <MoreButton tabIndex={-1} />
+            </li>
+          </ul>
+        </div>
+      )}
+      <nav aria-label={t('shell.navigation')}>
+        <ul className="flex items-center gap-1">
+          {items.slice(0, row.count).map((entry) => (
+            <Entry key={entryKey(entry)} entry={entry} vertical={false} />
+          ))}
+          {rest.length > 0 && (
+            <li className="shrink-0">
+              <More entries={rest} current={row.current} />
+            </li>
+          )}
+        </ul>
+      </nav>
+    </div>
+  );
+}
+
+/** The button of the menu of the top bar, shown as the current link while the current link is in the menu. */
+function MoreButton({ current = false, ...props }: ComponentProps<'button'> & { current?: boolean }) {
+  const { t } = useLanguage();
+  return (
+    <button
+      type="button"
+      data-current={current ? '' : undefined}
+      {...props}
+      className={cn(LINK.base, LINK.horizontal, current && CURRENT.horizontal)}
+    >
+      <Ellipsis aria-hidden="true" className="size-4 shrink-0 opacity-70" />
+      {t('shell.more')}
+    </button>
+  );
+}
+
+/** The menu of the entries that the row of the top bar has no room for, `nav:more`. */
+function More({ entries, current }: { entries: readonly NavEntry[]; current: boolean }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <MoreButton data-bz="nav:more" current={current} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        {entries.map((entry) =>
+          'items' in entry ? <MoreGroup key={entryKey(entry)} group={entry} /> : <MoreLink key={entry.screen} item={entry} />,
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** A group of links in the menu of the top bar under its heading, set apart from the entries after it by a line. */
+function MoreGroup({ group }: { group: NavGroup }) {
   const heading = useId();
   return (
     <AnyAllowed requirements={group.items.map((it) => it.requires)}>
-      <li data-nav-group="" className={cn('flex gap-1', vertical ? 'flex-col pt-3' : 'items-center')}>
+      <DropdownMenuGroup aria-labelledby={heading} className="not-first:pt-1 not-last:mb-1 not-last:border-b not-last:pb-1">
+        <DropdownMenuLabel id={heading} className="text-xs text-muted-foreground">
+          {group.label}
+        </DropdownMenuLabel>
+        {group.items.map((item) => (
+          <MoreLink key={item.screen} item={item} />
+        ))}
+      </DropdownMenuGroup>
+    </AnyAllowed>
+  );
+}
+
+/** A link in the menu of the top bar, `nav:<screen>`, shown once the backend allows what it requires. */
+function MoreLink({ item }: { item: NavItem }) {
+  const Icon = item.icon;
+  return (
+    <Allowed requirement={item.requires}>
+      <DropdownMenuItem asChild className="aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground">
+        <NavLink to={item.to} end={item.end} data-bz={`nav:${item.screen}`}>
+          {Icon && <Icon className="opacity-70" />}
+          <span title={typeof item.label === 'string' ? item.label : undefined} className="truncate">
+            {item.label}
+          </span>
+        </NavLink>
+      </DropdownMenuItem>
+    </Allowed>
+  );
+}
+
+/** A group of links under its heading: hidden while the backend allows the user none of them. */
+function NavGroupEntry({ group, vertical, onNavigate, copy = false }: EntryProps & { group: NavGroup }) {
+  const heading = useId();
+  return (
+    <AnyAllowed requirements={group.items.map((it) => it.requires)}>
+      <li
+        data-nav-group=""
+        data-nav-entry={copy ? entryKey(group) : undefined}
+        className={cn('flex gap-1', vertical ? 'flex-col pt-3' : 'items-center')}
+      >
         <span
           id={heading}
           className={cn(
@@ -266,7 +454,7 @@ function NavGroupEntry({ group, vertical, onNavigate }: { group: NavGroup; verti
         </span>
         <ul aria-labelledby={heading} className={cn('flex gap-1', vertical ? 'flex-col' : 'items-center')}>
           {group.items.map((item) => (
-            <NavLinkEntry key={item.screen} item={item} vertical={vertical} onNavigate={onNavigate} />
+            <NavLinkEntry key={item.screen} item={item} vertical={vertical} onNavigate={onNavigate} copy={copy} />
           ))}
         </ul>
       </li>
@@ -280,27 +468,35 @@ const AFTER_GROUP = {
   horizontal: '[[data-nav-group]+&]:ml-1 [[data-nav-group]+&]:border-l [[data-nav-group]+&]:border-border [[data-nav-group]+&]:pl-2',
 };
 
+/** A link of the navigation, also the button of the menu of the top bar. */
+const LINK = {
+  base: 'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+  vertical: 'rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
+  horizontal: 'rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+};
+
+/** The current link. */
+const CURRENT = {
+  vertical: 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent',
+  horizontal: 'bg-accent text-accent-foreground',
+};
+
 /** A link of the navigation, `nav:<screen>`, shown once the backend allows what it requires. */
-function NavLinkEntry({ item, vertical, onNavigate }: { item: NavItem; vertical: boolean; onNavigate?: (() => void) | undefined }) {
+function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps & { item: NavItem }) {
   const Icon = item.icon;
   return (
     <Allowed requirement={item.requires}>
-      <li className={vertical ? AFTER_GROUP.vertical : AFTER_GROUP.horizontal}>
+      <li data-nav-entry={copy ? item.screen : undefined} className={vertical ? AFTER_GROUP.vertical : AFTER_GROUP.horizontal}>
         <NavLink
           to={item.to}
           end={item.end}
-          data-bz={`nav:${item.screen}`}
+          data-bz={copy ? undefined : `nav:${item.screen}`}
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-              vertical
-                ? 'rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
-                : 'rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-              isActive &&
-                (vertical
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent'
-                  : 'bg-accent text-accent-foreground'),
+              LINK.base,
+              vertical ? LINK.vertical : LINK.horizontal,
+              isActive && (vertical ? CURRENT.vertical : CURRENT.horizontal),
             )
           }
         >
@@ -408,7 +604,7 @@ function Drawer({
             <SheetDescription className="sr-only">{t('shell.menu_description')}</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto p-3">
-            <Navigation items={items} vertical onNavigate={close} />
+            <Navigation items={items} onNavigate={close} />
           </div>
           {(session || signIn) && (
             <div className="border-t border-sidebar-border p-3">
@@ -432,9 +628,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
           <header className="sticky top-0 z-30 h-16 border-b bg-background">
             <div className="mx-auto flex h-full w-full max-w-6xl items-center gap-6 px-4 md:px-(--space-page-x)">
               <Brand title={title} />
-              <div className="hidden md:block">
-                <Navigation items={items} vertical={false} />
-              </div>
+              <TopNavigation items={items} />
               <div className="ml-auto flex items-center gap-1">
                 {tools}
                 <LanguageToggle />
@@ -466,7 +660,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
             <Brand title={title} />
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">
-            <Navigation items={items} vertical />
+            <Navigation items={items} />
           </div>
           {/* the foot: the toggles and the tools of the product on a row that wraps, the
               session on a row of its own under them, so that neither pushes the other out */}
