@@ -132,8 +132,8 @@ interface TransitFormProps {
 /**
  * The content of the dialog of a transit, mounted as it opens. The transit of a payload is
  * that of the backend, with its payload in the language of the user: read in the request of
- * the card (`ITEM_META`), which the transit bar has made and a board has not, and not read
- * again when the card has it; that of `start` (the contract) when it cannot be read.
+ * the card (`ITEM_META`), again over its stale data on a board, not beside the card that
+ * shows it (the transit bar); that of `start` (the contract) when it cannot be read.
  */
 function TransitForm({ path, open, mutation, run, onCancel }: TransitFormProps) {
   const { language, t } = useLanguage();

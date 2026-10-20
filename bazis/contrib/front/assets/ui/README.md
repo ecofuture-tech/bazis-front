@@ -440,7 +440,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `onDone(null)`: the user can no longer view the item. `useRunTransit(path)` runs the
   transit of any item of the route set with this dialog (the board): the dialog of a payload
   reads `state_actions` of the item once as it opens, in the request of its card
-  (`ITEM_META`: none when the card has read it), `state:loading` without fields until then,
+  (`ITEM_META`: no request beside the card that shows it), `state:loading` without fields until then,
   so that the fields have the titles of the backend in the language of the user, and the
   hint of the transit (the JSON Schema of `TRANSITS` of the contract if it cannot be read);
   a transit without a payload reads nothing.

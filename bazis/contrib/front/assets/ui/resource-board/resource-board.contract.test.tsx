@@ -21,11 +21,11 @@
 // payload, the refusal shown (`error:move`). Keep it passing when the component is changed.
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { TRANSITS } from '@/bazis/generated/contract';
-import { ITEM_META } from '@/bazis/ui/resource';
+import { ITEM_META, useAnyItem } from '@/bazis/ui/resource';
 import { BoardDragProvider, ResourceBoard, type BoardDrag } from '@/bazis/ui/resource-board';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
@@ -86,6 +86,45 @@ const CONTRACT: Readonly<
 const WITH_PAYLOAD = Object.entries(CONTRACT).flatMap(([type, model]) =>
   model.transits.flatMap((it) => (it.payload ? [{ type, transit: it.id, dst: it.dst, fields: Object.keys(it.payload.schema.properties ?? {}) }] : [])),
 )[0];
+
+/** The state actions of an item of a type of the contract: its transit with the payload of a note titled `title`. */
+function noteAction(type: string, transit: string, title: string) {
+  const payload = { type: 'object', properties: { note: { type: 'string', title } } };
+  return {
+    code: 'ACTION_TRANSIT',
+    endpoint: {
+      url: `${ITEMS}a/transit/`,
+      method: 'POST',
+      body: { type: 'object', properties: { transit: { type: 'string', default: transit }, payload } },
+    },
+    restricts: null,
+    resource: { type, id: 'a' },
+  };
+}
+
+/** The card of the item `a`, as `ResourceCard` reads it, with a link to the board. */
+function ItemCard({ onBoard }: { onBoard: () => void }) {
+  const item = useAnyItem(ITEMS, 'a', { meta: ITEM_META });
+  return (
+    <button type="button" data-bz="action:to-board" disabled={!item.data} onClick={onBoard}>
+      Board
+    </button>
+  );
+}
+
+/** The card of the item `a` until the board replaces it (`action:to-board`). */
+function CardThenBoard({ children }: { children: ReactNode }) {
+  const [shown, setShown] = useState(false);
+  return shown ? (
+    children
+  ) : (
+    <ItemCard
+      onBoard={() => {
+        setShown(true);
+      }}
+    />
+  );
+}
 
 describe('ResourceBoard', () => {
   it('is loading, then shows a column per status, its items, its number and more of them', async () => {
@@ -178,17 +217,7 @@ describe('ResourceBoard', () => {
     if (!WITH_PAYLOAD) return;
     const { type, transit, dst } = WITH_PAYLOAD;
     // the schema of the backend, in the language of the user: its titles, not those of the contract
-    const payload = { type: 'object', properties: { note: { type: 'string', title: 'A note of the backend' } } };
-    const action = {
-      code: 'ACTION_TRANSIT',
-      endpoint: {
-        url: `${ITEMS}a/transit/`,
-        method: 'POST',
-        body: { type: 'object', properties: { transit: { type: 'string', default: transit }, payload } },
-      },
-      restricts: null,
-      resource: { type, id: 'a' },
-    };
+    const action = noteAction(type, transit, 'A note of the backend');
     const list = moving([task('a', 'draft', {}, type)], { a: [transit] });
     const reading = renderWithBazis(board({ columns: ['draft'], move: true }), backend(list).hold('GET', `${ITEMS}a/`));
     open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));
@@ -207,6 +236,31 @@ describe('ResourceBoard', () => {
     expect(server.requests('GET').filter((it) => it.startsWith(`GET ${ITEMS}a/`)).map((it) => decodeURIComponent(it))).toEqual([
       `GET ${ITEMS}a/?meta=${ITEM_META.join(',')}`,
     ]);
+  });
+
+  it.runIf(WITH_PAYLOAD)('reads the item again over the data that its card read before, in another status', async () => {
+    if (!WITH_PAYLOAD) return;
+    const { type, transit, dst } = WITH_PAYLOAD;
+    const server = backend(moving([task('a', 'draft', {}, type)], { a: [transit] })).on('GET', `${ITEMS}a/`, {
+      data: task('a', 'draft', {}, type),
+      meta: { state_actions: [noteAction(type, transit, 'A note of before')] },
+    });
+    renderWithBazis(<CardThenBoard>{board({ columns: ['draft'], move: true })}</CardThenBoard>, server);
+    // the card read the item, then the board replaces it; the item has changed since
+    const toBoard = await screen.findByTestId('action:to-board');
+    await waitFor(() => {
+      expect(toBoard.hasAttribute('disabled')).toBe(false);
+    });
+    server.on('GET', `${ITEMS}a/`, {
+      data: task('a', 'draft', {}, type),
+      meta: { state_actions: [noteAction(type, transit, 'A note of now')] },
+    });
+    fireEvent.click(toBoard);
+    open(within(await screen.findByTestId('row:a')).getByTestId('action:move'));
+    fireEvent.click(await screen.findByTestId(`move:${dst}`));
+    expect((await screen.findByLabelText('A note of now')).getAttribute('data-bz')).toBe('field:note');
+    // the read of the card, then that of the dialog
+    expect(server.requests('GET').filter((it) => it.startsWith(`GET ${ITEMS}a/`))).toHaveLength(2);
   });
 
   it('shows the refusal of a move by its menu', async () => {

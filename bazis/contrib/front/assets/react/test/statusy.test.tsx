@@ -118,6 +118,21 @@ describe('useTransits', () => {
     expect(result.current.data?.map((it) => it.id)).toEqual(['start']);
     expect(backend.requests()).toEqual([`GET ${PARENT}7/?meta=crud_actions%2Cstate_actions`]);
   });
+
+  it('reads the item again as it mounts alone over stale data', async () => {
+    const meta = ['crud_actions', 'state_actions'];
+    const backend = new Backend().on('GET', `${PARENT}7/?meta=crud_actions%2Cstate_actions`, draft);
+    // the card read the item and is no longer shown
+    const card = render(() => useItem(PARENT, '7', { meta }), backend);
+    await waitFor(() => {
+      expect(card.result.current.data).toEqual(draft);
+    });
+    card.unmount();
+    render(() => useTransits(PARENT, '7', meta), backend, card.queryClient);
+    await waitFor(() => {
+      expect(backend.requests()).toHaveLength(2);
+    });
+  });
 });
 
 describe('useTransit', () => {

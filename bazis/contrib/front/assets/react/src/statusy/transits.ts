@@ -114,8 +114,9 @@ export function transits(document: {
  * The transits that the current user may run on the item now, from `meta.state_actions` of
  * its retrieve; none read while `id` is null. `meta` is that of the retrieve, with
  * `state_actions`: the meta of another query of the item, so that both are one request
- * (`ITEM_META` of the card, `useItem` with the same meta), which this hook does not read
- * again when it mounts over its data (the other query refreshes it). Run one with
+ * (`ITEM_META` of the card, `useItem` with the same meta). As it mounts, it reads the item
+ * again over stale data unless another component shows the query (the card, which keeps it
+ * fresh): the dialog of a transit beside its card adds no request. Run one with
  * `useTransit`. What the item must satisfy before a transit is `useSchema(path, 'transit', id)`.
  */
 export function useTransits(
@@ -128,7 +129,8 @@ export function useTransits(
     ...retrieveQuery<Parameters<typeof transits>[0]>(api, path, id ?? '', { meta }, scope),
     select: transits,
     enabled: id !== null,
-    refetchOnMount: false,
+    // the data of a query that another component shows (the card) is as fresh as it keeps it
+    refetchOnMount: (query) => query.getObserversCount() <= 1,
   });
 }
 

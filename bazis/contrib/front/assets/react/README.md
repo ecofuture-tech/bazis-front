@@ -132,8 +132,9 @@ it. A successful mutation invalidates
 other items and what the user may change), and is pending until the active ones are
 refetched; a destroy and a transit answered with 204 remove `['bazis', path, 'item', id]`
 first. `useTransits(path, id, meta)` is the query of `useItem(path, id, {meta})`: both share
-it (the card and its transits, one request with `ITEM_META` of the components), and it does
-not read it again when it mounts over its data; a null `id` reads nothing.
+it (the card and its transits, one request with `ITEM_META` of the components). Mounted
+over stale data, it reads the item again, unless another component shows the query (a
+dialog of a transit beside its card adds no request); a null `id` reads nothing.
 
 Two mechanisms keep the data of one user from the next one, and both are needed:
 
