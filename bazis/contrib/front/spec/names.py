@@ -24,6 +24,10 @@ import re
 #: entities and the filter of a list
 SCREEN_CONSTANTS = ('ENTITIES', 'FILTER')
 
+#: a key of the dictionaries of the frontend, as a text of the specs (`tiles.on_hand`), rather
+#: than a text in words
+TEXT_KEY = re.compile(r'[a-z][a-z0-9_]*(\.[a-z0-9_-]+)+')
+
 
 def pascal(name: str) -> str:
     """`list-checks`: `ListChecks`; `building-2`: `Building2`."""

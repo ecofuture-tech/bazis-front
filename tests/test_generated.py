@@ -127,7 +127,7 @@ def test_contract_ts_is_rendered_from_the_contract():
         '/** The resources: model, route set, path, actions, fields (title, type, relation, '
         'filter and order labels), the attributes that label an item (none: its id), the '
         'search fields (none: no search), the fields that its create takes and its custom '
-        'actions with the JSON Schema of their body. */',
+        'actions with the JSON Schemas of their body and of their answer. */',
         'export const RESOURCES = {',
         '  "shop.item": {',
         '    fields: {},',

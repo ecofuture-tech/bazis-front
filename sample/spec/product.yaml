@@ -25,6 +25,7 @@ navigation:
     items:
       - {screen: task-board}
       - {screen: task-calendar}
+  - {screen: suggest-task, icon: send}   # public: the form of the custom action `suggest`
   - {screen: public-tasks, icon: globe}   # public: shown also to the guests, who do not log in
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
@@ -327,3 +328,11 @@ scenarios:
       - fill: {title: Suggested by a guest}
       - submit: {}
       - expect: {screen: public-tasks}
+  # the same on the page of the form of the action: its result, with the answer of the action
+  - id: visitor-suggests-a-task-on-its-page
+    role: visitor
+    steps:
+      - open: suggest-task
+      - fill: {title: Suggested on the page of a guest}
+      - submit: {}
+      - expect: {state: done}

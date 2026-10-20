@@ -138,6 +138,8 @@ PRODUCT, LIST, CARD = 'spec/product.yaml', 'spec/screens/task-list.yaml', 'spec/
 DRAFTS = 'spec/screens/draft-tasks.yaml'
 #: the public screen of the sample: its role `visitor` is anonymous
 PUBLIC = 'spec/screens/public-tasks.yaml'
+#: the form of the action of the guests, `suggest`, as a public page of its own
+SUGGEST = 'spec/screens/suggest-task.yaml'
 HOME, BOARD, CALENDAR = 'spec/screens/home.yaml', 'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml'
 THEME, TOKENS, CONTRACT = 'spec/design/theme.yaml', 'spec/design/tokens.json', 'contract/contract.json'
 LOCK = 'frontend/bazis-front.lock.json'
@@ -504,13 +506,13 @@ CASES = [
             {'move': {'where': {'title': 'Review the plan'}, 'to': 'in_progress'}},
         ]})},
         [
-            ('P033', f'{PRODUCT}#/scenarios/19/steps/2/bulk'),
-            ('P033', f'{PRODUCT}#/scenarios/19/steps/4/transit'),
-            ('P033', f'{PRODUCT}#/scenarios/19/steps/6/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/19/steps/9/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/19/steps/12/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/19/steps/13/action'),
-            ('P033', f'{PRODUCT}#/scenarios/19/steps/15/move'),
+            ('P033', f'{PRODUCT}#/scenarios/20/steps/2/bulk'),
+            ('P033', f'{PRODUCT}#/scenarios/20/steps/4/transit'),
+            ('P033', f'{PRODUCT}#/scenarios/20/steps/6/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/20/steps/9/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/20/steps/12/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/20/steps/13/action'),
+            ('P033', f'{PRODUCT}#/scenarios/20/steps/15/move'),
         ],
     ),
     (
@@ -949,7 +951,7 @@ CASES = [
         {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-escalates-a-draft', 'role': 'manager', 'steps': [
             {'open': 'draft-tasks'}, {'action': 'escalate'},
         ]})},
-        [('P022', f'{PRODUCT}#/scenarios/19/steps/1/action')],
+        [('P022', f'{PRODUCT}#/scenarios/20/steps/1/action')],
     ),
     (
         'P023',
@@ -1262,13 +1264,80 @@ CASES = [
         'S046',
         # the action of the guests is not declared `public=True`
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(public=False)},
-        [('S046', f'{PUBLIC}#/actions/0/action')],
+        [('S046', f'{PUBLIC}#/actions/0/action'), ('S046', f'{SUGGEST}#/form/action')],
     ),
     (
         'S047',
-        # no screen of the guests (nor their scenario)
-        {PUBLIC: lambda d: d.__delitem__('roles'), PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-1])},
+        # no screen of the guests (nor their scenarios)
+        {PUBLIC: lambda d: d.__delitem__('roles'), SUGGEST: lambda d: d.__delitem__('roles'),
+         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-2])},
         [('S047', f'{PRODUCT}#/roles/2')],
+    ),
+    (
+        'S032',
+        # the form of an action runs one of the route set, not one of an item
+        {SUGGEST: lambda d: d['form'].update(action='escalate')},
+        [('S032', f'{SUGGEST}#/form/action')],
+    ),
+    (
+        'S032',
+        # the form of an action asks for a property that its body does not have, and not for
+        # one that it requires (nor does the dialog of the same action)
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'].update(
+            required=['title', 'priority']),
+         SUGGEST: lambda d: d['form']['fields'].append('report')},
+        [('S032', f'{PUBLIC}#/actions/0'), ('S032', f'{SUGGEST}#/form/fields/1'), ('S032', f'{SUGGEST}#/form')],
+    ),
+    (
+        'S052',
+        # the form of the guests asks for the assignee, the picker of the users, whom the
+        # guests do not view
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(assignee={'type': 'string', 'format': 'uuid', 'title': 'Assignee'}),
+         PRODUCT: lambda d: d['entities'][1].update(access={'visitor': {'view': 'none'}}),
+         SUGGEST: lambda d: d['form']['fields'].append('assignee')},
+        [('S052', f'{SUGGEST}#/form/fields/1')],
+    ),
+    (
+        'S053',
+        # the message of the result shows what the answer of the action does not have
+        {SUGGEST: lambda d: d['form']['result'].update(message={'en': 'Task {task}, number {number}', 'ru': 'Задача {task}'})},
+        [('S053', f'{SUGGEST}#/form/result/message')],
+    ),
+    (
+        'S053',
+        # the action answers no JSON
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(
+            response=None)},
+        [('S053', f'{SUGGEST}#/form/result/message')],
+    ),
+    (
+        'S054',
+        # the form and the dialog of an action ask for a list of texts, and the payload of a
+        # transition for a union: typed as JSON
+        {CONTRACT: lambda d: (
+            d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body']['properties'].update(
+                tags={'type': 'array', 'items': {'type': 'string'}}),
+            d['capabilities']['statusy']['models']['tasks.task']['transits'][0]['payload']['schema']['properties'].update(
+                report={'anyOf': [{'type': 'string'}, {'type': 'integer'}]}),
+         ),
+         SUGGEST: lambda d: d['form']['fields'].append('tags'),
+         PUBLIC: lambda d: d['actions'][0]['fields'].append('tags')},
+        [('S054', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/0'),
+         ('S054', f'{PUBLIC}#/actions/0/fields/1'), ('S054', f'{SUGGEST}#/form/fields/1')],
+    ),
+    (
+        'S006',
+        # the form of an action saves no item: no screen of an item after it
+        {SUGGEST: lambda d: (d.update(roles=['viewer']), d['form'].update(then='task-card')),
+         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-1])},
+        [('S006', f'{SUGGEST}#/form/then')],
+    ),
+    (
+        'S009',
+        # the form of an action with a result renders it
+        {SUGGEST: lambda d: d['states'].remove('done')},
+        [('S009', f'{SUGGEST}#/states')],
     ),
     (
         'S006',
@@ -1470,6 +1539,41 @@ def test_a_custom_action_of_the_toolbar_of_a_list_changes_no_item(contract):
     assert issues(root) == []
     edit(root, PUBLIC, lambda d: d['list'].update(row_actions=['suggest']))
     assert ('P022', f'{PRODUCT}#/scenarios/18/steps/1/action') in issues(root)
+
+
+@pytest.mark.django_db
+def test_the_form_of_a_custom_action(contract):
+    """
+    The form of the action of the guests (`suggest-task`) asks for the properties of the body:
+    a scenario fills only them (P023), whether the entity has the field or not; a relationship
+    of its body is a picker, refused to a guest only when the access of its entity does not let
+    the anonymous role view it (S052), never on a screen of a session or with an access that
+    the specs leave to the backend; the parameters of a text that is a key of the dictionaries
+    are not read (S053).
+    """
+    root = contract.parent.parent
+    scenario = read(root / PRODUCT)['scenarios'][19]
+    assert scenario['id'] == 'visitor-suggests-a-task-on-its-page'
+    assert issues(root) == []
+    edit(root, PRODUCT, lambda d: steps(d, 19)[1].update(fill={'report': 'Done'}))
+    assert issues(root) == [('P023', f'{PRODUCT}#/scenarios/19/steps/1/fill/report')]
+    edit(root, PRODUCT, lambda d: steps(d, 19)[1].update(fill={'title': 'A task'}))
+    edit(root, CONTRACT, lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+        'properties'].update(assignee={'type': 'string', 'format': 'uuid', 'title': 'Assignee'}))
+    edit(root, SUGGEST, lambda d: d['form']['fields'].append('assignee'))
+    # the access of the users is left to the backend
+    assert issues(root) == []
+    # the anonymous role views the users (the permit role of the sample does not: P019)
+    edit(root, PRODUCT, lambda d: d['entities'][1].update(access={'visitor': {'view': 'all'}}))
+    assert issues(root) == [('P019', f'{PRODUCT}#/entities/1/access/visitor/view')]
+    edit(root, PRODUCT, lambda d: d['entities'][1].update(access={'visitor': {'view': 'none'}}))
+    assert issues(root) == [('S052', f'{SUGGEST}#/form/fields/1')]
+    # a screen of a session
+    edit(root, SUGGEST, lambda d: d.update(roles=['viewer']))
+    edit(root, PRODUCT, lambda d: d.update(scenarios=d['scenarios'][:-1]))
+    assert issues(root) == []
+    edit(root, SUGGEST, lambda d: d['form']['result'].update(message='suggest.done'))
+    assert ('S053', f'{SUGGEST}#/form/result/message') not in issues(root)
 
 
 def layer_of(file: str) -> str:
@@ -1732,7 +1836,7 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
     ]}))
     # a day from the day of the run, as the dates of `e2e_data`
     edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'].insert(15, {'expect': {'day': {'today': 1, 'today+3': 0, 'today-1': 0}}}))
-    steps = f'{PRODUCT}#/scenarios/19/steps'
+    steps = f'{PRODUCT}#/scenarios/20/steps'
     assert issues(root) == [
         ('P022', f'{steps}/1/expect/tile/overdue'),
         ('P022', f'{steps}/2/expect/day'),

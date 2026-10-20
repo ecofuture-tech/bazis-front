@@ -37,7 +37,7 @@ from ..vendor import lock as frontend_lock
 from ..vendor import registry
 from . import design, refs, scenarios
 from .issues import CONTRACT, ERROR, WARNING, Document, Issue, Issues
-from .names import component_name
+from .names import TEXT_KEY, component_name
 from .scenarios import Step
 
 
@@ -280,9 +280,6 @@ def check_packages(contract: dict, issues: Issues) -> None:
         )
 
 
-#: a key of the dictionaries of the frontend, as a text of the specs (`tiles.on_hand`), rather
-#: than a text in words
-TEXT_KEY = re.compile(r'[a-z][a-z0-9_]*(\.[a-z0-9_-]+)+')
 TEXT = '#/$defs/text'
 
 
@@ -290,7 +287,8 @@ TEXT = '#/$defs/text'
 def text_paths(name: str) -> tuple[tuple, ...]:
     """
     The paths of the texts (`$defs/text`) in the documents of a JSON Schema, `*` for each item
-    of a list.
+    of a list and each value of a map (`additionalProperties`: the labels of the properties
+    of a body by their names).
     """
     schema = validator(name).schema
     found: dict[tuple, None] = {}
@@ -307,6 +305,7 @@ def text_paths(name: str) -> tuple[tuple, ...]:
         for key, value in node.get('properties', {}).items():
             walk(value, (*path, key), refs)
         walk(node.get('items'), (*path, '*'), refs)
+        walk(node.get('additionalProperties'), (*path, '*'), refs)
         for key in ('allOf', 'anyOf', 'oneOf'):
             for value in node.get(key, []):
                 walk(value, path, refs)
@@ -319,13 +318,15 @@ def text_paths(name: str) -> tuple[tuple, ...]:
 
 def text_values(data, path: tuple, at: tuple = ()):
     """
-    The values at a path of `text_paths` in a document, with their paths.
+    The values at a path of `text_paths` in a document, with their paths: of `*`, each item
+    of a list by its index, each value of a map by its key.
     """
     if not path:
         yield at, data
     elif path[0] == '*':
-        for i, item in enumerate(data if isinstance(data, list) else []):
-            yield from text_values(item, path[1:], (*at, i))
+        items = data.items() if isinstance(data, dict) else enumerate(data if isinstance(data, list) else [])
+        for key, item in items:
+            yield from text_values(item, path[1:], (*at, key))
     elif isinstance(data, dict) and path[0] in data:
         yield from text_values(data[path[0]], path[1:], (*at, path[0]))
 

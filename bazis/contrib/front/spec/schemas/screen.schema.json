@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:bazis-front:spec:screen:1",
   "title": "bazis-screen/1: spec/screens/<id>.yaml",
-  "description": "A screen of the frontend: one primitive (list, card, form, dashboard, board or calendar) over an entity of spec/product.yaml (a dashboard has none: each of its parts names its own), its actions and the states it renders. The screen marks its elements with `data-bz` attributes: screen:<id>, state:<loading|empty|loaded|error|forbidden|not_found|invalid>, list:<entity>, row:<id>, cell:<field>, field:<field>, error:<field>, action:<id>, transit:<id>, status:<id>, nav:<screen>; select:<id> and bulk:<id> (the bulk actions of a list), tab:<id> (the tabs of a card), tile:<id>, chart:<id> and recent:<id> (a dashboard), column:<status> and move:<status> (a board), day:<date> (a calendar). The required states of a primitive: list loading, empty, error, forbidden; card loading, error, forbidden, not_found; form loading, error, forbidden, invalid; dashboard loading, error; board and calendar loading, empty, error, forbidden.",
+  "description": "A screen of the frontend: one primitive (list, card, form, dashboard, board or calendar) over an entity of spec/product.yaml (a dashboard has none: each of its parts names its own), its actions and the states it renders. The screen marks its elements with `data-bz` attributes: screen:<id>, state:<loading|empty|loaded|error|forbidden|not_found|invalid|done>, list:<entity>, row:<id>, cell:<field>, field:<field>, error:<field>, action:<id>, transit:<id>, status:<id>, nav:<screen>; select:<id> and bulk:<id> (the bulk actions of a list), tab:<id> (the tabs of a card), tile:<id>, chart:<id> and recent:<id> (a dashboard), column:<status> and move:<status> (a board), day:<date> (a calendar). The required states of a primitive: list loading, empty, error, forbidden; card loading, error, forbidden, not_found; form loading, error, forbidden, invalid (and done, the result of a form of a custom action with `result`); dashboard loading, error; board and calendar loading, empty, error, forbidden.",
   "type": "object",
   "additionalProperties": false,
   "required": ["spec", "id", "route", "primitive", "states"],
@@ -191,14 +191,41 @@
       }
     },
     "form": {
+      "description": "A form as a page: the create or the update form of the entity (`mode`), or the form of a custom action of the route set of the entity (`action`), whose fields are the properties of its JSON body and need no runtime schema (a guest who reads nothing of the entity sends it on a public screen).",
       "type": "object",
-      "additionalProperties": false,
-      "required": ["mode"],
-      "properties": {
-        "mode": {"enum": ["create", "update"]},
-        "fields": {"description": "The fields of the form; all the writable fields of its runtime schema when omitted.", "$ref": "#/$defs/fields"},
-        "then": {"description": "The screen shown after a submit.", "$ref": "#/$defs/id"}
-      }
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": {"enum": ["create", "update"]},
+            "fields": {"description": "The fields of the form; all the writable fields of its runtime schema when omitted.", "$ref": "#/$defs/fields"},
+            "then": {"description": "The screen shown after a submit.", "$ref": "#/$defs/id"}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["action", "fields"],
+          "anyOf": [{"required": ["result"]}, {"required": ["then"]}],
+          "properties": {
+            "action": {"description": "The custom action of the route set of the entity (a POST, not of an item): its name in its path (`apply` of `/repairs/repair/apply/`), as `custom_actions` of the contract has it (S032).", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+            "fields": {"description": "The properties of its JSON body that the form asks for, in this order; each that the body requires among them (S032). A property named as a to-one relationship of the entity in the contract is the picker of its related item (an array named as a to-many one, of its items), its title that of the field of the entity in the contract.", "$ref": "#/$defs/fields"},
+            "labels": {"$ref": "#/$defs/labels"},
+            "submit": {"description": "The label of its submit button: `Send` by default.", "$ref": "#/$defs/text"},
+            "result": {
+              "description": "What the page shows once the action is done (`state:done`), in place of the form: `message`, whose `{name}` are the properties of the JSON answer of the action in the contract (S053), under `title` (the title of the screen by default), with the link of `then` and `action:again`, which shows the form again, empty.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["message"],
+              "properties": {
+                "title": {"$ref": "#/$defs/text"},
+                "message": {"$ref": "#/$defs/text"}
+              }
+            },
+            "then": {"description": "The screen without an item that the link of the result opens (`nav:<screen>`); without `result`, the screen shown once the action is done.", "$ref": "#/$defs/id"}
+          }
+        }
+      ]
     },
     "dashboard": {
       "description": "An overview of the entities: tiles that count the items of a filter or show an aggregate of a field of them, charts of the items by status or by date, the last items of an entity and the create forms of entities. A tile and a chart are the aggregates of a list of the API (`meta=aggregates` of the core, bazis 2.17): over the items that the user may view with the filter, of the fields that the route set filters by.",
@@ -376,7 +403,7 @@
     "states": {
       "type": "array",
       "uniqueItems": true,
-      "items": {"enum": ["loading", "empty", "error", "forbidden", "not_found", "invalid"]}
+      "items": {"enum": ["loading", "empty", "error", "forbidden", "not_found", "invalid", "done"]}
     }
   },
   "allOf": [
@@ -454,6 +481,13 @@
       ]
     },
     "label": {"description": "A key of the dictionaries of the frontend, or a text: never the color alone.", "$ref": "#/$defs/text", "minLength": 1},
+    "labels": {
+      "description": "The labels of properties of the body of a custom action by their names, in the languages of the product: before the title of the field of the entity named so (in the contract or the runtime schema) and the title of the property in the body (in the language of the backend).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/field"},
+      "additionalProperties": {"$ref": "#/$defs/text"}
+    },
     "action": {
       "description": "`form`: a form of the entity (create on a list or a card, update on a card); `destroy`: the deletion of the item of a card; `custom`: a custom action of the route set of the entity (`custom_actions` of its resource in the contract, a POST), of the item of a card, of each row of a list (an action of an item) or of the toolbar of a list (an action of the route set).",
       "type": "object",
@@ -463,7 +497,8 @@
         "id": {"$ref": "#/$defs/id"},
         "primitive": {"enum": ["form", "destroy", "custom"]},
         "mode": {"enum": ["create", "update"]},
-        "fields": {"description": "The fields of a form; of a custom action, the properties of its JSON body that its dialog asks for (none: an empty body).", "$ref": "#/$defs/fields"},
+        "fields": {"description": "The fields of a form; of a custom action, the properties of its JSON body that its dialog asks for (none: an empty body), as the form of an action (`form.action`) shows them.", "$ref": "#/$defs/fields"},
+        "labels": {"$ref": "#/$defs/labels"},
         "action": {"description": "The custom action: its name in its path (`escalate` of `/tasks/task/{id}/escalate/`), as `custom_actions` of the contract has it.", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
         "confirm": {"description": "Whether a custom action without `fields` is confirmed in a dialog first (`action:confirm-<id>`).", "type": "boolean"},
         "message": {"description": "What the toast says once a custom action is done: `Done` by default.", "$ref": "#/$defs/text"},
@@ -484,7 +519,7 @@
         {
           "if": {"properties": {"primitive": {"const": "custom"}}},
           "then": {"required": ["action", "label"], "properties": {"mode": false, "then": false}},
-          "else": {"properties": {"action": false, "confirm": false, "message": false}}
+          "else": {"properties": {"action": false, "confirm": false, "message": false, "labels": false}}
         }
       ]
     }

@@ -19,7 +19,10 @@
 // the card; a custom action of the route set of the contract, on a card, a row, the selected
 // rows and the toolbar of a list (one of an item and one of the route set of the same name
 // told apart), shown as the backend allows it, its fields in a dialog, once per item at a time,
-// a refusal in its dialog or in a toast; and the props of an extension joined with the generated ones. Keep it passing when the
+// a refusal in its dialog or in a toast; the form of a custom action of the route set as a
+// page, its fields read from the contract (a relationship a picker, a decimal on one line,
+// their labels), its errors, its result from the answer of the action, or done without one;
+// and the props of an extension joined with the generated ones. Keep it passing when the
 // component is changed.
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -33,12 +36,14 @@ import { Screen } from '@/bazis/ui/app-shell';
 import { ResourceCard, type ResourceCardProps } from '@/bazis/ui/resource-card';
 import { ResourceList } from '@/bazis/ui/resource-list';
 import {
+  ActionForm,
   CreateFormAction,
   extended,
   ScreenAction,
   useCustomAction,
   useDestroyCardAction,
   UpdateFormAction,
+  type ActionFormProps,
   type CreateFormActionProps,
   type CustomActionOptions,
   type ScreenExtension,
@@ -46,19 +51,27 @@ import {
 import { toast } from '@/bazis/ui/state-panel';
 import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
-// the contract of the product with the resource of the tests and its custom actions: of an
-// item, which requires its change, its body a priority with a default and a decimal price; of
-// the route set, without a body; `export` of the route set and of an item alike, without a body
+// the contract of the product with the resource of the tests, its fields (an owner and the
+// watchers, relationships to the route set of the owners, `test.owner`, any product has none)
+// and its custom actions: of an item,
+// which requires its change, its body a priority with a default and a decimal price; of the
+// route set, without a body; `export` of the route set and of an item alike, without a body;
+// `suggest` of the route set, its body a title, the owner and the watchers (their ids), the
+// hours (a decimal) and a note
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   const priority = { enum: ['low', 'high'], title: 'Priority', type: 'string' };
   return {
     ...contract,
+    ROUTES: { ...contract.ROUTES, 'test.owner': '/api/test/owner/' },
     RESOURCES: {
       ...contract.RESOURCES,
       'test.item': {
         path: '/api/test/item/',
-        fields: {},
+        fields: {
+          owner: { relation: 'test.owner', many: false, title: 'Owner' },
+          watchers: { relation: 'test.owner', many: true, title: 'Watchers' },
+        },
         search: [],
         custom_actions: {
           action_escalate: {
@@ -79,6 +92,23 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
           action_count: { name: 'count', item: false, method: 'post', access_action: null, body: null },
           action_export: { name: 'export', item: false, method: 'post', access_action: null, body: null },
           action_export_item: { name: 'export', item: true, method: 'post', access_action: null, body: null },
+          action_suggest: {
+            name: 'suggest',
+            item: false,
+            method: 'post',
+            access_action: null,
+            body: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', title: 'Title' },
+                owner: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }], default: null, title: 'Owner id' },
+                watchers: { type: 'array', items: { type: 'string', format: 'uuid' }, title: 'Watcher ids' },
+                hours: { anyOf: [{ type: 'number' }, { type: 'string' }], title: 'Hours' },
+                note: { type: 'string', title: 'Note' },
+              },
+              required: ['title'],
+            },
+          },
         },
       },
     },
@@ -503,6 +533,34 @@ describe('useCustomAction', () => {
     });
   });
 
+  it('labels its fields with the labels of the specs first, and asks for a relationship of the body with its picker', async () => {
+    const backend = new Backend().on('GET', `${ITEMS}schema_list/`, listSchema);
+    function Suggest() {
+      const suggest = useCustomAction({
+        id: 'suggest',
+        label: 'Suggest',
+        path: ITEMS,
+        action: 'suggest',
+        target: 'route',
+        fields: ['priority', 'title', 'owner'],
+        labels: { title: 'What to do' },
+      });
+      return (
+        <>
+          <button type="button" data-bz="action:suggest" onClick={suggest.action.onClick} />
+          {suggest.dialog}
+        </>
+      );
+    }
+    renderWithBazis(<Suggest />, backend);
+    fireEvent.click(screen.getByTestId('action:suggest'));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('What to do');
+    expect(screen.getByTestId('field:owner').tagName).toBe('BUTTON');
+    // a property that the body does not have is not asked for
+    expect(screen.queryByTestId('field:priority')).toBeNull();
+  });
+
   it('keeps its dialog open with the errors of its fields', async () => {
     const backend = cardBackend({ crud_actions: ['view'], custom_actions: ['action_escalate'] })
       .on('GET', `${ITEMS}schema_list/`, listSchema)
@@ -642,6 +700,84 @@ describe('useCustomAction', () => {
     await screen.findByTestId('state:loaded');
     expect(screen.queryByTestId('action:count')).toBeNull();
     expect(screen.queryByTestId('action:escalate')).toBeNull();
+  });
+});
+
+const SUGGESTED = `${ITEMS}suggest/`;
+
+function Suggesting(props: Partial<ActionFormProps>) {
+  return <ActionForm path={ITEMS} action="suggest" fields={['title', 'owner', 'watchers', 'hours', 'note']} {...props} />;
+}
+
+describe('ActionForm', () => {
+  it('asks for the properties of the body from the contract, without a runtime schema, and shows the result', async () => {
+    const backend = new Backend().on('POST', SUGGESTED, { task: 't-1', count: 3, done: true });
+    renderWithBazis(
+      <Suggesting
+        labels={{ note: 'Your note' }}
+        result={{ title: 'Thank you', message: (response) => `Task ${String(response.task)} of ${String(response.count)}` }}
+        then={{ screen: 'item-list', label: 'Items', to: '/items' }}
+      />,
+      backend,
+    );
+    const form = screen.getByTestId('state:loaded');
+    // the labels of the specs, then the titles of the fields of the resource, then those of the body
+    expect(form.textContent).toContain('Your note');
+    expect(form.textContent).toContain('Owner');
+    expect(form.textContent).not.toContain('Owner id');
+    expect(form.textContent).toContain('Hours');
+    // the relationships are the pickers of their related items, a decimal is typed on one line
+    expect(screen.getByTestId('field:owner').tagName).toBe('BUTTON');
+    expect(screen.getByTestId('field:watchers').tagName).toBe('BUTTON');
+    expect(screen.getByTestId<HTMLInputElement>('field:hours').inputMode).toBe('decimal');
+
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'Paint the fence' } });
+    fireEvent.change(screen.getByTestId('field:hours'), { target: { value: '1,5' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    const done = await screen.findByTestId('state:done');
+    expect(backend.calls.map((it) => [it.method, it.url, it.body])).toEqual([
+      ['POST', SUGGESTED, { title: 'Paint the fence', owner: null, hours: '1.5' }],
+    ]);
+    // the texts and the numbers of the answer
+    expect(done.textContent).toContain('Thank you');
+    expect(done.textContent).toContain('Task t-1 of 3');
+    expect(screen.getByTestId('nav:item-list').getAttribute('href')).toBe('/items');
+    expect(screen.queryByTestId('action:submit')).toBeNull();
+
+    // again: the form, empty
+    fireEvent.click(screen.getByTestId('action:again'));
+    expect(screen.getByTestId<HTMLInputElement>('field:title').value).toBe('');
+    expect(screen.queryByTestId('state:done')).toBeNull();
+    expect(backend.requests('GET')).toEqual([]);
+  });
+
+  it('keeps the form with the errors of its fields and the state of a refusal', async () => {
+    const backend = new Backend().on(
+      'POST',
+      SUGGESTED,
+      { errors: [{ status: 422, detail: 'Too short', source: { pointer: '/title' } }] },
+      422,
+    );
+    renderWithBazis(<Suggesting fields={['title']} result={{ message: () => 'Done' }} />, backend);
+    fireEvent.click(screen.getByTestId('action:submit'));
+    expect((await screen.findByTestId('error:title')).textContent).toContain('Too short');
+    expect(screen.getByTestId('state:invalid')).toBeTruthy();
+    expect(screen.getByTestId('action:submit')).toBeTruthy();
+    expect(screen.queryByTestId('state:done')).toBeNull();
+  });
+
+  it('without a result, says that it is done and calls onDone', async () => {
+    vi.mocked(toast).mockClear();
+    const onDone = vi.fn();
+    const backend = new Backend().on('POST', SUGGESTED, { task: 't-1' });
+    renderWithBazis(<Suggesting fields={['title']} onDone={onDone} />, backend);
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'Paint' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(onDone).toHaveBeenCalledTimes(1);
+    });
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('state:done')).toBeNull();
   });
 });
 

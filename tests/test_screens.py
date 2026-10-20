@@ -266,7 +266,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
     text; a calendar with its add and its tone; a dashboard of two entities, a tile with its
     own icon, the aggregates of a tile and of a chart; forms that show a screen without an item after them, whose code takes no saved
-    item; a plain card, whose code uses no navigation, no translation and no item (the lint of
+    item; the form of a custom action without a result, then a list; a plain card, whose code uses no navigation, no translation and no item (the lint of
     the frontend job refuses them unused).
     """
     kitchen_sink(tmp_path)
@@ -338,6 +338,13 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "  const { id = '' } = useParams();\n" in edit
     assert '      <ResourceForm\n        path={TASK.path}\n        id={id}\n' in edit
     assert 'fields=' not in edit
+    # the form of a custom action without a result: the list of the tasks once it is done
+    suggestion = files[f'{screens.GENERATED_DIR}/task-suggestion.tsx']
+    assert "            action: 'suggest',\n            fields: ['title'],\n" in suggestion
+    assert "            labels: { title: t('screens.task-suggestion.form.labels.title') },\n" in suggestion
+    assert "            submitLabel: t('screens.task-suggestion.form.submit'),\n" in suggestion
+    assert "            onDone: () => void navigate(routeTo('task-list')),\n" in suggestion
+    assert 'result' not in suggestion and 'requires' not in suggestion
 
     # a board without `move` is not in `BoardDnd`; its badge, some of its columns, its empty text
     flow = files[f'{screens.GENERATED_DIR}/task-flow.tsx']

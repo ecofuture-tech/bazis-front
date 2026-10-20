@@ -21,6 +21,7 @@
 import type { Messages } from '../translate.js';
 
 export const ru: Messages = {
+  'action.again': 'Отправить ещё',
   'action.cancel': 'Отмена',
   'action.close': 'Закрыть',
   'action.confirm': 'Выполнить?',
@@ -104,6 +105,7 @@ export const ru: Messages = {
   'form.included_field_error': 'Связанный объект {index}, {field}: {message}',
   'form.save': 'Сохранить',
   'form.saved': 'Сохранено',
+  'form.send': 'Отправить',
   'history.by': 'изменил',
   'history.label': 'История статуса',
   'history.since': 'с',

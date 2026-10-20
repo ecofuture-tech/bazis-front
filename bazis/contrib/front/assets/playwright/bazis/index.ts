@@ -54,7 +54,7 @@ export type Values = Readonly<Record<string, string | number | boolean | null>>;
 export type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>;
 
 /** The states that the screens render (`state:<state>`). */
-export type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid';
+export type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid' | 'done';
 
 /** The selector of the mark `data-bz="<kind>:<id>"`. */
 export function bz(kind: string, id: string): string {

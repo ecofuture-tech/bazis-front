@@ -430,7 +430,7 @@
           "properties": {
             "screen": {"description": "The current screen.", "$ref": "#/$defs/id"},
             "status": {"description": "The status of the current item.", "$ref": "#/$defs/status_id"},
-            "state": {"enum": ["loading", "empty", "loaded", "error", "forbidden", "not_found", "invalid"]},
+            "state": {"description": "The state that the page shows: `done`, the result of the form of a custom action (`form.result`).", "enum": ["loading", "empty", "loaded", "error", "forbidden", "not_found", "invalid", "done"]},
             "action_absent": {"description": "An action of the current screen that is not shown.", "$ref": "#/$defs/id"},
             "field_readonly": {"description": "A field that the user may not change on the current screen.", "$ref": "#/$defs/field_id"},
             "field_absent": {"description": "A field of the current screen that the user may not see: not shown.", "$ref": "#/$defs/field_id"},

@@ -27,12 +27,13 @@ import { useRef, useState, type ReactNode } from 'react';
 
 import type { CustomActionName } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { objectFields, type JsonSchema } from '@/bazis/react';
-import { customActionAt, FieldInput, useAnyAction, useAnyItemAction, useListFields } from '@/bazis/ui/resource';
+import { customActionAt, useAnyAction, useAnyItemAction, useListFields } from '@/bazis/ui/resource';
 import type { BulkAction, RowAction } from '@/bazis/ui/resource-list';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+import { ActionFields, bodyDefaults, type ActionFieldsProps } from './action-fields.js';
 
 export interface CustomActionOptions {
   /** The id of the action in the specs: `action:<id>`, its confirmation `action:confirm-<id>`. */
@@ -53,6 +54,8 @@ export interface CustomActionOptions {
   item?: string;
   /** The properties of the body that its dialog asks for, in this order; none by default (an empty body). */
   fields?: readonly string[];
+  /** The labels of its fields by property, before their titles (`ActionFields`). */
+  labels?: Readonly<Record<string, string>>;
   /** The title of its dialog: the label by default. */
   title?: ReactNode;
   /** What its dialog says. */
@@ -89,52 +92,12 @@ export interface CustomAction {
   dialog: ReactNode;
 }
 
-/** The values that a dialog starts with: the defaults of the properties of the body that it asks for. */
-function defaults(body: JsonSchema | null, names: readonly string[]): Record<string, unknown> {
-  const values: Record<string, unknown> = {};
-  for (const field of objectFields(body ?? {})) {
-    if (names.includes(field.name) && 'default' in field.schema) values[field.name] = field.schema.default;
-  }
-  return values;
-}
-
-interface PayloadFieldsProps {
-  path: string;
-  body: JsonSchema;
-  names: readonly string[];
-  values: Readonly<Record<string, unknown>>;
-  errors: Readonly<Record<string, readonly string[]>>;
-  disabled: boolean;
-  onChange: (name: string, value: unknown) => void;
-}
-
 /**
- * The fields of the body that a dialog asks for. A property named as a field of the resource
- * is shown as that field (its title and the labels of its choices in the language of the
- * interface, from the schema of the list); another has the title of the body, in the language
- * of the contract.
+ * The fields of a dialog, with the titles and the labels of the choices of the list of the
+ * route set in the language of the interface (`useListFields`), read once it opens.
  */
-function PayloadFields({ path, body, names, values, errors, disabled, onChange }: PayloadFieldsProps) {
-  const resource = useListFields(path);
-  const properties = objectFields(body);
-  return names.map((name) => {
-    const property = properties.find((it) => it.name === name);
-    if (property === undefined) return null;
-    const own = resource.fields.get(name);
-    const field = own?.kind === 'attribute' ? { ...property, title: resource.title(name), labels: own.labels } : property;
-    return (
-      <FieldInput
-        key={name}
-        field={field}
-        value={values[name]}
-        errors={errors[name]}
-        disabled={disabled}
-        onChange={(value) => {
-          onChange(name, value);
-        }}
-      />
-    );
-  });
+function DialogFields(props: Omit<ActionFieldsProps, 'resource'>) {
+  return <ActionFields {...props} resource={useListFields(props.path)} />;
 }
 
 /**
@@ -150,6 +113,7 @@ export function useCustomAction({
   target,
   item,
   fields = [],
+  labels,
   title,
   description,
   confirm = false,
@@ -199,7 +163,7 @@ export function useCustomAction({
       submit(on, {});
       return;
     }
-    setValues(defaults(body, fields));
+    setValues(bodyDefaults(body, fields));
     setOpen({ item: on });
   }
 
@@ -230,10 +194,11 @@ export function useCustomAction({
               <StatePanel inline state={errorState(mutation.error)} error={mutation.error} />
             )}
             {fields.length > 0 && body && (
-              <PayloadFields
+              <DialogFields
                 path={path}
                 body={body}
                 names={fields}
+                labels={labels}
                 values={values}
                 errors={mutation.errors}
                 disabled={mutation.isPending}

@@ -29,6 +29,9 @@ export const PRODUCT = {
     "public-tasks": {
       route: "/public",
     },
+    "suggest-task": {
+      route: "/suggest",
+    },
     "task-board": {
       route: "/board",
     },
@@ -65,6 +68,10 @@ test.describe('light', () => {
 
   test('public-tasks', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'public-tasks', role: 'visitor', mode: 'light', via: null, creates: [], variant: null }, info);
+  });
+
+  test('suggest-task', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'suggest-task', role: 'visitor', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
   test('task-board', async ({ page }, info) => {
@@ -125,6 +132,10 @@ test.describe('dark', () => {
 
   test('public-tasks', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'public-tasks', role: 'visitor', mode: 'dark', via: null, creates: [], variant: null }, info);
+  });
+
+  test('suggest-task', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'suggest-task', role: 'visitor', mode: 'dark', via: null, creates: [], variant: null }, info);
   });
 
   test('task-board', async ({ page }, info) => {

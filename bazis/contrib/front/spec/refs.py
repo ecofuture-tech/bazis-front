@@ -19,13 +19,14 @@ are checked here; a reference to a screen that does not is accepted unchecked, s
 broken file does not cascade.
 """
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import access
 from .design import check_icon
 from .issues import DECLARE_ROLES, DECLARE_WORKFLOWS, EXPORT_HINT, Document, Issues
-from .names import SCREEN_CONSTANTS, camel, component_name, constant_name
+from .names import SCREEN_CONSTANTS, TEXT_KEY, camel, component_name, constant_name
 
 
 #: the field of an entity with a workflow: its status (bazis-statusy)
@@ -119,6 +120,15 @@ def is_public(screen: dict, roles: dict[str, dict]) -> bool:
     (`PUBLIC_ROUTES`); a screen without `roles` is never public.
     """
     return any(roles.get(it, {}).get('anonymous') for it in screen.get('roles', []))
+
+
+def action_form(screen: dict) -> dict | None:
+    """
+    The form of a custom action of a screen (`form.action`): a page of its own, whose fields
+    are the properties of the body of the action; None for any other screen.
+    """
+    form = screen.get('form') if screen['primitive'] == 'form' else None
+    return form if form is not None and 'action' in form else None
 
 
 def host(card: dict, screens: dict[str, dict | None]) -> dict | None:
@@ -642,6 +652,14 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
                 f'{_describe(_not_null(prop))} in the contract.',
                 'Make the spec follow the payload type of the transit.',
             )
+        elif (kind := unaskable(local_type(prop, payload['schema']))) is not None:
+            issues.add(
+                doc, (*path, 'fields', i), 'S054',
+                f'The field `{item_field["id"]}` of the payload of `{item["id"]}` is {kind}: the form of the '
+                'transition asks for it as JSON, as it is typed.',
+                'Give the payload of the transit a field of a type that a field takes (a text, a number, a '
+                'decimal, a date, a choice), or run the transition from the code of a screen.',
+            )
 
 
 def _not_null(schema: dict) -> dict:
@@ -753,7 +771,10 @@ def check_anonymous_roles(doc: Document, screens: dict[str, dict | None], produc
 def _check_link(
     doc: Document, path: tuple, screen_id: str, screens: dict[str, dict | None], linked: set[str], issues: Issues
 ) -> None:
-    hint = 'Link the screens that the user opens from the navigation: lists, boards, calendars and dashboards.'
+    hint = (
+        'Link the screens that the user opens from the navigation: lists, boards, calendars, dashboards '
+        'and the forms of custom actions.'
+    )
     if screen_id not in screens:
         problem = f'The screen `{screen_id}` does not exist.'
         hint = f'Create spec/screens/{screen_id}.yaml or link an existing screen.'
@@ -764,7 +785,7 @@ def _check_link(
         return
     elif ':' in screen['route']:
         problem = f'The screen `{screen_id}` shows an item (`{screen["route"]}`): it is opened from another screen.'
-    elif screen['primitive'] == 'form':
+    elif screen['primitive'] == 'form' and action_form(screen) is None:
         problem = f'The screen `{screen_id}` is a form: it is opened from another screen.'
     elif screen.get('nav') is False:
         problem = f'The screen `{screen_id}` has `nav: false`.'
@@ -808,7 +829,7 @@ def _check_item_route(doc: Document, issues: Issues) -> None:
     """
     data = doc.data
     primitive = data['primitive']
-    if data.get('custom') or primitive == 'form' and data['form']['mode'] != 'update' or primitive not in (
+    if data.get('custom') or primitive == 'form' and data['form'].get('mode') != 'update' or primitive not in (
         'card', 'form'
     ):
         return
@@ -859,7 +880,9 @@ def _check_screen(
 ) -> None:
     data = doc.data
     primitive = data['primitive']
-    missing = [it for it in REQUIRED_STATES[primitive] if it not in data['states']]
+    # the form of an action with a result renders it, `state:done`
+    done = ('done',) if 'result' in (action_form(data) or {}) else ()
+    missing = [it for it in (*REQUIRED_STATES[primitive], *done) if it not in data['states']]
     if missing:
         issues.add(
             doc, ('states',), 'S009', f'A {primitive} must render the states {", ".join(missing)}.',
@@ -901,8 +924,8 @@ def _check_screen(
         if primitive == 'calendar' and 'add' in section:
             _check_calendar_add(doc, section, entity, resource, issues)
         _check_queries(doc, (primitive,), section, entity, resource, issues)
-        if primitive in ('list', 'card'):
-            _check_custom_actions(doc, entity, resource, public, issues)
+        if primitive in ('list', 'card', 'form'):
+            _check_custom_actions(doc, entity, resource, product, contract, issues)
         _check_filter_route(doc, primitive, section, entity, resource, product, issues)
         _check_search_contract(doc, entity, resource, contract, issues)
     _check_related_sections(doc, entity, product, screens, contract, issues)
@@ -912,12 +935,13 @@ def _check_public_writes(doc: Document, issues: Issues) -> None:
     """
     A public screen does not create, change or delete through the routes of the entities
     (S044): bazis-permit refuses them to anonymous users whatever their roles; a guest writes
-    through a custom action declared `public=True` (S046).
+    through a custom action declared `public=True` (S046), in its dialog or in the form of the
+    action (`form.action`).
     """
     data = doc.data
     primitive = data['primitive']
     section = data[primitive]
-    writes = [(('primitive',), 'is a form')] if primitive == 'form' else []
+    writes = [(('primitive',), 'is a form')] if primitive == 'form' and action_form(data) is None else []
     writes += [
         (path, f'has the {"deletion" if it["primitive"] == "destroy" else "form"} `{it["id"]}`')
         for path, it in screen_actions(data) if it['primitive'] in ('form', 'destroy')
@@ -940,7 +964,8 @@ def _check_public_writes(doc: Document, issues: Issues) -> None:
             f'The public screen {what}: bazis-permit refuses to anonymous users every create, change and '
             'deletion through the routes of the entities.',
             'Remove it, or let the guests do it with a custom action of the route set declared `public=True` '
-            '(`primitive: custom`); or remove the anonymous role from `roles` if the screen is not for them.',
+            '(`primitive: custom`, or a form of the action: `primitive: form` with `form.action`); or remove '
+            'the anonymous role from `roles` if the screen is not for them.',
         )
 
 
@@ -1176,20 +1201,25 @@ def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
             _check_bulk_transit(doc, ('list', 'bulk', i, 'transit'), action['transit'], entity, issues)
 
 
-def _check_custom_actions(doc: Document, entity: Entity, resource: dict, public: bool, issues: Issues) -> None:
+def _check_custom_actions(
+    doc: Document, entity: Entity, resource: dict, product: Product, contract: dict, issues: Issues
+) -> None:
     """
-    The custom actions of a list or a card, and the custom bulk actions of a list, against the
-    resource of the contract (S032): a custom action of its route set declared with POST (one
-    declared with GET reads), of an item on a card, on the rows and in a bulk action (the route
-    set may have an action of the same name for its toolbar); on the rows of a list and in a
-    bulk action, one that requires nothing of the item but what a list tells of each row (its
-    view, its change or its delete); the fields that its dialog asks for are properties of its body, and
-    the body needs nothing else (a property that the body requires is among them; a bulk action
-    asks for none). On a public screen, one declared `public=True` (S046).
+    The custom actions of a list or a card, the custom bulk actions of a list and the action
+    of a form (`form.action`), against the resource of the contract (S032): a custom action of
+    its route set declared with POST (one declared with GET reads), of an item on a card, on the
+    rows and in a bulk action (the route set may have an action of the same name for its toolbar
+    and its forms); on the rows of a list and in a bulk action, one that requires nothing of the
+    item but what a list tells of each row (its view, its change or its delete); the fields that
+    its dialog or its form asks for are properties of its body, and the body needs nothing else
+    (a property that the body requires is among them; a bulk action asks for none). On a public
+    screen, one declared `public=True` (S046), whose pickers list what the anonymous roles view
+    (S052). The fields that the form cannot ask for (S054), the pickers of the relationships
+    (S012, S017) and the properties of the answer of the result of a form (S053).
     """
     data = doc.data
     # where each runs: on an item (a card, the rows of a list, a bulk action) or on the route
-    # set (the toolbar of a list)
+    # set (the toolbar of a list, a form)
     rows = set(data['list'].get('row_actions', [])) if data['primitive'] == 'list' else set()
     runs = [
         (path, it['action'], it.get('fields', []), 'card' if data['primitive'] == 'card' else 'row' if it['id'] in rows else 'toolbar')
@@ -1197,13 +1227,17 @@ def _check_custom_actions(doc: Document, entity: Entity, resource: dict, public:
     ]
     if data['primitive'] == 'list':
         runs += [(('list', 'bulk', i), it['action'], None, 'bulk') for i, it in enumerate(data['list'].get('bulk', [])) if 'action' in it]
+    form = action_form(data)
+    if form is not None:
+        runs.append((('form',), form['action'], form['fields'], 'form'))
     if not runs:
         return
+    public = is_public(data, product.roles)
     # by the name in the path and whether it is of an item: `/export/` and `/{item_id}/export/`
     declared = {(it['name'], it['item']): it for it in resource['custom_actions'].values()}
     posts = ', '.join(sorted({name for (name, _), it in declared.items() if it['method'] == 'post'})) or 'none'
     for path, name, fields, where in runs:
-        of_item = where != 'toolbar'
+        of_item = where not in ('toolbar', 'form')
         action = declared.get((name, of_item))
         problem, hint = None, None
         if action is None and (name, not of_item) not in declared:
@@ -1212,6 +1246,9 @@ def _check_custom_actions(doc: Document, entity: Entity, resource: dict, public:
         elif action is None and of_item:
             problem = f'The custom action `{name}` is one of the route set, not of an item.'
             hint = 'Run it from the toolbar of a list (`actions` of a list, not in `list.row_actions`).'
+        elif action is None and where == 'form':
+            problem = f'The custom action `{name}` is one of an item: a form of an action runs one of the route set.'
+            hint = 'Run it on the card of the item (`primitive: custom` with `fields`), or name an action of the route set.'
         elif action is None:
             problem = f'The custom action `{name}` is one of an item, and the toolbar of a list has none.'
             hint = 'Run it on each row (its id in `list.row_actions`), on the card of the item, or as a bulk action.'
@@ -1235,22 +1272,160 @@ def _check_custom_actions(doc: Document, entity: Entity, resource: dict, public:
                 f'Declare it with `public=True` (a throttle limits it: BAZIS_THROTTLE_PUBLIC) and {EXPORT_HINT}; '
                 'or remove the action from the public screen.',
             )
-        body = action['body'] or {}
-        properties = body.get('properties', {})
-        for i, prop in enumerate(fields or []):
-            if prop not in properties:
-                issues.add(
-                    doc, (*path, 'fields', i), 'S032', f'The body of the custom action `{name}` has no property `{prop}`.',
-                    f'Ask for the properties of its body: {", ".join(sorted(properties)) or "none"}.',
-                )
-        missing = [it for it in body.get('required', []) if it not in (fields or [])]
-        if missing:
+        _check_body(doc, path, name, fields, action['body'] or {}, resource, public, product, contract, issues)
+        if where == 'form' and 'result' in form:
+            _check_result(doc, name, form['result'], action['response'], issues)
+
+
+def _check_body(
+    doc: Document, path: tuple, name: str, fields: list | None, body: dict, resource: dict, public: bool,
+    product: Product, contract: dict, issues: Issues,
+) -> None:
+    """
+    The fields that the dialog or the form of a custom action asks for against its body: its
+    properties (S032), the pickers of the relationships (S012, S017; S052 on a public screen),
+    the types that a field takes (S054), and the properties that the body requires (S032).
+    """
+    properties = body.get('properties', {})
+    pickers = []
+    for i, prop in enumerate(fields or []):
+        if prop not in properties:
             issues.add(
-                doc, path, 'S032',
-                f'The custom action `{name}` requires {", ".join(f"`{it}`" for it in missing)} in its body.',
-                'Ask for it in `fields` of the action.' if fields is not None else
-                'Run it on the card or on each row, whose dialog asks for it: a bulk action sends an empty body.',
+                doc, (*path, 'fields', i), 'S032', f'The body of the custom action `{name}` has no property `{prop}`.',
+                f'Ask for the properties of its body: {", ".join(sorted(properties)) or "none"}.',
             )
+            continue
+        field_path = (*path, 'fields', i)
+        own = resource['fields'].get(prop, {})
+        schema = local_type(properties[prop], body)
+        if _is_picker(schema, own):
+            pickers.append((field_path, prop))
+            if public:
+                _check_guest_picker(doc, field_path, prop, own['relation'], product, issues)
+        elif (kind := unaskable(schema)) is not None:
+            issues.add(
+                doc, field_path, 'S054',
+                f'The property `{prop}` of the body of `{name}` is {kind}: the form asks for it as JSON, as '
+                'it is typed.',
+                'Give the body a property of a type that a field takes (a text, a number, a decimal, a date, a '
+                'choice, the id of a related item named as the relationship of the entity), or fill it in the '
+                'code of the screen (`extend`).',
+            )
+    _check_pickers(doc, resource, pickers, contract, issues)
+    missing = [it for it in body.get('required', []) if it not in (fields or [])]
+    if missing:
+        issues.add(
+            doc, path, 'S032',
+            f'The custom action `{name}` requires {", ".join(f"`{it}`" for it in missing)} in its body.',
+            'Ask for it in `fields` of the action.' if fields is not None else
+            'Run it on the card or on each row, whose dialog asks for it: a bulk action sends an empty body.',
+        )
+
+
+#: a parameter of a text of the specs: `{number}`, a property of the answer of an action
+PARAMETER = re.compile(r'\{(\w+)\}')
+
+
+def _check_result(doc: Document, name: str, result: dict, response: dict | None, issues: Issues) -> None:
+    """
+    The parameters of the message of the result of a form of an action are properties of the
+    JSON answer of the action in the contract (S053); a key of the dictionaries of the
+    frontend is not read.
+    """
+    message = result['message']
+    texts = [message] if isinstance(message, str) else list(message.values())
+    used = sorted({it for text in texts if not TEXT_KEY.fullmatch(text) for it in PARAMETER.findall(text)})
+    properties = (response or {}).get('properties', {})
+    unknown = [it for it in used if it not in properties]
+    if not unknown:
+        return
+    named = ', '.join(f'`{{{it}}}`' for it in unknown)
+    if response is None:
+        problem = f'The message of the result shows {named}, and the custom action `{name}` answers no JSON in the contract.'
+        hint = (
+            f'Give the action a `response_model` with these properties and {EXPORT_HINT}, or remove them from the '
+            'message.'
+        )
+    else:
+        problem = f'The message of the result shows {named}, which the answer of `{name}` does not have in the contract.'
+        hint = f'Show the properties of its answer: {", ".join(f"`{{{it}}}`" for it in sorted(properties)) or "none"}.'
+    issues.add(doc, ('form', 'result', 'message'), 'S053', problem, hint)
+
+
+def local_type(schema: dict, root: dict) -> dict:
+    """
+    A property of a standalone JSON Schema (a body, a payload) with its references to the
+    definitions of the root (`#/$defs/<name>`) followed, and without the `null` of a union
+    (`anyOf`): the one other member, or the union of the others.
+    """
+    seen = set()
+    while isinstance(schema.get('$ref'), str) and schema['$ref'] not in seen:
+        seen.add(schema['$ref'])
+        siblings = {key: value for key, value in schema.items() if key != '$ref'}
+        schema = {**root.get('$defs', {}).get(schema['$ref'].rsplit('/', 1)[-1], {}), **siblings}
+    members = schema.get('anyOf')
+    if not members:
+        return schema
+    others = [it for it in (local_type(member, root) for member in members) if it.get('type') != 'null']
+    return others[0] if len(others) == 1 else {**schema, 'anyOf': others}
+
+
+def _plain(schema: dict, kind: str) -> bool:
+    """A member of a union that is only a type: no format, no choices."""
+    return schema.get('type') == kind and not {'format', 'enum', 'const'} & schema.keys()
+
+
+def unaskable(schema: dict) -> str | None:
+    """
+    What a property (`local_type`) is when the form cannot ask for it but as JSON, as the
+    fields of the frontend read it (`objectFields`): a union (other than that of a URL and the
+    empty string, and the decimal of a number and a string), an object, an array; None for a
+    property that a field takes.
+    """
+    members = schema.get('anyOf')
+    if members is not None:
+        strings = all(it.get('type') == 'string' for it in members) and any(it.get('maxLength') == 0 for it in members)
+        decimal = len(members) == 2 and any(_plain(it, 'number') for it in members) and any(
+            _plain(it, 'string') for it in members
+        )
+        return None if strings or decimal else 'a union of ' + ' and '.join(_describe(it) for it in members)
+    return {'object': 'an object', 'array': 'an array'}.get(schema.get('type'))
+
+
+def _is_picker(schema: dict, own: dict) -> bool:
+    """
+    Whether a property of a body (`local_type`) is the picker of the related items of the
+    relationship of the entity named so in the contract (`own`): a text for a to-one one, an
+    array for a to-many one.
+    """
+    if not isinstance(own.get('relation'), str):
+        return False
+    return schema.get('type') == ('array' if own.get('many') else 'string')
+
+
+def _check_guest_picker(doc: Document, path: tuple, prop: str, relation: str, product: Product, issues: Issues) -> None:
+    """
+    The picker of a property of the body of an action on a public screen lists the related
+    items: each anonymous role of the screen views those of the entity of the relationship
+    (S052), unless the specs leave its access to the backend (an entity without `access`, or
+    a resource that they do not declare).
+    """
+    related = next((it for it in product.entities.values() if it.data['resource'] == relation), None)
+    if related is None or 'access' not in related.data:
+        return
+    for role in doc.data.get('roles', []):
+        if not product.roles.get(role, {}).get('anonymous'):
+            continue
+        grants = access.listed(related.data['access'].get(role, {}).get('view', []))
+        if any((it if isinstance(it, str) else it['selector']) != access.NONE for _, it in grants):
+            continue
+        issues.add(
+            doc, path, 'S052',
+            f'The property `{prop}` is the picker of the items of `{related.data["id"]}`, which the anonymous role '
+            f'`{role}` does not view: the picker of a guest is refused (403).',
+            f'Let `{role}` view `{related.data["id"]}` (`access`, and the permission of the permit role of the '
+            'anonymous users), or leave the property out of the fields.',
+        )
 
 
 def _check_bulk_transit(doc: Document, path: tuple, transit: str, entity: Entity, issues: Issues) -> None:
@@ -1607,10 +1782,10 @@ def _references(value, path: tuple, keys: tuple):
 def _screen_fields(data: dict):
     """
     The fields that a screen (not a dashboard) references, with their paths; those of a
-    custom action are the properties of its body (S032).
+    custom action and of the form of an action are the properties of its body (S032).
     """
     primitive = data['primitive']
-    for keys in FIELD_REFERENCES[primitive]:
+    for keys in FIELD_REFERENCES[primitive] if action_form(data) is None else ():
         yield from _references(data[primitive], (primitive,), keys)
     for path, action in screen_actions(data):
         if action['primitive'] != 'custom':
@@ -1707,11 +1882,15 @@ def _check_targets(doc: Document, screens: dict, issues: Issues) -> None:
 def _check_thens(doc: Document, screens: dict, product: Product, issues: Issues) -> None:
     """
     The screen of an item shown after a form is that of the saved item, a card of its entity;
-    none is shown after a deletion, which leaves no item (S006).
+    none is shown after a deletion, which leaves no item, nor after the form of an action,
+    which saves none (S006).
     """
     data = doc.data
     # the screens after the forms and the actions, with the entity of the item that they save
-    thens = [(('form', 'then'), data['form']['then'], data['entity'])] if 'then' in data.get('form', {}) else []
+    # (None: what leaves none)
+    thens = [
+        (('form', 'then'), data['form']['then'], None if action_form(data) else data['entity'])
+    ] if 'then' in data.get('form', {}) else []
     thens += [
         ((*path, 'then'), action['then'], None if action['primitive'] == 'destroy' else action.get('entity', data.get('entity')))
         for path, action in screen_actions(data) if 'then' in action
@@ -1722,7 +1901,8 @@ def _check_thens(doc: Document, screens: dict, product: Product, issues: Issues)
             continue
         shows = f'The screen `{target_id}` shows an item (`{target["route"]}`)'
         if saved is None:
-            problem, hint = f'{shows}, and the deletion leaves none.', 'Show a screen without an item: a list of the entity.'
+            what = 'the action' if path == ('form', 'then') else 'the deletion'
+            problem, hint = f'{shows}, and {what} leaves none.', 'Show a screen without an item: a list of the entity.'
         elif target['primitive'] != 'card' or target.get('entity') != saved:
             problem = f'{shows}: after the form, it is that of the saved item, and it is not a card of `{saved}`.'
             hint = f'Show the card of `{saved}`, or a screen without an item.'
@@ -1897,7 +2077,8 @@ def _picker_fields(data: dict, entity: Entity):
         for i, section in enumerate(data['card']['sections']):
             for j, name in enumerate(section['fields']):
                 yield ('card', 'sections', i, 'fields', j), name
-    forms = [(('form',), data['form'])] if primitive == 'form' else []
+    # those of the form of an action are the properties of its body (`_check_custom_actions`)
+    forms = [(('form',), data['form'])] if primitive == 'form' and action_form(data) is None else []
     if primitive == 'calendar' and 'add' in data['calendar']:
         forms.append((('calendar', 'add'), data['calendar']['add']))
     forms += [(path, action) for path, action in screen_actions(data) if action['primitive'] == 'form']

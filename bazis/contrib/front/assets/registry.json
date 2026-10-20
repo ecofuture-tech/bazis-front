@@ -797,6 +797,9 @@
         ]
       },
       "files": [
+        "action-fields.tsx",
+        "action-form.tsx",
+        "action-result.tsx",
         "actions.tsx",
         "custom-action.tsx",
         "extension.tsx",

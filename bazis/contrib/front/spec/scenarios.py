@@ -89,6 +89,14 @@ class _Made:
     values: dict
 
 
+def of_body(form: dict | None) -> bool:
+    """
+    Whether an open form asks for the properties of the body of a custom action: its dialog
+    (`primitive: custom`) or the form of the action (`form.action` of a form screen).
+    """
+    return form is not None and 'action' in form
+
+
 def agrees(where: dict, values: dict) -> bool:
     """
     Whether the item of these values has the texts of `where`: they share a field at least, and
@@ -319,12 +327,14 @@ class _Scenario:
         Checks that the entity of the screen (or the given one) has the fields of
         `(path, name)` items, and the form, when it lists its fields.
         """
-        if form is not None and form.get('primitive') == 'custom':
-            # the dialog of a custom action: the properties of its body (S032), not fields of the entity
+        if of_body(form):
+            # the dialog of a custom action or the form of an action: the properties of its body
+            # (S032), not fields of the entity
+            what = 'dialog' if form.get('primitive') == 'custom' else 'form'
             for path, name in items:
                 if name not in form['fields']:
                     self.add(
-                        path, 'P023', f'The dialog of the action has no field `{name}`.',
+                        path, 'P023', f'The {what} of the action has no field `{name}`.',
                         'Fill a property of its body that the action asks for (`fields` of the action).',
                     )
             return
@@ -546,7 +556,7 @@ class _Scenario:
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
             self.state.values.update(values)
-            if (self.state.form or {}).get('primitive') == 'custom':
+            if of_body(self.state.form):
                 return
             for name, value in values.items():
                 self.fixed((*path, name), name)
@@ -599,14 +609,16 @@ class _Scenario:
 
     def step_submit(self, path, value):
         """
-        A submit closes the form and leads to its `then`; a refused one (`fails`: the next
-        step expects the `error` of a field or a failed `state`) keeps the form open.
+        A submit closes the form and leads to its `then`; the form of an action with a
+        `result` shows it on its screen instead (`state: done`, with the link to its `then`); a
+        refused one (`fails`: the next step expects the `error` of a field or a failed `state`)
+        keeps the form open.
         """
         if not self.editing(path) or self.failing:
             return
         form, self.state.form, self.state.editing = self.state.form, None, False
         made = self.save(path, form)
-        then = (form or {}).get('then')
+        then = None if 'result' in (form or {}) else (form or {}).get('then')
         if then is not None:
             self.lead(path, then)
             # the screen of the item created, or of none
@@ -618,8 +630,10 @@ class _Scenario:
         add of a calendar or of "add here" of a card) makes an item, which it returns; "add here"
         and any other form (the edit of a card, a custom action) change the item of the card,
         whose values an edit updates when the scenario created it (a list has no item: an action
-        of its toolbar changes none).
+        of its toolbar changes none, nor the form of an action, which runs one of the route set).
         """
+        if of_body(form) and form.get('primitive') != 'custom':
+            return None
         values, custom = self.state.values, form is not None and form.get('primitive') == 'custom'
         if form is not None and not custom and form.get('mode', 'create') == 'create':
             made = _Made(form.get('entity', (self.state.screen or {}).get('entity')), dict(values))
@@ -733,7 +747,8 @@ class _Scenario:
         if not self.state.known:
             return
         self.fields(
-            ((*path, key), value[key]) for key in ('field_readonly', 'field_absent', 'error') if key in value
+            (((*path, key), value[key]) for key in ('field_readonly', 'field_absent', 'error') if key in value),
+            self.state.form if of_body(self.state.form) else None,
         )
         if 'values' in value:
             self.fields(((*path, 'values', name), name) for name in value['values'])

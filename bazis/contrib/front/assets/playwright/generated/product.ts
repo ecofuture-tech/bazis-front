@@ -25,6 +25,9 @@ export const PRODUCT = {
     "public-tasks": {
       route: "/public",
     },
+    "suggest-task": {
+      route: "/suggest",
+    },
     "task-board": {
       route: "/board",
     },

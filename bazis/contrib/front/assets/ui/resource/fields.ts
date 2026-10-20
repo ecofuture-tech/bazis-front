@@ -72,6 +72,10 @@ interface ContractField {
   /** The decimal places of a decimal. */
   readonly places?: number;
   readonly order?: string;
+  /** The JSON:API type of the related resource of a relationship. */
+  readonly relation?: string;
+  /** A to-many relationship. */
+  readonly many?: boolean;
   readonly reverse?: boolean;
 }
 

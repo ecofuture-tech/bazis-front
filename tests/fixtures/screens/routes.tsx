@@ -17,6 +17,9 @@ const HomeScreen = lazyScreen(() => import('@/screens/generated/home').then((mod
 const PublicTasksScreen = lazyScreen(() =>
   import('@/screens/generated/public-tasks').then((module) => module.PublicTasksScreen),
 );
+const SuggestTaskScreen = lazyScreen(() =>
+  import('@/screens/generated/suggest-task').then((module) => module.SuggestTaskScreen),
+);
 const TaskBoardScreen = lazyScreen(() =>
   import('@/screens/generated/task-board').then((module) => module.TaskBoardScreen),
 );
@@ -37,6 +40,7 @@ const TaskListScreen = lazyScreen(() =>
 export const PUBLIC_ROUTES = (
   <>
     <Route path="/public" element={<PublicTasksScreen />} />
+    <Route path="/suggest" element={<SuggestTaskScreen />} />
   </>
 );
 

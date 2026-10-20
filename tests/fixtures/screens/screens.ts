@@ -6,6 +6,7 @@ export const SCREENS = {
   'draft-tasks': '/drafts',
   home: '/',
   'public-tasks': '/public',
+  'suggest-task': '/suggest',
   'task-board': '/board',
   'task-calendar': '/calendar',
   'task-card': '/tasks/:id',

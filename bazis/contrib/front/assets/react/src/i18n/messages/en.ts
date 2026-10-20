@@ -21,6 +21,7 @@
 import type { Messages } from '../translate.js';
 
 export const en: Messages = {
+  'action.again': 'Send another',
   'action.cancel': 'Cancel',
   'action.close': 'Close',
   'action.confirm': 'Run it?',
@@ -104,6 +105,7 @@ export const en: Messages = {
   'form.included_field_error': 'Related item {index}, {field}: {message}',
   'form.save': 'Save',
   'form.saved': 'Saved',
+  'form.send': 'Send',
   'history.by': 'by',
   'history.label': 'Status history',
   'history.since': 'since',

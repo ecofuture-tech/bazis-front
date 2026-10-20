@@ -37,7 +37,7 @@ from typing import NamedTuple
 from ..vendor import lock as frontend_lock
 from ..vendor.registry import load as load_registry
 from .names import camel, component_name, constant_name, pascal
-from .refs import host, is_public, parent, screen_actions
+from .refs import action_form, host, is_public, parent, screen_actions
 from .tsx import (
     SPREAD,
     Arr,
@@ -570,7 +570,7 @@ def custom_action(
     """
     A custom action (`useCustomAction`) at the path of its spec, `<id>Action`, of the items
     (`target` item) or of the route set (`route`, the toolbar of a list), of the item of a card
-    (`item`), its dialog written after the screen; of a bulk action, `<id>Bulk`, without a
+    (`item`), its dialog (with the labels of its fields) written after the screen; of a bulk action, `<id>Bulk`, without a
     dialog (it asks for nothing).
     """
     name = camel(action['id']) + ('Bulk' if bulk else 'Action')
@@ -582,6 +582,8 @@ def custom_action(
         options.append(('item', item))
     if 'fields' in action:
         options.append(('fields', Arr([Str(it) for it in action['fields']])))
+    if 'labels' in action:
+        options.append(('labels', Obj([(name, screen.text(*path, 'labels', name)) for name in action['labels']])))
     for key in ('title', 'description'):
         if (value := screen.text(*path, key)) is not None:
             options.append((key, value))
@@ -1010,10 +1012,18 @@ def calendar_add(screen: Screen, const: Raw, spec: dict) -> Obj:
 
 
 def render_form(product: Product, data: dict) -> str:
-    """A form as a page: the create form of the entity, or the update form of the item of its route, then the screen `then`."""
+    """
+    A form as a page: the create form of the entity, or the update form of the item of its
+    route, then the screen `then`; or the form of a custom action of its route set.
+    """
     screen = Screen(product, data)
     spec = data['form']
     const = screen.entity(data['entity'])
+    form = render_action_form(screen, const, spec) if 'action' in spec else resource_form(screen, const, spec)
+    return screen.write(screen_element(screen, [form], header_actions(screen)))
+
+
+def resource_form(screen: Screen, const: Raw, spec: dict) -> Jsx:
     attrs = [Attr('path', Raw(f'{const.code}.path'))]
     if spec['mode'] == 'update':
         screen.hook('id', "const { id = '' } = useParams();", 'react-router', 'useParams')
@@ -1022,8 +1032,41 @@ def render_form(product: Product, data: dict) -> str:
         attrs.append(Attr('fields', Arr([Str(it) for it in spec['fields']])))
     if 'then' in spec:
         attrs.append(Attr('onSaved', screen.on_saved(spec['then'])))
-    form = component(screen, 'ResourceForm', 'ResourceFormProps', '@/bazis/ui/resource-form', attrs)
-    return screen.write(screen_element(screen, [form], header_actions(screen)))
+    return component(screen, 'ResourceForm', 'ResourceFormProps', '@/bazis/ui/resource-form', attrs)
+
+
+def render_action_form(screen: Screen, const: Raw, spec: dict) -> Jsx:
+    """
+    The form of a custom action of the route set (`ActionForm`): the properties of its body
+    with their labels, its submit, then its result, the message given the answer of the action
+    (`t(key, response)`), with the link to the screen `then`; without a result, the screen
+    `then` once it is done.
+    """
+    attrs = [
+        Attr('path', Raw(f'{const.code}.path')), Attr('action', spec['action']),
+        Attr('fields', Arr([Str(it) for it in spec['fields']])),
+    ]
+    if 'labels' in spec:
+        attrs.append(Attr('labels', Obj([(name, screen.text('form', 'labels', name)) for name in spec['labels']])))
+    if (submit := screen.text('form', 'submit')) is not None:
+        attrs.append(Attr('submitLabel', submit))
+    then = spec.get('then')
+    if 'result' in spec:
+        result = []
+        if (title := screen.text('form', 'result', 'title') or screen.text('title')) is not None:
+            result.append(('title', title))
+        screen.translate('t')
+        key = text_key(screen_prefix(screen.data['id']), screen.data, ('form', 'result', 'message'))
+        message = Call('t', [message_key(spec['result']['message'], key), Raw('response')])
+        result.append(('message', Arrow(['response'], message)))
+        attrs.append(Attr('result', Obj(result)))
+        if then is not None:
+            target = screen.product.screens[then]
+            label = text(target, 'title') or Str(then)
+            attrs.append(Attr('then', Obj([('screen', Str(then)), ('label', label), ('to', screen.route(then))])))
+    elif then is not None:
+        attrs.append(Attr('onDone', Arrow([], screen.go(screen.route(then)))))
+    return component(screen, 'ActionForm', 'ActionFormProps', '@/bazis/ui/screens', attrs)
 
 
 RENDERERS = {
@@ -1167,12 +1210,13 @@ def render_routes(product: Product) -> str:
 def default_navigation(product: Product) -> list[dict]:
     """
     The links without `navigation` in product.yaml: the home, the other dashboards, then of
-    each entity in their order its lists, its boards, its calendars and its reports (a list
-    with a filter); never a screen of an item, a form, or one with `nav: false`.
+    each entity in their order its lists, its boards, its calendars, its reports (a list
+    with a filter) and the forms of its custom actions; never a screen of an item, a form of
+    the items, or one with `nav: false`.
     """
     shown = [
         it for it in sorted(product.screens.values(), key=lambda it: it['id'])
-        if ':' not in it['route'] and it['primitive'] != 'form' and it.get('nav') is not False
+        if ':' not in it['route'] and (it['primitive'] != 'form' or action_form(it) is not None) and it.get('nav') is not False
     ]
     links = [it for it in shown if it['route'] == HOME_ROUTE]
     links += [it for it in shown if it['primitive'] == 'dashboard' and it['route'] != HOME_ROUTE]
@@ -1182,6 +1226,7 @@ def default_navigation(product: Product) -> list[dict]:
         links += [it for it in of if it['primitive'] == 'board']
         links += [it for it in of if it['primitive'] == 'calendar']
         links += [it for it in of if it['primitive'] == 'list' and 'filter' in it['list']]
+        links += [it for it in of if it['primitive'] == 'form']
     return [{'screen': it['id']} for it in links]
 
 
@@ -1207,7 +1252,8 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
     if icon is not None:
         code.use('lucide-react', icon_name(icon))
         props.append(('icon', Raw(icon_name(icon))))
-    if 'entity' in data:
+    # the form of an action reads nothing of its entity: the action is checked by the backend
+    if 'entity' in data and action_form(data) is None:
         code.use('./entities', 'ENTITIES')
         entity = data['entity']
         member = f'.{entity}' if re.fullmatch(r'[A-Za-z_$][\w$]*', entity) else f'[{quote(entity)}]'

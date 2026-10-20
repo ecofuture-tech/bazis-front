@@ -309,7 +309,9 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
     it is an action of an item; `method`; `access_action` as the route declares it (null
     without one); `public`, whether anonymous users may call it (`public=True`, S046);
     `body`, the JSON Schema of its JSON body, standalone (the components it references in its
-    `$defs`), null without one: what the buttons of the specs need (S032).
+    `$defs`), null without one: what the buttons of the specs need (S032); `response`, the
+    JSON Schema of its JSON answer (200) as standalone, null without one: the properties that
+    the result of a form of the specs may show (S053).
     """
     result = {}
     for path, item in openapi.get('paths', {}).items():
@@ -321,7 +323,8 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
             ):
                 continue
             relative = path.removeprefix(collection)
-            body = operation.get('requestBody', {}).get('content', {}).get('application/json', {}).get('schema')
+            body = _json_schema(operation.get('requestBody', {}))
+            response = _json_schema(operation.get('responses', {}).get('200', {}))
             result[meta['action']] = {
                 'name': relative.removeprefix(ITEM_PREFIX).rstrip('/'),
                 'item': relative.startswith(ITEM_PREFIX),
@@ -329,8 +332,14 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 'access_action': meta.get('access_action'),
                 'public': meta['public'],
                 'body': _standalone(openapi, body) if body is not None else None,
+                'response': _standalone(openapi, response) if response is not None else None,
             }
     return result
+
+
+def _json_schema(part: dict) -> dict | None:
+    """The schema of the JSON content of a request body or a response of the OpenAPI, None without one."""
+    return part.get('content', {}).get('application/json', {}).get('schema')
 
 
 def _standalone(openapi: dict, schema: dict) -> dict:

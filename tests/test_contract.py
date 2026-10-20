@@ -100,13 +100,14 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     # the custom actions with the standalone schema of their body, what the buttons of the specs
     # need: of the collection and of an item (which requires the change of the item); not the
     # ids of the list of the core or the transits of bazis-statusy (`NOT_CUSTOM`); whether
-    # anonymous users may call them (`public=True`: `suggest`, the action of the guests)
+    # anonymous users may call them (`public=True`: `suggest`, the action of the guests); the
+    # standalone schema of their JSON answer, whose properties the result of a form shows
     custom = task['custom_actions']
     assert sorted(custom) == ['action_count', 'action_escalate', 'action_suggest']
     assert resources['users.user']['custom_actions'] == {}
     priority = {'enum': ['low', 'normal', 'high'], 'title': 'Priority', 'type': 'string'}
     count = custom['action_count']
-    assert set(count) == {'name', 'item', 'method', 'access_action', 'public', 'body'}
+    assert set(count) == {'name', 'item', 'method', 'access_action', 'public', 'body', 'response'}
     assert {key: count[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
         'name': 'count', 'item': False, 'method': 'post', 'access_action': None, 'public': False,
     }
@@ -121,9 +122,15 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert {key: suggest[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
         'name': 'suggest', 'item': False, 'method': 'post', 'access_action': None, 'public': True,
     }
-    # an action without a body (a GET)
+    assert suggest['response']['properties'] == {'task': {'title': 'Task', 'type': 'string'}}
+    assert escalate['response']['properties'] == {'priority': {'$ref': '#/$defs/Priority'}}
+    assert escalate['response']['$defs'] == {'Priority': priority}
+    # an action without a body (a GET) and without a JSON answer (a file)
     download = resources['bg.task']['custom_actions']['action_download']
-    assert download == {'name': 'download', 'item': True, 'method': 'get', 'access_action': None, 'public': False, 'body': None}
+    assert download == {
+        'name': 'download', 'item': True, 'method': 'get', 'access_action': None, 'public': False, 'body': None,
+        'response': None,
+    }
 
     fields = task['fields']
     assert fields['title'] == {'title': 'Title', 'type': 'string', 'filter': 'title', 'order': 'title'}

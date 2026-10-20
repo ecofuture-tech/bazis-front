@@ -62,7 +62,9 @@ the others, `tests/test_escalate.py`), and the custom action `suggest` open to a
 users (`public=True`, `POST /api/v1/tasks/task/suggest/`, a JSON body `{title}`), which
 creates a task: the action of the public screen `public-tasks` of the anonymous role
 `visitor` of the specs (the permit role `viewer`, `for_anonymous`), whom bazis-permit refuses
-the create route (`tests/test_suggest.py`), the custom actions of the specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
+the create route (`tests/test_suggest.py`), also from the public form of the action
+`suggest-task` (`primitive: form` with `form.action`, its result showing the `task` of the
+answer), the custom actions of the specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
 `card.related` of the card of a task, added there with the task fixed, to a draft only:
 `Step.validate_item`, `tests/test_steps.py`), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
@@ -165,7 +167,9 @@ job of CI.
   Schema of their body, which S032 reads; 7: `public` of the custom actions, open to
   anonymous users, which S046 reads; 8: the format `decimal` of the attributes of a
   `DecimalField`, read from the model, which S049 reads; 9: `places` of those attributes,
-  the `decimal_places` of the model, with which `StatCard` rounds an average).
+  the `decimal_places` of the model, with which `StatCard` rounds an average, and `response`
+  of the custom actions, the standalone JSON Schema of their JSON answer 200, which S053
+  reads).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the

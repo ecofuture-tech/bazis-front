@@ -29,7 +29,7 @@ export const ROUTES = {
 /** The JSON:API type of a resource. */
 export type ResourceType = keyof typeof ROUTES;
 
-/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search), the fields that its create takes and its custom actions with the JSON Schema of their body. */
+/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search), the fields that its create takes and its custom actions with the JSON Schemas of their body and of their answer. */
 export const RESOURCES = {
   "bg.task": {
     actions: {
@@ -46,6 +46,7 @@ export const RESOURCES = {
         method: "get",
         name: "download",
         public: false,
+        response: null,
       },
     },
     fields: {
@@ -240,6 +241,19 @@ export const RESOURCES = {
         method: "post",
         name: "clear",
         public: false,
+        response: {
+          properties: {
+            deleted: {
+              title: "Deleted",
+              type: "integer",
+            },
+          },
+          required: [
+            "deleted",
+          ],
+          title: "ClearResult",
+          type: "object",
+        },
       },
       action_read_all: {
         access_action: null,
@@ -248,6 +262,19 @@ export const RESOURCES = {
         method: "post",
         name: "read_all",
         public: false,
+        response: {
+          properties: {
+            read: {
+              title: "Read",
+              type: "integer",
+            },
+          },
+          required: [
+            "read",
+          ],
+          title: "ReadAllResult",
+          type: "object",
+        },
       },
       action_unread_count: {
         access_action: null,
@@ -256,6 +283,19 @@ export const RESOURCES = {
         method: "get",
         name: "unread_count",
         public: false,
+        response: {
+          properties: {
+            unread_count: {
+              title: "Unread Count",
+              type: "integer",
+            },
+          },
+          required: [
+            "unread_count",
+          ],
+          title: "UnreadCount",
+          type: "object",
+        },
       },
     },
     fields: {
@@ -453,6 +493,20 @@ export const RESOURCES = {
         method: "post",
         name: "count",
         public: false,
+        response: {
+          description: "The task of bazis-bg that counts them (the resource `bg.task`).",
+          properties: {
+            task: {
+              title: "Task",
+              type: "string",
+            },
+          },
+          required: [
+            "task",
+          ],
+          title: "CountStarted",
+          type: "object",
+        },
       },
       action_escalate: {
         access_action: "change",
@@ -482,6 +536,30 @@ export const RESOURCES = {
         method: "post",
         name: "escalate",
         public: false,
+        response: {
+          $defs: {
+            Priority: {
+              enum: [
+                "low",
+                "normal",
+                "high",
+              ],
+              title: "Priority",
+              type: "string",
+            },
+          },
+          description: "The priority of the task after the action.",
+          properties: {
+            priority: {
+              $ref: "#/$defs/Priority",
+            },
+          },
+          required: [
+            "priority",
+          ],
+          title: "Escalated",
+          type: "object",
+        },
       },
       action_suggest: {
         access_action: null,
@@ -505,6 +583,20 @@ export const RESOURCES = {
         method: "post",
         name: "suggest",
         public: true,
+        response: {
+          description: "The task suggested, a draft.",
+          properties: {
+            task: {
+              title: "Task",
+              type: "string",
+            },
+          },
+          required: [
+            "task",
+          ],
+          title: "Suggested",
+          type: "object",
+        },
       },
     },
     fields: {
@@ -636,6 +728,7 @@ export const RESOURCES = {
         method: "get",
         name: "download",
         public: false,
+        response: null,
       },
     },
     fields: {

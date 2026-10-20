@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export { ActionFields } from './action-fields.js';
+export type { ActionFieldsProps } from './action-fields.js';
+export { ActionForm } from './action-form.js';
+export type { ActionFormProps } from './action-form.js';
+export { ActionResult } from './action-result.js';
+export type { ActionResultProps, ActionThen } from './action-result.js';
 export { CreateFormAction, ScreenAction, UpdateFormAction, useDestroyCardAction } from './actions.js';
 export type {
   CreateForm,

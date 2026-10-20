@@ -397,10 +397,12 @@ the items of its entity (a report: filter them by the fields of its `list.filter
 whose route set creates). Its `icon` is a name of lucide
 (D013), by default the icon of its entity (`icons` of theme.yaml), `square-kanban` for a
 board, `calendar-days` for a calendar, `list-filter` for a report, `house` for the home.
-A link opens a screen without an item in its route, not a form, once (S030). The
-generated navigation is made from it (`src/screens/generated/navigation.ts`). Without
-`navigation`: the home, then of each entity in the order of `entities` its list, its
-board, its calendar and its reports, but the screens with `nav: false`.
+A link opens a screen without an item in its route, not a form of the items (the form of a
+custom action is linked, shown to every user of the screen: it requires nothing), once
+(S030). The generated navigation is made from it (`src/screens/generated/navigation.ts`).
+Without `navigation`: the home, then of each entity in the order of `entities` its list, its
+board, its calendar, its reports and the forms of its custom actions, but the screens with
+`nav: false`.
 
 ```yaml
 navigation:
@@ -673,12 +675,13 @@ card:
       add: {id: add-step, fields: [title]}
 ```
 
-A `form` screen has `form: {mode: create | update, fields, then}`. Actions are `form`
+A `form` screen has `form: {mode: create | update, fields, then}`, or `form: {action, fields,
+labels, submit, result, then}` ([The form of a custom action](#the-form-of-a-custom-action)). Actions are `form`
 (`mode: create` on a list, a card, a board or a calendar, `mode: update` on a card) and
 `destroy` (on a card), and `custom` (on a list or a card, see below). The states that a primitive must render are required (S009): list
 `loading, empty, error, forbidden`; card `loading, error, forbidden, not_found`; form
-`loading, error, forbidden, invalid`; dashboard `loading, error`; board and calendar
-`loading, empty, error, forbidden`.
+`loading, error, forbidden, invalid` (and `done` with `form.result`);
+dashboard `loading, error`; board and calendar `loading, empty, error, forbidden`.
 
 #### Custom actions of the specs
 
@@ -691,8 +694,7 @@ each row when its id is in `list.row_actions`; `list.bulk` runs one of an item o
 selected rows (`{id, action, label}`) with an empty body. A route set may have an action of
 an item and one of the route set of the same name (`/{item_id}/export/` and `/export/`): the
 toolbar runs the second, the card, the rows and a bulk action the first. `fields` are the properties of its
-body that its dialog asks for (a property named as a field of the entity takes its title and
-the labels of its choices), `confirm: true` confirms one without fields in a dialog (`title`,
+body that its dialog asks for, `labels` their labels (`{<property>: text}`), `confirm: true` confirms one without fields in a dialog (`title`,
 `description`), `message` is the toast once it is done; the queries of the resource are
 refetched. The button shows when the backend lets the user run it: on a card and in the
 toolbar by `custom_actions` of the meta of bazis-permit, on the rows and in a bulk action
@@ -702,7 +704,7 @@ item runs on its card (S032). On a public screen an action is one declared `publ
 `public` of its `custom_actions` in the contract (S046). A click on a row while its action runs sends nothing; on
 another row it runs beside it. S032 checks it
 against the contract; an action declared with GET reads and belongs to an extension
-(`useActionQuery`), what the contract cannot say (its response shown, a task followed) too:
+(`useActionQuery`), what the contract cannot say (its response in a dialog, a task followed) too:
 
 ```yaml
 actions:
@@ -810,7 +812,7 @@ A screen of an item, a card or an update form, has `:id` in its route (S038): it
 the item there, and every screen opens it with the id of the item; a custom one may find its
 item itself (`/me`, the card of the user). The screen after a form
 or an action (`then`) is a screen without an item, or the card of the saved item (S006); none
-of an item after a deletion. A generated card is headed by the label of its item: its
+of an item after a deletion or an action form. A generated card is headed by the label of its item: its
 `title` is not shown, and not among the texts of the specs. `nav: false` leaves the screen
 out of the navigation generated without `navigation` of product.yaml.
 `card.related[].add.when` is when "add here" is shown: `changeable` (the default, while the
@@ -1108,7 +1110,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
 | `S004` | error | a screen references an unknown entity |
 | `S005` | error | a screen references an unknown role |
-| `S006` | error | a screen references an unknown screen, or one of another primitive, or opens an item in a card without `:id` in its route (a custom card that finds its item itself); a form or an action leads to a screen of an item (`:id` in its route) that is not a card of the saved item, or a deletion to one |
+| `S006` | error | a screen references an unknown screen, or one of another primitive, or opens an item in a card without `:id` in its route (a custom card that finds its item itself); a form or an action leads to a screen of an item (`:id` in its route) that is not a card of the saved item, or a deletion or the form of a custom action, which save none, to one |
 | `S007` | error | a screen references a field that its entity does not declare |
 | `S008` | error | a filter or a sort field cannot be filtered or sorted by in the contract |
 | `S009` | error | a state required by the primitive is missing |
@@ -1132,9 +1134,9 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S027` | warning | a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them (a key of the dictionaries is in all); the frontend shows the text of another language |
 | `S028` | error | a custom screen has no code: the module of `custom` (`frontend/src/screens/<id>/index.tsx` for `custom: true`) is missing, or does not export its component |
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run) |
-| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
+| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, or `can: add` of a resource without a create route |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
-| `S032` | error | a custom action (`primitive: custom`) or a custom bulk action is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
+| `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
 | `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`), or two custom bulk actions of a list |
 | `S034` | error | the add of a calendar creates the item on the selected day, in a field that the create route of its resource does not take (a date that the backend sets, such as that of the creation: the day is lost), or the resource has no create route |
 | `S035` | warning | the buttons of the create forms of a screen cannot be told apart: two create actions (or the add of a calendar) with the same label, or without one (both say `Create`), or a create action of a dashboard without a label |
@@ -1146,13 +1148,16 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S041` | warning | the add of a calendar whose `field` is a date-time, which the create route takes (else S034), lists `fields` without it: the item is created at the start of the selected day (00:00) and the user cannot pick the time. Add the field to `fields` of `add` (or omit `fields`: all the writable fields) |
 | `S042` | error | the add of a calendar has a `time` or a `duration` that it cannot use: `field` (and `end`, for a duration) is not a date-time, the calendar has no `end`, or the form of the add does not send the end (left out of its `fields`, or not taken by the create route). Remove the key, or give the calendar its date-time `end` and the form the field |
 | `S043` | warning | the add of a calendar by date-times shows `end` in its form without `duration`: the form starts with the end empty, which the user fills for every item. Give the add the usual length of an item in minutes (`duration: 30`), which the user may change |
-| `S044` | error | a public screen (an anonymous role in its `roles`) creates, changes or deletes through the routes of the entities, which bazis-permit always refuses to anonymous users: a form (a create or an update action, a form screen, `card.edit`, "add here", the add of a calendar, a create form of a dashboard), a deletion, `list.bulk` or `board.move`. A guest writes through a custom action declared `public=True` (`primitive: custom`) |
+| `S044` | error | a public screen (an anonymous role in its `roles`) creates, changes or deletes through the routes of the entities, which bazis-permit always refuses to anonymous users: a form (a create or an update action, a form screen other than the form of a custom action, `card.edit`, "add here", the add of a calendar, a create form of a dashboard), a deletion, `list.bulk` or `board.move`. A guest writes through a custom action declared `public=True` (`primitive: custom`, or its form: `primitive: form` with `form.action`) |
 | `S045` | error | a public screen leads to a screen that is not public (`open`, `then`, a tile, the last items, a related section), or a card is in the layout of a list (its route continues the route of the list) that is not public when the card is, or public when it is not, or a public card links back to a list that is not public |
-| `S046` | error | a custom action of a public screen (`primitive: custom`) is not declared `public=True` in the contract (`public` of its `custom_actions`): bazis-permit refuses it to anonymous users. Declare it `public=True` (with its throttle) and export the contract again |
+| `S046` | error | a custom action of a public screen (`primitive: custom`, or the action of a form, `form.action`) is not declared `public=True` in the contract (`public` of its `custom_actions`): bazis-permit refuses it to anonymous users. Declare it `public=True` (with its throttle) and export the contract again |
 | `S047` | warning | the product has an anonymous role that no screen lists in its `roles`: the users who do not log in have no screen |
 | `S048` | error | `src/app/router.tsx` routes the generated screens (it imports `@/screens/generated/routes`) without the public ones: it does not import `PUBLIC_ROUTES`, and a user without a session never reaches them (a router of the product changed before 0.4.0). Run `bazis_front update` and take the router of the template, or route `PUBLIC_ROUTES` in its layout outside `RequireSession`, as the template does |
 | `S049` | error | The `value` of a tile or a chart aggregates a field of a type that its function does not take: `sum` and `avg` take a number (`integer`, `number`, a DecimalField: a `string` of the format `decimal` in the contract), `min` and `max` (a tile) also a date. Aggregate a number or a date, or count the items without `value` |
 | `S050` | error | The `value` of a tile or a chart aggregates a field that the route set of the entity does not filter by (no `filter` in the contract): the core aggregates the fields that the filter of the list reaches for the user (400 `ERR_AGGREGATE`). Make the field filtered by in the route set, or show another one |
+| `S052` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the picker of a relationship whose entity an anonymous role of the screen does not view (`access` of the entity in product.yaml, `view` of the role): the picker of a guest is refused (403). Let the role view the related items (`access` and the permit role of the anonymous users), or leave the property out |
+| `S053` | error | the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON. Give the action a `response_model` with it and export the contract again, or show another property |
+| `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1665,9 +1670,10 @@ of the specs and the paths of `ROUTES`.
 | `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (initial) => …}}`: `initial` is an object of the values the create form starts with (`{<field>: day}`, the moment of `time` for a date-time, `end`, the choice of a filter), given as `initial={initial}` to the `ResourceForm` in `FormSurface`, which the user may change; the generated screen passes `onAdd: <form>.onOpenWith` of `CreateFormAction.use()`) |
 | the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
+| `primitive: form` with `form.action` | `ActionForm` of `@/bazis/ui/screens` (`path`, `action`, `fields`, `labels`, `submitLabel`, `result: {title, message: (response) => t(key, response)}`, `then: {screen, label, to}` with a result, else `onDone`) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, titled by `title` of the action, a question, `Delete this item?` by default, and saying its `description`: the deletion runs once confirmed) |
-| an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`path`, `action`, `target`: `route` in the toolbar of a list, else `item`, `item` of a card, `fields`, `confirm`, `message`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
+| an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`path`, `action`, `target`: `route` in the toolbar of a list, else `item`, `item` of a card, `fields`, `labels`, `confirm`, `message`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
 | `states` | the components render them (`state:<state>`); `StatePanel` of `@/bazis/ui/state-panel` for a screen of your own |
 
 ```tsx
@@ -1828,9 +1834,11 @@ public screens (`public: true` of their `NavItem`, a group with its public links
 login. Their screens read only what the backend gives anonymous users (a permit role
 `for_anonymous`; a 401/403 is the `forbidden` state of a screen, never a redirect). A
 guest writes only through a custom action declared `public=True` (S046; its throttle,
-`BAZIS_THROTTLE_PUBLIC`, limits him): bazis-permit refuses every create, change and deletion
-of the routes of the entities to anonymous users, so a public screen has no form, deletion,
-bulk action or move (S044). A public screen leads only to public screens, and a card is in
+`BAZIS_THROTTLE_PUBLIC`, limits him, also every run of its end-to-end test): its dialog, or its
+form as a page of its own, `primitive: form` with `form.action` ([The form of a custom
+action](#the-form-of-a-custom-action)). bazis-permit refuses every create, change and deletion of the routes of the
+entities to anonymous users, so a public screen has no other form, deletion, bulk action or
+move (S044). A public screen leads only to public screens, and a card is in
 the layout of its list when both are public or neither (S045). A product without anonymous
 roles has `PUBLIC_ROUTES` null and the router of before. Registration and the reset of a
 password are not in the packages: a guest who needs an account is given one.
@@ -2268,6 +2276,63 @@ const check = useActionQuery(ROUTES['events.registration'], 'check', { query: co
 {check.data && <p data-bz="field:valid">{check.data.valid ? t('check.valid') : t('check.invalid')}</p>}
 ```
 
+### The fields of the body of a custom action
+
+The fields of the body of an action, in its dialog and in its form, are read from the
+contract (the JSON Schema of the body, `body` of its custom action), whatever the user may
+read: a property named as a relationship of the entity (`relation` of its field in the
+contract) is the picker of its related items, `RelationPicker` for a text (the id of the item)
+and `RelationListPicker` for an array (a to-many one), the related route set searched by its
+search fields (S012, S017); another is a field of its type (a `Decimal` typed with a point or
+a comma; the choices of an enum). Its label is that of `labels`, else the title of the field
+of the entity (in a dialog, of the runtime schema of the list, in the language of the
+interface; else of the contract), else the title of the property of the body. Name the
+properties of the body as the fields of the entity: a relationship is then a picker and a
+title is translated. A property that no field takes (a union, an object, an array of no
+relationship) is typed as JSON (S054, a warning): fill it in the code of the screen. On a
+public screen, the picker of a relationship lists items that the anonymous role views
+(`access` of the related entity in product.yaml, `view` of the role: S052; an entity without
+`access` is left to the backend), else a guest gets 403.
+
+### The form of a custom action
+
+A screen `primitive: form` with `form.action` is the form of a custom action of the route set
+of its `entity` as a page, a screen without an item (no `mode`): a sign-up, a request, a
+suggestion of a guest, without code of its own. `fields` are the properties of the body that
+it asks for (required: those that the body requires among them, S032), `labels` their labels,
+`submit` the label of its button (`Send` by default). Once the action is done, the page shows
+its `result` in place of the form (`state:done`, which `states` lists, S009): its `title`
+(the title of the screen by default) and its `message`, whose `{name}` are the properties of
+the JSON answer of the action (`response` of its custom action in the contract, S053: the
+answer of the action has them, a `response_model`), with a link to the screen `then`
+(`nav:<then>`, labelled by its title) and `action:again`, which shows the form again, empty.
+Without a `result`, the action is done with a toast and the screen `then` is shown; a form of
+an action has one of them. `then` is a screen without an item (the action saves none, S006).
+It reads no runtime schema, only the contract: on a public screen it is the form of a guest,
+whose action is declared `public=True` (S046), and the navigation links it as a list, without
+`requires`. Its scenario fills the properties it asks for (P023) and expects the result:
+
+```yaml
+# spec/screens/suggest-task.yaml
+id: suggest-task
+title: {en: Suggest a task, ru: Предложить задачу}
+route: /suggest
+entity: task
+roles: [visitor]                   # an anonymous role: a public page
+primitive: form
+form:
+  action: suggest                  # POST /api/v1/tasks/task/suggest/, public=True
+  fields: [title, assignee]        # assignee: the picker of the users, whom the guests view (S052)
+  labels: {title: {en: 'What should the team do?', ru: 'Что сделать команде?'}}
+  submit: {en: Suggest, ru: Предложить}
+  result:
+    title: {en: Thank you, ru: Спасибо}
+    message: {en: 'Your task is {task}.', ru: 'Ваша задача: {task}.'}   # {task}: of its answer
+  then: public-tasks
+states: [loading, error, forbidden, invalid, done]
+# product.yaml: steps [{open: suggest-task}, {fill: {title: …}}, {submit: {}}, {expect: {state: done}}]
+```
+
 ### Background work
 
 **Background work**: `TaskProgress` shows a task of bazis-bg whose id the endpoint of the
@@ -2648,7 +2713,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `move: {where, to}` | `move({where, to, created})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>` (confirmed in its dialog when the workflow confirms the transit); waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog), and so is a custom action with `confirm: true`; one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
-  | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form, a refused one by none (the form stays open on its screen) |
+  | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result`, shown on its page: `expect: {state: done}`), a refused one by none (the form stays open on its screen) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog, or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, value)` (`data-value` of `tile:<id>`, a count or an aggregate, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
 
@@ -3789,7 +3854,13 @@ The API of the copies that 0.5.0 changes (bazis 2.17, bazis-statusy 2.13):
 The API of the copies that 0.6.0 changes:
 
 - `contract.json` is of format 9 (`places` of the decimal attributes, their decimal places,
-  with which a tile shows an average): `check` reports `C002` until it is exported again.
+  with which a tile shows an average, and `response` of the custom actions, which S053
+  reads): `check` reports `C002` until it is exported again.
+- The dialog of a custom action reads its fields from the contract (`ActionFields` of
+  `@/bazis/ui/screens`): a property named as a relationship of the entity is a picker. A
+  custom screen of a guest that only sends a custom action may become the form of the action
+  (`primitive: form` with `form.action`, "The form of a custom action"). New issues of
+  `check`: S052, S053 and S054 (a warning).
 - A DecimalField in the forms, and a `Decimal` of a payload or of the body of a custom action,
   is typed on one line with a point or a comma and sent as `"2.5"` (it was a text of several
   lines, the comma refused by the backend); `objectFields` gives such a union the type
@@ -6110,6 +6181,59 @@ The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The co
 
 ### `@/bazis/ui/screens`
 
+#### ActionFields
+
+`ActionFields(props: ActionFieldsProps): (Element | null)[]`: The fields of the properties of the body of a custom action that a dialog or a form asks for.
+
+
+Its props, `ActionFieldsProps`:
+
+- `path: string`: The route set of the entity whose action it is (`ROUTES` of the contract).
+- `body: JsonSchema`: The JSON Schema of the body of the action (`body` of its custom action in the contract).
+- `names: readonly string[]`: The properties of the body that it asks for, in this order.
+- `labels?: Readonly<Record<string, string>> | undefined`: The labels of the specs by property (`labels` of the action), before any other title.
+- `resource?: Fields | undefined`: The fields of a runtime schema of the route set that a screen has read (the list of a dialog): the titles and the labels of the choices of the properties named as its fields, in the language of the interface.
+- `values: Readonly<Record<string, unknown>>`
+- `errors: Readonly<Record<string, readonly string[]>>`
+- `disabled: boolean`
+- `onChange: (name: string, value: unknown) => void`
+
+#### ActionForm
+
+`ActionForm(props: ActionFormProps): Element`: The form of a custom action of the route set of `path` (`POST <path><action>/`).
+
+
+Its props, `ActionFormProps`:
+
+- `path: string`: The route set of the entity (`ROUTES` of the contract).
+- `action: string`: The name of the custom action of the route set in its path, as `custom_actions` of the contract has it.
+- `fields: readonly string[]`: The properties of its body that the form asks for, in this order.
+- `labels?: Readonly<Record<string, string>> | undefined`: The labels of the fields by property, before the titles of the contract.
+- `submitLabel?: ReactNode`: The label of the submit button: `Send` by default.
+- `result?: { title?: ReactNode; message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, given the texts and the numbers of the JSON answer of the action.
+- `then?: ActionThen | undefined`: The screen that the result links to.
+- `onDone?: (() => void) | undefined`: Called once the action is done, without a `result` (after a toast): the screen after it.
+
+#### ActionResult
+
+`ActionResult(props: ActionResultProps): Element`: What a custom action did, in place of its form: `state:done`.
+
+
+Its props, `ActionResultProps`:
+
+- `title: ReactNode`
+- `message: ReactNode`
+- `then?: ActionThen | undefined`: The screen that it links to (`nav:<screen>`).
+- `onAgain: () => void`: Shows the form again, empty (`action:again`).
+
+#### ActionThen
+
+`interface ActionThen`: The screen that the result of an action links to.
+
+- `screen: string`: Its id in the specs: the link is `nav:<screen>`.
+- `label: ReactNode`
+- `to: string`: Its route (`routeTo`).
+
 #### CreateFormAction
 
 `CreateFormAction(props: CreateFormActionProps): Element`: The create form of an action in `FormSurface` (a dialog or a page, as the theme composes the forms), closed when it is saved or cancelled; its state is `CreateFormAction.use()`.
@@ -6208,6 +6332,7 @@ Its props, `UpdateFormActionProps`:
 - `target: 'item' | 'route'`: Whether it is the action of an item (`<path><id>/<action>/`: on a card, the rows and the selected rows of a list) or of the route set (`<path><action>/`: the toolbar of a list); a route set may have both under one name.
 - `item?: string`: The item of a card, whose action it is; none on a list (a row or the selected rows give theirs).
 - `fields?: readonly string[]`: The properties of the body that its dialog asks for, in this order; none by default (an empty body).
+- `labels?: Readonly<Record<string, string>>`: The labels of its fields by property, before their titles (`ActionFields`).
 - `title?: ReactNode`: The title of its dialog: the label by default.
 - `description?: ReactNode`: What its dialog says.
 - `confirm?: boolean`: Whether an action without fields is confirmed in a dialog first.
@@ -6229,6 +6354,9 @@ Its props, `UpdateFormActionProps`:
 
 #### The types and the constants of `@/bazis/ui/screens`
 
+- `ActionFieldsProps`: the props of `ActionFields`, listed with it
+- `ActionFormProps`: the props of `ActionForm`, listed with it
+- `ActionResultProps`: the props of `ActionResult`, listed with it
 - `CreateFormActionProps`: the props of `CreateFormAction`, listed with it
 - `ScreenActionProps`: the props of `ScreenAction`, listed with it
 - `UpdateFormActionProps`: the props of `UpdateFormAction`, listed with it
@@ -6501,5 +6629,5 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `type ScreenId<P extends Product> = keyof P['screens'] & string`: A screen of the specs.
 - `type Values = Readonly<Record<string, string | number | boolean | null>>`: The values of fields by name, scalars as in the specs.
 - `type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>`: The values of the fields of a form by name: a scalar, or the labels of the related items of a to-many relationship (a list, `[]` for none).
-- `type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid'`: The states that the screens render (`state:<state>`).
+- `type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid' | 'done'`: The states that the screens render (`state:<state>`).
 - `LOGIN_ROUTE: "/login"`: The login screen of the template (`LoginForm`), where the router sends a user without a session.

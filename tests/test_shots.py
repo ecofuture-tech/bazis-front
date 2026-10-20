@@ -87,6 +87,8 @@ def test_the_shots_of_the_specs(root):
         ('home', None, 'viewer', None, first),
         # a public screen as its anonymous role, without a session
         ('public-tasks', None, 'visitor', None, every),
+        # the form of a custom action, a screen as the others
+        ('suggest-task', None, 'visitor', None, every),
         ('task-board', None, 'manager', None, every),
         ('task-board', None, 'viewer', None, first),
         ('task-calendar', None, 'manager', None, every),
