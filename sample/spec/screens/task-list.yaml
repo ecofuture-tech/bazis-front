@@ -23,7 +23,7 @@ actions:
   - id: create
     primitive: form
     mode: create
-    fields: [title, assignee, priority, watchers]
+    fields: [title, assignee, priority, watchers, hours]
     then: task-card
     label: {en: New task, ru: Новая задача}
     description: {en: The task is created as a draft., ru: Задача создаётся черновиком.}

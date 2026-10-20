@@ -540,6 +540,79 @@ test.describe('shoot', () => {
     expect(result.issues).toMatchObject([{ code: 'V020', severity: 'error', selector: '[data-bz="screen:task-list"]' }]);
   });
 
+  test('writes V020 when the router sends an anonymous role to the login', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    await serve(page, {
+      '/tasks': `<!doctype html><html><body><script>location.replace('/login')</script></body></html>`,
+      '/login': '<!doctype html><html><body><form><button type="submit" data-bz="action:submit">Log in</button></form></body></html>',
+    });
+    // `visitor` is `anonymous: true`: it does not log in
+    await expect(shoot(page, PRODUCT, { screen: 'task-list', role: 'visitor', mode: 'light', via: null, creates: [], variant: null }, info)).rejects.toThrow();
+    const result = JSON.parse(readFileSync(path.join(directory, 'task-list-visitor-light-1280.json'), 'utf8')) as ShotResult;
+    expect(result.issues).toMatchObject([{ code: 'V020', severity: 'error' }]);
+  });
+
+  test.describe('the login of a role', () => {
+    /** The login screen of the template: its submit posts to the API, its error the status of the answer. */
+    const login = `<!doctype html><html><body><main data-bz="screen:login"><form id="login">
+      <input data-bz="field:username"><input type="password" data-bz="field:password">
+      <button type="submit" data-bz="action:submit">Log in</button></form></main>
+      <script>
+        document.getElementById('login').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const response = await fetch('/api/v1/authing/login/', { method: 'POST' });
+          if (response.ok) document.body.innerHTML = '<button data-bz="action:logout">Log out</button>';
+          else event.target.insertAdjacentHTML('afterbegin', '<p data-bz="state:error">HTTP ' + response.status + '</p>');
+        });
+      </script></body></html>`;
+    const tasks = `<!doctype html><html><body>${screen.replace('tasks', 'Tasks')}</body></html>`;
+
+    /** Answers the posts of the login with these statuses in turn (`proxy`: the empty text of the proxy of the dev server); gives them. */
+    async function logins(page: Page, statuses: readonly (number | 'proxy')[]): Promise<string[]> {
+      const answered: string[] = [];
+      await serve(page, { '/login': login, '/tasks': tasks });
+      await page.route('http://bazis.test/api/v1/authing/login/', async (route) => {
+        const status = statuses[answered.length] ?? 200;
+        answered.push(String(status));
+        await (status === 'proxy'
+          ? route.fulfill({ status: 500, contentType: 'text/plain', body: '' })
+          : route.fulfill({ status, contentType: 'application/json', body: '{}' }));
+      });
+      return answered;
+    }
+
+    test.beforeEach(() => {
+      process.env.E2E_PASSWORD = 'secret';
+    });
+
+    test.afterEach(() => {
+      delete process.env.E2E_PASSWORD;
+    });
+
+    test('writes V001 with the error of a failed login, not V020', async ({ page }, info) => {
+      const directory = info.outputPath('shots');
+      process.env.BAZIS_SHOTS_DIR = directory;
+      const answered = await logins(page, [502]);
+      await expect(shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info)).rejects.toThrow();
+      const result = JSON.parse(readFileSync(path.join(directory, 'task-list-manager-light-1280.json'), 'utf8')) as ShotResult;
+      expect(result).toMatchObject({ retried: false, file: null });
+      expect(result.issues).toMatchObject([{ code: 'V001', severity: 'error', message: 'manager cannot log in: HTTP 502' }]);
+      // a refusal of the backend is not shot again
+      expect(answered).toEqual(['502']);
+    });
+
+    test('logs in again once when the proxy of the dev server did not reach the backend', async ({ page }, info) => {
+      const directory = info.outputPath('shots');
+      process.env.BAZIS_SHOTS_DIR = directory;
+      const answered = await logins(page, ['proxy']);
+      await shoot(page, PRODUCT, { screen: 'task-list', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info);
+      const result = JSON.parse(readFileSync(path.join(directory, 'task-list-manager-light-1280.json'), 'utf8')) as ShotResult;
+      expect(result).toMatchObject({ retried: true, file: 'task-list-manager-light-1280.png', issues: [] });
+      expect(answered).toEqual(['proxy', '200']);
+    });
+  });
+
   test('writes V001 when the screen renders no state', async ({ page }, info) => {
     const directory = info.outputPath('shots');
     process.env.BAZIS_SHOTS_DIR = directory;

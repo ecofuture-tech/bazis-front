@@ -132,6 +132,54 @@ describe('FieldInput', () => {
     expect(onChange).toHaveBeenLastCalledWith(null);
   });
 
+  it('edits a decimal on one line with a point or a comma, and gives its digits with a point', () => {
+    // the value of the field, as a form keeps it
+    function Controlled({ onChange }: { onChange: (value: unknown) => void }) {
+      const [value, setValue] = useState<unknown>('2.50');
+      return (
+        <FieldInput
+          field={attribute('hours', 'string', { format: 'decimal', nullable: true, title: 'Hours' })}
+          value={value}
+          onChange={(next) => {
+            setValue(next);
+            onChange(next);
+          }}
+        />
+      );
+    }
+    const onChange = vi.fn();
+    const { unmount } = renderWithBazis(<Controlled onChange={onChange} />, new Backend(), { language: testLanguages('ru', 'en') });
+    const control = screen.getByTestId<HTMLInputElement>('field:hours');
+    expect([control.tagName, control.type, control.inputMode]).toEqual(['INPUT', 'text', 'decimal']);
+    // with the decimal separator of the language
+    expect(control.value).toBe('2,50');
+    fireEvent.change(control, { target: { value: '2,5' } });
+    expect(onChange).toHaveBeenLastCalledWith('2.5');
+    expect(control.value).toBe('2,5');
+    // the spaces between the thousands are dropped, a point is taken too
+    fireEvent.change(control, { target: { value: '1 234.75' } });
+    expect(onChange).toHaveBeenLastCalledWith('1234.75');
+    // what is not a decimal is not typed
+    fireEvent.change(control, { target: { value: '1234.75a' } });
+    expect(control.value).toBe('1234.75');
+    expect(onChange).toHaveBeenCalledTimes(2);
+    // a minus alone, then nothing: no value
+    fireEvent.change(control, { target: { value: '-' } });
+    expect(onChange).toHaveBeenLastCalledWith(null);
+    expect(control.value).toBe('-');
+    fireEvent.change(control, { target: { value: '' } });
+    expect(onChange).toHaveBeenLastCalledWith(null);
+    unmount();
+
+    // a field that is not nullable has no value without a digit; a number of the backend as its digits
+    const required = vi.fn();
+    renderWithBazis(<FieldInput field={attribute('price', 'string', { format: 'decimal' })} value={3.5} onChange={required} />, new Backend());
+    const price = screen.getByTestId<HTMLInputElement>('field:price');
+    expect(price.value).toBe('3.5');
+    fireEvent.change(price, { target: { value: '' } });
+    expect(required).toHaveBeenLastCalledWith(undefined);
+  });
+
   it('edits a date with the input of the browser, or the control of DatesProvider', () => {
     const onChange = vi.fn();
     const due = attribute('due', 'string', { format: 'date', nullable: true });

@@ -161,6 +161,27 @@ describe('TransitBar', () => {
     });
   });
 
+  it('asks for a decimal of the payload on one line and sends its digits with a point', async () => {
+    // `Decimal` of Pydantic (`gt=0`): a number or a string
+    const payload = {
+      type: 'object',
+      required: ['price'],
+      properties: { price: { anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'string' }], title: 'Price' } },
+    };
+    const server = new Backend()
+      .on('GET', ITEM, { data: resource(ITEM_ID), meta: { state_actions: [action('finish', payload)] } })
+      .on('POST', `${ITEM}transit/`, { data: resource(ITEM_ID) });
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
+    fireEvent.click(await screen.findByTestId('transit:finish'));
+    const price = await screen.findByTestId<HTMLInputElement>('field:price');
+    expect([price.tagName, price.inputMode]).toEqual(['INPUT', 'decimal']);
+    fireEvent.change(price, { target: { value: '2,5' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(server.calls.find((call) => call.method === 'POST')?.body).toEqual({ transit: 'finish', payload: { price: '2.5' } });
+    });
+  });
+
   it('labels a field of the payload with the title of its property, else its name', async () => {
     // the runtime schema of the payload (`state_actions`), in the language of the request
     const payload = { type: 'object', properties: { report: { type: 'string', title: 'Report' }, note: { type: 'string' } } };

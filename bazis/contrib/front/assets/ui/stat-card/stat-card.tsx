@@ -26,7 +26,7 @@ import { aggregateValues, type AggregateValue, type Filter } from '@/bazis/clien
 import type { Tone } from '@/bazis/generated/theme';
 import { formatDate, formatDateTime, formatDecimal, useLanguage, type LanguageContextValue } from '@/bazis/i18n';
 import type { ListPath } from '@/bazis/react';
-import { formatValue, SOFT_TONES, useAnyList, type FieldDisplay } from '@/bazis/ui/resource';
+import { contractFormat, formatValue, SOFT_TONES, useAnyList, type FieldDisplay } from '@/bazis/ui/resource';
 import { queryState, StatePanel } from '@/bazis/ui/state-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -41,10 +41,20 @@ function dataValue(value: AggregateValue | undefined): number | string | undefin
   return Number.isNaN(number) ? value : number;
 }
 
-/** The text of the value of a tile: a number as `display` says (a decimal with its digits, an average rounded), a date. */
+/** A number with these decimal places, its digits rounded exactly (`1.545` → `'1.55'`). */
+function rounded(value: number | string, places: number): string {
+  const digits = { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places };
+  // Intl rounds the decimal of the string itself, never a double (ES2023)
+  return new Intl.NumberFormat('en', digits).format(String(value) as unknown as number);
+}
+
+/**
+ * The text of the value of a tile: a number as `display` says (a decimal with its digits, an
+ * average rounded: to the decimal places of its decimal field, `places`, if it has them), a date.
+ */
 function formatTile(
   value: AggregateValue | undefined,
-  average: boolean,
+  average: { places: number | null } | null,
   language: LanguageContextValue,
   display: FieldDisplay | undefined,
 ): string {
@@ -53,7 +63,7 @@ function formatTile(
   if (typeof shown === 'string') {
     return shown.includes('T') ? formatDateTime(shown, language.language) : formatDate(shown, language.language);
   }
-  const number = average ? shown : value;
+  const number = average === null ? value : average.places === null ? shown : rounded(value, average.places);
   return typeof display === 'object' ? formatValue(undefined, number, language, display) : formatDecimal(number, language.language);
 }
 
@@ -124,7 +134,12 @@ export function StatCard({
       </div>
       <StatePanel inline state={queryState(list)} error={list.error} skeleton={<Skeleton className="h-8 w-16" />}>
         <span className="text-3xl font-semibold tracking-tight tabular-nums">
-          {formatTile(result, func === 'avg', language, field === undefined ? undefined : display[field])}
+          {formatTile(
+            result,
+            func === 'avg' && field !== undefined ? contractFormat(path, field) : null,
+            language,
+            field === undefined ? undefined : display[field],
+          )}
         </span>
       </StatePanel>
       {onOpen && (

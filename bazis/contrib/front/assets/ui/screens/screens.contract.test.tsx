@@ -47,8 +47,8 @@ import { toast } from '@/bazis/ui/state-panel';
 import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 // the contract of the product with the resource of the tests and its custom actions: of an
-// item, which requires its change, its body a priority with a default; of the route set,
-// without a body; `export` of the route set and of an item alike, without a body
+// item, which requires its change, its body a priority with a default and a decimal price; of
+// the route set, without a body; `export` of the route set and of an item alike, without a body
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   const priority = { enum: ['low', 'high'], title: 'Priority', type: 'string' };
@@ -66,7 +66,15 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
             item: true,
             method: 'post',
             access_action: 'change',
-            body: { type: 'object', properties: { priority: { $ref: '#/$defs/Priority', default: 'high' } }, $defs: { Priority: priority } },
+            body: {
+              type: 'object',
+              properties: {
+                priority: { $ref: '#/$defs/Priority', default: 'high' },
+                // `Decimal` of Pydantic: a number or a string
+                price: { anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'string' }, { type: 'null' }], default: null, title: 'Price' },
+              },
+              $defs: { Priority: priority },
+            },
           },
           action_count: { name: 'count', item: false, method: 'post', access_action: null, body: null },
           action_export: { name: 'export', item: false, method: 'post', access_action: null, body: null },
@@ -504,6 +512,21 @@ describe('useCustomAction', () => {
     fireEvent.click(await screen.findByTestId('action:submit'));
     expect((await screen.findByTestId('error:priority')).textContent).toContain('Not a choice');
     expect(screen.getByTestId('action:submit')).toBeTruthy();
+  });
+
+  it('asks for a decimal of the body on one line and sends its digits with a point', async () => {
+    const backend = cardBackend({ crud_actions: ['view'], custom_actions: ['action_escalate'] })
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('POST', `${ITEM}escalate/`, {});
+    renderWithBazis(<EscalatingCard fields={['priority', 'price']} />, backend);
+    fireEvent.click(await screen.findByTestId('action:escalate'));
+    const price = await screen.findByTestId<HTMLInputElement>('field:price');
+    expect([price.tagName, price.inputMode]).toEqual(['INPUT', 'decimal']);
+    fireEvent.change(price, { target: { value: '2,5' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(backend.calls.filter((it) => it.method === 'POST').map((it) => it.body)).toEqual([{ priority: 'high', price: '2.5' }]);
+    });
   });
 
   it('is not shown on a card when the backend does not list it', async () => {

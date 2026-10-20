@@ -29,7 +29,7 @@ import pydoc
 from django.apps import apps
 from django.contrib.gis.db.models import PointField
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import DecimalField
+from django.db.models import DecimalField, Field
 
 from bazis.core.introspect import models_info
 from bazis.core.routes_abstract.jsonapi import JsonapiRouteBase
@@ -162,8 +162,8 @@ def _scope(route_cls) -> QueryScope | None:
 def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, model: str | None) -> dict:
     """
     The attributes and relationships of the resource in the response of the item route
-    (else of the list route): `{name: {title, type[, format] | relation, many[, reverse][,
-    filter][, order]}}`. `title` is the title of the field in the OpenAPI, in the language
+    (else of the list route): `{name: {title, type[, format][, places] | relation, many[,
+    reverse][, filter][, order]}}`. `title` is the title of the field in the OpenAPI, in the language
     of the export: that of the route set (`SchemaField(title=...)`), else the `verbose_name`
     of the model field, else its name (a calculated field without a title).
     `reverse: true` is a relation of the model whose foreign key or many-to-many field is on
@@ -176,7 +176,8 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, mod
     by: 400 `ERR_FILTER`; any field without a scope). A `PointField` of the model is the
     format `point` of its GeoJSON object (`{"type": "Point", "coordinates": [lon, lat]}`), a
     `DecimalField` the format `decimal` of its string (its exact digits), which the aggregates
-    of the core sum as a number.
+    of the core sum as a number, with its `decimal_places` as `places` (an average is shown
+    with them).
     """
     resource = None
     for kind in FIELDS_KINDS:
@@ -191,12 +192,13 @@ def _fields(openapi: dict, operations: list[dict], scope: QueryScope | None, mod
     for name, prop in _resolve(openapi, props.get('attributes', {})).get('properties', {}).items():
         schema = _not_null(openapi, prop)
         fields[name] = {'title': prop['title'], 'type': schema.get('type', 'object')}
+        source = prop.get('filterLabel', name)
         if 'format' in schema:
             fields[name]['format'] = schema['format']
-        elif fields[name]['type'] == 'object' and _is_field(model, prop.get('filterLabel', name), PointField):
+        elif fields[name]['type'] == 'object' and _model_field(model, source, PointField):
             fields[name]['format'] = 'point'
-        elif fields[name]['type'] == 'string' and _is_field(model, prop.get('filterLabel', name), DecimalField):
-            fields[name]['format'] = 'decimal'
+        elif fields[name]['type'] == 'string' and (decimal := _model_field(model, source, DecimalField)):
+            fields[name].update(format='decimal', places=decimal.decimal_places)
         fields[name].update(_labels(prop, scope))
     for name, prop in _resolve(openapi, props.get('relationships', {})).get('properties', {}).items():
         data = _not_null(openapi, _not_null(openapi, prop).get('properties', {}).get('data', {}))
@@ -224,14 +226,15 @@ def label(fields: dict) -> list[str]:
     return []
 
 
-def _is_field(model: str | None, name: str, kind: type) -> bool:
-    """Whether the field of the model of an attribute (its source) is of the class `kind`."""
+def _model_field(model: str | None, name: str, kind: type) -> Field | None:
+    """The field of the model of an attribute (its source) when it is of the class `kind`."""
     if model is None:
-        return False
+        return None
     try:
-        return isinstance(apps.get_model(model)._meta.get_field(name), kind)
+        field = apps.get_model(model)._meta.get_field(name)
     except FieldDoesNotExist:
-        return False
+        return None
+    return field if isinstance(field, kind) else None
 
 
 def _is_reverse(model: str | None, *names: str) -> bool:

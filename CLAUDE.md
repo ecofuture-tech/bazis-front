@@ -48,7 +48,8 @@ the scenario `manager-places-a-task` (`e2e_data` places no point); its `due` is 
 that the create takes, the field of the calendar of the tasks (filtered by the assignee and
 the priority) whose `add` at 09:00 the scenarios run (`e2e_data` creates the task of the
 viewer due now); its `hours` is a `DecimalField` (`type: string` in the spec, the format
-`decimal` in the contract, shown with `display: {unit: h}`), whose sum the home shows in the tile `review-hours` (2.5, the hours that
+`decimal` in the contract, shown with `display: {unit: h}`, typed with the decimal comma by
+the scenario `manager-sets-the-priority`), whose sum the home shows in the tile `review-hours` (2.5, the hours that
 `e2e_data` gives the task of the viewer) and in the chart `hours-by-month` (the aggregates
 of the core); its route set
 has the custom action `count` (`TaskRouteSet.action_count`, `POST /api/v1/tasks/task/count/`,
@@ -142,7 +143,8 @@ job of CI.
   (`stale_files`) and writes them; `contract/openapi.py` is the canonical JSON,
   `contract/resources.py` the resources read from the OpenAPI
   (and, from the model, the `PointField`s: `format: point` of their GeoJSON object, which
-  the OpenAPI gives for every geometry alike).
+  the OpenAPI gives for every geometry alike; the `DecimalField`s: `format: decimal` and
+  `places`).
 - The export is in `LANGUAGE_CODE` whatever the language of the process: `render` reads the
   OpenAPI under `translation.override` (the core builds it per language), and the names of
   the roles, statuses and transits are maps of every language of `LANGUAGES`
@@ -162,7 +164,8 @@ job of CI.
   the list of the core and the transits, `resources.NOT_CUSTOM`) with the standalone JSON
   Schema of their body, which S032 reads; 7: `public` of the custom actions, open to
   anonymous users, which S046 reads; 8: the format `decimal` of the attributes of a
-  `DecimalField`, read from the model, which S049 reads).
+  `DecimalField`, read from the model, which S049 reads; 9: `places` of those attributes,
+  the `decimal_places` of the model, with which `StatCard` rounds an average).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the

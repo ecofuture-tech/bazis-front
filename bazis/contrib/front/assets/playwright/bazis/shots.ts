@@ -45,7 +45,7 @@ export const CODES = {
   V017: ['warning', 'a text cut by an ellipsis to a few characters: its box is narrower than 4 em, too narrow to be read (the item of a narrow day of a calendar, a narrow column)'],
   V018: ['warning', 'a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap'],
   V019: ['error', 'the page loaded again between its check and its screenshot, also when the screen was shot again: the screenshot (a blank page, a page that loads) is not of the screen checked'],
-  V020: ['error', 'the screen was not shot: the router sent the user to the login, the route of the screen needs a session that the role does not have (a screen without an anonymous role in its `roles` shot as one, or a router of the frontend that is not the one of the template)'],
+  V020: ['error', 'the screen was not shot: the router sent a role without a login (nobody, an anonymous role) to the login, the route of the screen needs a session that the role does not have (a screen without an anonymous role in its `roles` shot as one, or a router of the frontend that is not the one of the template)'],
 } as const;
 
 /** A code of the checks of a screenshot. */
@@ -128,9 +128,11 @@ function oneLine(text: string, length = 400): string {
  * checks what it renders (`check`) and what the page did once the user was logged in (`listen`)
  * and takes a screenshot of the whole page; writes the screenshot and its result into the
  * directory of the shots (`shotsDir`). A screen that cannot be reached is the issue V001 of
- * its result (V020 when the router sent the user to the login), and fails the test. When the proxy of the dev server did not reach the backend
- * (`unproxied`, from the login on) or the page loaded again between its check and its
- * screenshot, the screen is shot once again (`retried` of the result), the user still logged in.
+ * its result, a failed login among them (V020 when the router sent a role without a login to
+ * the login), and fails the test. When the proxy of the dev server did not reach the backend
+ * (`unproxied`, from the login on: a failed login too) or the page loaded again between its
+ * check and its screenshot, the screen is shot once again (`retried` of the result), the user
+ * still logged in.
  */
 export async function shoot<P extends Product>(page: Page, product: P, shot: Shot<P>, info: TestInfo): Promise<void> {
   const width = page.viewportSize()?.width ?? 0;
@@ -178,8 +180,9 @@ export async function shoot<P extends Product>(page: Page, product: P, shot: Sho
       } catch (error) {
         if (unreached > before && !retried) continue;
         const message = oneLine(error instanceof Error ? error.message : String(error));
-        // on the login: the route of the screen needs a session (V020), not a failure of the run
-        const code = new URL(page.url()).pathname === LOGIN_ROUTE ? 'V020' : 'V001';
+        // a role without a login on the login: the route of the screen needs a session (V020),
+        // not a failure of the run; a role that logs in and stays there failed its login (V001)
+        const code = !logsIn(product, shot) && new URL(page.url()).pathname === LOGIN_ROUTE ? 'V020' : 'V001';
         const issue: ShotIssue = { code, severity: CODES[code][0], selector: bz('screen', shot.screen), message };
         write({ ...base, retried, file: null, issues: [issue, ...heard.issues()] });
         throw error;
@@ -191,6 +194,11 @@ export async function shoot<P extends Product>(page: Page, product: P, shot: Sho
   } finally {
     page.off('response', proxy);
   }
+}
+
+/** Whether the shot logs in: its role is not anonymous (`anonymous` of the role) or nobody. */
+function logsIn<P extends Product>(product: P, shot: Shot<P>): boolean {
+  return shot.role !== null && product.roles[shot.role]?.anonymous !== true;
 }
 
 /** Logs in as the test user of the role of a shot, or opens the pages without a login. */

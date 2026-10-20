@@ -64,13 +64,24 @@ export interface Fields {
   has: (name: string) => boolean;
 }
 
+/** A field of a resource of the contract. */
+interface ContractField {
+  readonly title?: string;
+  /** The format of an attribute (`decimal`, `point`, ...), read from the model where the OpenAPI has none. */
+  readonly format?: string;
+  /** The decimal places of a decimal. */
+  readonly places?: number;
+  readonly order?: string;
+  readonly reverse?: boolean;
+}
+
 /**
  * A resource of the contract (`RESOURCES`), read as plain records: the contract of a product
  * without resources is empty.
  */
 interface ContractResource {
   readonly path: string;
-  readonly fields: Readonly<Record<string, { readonly title?: string; readonly order?: string; readonly reverse?: boolean }>>;
+  readonly fields: Readonly<Record<string, ContractField>>;
   /** The attributes that label an item (none: its id). */
   readonly label?: readonly string[];
   readonly search?: readonly string[];
@@ -130,6 +141,16 @@ function readable(title: string, name: string): string {
  */
 export function fieldTitle(path: string, name: string, title?: string): string {
   return readable(title ?? resourceAt(path)?.fields[name]?.title ?? name, name);
+}
+
+/**
+ * The format of an attribute of the route set of `path` in the contract, read from the model
+ * where the runtime schemas may have none (`decimal` of a `DecimalField`, `point`), and the
+ * decimal places of a decimal (`places`); nulls for a field that the contract does not have.
+ */
+export function contractFormat(path: string, name: string): { format: string | null; places: number | null } {
+  const field = resourceAt(path)?.fields[name];
+  return { format: field?.format ?? null, places: field?.places ?? null };
 }
 
 function fieldsOf(path: string, query: { data?: JsonSchema | undefined; isPending: boolean }): Fields {

@@ -28,8 +28,8 @@ import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
 import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
 
 // the contract of the product with the resource of the tests, whose `children` is a reverse
-// relationship (the foreign key on the related model) and whose `plan` is a field that the
-// backend sets itself (not in the create schema)
+// relationship (the foreign key on the related model), whose `plan` is a field that the
+// backend sets itself (not in the create schema) and whose `hours` is a decimal of the model
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   return {
@@ -38,7 +38,11 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
       ...contract.RESOURCES,
       'test.item': {
         path: '/api/test/item/',
-        fields: { children: { relation: 'test.unknown', many: true, reverse: true }, plan: { title: 'Plan of the item' } },
+        fields: {
+          children: { relation: 'test.unknown', many: true, reverse: true },
+          plan: { title: 'Plan of the item' },
+          hours: { title: 'Hours', type: 'string', format: 'decimal', places: 1 },
+        },
         search: [],
       },
     },
@@ -182,6 +186,25 @@ describe('ResourceForm', () => {
     });
     expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
       data: { type: 'test.item', attributes: { location: { type: 'Point', coordinates: [37.62, 55.75] } }, relationships: {} },
+    });
+  });
+
+  it('edits a decimal of the model on one line, its format of the contract, and sends its digits', async () => {
+    // a runtime schema that gives the decimal as a string without a format
+    const timed = runtimeSchema({ hours: { attribute: { anyOf: [{ type: 'string' }, { type: 'null' }], nullable: true, title: 'Hours' } } });
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, timed)
+      .on('POST', ITEMS, { data: resource(ITEM_ID) }, 201);
+    renderWithBazis(<ResourceForm path={ITEMS as never} />, backend);
+    const hours = await screen.findByTestId<HTMLInputElement>('field:hours');
+    expect([hours.tagName, hours.inputMode]).toEqual(['INPUT', 'decimal']);
+    fireEvent.change(hours, { target: { value: '2,5' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEMS}`]);
+    });
+    expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
+      data: { type: 'test.item', attributes: { hours: '2.5' }, relationships: {} },
     });
   });
 

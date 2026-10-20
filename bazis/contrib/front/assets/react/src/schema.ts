@@ -97,12 +97,31 @@ function isEmptyString(node: Node): boolean {
   return node.type === 'string' && node.maxLength === 0;
 }
 
+/** A member of a union that is only a type: no format, no choices. */
+function isPlain(node: Node, type: string): boolean {
+  return node.type === type && node.format === undefined && node.enum === undefined && node.const === undefined;
+}
+
+/**
+ * The decimal of a union of a number and a string (`Decimal` of Pydantic: `anyOf: [{type:
+ * 'number'}, {type: 'string'}]`, the payload of a transit, the body of a custom action): a
+ * string of the format `decimal`, with the bounds of the number; undefined for another union.
+ */
+function decimal(members: readonly Node[]): Node | undefined {
+  const number = members.find((member) => isPlain(member, 'number'));
+  const string = members.find((member) => isPlain(member, 'string'));
+  if (members.length !== 2 || number === undefined || string === undefined) return undefined;
+  const bounds = ['minimum', 'exclusiveMinimum', 'maximum', 'exclusiveMaximum'].filter((key) => key in number);
+  return { ...string, ...Object.fromEntries(bounds.map((key) => [key, number[key]])), format: 'decimal' };
+}
+
 /**
  * `anyOf: [X, {type: 'null'}]` as X, and whether null is allowed. Alternatives that are all
  * strings, one of them only the empty string (the URL and the empty string of a `URLField`:
  * `{type: 'string', format: 'uri'}`, `{type: 'string', maxLength: 0}`), are the first one
- * that is not only the empty string, the empty string allowed (`blank`); other unions (a
- * decimal, two enums, a string or a UUID) stay unions.
+ * that is not only the empty string, the empty string allowed (`blank`); a number and a
+ * string without a format or choices are a decimal (`decimal`); other unions (two enums, a
+ * string or a UUID) stay unions.
  */
 function withoutNull(value: unknown, root: JsonSchema): { node: Node; nullable: boolean; blank: boolean } {
   const node = resolve(value, root);
@@ -114,7 +133,11 @@ function withoutNull(value: unknown, root: JsonSchema): { node: Node; nullable: 
     // enums, a string or a UUID) stay unions
     const strings =
       others.length > 1 && others.every((member) => member.type === 'string') && others.some(isEmptyString);
-    const main = strings ? (others.find((member) => !isEmptyString(member)) ?? others[0]) : others.length === 1 ? others[0] : undefined;
+    const main = strings
+      ? (others.find((member) => !isEmptyString(member)) ?? others[0])
+      : others.length === 1
+        ? others[0]
+        : decimal(others);
     if (main) {
       return {
         node: { ...main, ...siblings },

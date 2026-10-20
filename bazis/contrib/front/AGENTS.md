@@ -420,7 +420,8 @@ navigation:
 `point`, `file`) or `relation` (the id of an entity) and `many`. A `DecimalField` (a sum,
 a price) is a `string` of its exact digits in the API and in the contract
 (`"45000.10"`): declare it `string` (`number` is P013), and show it with `formatDecimal`
-(see [The language](#the-language)). A `point` is a
+(see [The language](#the-language)); the forms type it on one line, `2,5` and `2.5` alike,
+and send `2.5`. A `point` is a
 `PointField` of the model (`format: point` of the contract; `json` is another object: a
 point field declared `json` is P013, declare it `point`). A `file` is a to-one
 relationship to a resource of the uploaded files of bazis-uploadable (`resources` of the
@@ -888,7 +889,8 @@ The `label` of a part is a key of the dictionaries of the frontend or a text. A 
 the items of its entity with its `filter` (as `list.filter`: S008, S014), or shows the
 aggregate of its `value` over them: `{sum: <field>}`, `{avg: …}` of a number, `{min: …}`,
 `{max: …}` of a number or a date (S049), formatted by the `display` of the field (a sum in a
-`currency`, a quantity in a `unit`); `open` is a list
+`currency`, a quantity in a `unit`; an average of a DecimalField with its decimal places,
+`places` of the contract), and takes the whole row of a phone (a count half of it); `open` is a list
 of the entity, that of a row of the last items a card of it (S006). **A tile, a chart and
 the last items are shown to the users whom the backend lets view their entity**
 (`useCan(path, 'view')`, `Viewable` of the dashboard): one dashboard serves every role of the
@@ -1436,7 +1438,8 @@ differ from the backend; `--check` does the same in CI.
   of the field in the OpenAPI in `LANGUAGE_CODE` (that of the route set, else the
   `verbose_name` of the model field, else the name of the field: S018), `type` (and
   `format`) of an attribute (`format: point` for a `PointField` of the model, whose GeoJSON
-  object is that of any geometry), `relation` (the JSON:API type) and `many` of a
+  object is that of any geometry, `format: decimal` and `places`, its decimal places, for a
+  `DecimalField`), `relation` (the JSON:API type) and `many` of a
   relationship, and `reverse: true` for one whose foreign key or many-to-many field is on
   the related model (the steps of a task, the tasks a user watches by the `related_name`):
   written in a create or an update, the core sets it to the items sent and deletes the
@@ -2908,7 +2911,7 @@ with the number of the small controls and the first five of them.
 | `V017` | warning | a text cut by an ellipsis to a few characters, its box narrower than 4 em: the item of a narrow day of a calendar, a narrow column; give it the width of a line of its own or let it wrap |
 | `V018` | warning | a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap; let them wrap (`whitespace-normal wrap-anywhere` with a `min-w-*` and the same `max-w-*`, so that a long text does not narrow the columns of short words either) |
 | `V019` | error | the page loaded again between its check and its screenshot, also when the screen was shot again: the screenshot (a blank page, a page that loads) is not of the screen checked; the dev server reloads the pages (a dependency optimized late by a running frontend of `E2E_BASE_URL`, a file of the frontend changed during the run): take the screenshots again |
-| `V020` | error | the screen was not shot: the router sent the user to the login, the route of the screen needs a session that the role does not have. An anonymous role shoots only public screens; a frontend whose `src/app/router.tsx` is its own (from before 0.4.0) routes no public screen: take the router of the template |
+| `V020` | error | the screen was not shot: the router sent a role without a login (nobody, an anonymous role) to the login, the route of the screen needs a session that the role does not have. An anonymous role shoots only public screens; a frontend whose `src/app/router.tsx` is its own (from before 0.4.0) routes no public screen: take the router of the template. A role with a `test_user` whose login fails is V001 with the error of the login |
 
 ### The checklist of the screenshots
 
@@ -3107,7 +3110,10 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
   `setValue` sets, and are sent when they differ from the initial ones. A form of your own
   renders each field with `FieldInput` of `@/bazis/ui/resource` (the control by the type,
   the choices by their labels, the picker of a relationship or of the items of a to-many
-  one, its errors), as `ResourceForm` does.
+  one, its errors), as `ResourceForm` does. A DecimalField (`format: decimal` of the
+  contract, which `ResourceForm` gives a field whose runtime schema has no format:
+  `contractFormat`) is typed on one line with a point or a comma, `2,5` and `2.5` alike, and
+  sent as its digits with a point, `"2.5"`.
   The form shows the errors of a 422 by field from `errors` and any other error from
   `submitError`; the fields the user may not change now are `readOnly` in `schema_update`
   (shown disabled) and are never sent, and those the field permissions disable are not in
@@ -3123,7 +3129,9 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
   `meta: ['for_transit']` of the list (bazis-statusy 2.13: `{<id>: [<transit>]}`, their ids
   only, without the validators), read by the boards. `useTransit(path, id)` runs
   one: it resolves to the item, or to null when the user can no longer view it (leave its
-  screen).
+  screen). A `Decimal` of the payload (or of the body of a custom action), a number or a
+  string in its JSON Schema, is a field of the format `decimal` (`objectFields`): typed as a
+  DecimalField, `2,5` and `2.5` alike, sent as `"2.5"`.
 
 ### The uploads and the downloads (bazis-uploadable, bazis-bg)
 
@@ -3777,6 +3785,17 @@ The API of the copies that 0.5.0 changes (bazis 2.17, bazis-statusy 2.13):
   the message `board.no_moves` is no longer used.
 - New errors of `check`: the `value` of a tile or a chart of a field that its function does
   not take (S049) or that the route set does not filter by (S050).
+
+The API of the copies that 0.6.0 changes:
+
+- `contract.json` is of format 9 (`places` of the decimal attributes, their decimal places,
+  with which a tile shows an average): `check` reports `C002` until it is exported again.
+- A DecimalField in the forms, and a `Decimal` of a payload or of the body of a custom action,
+  is typed on one line with a point or a comma and sent as `"2.5"` (it was a text of several
+  lines, the comma refused by the backend); `objectFields` gives such a union the type
+  `string` and the format `decimal`. A tile of a `value` takes the whole row of a phone.
+- `shots` reports V020 only for a role without a login; the failed login of a role with a
+  `test_user` is V001 with its error.
 
 ## API: the client
 
@@ -5375,7 +5394,7 @@ Its props, `DateInputProps`:
 
 #### FieldInput
 
-`FieldInput(props: FieldInputProps): Element`: A field of a runtime schema with its label and its errors: the control by the type, format and choices of an attribute (a select of the labels of the choices), the coordinates of a point field of the route set `path` (`PointInput`, with the map of `MapProvider`), the picker of the related item of a to-one relationship (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the upload of a file field (the control of `FilesProvider`, `FileField` of file-field); read-only when the user may not change it.
+`FieldInput(props: FieldInputProps): Element`: A field of a runtime schema with its label and its errors: the control by the type, format and choices of an attribute (a select of the labels of the choices, a decimal typed with a point or a comma and given as its digits with a point, `'2.5'`), the coordinates of a point field of the route set `path` (`PointInput`, with the map of `MapProvider`), the picker of the related item of a to-one relationship (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the upload of a file field (the control of `FilesProvider`, `FileField` of file-field); read-only when the user may not change it.
 
 
 Its props, `FieldInputProps`:
@@ -5419,6 +5438,10 @@ Its props, `ItemValueProps`:
 #### choiceOptions
 
 `choiceOptions(field: FormField | undefined): { value: string; label: string; }[] | null`: The choices of an attribute with choices as options (the value as text, the label of `enumDict`, else the value), in their order; null for another field.
+
+#### contractFormat
+
+`contractFormat(path: string, name: string): { format: string | null; places: number | null; }`: The format of an attribute of the route set of `path` in the contract, read from the model where the runtime schemas may have none (`decimal` of a `DecimalField`, `point`), and the decimal places of a decimal (`places`); nulls for a field that the contract does not have.
 
 #### customActionAt
 

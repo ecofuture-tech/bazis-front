@@ -54,11 +54,11 @@ describe('resourceSchema', () => {
           nullable: true, type: 'string', format: 'date-time', enum: null, labels: null, blank: false,
           schema: expect.objectContaining({ default: null }) as unknown,
         },
-        // a nullable DecimalField: a number or its digits written, no single type
+        // a nullable DecimalField: a number or its digits written, a decimal
         {
           kind: 'attribute', name: 'hours', title: 'Hours', required: false, readOnly: false,
-          nullable: true, type: null, format: null, enum: null, labels: null, blank: false,
-          schema: expect.objectContaining({ anyOf: [{ type: 'number' }, { type: 'string' }, { type: 'null' }] }) as unknown,
+          nullable: true, type: 'string', format: 'decimal', enum: null, labels: null, blank: false,
+          schema: expect.objectContaining({ type: 'string', format: 'decimal' }) as unknown,
         },
         // the initial status, which bazis-statusy accepts on a create
         {
@@ -196,7 +196,7 @@ describe('resourceSchema', () => {
 
   it('reads a URL field: the URL, the empty string allowed', () => {
     // a `URLField` of the core (bazis 2.16): the URL or the empty string (`blank=True`), the
-    // null of a nullable one; a decimal (a number or a string) stays a union
+    // null of a nullable one; a decimal (a number or a string) is not a URL
     const url = (nullable: boolean) => ({
       anyOf: [
         { type: 'string', format: 'uri', minLength: 1, maxLength: 200 },
@@ -230,9 +230,30 @@ describe('resourceSchema', () => {
     expect(site?.kind === 'attribute' && site.schema).toMatchObject({ maxLength: 200, minLength: 1 });
     expect(link).toMatchObject({ type: 'string', format: 'uri', nullable: true, blank: true });
     expect(only).toMatchObject({ type: 'string', format: 'uri', nullable: true, blank: false });
-    expect(price).toMatchObject({ type: null, format: null, blank: false });
+    expect(price).toMatchObject({ type: 'string', format: 'decimal', blank: false });
     expect(kind).toMatchObject({ type: null, enum: null, blank: false });
     expect(ref).toMatchObject({ type: null, format: null, nullable: false, blank: false });
+  });
+
+  it('reads a decimal: a number or a string, with the bounds of the number', () => {
+    // `Decimal` of Pydantic (the payload of a transit, the body of a custom action): `gt=0`,
+    // nullable; the other unions of a number and a string stay unions
+    const fields = objectFields({
+      properties: {
+        price: { anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'string' }], title: 'Price' },
+        hours: { anyOf: [{ type: 'number', minimum: 0, maximum: 24 }, { type: 'string' }, { type: 'null' }], default: null },
+        code: { anyOf: [{ type: 'number' }, { type: 'string', format: 'uuid' }] },
+        level: { anyOf: [{ type: 'number', enum: [1, 2] }, { type: 'string' }] },
+        size: { anyOf: [{ type: 'number' }, { type: 'string' }, { type: 'integer' }] },
+      },
+      required: ['price'],
+    });
+    const [price, hours, ...others] = fields;
+    expect(price).toMatchObject({ type: 'string', format: 'decimal', nullable: false, required: true, title: 'Price' });
+    expect(price?.schema).toEqual({ type: 'string', format: 'decimal', exclusiveMinimum: 0, title: 'Price' });
+    expect(hours).toMatchObject({ type: 'string', format: 'decimal', nullable: true });
+    expect(hours?.schema).toEqual({ type: 'string', format: 'decimal', minimum: 0, maximum: 24, default: null });
+    expect(others.map((it) => [it.type, it.format])).toEqual([[null, null], [null, null], [null, null]]);
   });
 
   it('reads no fields from what is not a resource schema', () => {

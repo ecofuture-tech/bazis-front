@@ -97,7 +97,9 @@ of a combination of the groups of the field permissions of the user: the schema 
 items leave out the fields the user may not see; the schemas of an item (`retrieve`,
 `update`) are those of the user for this item.
 `objectFields(schema)` reads the properties of the JSON Schema of an object as attributes,
-such as the payload of a transit. The types of the paths of the hooks are exported:
+such as the payload of a transit. A union of a number and a string without a format or
+choices (`Decimal` of Pydantic, nullable or not) is an attribute of the type `string` and
+the format `decimal`, with the bounds of the number; the other unions keep no type. The types of the paths of the hooks are exported:
 `ListPath`, `ItemPath`, `CreatePath`, `UpdatePath` (and `TransitPath` of `statusy`,
 `UploadPath` of `uploadable`). `useRelatedItem` compares the ids as strings: the id of an
 item of a model with an integer primary key is a number in the documents of the core, a

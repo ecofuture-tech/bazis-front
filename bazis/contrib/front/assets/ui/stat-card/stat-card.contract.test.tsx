@@ -21,9 +21,22 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type * as Contract from '@/bazis/generated/contract';
+
 import { Filter } from '@/bazis/client';
 import { StatCard } from '@/bazis/ui/stat-card';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
+
+// the contract of the product with the resource of the tests, whose `hours` and `price` are
+// decimals of two decimal places (`places`)
+vi.mock('@/bazis/generated/contract', async (importOriginal) => {
+  const contract = await importOriginal<typeof Contract>();
+  const decimal = { type: 'string', format: 'decimal', places: 2 };
+  return {
+    ...contract,
+    RESOURCES: { ...contract.RESOURCES, 'test.item': { path: '/api/test/item/', fields: { hours: decimal, price: decimal }, search: [] } },
+  };
+});
 
 /** A list of one item with the aggregates of its items (`meta.aggregates` without a group). */
 const totals = (values: Readonly<Record<string, unknown>>) => listDocument([resource('a')], { meta: { aggregates: values } });
@@ -92,6 +105,23 @@ describe('StatCard', () => {
     );
     expect((await within(screen.getByTestId('tile:none')).findByTestId('state:loaded')).textContent).toBe('—');
     expect(screen.getByTestId('tile:none').getAttribute('data-value')).toBeNull();
+  });
+
+  it('rounds an average of a decimal to its decimal places (`places` of the contract)', async () => {
+    const hours = renderWithBazis(
+      <StatCard id="hours" path={ITEMS as never} label="Hours" value={{ avg: 'hours' }} display={{ hours: { unit: 'h' } }} />,
+      new Backend().on('GET', ITEMS, totals({ 'avg(hours)': '1.5450000000000000' })),
+    );
+    expect((await within(screen.getByTestId('tile:hours')).findByTestId('state:loaded')).textContent).toBe('1.55 h');
+    // the number of the backend
+    expect(screen.getByTestId('tile:hours').getAttribute('data-value')).toBe('1.545');
+    hours.unmount();
+
+    renderWithBazis(
+      <StatCard id="price" path={ITEMS as never} label="Price" value={{ avg: 'price' }} />,
+      new Backend().on('GET', ITEMS, totals({ 'avg(price)': 1872.7 })),
+    );
+    expect((await within(screen.getByTestId('tile:price')).findByTestId('state:loaded')).textContent).toBe('1872.70');
   });
 
   it('shows the error of an aggregate that the backend refuses', async () => {

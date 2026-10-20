@@ -269,6 +269,7 @@
       },
       "files": [
         "dates.tsx",
+        "decimals.tsx",
         "field-input.tsx",
         "field-value.tsx",
         "fields.ts",

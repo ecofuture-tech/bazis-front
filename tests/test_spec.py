@@ -581,7 +581,7 @@ CASES = [
     (
         'S007',
         {CARD: lambda d: d['card']['sections'][0]['fields'].append('rank')},
-        [('S007', f'{CARD}#/card/sections/0/fields/7')],
+        [('S007', f'{CARD}#/card/sections/0/fields/8')],
     ),
     (
         'S008',

@@ -86,6 +86,26 @@ describe('Dashboard', () => {
     expect(screen.getByTestId('chart:by-status')).toBeTruthy();
   });
 
+  it('gives a tile of an aggregate of a field the row of a phone, a count half of it', async () => {
+    renderWithBazis(
+      <Dashboard
+        hero={false}
+        tiles={[
+          { id: 'all', path: ITEMS as never, label: 'All' },
+          { id: 'paid', path: ITEMS as never, label: 'Paid', value: { sum: 'amount' }, className: 'xl:col-span-2' },
+        ]}
+      />,
+      new Backend().on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 4, 'sum(amount)': '20600.00' } } })),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('tile:paid').getAttribute('data-value')).toBe('20600');
+    });
+    // a sum is not cut in a column of a phone; the class of the tile is kept
+    expect(screen.getByTestId('tile:paid').classList).toContain('max-sm:col-span-2');
+    expect(screen.getByTestId('tile:paid').classList).toContain('xl:col-span-2');
+    expect(screen.getByTestId('tile:all').classList).not.toContain('max-sm:col-span-2');
+  });
+
   it('links the other screens of the navigation, each once the backend allows it', async () => {
     const links = [
       { screen: 'home', label: 'Home', to: '/', end: true },

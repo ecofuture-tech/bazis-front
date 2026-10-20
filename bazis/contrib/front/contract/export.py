@@ -38,8 +38,9 @@ from .resources import resources
 #: the titles of the fields, `title`, and the attributes that label the items of a
 #: resource, `label`; 6: the fields that the create route of a resource takes, `create`,
 #: and its custom actions, `custom_actions`; 7: whether a custom action is open to anonymous
-#: users, `public`; 8: the format `decimal` of the attributes of a `DecimalField`
-CONTRACT_FORMAT = 8
+#: users, `public`; 8: the format `decimal` of the attributes of a `DecimalField`; 9: the
+#: decimal places of such an attribute, `places`
+CONTRACT_FORMAT = 9
 
 #: the directory of the contract in the product root
 CONTRACT_DIR = 'contract'

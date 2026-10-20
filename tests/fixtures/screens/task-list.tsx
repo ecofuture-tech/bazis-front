@@ -95,7 +95,7 @@ export function TaskListScreen() {
       <CreateFormAction
         {...createForm}
         path={TASK.path}
-        fields={['title', 'assignee', 'priority', 'watchers']}
+        fields={['title', 'assignee', 'priority', 'watchers', 'hours']}
         title={t('screens.task-list.actions.create.label')}
         description={t('screens.task-list.actions.create.description')}
         onSaved={(saved) => void navigate(routeTo('task-card', saved.data.id))}

@@ -241,7 +241,8 @@ export function Dashboard({
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {tiles.map((it) => (
               <Viewable key={it.id} path={it.path}>
-                <StatCard {...it} />
+                {/* a sum or an average takes the row of a phone: two columns of it cut a sum */}
+                <StatCard {...it} className={cn(it.value && 'max-sm:col-span-2', it.className)} />
               </Viewable>
             ))}
           </div>

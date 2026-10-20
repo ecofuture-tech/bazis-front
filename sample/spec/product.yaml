@@ -175,15 +175,17 @@ scenarios:
       - open: draft-tasks                                # a report: the tasks in `draft`
       - open_item: {where: {title: Review the plan}}     # created by `manage.py e2e_data`
       - expect: {screen: task-card, status: draft}
-  # a choice is filled, shown and found in the list by its label (`enumDict` of the backend)
+  # a choice is filled, shown and found in the list by its label (`enumDict` of the backend);
+  # a decimal typed with the decimal comma, sent and shown with the point of English (the
+  # language of the browser of the tests)
   - id: manager-sets-the-priority
     role: manager
     steps:
       - open: task-list
       - action: create
-      - fill: {title: Ship the release, priority: High}
+      - fill: {title: Ship the release, priority: High, hours: '2,5'}
       - submit: {}
-      - expect: {screen: task-card, values: {priority: High}}
+      - expect: {screen: task-card, values: {priority: High, hours: '2.5'}}
       - open: task-list
       - open_item: {where: {title: Ship the release, priority: High}}
       - expect: {screen: task-card, status: draft}

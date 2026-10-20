@@ -25,6 +25,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils';
 
 import { DateInput } from './dates.js';
+import { DecimalInput } from './decimals.js';
 import { fromLocalDateTime, toLocalDateTime } from './fields.js';
 import { isFile, useFiles, type ControlProps } from './files.js';
 import { text } from './hooks.js';
@@ -149,6 +150,9 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
   }
   if (field.type === 'string') {
     const current = typeof value === 'string' ? value : '';
+    if (field.format === 'decimal') {
+      return <DecimalInput field={field} value={value} onChange={onChange} disabled={disabled} control={control} />;
+    }
     if (field.format === 'date-time') {
       return (
         <Input
@@ -219,7 +223,8 @@ function noBusy(): void {
 
 /**
  * A field of a runtime schema with its label and its errors: the control by the type,
- * format and choices of an attribute (a select of the labels of the choices), the
+ * format and choices of an attribute (a select of the labels of the choices, a decimal
+ * typed with a point or a comma and given as its digits with a point, `'2.5'`), the
  * coordinates of a point field of the route set `path` (`PointInput`, with the map of
  * `MapProvider`), the picker of the related item of a to-one relationship
  * (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the

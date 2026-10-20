@@ -50,7 +50,10 @@ export function TaskCardScreen() {
         path={TASK.path}
         id={id}
         sections={[
-          { id: 'main', fields: ['title', 'status', 'assignee', 'watchers', 'attachment', 'priority', 'location'] },
+          {
+            id: 'main',
+            fields: ['title', 'status', 'assignee', 'watchers', 'attachment', 'priority', 'location', 'hours'],
+          },
           { id: 'report', title: t('screens.task-card.card.sections.report.title'), fields: ['report'] },
         ]}
         display={TASK.display}

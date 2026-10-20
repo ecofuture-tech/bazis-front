@@ -25,7 +25,7 @@ import { useState, type ReactNode, type SubmitEvent } from 'react';
 import { ApiError, type ErrorObject } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
 import { useErrorMessage, type CreatePath, type FixedValues, type ResourceForm as Form, type UpdatePath } from '@/bazis/react';
-import { FieldInput, fieldTitle, isReverse, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
+import { contractFormat, FieldInput, fieldTitle, isReverse, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -160,8 +160,10 @@ export function ResourceFormBody({
   const shown = names.flatMap((name) => {
     const field = byName.get(name);
     if (!field) return [];
+    // the format that the model gives an attribute where its runtime schema has none (a decimal)
+    const typed = field.kind === 'attribute' && field.format === null ? { ...field, format: contractFormat(path, name).format } : field;
     // the user sees a fixed value, never changes it
-    return [isFixed(name) ? { ...field, readOnly: true } : field];
+    return [isFixed(name) ? { ...typed, readOnly: true } : typed];
   });
   const failure = form.submitError ? errorState(form.submitError) : null;
   const messages = formMessages(form, path, new Set(shown.map((it) => it.name)), t, message);

@@ -15,16 +15,16 @@ test('manager-sets-the-priority', async ({ page }) => {
   await test.step('action: create', async () => {
     await app.action('create');
   });
-  await test.step('fill: {title: Ship the release, priority: High}', async () => {
-    await app.fill({ title: 'Ship the release', priority: 'High' });
+  await test.step('fill: {title: Ship the release, priority: High, hours: 2,5}', async () => {
+    await app.fill({ title: 'Ship the release', priority: 'High', hours: '2,5' });
   });
   await test.step('submit', async () => {
     await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
-  await test.step('expect: {screen: task-card, values: {priority: High}}', async () => {
+  await test.step('expect: {screen: task-card, values: {priority: High, hours: 2.5}}', async () => {
     await app.expectScreen('task-card');
-    await app.expectValues({ priority: 'High' });
+    await app.expectValues({ priority: 'High', hours: '2.5' });
   });
   await test.step('open: task-list', async () => {
     await app.open('task-list');

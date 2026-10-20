@@ -114,7 +114,9 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 
 `resource` is what they share: `FieldInput` (the input of a field of a runtime schema, the
 only one: the forms and the payloads of the transits use it; the choices of a field are a
-select of their labels), `FieldValue` (with `formatValue`: the value in the language of the
+select of their labels; a decimal, `format: decimal` of a `DecimalField` in the contract,
+`contractFormat`, or a number or a string of Pydantic, is typed on one line with a point or
+a comma and given as its digits with a point, `'2.5'`), `FieldValue` (with `formatValue`: the value in the language of the
 interface, a choice by its label, a value by its `display`: `plain` without the separators
 of its thousands, `phone` a link to call it, `{currency}`, `{unit}`, `{bar}` a `meter` of its
 share; the `status` of an item of a statusy model by its name in the contract,
@@ -196,13 +198,15 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 - **`stat-card`** (a figure of a dashboard): the aggregates of the core over the list of
   `path` with its `filter` (a list of one item with `meta.aggregates`, bazis 2.17): the
   number of its items, or the `{sum}`, `{avg}`, `{min}` or `{max}` of a field of `value`
-  (a sum in the `currency` or a quantity in the `unit` of its `display`, a date of `min` or
+  (a sum in the `currency` or a quantity in the `unit` of its `display`, an average of a
+  decimal with the decimal places of its field, `places` of the contract, a date of `min` or
   `max` as a date); `tile:<id>` with the number in `data-value` once loaded (a date as its
   ISO text), the states of the list (the message of a 400 `ERR_AGGREGATE` as its error);
   `onOpen` makes the whole tile a button named by its label.
 - **`dashboard`** (`primitive: dashboard`, the home of the starters): its title in the header
   of the screen, or as a hero (`data-slot="hero"`, the default of a portal), the tiles of
-  `stat-card`, the links to the other screens of the navigation (`link:<screen>`, each once
+  `stat-card` (a tile of a `value` takes the whole row of a phone, a count half of it), the
+  links to the other screens of the navigation (`link:<screen>`, each once
   the backend allows what it `requires`; the numbers are those of the tiles), the
   charts it is given and the last items of route sets (`RecentList`, `recent:<id>`: a list
   of `limit` items in the order of `sort`, a row `row:<id>` with a cell `cell:<field>` each, a
