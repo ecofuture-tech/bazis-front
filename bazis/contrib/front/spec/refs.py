@@ -405,14 +405,20 @@ def _check_user_route(doc: Document, data: dict, contract: dict, issues: Issues)
         return
     resource = (contract['capabilities'].get('users') or {}).get('user_resource')
     resources = contract['project']['resources']
-    if resource is None or resource in resources or not any(
-        schema.get('relation') == resource for it in resources.values() for schema in it['fields'].values()
-    ):
+    if resource is None or resource in resources:
         return
+    related = [
+        f'{name}.{field_id}' for name, it in resources.items()
+        for field_id, schema in it['fields'].items() if schema.get('relation') == resource
+    ]
+    if not related:
+        return
+    shown = ', '.join(f'`{it}`' for it in related[:3]) + (' and others' if len(related) > 3 else '')
     issues.add(
         doc, ('packages', data['packages'].index('users')), 'P036',
-        f'The users have no route in the contract (`{resource}`): the author of the statuses '
-        '(`status_author`) and every user that a screen shows are labeled by the start of their id.',
+        f'The users have no route in the contract (`{resource}`): the fields {shown} relate to them, and '
+        'every user that a screen shows (the author of a status, an assignee) is labeled by the start of '
+        'his id.',
         'Register the user route set of the project in its router (`users/routes.py`: the team), see '
         'the guide "The users that the pickers offer", and ' + EXPORT_HINT + '.',
     )
