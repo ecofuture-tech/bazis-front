@@ -45,7 +45,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 9
+    assert data['format'] == 10
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -385,7 +385,6 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
         ],
         # the logout endpoint of bazis-authing 2.6.0, which the frontend calls at a sign-out
         'logout_url': '/api/v1/authing/logout/',
-        'token_param': 'bazis_auth',
     }
     # the resources of the route sets of FileUploadRouteSet; no size limit by default
     assert sections['uploadable'] == {'max_size': None, 'resources': ['uploadable.file_upload']}
@@ -652,9 +651,7 @@ def test_the_sections_follow_the_routes_and_the_settings(sample_app, settings, m
     assert authing.section()['logout_url'] is None
     assert authing.section()['auth_url'] == '/api/v1/authing/auth/'
     monkeypatch.setattr(authing, 'url_path', lambda app, name: None if name == 'auth' else routed(app, name))
-    assert authing.section() == {
-        'auth_url': None, 'actions': [], 'logout_url': '/api/v1/authing/logout/', 'token_param': 'bazis_auth',
-    }
+    assert authing.section() == {'auth_url': None, 'actions': [], 'logout_url': '/api/v1/authing/logout/'}
 
 
 @pytest.mark.django_db

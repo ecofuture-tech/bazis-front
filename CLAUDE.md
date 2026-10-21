@@ -170,7 +170,8 @@ job of CI.
   `DecimalField`, read from the model, which S049 reads; 9: `places` of those attributes,
   the `decimal_places` of the model, with which `StatCard` rounds an average, and `response`
   of the custom actions, the standalone JSON Schema of their JSON answer 200, which S053
-  reads).
+  reads; 10: `token_param` of the section `authing` removed, the store token of
+  bazis-authing 2.8 being in no URL).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the

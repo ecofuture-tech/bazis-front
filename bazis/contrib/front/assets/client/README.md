@@ -92,6 +92,7 @@ Every operation takes the path of a route set and, for an item, its id:
 | `download(path, id)` | `GET path{id}/download/` with the token (bazis-uploadable 2.7, bazis-bg 2.6); `{blob, name}`, the name of `Content-Disposition` (`dispositionName`); `saveFile(file, fallback?)` saves it in the browser |
 | `auth(path, {store})` | `GET path` (bazis-authing), the store token as the bearer token, without cookies; the state of the store |
 | `authLogin(path, store, body)` | `POST path` of a login action, `application/json` in the store, its redirect to the auth endpoint followed; the state of the store |
+| `authInit(path, store)` | `POST path` of the login action of a service in a window (Google, bazis-authing 2.8), the store token as the bearer token, with the cookies of the browser; `{ticket, url}`, the URL of the window |
 | `authWait(path, store, {interval})` | `GET path` every `interval` ms (`AUTH_POLL_INTERVAL`, 1.5 s) until the store is signed in, has an error or has expired |
 | `authLogout(path)` | `POST path` of the logout endpoint (bazis-authing), with the cookies of the browser, without the token; 204 |
 | `background(method, path, {body})` | `method path` with `X-Async-Background: true` (`BACKGROUND_HEADER`, bazis-async-request), a body as `application/vnd.api+json`; `{status: 'queued', taskId}` (202) or `{status: 'done', response}` |
@@ -151,7 +152,13 @@ store gives its session once: the next request with its token gets a new store. 
 `{status: 'signed_in', user}` or `{status: 'signed_out', store, errors}`; other errors are
 thrown (`ApiError`, 401 for a store that expired before a login). The requests are sent
 without cookies: the endpoint sets the store token as a cookie, which would sign the next
-user in with the store of the previous one. The store token has no `exp`: bazis-users
+user in with the store of the previous one. The init of a sign-in in a window (`authInit`,
+the Google service of bazis-authing 2.8: its action is a `POST`) is the exception: its
+answer, `{ticket, url}`, sets a cookie that binds the one-time ticket to this browser, and
+the window opened at `url` (a path of the API, `?ticket=`) is refused without it (a 400 in
+the window, as for a used or expired ticket). The page must be same-site with the API, or a
+browser drops that cookie (`SameSite=Lax`); a cross-origin API needs CORS with credentials.
+The store token is in no URL. The store token has no `exp`: bazis-users
 treats a request with it as anonymous; only the session token is a bearer token of the API.
 `POST` of the logout endpoint (`authLogout`, `logout_url` of the contract) deletes the
 stores of the request and the store cookie (204, idempotent): it is sent with the cookies

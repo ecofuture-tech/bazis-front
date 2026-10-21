@@ -38,6 +38,7 @@ export type {
   ActionOptions,
   ActionOptionsArg,
   AuthAction,
+  AuthInit,
   AuthState,
   AuthUser,
   BackgroundMethod,

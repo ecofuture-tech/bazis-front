@@ -208,8 +208,22 @@ export interface AuthAction {
   /** The service: `password`, `google`... */
   code: string;
   name: string;
-  /** `POST` (a body, such as the username and the password) or `GET` (a page of the service, opened in the browser). */
+  /**
+   * `POST`: a login with a body (the password service, `authLogin`) or the init of a sign-in
+   * in a window (the Google service of bazis-authing 2.8, `authInit`). The Google service of
+   * an older bazis-authing is `GET`, a protocol that the template no longer follows.
+   */
   method: string;
+  url: string;
+}
+
+/**
+ * The init of a sign-in of bazis-authing in a window of its service (Google): a one-time
+ * ticket and the URL that the window opens, a path of the API with the ticket, valid only in
+ * the browser whose cookie the init set.
+ */
+export interface AuthInit {
+  ticket: string;
   url: string;
 }
 

@@ -15,13 +15,12 @@
 """
 bazis-authing: the authorization endpoint (`GET /auth/`), the login actions of the services
 of BAZIS_AUTH_KINDS as the endpoint lists them in `meta.actions` (`code`, `name`, `method`,
-`url`, in the order of the setting) and the query parameter of the store token
-(BAZIS_AUTH_COOKIE_NAME), which the page of a `GET` action (Google) takes, and the logout
-endpoint (`POST /logout/`, bazis-authing 2.6.0: it deletes the stores of the request and
-their cookie), which the frontend calls when the user signs out. The endpoints and the
-routes of the services are those of the application: an action whose route is not
-registered is left out (the system check `authing.E001` reports it), and `auth_url` and
-`logout_url` are null when their endpoint is not.
+`url`, in the order of the setting), and the logout endpoint (`POST /logout/`,
+bazis-authing 2.6.0: it deletes the stores of the request and their cookie), which the
+frontend calls when the user signs out. The endpoints and the routes of the services are
+those of the application: an action whose route is not registered is left out (the system
+check `authing.E001` reports it), and `auth_url` and `logout_url` are null when their
+endpoint is not.
 """
 
 from importlib import import_module
@@ -47,10 +46,7 @@ def section() -> dict:
     logout_url = url_path(app, 'auth_logout')
     auth_url = url_path(app, 'auth')
     if auth_url is None:
-        return {
-            'auth_url': None, 'actions': [], 'logout_url': logout_url,
-            'token_param': settings.BAZIS_AUTH_COOKIE_NAME,
-        }
+        return {'auth_url': None, 'actions': [], 'logout_url': logout_url}
     actions = []
     for path in settings.BAZIS_AUTH_KINDS:
         try:
@@ -65,9 +61,4 @@ def section() -> dict:
             'method': action['method'],
             'url': str(action['url']),
         })
-    return {
-        'auth_url': auth_url,
-        'actions': actions,
-        'logout_url': logout_url,
-        'token_param': settings.BAZIS_AUTH_COOKIE_NAME,
-    }
+    return {'auth_url': auth_url, 'actions': actions, 'logout_url': logout_url}

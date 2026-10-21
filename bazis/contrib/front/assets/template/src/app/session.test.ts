@@ -15,8 +15,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getToken, login, loginInWindow, logout, onSessionChange, PASSWORD_LOGIN, signOut } from '@/app/session';
-import { ApiError } from '@/bazis/client';
-import { CAPABILITIES } from '@/bazis/generated/contract';
+import { ApiError, type AuthAction } from '@/bazis/client';
+import { CAPABILITIES, type Capabilities } from '@/bazis/generated/contract';
 import type { Api } from '@/bazis/react';
 
 // a client whose token endpoint (bazis-users) and password service (bazis-authing) answer
@@ -96,7 +96,10 @@ describe.skipIf(!PASSWORD_LOGIN || !CAPABILITIES.authing?.auth_url)('the passwor
 
 describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in a window', () => {
   const authing = CAPABILITIES.authing;
-  const GOOGLE = { code: 'google', name: 'Google', method: 'GET', url: '/api/v1/authing/google-auth-init/' };
+  const GOOGLE = { code: 'google', name: 'Google', method: 'POST', url: '/api/v1/authing/google-auth-init/' };
+  /** The answer of the init of the service: the URL of the window with a ticket, not the store. */
+  const WINDOW = `${GOOGLE.url}?ticket=ticket`;
+  const authInit = () => Promise.resolve({ ticket: 'ticket', url: WINDOW });
   const signedOut = (store: string, errors: unknown[] = []) => Promise.resolve({ status: 'signed_out', store, errors });
   const signedIn = (token: string) => Promise.resolve({ status: 'signed_in', user: { token } });
 
@@ -127,12 +130,14 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
     logout();
   });
 
-  it('opens the page of the service with the store and takes the session token', async () => {
+  it('opens the window at the URL of the init of the store and takes the session token', async () => {
     const popup = openWindow();
+    const init = vi.fn(authInit);
     const authWait = vi.fn(() => signedIn('google-session'));
-    const api = { auth: () => signedOut('store'), authWait } as unknown as Api;
+    const api = { auth: () => signedOut('store'), authInit: init, authWait } as unknown as Api;
     await loginInWindow(api, GOOGLE);
-    expect(popup.location.href).toBe(`${GOOGLE.url}?${authing?.token_param ?? ''}=store`);
+    expect(init).toHaveBeenCalledWith(GOOGLE.url, 'store', {});
+    expect(popup.location.href).toBe(WINDOW);
     expect(authWait).toHaveBeenCalledWith(authing?.auth_url, 'store', {});
     expect(getToken()).toBe('google-session');
     expect(popup.closed).toBe(true);
@@ -140,7 +145,7 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
 
   it('is cancelled by the signal', async () => {
     const popup = openWindow();
-    const api = { auth: () => signedOut('store'), authWait: waitForever } as unknown as Api;
+    const api = { auth: () => signedOut('store'), authInit, authWait: waitForever } as unknown as Api;
     const controller = new AbortController();
     const login = loginInWindow(api, GOOGLE, controller.signal).catch((error: unknown) => error);
     await vi.waitFor(() => {
@@ -156,7 +161,7 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
     const popup = openWindow();
     let finish: (state: unknown) => void = () => undefined;
     const authWait = vi.fn(() => new Promise((resolve) => (finish = resolve)));
-    const api = { auth: () => signedOut('store'), authWait } as unknown as Api;
+    const api = { auth: () => signedOut('store'), authInit, authWait } as unknown as Api;
     const login = loginInWindow(api, GOOGLE);
     await vi.waitFor(() => {
       expect(authWait).toHaveBeenCalled();
@@ -171,7 +176,7 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
 
   it('is stopped by the cancel only, also when the window is closed', async () => {
     const popup = openWindow();
-    const api = { auth: () => signedOut('store'), authWait: waitForever } as unknown as Api;
+    const api = { auth: () => signedOut('store'), authInit, authWait: waitForever } as unknown as Api;
     const controller = new AbortController();
     let settled = false;
     const login = loginInWindow(api, GOOGLE, controller.signal).catch((error: unknown) => {
@@ -191,16 +196,36 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
 
   it('fails when the store expires or its login fails', async () => {
     openWindow();
-    const expired = { auth: () => signedOut('store'), authWait: () => signedOut('another') } as unknown as Api;
+    const expired = {
+      auth: () => signedOut('store'),
+      authInit,
+      authWait: () => signedOut('another'),
+    } as unknown as Api;
     await expect(loginInWindow(expired, GOOGLE)).rejects.toThrow('The login has expired');
 
     openWindow();
     const failed = {
       auth: () => signedOut('store'),
+      authInit,
       authWait: () =>
         signedOut('store', [{ status: 422, code: 'GOOGLE_AUTH_ERROR', detail: 'Google authentication failed' }]),
     } as unknown as Api;
     await expect(loginInWindow(failed, GOOGLE)).rejects.toThrow('Google authentication failed');
+    expect(getToken()).toBeNull();
+  });
+
+  it('closes the window when the init fails', async () => {
+    const popup = openWindow();
+    const authWait = vi.fn();
+    const api = {
+      auth: () => signedOut('store'),
+      authInit: () => Promise.reject(new ApiError(401, [{ status: 401, detail: 'Token has been expired' }])),
+      authWait,
+    } as unknown as Api;
+    await expect(loginInWindow(api, GOOGLE)).rejects.toMatchObject({ status: 401 });
+    expect(popup.location.href).toBe('');
+    expect(popup.closed).toBe(true);
+    expect(authWait).not.toHaveBeenCalled();
     expect(getToken()).toBeNull();
   });
 
@@ -209,5 +234,33 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
     const auth = vi.fn();
     await expect(loginInWindow({ auth } as unknown as Api, GOOGLE)).rejects.toThrow('blocked the window');
     expect(auth).not.toHaveBeenCalled();
+  });
+});
+
+describe('the logins in a window', () => {
+  /** The codes of `WINDOW_LOGINS` of a backend with bazis-authing and these login actions. */
+  async function windowLogins(actions: AuthAction[]): Promise<string[]> {
+    vi.resetModules();
+    vi.doMock('@/bazis/generated/contract', async (importOriginal) => {
+      const contract = await importOriginal<{ CAPABILITIES: Capabilities }>();
+      const users = { token_url: '/api/openapi-token/', user_resource: 'users.user', profile_language: false };
+      const authing = { auth_url: '/api/v1/authing/auth/', logout_url: null, actions };
+      return { ...contract, CAPABILITIES: { ...contract.CAPABILITIES, users, authing } };
+    });
+    const { WINDOW_LOGINS } = await import('@/app/session');
+    return WINDOW_LOGINS.map((it) => it.code);
+  }
+  const action = (code: string, method: string) => ({ code, name: code, method, url: `/api/v1/authing/${code}/` });
+
+  afterEach(() => {
+    vi.doUnmock('@/bazis/generated/contract');
+    vi.resetModules();
+  });
+
+  it('are the Google init of bazis-authing 2.8, not the GET of an older one nor an own service', async () => {
+    expect(await windowLogins([action('password', 'POST'), action('google', 'POST'), action('own', 'POST')])).toEqual([
+      'google',
+    ]);
+    expect(await windowLogins([action('password', 'POST'), action('google', 'GET')])).toEqual([]);
   });
 });

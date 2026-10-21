@@ -79,7 +79,8 @@ test = [
     # the sample project has the capabilities of the contract: users, authing, permit,
     # statusy, uploadable, ws, notify, bg (with bazis-author), async_background, async_request
     "bazis-users>=2.9.0",
-    "bazis-authing>=2.7.0",
+    # the Google login by the POST of its init, which the template follows
+    "bazis-authing>=2.8.0",
     "bazis-permit>=2.11.0",
     # the meta `for_transit` of a list (2.13), which the boards read
     "bazis-statusy>=2.13.0",
