@@ -21,10 +21,10 @@
 // is given the name of the file, `{filename}`.
 
 import { LoaderCircle } from 'lucide-react';
-import { useState, type ReactNode, type SubmitEvent } from 'react';
+import { useRef, useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { useLanguage, type Params } from '@/bazis/i18n';
-import { customActionAt, useAnyAction, useAnyActionFile } from '@/bazis/ui/resource';
+import { customActionAt, useAnyAction, useAnyActionFile, useUploads } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 
@@ -87,6 +87,10 @@ export function ActionForm({ path, action, fields, labels, submitLabel, result, 
   const [values, setValues] = useState(() => bodyDefaults(body, fields));
   // the answer of the action once it is done, while the result is shown
   const [answer, setAnswer] = useState<Params | null>(null);
+  // the fields whose files upload: the action waits for them
+  const { uploading, onBusy } = useUploads();
+  // the action runs: a submit sends nothing, also before its state is rendered
+  const sending = useRef(false);
 
   if (result && answer !== null) {
     return (
@@ -110,8 +114,12 @@ export function ActionForm({ path, action, fields, labels, submitLabel, result, 
 
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (mutation.isPending) return;
+    if (sending.current || uploading) return;
+    sending.current = true;
     mutation.mutate(values, {
+      onSettled: () => {
+        sending.current = false;
+      },
       onSuccess: (response) => {
         if (result) {
           // the name of the file saved, or the JSON answer
@@ -129,7 +137,7 @@ export function ActionForm({ path, action, fields, labels, submitLabel, result, 
       data-bz="state:loaded"
       noValidate
       onSubmit={submit}
-      aria-busy={mutation.isPending || undefined}
+      aria-busy={mutation.isPending || uploading || undefined}
       className="grid gap-(--space-field)"
     >
       {failure && (
@@ -146,9 +154,10 @@ export function ActionForm({ path, action, fields, labels, submitLabel, result, 
         onChange={(name, value) => {
           setValues((current) => ({ ...current, [name]: value }));
         }}
+        onBusy={onBusy}
       />
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
-        <Button type="submit" data-bz="action:submit" disabled={mutation.isPending}>
+        <Button type="submit" data-bz="action:submit" disabled={mutation.isPending || uploading}>
           {mutation.isPending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
           {submitLabel ?? t('form.send')}
         </Button>

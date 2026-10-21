@@ -342,7 +342,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert 'fields=' not in edit
     # the form of a custom action without a result: the list of the tasks once it is done
     suggestion = files[f'{screens.GENERATED_DIR}/task-suggestion.tsx']
-    assert "            action: 'suggest',\n            fields: ['title'],\n" in suggestion
+    assert "            action: 'suggest',\n            fields: ['title', 'photos'],\n" in suggestion
     assert "            labels: { title: t('screens.task-suggestion.form.labels.title') },\n" in suggestion
     assert "            submitLabel: t('screens.task-suggestion.form.submit'),\n" in suggestion
     assert "            onDone: () => void navigate(routeTo('task-list')),\n" in suggestion
@@ -543,6 +543,30 @@ def test_the_title_of_a_result_shows_the_answer_when_it_has_a_parameter(tmp_path
     assert "'screens.suggest-task.form.result.title': 'Task {task}'" in files[f'{screens.GENERATED_DIR}/messages.ts']
     edit_screen(tmp_path, 'suggest-task', lambda data: data['form']['result'].pop('title'))
     assert "title: t('screens.suggest-task.title')," in rendered(tmp_path)[form]
+
+
+@pytest.mark.parametrize(('packages', 'types', 'expected'), [
+    # bazis-uploadable: the file fields of the entities, or of the bodies of the actions, which
+    # only the contract tells; a guest without a session uploads the types of the anonymous
+    # uploads
+    (['uploadable'], [], ['useToken', '<FileFieldProvider guest={token === null}>']),
+    (['uploadable', 'ws'], ['file'], ['useToken', '<SocketProvider', '<FileFieldProvider guest={token === null}>']),
+    # without it, no upload: neither for a field `type: file`
+    (['ws'], ['file'], ['useToken', '<SocketProvider']),
+    ([], ['file', 'point'], ['<MapProvider>']),
+])
+def test_the_providers_follow_the_packages_and_the_fields(packages, types, expected):
+    class Product:
+        def __init__(self):
+            self.packages = packages
+
+        def has_field(self, *wanted):
+            return any(it in types for it in wanted)
+
+    text = screens.render_providers(Product())
+    markers = ['useToken', '<SocketProvider', '<FileFieldProvider guest={token === null}>', '<MapProvider>']
+    assert [it for it in markers if it in text] == expected
+    assert ('FileFieldProvider' in text) == ('uploadable' in packages)
 
 
 def test_the_guest_home_is_the_first_public_link_unless_the_home_is_public(tmp_path):

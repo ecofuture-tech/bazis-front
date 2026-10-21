@@ -209,8 +209,14 @@
             "nullable": true,
             "title": "Attachment"
           },
-          "watchers": {
+          "photos": {
             "$ref": "#/$defs/Def12",
+            "default": null,
+            "nullable": false,
+            "title": "Photos"
+          },
+          "watchers": {
+            "$ref": "#/$defs/Def13",
             "default": null,
             "nullable": false,
             "title": "Watchers"
@@ -341,7 +347,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/$defs/Def8"
+                  "$ref": "#/$defs/Def11"
                 },
                 "type": "array"
               },
@@ -357,6 +363,27 @@
         "type": "object"
       },
       "Def13": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Def8"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def14": {
         "properties": {
           "id": {
             "format": "uuid",
@@ -374,11 +401,11 @@
             "type": "string"
           },
           "attributes": {
-            "$ref": "#/$defs/Def14",
+            "$ref": "#/$defs/Def15",
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/$defs/Def15",
+            "$ref": "#/$defs/Def16",
             "title": "Relationships"
           }
         },
@@ -389,7 +416,7 @@
         ],
         "type": "object"
       },
-      "Def14": {
+      "Def15": {
         "properties": {
           "dt_created": {
             "default": null,
@@ -490,10 +517,10 @@
         },
         "type": "object"
       },
-      "Def15": {
+      "Def16": {
         "properties": {
           "status": {
-            "$ref": "#/$defs/Def16",
+            "$ref": "#/$defs/Def17",
             "default": null,
             "nullable": false,
             "title": "Current status"
@@ -501,7 +528,7 @@
           "status_author": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def17"
+                "$ref": "#/$defs/Def18"
               },
               {
                 "type": "null"
@@ -514,7 +541,7 @@
           "assignee": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def18"
+                "$ref": "#/$defs/Def19"
               },
               {
                 "type": "null"
@@ -527,7 +554,7 @@
           "attachment": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def19"
+                "$ref": "#/$defs/Def20"
               },
               {
                 "type": "null"
@@ -537,8 +564,14 @@
             "nullable": true,
             "title": "Attachment"
           },
+          "photos": {
+            "$ref": "#/$defs/Def21",
+            "default": null,
+            "nullable": false,
+            "title": "Photos"
+          },
           "watchers": {
-            "$ref": "#/$defs/Def20",
+            "$ref": "#/$defs/Def22",
             "default": null,
             "nullable": false,
             "title": "Watchers"
@@ -546,7 +579,7 @@
         },
         "type": "object"
       },
-      "Def16": {
+      "Def17": {
         "properties": {
           "data": {
             "anyOf": [
@@ -559,24 +592,6 @@
             ],
             "default": null,
             "nullable": false,
-            "title": "Data"
-          }
-        },
-        "type": "object"
-      },
-      "Def17": {
-        "properties": {
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Def8"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "nullable": true,
             "title": "Data"
           }
         },
@@ -605,7 +620,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def11"
+                "$ref": "#/$defs/Def8"
               },
               {
                 "type": "null"
@@ -619,6 +634,45 @@
         "type": "object"
       },
       "Def20": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def11"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def21": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Def11"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def22": {
         "properties": {
           "data": {
             "anyOf": [
@@ -639,7 +693,7 @@
         },
         "type": "object"
       },
-      "Def21": {
+      "Def23": {
         "properties": {
           "id": {
             "format": "uuid",
@@ -657,11 +711,11 @@
             "type": "string"
           },
           "attributes": {
-            "$ref": "#/$defs/Def22",
+            "$ref": "#/$defs/Def24",
             "title": "Attributes"
           },
           "relationships": {
-            "$ref": "#/$defs/Def23",
+            "$ref": "#/$defs/Def25",
             "title": "Relationships"
           }
         },
@@ -672,7 +726,7 @@
         ],
         "type": "object"
       },
-      "Def22": {
+      "Def24": {
         "properties": {
           "dt_created": {
             "default": null,
@@ -773,10 +827,10 @@
         },
         "type": "object"
       },
-      "Def23": {
+      "Def25": {
         "properties": {
           "status": {
-            "$ref": "#/$defs/Def24",
+            "$ref": "#/$defs/Def26",
             "default": null,
             "nullable": false,
             "title": "Current status"
@@ -784,7 +838,7 @@
           "status_author": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def25"
+                "$ref": "#/$defs/Def27"
               },
               {
                 "type": "null"
@@ -797,7 +851,7 @@
           "assignee": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def26"
+                "$ref": "#/$defs/Def28"
               },
               {
                 "type": "null"
@@ -810,7 +864,7 @@
           "attachment": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def27"
+                "$ref": "#/$defs/Def29"
               },
               {
                 "type": "null"
@@ -820,8 +874,14 @@
             "nullable": true,
             "title": "Attachment"
           },
+          "photos": {
+            "$ref": "#/$defs/Def30",
+            "default": null,
+            "nullable": false,
+            "title": "Photos"
+          },
           "watchers": {
-            "$ref": "#/$defs/Def28",
+            "$ref": "#/$defs/Def31",
             "default": null,
             "nullable": false,
             "title": "Watchers"
@@ -829,7 +889,7 @@
         },
         "type": "object"
       },
-      "Def24": {
+      "Def26": {
         "properties": {
           "data": {
             "anyOf": [
@@ -847,43 +907,43 @@
         },
         "type": "object"
       },
-      "Def25": {
-        "properties": {
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Def8"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "nullable": true,
-            "title": "Data"
-          }
-        },
-        "type": "object"
-      },
-      "Def26": {
-        "properties": {
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Def8"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "nullable": true,
-            "title": "Data"
-          }
-        },
-        "type": "object"
-      },
       "Def27": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def8"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def28": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Def8"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": true,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def29": {
         "properties": {
           "data": {
             "anyOf": [
@@ -901,7 +961,28 @@
         },
         "type": "object"
       },
-      "Def28": {
+      "Def30": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Def11"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def31": {
         "properties": {
           "data": {
             "anyOf": [
@@ -922,7 +1003,7 @@
         },
         "type": "object"
       },
-      "Def29": {
+      "Def32": {
         "properties": {
           "first": {
             "anyOf": [
@@ -975,7 +1056,7 @@
         },
         "type": "object"
       },
-      "Def30": {
+      "Def33": {
         "properties": {
           "aggregates": {
             "anyOf": [
@@ -984,7 +1065,7 @@
               },
               {
                 "items": {
-                  "$ref": "#/$defs/Def31"
+                  "$ref": "#/$defs/Def34"
                 },
                 "type": "array"
               },
@@ -1094,7 +1175,7 @@
           "pagination": {
             "anyOf": [
               {
-                "$ref": "#/$defs/Def32"
+                "$ref": "#/$defs/Def35"
               },
               {
                 "type": "null"
@@ -1106,7 +1187,7 @@
         },
         "type": "object"
       },
-      "Def31": {
+      "Def34": {
         "properties": {
           "group": {
             "anyOf": [
@@ -1130,7 +1211,7 @@
         ],
         "type": "object"
       },
-      "Def32": {
+      "Def35": {
         "properties": {
           "count": {
             "title": "Count",
@@ -1161,10 +1242,10 @@
               "$ref": "#/$defs/Def1"
             },
             {
-              "$ref": "#/$defs/Def13"
+              "$ref": "#/$defs/Def14"
             },
             {
-              "$ref": "#/$defs/Def21"
+              "$ref": "#/$defs/Def23"
             }
           ]
         },
@@ -1172,12 +1253,12 @@
         "type": "array"
       },
       "links": {
-        "$ref": "#/$defs/Def29"
+        "$ref": "#/$defs/Def32"
       },
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def30"
+            "$ref": "#/$defs/Def33"
           },
           {
             "type": "null"
@@ -1374,8 +1455,14 @@
             "nullable": true,
             "title": "Attachment"
           },
-          "watchers": {
+          "photos": {
             "$ref": "#/$defs/Def11",
+            "default": null,
+            "nullable": false,
+            "title": "Photos"
+          },
+          "watchers": {
+            "$ref": "#/$defs/Def12",
             "default": null,
             "nullable": false,
             "title": "Watchers"
@@ -1488,7 +1575,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/$defs/Def8"
+                  "$ref": "#/$defs/Def10"
                 },
                 "type": "array"
               },
@@ -1504,6 +1591,27 @@
         "type": "object"
       },
       "Def12": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Def8"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def13": {
         "properties": {},
         "type": "object"
       }
@@ -1516,7 +1624,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def12"
+            "$ref": "#/$defs/Def13"
           },
           {
             "type": "null"
@@ -1740,8 +1848,14 @@
             "nullable": true,
             "title": "Attachment"
           },
-          "watchers": {
+          "photos": {
             "$ref": "#/$defs/Def12",
+            "default": null,
+            "nullable": false,
+            "title": "Photos"
+          },
+          "watchers": {
+            "$ref": "#/$defs/Def13",
             "default": null,
             "nullable": false,
             "title": "Watchers"
@@ -1872,7 +1986,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/$defs/Def8"
+                  "$ref": "#/$defs/Def11"
                 },
                 "type": "array"
               },
@@ -1888,6 +2002,27 @@
         "type": "object"
       },
       "Def13": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Def8"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def14": {
         "properties": {
           "crud_actions": {
             "anyOf": [
@@ -1925,11 +2060,11 @@
                 "items": {
                   "anyOf": [
                     {
-                      "$ref": "#/$defs/Def14"
+                      "$ref": "#/$defs/Def15"
                     },
                     {
                       "items": {
-                        "$ref": "#/$defs/Def14"
+                        "$ref": "#/$defs/Def15"
                       },
                       "type": "array"
                     }
@@ -1947,7 +2082,7 @@
         },
         "type": "object"
       },
-      "Def14": {
+      "Def15": {
         "properties": {
           "code": {
             "default": "ACTION_TRANSIT",
@@ -1955,13 +2090,13 @@
             "type": "string"
           },
           "endpoint": {
-            "$ref": "#/$defs/Def15"
+            "$ref": "#/$defs/Def16"
           },
           "restricts": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/$defs/Def16"
+                  "$ref": "#/$defs/Def17"
                 },
                 "type": "array"
               },
@@ -2009,7 +2144,7 @@
             "title": "Hint Action"
           },
           "resource": {
-            "$ref": "#/$defs/Def17"
+            "$ref": "#/$defs/Def18"
           }
         },
         "required": [
@@ -2018,7 +2153,7 @@
         ],
         "type": "object"
       },
-      "Def15": {
+      "Def16": {
         "properties": {
           "url": {
             "title": "Url",
@@ -2047,7 +2182,7 @@
         ],
         "type": "object"
       },
-      "Def16": {
+      "Def17": {
         "properties": {
           "title": {
             "title": "Title",
@@ -2088,7 +2223,7 @@
         ],
         "type": "object"
       },
-      "Def17": {
+      "Def18": {
         "properties": {
           "id": {
             "title": "Id"
@@ -2113,7 +2248,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def13"
+            "$ref": "#/$defs/Def14"
           },
           {
             "type": "null"
@@ -2295,8 +2430,14 @@
             "nullable": true,
             "title": "Attachment"
           },
-          "watchers": {
+          "photos": {
             "$ref": "#/$defs/Def9",
+            "default": null,
+            "nullable": false,
+            "title": "Photos"
+          },
+          "watchers": {
+            "$ref": "#/$defs/Def10",
             "default": null,
             "nullable": false,
             "title": "Watchers"
@@ -2376,7 +2517,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/$defs/Def6"
+                  "$ref": "#/$defs/Def8"
                 },
                 "type": "array"
               },
@@ -2392,6 +2533,27 @@
         "type": "object"
       },
       "Def10": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/Def6"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "nullable": false,
+            "title": "Data"
+          }
+        },
+        "type": "object"
+      },
+      "Def11": {
         "properties": {},
         "type": "object"
       }
@@ -2404,7 +2566,7 @@
       "meta": {
         "anyOf": [
           {
-            "$ref": "#/$defs/Def10"
+            "$ref": "#/$defs/Def11"
           },
           {
             "type": "null"
@@ -2452,6 +2614,9 @@
         },
         "attachment": {
           "data": null
+        },
+        "photos": {
+          "data": []
         },
         "watchers": {
           "data": []
@@ -2563,6 +2728,9 @@
         },
         "attachment": {
           "data": null
+        },
+        "photos": {
+          "data": []
         },
         "watchers": {
           "data": []

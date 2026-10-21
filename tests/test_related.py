@@ -102,8 +102,9 @@ def test_a_user_reads_only_the_files_he_uploaded(sample_app):
     assert client.delete(f'{FILES}{mine}/').status_code == 405
     filters = client.get(f'{TASKS}route_filter_fields/').json()['fields']
     assert {'name': 'attachment', 'py_type': FILES} in filters
-    # an anonymous user uploads nothing
-    assert get_api_client(sample_app).post(FILES, files={'file': ('a.txt', b'a', 'text/plain')}).status_code == 401
+    # an anonymous user uploads no text: the guests of the sample upload images only
+    # (bazis-uploadable 2.8, `test_suggest`)
+    assert get_api_client(sample_app).post(FILES, files={'file': ('a.txt', b'a', 'text/plain')}).status_code == 422
 
 
 @pytest.mark.django_db(transaction=True)

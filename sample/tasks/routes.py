@@ -17,6 +17,7 @@ import io
 
 from django.apps import apps
 from django.utils.http import content_disposition_header
+from django.utils.translation import gettext_lazy as _
 
 from fastapi.responses import Response
 
@@ -24,6 +25,10 @@ from pydantic import BaseModel, Field
 
 from bazis.contrib.permit.routes_abstract import PermitRouteBase
 from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
+from bazis.contrib.uploadable.models import FileUpload
+from bazis.contrib.uploadable.schemas import UploadedFileId
+from bazis.contrib.users.models_abstract import UserMixin
+from bazis.core.errors import JsonApiBazisError, JsonApiBazisException
 from bazis.core.routes_abstract.initial import http_post
 from bazis.core.schemas.enums import CrudAccessAction, RouteKind
 
@@ -59,9 +64,14 @@ REFERENCE = 8
 
 
 class SuggestRequest(BaseModel):
-    """The title of the task that a guest suggests, room left in the title for its reference."""
+    """
+    The title of the task that a guest suggests, room left in the title for its reference, and
+    the photos he uploaded for it (the ids that the uploads answered: `UploadedFileId`, which
+    the frontend asks for with a file field).
+    """
 
     title: str = Field(min_length=1, max_length=255 - REFERENCE - 3)
+    photos: list[UploadedFileId] = Field([], title=_('Photos'))
 
 
 class Suggested(BaseModel):
@@ -96,6 +106,8 @@ class TaskRouteSet(StatusyRouteSetBase):
     """
 
     model = apps.get_model('tasks.Task')
+    # the photos of a suggested task: its readers read them (bazis-uploadable)
+    files_visible = ('photos',)
     # the search of the list of the tasks (the core 2.9 answers a search of a route set
     # without search fields with 400)
     search_fields = ['title']
@@ -143,11 +155,22 @@ class TaskRouteSet(StatusyRouteSetBase):
         draft for the team, the action of the public screen of the specs (`public-tasks`). A
         guest creates nothing through the create route: bazis-permit refuses it to anonymous
         users. The title of the task ends with its reference (`Plan (1a2b3c4d)`): the suggestions
-        of the same text stay apart.
+        of the same text stay apart. The photos are the anonymous uploads of the guest (a user
+        attaches his own files): one missing, expired or of another is 422 `ERR_PHOTO`.
         """
+        user = UserMixin.authenticated_user(self.inject.user)
+        files = FileUpload.objects
+        photos = list(files.anonymous(data.photos) if user is None else files.filter(
+            pk__in=[it for it in data.photos if it.isdigit()], author=user,
+        ))
+        if len(photos) != len(set(data.photos)):
+            raise JsonApiBazisException([JsonApiBazisError(
+                _('A photo is missing or expired: upload it again.'), loc=('photos',), code='ERR_PHOTO',
+            )], status=422)
         task = Task()
         task.title = f'{data.title} ({str(task.pk)[:REFERENCE]})'
         task.save()
+        task.photos.set(photos)
         return Suggested(task=str(task.pk), title=task.title)
 
     @http_post(

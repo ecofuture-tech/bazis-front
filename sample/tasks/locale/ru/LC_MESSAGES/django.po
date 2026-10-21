@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bazis-front sample\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 12:26+0000\n"
+"POT-Creation-Date: 2026-10-21 19:42+0000\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -27,7 +27,7 @@ msgstr "Обычный"
 msgid "High"
 msgstr "Высокий"
 
-#: tasks/models.py:39 tasks/models.py:98
+#: tasks/models.py:39 tasks/models.py:106
 msgid "Title"
 msgstr "Название"
 
@@ -39,7 +39,7 @@ msgstr "Отчёт"
 msgid "Priority"
 msgstr "Приоритет"
 
-#: tasks/models.py:45
+#: tasks/models.py:45 tasks/schemas.py:29
 msgid "Assignee"
 msgstr "Исполнитель"
 
@@ -47,43 +47,47 @@ msgstr "Исполнитель"
 msgid "Attachment"
 msgstr "Вложение"
 
-#: tasks/models.py:56
+#: tasks/models.py:55 tasks/routes.py:74
+msgid "Photos"
+msgstr "Фотографии"
+
+#: tasks/models.py:59
 msgid "Location"
 msgstr "Местоположение"
 
-#: tasks/models.py:60
+#: tasks/models.py:63
 msgid "Watchers"
 msgstr "Наблюдатели"
 
-#: tasks/models.py:64
+#: tasks/models.py:67
 msgid "Due"
 msgstr "Срок"
 
-#: tasks/models.py:67
+#: tasks/models.py:70
 msgid "Hours"
 msgstr "Часы"
 
-#: tasks/models.py:70 tasks/models.py:97
+#: tasks/models.py:73 tasks/models.py:105
 msgid "Task"
 msgstr "Задача"
 
-#: tasks/models.py:71
+#: tasks/models.py:74
 msgid "Tasks"
 msgstr "Задачи"
 
-#: tasks/models.py:86 tasks/notifications.py:25
+#: tasks/models.py:89 tasks/notifications.py:25
 msgid "Task finished"
 msgstr "Задача завершена"
 
-#: tasks/models.py:101
+#: tasks/models.py:109
 msgid "Step"
 msgstr "Шаг"
 
-#: tasks/models.py:102
+#: tasks/models.py:110
 msgid "Steps"
 msgstr "Шаги"
 
-#: tasks/models.py:108
+#: tasks/models.py:116
 msgid "A step is added to a draft task only"
 msgstr "Шаг добавляется только к черновику задачи"
 
@@ -99,21 +103,25 @@ msgstr "Изменение задач"
 msgid "Run the transits of the tasks"
 msgstr "Переходы задач по статусам"
 
-#: tasks/roles.py:51
+#: tasks/roles.py:52
 msgid "The report of a task hidden"
 msgstr "Отчёт задачи скрыт"
 
-#: tasks/roles.py:59
+#: tasks/roles.py:60
 msgid "Guest"
 msgstr "Гость"
 
-#: tasks/roles.py:60
+#: tasks/roles.py:61
 msgid "Viewer"
 msgstr "Наблюдатель"
 
-#: tasks/roles.py:61
+#: tasks/roles.py:62
 msgid "Manager"
 msgstr "Менеджер"
+
+#: tasks/routes.py:168
+msgid "A photo is missing or expired: upload it again."
+msgstr "Фотография не найдена или устарела: загрузите её снова."
 
 #: tasks/workflow.py:27
 msgid "Draft"

@@ -112,8 +112,6 @@ export const RESOURCES = {
         type: "object",
       },
       error: {
-        filter: "error",
-        order: "error",
         title: "Error",
         type: "string",
       },
@@ -155,8 +153,6 @@ export const RESOURCES = {
         type: "object",
       },
       log: {
-        filter: "log",
-        order: "log",
         title: "Log",
         type: "string",
       },
@@ -216,7 +212,12 @@ export const RESOURCES = {
     model: "bg.Task",
     path: "/api/v1/bg/task/",
     route_set: "bazis.contrib.bg.routes.BgRoute",
-    search: [],
+    search: [
+      "name",
+      "cls_path",
+      "pid",
+      "phase",
+    ],
   },
   "notify.notification": {
     actions: {
@@ -367,7 +368,11 @@ export const RESOURCES = {
     model: "notify.Notification",
     path: "/api/v1/notify/notification/",
     route_set: "bazis.contrib.notify.routes.NotificationRouteSet",
-    search: [],
+    search: [
+      "notification_type",
+      "title",
+      "body",
+    ],
   },
   "tasks.step": {
     actions: {
@@ -426,7 +431,9 @@ export const RESOURCES = {
     model: "tasks.Step",
     path: "/api/v1/tasks/step/",
     route_set: "tasks.routes.StepRouteSet",
-    search: [],
+    search: [
+      "title",
+    ],
   },
   "tasks.task": {
     actions: {
@@ -445,6 +452,7 @@ export const RESOURCES = {
       action_schema_retrieve: "schema",
       action_schema_transit: "schema",
       action_schema_update: "schema",
+      action_status_history: "other",
       action_suggest: "other",
       action_transit: "other",
       action_update: "update",
@@ -457,6 +465,7 @@ export const RESOURCES = {
       "due",
       "hours",
       "location",
+      "photos",
       "priority",
       "report",
       "status",
@@ -474,6 +483,11 @@ export const RESOURCES = {
                 "normal",
                 "high",
               ],
+              enumDict: {
+                high: "High",
+                low: "Low",
+                normal: "Normal",
+              },
               title: "Priority",
               type: "string",
             },
@@ -524,6 +538,11 @@ export const RESOURCES = {
                 "normal",
                 "high",
               ],
+              enumDict: {
+                high: "High",
+                low: "Low",
+                normal: "Normal",
+              },
               title: "Priority",
               type: "string",
             },
@@ -551,6 +570,11 @@ export const RESOURCES = {
                 "normal",
                 "high",
               ],
+              enumDict: {
+                high: "High",
+                low: "Low",
+                normal: "Normal",
+              },
               title: "Priority",
               type: "string",
             },
@@ -578,6 +602,11 @@ export const RESOURCES = {
                 "normal",
                 "high",
               ],
+              enumDict: {
+                high: "High",
+                low: "Low",
+                normal: "Normal",
+              },
               title: "Priority",
               type: "string",
             },
@@ -608,10 +637,19 @@ export const RESOURCES = {
       action_suggest: {
         access_action: null,
         body: {
-          description: "The title of the task that a guest suggests.",
+          description: "The title of the task that a guest suggests, room left in the title for its reference, and\nthe photos he uploaded for it (the ids that the uploads answered: `UploadedFileId`, which\nthe frontend asks for with a file field).",
           properties: {
+            photos: {
+              default: [],
+              items: {
+                type: "string",
+                "x-relation": "uploadable.file_upload",
+              },
+              title: "Photos",
+              type: "array",
+            },
             title: {
-              maxLength: 255,
+              maxLength: 244,
               minLength: 1,
               title: "Title",
               type: "string",
@@ -629,7 +667,7 @@ export const RESOURCES = {
         name: "suggest",
         public: true,
         response: {
-          description: "The task suggested, a draft, and its title, which the team finds it by.",
+          description: "The task suggested, a draft, and the title it got: that of the guest with the reference\nof the task, which the guest and the team find it by.",
           properties: {
             task: {
               title: "Task",
@@ -699,6 +737,13 @@ export const RESOURCES = {
         order: "location",
         title: "Location",
         type: "object",
+      },
+      photos: {
+        filter: "photos",
+        many: true,
+        order: "photos",
+        relation: "uploadable.file_upload",
+        title: "Photos",
       },
       priority: {
         filter: "priority",
@@ -812,7 +857,10 @@ export const RESOURCES = {
     model: "uploadable.FileUpload",
     path: "/api/v1/uploadable/file_upload/",
     route_set: "bazis.contrib.uploadable.routes.FileUploadRouteSet",
-    search: [],
+    search: [
+      "name",
+      "extension",
+    ],
   },
   "users.user": {
     actions: {
@@ -982,6 +1030,7 @@ export const ROLES = [
       "tasks.task.field.change.all.all.report.readonly",
       "tasks.task.item.add.all.all",
       "tasks.task.item.change.all.draft",
+      "tasks.task.item.transit.all.done.reopen",
       "tasks.task.item.transit.all.draft.start",
       "tasks.task.item.transit.all.in_progress.finish",
       "tasks.task.item.view.all.all",
@@ -1061,6 +1110,31 @@ export const TRANSITS = {
       },
       {
         dst: "in_progress",
+        id: "reopen",
+        name: {
+          en: "Reopen",
+          ru: "Вернуть в работу",
+        },
+        payload: {
+          required: true,
+          schema: {
+            properties: {
+              assignee: {
+                format: "uuid",
+                title: "Assignee",
+                type: "string",
+              },
+            },
+            required: [
+              "assignee",
+            ],
+            type: "object",
+          },
+        },
+        src: "done",
+      },
+      {
+        dst: "in_progress",
         id: "start",
         name: {
           en: "Start",
@@ -1127,9 +1201,13 @@ export const CAPABILITIES: Capabilities = {
     models: TRANSITS,
   },
   uploadable: {
-    anonymous: false,
-    anonymous_types: [],
-    max_size: null,
+    anonymous: true,
+    anonymous_types: [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ],
+    max_size: 5242880,
     resources: [
       "uploadable.file_upload",
     ],

@@ -3,6 +3,8 @@
 # suggests a task with the action `suggest` of the route set of the tasks, declared
 # `public=True`. Its fields are the properties of the body of the action in the contract (a
 # guest reads no runtime schema), and its result shows the answer of the action, the `{title}` the task got.
+# The photos are uploaded files (`list[UploadedFileId]` of bazis-uploadable): the guest uploads
+# them before the submit, the anonymous uploads of the project.
 spec: bazis-screen/1
 id: suggest-task
 title: {en: Suggest a task, ru: Предложить задачу}
@@ -12,9 +14,10 @@ roles: [visitor]
 primitive: form
 form:
   action: suggest
-  fields: [title]
+  fields: [title, photos]
   labels:
     title: {en: 'What should the team do?', ru: 'Что сделать команде?'}
+    photos: {en: Photos of the place, ru: Фотографии места}
   submit: {en: Suggest, ru: Предложить}
   result:
     title: {en: Thank you, ru: Спасибо}

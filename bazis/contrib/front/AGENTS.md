@@ -1191,8 +1191,10 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S050` | error | The `value` of a tile or a chart aggregates a field that the route set of the entity does not filter by (no `filter` in the contract): the core aggregates the fields that the filter of the list reaches for the user (400 `ERR_AGGREGATE`). Make the field filtered by in the route set, or show another one |
 | `S052` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the picker of a relationship whose entity an anonymous role of the screen does not view (`access` of the entity in product.yaml, `view` of the role): the picker of a guest is refused (403). Let the role view the related items (`access` and the permit role of the anonymous users), or leave the property out |
 | `S053` | error | the `title` or the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON; an action that answers a file (`file`) answers `{filename}` only. Give the action a `response_model` with it and export the contract again, or show another property |
-| `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
+| `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship or of uploaded files); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
 | `S055` | error | the id of the screen is the mark of the menu of the top bar, `more`: its links (`nav:more`) would be marked as the menu of the links that the top bar has no room for. Give the screen another id |
+| `S057` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the id of an uploaded file (`UploadedFileId` of bazis-uploadable, `x-relation` of its files), and the contract does not let the guests upload files (`anonymous` of `uploadable`): their upload is refused (401). Turn the anonymous uploads of bazis-uploadable 2.8 on (`BAZIS_FILE_UPLOAD_ANONYMOUS` with `BAZIS_FILE_UPLOAD_MAX_SIZE`) and export the contract again, or leave the property out of the public screen |
+| `S058` | warning | a property of the body of a custom action (in its dialog or its form) has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.21): the form offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1638,7 +1640,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
 | `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation), from `state_actions` of the request of the item that its card shares (`ITEM_META`); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload (a property named as a to-one relationship: its picker) or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
-| `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`): `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
+| `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`, `guest`): `FileField` and `FilesField` become the controls of the file fields of `FieldInput` (the forms, the bodies of the actions); `FileField`, `FilesField`, `accepts(file, accept)`, `MAX_SIZE`, `ANONYMOUS_ACCEPT` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while a file uploads), the files `file:<i>` and `action:remove-file-<i>` of `FilesField`, its errors `error:<name>` | `uploadable` |
 | `live-query` | `LiveQuery`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` and `CAPABILITIES.notify.resource` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter`: a bell with the count of the unread notifications, their list (a click marks one read and opens it, `onOpen`), mark all read, a toast for each new one (`toasts`); `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only, which also has `clear`: forget those of the session); the stored notifications are deleted only with `onDeleteAll={inbox.deleteAll}`, after a confirmation | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` (`useNotifications`), `action:delete-notifications` and `action:confirm-delete-notifications` (`onDeleteAll`) | none (its source: `notify` or `ws`) |
 | `task-progress` | `TaskProgress` (the task of its `id`), `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
@@ -2145,22 +2147,28 @@ lists. The content (the download, the thumbnail) is read with the token from
 the media host, which serves it to anyone who has the link; the file of
 another user, which bazis-uploadable does not give (a 404), is `file:unavailable`
 ("File not available"). In the
-forms, with `FileFieldProvider` around the routes (`GeneratedProviders`, once an entity of
-the specs has a file field), `FieldInput`
+forms, with `FileFieldProvider` around the routes (`GeneratedProviders`, once `packages` has
+`uploadable`), `FieldInput`
 edits it with `FileField`: a drop zone and a picker, the file uploaded at once with its
 progress and a cancel (one file at a time: another one is not taken while it uploads),
 its id set as the value of the relationship, a replace and a
 remove (when the relationship is nullable); a file larger than `max_size` of the
-contract, or of a type that `accept` refuses, is not sent, and the 413
-`ERR_FILE_TOO_LARGE` of the backend is the error of the field; `ResourceForm` is not
-submitted while a file uploads. Without the provider the field is the picker of a
-relationship. The payloads of the transits have no files (a payload has no
-relationships).
+contract, or of a type that `accept` refuses, is not sent, and a refusal of the backend
+(413 `ERR_FILE_TOO_LARGE`, 422 of its type or its name, 429 of the rate) is the error of
+the field; the file chosen is shown from the browser (its name, its size, a thumbnail of
+an image), not read back. A many-to-many field to the files, or `list[UploadedFileId]` in
+the body of an action, is `FilesField`: several files chosen or dropped at once, uploaded one
+after the other, listed (`file:<i>`) with a cancel or a remove (`action:remove-file-<i>`)
+until the submit, the value the ids in their order; the specs have no to-many file field
+(`type: file` is a to-one relationship), so it is asked for in a body or in the code of a
+screen. `ResourceForm`, the form and the dialog of an action are not submitted while a file
+uploads. Without the provider the field is the picker of a relationship. The payloads of
+the transits have no files (a payload has no relationships).
 
-With bazis-uploadable, `manage.py bazis_front add file-field` and wrap the routes in
-`FileFieldProvider`, so that the forms upload the files of their file fields (without it a
-file field is the picker of the uploaded files); `accept` limits the types of a field, the
-size limit is `max_size` of the contract:
+With bazis-uploadable, `manage.py bazis_front add file-field`: the generated providers wrap
+the routes in `FileFieldProvider`, so that the forms upload the files of their file fields
+(without it a file field is the picker of the uploaded files); `accept` limits the types of
+a field, the size limit is `max_size` of the contract:
 
 ```tsx
 import { FileFieldProvider } from '@/bazis/ui/file-field';
@@ -2169,6 +2177,26 @@ import { FileFieldProvider } from '@/bazis/ui/file-field';
   <BrowserRouter>…</BrowserRouter>
 </FileFieldProvider>
 ```
+
+### Anonymous uploads
+
+**Anonymous uploads** (bazis-uploadable 2.8): a public form with files, the photos that a
+guest sends with a request. The backend turns them on with `BAZIS_FILE_UPLOAD_ANONYMOUS=true`
+and a size limit, `BAZIS_FILE_UPLOAD_MAX_SIZE`; the contract has them (`anonymous` and
+`anonymous_types` of `uploadable`), and a property of the body of a public action that takes
+uploaded files without them is S057 (the guest would get 401). The body takes
+`photos: list[UploadedFileId] = []`; the action attaches the files of a guest with
+`FileUpload.objects.anonymous(data.photos)` and those of a user by their ids among his own
+(a missing one is a 422 at `/photos`), and the route set of the model declares
+`files_visible` for its readers (the sample: `suggest` of `tasks/routes.py`). Without a
+session (`FileFieldProvider guest`, which the generated providers set from the token) the
+fields take the types of `anonymous_types` (recognized by their content: JPEG, PNG, WebP),
+of at most `max_size`; a guest reads back a token as the id and never the file, which the
+form shows from the browser. The backend limits the uploads of a guest by the rate
+(`BAZIS_FILE_UPLOAD_ANONYMOUS_RATE`, a 429 is the error of the field) and deletes those that
+nothing references after `BAZIS_FILE_UPLOAD_ANONYMOUS_TTL` hours
+(`manage.py uploadable_clean_anonymous`, run on a schedule). Upload one in a scenario with
+`upload: {field: photos, file: <an image of e2e/fixtures/>}`.
 
 ### The uploaded files belong to their author
 
@@ -2328,16 +2356,24 @@ contract (the JSON Schema of the body, `body` of its custom action), whatever th
 read: a property named as a relationship of the entity (`relation` of its field in the
 contract) is the picker of its related items, `RelationPicker` for a text (the id of the item)
 and `RelationListPicker` for an array (a to-many one), the related route set searched by its
-search fields (S012, S017); another is a field of its type (a `Decimal` typed with a point or
-a comma; the choices of an enum). Its label is that of `labels`, else the title of the field
-of the entity (in a dialog, of the runtime schema of the list, in the language of the
-interface; else of the contract), else the title of the property of the body. Name the
-properties of the body as the fields of the entity: a relationship is then a picker and a
-title is translated. A property that no field takes (a union, an object, an array of no
-relationship) is typed as JSON (S054, a warning): fill it in the code of the screen. On a
-public screen, the picker of a relationship lists items that the anonymous role views
-(`access` of the related entity in product.yaml, `view` of the role: S052; an entity without
-`access` is left to the backend), else a guest gets 403.
+search fields (S012, S017); a property whose JSON Schema names the resource of its ids,
+`x-relation` of a text or of the items of an array, is the same picker of that resource,
+and for the uploaded files of bazis-uploadable (`UploadedFileId`, `list[UploadedFileId]`) the
+upload of a file field: `FileField` for one, `FilesField` for a list (see
+[Files](#files)); another is a field of its type (a `Decimal` typed with a point or a comma;
+the choices of an enum, offered by their labels, `enumDict` of the `TextChoices` of a model
+with bazis 2.21, else by their values: S058, a warning). Its label is that of `labels`, else
+the title of the field of the entity (in a dialog, of the runtime schema of the list, in the
+language of the interface; else of the contract), else the title of the property of the
+body. Name the properties of the body as the fields of the entity: a relationship is then a
+picker and a title is translated. A property that no field takes (a union, an object, an
+array of no relationship) is typed as JSON (S054, a warning): fill it in the code of the
+screen. On a public screen, the picker of a relationship lists items that the anonymous role
+views (`access` of the related entity in product.yaml, `view` of the role: S052; an entity
+without `access` is left to the backend), else a guest gets 403; the files are uploaded by
+the guest only when the contract lets the guests upload (`anonymous` of `uploadable`: S057).
+A scenario uploads a file of the body with `upload` (P022 for `fill`). The dialog and the
+form are not submitted while a file uploads, nor twice while their request runs.
 
 ### The form of a custom action
 
@@ -4520,6 +4556,7 @@ Its props, `BazisProviderProps`:
 - `enum: readonly unknown[] | null`: The allowed values (the choices of the model field).
 - `blank: boolean`: The empty string is a value of the field besides those of its type and format: a `URLField` with `blank=True` (an alternative `{type: 'string', maxLength: 0}` next to the URL).
 - `labels: Readonly<Record<string, string>> | null`: The labels of the choices by the value as text (`enumDict` of Bazis: the labels of the choices of the model field, in the language of the request); null without them.
+- `relation: string | null`: The JSON:API type of the items whose ids it is (`x-relation` of a string, or of the items of an array: `UploadedFileId` of bazis-uploadable in the body of an action); null for another value.
 - `schema: JsonSchema`: The schema of the attribute (`maxLength`, `minimum`, `default`, ...).
 
 #### RelationField
@@ -5373,7 +5410,16 @@ Its props, `FileFieldProps`:
 
 #### FileFieldProvider
 
-`FileFieldProvider(props: { children: ReactNode; accept?: Readonly<Record<string, string>>; maxSize?: number | null; resources?: readonly string[]; }): Element`: Makes `FileField` the control of the file fields of `FieldInput` below it (put it in `src/app/providers.tsx`, inside `BazisProvider`).
+`FileFieldProvider(props: { children: ReactNode; accept?: Readonly<Record<string, string>>; maxSize?: number | null; guest?: boolean; resources?: readonly string[]; }): Element`: Makes `FileField` and `FilesField` the controls of the file fields of `FieldInput` below it (put it in `src/app/providers.tsx`, inside `BazisProvider`).
+
+#### FilesField
+
+`FilesField(props: FilesFieldProps): Element`: The control of a field of several files (the ids of the uploaded files in the body of an action, `list[UploadedFileId]`): the files of the field (`file:<i>`, each with its remove, `action:remove-file-<i>`), those chosen and not uploaded yet with the progress of the one that uploads and its cancel, and a drop zone that takes several files, uploaded one after the other; the value is the ids of the uploaded files in their order.
+
+
+Its props, `FilesFieldProps`:
+
+- `= FilesControlProps & FileFieldOptions`
 
 #### FileFieldOptions
 
@@ -5385,8 +5431,10 @@ Its props, `FileFieldProps`:
 
 #### The types and the constants of `@/bazis/ui/file-field`
 
+- `ANONYMOUS_ACCEPT: string | undefined`: The types of the files that a guest uploads (`anonymous_types` of the contract, recognized by their content: bazis-uploadable 2.8), as `accept` of an input; undefined when guests upload none.
 - `MAX_SIZE: number | null`: The largest file of an upload of the backend (`BAZIS_FILE_UPLOAD_MAX_SIZE`); null: no limit.
 - `FileFieldProps`: the props of `FileField`, listed with it
+- `FilesFieldProps`: the props of `FilesField`, listed with it
 
 ### `@/bazis/ui/live-query`
 
@@ -5612,7 +5660,7 @@ Its props, `DateInputProps`:
 
 #### FieldInput
 
-`FieldInput(props: FieldInputProps): Element`: A field of a runtime schema with its label and its errors: the control by the type, format and choices of an attribute (a select of the labels of the choices, a decimal typed with a point or a comma and given as its digits with a point, `'2.5'`), the coordinates of a point field of the route set `path` (`PointInput`, with the map of `MapProvider`), the picker of the related item of a to-one relationship (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the upload of a file field (the control of `FilesProvider`, `FileField` of file-field); read-only when the user may not change it.
+`FieldInput(props: FieldInputProps): Element`: A field of a runtime schema with its label and its errors: the control by the type, format and choices of an attribute (a select of the labels of the choices, a decimal typed with a point or a comma and given as its digits with a point, `'2.5'`), the coordinates of a point field of the route set `path` (`PointInput`, with the map of `MapProvider`), the picker of the related item of a to-one relationship (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the upload of a file field (the controls of `FilesProvider`: `FileField` of file-field, and `FilesField` of several files); read-only when the user may not change it.
 
 
 Its props, `FieldInputProps`:
@@ -5625,9 +5673,13 @@ Its props, `FieldInputProps`:
 - `onBusy?: (busy: boolean) => void`: A file of the field starts or ends uploading: the form waits for it to be submitted.
 - `path?: string | undefined`: The route set of the resource of the field: a point field of it (`PointsProvider`, the contract) is edited as a point.
 
+#### useUploads
+
+`useUploads(): { uploading: boolean; onBusy: (name: string) => (busy: boolean) => void; }`: The uploads of the file fields of a form, `onBusy(name)` of each `FieldInput`: `uploading` while a file of one of them uploads, when the form is not submitted.
+
 #### FieldValue
 
-`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), an uploaded file (`FileValue`).
+`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`).
 
 
 Its props, `FieldValueProps`:
@@ -5719,7 +5771,7 @@ Its props, `ItemValueProps`:
 
 #### relatedField
 
-`relatedField(path: string, property: AttributeField, label?: string, resource?: Fields): FormField`: The field of a property of the body of a custom action or of the payload of a transit of the route set of `path`: the picker of the related items of the relationship of the resource of the same name in the contract (`relation`: a text for a to-one one, an array for a to-many one), else the property as it is.
+`relatedField(path: string, property: AttributeField, label?: string, resource?: Fields): FormField`: The field of a property of the body of a custom action or of the payload of a transit of the route set of `path`: the picker of the related items of the relationship of the resource of the same name in the contract (`relation`: a text for a to-one one, an array for a to-many one), else of the resource of its `x-relation` (`relation` of the property: the uploaded files of `UploadedFileId` of bazis-uploadable, a file field), else the property as it is.
 
 #### resourceAt
 
@@ -5786,7 +5838,7 @@ Its props, `ItemValueProps`:
 
 #### FilesProvider
 
-`FilesProvider(props: { control: ComponentType<FileControlProps> | null; resources?: readonly string[]; children: ReactNode; }): Element`: Gives `FieldInput` the control of the file fields (`FileFieldProvider` of file-field), for the forms and the payloads below it.
+`FilesProvider(props: { control: ComponentType<FileControlProps> | null; listControl?: ComponentType<FilesControlProps> | null; resources?: readonly string[]; children: ReactNode; }): Element`: Gives `FieldInput` the controls of the file fields (`FileFieldProvider` of file-field), for the forms and the payloads below it: `control` of a field of a file, `listControl` of a field of several.
 
 #### FileValue
 
@@ -5811,7 +5863,7 @@ Its props, `FileViewProps`:
 
 #### isFile
 
-`isFile(field: FormField | undefined, resources: readonly string[]): field is RelationField`: Whether a field is a file: a to-one relationship to a resource of the uploaded files.
+`isFile(field: FormField | undefined, resources: readonly string[]): field is RelationField`: Whether a field is a file field: a relationship to a resource of the uploaded files, of a file or (`many`) of several.
 
 #### isImage
 
@@ -5819,7 +5871,7 @@ Its props, `FileViewProps`:
 
 #### useFiles
 
-`useFiles(): Files`: The resources of the uploaded files and the control of a file field.
+`useFiles(): Files`: The resources of the uploaded files and the controls of the file fields.
 
 #### ControlProps
 
@@ -5839,6 +5891,14 @@ Its props, `FileViewProps`:
 - `control: ControlProps`: The attributes of the `<input type="file">`.
 - `onBusy: (busy: boolean) => void`: An upload of the field starts or ends: the form is not submitted meanwhile.
 - `onError: (message: string | null) => void`: The error of the file (too large, refused by the backend), shown with the errors of the field; null clears it.
+
+#### FilesControlProps
+
+`interface FilesControlProps extends Omit<FileControlProps, 'value' | 'onChange'>`: What `FieldInput` gives the control of a field of several files.
+
+- `field: RelationField`: A to-many relationship to a resource of the uploaded files (the ids of a body of an action).
+- `value: readonly string[]`: The ids of the uploaded files, in their order.
+- `onChange: (value: string[]) => void`
 
 #### UploadedFile
 
@@ -6354,6 +6414,7 @@ Its props, `ActionFieldsProps`:
 - `errors: Readonly<Record<string, readonly string[]>>`
 - `disabled: boolean`
 - `onChange: (name: string, value: unknown) => void`
+- `onBusy: (name: string) => (busy: boolean) => void`: A file of a field starts or ends uploading (`useUploads`): the action waits for it.
 
 #### ActionForm
 

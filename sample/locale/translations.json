@@ -1,8 +1,10 @@
 {
   "ru": {
+    "A photo is missing or expired: upload it again.": "Фотография не найдена или устарела: загрузите её снова.",
     "Assignee": "Исполнитель",
     "Due": "Срок",
     "Hours": "Часы",
+    "Photos": "Фотографии",
     "Username": "Имя пользователя",
     "Users": "Пользователи",
     "Watchers": "Наблюдатели"

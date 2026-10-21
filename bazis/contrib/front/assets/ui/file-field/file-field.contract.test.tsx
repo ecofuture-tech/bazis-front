@@ -12,19 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The contract of the file field: the input `field:<name>` in `upload:<name>` (`aria-busy`
-// while its file uploads), the upload of a chosen file and the id of its item as the value,
-// the files refused before they are sent (too large, of another type), the errors of the
-// backend, the cancel, the replace and the remove; and in a form (`FieldInput` under
-// `FileFieldProvider`), the errors of the file as `error:<name>`. Keep it passing when the
-// component is changed.
+// The contract of the file fields: the input `field:<name>` in `upload:<name>` (`aria-busy`
+// while a file uploads), the upload of a chosen file and the id of its item as the value, the
+// file chosen shown from its local copy (never read back: a guest may not), the files refused
+// before they are sent (too large, of another type), the errors of the backend, the cancel, the
+// replace and the remove; of several files (`FilesField`), the files listed (`file:<i>`) with
+// their remove (`action:remove-file-<i>`), uploaded one after the other, their ids as the value,
+// the local copies of the images dropped with their files; and in a form (`FieldInput` under
+// `FileFieldProvider`), the errors of the file as `error:<name>`, the types of the guests. Keep
+// it passing when the component is changed.
 
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import type { RelationField } from '@/bazis/react';
-import { accepts, FileField, FileFieldProvider, type FileFieldProps } from '@/bazis/ui/file-field';
+import {
+  accepts,
+  ANONYMOUS_ACCEPT,
+  FileField,
+  FileFieldProvider,
+  FilesField,
+  type FileFieldProps,
+  type FilesFieldProps,
+} from '@/bazis/ui/file-field';
 import { FieldInput } from '@/bazis/ui/resource';
 import { Backend, renderWithBazis, resource } from '@/bazis/ui/testing';
 
@@ -90,9 +101,7 @@ function choose(file: File) {
 
 describe('FileField', () => {
   it('uploads the chosen file and takes the id of its item', async () => {
-    const backend = new Backend()
-      .on('POST', FILES, { data: uploaded(1, 'brief.txt') }, 201)
-      .on('GET', `${FILES}1/`, { data: uploaded(1, 'brief.txt') });
+    const backend = new Backend().on('POST', FILES, { data: uploaded(1, 'brief.txt') }, 201);
     const field = spies();
     renderWithBazis(<Field spies={field} />, backend);
 
@@ -108,11 +117,15 @@ describe('FileField', () => {
     expect(backend.calls.find((it) => it.method === 'POST')).toMatchObject({ method: 'POST', url: FILES, body: { file: 'brief.txt' } });
     expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
     expect(field.onError).toHaveBeenCalledWith(null);
-    // the file of the value: its name downloads it (with the token, not from its URL), its size
-    await screen.findByRole('button', { name: 'brief.txt' });
-    expect(screen.queryByRole('link')).toBeNull();
+    // the file chosen here, from its local copy (a guest reads no uploaded file back): its
+    // name and its size, never read from the backend
+    await waitFor(() => {
+      expect(screen.getByTestId('upload:attachment').getAttribute('aria-busy')).toBeNull();
+    });
+    expect(screen.getByTestId('upload:attachment').textContent).toContain('brief.txt');
     expect(screen.getByTestId('upload:attachment').textContent).toContain('11 B');
-    expect(screen.getByTestId('upload:attachment').getAttribute('aria-busy')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(backend.calls.filter((it) => it.method === 'GET')).toEqual([]);
   });
 
   it('is busy while the file uploads, and the cancel keeps the value', async () => {
@@ -269,5 +282,300 @@ describe('FileFieldProvider', () => {
     expect(screen.getByTestId('error:attachment').textContent).toBe('The file is larger than 10 B.');
     expect(screen.getByTestId('field:attachment').getAttribute('aria-invalid')).toBe('true');
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+/** A to-many field of the uploaded files: the ids of the photos in the body of an action. */
+const PHOTOS: RelationField = { ...FIELD, name: 'photos', title: 'Photos', nullable: false, many: true };
+
+const PNG = new File(['png'], 'leak.png', { type: 'image/png' });
+
+interface ListSpies {
+  onChange: Mock<(value: string[]) => void>;
+  onBusy: Mock<(busy: boolean) => void>;
+  onError: Mock<(message: string | null) => void>;
+}
+
+function listSpies(): ListSpies {
+  return { onChange: vi.fn(), onBusy: vi.fn(), onError: vi.fn() };
+}
+
+/** The field of several files with its value in a state, as a form holds it. */
+function Files({ initial = [], spies: given, ...props }: Partial<FilesFieldProps> & { initial?: string[]; spies: ListSpies }) {
+  const [value, setValue] = useState<string[]>(initial);
+  return (
+    <FilesField
+      field={PHOTOS}
+      value={value}
+      disabled={false}
+      control={{ id: 'photos', 'data-bz': 'field:photos' }}
+      path={FILES}
+      maxSize={null}
+      onChange={(next) => {
+        given.onChange(next);
+        setValue(next);
+      }}
+      onBusy={given.onBusy}
+      onError={given.onError}
+      {...props}
+    />
+  );
+}
+
+function chooseFiles(...files: File[]) {
+  fireEvent.change(screen.getByTestId('field:photos'), { target: { files } });
+}
+
+/** The local copies of the images (`blob:<n>`), created and dropped. */
+function objectUrls() {
+  let next = 0;
+  const created = vi.fn(() => `blob:${String((next += 1))}`);
+  const revoked = vi.fn();
+  Object.assign(URL, { createObjectURL: created, revokeObjectURL: revoked });
+  return { created, revoked };
+}
+
+describe('FilesField', () => {
+  it('uploads the chosen files one after the other and takes the ids of their items', async () => {
+    const urls = objectUrls();
+    const backend = new Backend().each(
+      'POST',
+      FILES,
+      { body: { data: uploaded(1, 'leak.png') }, status: 201 },
+      // the id of a guest is a signed token: a text
+      { body: { data: { ...uploaded(2, 'brief.txt'), id: '2:1v8Xa:token' } }, status: 201 },
+    );
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} />, backend);
+    await screen.findByTestId('field:photos');
+    expect(screen.getByTestId('field:photos')).toHaveProperty('multiple', true);
+    expect(screen.getByTestId('upload:photos').textContent).toContain('Drop files here');
+
+    chooseFiles(PNG, BRIEF);
+    // busy at once, until the last file is uploaded
+    expect(screen.getByTestId('upload:photos').getAttribute('aria-busy')).toBe('true');
+    await waitFor(() => {
+      expect(field.onChange).toHaveBeenLastCalledWith(['1', '2:1v8Xa:token']);
+    });
+    expect(field.onChange.mock.calls).toEqual([[['1']], [['1', '2:1v8Xa:token']]]);
+    expect(backend.calls.map((it) => [it.method, it.body])).toEqual([
+      ['POST', { file: 'leak.png' }],
+      ['POST', { file: 'brief.txt' }],
+    ]);
+    expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
+    await waitFor(() => {
+      expect(screen.getByTestId('upload:photos').getAttribute('aria-busy')).toBeNull();
+    });
+    // listed from their local copies, the image with its thumbnail: none read from the backend
+    expect(screen.getByTestId('file:0').textContent).toContain('leak.png');
+    expect(screen.getByTestId('file:0').querySelector('img')?.getAttribute('src')).toBe('blob:1');
+    expect(screen.getByTestId('file:1').textContent).toContain('brief.txt');
+    expect(urls.created).toHaveBeenCalledTimes(1);
+    expect(backend.requests('GET')).toEqual([]);
+  });
+
+  it('removes a file before the form is sent, and drops the local copy of its image', async () => {
+    const urls = objectUrls();
+    const backend = new Backend()
+      .each(
+        'POST',
+        FILES,
+        { body: { data: uploaded(1, 'leak.png') }, status: 201 },
+        { body: { data: uploaded(2, 'second.png') }, status: 201 },
+      )
+      .on('GET', `${FILES}5/`, { data: uploaded(5, 'old.txt') });
+    const field = listSpies();
+    const { unmount } = renderWithBazis(<Files spies={field} initial={['5']} />, backend);
+    // a file of the value not chosen here: read with the retrieve of its route set
+    expect(await screen.findByRole('button', { name: 'old.txt' })).toBeTruthy();
+
+    chooseFiles(PNG, new File(['png'], 'second.png', { type: 'image/png' }));
+    await waitFor(() => {
+      expect(field.onBusy).toHaveBeenLastCalledWith(false);
+    });
+    expect(field.onChange).toHaveBeenLastCalledWith(['5', '1', '2']);
+    fireEvent.click(screen.getByTestId('action:remove-file-0'));
+    expect(field.onChange).toHaveBeenLastCalledWith(['1', '2']);
+    expect(urls.revoked).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('action:remove-file-0'));
+    expect(field.onChange).toHaveBeenLastCalledWith(['2']);
+    expect(urls.revoked).toHaveBeenCalledWith('blob:1');
+    expect(screen.getByTestId('file:0').textContent).toContain('second.png');
+    // the others with the field
+    unmount();
+    expect(urls.revoked.mock.calls).toEqual([['blob:1'], ['blob:2']]);
+  });
+
+  it('cancels the file that uploads and leaves out one that waits', async () => {
+    const urls = objectUrls();
+    const backend = new Backend().hold('POST', FILES);
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} />, backend);
+    await screen.findByTestId('field:photos');
+
+    chooseFiles(BRIEF, PNG);
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeTruthy();
+    });
+    // the second waits: left out, its local copy dropped
+    fireEvent.click(screen.getByTestId('action:remove-file-1'));
+    expect(urls.revoked).toHaveBeenCalledWith('blob:1');
+    expect(screen.queryByTestId('file:1')).toBeNull();
+    // the first uploads: cancelled
+    fireEvent.click(screen.getByTestId('action:remove-file-0'));
+    await waitFor(() => {
+      expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
+    });
+    expect(screen.queryByTestId('file:0')).toBeNull();
+    expect(backend.requests('POST')).toEqual([`POST ${FILES}`]);
+    expect(field.onChange).not.toHaveBeenCalled();
+  });
+
+  it('sends no file that waits once the form is closed', async () => {
+    objectUrls();
+    const backend = new Backend().hold('POST', FILES);
+    const field = listSpies();
+    const { unmount } = renderWithBazis(<Files spies={field} />, backend);
+    await screen.findByTestId('field:photos');
+
+    chooseFiles(BRIEF, PNG);
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeTruthy();
+    });
+    // the upload of the first is aborted with the field, the second never sent
+    unmount();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(backend.requests('POST')).toEqual([`POST ${FILES}`]);
+    expect(field.onChange).not.toHaveBeenCalled();
+  });
+
+  it('does not send the files larger than the limit or of another type, and takes the others', async () => {
+    objectUrls();
+    const backend = new Backend().each('POST', FILES, { body: { data: uploaded(1, 'leak.png') }, status: 201 });
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} maxSize={5} accept="image/png,image/webp" />, backend);
+    await screen.findByTestId('field:photos');
+    expect(screen.getByTestId('field:photos').getAttribute('accept')).toBe('image/png,image/webp');
+    expect(screen.getByTestId('upload:photos').textContent).toContain('up to 5 B');
+
+    chooseFiles(BRIEF, PNG);
+    expect(field.onError).toHaveBeenCalledWith('The file is larger than 5 B.');
+    await waitFor(() => {
+      expect(field.onChange).toHaveBeenCalledWith(['1']);
+    });
+    chooseFiles(new File(['gif'], 'cat.gif', { type: 'image/gif' }));
+    expect(field.onError).toHaveBeenLastCalledWith('The file is not of the type image/png,image/webp.');
+    expect(backend.calls.map((it) => it.body)).toEqual([{ file: 'leak.png' }]);
+  });
+
+  it.each([
+    ['the type that the content shows', 422, 'ERR_FILE_TYPE', 'The file is not an image of the allowed types'],
+    ['the size limit', 413, 'ERR_FILE_TOO_LARGE', 'The file is larger than 6291456 bytes'],
+    ['the rate of the guests', 429, 'ERR_THROTTLED', 'Too many requests, retry in 60 seconds'],
+    ['anonymous uploads turned off', 401, 'UNAUTHORIZED', 'Not authenticated'],
+  ])('leaves out a file that the backend refuses: %s', async (_, status, code, detail) => {
+    objectUrls();
+    const backend = new Backend().each(
+      'POST',
+      FILES,
+      { body: { errors: [{ status, code, detail }] }, status },
+      { body: { data: uploaded(2, 'brief.txt') }, status: 201 },
+    );
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} />, backend);
+    await screen.findByTestId('field:photos');
+    chooseFiles(PNG, BRIEF);
+    await waitFor(() => {
+      expect(field.onBusy).toHaveBeenLastCalledWith(false);
+    });
+    expect(field.onError).toHaveBeenCalledWith(detail);
+    // the next file is uploaded
+    expect(field.onChange.mock.calls).toEqual([[['2']]]);
+    expect(screen.getByTestId('file:0').textContent).toContain('brief.txt');
+    expect(screen.queryByTestId('file:1')).toBeNull();
+  });
+
+  it('says that the upload failed when the backend cannot be reached', async () => {
+    const backend = new Backend().unreachable('POST', FILES);
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} />, backend);
+    await screen.findByTestId('field:photos');
+    chooseFiles(BRIEF);
+    await waitFor(() => {
+      expect(field.onError).toHaveBeenLastCalledWith('The upload failed.');
+    });
+    expect(field.onChange).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('file:0')).toBeNull();
+  });
+
+  it('shows a name as a text, however long', async () => {
+    const backend = new Backend().each(
+      'POST',
+      FILES,
+      { body: { data: uploaded(1, 'x.txt') }, status: 201 },
+      { body: { data: uploaded(2, 'y.txt') }, status: 201 },
+    );
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} />, backend);
+    await screen.findByTestId('field:photos');
+    const markup = '<img src=x onerror="window.injected=1">.txt';
+    const long = `${'a'.repeat(5000)}.txt`;
+    chooseFiles(new File(['x'], markup), new File(['x'], long));
+    await waitFor(() => {
+      expect(field.onBusy).toHaveBeenLastCalledWith(false);
+    });
+    const first = screen.getByTestId('file:0');
+    expect(first.textContent).toContain(markup);
+    expect(first.querySelector('img')).toBeNull();
+    // cut to the width of the field, the whole name as its title
+    const name = screen.getByTitle(long);
+    expect(name.className).toContain('truncate');
+  });
+
+  it('changes nothing when disabled', async () => {
+    const backend = new Backend().on('GET', `${FILES}5/`, { data: uploaded(5, 'old.txt') });
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} initial={['5']} disabled />, backend);
+    await screen.findByRole('button', { name: 'old.txt' });
+    expect(screen.getByTestId('field:photos')).toHaveProperty('disabled', true);
+    expect(screen.queryByTestId('action:remove-file-0')).toBeNull();
+    chooseFiles(BRIEF);
+    expect(backend.requests('POST')).toEqual([]);
+  });
+});
+
+describe('FileFieldProvider of several files', () => {
+  it('makes FilesField the control of a to-many file field of FieldInput, with its errors as error:<name>', async () => {
+    const backend = new Backend();
+    const onChange = vi.fn();
+    renderWithBazis(
+      <FileFieldProvider resources={['test.file']} accept={{ photos: '.txt' }}>
+        <FieldInput field={PHOTOS} value={[]} onChange={onChange} />
+      </FileFieldProvider>,
+      backend,
+    );
+    expect(await screen.findByLabelText('Photos')).toBe(screen.getByTestId('field:photos'));
+    expect(screen.getByTestId('field:photos').getAttribute('accept')).toBe('.txt');
+    act(() => {
+      chooseFiles(PNG);
+    });
+    expect(screen.getByTestId('error:photos').textContent).toBe('The file is not of the type .txt.');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(backend.calls).toEqual([]);
+  });
+
+  it('gives a guest the types that the guests upload, whatever accept says', async () => {
+    renderWithBazis(
+      <FileFieldProvider resources={['test.file']} accept={{ photos: '.txt', attachment: '.txt' }} guest>
+        <FieldInput field={PHOTOS} value={[]} onChange={vi.fn()} />
+        <FieldInput field={FIELD} value={null} onChange={vi.fn()} />
+      </FileFieldProvider>,
+      new Backend(),
+    );
+    await screen.findByTestId('field:photos');
+    await screen.findByTestId('field:attachment');
+    // `anonymous_types` of the contract; any type when the guests upload none
+    expect(screen.getByTestId('field:photos').getAttribute('accept')).toBe(ANONYMOUS_ACCEPT ?? null);
+    expect(screen.getByTestId('field:attachment').getAttribute('accept')).toBe(ANONYMOUS_ACCEPT ?? null);
   });
 });

@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # The form of a custom action of the route set as a page, extended, without a result: a toast,
-# then the list of the tasks.
+# then the list of the tasks. A user of a session attaches his own uploads (the photos of the
+# body), by their ids.
 spec: bazis-screen/1
 id: task-suggestion
 title: {en: Suggest a task, ru: Предложить задачу}
@@ -11,7 +12,7 @@ primitive: form
 extend: true
 form:
   action: suggest
-  fields: [title]
+  fields: [title, photos]
   labels:
     title: {en: Task, ru: Задача}
   submit: {en: Suggest, ru: Предложить}

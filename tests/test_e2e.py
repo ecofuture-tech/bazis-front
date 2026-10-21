@@ -39,7 +39,7 @@ from bazis.contrib.front.spec.scenarios import Step
 from bazis.contrib.front.spec.validate import validate
 from bazis.contrib.front.vendor.lock import digest
 
-from .support import SAMPLE_SPEC, read_lock, write_lock
+from .support import SAMPLE_SPEC, read_lock, sample_contract, write_lock
 
 
 REPOSITORY = Path(__file__).resolve().parent.parent
@@ -590,12 +590,10 @@ def test_e2e_needs_a_frontend(tmp_path):
 
 @pytest.mark.django_db
 def test_the_declarations_of_the_sample_create_the_data_of_its_specs(sample_app, tmp_path):
-    from bazis.contrib.front.contract.export import render
-
     # the contract of the migrated database: the roles, statuses and transits that `migrate`
     # applied from `tasks/roles.py` and `tasks/workflow.py`
     shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
-    text = render(sample_app)['contract.json']
+    text = sample_contract(sample_app)
     (tmp_path / 'contract').mkdir()
     (tmp_path / 'contract' / 'contract.json').write_text(text, encoding='utf-8')
     contract = json.loads(text)['capabilities']

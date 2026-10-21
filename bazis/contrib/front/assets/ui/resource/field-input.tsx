@@ -16,7 +16,7 @@
 // payloads of the transits render their fields with it. The control is marked
 // `data-bz="field:<name>"` and its errors `data-bz="error:<name>"`.
 
-import { useId, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
 
 import { choiceLabel, type AttributeField, type FormField } from '@/bazis/react';
 import { Input } from '@/components/ui/input';
@@ -222,13 +222,35 @@ function noBusy(): void {
 }
 
 /**
+ * The uploads of the file fields of a form, `onBusy(name)` of each `FieldInput`: `uploading`
+ * while a file of one of them uploads, when the form is not submitted.
+ */
+export function useUploads(): { uploading: boolean; onBusy: (name: string) => (busy: boolean) => void } {
+  const [names, setNames] = useState<ReadonlySet<string>>(() => new Set());
+  const onBusy = useCallback(
+    (name: string) => (busy: boolean) => {
+      setNames((current) => {
+        if (current.has(name) === busy) return current;
+        const next = new Set(current);
+        if (busy) next.add(name);
+        else next.delete(name);
+        return next;
+      });
+    },
+    [],
+  );
+  return { uploading: names.size > 0, onBusy };
+}
+
+/**
  * A field of a runtime schema with its label and its errors: the control by the type,
  * format and choices of an attribute (a select of the labels of the choices, a decimal
  * typed with a point or a comma and given as its digits with a point, `'2.5'`), the
  * coordinates of a point field of the route set `path` (`PointInput`, with the map of
  * `MapProvider`), the picker of the related item of a to-one relationship
  * (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the
- * upload of a file field (the control of `FilesProvider`, `FileField` of file-field);
+ * upload of a file field (the controls of `FilesProvider`: `FileField` of file-field, and
+ * `FilesField` of several files);
  * read-only when the user may not change it.
  */
 export function FieldInput({
@@ -248,7 +270,9 @@ export function FieldInput({
   const errors = fileError === null ? fieldErrors : [...fieldErrors, fileError];
   const errorId = `${id}-error`;
   const invalid = errors.length > 0;
-  const FileControl = isFile(field, files.resources) ? files.control : null;
+  const file = isFile(field, files.resources) ? field : null;
+  const FileControl = file && !file.many ? files.control : null;
+  const FilesControl = file?.many ? files.listControl : null;
   const control: ControlProps = {
     id,
     required: field.required,
@@ -269,12 +293,22 @@ export function FieldInput({
         {field.title}
         {field.required && <span aria-hidden="true">*</span>}
       </Label>
-      {FileControl !== null && field.kind === 'relation' ? (
+      {file && FileControl ? (
         <FileControl
-          field={field}
+          field={file}
           value={typeof value === 'string' && value ? value : null}
           onChange={onChange}
-          disabled={disabled || field.readOnly}
+          disabled={disabled || file.readOnly}
+          control={control}
+          onBusy={onBusy}
+          onError={setFileError}
+        />
+      ) : file && FilesControl ? (
+        <FilesControl
+          field={file}
+          value={Array.isArray(value) ? value.map(text) : []}
+          onChange={onChange}
+          disabled={disabled || file.readOnly}
           control={control}
           onBusy={onBusy}
           onError={setFileError}

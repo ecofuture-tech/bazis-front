@@ -15,6 +15,12 @@ test('visitor-suggests-a-task-on-its-page', async ({ page }) => {
   await test.step('fill: {title: Suggested on the page of a guest}', async () => {
     await app.fill({ title: 'Suggested on the page of a guest' });
   });
+  await test.step('upload: {field: photos, file: photo-1.png}', async () => {
+    await app.upload('photos', 'photo-1.png');
+  });
+  await test.step('upload: {field: photos, file: photo-2.png}', async () => {
+    await app.upload('photos', 'photo-2.png');
+  });
   await test.step('submit', async () => {
     await app.submit({ saved: true });
   });

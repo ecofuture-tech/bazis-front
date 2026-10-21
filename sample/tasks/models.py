@@ -50,6 +50,9 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
         'uploadable.FileUpload', verbose_name=_('Attachment'), blank=True, null=True,
         on_delete=models.SET_NULL, related_name='+',
     )
+    # the photos that a guest sends with a suggested task (the action `suggest`): his anonymous
+    # uploads of bazis-uploadable 2.8, which the team reads (`files_visible` of the route set)
+    photos = models.ManyToManyField('uploadable.FileUpload', verbose_name=_('Photos'), blank=True, related_name='+')
     # a point (GeoJSON in the API): the field `type: point` of the specs, on the map of the
     # list of the tasks (`list.map`) and on the card; a geography, whose GiST index the
     # distances of the core use (`near`, and the sort by the distance)

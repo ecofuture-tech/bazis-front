@@ -51,6 +51,12 @@ export interface AttributeField extends FieldBase {
    * one with `choiceLabel`.
    */
   labels: Readonly<Record<string, string>> | null;
+  /**
+   * The JSON:API type of the items whose ids it is (`x-relation` of a string, or of the items
+   * of an array: `UploadedFileId` of bazis-uploadable in the body of an action); null for
+   * another value.
+   */
+  relation: string | null;
   /** The schema of the attribute (`maxLength`, `minimum`, `default`, ...). */
   schema: JsonSchema;
 }
@@ -181,14 +187,16 @@ function labels(value: unknown): Readonly<Record<string, string>> | null {
 
 function attribute(name: string, property: Node, root: JsonSchema, required: string[]): AttributeField {
   const { node, nullable, blank } = withoutNull(property, root);
+  const type = stringOr(node.type, null);
   return {
     ...base(name, property, node, nullable, required),
     kind: 'attribute',
-    type: stringOr(node.type, null),
+    type,
     format: stringOr(node.format, null),
     enum: Array.isArray(node.enum) ? node.enum : null,
     blank,
     labels: labels(node.enumDict),
+    relation: stringOr((type === 'array' ? resolve(node.items, root) : node)['x-relation'], null),
     schema: node,
   };
 }

@@ -167,19 +167,22 @@ export function fieldTitle(path: string, name: string, title?: string): string {
  * The field of a property of the body of a custom action or of the payload of a transit of
  * the route set of `path`: the picker of the related items of the relationship of the
  * resource of the same name in the contract (`relation`: a text for a to-one one, an array for
- * a to-many one), else the property as it is. Its title is `label` (of the specs), else that
- * of the field of the resource (in the runtime schema of `resource`, else in the contract),
- * else that of the property.
+ * a to-many one), else of the resource of its `x-relation` (`relation` of the property: the
+ * uploaded files of `UploadedFileId` of bazis-uploadable, a file field), else the property as
+ * it is. Its title is `label` (of the specs), else that of the field of the resource (in the
+ * runtime schema of `resource`, else in the contract), else that of the property.
  */
 export function relatedField(path: string, property: AttributeField, label?: string, resource?: Fields): FormField {
-  const { name } = property;
+  const { name, required, readOnly, nullable } = property;
   const own = resourceAt(path)?.fields[name];
   const runtime = resource?.fields.get(name);
   const title =
     label ?? (resource && runtime ? resource.title(name) : own === undefined ? property.title : fieldTitle(path, name));
   if (own?.relation !== undefined && property.type === (own.many === true ? 'array' : 'string')) {
-    const { required, readOnly, nullable } = property;
     return { kind: 'relation', name, title, required, readOnly, nullable, relation: own.relation, many: own.many === true };
+  }
+  if (property.relation !== null) {
+    return { kind: 'relation', name, title, required, readOnly, nullable, relation: property.relation, many: property.type === 'array' };
   }
   return { ...property, title, labels: runtime?.kind === 'attribute' ? runtime.labels : property.labels };
 }

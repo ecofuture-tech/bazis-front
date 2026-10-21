@@ -95,7 +95,7 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert 'other_routes' not in task
     # the fields that the create takes: never a date that the backend sets (`dt_created`)
     assert task['create'] == [
-        'assignee', 'attachment', 'due', 'hours', 'location', 'priority', 'report', 'status', 'title',
+        'assignee', 'attachment', 'due', 'hours', 'location', 'photos', 'priority', 'report', 'status', 'title',
         'watchers',
     ]
     # the custom actions with the standalone schema of their body, what the buttons of the specs
@@ -127,6 +127,11 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     suggest = custom['action_suggest']
     assert {key: suggest[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
         'name': 'suggest', 'item': False, 'method': 'post', 'access_action': None, 'public': True,
+    }
+    # the ids of uploaded files: `x-relation` of `UploadedFileId` (bazis-uploadable 2.8)
+    assert suggest['body']['properties']['photos'] == {
+        'default': [], 'items': {'type': 'string', 'x-relation': 'uploadable.file_upload'}, 'title': 'Photos',
+        'type': 'array',
     }
     assert suggest['response']['properties'] == {
         'task': {'title': 'Task', 'type': 'string'}, 'title': {'title': 'Title', 'type': 'string'},
@@ -441,10 +446,12 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
         # the logout endpoint of bazis-authing 2.6.0, which the frontend calls at a sign-out
         'logout_url': '/api/v1/authing/logout/',
     }
-    # the resources of the route sets of FileUploadRouteSet; no size limit by default, and no
-    # anonymous uploads
+    # the resources of the route sets of FileUploadRouteSet; the size limit and the anonymous
+    # uploads of the project (`project.env`: the guests attach photos to a suggested task), the
+    # types of the guests those of bazis-uploadable by default
     assert sections['uploadable'] == {
-        'max_size': None, 'resources': ['uploadable.file_upload'], 'anonymous': False, 'anonymous_types': [],
+        'max_size': 5242880, 'resources': ['uploadable.file_upload'], 'anonymous': True,
+        'anonymous_types': ['image/jpeg', 'image/png', 'image/webp'],
     }
     # the effective permissions of a role: the union of those of its groups, sorted
     # the names in every language of the project (translated fields)
@@ -635,9 +642,9 @@ def unapply(app_label, name):
 
 @pytest.mark.django_db
 def test_export_needs_a_migrated_database(sample_app, tmp_path):
-    unapply('tasks', '0013_hours')
+    unapply('tasks', '0014_photos')
 
-    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0013_hours.*front.E002'):
+    with pytest.raises(CommandError, match=r'not migrated: 1 migrations .*tasks.0014_photos.*front.E002'):
         call_command('bazis_front', 'contract', '--out', str(tmp_path))
     assert not list(tmp_path.iterdir())
 
@@ -645,7 +652,7 @@ def test_export_needs_a_migrated_database(sample_app, tmp_path):
         (tmp_path / 'contract').mkdir()
         messages = check_contract(None)
     assert [it.id for it in messages] == ['front.I001']
-    assert 'tasks.0013_hours' in messages[0].msg
+    assert 'tasks.0014_photos' in messages[0].msg
 
 
 @pytest.mark.django_db

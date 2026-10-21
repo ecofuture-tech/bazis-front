@@ -38,6 +38,7 @@ from .issues import Document, Issues
 from .refs import (
     Entity,
     Product,
+    body_files,
     form_answer,
     is_public,
     related_fields,
@@ -681,16 +682,16 @@ class _Scenario:
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
             self.state.values.update(values)
-            if of_body(self.state.form):
-                return
+            body = of_body(self.state.form)
             for name, value in values.items():
-                self.fixed((*path, name), name)
+                if not body:
+                    self.fixed((*path, name), name)
                 if self.file(name):
                     self.add(
                         (*path, name), 'P022', f'The field `{name}` is a file: it is not filled.',
                         f'Upload its file: `upload: {{field: {name}, file: <a file of e2e/fixtures/>}}`.',
                     )
-                else:
+                elif not body:
                     self.fill_value((*path, name), name, value)
 
     def fill_value(self, path, name, value) -> None:
@@ -718,19 +719,46 @@ class _Scenario:
         if self.editing(path):
             name = value['field']
             self.fields([((*path, 'field'), name)], self.state.form)
-            entity = self.entity
-            if entity is not None and name in entity.fields and not self.file(name):
+            if of_body(self.state.form):
+                known = name in self.state.form['fields']
+            else:
+                known = self.entity is not None and name in self.entity.fields
+            if known and self.file(name) is False:
                 self.add(
-                    (*path, 'field'), 'P022', f'The field `{name}` is not a file (`type: file`).',
-                    'Upload into a field of the type `file`, or fill this one.',
+                    (*path, 'field'), 'P022', f'The field `{name}` is not a file.',
+                    'Upload into a field of the type `file` (in the form of an action, a property of its body that '
+                    'takes the ids of uploaded files: `UploadedFileId` of bazis-uploadable), or fill this one.',
                 )
 
-    def file(self, name) -> bool:
+    def file(self, name) -> bool | None:
         """
-        Whether the entity of the screen declares the field as a file.
+        Whether a field of the open form is a file: in the form or the dialog of an action, a
+        property of its body that takes the ids of uploaded files (`refs.body_files`; None when
+        the contract does not have the action); else a field that the entity of the screen
+        declares `type: file`.
         """
+        if of_body(self.state.form):
+            files = self.body_files()
+            return None if files is None else name in files
         entity = self.entity
         return entity is not None and entity.fields.get(name, {}).get('type') == 'file'
+
+    def body_files(self) -> set[str] | None:
+        """
+        The properties of the body of the action of the open form or dialog that are uploaded
+        files: of the route set for a form and a list, of its item on a card; None when the
+        contract does not have the action.
+        """
+        form, screen, entity = self.state.form, self.state.screen or {}, self.entity
+        if self.contract is None or entity is None:
+            return None
+        resource = self.contract['project']['resources'].get(entity.data['resource'])
+        item = form.get('primitive') == 'custom' and screen.get('primitive') == 'card'
+        action = next(
+            (it for it in (resource or {}).get('custom_actions', {}).values() if it['name'] == form['action'] and it['item'] == item),
+            None,
+        )
+        return None if action is None else body_files(action['body'] or {}, resource, self.contract)
 
     def step_submit(self, path, value):
         """

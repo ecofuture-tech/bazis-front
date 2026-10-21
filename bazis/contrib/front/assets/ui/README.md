@@ -104,7 +104,7 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | `status-badge` | `StatusBadge`; `statusOf`, `statusName`, `statusOptions`, `statusTone`, `transitName`, `transitTarget` | `status:<id>` | capability `statusy` |
 | `status-history` | `StatusHistory` | none (the status of the card is the `status:<id>` of its badge) | capability `statusy` |
 | `transit-bar` | `TransitBar`; `useRunTransit`; `payloadErrors` | `transit:<id>`, `state:<loading\|error\|forbidden>`, in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | capability `statusy` |
-| `file-field` | `FileFieldProvider`; `FileField` (the control of a file field of `FieldInput`); `accepts`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads); its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
+| `file-field` | `FileFieldProvider`; `FileField` and `FilesField` (the controls of a file field and of a field of several files of `FieldInput`); `accepts`, `MAX_SIZE`, `ANONYMOUS_ACCEPT` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while a file uploads), the files `file:<i>` with `action:remove-file-<i>`; its errors are `error:<name>` of `FieldInput` | capability `uploadable` |
 | `live-query` | `LiveQuery` (the routes of `ROUTES` and the notifications of `CAPABILITIES.notify.resource` by default); the texts `socket.<status>` | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` | capability `ws` |
 | `notification-center` | `NotificationCenter`: `notifications` is `useInbox` (bazis-notify) or `useNotifications` (bazis-ws); `CenterNotification`, `NotificationSource` | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications`, `action:delete-notifications`, `action:confirm-delete-notifications` | none (its source) |
 | `task-progress` | `TaskProgress`; `taskView`, `BG_TASKS`; the texts `bg.<view>` | `bg:<waiting\|running\|success\|error\|interrupted>`, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | capability `bg` |
@@ -386,13 +386,19 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   uploaded at once with `useUpload` (its progress, a cancel; no other file is taken, chosen
   or dropped, while it uploads), then the field set to the id
   of the created item (a string); the file of the value with a replace and, for a nullable
-  relationship, a remove; a thumbnail of an image chosen is its local copy until it is
-  saved. A file larger than `maxSize` (`max_size` of the contract) or of a type that
-  `accept` refuses is not sent; these errors and those of the backend (413
-  `ERR_FILE_TOO_LARGE`, 401, 403) are the errors of the field. A form closed while its file
-  uploads aborts the upload; a replaced file stays in the storage (bazis-uploadable never
-  deletes one). `FileFieldProvider` makes it the control of every file field of the forms
-  below it, with `accept` by the name of a field.
+  relationship, a remove; the file chosen is shown from its local copy (its name, its size,
+  a thumbnail of an image), not read back: a guest may not read his upload. A file larger
+  than `maxSize` (`max_size` of the contract) or of a type that `accept` refuses is not
+  sent; these errors and those of the backend (413 `ERR_FILE_TOO_LARGE`, 422 of its type or
+  name, 429, 401, 403) are the errors of the field. A form closed while its file uploads
+  aborts the upload; a replaced file stays in the storage (bazis-uploadable never deletes
+  one). `FilesField` is the control of several files (a to-many relationship to the files,
+  `list[UploadedFileId]` in the body of an action): the files chosen or dropped uploaded
+  one after the other, each listed (`file:<i>`) with a cancel or a remove
+  (`action:remove-file-<i>`, the local copy released), the value the ids uploaded.
+  `FileFieldProvider` makes them the controls of every file field of the forms below it,
+  with `accept` by the name of a field; with `guest` (no session) the types of the
+  anonymous uploads, `ANONYMOUS_ACCEPT`.
 - **`status-history`** shows what bazis-statusy exposes of the history of an item: its
   status since `status_dt`, by `status_author` (the user of the transit that set it; none
   for the initial status), each when the user may see the field. bazis-statusy records

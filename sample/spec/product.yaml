@@ -329,21 +329,25 @@ scenarios:
       - submit: {}
       - expect: {state: done}
   # a guest, without a login: the public list of the tasks, and a task suggested with the
-  # public custom action `suggest`
+  # public custom action `suggest`, with a photo uploaded in its dialog (an anonymous upload)
   - id: visitor-suggests-a-task
     role: visitor
     steps:
       - open: public-tasks
       - action: suggest
       - fill: {title: Suggested by a guest}
+      - upload: {field: photos, file: photo-1.png}
       - submit: {}
       - expect: {screen: public-tasks}
-  # the same on the page of the form of the action: its result, with the answer of the action
+  # the same on the page of the form of the action, with two photos: its result, with the
+  # answer of the action
   - id: visitor-suggests-a-task-on-its-page
     role: visitor
     steps:
       - open: suggest-task
       - fill: {title: Suggested on the page of a guest}
+      - upload: {field: photos, file: photo-1.png}
+      - upload: {field: photos, file: photo-2.png}
       - submit: {}
       - expect: {state: done}
   # two sessions (`as`): the manager has the list open while a guest suggests a task; the

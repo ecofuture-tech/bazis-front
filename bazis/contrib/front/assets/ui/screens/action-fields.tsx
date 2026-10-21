@@ -15,7 +15,8 @@
 // The fields of the body of a custom action, read from the contract (its JSON Schema and the
 // fields of the resource): those of its dialog (`useCustomAction`) and of its form
 // (`ActionForm`). A property named as a relationship of the resource is the picker of its
-// related items (`relatedField`); another is the attribute of the body (a decimal typed as such).
+// related items (`relatedField`), one of the ids of the uploaded files (`x-relation`) a file
+// field; another is the attribute of the body (a decimal typed as such).
 
 import { objectFields, type JsonSchema } from '@/bazis/react';
 import { FieldInput, relatedField, type Fields } from '@/bazis/ui/resource';
@@ -48,10 +49,12 @@ export interface ActionFieldsProps {
   errors: Readonly<Record<string, readonly string[]>>;
   disabled: boolean;
   onChange: (name: string, value: unknown) => void;
+  /** A file of a field starts or ends uploading (`useUploads`): the action waits for it. */
+  onBusy: (name: string) => (busy: boolean) => void;
 }
 
 /** The fields of the properties of the body of a custom action that a dialog or a form asks for. */
-export function ActionFields({ path, body, names, labels, resource, values, errors, disabled, onChange }: ActionFieldsProps) {
+export function ActionFields({ path, body, names, labels, resource, values, errors, disabled, onChange, onBusy }: ActionFieldsProps) {
   const properties = objectFields(body);
   return names.map((name) => {
     const property = properties.find((it) => it.name === name);
@@ -66,6 +69,7 @@ export function ActionFields({ path, body, names, labels, resource, values, erro
         onChange={(value) => {
           onChange(name, value);
         }}
+        onBusy={onBusy(name)}
       />
     );
   });

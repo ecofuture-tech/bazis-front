@@ -12,14 +12,14 @@ import { MapProvider } from '@/bazis/ui/map';
 
 /**
  * The providers that the packages and the fields of the product need, around the router: the
- * socket of bazis-ws (with the token of the session), the upload of the files, the maps of the
- * points and the pickers of the dates.
+ * socket of bazis-ws (with the token of the session), the upload of the files (that of a guest
+ * without a session), the maps of the points and the pickers of the dates.
  */
 export function GeneratedProviders({ children }: { children: ReactNode }) {
   const token = useToken();
   return (
     <SocketProvider path={CAPABILITIES.ws?.path ?? null} token={token}>
-      <FileFieldProvider>
+      <FileFieldProvider guest={token === null}>
         <MapProvider>
           <DatePickerProvider>{children}</DatePickerProvider>
         </MapProvider>

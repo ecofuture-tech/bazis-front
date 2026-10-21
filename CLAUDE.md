@@ -76,7 +76,10 @@ specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are
 bazis-uploadable, routed as it is: it requires a user and gives him only his own files,
 also to the other routes, so the core refuses as the attachment of a task a file of another
 user, 403 `ERR_RELATION_ACCESS`, and leaves it out of `included`: `tasks.routes.TaskRouteSet`
-has no check of its own); the auth endpoint and the password service of
+has no check of its own), and whose `photos` are the files that a guest attaches to the task he
+suggests (`photos: list[UploadedFileId]` of the body of `suggest`: the anonymous uploads of
+bazis-uploadable 2.8, on in `sample/project.env` with a size limit, read by the team through
+`files_visible`; `tests/test_suggest.py`); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
 sample is that of bazis-authing (the token endpoint of bazis-users stays). The sample is in
 English and Russian (`BS_LANGUAGES` of `sample/project.env`, `LANGUAGE_CODE` `en`): the

@@ -21,12 +21,13 @@
 // told apart), shown as the backend allows it, its fields in a dialog, once per item at a time,
 // a refusal in its dialog or in a toast; the form of a custom action of the route set as a
 // page, its fields read from the contract (a relationship a picker, a decimal on one line,
-// their labels), its errors, its result from the answer of the action, or done without one;
+// their labels, the ids of the uploaded files their file fields, waited for while they
+// upload), its errors, its result from the answer of the action, or done without one;
 // the key of a custom action in the contract (`customActionKey`), which the link of its form
 // requires; and the props of an extension joined with the generated ones. Keep it passing when the
 // component is changed.
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
@@ -34,7 +35,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type * as Contract from '@/bazis/generated/contract';
 
 import { AppShell, Screen } from '@/bazis/ui/app-shell';
-import { customActionKey } from '@/bazis/ui/resource';
+import { customActionKey, FilesProvider, type FileControlProps, type FilesControlProps } from '@/bazis/ui/resource';
 import { ResourceCard, type ResourceCardProps } from '@/bazis/ui/resource-card';
 import { ResourceList } from '@/bazis/ui/resource-list';
 import {
@@ -60,7 +61,9 @@ import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resourc
 // route set, without a body; `mark-done` of the route set, whose key is that of its method;
 // `export` of the route set and of an item alike, without a body;
 // `suggest` of the route set, its body a title, the owner and the watchers (their ids), the
-// hours (a decimal) and a note
+// hours (a decimal), a note, and the ids of uploaded files (`x-relation` of `UploadedFileId`
+// of bazis-uploadable: a scan and photos, of the files of the tests, `test.file`) and of a
+// reviewer (of the owners); `escalate` also takes the id of a file, its evidence
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   const priority = { enum: ['low', 'high'], title: 'Priority', type: 'string' };
@@ -88,6 +91,7 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
                 priority: { $ref: '#/$defs/Priority', default: 'high' },
                 // `Decimal` of Pydantic: a number or a string
                 price: { anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'string' }, { type: 'null' }], default: null, title: 'Price' },
+                evidence: { type: 'string', 'x-relation': 'test.file', title: 'Evidence' },
               },
               $defs: { Priority: priority },
             },
@@ -119,6 +123,9 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
                 watchers: { type: 'array', items: { type: 'string', format: 'uuid' }, title: 'Watcher ids' },
                 hours: { anyOf: [{ type: 'number' }, { type: 'string' }], title: 'Hours' },
                 note: { type: 'string', title: 'Note' },
+                scan: { anyOf: [{ type: 'string', 'x-relation': 'test.file' }, { type: 'null' }], default: null, title: 'Scan' },
+                photos: { type: 'array', items: { type: 'string', 'x-relation': 'test.file' }, default: [], title: 'Photos' },
+                reviewer: { type: 'string', 'x-relation': 'test.owner', title: 'Reviewer' },
               },
               required: ['title'],
             },
@@ -547,6 +554,26 @@ describe('useCustomAction', () => {
     });
   });
 
+  it('waits in its dialog for the file of a field to upload', async () => {
+    const backend = cardBackend({ crud_actions: ['view'], custom_actions: ['action_escalate'] })
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('POST', `${ITEM}escalate/`, { priority: 'high' });
+    const files = fileControls();
+    renderWithBazis(files.wrap(<EscalatingCard fields={['evidence']} />), backend);
+    fireEvent.click(await screen.findByTestId('action:escalate'));
+    fireEvent.click(await screen.findByTestId('field:evidence'));
+    expect(screen.getByTestId<HTMLButtonElement>('action:submit').disabled).toBe(true);
+    fireEvent.submit(within(screen.getByRole('dialog')).getByTestId('action:submit').closest('form') as HTMLFormElement);
+    expect(backend.requests('POST')).toEqual([]);
+    files.finish();
+    expect(screen.getByTestId<HTMLButtonElement>('action:submit').disabled).toBe(false);
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEM}escalate/`]);
+    });
+    expect(backend.calls.find((it) => it.method === 'POST')?.body).toEqual({ evidence: '1' });
+  });
+
   it('labels its fields with the labels of the specs first, and asks for a relationship of the body with its picker', async () => {
     const backend = new Backend().on('GET', `${ITEMS}schema_list/`, listSchema);
     function Suggest() {
@@ -723,7 +750,99 @@ function Suggesting(props: Partial<ActionFormProps>) {
   return <ActionForm path={ITEMS} action="suggest" fields={['title', 'owner', 'watchers', 'hours', 'note']} {...props} />;
 }
 
+/**
+ * The controls of the file fields of the tests, buttons that upload a file (of a field of one
+ * file, of a field of several) until `finish` is called.
+ */
+function fileControls() {
+  const uploads: (() => void)[] = [];
+  function One({ control, onChange, onBusy }: FileControlProps) {
+    return (
+      <button
+        type="button"
+        id={control.id}
+        data-bz={control['data-bz']}
+        onClick={() => {
+          onBusy(true);
+          uploads.push(() => {
+            onChange('1');
+            onBusy(false);
+          });
+        }}
+      >
+        one file
+      </button>
+    );
+  }
+  function Many({ control, value, onChange, onBusy }: FilesControlProps) {
+    return (
+      <button
+        type="button"
+        id={control.id}
+        data-bz={control['data-bz']}
+        onClick={() => {
+          onBusy(true);
+          uploads.push(() => {
+            onChange([...value, `token-${String(value.length + 1)}`]);
+            onBusy(false);
+          });
+        }}
+      >
+        several files
+      </button>
+    );
+  }
+  return {
+    wrap: (children: ReactNode) => (
+      <FilesProvider control={One} listControl={Many} resources={['test.file']}>
+        {children}
+      </FilesProvider>
+    ),
+    finish: () => {
+      act(() => {
+        uploads.shift()?.();
+      });
+    },
+  };
+}
+
 describe('ActionForm', () => {
+  it('asks for the ids of the uploaded files with the file fields, waits for their uploads and sends them once', async () => {
+    const backend = new Backend().on('POST', SUGGESTED, { task: 't-1' });
+    const files = fileControls();
+    renderWithBazis(
+      files.wrap(<Suggesting fields={['title', 'scan', 'photos', 'reviewer']} result={{ message: () => 'Done' }} />),
+      backend,
+    );
+    // `x-relation` of the files: their controls; of another resource: the picker of its items
+    expect(screen.getByTestId('field:scan').textContent).toBe('one file');
+    expect(screen.getByTestId('field:photos').textContent).toBe('several files');
+    expect(screen.getByTestId('field:reviewer').textContent).not.toContain('file');
+    expect(screen.getByTestId('field:reviewer').getAttribute('aria-haspopup')).toBeTruthy();
+    expect(screen.getByLabelText('Photos')).toBe(screen.getByTestId('field:photos'));
+
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'Fix the tap' } });
+    fireEvent.click(screen.getByTestId('field:scan'));
+    files.finish();
+    fireEvent.click(screen.getByTestId('field:photos'));
+    // a file uploads: the form is not sent
+    const submit = screen.getByTestId<HTMLButtonElement>('action:submit');
+    expect(submit.disabled).toBe(true);
+    fireEvent.submit(screen.getByTestId('state:loaded'));
+    expect(backend.requests('POST')).toEqual([]);
+    files.finish();
+    fireEvent.click(screen.getByTestId('field:photos'));
+    files.finish();
+    expect(submit.disabled).toBe(false);
+    // sent once, however often it is submitted meanwhile
+    fireEvent.click(submit);
+    fireEvent.submit(screen.getByTestId('state:loaded'));
+    await screen.findByTestId('state:done');
+    expect(backend.calls.map((it) => [it.method, it.url, it.body])).toEqual([
+      ['POST', SUGGESTED, { title: 'Fix the tap', scan: '1', photos: ['token-1', 'token-2'] }],
+    ]);
+  });
+
   it('asks for the properties of the body from the contract, without a runtime schema, and shows the result', async () => {
     const backend = new Backend().on('POST', SUGGESTED, { task: 't-1', count: 3, done: true });
     renderWithBazis(

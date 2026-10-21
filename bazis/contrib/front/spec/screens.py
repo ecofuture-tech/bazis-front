@@ -1398,23 +1398,26 @@ def render_product(product: Product) -> str:
 def render_providers(product: Product) -> str:
     """
     The providers that the packages and the fields of the product need around the router: the
-    socket of bazis-ws, the upload of the files (bazis-uploadable), the maps of the points, the
+    socket of bazis-ws, the upload of the files (bazis-uploadable: the file fields of the
+    entities and of the bodies of the actions, which only the contract tells; a guest without
+    a session uploads the types of the anonymous uploads), the maps of the points, the
     pickers of the dates.
     """
     code = Code()
     code.use('react', 'type ReactNode')
     statements: list = []
     wrappers: list[tuple[str, list]] = []
-    if 'ws' in product.packages:
+    if 'ws' in product.packages or 'uploadable' in product.packages:
         code.use('@/app/session', 'useToken')
+        statements.append('const token = useToken();')
+    if 'ws' in product.packages:
         code.use('@/bazis/generated/contract', 'CAPABILITIES')
         code.use('@/bazis/react/ws', 'SocketProvider')
-        statements.append('const token = useToken();')
         socket = [Attr('path', Raw('CAPABILITIES.ws?.path ?? null')), Attr('token', Raw('token'))]
         wrappers.append(('SocketProvider', socket))
-    if 'uploadable' in product.packages and product.has_field('file'):
+    if 'uploadable' in product.packages:
         code.use('@/bazis/ui/file-field', 'FileFieldProvider')
-        wrappers.append(('FileFieldProvider', []))
+        wrappers.append(('FileFieldProvider', [Attr('guest', Raw('token === null'))]))
     if product.has_field('point'):
         code.use('@/bazis/ui/map', 'MapProvider')
         wrappers.append(('MapProvider', []))
@@ -1431,8 +1434,8 @@ def render_providers(product: Product) -> str:
         *code.imports(),
         doc_comment(
             'The providers that the packages and the fields of the product need, around the router: the',
-            'socket of bazis-ws (with the token of the session), the upload of the files, the maps of the',
-            'points and the pickers of the dates.',
+            'socket of bazis-ws (with the token of the session), the upload of the files (that of a guest',
+            'without a session), the maps of the points and the pickers of the dates.',
         ) + '\n' + printed(function.doc()),
     )
 

@@ -199,6 +199,43 @@ def is_file(schema: dict, contract: dict) -> bool:
     return schema.get('many') is False and schema.get('relation') in uploads(contract)
 
 
+def ids_of(schema: dict, root: dict) -> dict | None:
+    """
+    The relationship of a property of a body (`local_type`) whose value is the ids of the items
+    of a resource, by its `x-relation` (`UploadedFileId` of bazis-uploadable, `list[...]` of
+    them in `items`), as a field of the contract has it (`{relation, many}`): the frontend asks
+    for it with a file field or the picker of the items, as `relation` of the AttributeField of
+    the property; None for another property.
+    """
+    many = schema.get('type') == 'array'
+    node = local_type(schema.get('items', {}), root) if many else schema
+    relation = node.get('x-relation')
+    if not isinstance(relation, str) or node.get('type') != 'string':
+        return None
+    return {'relation': relation, 'many': many}
+
+
+def body_ids(prop: str, schema: dict, body: dict, resource: dict) -> dict | None:
+    """
+    The relationship that a property of a body (`local_type`) picks the items of: that of the
+    resource of the same name (`_is_picker`), else that of its `x-relation` (`ids_of`).
+    """
+    own = resource['fields'].get(prop, {})
+    return own if _is_picker(schema, own) else ids_of(schema, body)
+
+
+def body_files(body: dict, resource: dict, contract: dict) -> set[str]:
+    """
+    The properties of the body of a custom action of a resource of the contract that a form
+    asks for with a file field: the ids of the uploaded files of bazis-uploadable.
+    """
+    return {
+        prop for prop, value in body.get('properties', {}).items()
+        if (ids := body_ids(prop, local_type(value, body), body, resource)) is not None
+        and ids['relation'] in uploads(contract)
+    }
+
+
 def _describe(schema: dict) -> str:
     if 'relation' in schema:
         return f'a relationship to {schema["relation"]} (many: {str(schema["many"]).lower()})'
@@ -1402,10 +1439,15 @@ def _check_body(
 ) -> None:
     """
     The fields that the dialog or the form of a custom action asks for against its body: its
-    properties (S032), the pickers of the relationships (S012, S017; S052 on a public screen),
-    the types that a field takes (S054), and the properties that the body requires (S032).
+    properties (S032), the pickers of the relationships, of the entity by the name of the
+    property or by its `x-relation` (S012, S017; S052 on a public screen), the uploaded files
+    of a guest (S057), the choices without labels (S058), the types that a field takes (S054),
+    and the properties that the body requires (S032).
     """
     properties = body.get('properties', {})
+    # the relationships that the fields pick: of the entity by the name of the property, else
+    # by its `x-relation`
+    related: dict[str, dict] = {}
     pickers = []
     for i, prop in enumerate(fields or []):
         if prop not in properties:
@@ -1415,12 +1457,31 @@ def _check_body(
             )
             continue
         field_path = (*path, 'fields', i)
-        own = resource['fields'].get(prop, {})
         schema = local_type(properties[prop], body)
-        if _is_picker(schema, own):
+        ids = body_ids(prop, schema, body, resource)
+        if ids is not None and ids['relation'] in uploads(contract):
+            if public and not contract['capabilities']['uploadable'].get('anonymous'):
+                issues.add(
+                    doc, field_path, 'S057',
+                    f'The property `{prop}` of the body of `{name}` is uploaded by a guest, and the contract does not '
+                    'let the guests upload files: their upload is refused (401).',
+                    'Turn the anonymous uploads of bazis-uploadable 2.8 on: BAZIS_FILE_UPLOAD_ANONYMOUS=true with a '
+                    f'size limit, BAZIS_FILE_UPLOAD_MAX_SIZE; then {EXPORT_HINT}. Or leave the property out of the '
+                    'fields of the public screen.',
+                )
+        elif ids is not None:
+            related[prop] = ids
             pickers.append((field_path, prop))
             if public:
-                _check_guest_picker(doc, field_path, prop, own['relation'], product, issues)
+                _check_guest_picker(doc, field_path, prop, ids['relation'], product, issues)
+        elif 'enum' in schema and 'enumDict' not in schema:
+            issues.add(
+                doc, field_path, 'S058',
+                f'The property `{prop}` of the body of `{name}` has choices without their labels: the form offers '
+                'them by their values.',
+                'Type it by the `TextChoices` of the model (bazis 2.21 gives the labels of Django choices, '
+                f'`enumDict`), not by a `Literal`; then {EXPORT_HINT}.',
+            )
         elif (kind := unaskable(schema)) is not None:
             issues.add(
                 doc, field_path, 'S054',
@@ -1430,7 +1491,7 @@ def _check_body(
                 'choice, the id of a related item named as the relationship of the entity), or fill it in the '
                 'code of the screen (`extend`).',
             )
-    _check_pickers(doc, resource, pickers, contract, issues)
+    _check_pickers(doc, {'fields': related}, pickers, contract, issues)
     missing = [it for it in body.get('required', []) if it not in (fields or [])]
     if missing:
         issues.add(

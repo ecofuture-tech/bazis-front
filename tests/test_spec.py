@@ -32,7 +32,7 @@ from bazis.contrib.front.spec.access import Grant
 from bazis.contrib.front.spec.issues import CODES
 from bazis.contrib.front.spec.validate import schema_files, validate
 
-from .support import SAMPLE_SPEC, copy_screen_code
+from .support import SAMPLE_SPEC, copy_screen_code, labels_of_choices, sample_contract
 
 
 AGENTS_MD = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front' / 'AGENTS.md'
@@ -57,9 +57,7 @@ def contract(root, sample_app, db):
     its declarations, in the product root.
     """
     (root / 'contract').mkdir()
-    (root / 'contract' / 'contract.json').write_text(
-        render(sample_app)['contract.json'], encoding='utf-8'
-    )
+    (root / 'contract' / 'contract.json').write_text(sample_contract(sample_app), encoding='utf-8')
     return root / 'contract' / 'contract.json'
 
 
@@ -1422,7 +1420,7 @@ CASES = [
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'].update(
             required=['title', 'priority']),
          SUGGEST: lambda d: d['form']['fields'].append('report')},
-        [('S032', f'{PUBLIC}#/actions/0'), ('S032', f'{SUGGEST}#/form/fields/1'), ('S032', f'{SUGGEST}#/form')],
+        [('S032', f'{PUBLIC}#/actions/0'), ('S032', f'{SUGGEST}#/form/fields/2'), ('S032', f'{SUGGEST}#/form')],
     ),
     (
         'S052',
@@ -1432,7 +1430,7 @@ CASES = [
             'properties'].update(assignee={'type': 'string', 'format': 'uuid', 'title': 'Assignee'}),
          PRODUCT: lambda d: d['entities'][1].update(access={'visitor': {'view': 'none'}}),
          SUGGEST: lambda d: d['form']['fields'].append('assignee')},
-        [('S052', f'{SUGGEST}#/form/fields/1')],
+        [('S052', f'{SUGGEST}#/form/fields/2')],
     ),
     (
         'S053',
@@ -1487,7 +1485,52 @@ CASES = [
          SUGGEST: lambda d: d['form']['fields'].append('tags'),
          PUBLIC: lambda d: d['actions'][0]['fields'].append('tags')},
         [('S054', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/0'),
-         ('S054', f'{PUBLIC}#/actions/0/fields/1'), ('S054', f'{SUGGEST}#/form/fields/1')],
+         ('S054', f'{PUBLIC}#/actions/0/fields/2'), ('S054', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'S057',
+        # the guests of the public screens upload the photos of the body, and the contract does
+        # not let the guests upload files; files that are no field of the entity, by the
+        # `x-relation` of the items of their array
+        {CONTRACT: lambda d: (
+            d['capabilities']['uploadable'].update(anonymous=False, anonymous_types=[]),
+            d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body']['properties'].update(
+                scans={'type': 'array', 'items': {'type': 'string', 'x-relation': 'uploadable.file_upload'}}),
+         ),
+         SUGGEST: lambda d: d['form']['fields'].append('scans')},
+        [('S057', f'{PUBLIC}#/actions/0/fields/1'), ('S057', f'{SUGGEST}#/form/fields/1'),
+         ('S057', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'S052',
+        # the picker of the users by the `x-relation` of the id of a property that is no field
+        # of the entity, whom the guests do not view
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(reviewer={'type': 'string', 'x-relation': 'users.user'}),
+         PRODUCT: lambda d: d['entities'][1].update(access={'visitor': {'view': 'none'}}),
+         SUGGEST: lambda d: d['form']['fields'].append('reviewer')},
+        [('S052', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'S058',
+        # choices without their labels (a `Literal`, or a core before 2.21)
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(kind={'type': 'string', 'enum': ['bug', 'idea'], 'title': 'Kind'}),
+         SUGGEST: lambda d: d['form']['fields'].append('kind')},
+        [('S058', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'P022',
+        # a file of the body of an action is uploaded, not filled; another property is filled,
+        # the id of a user too
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(reviewer={'type': 'string', 'x-relation': 'users.user'}),
+         SUGGEST: lambda d: d['form']['fields'].append('reviewer'),
+         PRODUCT: lambda d: [
+            steps(d, 20)[1]['fill'].update(photos='photo-1.png'),
+            steps(d, 20)[2]['upload'].update(field='reviewer'),
+        ]},
+        [('P022', f'{PRODUCT}#/scenarios/20/steps/1/fill/photos'), ('P022', f'{PRODUCT}#/scenarios/20/steps/2/upload/field')],
     ),
     (
         'S006',
@@ -1730,7 +1773,7 @@ def test_the_form_of_a_custom_action(contract):
     edit(root, PRODUCT, lambda d: d['entities'][1].update(access={'visitor': {'view': 'all'}}))
     assert issues(root) == [('P019', f'{PRODUCT}#/entities/1/access/visitor/view')]
     edit(root, PRODUCT, lambda d: d['entities'][1].update(access={'visitor': {'view': 'none'}}))
-    assert issues(root) == [('S052', f'{SUGGEST}#/form/fields/1')]
+    assert issues(root) == [('S052', f'{SUGGEST}#/form/fields/2')]
     # a screen of a session
     edit(root, SUGGEST, lambda d: d.update(roles=['viewer']))
     edit(root, PRODUCT, lambda d: d.update(scenarios=d['scenarios'][:-3]))
@@ -2304,6 +2347,21 @@ def test_an_item_found_by_a_remembered_value_is_the_scenario_s_own(contract):
     assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/8/transit')]
 
 
+@pytest.mark.django_db
+def test_the_choices_of_the_bodies_of_the_sample_are_labeled_by_bazis_2_21(root, sample_app):
+    """
+    The priority of the bodies of `export` and `escalate` is typed by the choices of the model
+    (`Task.Priority`): bazis 2.21 exports their labels, an older core does not, and the forms
+    offer them by their values (S058).
+    """
+    (root / 'contract').mkdir()
+    (root / 'contract' / 'contract.json').write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    found = [it for it in issues(root) if it[0] == 'S058']
+    assert found == ([] if labels_of_choices() else [
+        ('S058', f'{EXPORT}#/form/fields/0'), ('S058', 'spec/screens/task-card.yaml#/actions/1/fields/0'),
+    ])
+
+
 @pytest.mark.parametrize(('prop', 'remembered'), [
     ({'type': 'string', 'format': 'uuid'}, True),
     ({'anyOf': [{'type': 'integer'}, {'type': 'null'}]}, True),
@@ -2476,7 +2534,7 @@ def test_a_transit_id_generated_by_statusy(contract, sample_app):
         status_src=Status.objects.get(pk='draft'), status_dst=Status.objects.get(pk='done'),
     )
     assert transit.id == 'task#draft_to_done'
-    contract.write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    contract.write_text(sample_contract(sample_app), encoding='utf-8')
     root = contract.parent.parent
     edit(root, PRODUCT, lambda d: [
         task(d)['workflow']['transitions'].append({'id': transit.id, 'from': 'draft', 'to': 'done'}),
@@ -2488,7 +2546,7 @@ def test_a_transit_id_generated_by_statusy(contract, sample_app):
 
     group = apps.get_model('permit.GroupPermission').objects.get(slug='tasks_transit')
     group.permissions.create(slug='tasks.task.item.transit.all.draft.task#draft_to_done')
-    contract.write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    contract.write_text(sample_contract(sample_app), encoding='utf-8')
     assert issues(root) == []
 
 
