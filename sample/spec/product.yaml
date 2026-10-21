@@ -55,12 +55,14 @@ entities:
       transitions:
         - {id: start, from: draft, to: in_progress}
         - {id: finish, from: in_progress, to: done, payload: {fields: [{id: report, type: text}]}}
+        # the payload is the id of a user: its picker, as the relationship `assignee` of the task
+        - {id: reopen, from: done, to: in_progress, payload: {fields: [{id: assignee, relation: user}]}}
     access:
       manager:
         view: all
         add: all
         change: {selector: all, statuses: [draft]}
-        transit: [start, finish]
+        transit: [start, finish, reopen]
       viewer: {view: all}
       visitor: {view: all}
   - id: user
@@ -358,3 +360,17 @@ scenarios:
       - as: manager
       - open_item: {where: {title: $suggested}}
       - expect: {screen: task-card, status: draft}
+  # a payload with a relationship (`relation`): the transit `reopen` gives a finished task to the
+  # user chosen with the picker of its dialog
+  - id: manager-reopens-a-task-for-a-user
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Redo the report}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - transit: start
+      - transit: {id: finish, payload: {report: Done}}
+      - transit: {id: reopen, payload: {assignee: Victor Viewer}}
+      - expect: {status: in_progress, values: {assignee: Victor Viewer}}

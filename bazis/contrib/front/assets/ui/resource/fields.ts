@@ -27,7 +27,7 @@ import {
   formatNumber,
   type LanguageContextValue,
 } from '@/bazis/i18n';
-import { choiceLabel, resourceSchema, type FormField, type JsonSchema } from '@/bazis/react';
+import { choiceLabel, resourceSchema, type AttributeField, type FormField, type JsonSchema } from '@/bazis/react';
 
 import { text, useAnySchema } from './hooks.js';
 import { formatPoint, pointOf } from './points.js';
@@ -161,6 +161,27 @@ function readable(title: string, name: string): string {
  */
 export function fieldTitle(path: string, name: string, title?: string): string {
   return readable(title ?? resourceAt(path)?.fields[name]?.title ?? name, name);
+}
+
+/**
+ * The field of a property of the body of a custom action or of the payload of a transit of
+ * the route set of `path`: the picker of the related items of the relationship of the
+ * resource of the same name in the contract (`relation`: a text for a to-one one, an array for
+ * a to-many one), else the property as it is. Its title is `label` (of the specs), else that
+ * of the field of the resource (in the runtime schema of `resource`, else in the contract),
+ * else that of the property.
+ */
+export function relatedField(path: string, property: AttributeField, label?: string, resource?: Fields): FormField {
+  const { name } = property;
+  const own = resourceAt(path)?.fields[name];
+  const runtime = resource?.fields.get(name);
+  const title =
+    label ?? (resource && runtime ? resource.title(name) : own === undefined ? property.title : fieldTitle(path, name));
+  if (own?.relation !== undefined && property.type === (own.many === true ? 'array' : 'string')) {
+    const { required, readOnly, nullable } = property;
+    return { kind: 'relation', name, title, required, readOnly, nullable, relation: own.relation, many: own.many === true };
+  }
+  return { ...property, title, labels: runtime?.kind === 'attribute' ? runtime.labels : property.labels };
 }
 
 /**

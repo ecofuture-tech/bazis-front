@@ -93,7 +93,9 @@ The user model of the sample has a language of its own
 and the end-to-end test `frontend-overlay/e2e/custom/profile-language.spec.ts` check
 (`e2e_data` clears the language of the test users). The roles (with their permission
 groups) are declared in `sample/tasks/roles.py`, the statuses and transits in
-`sample/tasks/workflow.py` (bazis-permit and bazis-statusy 2.9): `migrate` and the flush
+`sample/tasks/workflow.py` (bazis-permit and bazis-statusy 2.9; the payload of `reopen` is the
+id of a user, `relation: user` of the specs, asked for with the picker of the assignee in its
+dialog, `manager-reopens-a-task-for-a-user`): `migrate` and the flush
 of a `transaction=True` test apply them, so no fixture of the tests creates them (the
 pytest plugin of bazis-test-utils 2.5 also installs the triggers of `pgtrigger`), and
 `tests/test_e2e.py` checks the contract of the migrated database against `sample/spec/`;

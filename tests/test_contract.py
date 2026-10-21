@@ -447,6 +447,7 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
                 'tasks.task.field.change.all.all.report.readonly',
                 'tasks.task.item.add.all.all',
                 'tasks.task.item.change.all.draft',
+                'tasks.task.item.transit.all.done.reopen',
                 'tasks.task.item.transit.all.draft.start',
                 'tasks.task.item.transit.all.in_progress.finish',
                 'tasks.task.item.view.all.all',
@@ -476,7 +477,7 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
         {'id': 'draft', 'name': {'en': 'Draft', 'ru': 'Черновик'}},
         {'id': 'in_progress', 'name': {'en': 'In progress', 'ru': 'В работе'}},
     ]
-    finish, start = task['transits']
+    finish, reopen, start = task['transits']
     assert start == {
         'id': 'start', 'name': {'en': 'Start', 'ru': 'Начать'}, 'src': 'draft', 'dst': 'in_progress',
         'payload': None,
@@ -488,6 +489,9 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
     assert schema['required'] == ['report']
     # the combined payload type is named after the ids of its classes
     assert 'title' not in schema
+    # the id of a user, the relationship of the task of the same name (`relation` of the specs)
+    assert (reopen['id'], reopen['src'], reopen['dst']) == ('reopen', 'done', 'in_progress')
+    assert reopen['payload']['schema']['properties']['assignee'] == {'format': 'uuid', 'title': 'Assignee', 'type': 'string'}
 
 
 @pytest.mark.django_db

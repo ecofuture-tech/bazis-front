@@ -26,7 +26,7 @@ from bazis.contrib.statusy.models_abstract import StatusyMixin, StatusyTransit
 from bazis.contrib.ws.messages import publish_changed
 from bazis.core.models_abstract import DtMixin, JsonApiMixin, UuidMixin
 
-from .schemas import FinishPayload
+from .schemas import FinishPayload, ReopenPayload
 
 
 class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
@@ -86,6 +86,11 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
             self.assignee, 'tasks.finished', _('Task finished'), lambda user: self.title,
             action={'route': f'/tasks/{self.pk}'},
         )
+
+    @transit_before('Give the task to the assignee')
+    def before_reopen(self, statusy_transit: StatusyTransit, payload: ReopenPayload):
+        self.assignee_id = payload.assignee
+        self.save()
 
 
 class Step(PermitModelMixin, DtMixin, UuidMixin, JsonApiMixin):

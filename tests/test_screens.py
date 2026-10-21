@@ -208,7 +208,7 @@ def test_the_transits_in_their_order_and_the_values_of_the_add_of_a_calendar(tmp
         data['calendar'].update(end='ends'), data['calendar']['add'].update(fields=['title', 'due', 'ends'], duration=45),
     ])
     files = rendered(tmp_path)
-    assert "transits: [{ id: 'finish' }, { id: 'start', confirm: true }]," in files[f'{screens.GENERATED_DIR}/entities.ts']
+    assert "transits: [{ id: 'reopen' }, { id: 'finish' }, { id: 'start', confirm: true }]," in files[f'{screens.GENERATED_DIR}/entities.ts']
     assert 'transits={TASK.transits}' in files[CARD]
     assert 'transits={TASK.transits}' in files[f'{screens.GENERATED_DIR}/task-board.tsx']
     calendar = files[f'{screens.GENERATED_DIR}/task-calendar.tsx']

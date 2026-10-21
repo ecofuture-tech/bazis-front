@@ -33,5 +33,7 @@ WORKFLOWS = [
         Transit('start', _('Start'), DRAFT, IN_PROGRESS),
         # the payload of the action is the report (`FinishPayload`)
         Transit('finish', _('Finish'), IN_PROGRESS, DONE, actions_before=['before_finish']),
+        # the payload is the user the task is given to (`ReopenPayload`)
+        Transit('reopen', _('Reopen'), DONE, IN_PROGRESS, actions_before=['before_reopen']),
     ]),
 ]

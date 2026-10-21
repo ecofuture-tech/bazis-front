@@ -14,18 +14,56 @@
 
 // The contract of the transits of an item: `transit:<id>` of each transit the user may run,
 // in the order of the specs (the first the main button), disabled when a validator restricts
-// it, the dialog of a typed payload (`field:<name>`, `error:<name>`, `action:submit`), that of
-// the confirmation of a transit the specs confirm (`action:confirm-<id>`), `state:loading`
-// and `state:error`. Keep it passing when the component is changed.
+// it, the dialog of a typed payload (`field:<name>`, `error:<name>`, `action:submit`; the
+// picker of a property named as a to-one relationship of the resource), that of the
+// confirmation of a transit the specs confirm (`action:confirm-<id>`), `state:loading` and
+// `state:error`. Keep it passing when the component is changed.
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import type * as Contract from '@/bazis/generated/contract';
 import { ITEM_META, useAnyItem } from '@/bazis/ui/resource';
-import { Backend, errors, ITEM_ID, ITEMS, renderWithBazis, resource } from '@/bazis/ui/testing';
+import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
 import { TransitBar } from '@/bazis/ui/transit-bar';
 
 const ITEM = `${ITEMS}${ITEM_ID}/`;
+const OWNERS = '/api/test/owner/';
+
+// the resource of the tests with its owner and its watchers, a to-one and a to-many
+// relationship to the route set of the owners (`test.owner`, any product has none)
+vi.mock('@/bazis/generated/contract', async (importOriginal) => {
+  const contract = await importOriginal<typeof Contract>();
+  return {
+    ...contract,
+    ROUTES: { ...contract.ROUTES, 'test.owner': '/api/test/owner/' },
+    RESOURCES: {
+      ...contract.RESOURCES,
+      'test.item': {
+        path: '/api/test/item/',
+        fields: {
+          owner: { relation: 'test.owner', many: false, title: 'Owner' },
+          watchers: { relation: 'test.owner', many: true, title: 'Watchers' },
+        },
+        search: [],
+      },
+    },
+  };
+});
+
+// the popover of the picker is positioned with ResizeObserver and scrolls its active option
+// into view, which jsdom does not have
+beforeAll(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 /** A state action of bazis-statusy: the transit, the schema of its payload, its restricts. */
 function action(transit: string, payload: unknown, restricts: unknown = null) {
@@ -190,6 +228,35 @@ describe('TransitBar', () => {
     fireEvent.click(await screen.findByTestId('transit:finish'));
     expect((await screen.findByLabelText('Report')).getAttribute('data-bz')).toBe('field:report');
     expect(screen.getByLabelText('note').getAttribute('data-bz')).toBe('field:note');
+  });
+
+  it('asks for the id of an item of the payload with the picker of the relationship of the same name', async () => {
+    // `owner: UUID` of the payload, the owner of the item; one id is not the to-many watchers
+    const payload = {
+      type: 'object',
+      required: ['owner'],
+      properties: {
+        owner: { type: 'string', format: 'uuid', title: 'New owner' },
+        watchers: { type: 'string', format: 'uuid', title: 'Watcher' },
+      },
+    };
+    const server = new Backend()
+      .on('GET', ITEM, { data: resource(ITEM_ID), meta: { state_actions: [action('assign', payload)] } })
+      .on('GET', OWNERS, listDocument([resource('a1', { name: 'Ann' }, {}, 'test.owner')]))
+      .on('POST', `${ITEM}transit/`, { data: resource(ITEM_ID) });
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
+    fireEvent.click(await screen.findByTestId('transit:assign'));
+    const owner = await screen.findByTestId('field:owner');
+    expect(owner.getAttribute('role')).toBe('combobox');
+    // titled by the payload
+    expect(screen.getByRole('dialog').textContent).toContain('New owner');
+    expect(screen.getByTestId('field:watchers').tagName).toBe('INPUT');
+    fireEvent.click(owner);
+    fireEvent.click(await within(await screen.findByRole('listbox')).findByText('Ann'));
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(server.calls.find((call) => call.method === 'POST')?.body).toEqual({ transit: 'assign', payload: { owner: 'a1' } });
+    });
   });
 
   it('shows the errors that are not of a field of the payload with those of the fields', async () => {

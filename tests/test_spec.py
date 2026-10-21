@@ -134,6 +134,16 @@ def steps(data, scenario):
     return data['scenarios'][scenario]['steps']
 
 
+def reopen(data):
+    """The field of the payload of the transit `reopen` of the tasks: the id of a user (`relation`)."""
+    return task(data)['workflow']['transitions'][2]['payload']['fields'][0]
+
+
+def reopen_payload(data):
+    """The JSON Schema of the payload of `reopen` in the contract, `assignee: UUID`."""
+    return data['capabilities']['statusy']['models']['tasks.task']['transits'][1]['payload']['schema']
+
+
 PRODUCT, LIST, CARD = 'spec/product.yaml', 'spec/screens/task-list.yaml', 'spec/screens/task-card.yaml'
 DRAFTS = 'spec/screens/draft-tasks.yaml'
 #: the public screen of the sample: its role `visitor` is anonymous
@@ -331,7 +341,7 @@ CASES = [
         'P016',
         {PRODUCT: lambda d: task(d)['workflow']['transitions'].append(
             {'id': 'cancel', 'from': 'draft', 'to': 'done'})},
-        [('P016', f'{PRODUCT}#/entities/0/workflow/transitions/2')],
+        [('P016', f'{PRODUCT}#/entities/0/workflow/transitions/3')],
     ),
     (
         'P017',
@@ -352,7 +362,37 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/9/steps/9/transit'),
             # the board moves a task to in_progress, which only `start` leads to
             ('P024', f'{PRODUCT}#/scenarios/13/steps/6/move/to'),
+            ('P024', f'{PRODUCT}#/scenarios/22/steps/5/transit'),
+            ('P024', f'{PRODUCT}#/scenarios/22/steps/6/transit/payload/report'),
         ],
+    ),
+    # a field of a payload with `relation` is the id of an item of the entity, named as a to-one
+    # relationship of the resource to it: the picker of its dialog
+    (
+        'P017',
+        {PRODUCT: lambda d: reopen(d).update(relation='step')},
+        [('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')],
+    ),
+    (
+        'P017',
+        {CONTRACT: lambda d: reopen_payload(d)['properties'].update(assignee={'type': 'integer', 'title': 'Assignee'})},
+        [('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')],
+    ),
+    (
+        'P017',
+        # a property of the payload that no relationship of the resource is named as
+        {CONTRACT: lambda d: reopen_payload(d).update(
+            properties={'owner': reopen_payload(d)['properties']['assignee']}, required=['owner']),
+         PRODUCT: lambda d: reopen(d).update(id='owner')},
+        [
+            ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0'),
+            ('P024', f'{PRODUCT}#/scenarios/22/steps/7/transit/payload/assignee'),
+        ],
+    ),
+    (
+        'P005',
+        {PRODUCT: lambda d: reopen(d).update(relation='order')},
+        [('P005', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/relation')],
     ),
     (
         'P018',
@@ -531,13 +571,13 @@ CASES = [
             {'move': {'where': {'title': 'Review the plan'}, 'to': 'in_progress'}},
         ]})},
         [
-            ('P033', f'{PRODUCT}#/scenarios/22/steps/2/bulk'),
-            ('P033', f'{PRODUCT}#/scenarios/22/steps/4/transit'),
-            ('P033', f'{PRODUCT}#/scenarios/22/steps/6/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/22/steps/9/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/22/steps/12/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/22/steps/13/action'),
-            ('P033', f'{PRODUCT}#/scenarios/22/steps/15/move'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/2/bulk'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/4/transit'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/6/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/9/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/12/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/13/action'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/15/move'),
         ],
     ),
     (
@@ -1031,7 +1071,7 @@ CASES = [
         {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-escalates-a-draft', 'role': 'manager', 'steps': [
             {'open': 'draft-tasks'}, {'action': 'escalate'},
         ]})},
-        [('P022', f'{PRODUCT}#/scenarios/22/steps/1/action')],
+        [('P022', f'{PRODUCT}#/scenarios/23/steps/1/action')],
     ),
     (
         'P023',
@@ -1350,7 +1390,7 @@ CASES = [
         'S047',
         # no screen of the guests (nor their scenarios)
         {PUBLIC: lambda d: d.__delitem__('roles'), SUGGEST: lambda d: d.__delitem__('roles'),
-         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-3])},
+         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-4])},
         [('S047', f'{PRODUCT}#/roles/2')],
     ),
     (
@@ -1443,7 +1483,7 @@ CASES = [
         'S006',
         # the form of an action saves no item: no screen of an item after it
         {SUGGEST: lambda d: (d.update(roles=['viewer']), d['form'].update(then='task-card')),
-         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-2])},
+         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-3])},
         [('S006', f'{SUGGEST}#/form/then')],
     ),
     (
@@ -1683,7 +1723,7 @@ def test_the_form_of_a_custom_action(contract):
     assert issues(root) == [('S052', f'{SUGGEST}#/form/fields/1')]
     # a screen of a session
     edit(root, SUGGEST, lambda d: d.update(roles=['viewer']))
-    edit(root, PRODUCT, lambda d: d.update(scenarios=d['scenarios'][:-2]))
+    edit(root, PRODUCT, lambda d: d.update(scenarios=d['scenarios'][:-3]))
     assert issues(root) == []
     edit(root, SUGGEST, lambda d: d['form']['result'].update(message='suggest.done'))
     assert ('S053', f'{SUGGEST}#/form/result/message') not in issues(root)
@@ -1966,7 +2006,7 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
     ]}))
     # a day from the day of the run, as the dates of `e2e_data`
     edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'].insert(15, {'expect': {'day': {'today': 1, 'today+3': 0, 'today-1': 0}}}))
-    steps = f'{PRODUCT}#/scenarios/22/steps'
+    steps = f'{PRODUCT}#/scenarios/23/steps'
     assert issues(root) == [
         ('P022', f'{steps}/1/expect/tile/overdue'),
         ('P022', f'{steps}/2/expect/day'),
@@ -2232,13 +2272,13 @@ def test_a_role_that_cannot_add_changes_the_items_of_the_test_data(contract):
         {'transit': 'start'},
     ]}
     edit(root, PRODUCT, lambda d: d['scenarios'].append(changes))
-    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/22/steps/2/transit')]
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/23/steps/2/transit')]
 
     edit(root, PRODUCT, lambda d: [task(d)['access']['manager'].pop('add')])
     assert issues(root) == []
 
     edit(root, PRODUCT, lambda d: [task(d).pop('access')])
-    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/22/steps/2/transit')]
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/23/steps/2/transit')]
 
 
 def test_an_item_found_by_a_remembered_value_is_the_scenario_s_own(contract):
@@ -2292,6 +2332,32 @@ def test_no_warning_about_the_users_when_no_field_relates_to_them(contract):
     root = contract.parent.parent
     edit(root, CONTRACT, lambda d: d['capabilities']['users'].update(user_resource='accounts.user'))
     assert issues(root) == []
+
+
+@pytest.mark.django_db
+def test_a_payload_field_of_a_relation(contract):
+    """
+    The id of an item in a payload (`relation`, the transit `reopen` of the sample), also
+    nullable; `type: string` stays valid for it (its dialog has the picker of the relationship
+    of the same name anyway); a field has a `type` or a `relation`, never both; a to-many
+    relationship of the same name is not the id of one item.
+    """
+    root = contract.parent.parent
+    assert reopen(read(root / PRODUCT)) == {'id': 'assignee', 'relation': 'user'}
+    edit(root, CONTRACT, lambda d: reopen_payload(d)['properties'].update(
+        assignee={'anyOf': [{'type': 'string', 'format': 'uuid'}, {'type': 'null'}], 'title': 'Assignee'}))
+    assert issues(root) == []
+    edit(root, PRODUCT, lambda d: [reopen(d).pop('relation'), reopen(d).update(type='string')])
+    assert issues(root) == []
+    edit(root, PRODUCT, lambda d: reopen(d).update(relation='user'))
+    assert issues(root) == [('P002', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')]
+    edit(root, PRODUCT, lambda d: [reopen(d).pop('type'), reopen(d).update(id='watchers')])
+    edit(root, CONTRACT, lambda d: reopen_payload(d).update(
+        properties={'watchers': {'type': 'string', 'format': 'uuid'}}, required=['watchers']))
+    assert issues(root) == [
+        ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0'),
+        ('P024', f'{PRODUCT}#/scenarios/22/steps/7/transit/payload/assignee'),
+    ]
 
 
 @pytest.mark.django_db
@@ -2379,7 +2445,7 @@ def test_a_transit_id_generated_by_statusy(contract, sample_app):
         task(d)['access']['manager']['transit'].append(transit.id),
     ])
     found = validate(root).issues
-    assert [(it.code, it.path) for it in found] == [('P019', '/entities/0/access/manager/transit/2')]
+    assert [(it.code, it.path) for it in found] == [('P019', '/entities/0/access/manager/transit/3')]
     assert '`tasks.task.item.transit.all.draft.task#draft_to_done`' in found[0].message
 
     group = apps.get_model('permit.GroupPermission').objects.get(slug='tasks_transit')

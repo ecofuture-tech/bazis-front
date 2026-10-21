@@ -211,13 +211,16 @@
       ]
     },
     "payload_field": {
+      "description": "A property of the payload: an attribute (`type`), or the id of an item of an entity (`relation`), which the dialog of the transit asks for with its picker: the property is named as a to-one relationship of the entity to it.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type"],
+      "required": ["id"],
       "properties": {
         "id": {"$ref": "#/$defs/field_id"},
-        "type": {"$ref": "#/$defs/type"}
-      }
+        "type": {"$ref": "#/$defs/type"},
+        "relation": {"$ref": "#/$defs/id"}
+      },
+      "oneOf": [{"required": ["type"]}, {"required": ["relation"]}]
     },
     "workflow": {
       "description": "The statuses and transits of bazis-statusy for the resource. An entity with a workflow has the field `status`.",

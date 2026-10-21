@@ -96,8 +96,8 @@ msgid "Change the tasks"
 msgstr "Изменение задач"
 
 #: tasks/roles.py:44
-msgid "Start and finish the tasks"
-msgstr "Начало и завершение задач"
+msgid "Run the transits of the tasks"
+msgstr "Переходы задач по статусам"
 
 #: tasks/roles.py:51
 msgid "The report of a task hidden"
@@ -134,3 +134,7 @@ msgstr "Начать"
 #: tasks/workflow.py:35
 msgid "Finish"
 msgstr "Завершить"
+
+#: tasks/workflow.py:37
+msgid "Reopen"
+msgstr "Вернуть в работу"

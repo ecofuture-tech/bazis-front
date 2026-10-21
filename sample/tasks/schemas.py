@@ -12,8 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pydantic import BaseModel
+from uuid import UUID
+
+from django.utils.translation import gettext_lazy as _
+
+from pydantic import BaseModel, Field
 
 
 class FinishPayload(BaseModel):
     report: str
+
+
+class ReopenPayload(BaseModel):
+    # named as the relationship of the task: the dialog of the transit asks for the user with
+    # its picker (`relation: user` of the payload in the specs), titled in the language of the user
+    assignee: UUID = Field(title=_('Assignee'))

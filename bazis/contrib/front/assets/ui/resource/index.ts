@@ -35,6 +35,7 @@ export {
   itemName,
   localizedName,
   permitted,
+  relatedField,
   resourceAt,
   routeOf,
   statusName,

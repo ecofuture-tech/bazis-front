@@ -303,15 +303,8 @@ def _check_entity(doc: Document, entity: Entity, product: Product, issues: Issue
                 'Name fields of the entity in `label`, or declare the field in `fields`.',
             )
 
-    workflow = entity.workflow
-    if workflow is not None:
-        statuses = workflow['statuses']
-        if workflow['initial'] not in statuses:
-            _unknown_status(doc, (*path, 'workflow', 'initial'), workflow['initial'], issues)
-        for i, item in enumerate(workflow.get('transitions', [])):
-            for end in ('from', 'to'):
-                if item[end] not in statuses:
-                    _unknown_status(doc, (*path, 'workflow', 'transitions', i, end), item[end], issues)
+    if entity.workflow is not None:
+        _check_workflow_refs(doc, entity, product, issues)
 
     for role, grants in entity.data.get('access', {}).items():
         role_path = (*path, 'access', role)
@@ -322,6 +315,26 @@ def _check_entity(doc: Document, entity: Entity, product: Product, issues: Issue
             )
         for operation, grant in grants.items():
             _check_grant(doc, entity, (*role_path, operation), operation, grant, issues)
+
+
+def _check_workflow_refs(doc: Document, entity: Entity, product: Product, issues: Issues) -> None:
+    """The statuses of the transitions and the entities of the relations of their payloads."""
+    workflow, path = entity.workflow, (*entity.path, 'workflow')
+    statuses = workflow['statuses']
+    if workflow['initial'] not in statuses:
+        _unknown_status(doc, (*path, 'initial'), workflow['initial'], issues)
+    for i, item in enumerate(workflow.get('transitions', [])):
+        for end in ('from', 'to'):
+            if item[end] not in statuses:
+                _unknown_status(doc, (*path, 'transitions', i, end), item[end], issues)
+        for j, payload_field in enumerate(item.get('payload', {}).get('fields', [])):
+            if 'relation' in payload_field and payload_field['relation'] not in product.entities:
+                issues.add(
+                    doc, (*path, 'transitions', i, 'payload', 'fields', j, 'relation'), 'P005',
+                    f'The field `{payload_field["id"]}` of the payload of `{item["id"]}` references the unknown '
+                    f'entity `{payload_field["relation"]}`.',
+                    'Declare the entity in `entities`, with its resource.',
+                )
 
 
 def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> None:
@@ -536,7 +549,7 @@ def _check_entity_contract(
             f'give its route set an attribute of a label, and {EXPORT_HINT}.',
         )
     if entity.workflow is not None:
-        _check_workflow(doc, entity, contract, issues)
+        _check_workflow(doc, entity, resource, product, contract, issues)
     if data.get('access'):
         statusy = statusy_model(contract, data['resource'])
         access.check(doc, entity, statusy, product, contract, issues)
@@ -604,7 +617,9 @@ def _check_field(
     )
 
 
-def _check_workflow(doc: Document, entity: Entity, contract: dict, issues: Issues) -> None:
+def _check_workflow(
+    doc: Document, entity: Entity, resource: dict, product: Product, contract: dict, issues: Issues
+) -> None:
     data, path, workflow = entity.data, entity.path, entity.workflow
     model = statusy_model(contract, data['resource'])
     if model is None:
@@ -649,10 +664,19 @@ def _check_workflow(doc: Document, entity: Entity, contract: dict, issues: Issue
                 f'The transition `{item["id"]}` goes from `{transit["src"]}` to `{transit["dst"]}` in the contract.',
                 'Make the spec follow the Transit of the backend, or change the Transit.',
             )
-        _check_payload(doc, (*item_path, 'payload'), item, transit, issues)
+        _check_payload(doc, (*item_path, 'payload'), item, transit, resource, product, issues)
 
 
-def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues: Issues) -> None:
+def _check_payload(
+    doc: Document, path: tuple, item: dict, transit: dict, resource: dict, product: Product, issues: Issues
+) -> None:
+    """
+    The fields of the payload of a transition are those of the payload of its transit: an
+    attribute of its type, or the id of an item (`relation`), which the dialog asks for with
+    the picker of the to-one relationship of the entity of the same name (`relatedField` of
+    the frontend), so the property is a text named as such a relationship to the resource of
+    the related entity.
+    """
     payload = transit['payload']
     if (payload is None) != ('payload' not in item):
         issues.add(
@@ -676,6 +700,9 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
             )
             continue
         schema = local_type(prop, payload['schema'])
+        if 'relation' in item_field:
+            _check_payload_relation(doc, (*path, 'fields', i), item, item_field, schema, resource, product, issues)
+            continue
         # a decimal is a number or its digits as a string: the spec declares either member; any
         # other union is typed by its first member
         decimal = is_decimal(schema)
@@ -697,6 +724,29 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
                 'Give the payload of the transit a field of a type that a field takes (a text, a number, a '
                 'decimal, a date, a choice), or run the transition from the code of a screen.',
             )
+
+
+def _check_payload_relation(
+    doc: Document, path: tuple, item: dict, item_field: dict, schema: dict, resource: dict, product: Product,
+    issues: Issues,
+) -> None:
+    target = product.entities.get(item_field['relation'])
+    if target is None:
+        return
+    name = item_field['id']
+    own = resource['fields'].get(name, {})
+    member = schema.get('anyOf', [schema])[0]
+    if own.get('relation') == target.data['resource'] and not own.get('many', False) and member.get('type') == 'string':
+        return
+    issues.add(
+        doc, path, 'P017',
+        f'The field `{name}` of the payload of `{item["id"]}` is {_describe(member)} in the contract, and the '
+        f'field `{name}` of the resource {"is " + _describe(own) if own else "is missing"}: the spec declares '
+        f'the id of an item of `{target.data["resource"]}`, which the dialog asks for with the picker of the '
+        'to-one relationship of the same name.',
+        'Type the property of the payload as the id of the related item (a UUID) and name it as a to-one '
+        f'relationship of the resource to `{target.data["resource"]}`, or declare the `type` of the field.',
+    )
 
 
 # screens

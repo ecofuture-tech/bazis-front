@@ -352,6 +352,7 @@ entities:
       transitions:
         - {id: start, from: draft, to: in_progress}
         - {id: finish, from: in_progress, to: done, payload: {fields: [{id: report, type: text}]}}
+        - {id: reopen, from: done, to: in_progress, payload: {fields: [{id: assignee, relation: user}]}}
     access:
       manager:
         view: all
@@ -468,7 +469,9 @@ headed by the values of the first two fields of its sections.
 
 **Workflow**: the statuses and the transits of bazis-statusy; a transit has one `from`
 (a Transit row has one source status), and `payload` when an action of the transit takes
-a typed payload (a decimal field of it is `string`, as the field of an entity, or `number`). The ids are those of the Status and Transit rows, including those that
+a typed payload (a decimal field of it is `string`, as the field of an entity, or `number`;
+the id of an item is `relation: <entity>`, a property named as a to-one relationship of the
+entity to it: its picker in the dialog, P017). The ids are those of the Status and Transit rows, including those that
 bazis-statusy generates for a Transit created without one (`task#draft_to_done`,
 `task#draft_to_done#1`); any characters but `.` and white space.
 
@@ -1106,7 +1109,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P002` | error | spec/product.yaml does not follow product.schema.json (a key with a space or a letter beyond ASCII is the text after the comma of a flow mapping, `{a: x, y}`: quote the text) |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
 | `P004` | error | an unknown role (in access, in a scenario or in its step `as`) |
-| `P005` | error | a relation references an unknown entity |
+| `P005` | error | a relation (of a field or of a payload) references an unknown entity |
 | `P006` | error | the workflow is inconsistent: a status or a transition that the workflow of the entity does not declare |
 | `P010` | error | a package is not installed: the contract has no section for it |
 | `P011` | error | the resource of an entity is not in the contract |
@@ -1115,7 +1118,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P014` | error | the entity has a workflow, the resource is not a statusy model of the contract |
 | `P015` | error | a status of the workflow is not in the contract, or the initial status differs |
 | `P016` | error | a transition is not in the contract, or its from/to differ |
-| `P017` | error | the payload of a transition differs from the contract (a decimal is `string` or `number`) |
+| `P017` | error | the payload of a transition differs from the contract (a decimal is `string` or `number`; a field with `relation` is the id of an item named as a to-one relationship of the entity to it) |
 | `P018` | error | the permit role of a role is not in the contract |
 | `P019` | error | the permit role lacks a permission that `access` grants |
 | `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a field of its path is not a relationship (a relation that the contract does not describe is not checked) |
@@ -1633,7 +1636,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
-| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation), from `state_actions` of the request of the item that its card shares (`ITEM_META`); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
+| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation), from `state_actions` of the request of the item that its card shares (`ITEM_META`); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload (a property named as a to-one relationship: its picker) or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
 | `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`): `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
 | `live-query` | `LiveQuery`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` and `CAPABILITIES.notify.resource` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter`: a bell with the count of the unread notifications, their list (a click marks one read and opens it, `onOpen`), mark all read, a toast for each new one (`toasts`); `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only, which also has `clear`: forget those of the session); the stored notifications are deleted only with `onDeleteAll={inbox.deleteAll}`, after a confirmation | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` (`useNotifications`), `action:delete-notifications` and `action:confirm-delete-notifications` (`onDeleteAll`) | none (its source: `notify` or `ws`) |
@@ -2050,8 +2053,9 @@ member has all the fields any row can show). Check them in the scenarios with `e
 
 ### Relationships
 
-**Relationships**: `RelationPicker` (a to-one relationship in a form, a payload, a filter)
-is a combobox over the list of the related resource, read page after page (`Load more`),
+**Relationships**: `RelationPicker` (a to-one relationship in a form, a payload, a filter;
+a property of a body or of a payload named as a to-one relationship of the entity is its
+picker, `relatedField`) is a combobox over the list of the related resource, read page after page (`Load more`),
 that clears a nullable value: choose a related item with it, never with a list of every
 item. It searches the backend (`search`) only when the route set
 of the related resource has search fields (`search` of the resource in the contract; the
@@ -2787,7 +2791,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result`, shown on its page: `expect: {state: done}`), a refused one by none (the form stays open on its screen) |
   | `remember: {name: property}` | `const $name = await app.answer(property)`: the `data-value` of `answer:<property>` of the result shown (`ActionResult` renders each text and number of the answer hidden); `$name` is the constant in the values of the next steps |
-  | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog, or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
+  | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog (as `fill`: a relationship by the label of its item), or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, value)` (`data-value` of `tile:<id>`, a count or an aggregate, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
@@ -3985,6 +3989,10 @@ The API of the copies that 0.9.0 changes:
 - `e2e/bazis/` has `sessionAs(app, role)` and `App.answer(property)` (the steps `as` and
   `remember`); `ActionResult` takes `answer`. A test of `e2e/custom/` with a second context
   or a number read from a text may become a scenario.
+- `relatedField(path, property, label?, resource?)` of `@/bazis/ui/resource` (the
+  `bodyField` of the forms of the actions) gives the payload of a transit the picker of the
+  relationship of the same name; a custom dialog of a transit with a picker of its own may
+  become `relation` of the payload.
 
 ## API: the client
 
@@ -5706,6 +5714,10 @@ Its props, `ItemValueProps`:
 #### permitted
 
 `permitted(meta: PermitMeta | null | undefined, action: 'add' | 'change' | 'delete' | CustomActionName, id?: string): boolean`: Whether the backend allows an action now, from the permission meta of bazis-permit (`can()` of the client): `add` from `for_create` of a list or `crud_actions` of an item, `change` and `delete` of an item of a list from `for_change`/`for_delete` with its id, a custom action (`'action_<name>'`, `action` of `x-bazis`) from `custom_actions` (bazis-permit 2.11; by what the action declares, not the checks of its own code).
+
+#### relatedField
+
+`relatedField(path: string, property: AttributeField, label?: string, resource?: Fields): FormField`: The field of a property of the body of a custom action or of the payload of a transit of the route set of `path`: the picker of the related items of the relationship of the resource of the same name in the contract (`relation`: a text for a to-one one, an array for a to-many one), else the property as it is.
 
 #### resourceAt
 

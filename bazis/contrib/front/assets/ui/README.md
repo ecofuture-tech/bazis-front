@@ -328,7 +328,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   name together (`first_name`, `last_name`: as `get_full_name()` of a user), `title`,
   `username`, `email`, `slug`, `code`, else its id.
 - **`RelationPicker`** (the input of a to-one relationship in a form and in the payload of a
-  transit, and of the filter of a relationship) is a combobox: a button
+  transit, and of the filter of a relationship; `relatedField` makes a property of a body or
+  of a payload named as a relationship of the resource its picker) is a combobox: a button
   (`role="combobox"`, the marks of the field) with the label of the item opens a popover
   with a search sent to the backend (`search`, every word in a search field of the route set
   of the related resource) and the items of the list of the related resource, the next page
@@ -451,7 +452,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
 - **`transit-bar`** shows the transits of `meta.state_actions` of the item (disabled with
   the errors of their validators when restricted), in the request of the card
   (`ITEM_META` of `resource`: the meta of `ResourceCard`); a transit whose action takes a typed payload opens a
-  dialog with its fields, and the errors of a 422 (`/payload/<name>`) are shown by field.
+  dialog with its fields (the id of an item named as a to-one relationship: its picker), and the errors of a 422 (`/payload/<name>`) are shown by field.
   `onDone(null)`: the user can no longer view the item. `useRunTransit(path)` runs the
   transit of any item of the route set with this dialog (the board): the dialog of a payload
   reads `state_actions` of the item once as it opens, in the request of its card
