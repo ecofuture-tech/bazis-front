@@ -17,7 +17,7 @@
 
 import type { Page } from '@playwright/test';
 
-import { App, loginAs } from '../bazis';
+import { App, loginAs, sessionAs } from '../bazis';
 import { PRODUCT } from '../generated/product';
 
 declare const page: Page;
@@ -30,6 +30,11 @@ void app.open('task-lst');
 void loginAs(page, PRODUCT, 'viewer');
 // @ts-expect-error: not a role of the specs
 void loginAs(page, PRODUCT, 'admin');
+void sessionAs(app, 'visitor');
+// @ts-expect-error: not a role of the specs
+void sessionAs(app, 'admin');
+const answered: Promise<string> = app.answer('task');
+void answered;
 // a to-many relationship is filled with the labels of its items
 void app.fill({ watchers: ['Mary Manager'] });
 // @ts-expect-error: the labels are texts

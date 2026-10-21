@@ -559,7 +559,15 @@ current calendar; a day from the day of the run, `today±<n>` in UTC, for the da
 `e2e_data` sets from the day of the run),
 `error`, `notification` (a notification of the user whose text contains the text, in the
 list of the notifications; the product has bazis-notify or bazis-ws, `packages` has
-`notify` or `ws`: P027). The
+`notify` or `ws`: P027), `as: <role>` (the next steps run in the session of the role, a
+context of the browser of its own, its `test_user` logged in the first time: P004, P025;
+each session has its screen, its form and its card, the items created and the values
+remembered are of the whole scenario), `remember: {<name>: <property>}` (after the `submit`
+of the form of an action with `result`, a property of its answer, `filename` of a file:
+`$<name>` is that value in `fill`, `where`, `values` and `payload` of the next steps, in any
+session; P022 without the result in the session, for a property its answer does not have
+or a `$<name>` not remembered before; an item found by it is one the run made, which the
+scenario may change: no P033). The
 validator follows the steps from screen to screen
 and checks each against the screen it acts on: `open` takes a screen without an item in
 its route (an item is reached with `open_item` or the `then` of a form), a form with
@@ -580,6 +588,26 @@ when one of its `roles` is anonymous: the frontend routes it outside the screens
 session, and a scenario of the role opens only public screens (P035; see
 [The routes and the navigation](#the-routes-and-the-navigation)). `bazis_front e2e` turns
 each scenario into a Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
+
+A flow of several users is one scenario: the board of the dispatcher shows the order of a
+guest live (`LiveQuery`: `open_item` waits for its row, no reload), the master is notified:
+
+```yaml
+- id: a-guest-order-is-assigned
+  role: dispatcher
+  steps:
+    - open: order-board
+    - as: client                      # anonymous: no login
+    - open: new-order
+    - fill: {address: 1 Main St}
+    - submit: {}                      # its result: `Order No. {number}`
+    - remember: {number: number}
+    - as: dispatcher
+    - open_item: {where: {number: $number}}
+    - transit: {id: assign, payload: {master: Bob Stone}}
+    - as: master
+    - expect: {notification: assigned to you}
+```
 
 ## The specs of the screens and the design
 
@@ -1077,7 +1105,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json (a key with a space or a letter beyond ASCII is the text after the comma of a flow mapping, `{a: x, y}`: quote the text) |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
-| `P004` | error | an unknown role (in access or in a scenario) |
+| `P004` | error | an unknown role (in access, in a scenario or in its step `as`) |
 | `P005` | error | a relation references an unknown entity |
 | `P006` | error | the workflow is inconsistent: a status or a transition that the workflow of the entity does not declare |
 | `P010` | error | a package is not installed: the contract has no section for it |
@@ -1092,10 +1120,10 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P019` | error | the permit role lacks a permission that `access` grants |
 | `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a field of its path is not a relationship (a relation that the contract does not describe is not checked) |
 | `P021` | error | a scenario step references an unknown screen |
-| `P022` | error | a scenario step is not possible on the current screen |
+| `P022` | error | a scenario step is not possible on the current screen (of the session of the step); a `remember` not after the result of the form of an action, of a property that its answer does not have or of a name remembered before; a `$<name>` that no `remember` before took |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
 | `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
-| `P025` | error | the role of a scenario has no `test_user` and is not `anonymous`, and the product logs in (`packages` has `users`) |
+| `P025` | error | the role of a scenario or of its step `as` has no `test_user` and is not `anonymous`, and the product logs in (`packages` has `users`) |
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has neither `notify` nor `ws`) |
 | `P028` | error | `packages` has `ws`, and the contract has no path of the socket: the socket of bazis-ws is not routed where the export sees it (the router module) |
@@ -1103,7 +1131,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P030` | error | an anonymous role is not what bazis-permit gives the users who do not log in: its permit role is not `for_anonymous`, it has `access` without a permit role, or a selector of its access is not `all` |
 | `P031` | error | the `label` of an entity names a field that the entity does not declare |
 | `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`) |
-| `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is; not for a role whose `access` has no `add` for the entity (it cannot create one: `e2e_data` creates the item afresh at every run, the scenario opens it by `where`) |
+| `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is; not for a role whose `access` has no `add` for the entity (it cannot create one: `e2e_data` creates the item afresh at every run, the scenario opens it by `where`), nor for one found by a value it remembered (`$<name>`: an item that an action of the run made) |
 | `P034` | warning | a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs |
 | `P035` | error | a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`), by `open`, `open_item` or the `then` of a form: the frontend sends a user without a session to the login. List the role in `roles` of the screen, or give the scenario a role that logs in |
 | `P036` | warning | `packages` has `users`, the contract has no route of the user resource, and a field relates to it (the author of a status, an assignee): the screens label the users by the start of their id. Register the user route set of the project, see "The users that the pickers offer" |
@@ -2749,6 +2777,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | Step | Calls |
   |---|---|
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
+  | `as: <role>` | `const asRole = await sessionAs(app, role)` the first time (a new context of the browser of the test with its options, the role logged in as by `loginAs`; it shares the start of the test and the items it created, and is closed with the test), its variable again (`app` for the role of the scenario): the next steps call it |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where, in}` | `openItem({where, in, created})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`), or with more items of the columns of a board (`action:more`); then `expectScreen` of `list.open`. `created: true` when the scenario created an item with these texts before (the walk of `check`: the values filled in a create form that saves, then in its edits, have the texts of `where`): only a row of an item that this test created, its id among those of the creates of its submits, never an item of a previous run with the same texts. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `select: {where}` | `select({where, created})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
@@ -2757,6 +2786,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog), and so is a custom action with `confirm: true`; one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result`, shown on its page: `expect: {state: done}`), a refused one by none (the form stays open on its screen) |
+  | `remember: {name: property}` | `const $name = await app.answer(property)`: the `data-value` of `answer:<property>` of the result shown (`ActionResult` renders each text and number of the answer hidden); `$name` is the constant in the values of the next steps |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog, or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, value)` (`data-value` of `tile:<id>`, a count or an aggregate, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
 
@@ -3951,6 +3981,9 @@ The API of the copies that 0.9.0 changes:
   `anonymous_types` of the section `uploadable`): `check` reports `C002` until it is exported
   again. A custom screen that saved the file of an action from a JSON answer may become the
   form of the action ("The form of a custom action").
+- `e2e/bazis/` has `sessionAs(app, role)` and `App.answer(property)` (the steps `as` and
+  `remember`); `ActionResult` takes `answer`. A test of `e2e/custom/` with a second context
+  or a number read from a text may become a scenario.
 
 ## API: the client
 
@@ -6334,6 +6367,7 @@ Its props, `ActionResultProps`:
 - `message: ReactNode`
 - `then?: ActionThen | undefined`: The screen that it links to (`nav:<screen>`).
 - `onAgain: () => void`: Shows the form again, empty (`action:again`).
+- `answer?: Params | undefined`: The texts and the numbers of the answer of the action (`filename` of a file it saved): each a hidden `answer:<property>` with its `data-value`, which the tests read.
 
 #### ActionThen
 
@@ -6692,6 +6726,10 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 
 `loginAs<P extends Product>(page: Page, product: P, role: Role<P>): Promise<App<P>>`: Opens the application as the test user of the role (`test_user` of spec/product.yaml, the password of the environment variable E2E_PASSWORD) through the login screen, the images of other origins stubbed (`stubForeignImages`), until the application has its logout (`action:logout`, also in a menu hidden at the width of a phone).
 
+#### sessionAs
+
+`sessionAs<P extends Product>(app: App<P>, role: Role<P>): Promise<App<P>>`: Another session of the test of `app` as the role (the step `as` of the scenarios): a new context of its browser, with the options of the test, where the role logs in as with `loginAs`; it shares the start of the test and the items it created with `app`, and is closed with the context of `app`.
+
 #### Product
 
 `interface Product`: The part of the specs that the helpers read, `PRODUCT` of `e2e/generated/product.ts`: the test user of each role of spec/product.yaml (`test_user`, null without one; `anonymous`: the users who do not log in) and the route of each screen of spec/screens/.
@@ -6703,7 +6741,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 
 `class App`: The application in a page, at a screen of the specs.
 
-- `constructor(page: Page, product: P)`
+- `constructor(page: Page, product: P, of?: App<P>)`: The application in the page; `of`: another session of the same test (`sessionAs`), whose start and the items it created this one shares.
 - `screen(): Locator`: The current screen, `screen:<id>`.
 - `form(): Locator`: The open form.
 - `open(screen: ScreenId<P>): Promise<void>`: Opens a screen by its route (one without the id of an item) and waits for its state.
@@ -6719,6 +6757,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `transit(id: string, payload?: Values): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog, or confirmed in its dialog when the specs confirm it, and waits until it is done (the transit is no longer offered) or shows an error.
 - `expectScreen(screen: ScreenId<P>): Promise<void>`: The current screen is this one: at its route (another screen may show next to it, such as a list next to its card), with its state rendered.
 - `expectStatus(status: string): Promise<void>`: The item of the current screen has this status, `status:<id>`.
+- `answer(property: string): Promise<string>`: The value of a property of the answer of the action whose result the page shows, `answer:<property>` in `state:done` (its `data-value`): a text or a number of its JSON answer, `filename` of a file it saved; the step `remember` of the scenarios.
 - `expectState(state: State): Promise<void>`: The page shows this state, `state:<state>` (a screen kept hidden next to it does not count).
 - `expectActionAbsent(id: string): Promise<void>`: The current screen, once loaded, does not offer this action.
 - `expectFieldReadonly(field: string): Promise<void>`: The user may not change the field: read-only (or not there) in the open form; on a card without a form, the card has no edit (`action:edit`), or its edit has the field read-only (the edit is opened and cancelled).

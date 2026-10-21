@@ -144,16 +144,24 @@ const CONFIRM_TRANSIT = '[role="dialog"] [data-bz^="action:confirm-"]';
 export class App<P extends Product = Product> {
   private current: ScreenId<P> | null = null;
 
-  /** The ids of the items that the submits of this test created (`submit`). */
-  private readonly created = new Set<string>();
+  /** The ids of the items that the submits of this test created (`submit`), in all its sessions. */
+  private readonly created: Set<string>;
 
   /** When this test started: `expectNotification` takes the notifications since. */
-  private readonly started = Date.now();
+  private readonly started: number;
 
+  /**
+   * The application in the page; `of`: another session of the same test (`sessionAs`), whose
+   * start and the items it created this one shares.
+   */
   constructor(
     readonly page: Page,
     readonly product: P,
-  ) {}
+    of?: App<P>,
+  ) {
+    this.created = of?.created ?? new Set();
+    this.started = of?.started ?? Date.now();
+  }
 
   /** The current screen, `screen:<id>`. */
   screen(): Locator {
@@ -452,6 +460,17 @@ export class App<P extends Product = Product> {
   /** The item of the current screen has this status, `status:<id>`. */
   async expectStatus(status: string): Promise<void> {
     await expect(this.screen().locator(bz('status', status)).first()).toBeVisible();
+  }
+
+  /**
+   * The value of a property of the answer of the action whose result the page shows,
+   * `answer:<property>` in `state:done` (its `data-value`): a text or a number of its JSON
+   * answer, `filename` of a file it saved; the step `remember` of the scenarios.
+   */
+  async answer(property: string): Promise<string> {
+    const answer = this.page.locator(bz('state', 'done')).filter({ visible: true }).locator(bz('answer', property));
+    await expect(answer).toBeAttached();
+    return (await answer.getAttribute('data-value')) ?? '';
   }
 
   /** The page shows this state, `state:<state>` (a screen kept hidden next to it does not count). */
@@ -807,8 +826,27 @@ export async function stubForeignImages(page: Page): Promise<void> {
  * either.
  */
 export async function loginAs<P extends Product>(page: Page, product: P, role: Role<P>): Promise<App<P>> {
+  return logIn(new App(page, product), role);
+}
+
+/**
+ * Another session of the test of `app` as the role (the step `as` of the scenarios): a new
+ * context of its browser, with the options of the test, where the role logs in as with
+ * `loginAs`; it shares the start of the test and the items it created with `app`, and is closed
+ * with the context of `app`.
+ */
+export async function sessionAs<P extends Product>(app: App<P>, role: Role<P>): Promise<App<P>> {
+  const browser = app.page.context().browser();
+  if (browser === null) throw new Error('The page of the test has no browser to open another session in.');
+  const context = await browser.newContext();
+  app.page.context().once('close', () => void context.close());
+  return logIn(new App(await context.newPage(), app.product, app), role);
+}
+
+/** Logs the role in the page of `app` (`loginAs`). */
+async function logIn<P extends Product>(app: App<P>, role: Role<P>): Promise<App<P>> {
+  const { page, product } = app;
   await stubForeignImages(page);
-  const app = new App(page, product);
   if (CAPABILITIES.users === null) return app;
   const user = product.roles[role];
   if (user === undefined) throw new Error(`The role ${role} is not in the specs.`);

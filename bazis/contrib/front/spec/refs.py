@@ -1389,15 +1389,34 @@ def parameters(value) -> list[str]:
     return sorted({it for text in texts if not TEXT_KEY.fullmatch(text) for it in PARAMETER.findall(text)})
 
 
+def answer(action: dict) -> set[str]:
+    """
+    The properties of the answer of a custom action that the result of its form shows (S053)
+    and that a scenario remembers: those of its JSON answer in the contract, or `filename` of
+    an action that answers a file, the name the form saves it under.
+    """
+    return {'filename'} if action['file'] else set((action['response'] or {}).get('properties', {}))
+
+
+def form_answer(screen: dict, product: Product, contract: dict | None) -> set[str] | None:
+    """
+    `answer` of the action of a form screen (`form.action`, of the route set of its entity);
+    None when the contract does not have it (S032).
+    """
+    entity = product.entities.get(screen.get('entity'))
+    resource = contract['project']['resources'].get(entity.data['resource']) if contract and entity else None
+    actions = (resource or {}).get('custom_actions', {}).values()
+    action = next((it for it in actions if it['name'] == screen['form']['action'] and not it['item']), None)
+    return None if action is None else answer(action)
+
+
 def _check_result(doc: Document, name: str, result: dict, action: dict, issues: Issues) -> None:
     """
     The parameters of the title and of the message of the result of a form of an action are
-    properties of the JSON answer of the action in the contract, or `{filename}` of an action
-    that answers a file, the name the form saves it under (S053); a key of the dictionaries of
-    the frontend is not read.
+    properties of its answer (`answer`, S053); a key of the dictionaries of the frontend is
+    not read.
     """
-    response = action['response']
-    properties = {'filename': {}} if action['file'] else (response or {}).get('properties', {})
+    response, properties = action['response'], answer(action)
     for part in ('title', 'message'):
         if part not in result:
             continue

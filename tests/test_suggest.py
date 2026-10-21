@@ -35,6 +35,7 @@ def test_a_guest_reads_the_tasks_and_suggests_one(sample_app):
     suggested = guest.post(f'{TASKS}suggest/', json_data={'title': 'Suggested by a guest'})
     assert suggested.status_code == 200, suggested.text
     task = suggested.json()['task']
+    assert suggested.json()['title'] == 'Suggested by a guest'
     assert guest.get(f'{TASKS}{task}/').json()['data']['attributes']['title'] == 'Suggested by a guest'
 
     # an empty title: its field

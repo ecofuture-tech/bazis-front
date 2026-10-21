@@ -531,13 +531,13 @@ CASES = [
             {'move': {'where': {'title': 'Review the plan'}, 'to': 'in_progress'}},
         ]})},
         [
-            ('P033', f'{PRODUCT}#/scenarios/21/steps/2/bulk'),
-            ('P033', f'{PRODUCT}#/scenarios/21/steps/4/transit'),
-            ('P033', f'{PRODUCT}#/scenarios/21/steps/6/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/21/steps/9/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/21/steps/12/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/21/steps/13/action'),
-            ('P033', f'{PRODUCT}#/scenarios/21/steps/15/move'),
+            ('P033', f'{PRODUCT}#/scenarios/22/steps/2/bulk'),
+            ('P033', f'{PRODUCT}#/scenarios/22/steps/4/transit'),
+            ('P033', f'{PRODUCT}#/scenarios/22/steps/6/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/22/steps/9/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/22/steps/12/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/22/steps/13/action'),
+            ('P033', f'{PRODUCT}#/scenarios/22/steps/15/move'),
         ],
     ),
     (
@@ -558,6 +558,52 @@ CASES = [
         # the guest opens a screen of a session first: the frontend sends him to the login
         {PRODUCT: lambda d: steps(d, 19).insert(0, {'open': 'task-list'})},
         [('P035', f'{PRODUCT}#/scenarios/19/steps/0/open')],
+    ),
+    # the sessions of a scenario (`as`, the scenario 21: the manager, then a guest who suggests a
+    # task and its answer remembered, then the manager again)
+    (
+        'P004',
+        # a session of an unknown role: a new one, with no screen open
+        {PRODUCT: lambda d: steps(d, 21)[6].update({'as': 'nobody'})},
+        [('P004', f'{PRODUCT}#/scenarios/21/steps/6/as'), ('P022', f'{PRODUCT}#/scenarios/21/steps/7/open_item')],
+    ),
+    (
+        'P025',
+        # the session of a role whose test user cannot log in
+        {PRODUCT: lambda d: [d['roles'].append({'id': 'guest', 'permit': 'guest'}), steps(d, 21).insert(6, {'as': 'guest'})]},
+        [('P025', f'{PRODUCT}#/scenarios/21/steps/6/as')],
+    ),
+    (
+        'P022',
+        # the result is shown in the session of the guest, not in that of the manager
+        {PRODUCT: lambda d: steps(d, 21).insert(7, {'remember': {'again': 'title'}})},
+        [('P022', f'{PRODUCT}#/scenarios/21/steps/7/remember')],
+    ),
+    (
+        'P022',
+        # a property that the answer of the action does not have
+        {PRODUCT: lambda d: steps(d, 21)[5].update(remember={'suggested': 'number'})},
+        [('P022', f'{PRODUCT}#/scenarios/21/steps/5/remember/suggested')],
+    ),
+    (
+        'P022',
+        # a name remembered twice
+        {PRODUCT: lambda d: steps(d, 21).insert(6, {'remember': {'suggested': 'task'}})},
+        [('P022', f'{PRODUCT}#/scenarios/21/steps/6/remember/suggested')],
+    ),
+    (
+        'P022',
+        # a value that no `remember` before took, in `where`, `fill`, `values` and `payload`
+        {PRODUCT: lambda d: [
+            steps(d, 21)[7]['open_item']['where'].update(title='$unknown'),
+            steps(d, 21)[3]['fill'].update(title='$suggested'),
+            steps(d, 0)[4]['expect'].update(values={'title': '$title'}),
+            steps(d, 0)[6]['transit']['payload'].update(report='$report'),
+        ]},
+        [('P022', f'{PRODUCT}#/scenarios/0/steps/4/expect/values/title'),
+         ('P022', f'{PRODUCT}#/scenarios/0/steps/6/transit/payload/report'),
+         ('P022', f'{PRODUCT}#/scenarios/21/steps/3/fill/title'),
+         ('P022', f'{PRODUCT}#/scenarios/21/steps/7/open_item/where/title')],
     ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
@@ -985,7 +1031,7 @@ CASES = [
         {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-escalates-a-draft', 'role': 'manager', 'steps': [
             {'open': 'draft-tasks'}, {'action': 'escalate'},
         ]})},
-        [('P022', f'{PRODUCT}#/scenarios/21/steps/1/action')],
+        [('P022', f'{PRODUCT}#/scenarios/22/steps/1/action')],
     ),
     (
         'P023',
@@ -1304,7 +1350,7 @@ CASES = [
         'S047',
         # no screen of the guests (nor their scenarios)
         {PUBLIC: lambda d: d.__delitem__('roles'), SUGGEST: lambda d: d.__delitem__('roles'),
-         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-2])},
+         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-3])},
         [('S047', f'{PRODUCT}#/roles/2')],
     ),
     (
@@ -1352,10 +1398,10 @@ CASES = [
     ),
     (
         'S053',
-        # the action answers no JSON
+        # the action answers no JSON: nor has it the title that a scenario remembers
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(
             response=None)},
-        [('S053', f'{SUGGEST}#/form/result/message')],
+        [('S053', f'{SUGGEST}#/form/result/message'), ('P022', f'{PRODUCT}#/scenarios/21/steps/5/remember/suggested')],
     ),
     (
         'S053',
@@ -1397,7 +1443,7 @@ CASES = [
         'S006',
         # the form of an action saves no item: no screen of an item after it
         {SUGGEST: lambda d: (d.update(roles=['viewer']), d['form'].update(then='task-card')),
-         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-1])},
+         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-2])},
         [('S006', f'{SUGGEST}#/form/then')],
     ),
     (
@@ -1637,7 +1683,7 @@ def test_the_form_of_a_custom_action(contract):
     assert issues(root) == [('S052', f'{SUGGEST}#/form/fields/1')]
     # a screen of a session
     edit(root, SUGGEST, lambda d: d.update(roles=['viewer']))
-    edit(root, PRODUCT, lambda d: d.update(scenarios=d['scenarios'][:-1]))
+    edit(root, PRODUCT, lambda d: d.update(scenarios=d['scenarios'][:-2]))
     assert issues(root) == []
     edit(root, SUGGEST, lambda d: d['form']['result'].update(message='suggest.done'))
     assert ('S053', f'{SUGGEST}#/form/result/message') not in issues(root)
@@ -1920,7 +1966,7 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
     ]}))
     # a day from the day of the run, as the dates of `e2e_data`
     edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'].insert(15, {'expect': {'day': {'today': 1, 'today+3': 0, 'today-1': 0}}}))
-    steps = f'{PRODUCT}#/scenarios/21/steps'
+    steps = f'{PRODUCT}#/scenarios/22/steps'
     assert issues(root) == [
         ('P022', f'{steps}/1/expect/tile/overdue'),
         ('P022', f'{steps}/2/expect/day'),
@@ -2186,13 +2232,26 @@ def test_a_role_that_cannot_add_changes_the_items_of_the_test_data(contract):
         {'transit': 'start'},
     ]}
     edit(root, PRODUCT, lambda d: d['scenarios'].append(changes))
-    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/2/transit')]
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/22/steps/2/transit')]
 
     edit(root, PRODUCT, lambda d: [task(d)['access']['manager'].pop('add')])
     assert issues(root) == []
 
     edit(root, PRODUCT, lambda d: [task(d).pop('access')])
-    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/2/transit')]
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/22/steps/2/transit')]
+
+
+def test_an_item_found_by_a_remembered_value_is_the_scenario_s_own(contract):
+    """
+    The task that the action of the guest made, found by the title of its answer
+    (`$suggested`, the scenario 21), is one of the run: changed without P033, nor found by
+    texts (P034); found by its text, it is an item of the test data.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: steps(d, 21).insert(8, {'transit': 'start'}))
+    assert issues(root) == []
+    edit(root, PRODUCT, lambda d: steps(d, 21)[7]['open_item']['where'].update(title='Suggested for the manager'))
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/8/transit')]
 
 
 @pytest.mark.django_db

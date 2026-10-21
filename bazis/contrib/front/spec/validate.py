@@ -705,7 +705,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = Fa
         if doc.valid:
             check_texts(doc, schema, languages, issues)
     check_dictionaries(root, documents, issues)
-    walked = scenarios.check(product_doc, product, screens, issues)
+    walked = scenarios.check(product_doc, product, screens, contract, issues)
     screened = {
         data['entity'] for data in screens.values()
         if data is not None and product is not None and data.get('entity') in product.entities

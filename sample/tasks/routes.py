@@ -61,9 +61,10 @@ class SuggestRequest(BaseModel):
 
 
 class Suggested(BaseModel):
-    """The task suggested, a draft."""
+    """The task suggested, a draft, and its title, which the team finds it by."""
 
     task: str
+    title: str
 
 
 class ExportRequest(BaseModel):
@@ -137,7 +138,7 @@ class TaskRouteSet(StatusyRouteSetBase):
         users.
         """
         task = Task.objects.create(title=data.title)
-        return Suggested(task=str(task.pk))
+        return Suggested(task=str(task.pk), title=task.title)
 
     @http_post(
         '/{item_id}/escalate/', response_model=Escalated, kind=RouteKind.OTHER,

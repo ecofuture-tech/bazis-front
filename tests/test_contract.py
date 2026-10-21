@@ -124,7 +124,9 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert {key: suggest[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
         'name': 'suggest', 'item': False, 'method': 'post', 'access_action': None, 'public': True,
     }
-    assert suggest['response']['properties'] == {'task': {'title': 'Task', 'type': 'string'}}
+    assert suggest['response']['properties'] == {
+        'task': {'title': 'Task', 'type': 'string'}, 'title': {'title': 'Title', 'type': 'string'},
+    }
     assert escalate['response']['properties'] == {'priority': {'$ref': '#/$defs/Priority'}}
     assert escalate['response']['$defs'] == {'Priority': priority}
     # an action that answers a file (`response_class` of CSV): no JSON answer

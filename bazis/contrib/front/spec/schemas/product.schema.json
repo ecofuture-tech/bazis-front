@@ -383,7 +383,7 @@
       "additionalProperties": {"type": "string", "minLength": 1}
     },
     "step": {
-      "description": "One step of a scenario: an object with exactly one key. Every step acts through the `data-bz` attributes of the screens.",
+      "description": "One step of a scenario: an object with exactly one key. Every step acts through the `data-bz` attributes of the screens, in the session of the role of the scenario or of the last `as`. A value `$<name>` of `fill`, of `where`, of `values` and of `payload` is the value that a `remember` before took.",
       "type": "object",
       "minProperties": 1,
       "maxProperties": 1,
@@ -428,6 +428,14 @@
             "required": ["id"],
             "properties": {"id": {"$ref": "#/$defs/status_id"}, "payload": {"$ref": "#/$defs/values"}}
           }
+        },
+        "as": {"description": "The next steps run in the session of this role: its test user logged in (`test_user`; none for an `anonymous` role) in a new browser context the first time, the same one again; its screens and its forms are its own. The first session is that of the role of the scenario.", "$ref": "#/$defs/id"},
+        "remember": {
+          "description": "After the submit of the form of an action with a `result`, while the result is shown: remember a property of the answer of the action (a text or a number of its JSON answer, `filename` of a file it saved) by a name, the value `$<name>` of the next steps, in any session.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
+          "additionalProperties": {"type": "string", "minLength": 1}
         },
         "upload": {
           "description": "Upload a file (a path relative to e2e/fixtures/ of the frontend) into a file field (`type: file`) of the open form; waits until it is uploaded.",

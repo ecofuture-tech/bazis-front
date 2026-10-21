@@ -24,13 +24,26 @@ The scenarios run again and again on a database that keeps what the previous run
 in a create form that saves), so that a step that finds one of them by its texts finds the
 item of its own run (`Step.created`), and it reports a scenario that changes an item it did
 not create (P033), or finds one by the texts of the items that a scenario creates (P034).
+
+A scenario runs in the sessions of several roles (`as`): each has its screen, its form and its
+card; the items that the scenario creates and the values that it remembers from the answers of
+the actions (`remember`, used as `$<name>`) are of the whole scenario.
 """
 
+import re
 from dataclasses import dataclass, field
 
 from . import access
 from .issues import Document, Issues
-from .refs import Entity, Product, is_public, related_fields, related_sections, screen_actions
+from .refs import (
+    Entity,
+    Product,
+    form_answer,
+    is_public,
+    related_fields,
+    related_sections,
+    screen_actions,
+)
 
 
 #: the package whose users log in: the role of a scenario then needs a `test_user`
@@ -39,6 +52,15 @@ LOGIN_PACKAGE = 'users'
 #: the packages of the notifications of the users: the stored ones of bazis-notify, the live
 #: ones of bazis-ws
 NOTIFY_PACKAGES = ('notify', 'ws')
+
+#: a value `$<name>` of `fill`, `where`, `values` or `payload`: the value that `remember` took
+VARIABLE = re.compile(r'\$([a-z][a-z0-9_]*)')
+
+
+def variable(value) -> str | None:
+    """The name of the value that a step takes from `remember` (`$<name>`), or None."""
+    match = VARIABLE.fullmatch(value) if isinstance(value, str) else None
+    return match[1] if match else None
 
 
 @dataclass(frozen=True)
@@ -136,35 +158,26 @@ class _State:
     values: dict = field(default_factory=dict)
     #: whether a selected row is an item that the scenario did not create
     others: bool = False
+    #: whether the result of the form of an action is shown, after its submit, and the
+    #: properties of its answer (`answer` of refs; None when the contract does not have it)
+    result: bool = False
+    answer: set[str] | None = None
 
 
-def check(doc: Document, product: Product | None, screens: dict, issues: Issues) -> dict[str, list[Step]]:
+def check(
+    doc: Document, product: Product | None, screens: dict, contract: dict | None, issues: Issues
+) -> dict[str, list[Step]]:
     """
     Checks the scenarios; returns the steps of each by its id (those of a spec with errors
     are not meant to be used).
     """
     if product is None:
         return {}
-    login = LOGIN_PACKAGE in doc.data.get('packages', [])
     walked, runs = {}, []
     for i, scenario in enumerate(doc.data.get('scenarios', [])):
         path = ('scenarios', i)
-        role = product.roles.get(scenario['role'])
-        if role is None:
-            issues.add(
-                doc, (*path, 'role'), 'P004', f'The role `{scenario["role"]}` is not in `roles`.',
-                'Use the id of a role of `roles`.',
-            )
-        elif login and 'test_user' not in role and not role.get('anonymous'):
-            issues.add(
-                doc, (*path, 'role'), 'P025',
-                f'The role `{scenario["role"]}` has no `test_user`: the end-to-end test of the '
-                'scenario cannot log in.',
-                'Give the role `test_user: {username: ...}`, a user of this role that the test '
-                'data of the backend creates with the password of E2E_PASSWORD; or `anonymous: '
-                'true` for the users who do not log in.',
-            )
-        run = _Scenario(doc, product, screens, scenario, path, issues)
+        run = _Scenario(doc, product, screens, contract, scenario, path, issues)
+        run.check_role((*path, 'role'), scenario['role'])
         walked[scenario['id']] = run.run()
         runs.append(run)
     check_finds(doc, runs, issues)
@@ -198,11 +211,14 @@ class _Scenario:
     screen it acts on.
     """
 
-    def __init__(self, doc, product, screens, scenario, path, issues):
-        self.doc, self.product, self.screens = doc, product, screens
+    def __init__(self, doc, product, screens, contract, scenario, path, issues):
+        self.doc, self.product, self.screens, self.contract = doc, product, screens, contract
+        # the role of the current session (`as`), and the state and the item of the current
+        # card of each session by its role (`state`, `item`)
         self.role = scenario['role']
+        self.states: dict[str, _State] = {self.role: _State(known=True)}
+        self.items: dict[str, _Made | str | None] = {self.role: None}
         self.scenario, self.path, self.issues = scenario, path, issues
-        self.state = _State(known=True)
         # what the current step implies (`Step`), whether it is a refused submit, whether
         # the step before was one, whether its action is confirmed and whether it finds an
         # item that the scenario created
@@ -213,9 +229,26 @@ class _Scenario:
         # (P034: their path, the entity and `where`); whether a step could not be followed
         # (an unknown screen, action or entity), after which the items it created are not known
         self.made: list[_Made] = []
-        self.item: _Made | str | None = None
         self.finds: list[tuple[tuple, str | None, dict]] = []
         self.lost = False
+        # the names of the values remembered (`remember`)
+        self.variables: set[str] = set()
+
+    @property
+    def state(self) -> _State:
+        return self.states[self.role]
+
+    @state.setter
+    def state(self, state: _State) -> None:
+        self.states[self.role] = state
+
+    @property
+    def item(self) -> '_Made | str | None':
+        return self.items[self.role]
+
+    @item.setter
+    def item(self, item: '_Made | str | None') -> None:
+        self.items[self.role] = item
 
     def run(self) -> list[Step]:
         steps = []
@@ -231,12 +264,75 @@ class _Scenario:
     def add(self, path, code, message, hint):
         self.issues.add(self.doc, path, code, message, hint)
 
+    def check_role(self, path, role_id) -> None:
+        """
+        The role of the scenario or of `as` is a role of product.yaml (P004) whose test user
+        logs in (P025): its `test_user`, unless it is anonymous or the product has no login.
+        """
+        role = self.product.roles.get(role_id)
+        if role is None:
+            self.add(path, 'P004', f'The role `{role_id}` is not in `roles`.', 'Use the id of a role of `roles`.')
+        elif LOGIN_PACKAGE in self.doc.data.get('packages', []) and 'test_user' not in role and not role.get('anonymous'):
+            self.add(
+                path, 'P025',
+                f'The role `{role_id}` has no `test_user`: the end-to-end test of the scenario cannot log in.',
+                'Give the role `test_user: {username: ...}`, a user of this role that the test '
+                'data of the backend creates with the password of E2E_PASSWORD; or `anonymous: '
+                'true` for the users who do not log in.',
+            )
+
+    def remembered(self, path, values: dict) -> None:
+        """Reports a value `$<name>` that no `remember` before took (P022)."""
+        for name, value in values.items():
+            taken = variable(value)
+            if taken is not None and taken not in self.variables:
+                self.add(
+                    (*path, name), 'P022', f'No `remember` before this step takes `${taken}`.',
+                    f'Remember it after the result of the form of an action: `remember: {{{taken}: <a property of its answer>}}`.',
+                )
+
+    def step_as(self, path, role):
+        """
+        The next steps run in the session of the role: a new one the first time (no screen
+        open), the one it left again.
+        """
+        self.check_role(path, role)
+        self.role = role
+        self.states.setdefault(role, _State(known=True))
+        self.items.setdefault(role, None)
+
+    def step_remember(self, path, value):
+        """
+        Remembers properties of the answer of the action whose result is shown (P022: no result
+        shown, a property that its answer does not have, a name remembered twice).
+        """
+        shown = self.require(
+            path, self.state.result,
+            'No result of the form of an action is shown: `remember` follows the submit of a form with `result`.',
+        )
+        answer = self.state.answer if shown else None
+        for name, prop in value.items():
+            if name in self.variables:
+                self.add((*path, name), 'P022', f'`${name}` is remembered twice.', 'Give the other value another name.')
+            elif answer is not None and prop not in answer:
+                self.add(
+                    (*path, name), 'P022', f'The answer of the action has no property `{prop}`.',
+                    f'Remember a property of its answer: {", ".join(f"`{it}`" for it in sorted(answer)) or "none"}.',
+                )
+            self.variables.add(name)
+
     def find(self, path, entity: str | None, where: dict) -> _Made | None:
         """
         The item that the scenario created before and that `where` finds (the last that
-        agrees), or None: the item found is one it did not create then (`finds`, P034).
+        agrees), or None: the item found is one it did not create then (`finds`, P034). An
+        item found by a value that the scenario remembered (`$<name>`) is one that an action of
+        this run made (the number of an order that a guest sent): it is the scenario's own, which
+        it may change, although its test did not create it (not `created`).
         """
         self.lost = self.lost or entity not in self.product.entities
+        if any(variable(it) for it in where.values()):
+            self.created = False
+            return _Made(entity, dict(where))
         made = next((it for it in reversed(self.made) if it.entity == entity and agrees(where, it.values)), None)
         if made is None and not self.lost:
             self.finds.append((path, entity, where))
@@ -400,6 +496,7 @@ class _Scenario:
                 'Only a list, a board or a calendar whose items open a card (`open`), or the last '
                 'items `in` of a dashboard, open an item.'
             )
+        self.remembered((*path, 'where'), value['where'])
         if not self.require(path, bool(screen) and possible, message):
             self.state.known = False
             return
@@ -410,6 +507,7 @@ class _Scenario:
 
     def step_select(self, path, value):
         screen = self.state.screen
+        self.remembered((*path, 'where'), value['where'])
         if self.require(
             path, bool(screen) and screen['primitive'] == 'list' and 'bulk' in screen['list'],
             'Only a list with bulk actions (`list.bulk`) selects rows.',
@@ -429,6 +527,7 @@ class _Scenario:
 
     def step_move(self, path, value):
         screen = self.state.screen
+        self.remembered((*path, 'where'), value['where'])
         if not self.require(
             path, bool(screen) and screen['primitive'] == 'board' and screen['board'].get('move', False),
             'Items move on a board with `move: true`.',
@@ -563,6 +662,7 @@ class _Scenario:
             )
 
     def step_fill(self, path, values):
+        self.remembered(path, values)
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
             self.state.values.update(values)
@@ -628,6 +728,9 @@ class _Scenario:
             return
         form, self.state.form, self.state.editing = self.state.form, None, False
         made = self.save(path, form)
+        if 'result' in (form or {}):
+            # the form of an action shows its result, with the answer that `remember` takes
+            self.state.result, self.state.answer = True, form_answer(self.state.screen, self.product, self.contract)
         then = None if 'result' in (form or {}) else (form or {}).get('then')
         if then is not None:
             self.lead(path, then)
@@ -659,6 +762,7 @@ class _Scenario:
 
     def step_transit(self, path, value):
         transit_id, payload = (value, None) if isinstance(value, str) else (value['id'], value.get('payload'))
+        self.remembered((*path, 'payload'), payload or {})
         screen = self.state.screen
         if not self.require(
             path, bool(screen) and screen['primitive'] == 'card' and screen['card'].get('transitions', False),
@@ -706,6 +810,7 @@ class _Scenario:
             self.require((*path, 'day'), primitive == 'calendar', 'Only a calendar has days.')
 
     def step_expect(self, path, value):
+        self.remembered((*path, 'values'), value.get('values', {}))
         packages = self.doc.data.get('packages', [])
         if 'notification' in value and not any(it in packages for it in NOTIFY_PACKAGES):
             self.add(

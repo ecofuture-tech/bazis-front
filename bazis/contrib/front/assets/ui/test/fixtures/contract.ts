@@ -629,15 +629,20 @@ export const RESOURCES = {
         name: "suggest",
         public: true,
         response: {
-          description: "The task suggested, a draft.",
+          description: "The task suggested, a draft, and its title, which the team finds it by.",
           properties: {
             task: {
               title: "Task",
               type: "string",
             },
+            title: {
+              title: "Title",
+              type: "string",
+            },
           },
           required: [
             "task",
+            "title",
           ],
           title: "Suggested",
           type: "object",

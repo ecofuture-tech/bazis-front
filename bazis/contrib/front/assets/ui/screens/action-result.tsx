@@ -13,14 +13,15 @@
 // limitations under the License.
 
 // The result of a custom action that a form ran (`result` of `ActionForm`): `state:done`, its
-// title and its message, the link to the screen after it (`nav:<screen>`) and the action that
-// fills the form again (`action:again`).
+// title and its message, the link to the screen after it (`nav:<screen>`), the action that
+// fills the form again (`action:again`) and the answer of the action (`answer:<property>`, the
+// step `remember` of the scenarios).
 
 import { CircleCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 
-import { useLanguage } from '@/bazis/i18n';
+import { useLanguage, type Params } from '@/bazis/i18n';
 import { Button } from '@/components/ui/button';
 
 /** The screen that the result of an action links to. */
@@ -39,10 +40,15 @@ export interface ActionResultProps {
   then?: ActionThen | undefined;
   /** Shows the form again, empty (`action:again`). */
   onAgain: () => void;
+  /**
+   * The texts and the numbers of the answer of the action (`filename` of a file it saved):
+   * each a hidden `answer:<property>` with its `data-value`, which the tests read.
+   */
+  answer?: Params | undefined;
 }
 
 /** What a custom action did, in place of its form: `state:done`. */
-export function ActionResult({ title, message, then, onAgain }: ActionResultProps) {
+export function ActionResult({ title, message, then, onAgain, answer }: ActionResultProps) {
   const { t } = useLanguage();
   return (
     <div
@@ -57,6 +63,9 @@ export function ActionResult({ title, message, then, onAgain }: ActionResultProp
         <p className="font-medium text-foreground">{title}</p>
         <p className="text-sm text-muted-foreground">{message}</p>
       </div>
+      {Object.entries(answer ?? {}).map(([property, value]) => (
+        <span key={property} hidden data-bz={`answer:${property}`} data-value={String(value)} />
+      ))}
       <div className="flex flex-col-reverse gap-2 sm:flex-row">
         <Button type="button" variant="outline" data-bz="action:again" onClick={onAgain}>
           {t('action.again')}

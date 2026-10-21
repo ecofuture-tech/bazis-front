@@ -94,6 +94,7 @@ export function ActionForm({ path, action, fields, labels, submitLabel, result, 
         title={(typeof result.title === 'function' ? result.title(answer) : result.title) ?? t('action.done')}
         message={result.message(answer)}
         then={then}
+        answer={answer}
         onAgain={() => {
           mutation.reset();
           setValues(bodyDefaults(body, fields));

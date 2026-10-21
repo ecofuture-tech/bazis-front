@@ -755,6 +755,12 @@ describe('ActionForm', () => {
     // the texts and the numbers of the answer
     expect(done.textContent).toContain('Thank you');
     expect(done.textContent).toContain('Task t-1 of 3');
+    // the answer that the tests read (`remember`): its texts and its numbers only, hidden
+    const answers = [...done.querySelectorAll<HTMLElement>('[data-bz^="answer:"]')];
+    expect(answers.map((it) => [it.dataset.bz, it.dataset.value, it.hidden])).toEqual([
+      ['answer:task', 't-1', true],
+      ['answer:count', '3', true],
+    ]);
     expect(screen.getByTestId('nav:item-list').getAttribute('href')).toBe('/items');
     expect(screen.queryByTestId('action:submit')).toBeNull();
 
@@ -807,6 +813,7 @@ describe('ActionForm', () => {
     fireEvent.click(screen.getByTestId('action:submit'));
     const done = await screen.findByTestId('state:done');
     expect(done.textContent).toContain('Saved report-2026.csv');
+    expect(screen.getByTestId('answer:filename').dataset.value).toBe('report-2026.csv');
     expect(backend.calls.map((it) => [it.method, it.url, it.body])).toEqual([['POST', `${ITEMS}report/`, { year: 2026 }]]);
     expect(saved).toHaveBeenCalledOnce();
     expect((saved.mock.contexts[0] as HTMLAnchorElement).download).toBe('report-2026.csv');

@@ -64,7 +64,8 @@ creates a task: the action of the public screen `public-tasks` of the anonymous 
 `visitor` of the specs (the permit role `viewer`, `for_anonymous`), whom bazis-permit refuses
 the create route (`tests/test_suggest.py`), also from the public form of the action
 `suggest-task` (`primitive: form` with `form.action`, its result showing the `task` of the
-answer), and the custom action `export` (`POST /api/v1/tasks/task/export/`, a JSON body
+answer, whose `title` the scenario `manager-opens-a-suggested-task` remembers in the session of
+the guest, `as` and `remember`, to open the task in that of the manager), and the custom action `export` (`POST /api/v1/tasks/task/export/`, a JSON body
 `{priority}`, `access_action` view, `tests/test_export.py`), which answers the CSV of the tasks the user views, `tasks.csv` (a
 `response_class` of `text/csv`: `file` of its custom action in the contract), saved by the form
 of the action `export-tasks` (its result showing `{filename}`), the custom actions of the
@@ -271,7 +272,9 @@ job of CI.
   the scenario created: `created`, its `where` has the values filled in a create form of the
   scenario before, generated as `created: true`, so that the test takes the item it created
   and not one of a previous run, the scenarios running again on a database that keeps them;
-  P033 and P034 report the scenarios that would not) in `validate.Result.specs`, which
+  P033 and P034 report the scenarios that would not; the sessions of `as`, each with its
+  `_State` and its card, and the values of `remember`, `$<name>`, are walked there too) in
+  `validate.Result.specs`, which
   `spec/e2e.py` turns into calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the table of the steps in `bazis/contrib/front/AGENTS.md`.
 - `spec/theme.py` (`bazis_front design`, also run by `init`) compiles the design into
