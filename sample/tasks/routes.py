@@ -54,14 +54,21 @@ class Escalated(BaseModel):
     priority: Task.Priority
 
 
-class SuggestRequest(BaseModel):
-    """The title of the task that a guest suggests."""
+#: the length of the reference of a suggested task, the start of its id, in its title
+REFERENCE = 8
 
-    title: str = Field(min_length=1, max_length=255)
+
+class SuggestRequest(BaseModel):
+    """The title of the task that a guest suggests, room left in the title for its reference."""
+
+    title: str = Field(min_length=1, max_length=255 - REFERENCE - 3)
 
 
 class Suggested(BaseModel):
-    """The task suggested, a draft, and its title, which the team finds it by."""
+    """
+    The task suggested, a draft, and the title it got: that of the guest with the reference
+    of the task, which the guest and the team find it by.
+    """
 
     task: str
     title: str
@@ -135,9 +142,12 @@ class TaskRouteSet(StatusyRouteSetBase):
         throttle of the core, `BAZIS_THROTTLE_PUBLIC`): a guest suggests a task, created as a
         draft for the team, the action of the public screen of the specs (`public-tasks`). A
         guest creates nothing through the create route: bazis-permit refuses it to anonymous
-        users.
+        users. The title of the task ends with its reference (`Plan (1a2b3c4d)`): the suggestions
+        of the same text stay apart.
         """
-        task = Task.objects.create(title=data.title)
+        task = Task()
+        task.title = f'{data.title} ({str(task.pk)[:REFERENCE]})'
+        task.save()
         return Suggested(task=str(task.pk), title=task.title)
 
     @http_post(

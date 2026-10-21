@@ -120,6 +120,13 @@ def of_body(form: dict | None) -> bool:
     return form is not None and 'action' in form
 
 
+def remembered(answer: dict[str, bool]) -> str:
+    """
+    The properties of an answer that a scenario remembers, for a hint.
+    """
+    return ', '.join(f'`{it}`' for it in sorted(answer) if answer[it]) or 'none'
+
+
 def agrees(where: dict, values: dict) -> bool:
     """
     Whether the item of these values has the texts of `where`: they share a field at least, and
@@ -159,9 +166,10 @@ class _State:
     #: whether a selected row is an item that the scenario did not create
     others: bool = False
     #: whether the result of the form of an action is shown, after its submit, and the
-    #: properties of its answer (`answer` of refs; None when the contract does not have it)
+    #: properties of its answer, each with whether it is remembered (`answer` of refs; None
+    #: when the contract does not have it)
     result: bool = False
-    answer: set[str] | None = None
+    answer: dict[str, bool] | None = None
 
 
 def check(
@@ -304,7 +312,8 @@ class _Scenario:
     def step_remember(self, path, value):
         """
         Remembers properties of the answer of the action whose result is shown (P022: no result
-        shown, a property that its answer does not have, a name remembered twice).
+        shown, a property that its answer does not have or that is not a text or a number, a
+        name remembered twice).
         """
         shown = self.require(
             path, self.state.result,
@@ -317,7 +326,13 @@ class _Scenario:
             elif answer is not None and prop not in answer:
                 self.add(
                     (*path, name), 'P022', f'The answer of the action has no property `{prop}`.',
-                    f'Remember a property of its answer: {", ".join(f"`{it}`" for it in sorted(answer)) or "none"}.',
+                    f'Remember a property of its answer: {remembered(answer)}.',
+                )
+            elif answer is not None and not answer[prop]:
+                self.add(
+                    (*path, name), 'P022',
+                    f'The property `{prop}` of the answer of the action is not a text or a number: it is not remembered.',
+                    f'Remember a text or a number of its answer: {remembered(answer)}.',
                 )
             self.variables.add(name)
 

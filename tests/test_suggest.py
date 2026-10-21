@@ -35,13 +35,18 @@ def test_a_guest_reads_the_tasks_and_suggests_one(sample_app):
     suggested = guest.post(f'{TASKS}suggest/', json_data={'title': 'Suggested by a guest'})
     assert suggested.status_code == 200, suggested.text
     task = suggested.json()['task']
-    assert suggested.json()['title'] == 'Suggested by a guest'
-    assert guest.get(f'{TASKS}{task}/').json()['data']['attributes']['title'] == 'Suggested by a guest'
+    # the title of the guest with the reference of the task, the start of its id
+    assert suggested.json()['title'] == f'Suggested by a guest ({task[:8]})'
+    assert guest.get(f'{TASKS}{task}/').json()['data']['attributes']['title'] == suggested.json()['title']
 
     # an empty title: its field
     invalid = guest.post(f'{TASKS}suggest/', json_data={'title': ''})
     assert invalid.status_code == 422, invalid.text
     assert [it['source']['pointer'] for it in invalid.json()['errors']] == ['/title']
+    # a title leaves room for the reference
+    long = guest.post(f'{TASKS}suggest/', json_data={'title': 'x' * 245})
+    assert long.status_code == 422, long.text
+    assert guest.post(f'{TASKS}suggest/', json_data={'title': 'x' * 244}).json()['title'].startswith('x' * 244 + ' (')
 
 
 @pytest.mark.django_db(transaction=True)

@@ -2,7 +2,7 @@
 # The form of a custom action as a page of its own: a guest (the anonymous role `visitor`)
 # suggests a task with the action `suggest` of the route set of the tasks, declared
 # `public=True`. Its fields are the properties of the body of the action in the contract (a
-# guest reads no runtime schema), and its result shows the answer of the action, `{task}`.
+# guest reads no runtime schema), and its result shows the answer of the action, the `{title}` the task got.
 spec: bazis-screen/1
 id: suggest-task
 title: {en: Suggest a task, ru: Предложить задачу}
@@ -18,6 +18,6 @@ form:
   submit: {en: Suggest, ru: Предложить}
   result:
     title: {en: Thank you, ru: Спасибо}
-    message: {en: 'The team sees your task {task} among its drafts.', ru: 'Команда увидит вашу задачу {task} среди черновиков.'}
+    message: {en: 'The team sees your task “{title}” among its drafts.', ru: 'Команда увидит вашу задачу «{title}» среди черновиков.'}
   then: public-tasks
 states: [loading, error, forbidden, invalid, done]

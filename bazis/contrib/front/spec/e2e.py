@@ -33,6 +33,7 @@ from pathlib import Path
 
 from ..contract.typescript import constant
 from ..vendor import lock as frontend_lock
+from .names import session_name
 from .scenarios import Step, variable
 from .validate import PRODUCT_FILE, SPEC_DIR, Specs, screen_files
 
@@ -150,11 +151,6 @@ def calls(step: Step, screens: bool = False, app: str = 'app') -> list[str]:
     return result
 
 
-def session(role: str) -> str:
-    """The variable of the session of a role of `as` other than that of the scenario: `as<Role>`."""
-    return 'as' + ''.join(part.capitalize() for part in role.replace('-', '_').split('_'))
-
-
 def render_scenario(scenario: dict, steps: list[Step], screens: bool) -> str:
     """
     The test of a scenario: a `test.step` for each step, in the session of the role of the
@@ -183,7 +179,7 @@ def render_scenario(scenario: dict, steps: list[Step], screens: bool) -> str:
                 app = sessions[step.value]
                 lines.append(f'  await test.step({title}, () => {app}.page.bringToFront());')
             else:
-                app = sessions[step.value] = session(step.value)
+                app = sessions[step.value] = session_name(step.value)
                 lines.append(f'  const {app} = await test.step({title}, () => sessionAs(app, {string(step.value)}));')
         elif step.name == 'remember':
             names = ', '.join(f'${it}' for it in step.value)

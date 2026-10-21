@@ -14,7 +14,8 @@
 
 // The files are read with the token from their download route, never from the URL of the
 // media host: the attachment of a task (bazis-uploadable `/{id}/download/`) is saved under
-// its name with its content, and its name is no link to the media URL.
+// its name with its content, and its name is no link to the media URL. The export of the
+// tasks, a custom action that answers a file, is saved under the name the action gives it.
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -48,4 +49,16 @@ test('the manager downloads the attachment of a task', async ({ page }) => {
   expect(await readFile(await download.path(), 'utf8')).toBe(await readFile(BRIEF, 'utf8'));
   // with the token of the session
   expect((await request).headers().authorization).toMatch(/^Bearer /);
+});
+
+test('the manager exports the tasks to the file the action names', async ({ page }) => {
+  const app = await loginAs(page, PRODUCT, 'manager');
+  await app.open('export-tasks');
+  const downloaded = page.waitForEvent('download');
+  await app.submit({ saved: true });
+  const download = await downloaded;
+  // the name of `Content-Disposition`, which the result shows
+  expect(download.suggestedFilename()).toBe('tasks.csv');
+  expect((await readFile(await download.path(), 'utf8')).split('\n')[0]).toBe('title,status,priority\r');
+  expect(await app.answer('filename')).toBe('tasks.csv');
 });

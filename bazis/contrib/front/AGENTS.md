@@ -569,8 +569,9 @@ remembered are of the whole scenario), `remember: {<name>: <property>}` (after t
 of the form of an action with `result`, a property of its answer, `filename` of a file:
 `$<name>` is that value in `fill`, `where`, `values` and `payload` of the next steps, in any
 session; P022 without the result in the session, for a property its answer does not have
-or a `$<name>` not remembered before; an item found by it is one the run made, which the
-scenario may change: no P033). The
+or that is not a text or a number, or a `$<name>` not remembered before; an item found by
+it is one the run made, which the scenario may change: no P033; remember what the server
+made, a number or an id, not the echo of a text typed, which an older item may have). The
 validator follows the steps from screen to screen
 and checks each against the screen it acts on: `open` takes a screen without an item in
 its route (an item is reached with `open_item` or the `then` of a form), a form with
@@ -1123,7 +1124,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P019` | error | the permit role lacks a permission that `access` grants |
 | `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a field of its path is not a relationship (a relation that the contract does not describe is not checked) |
 | `P021` | error | a scenario step references an unknown screen |
-| `P022` | error | a scenario step is not possible on the current screen (of the session of the step); a `remember` not after the result of the form of an action, of a property that its answer does not have or of a name remembered before; a `$<name>` that no `remember` before took |
+| `P022` | error | a scenario step is not possible on the current screen (of the session of the step); a `remember` not after the result of the form of an action, of a property that its answer does not have or that is not a text or a number, or of a name remembered before; a `$<name>` that no `remember` before took |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
 | `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
 | `P025` | error | the role of a scenario or of its step `as` has no `test_user` and is not `anonymous`, and the product logs in (`packages` has `users`) |
@@ -1133,7 +1134,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages` |
 | `P030` | error | an anonymous role is not what bazis-permit gives the users who do not log in: its permit role is not `for_anonymous`, it has `access` without a permit role, or a selector of its access is not `all` |
 | `P031` | error | the `label` of an entity names a field that the entity does not declare |
-| `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`) |
+| `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`); the end-to-end tests would name the sessions of two roles alike (`team-lead` and `team_lead`: `asTeamLead`). Rename one |
 | `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is; not for a role whose `access` has no `add` for the entity (it cannot create one: `e2e_data` creates the item afresh at every run, the scenario opens it by `where`), nor for one found by a value it remembered (`$<name>`: an item that an action of the run made) |
 | `P034` | warning | a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs |
 | `P035` | error | a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`), by `open`, `open_item` or the `then` of a form: the frontend sends a user without a session to the login. List the role in `roles` of the screen, or give the scenario a role that logs in |
@@ -2381,9 +2382,10 @@ states: [loading, error, forbidden, invalid, done]
 
 **An action that answers a file** (an export of a few hundred rows): the route declares the
 class of its answer with its media type and names the file; the contract marks it `file`
-(`custom_actions[].file`, an answer of another type than JSON), and its form saves the file
-(`useActionFile`) before its result, whose only parameter is `{filename}` (S053). Only a form
-runs it: a dialog does not save it (S032). A long export stays a task of bazis-bg
+(`custom_actions[].file`, an answer of another type than JSON, `application/json` or a
+`+json` type such as `application/vnd.api+json`: an HTML answer is a file too), and its form
+saves the file (`useActionFile`) before its result, whose only parameter is `{filename}`
+(S053). Only a form runs it: a dialog does not save it (S032). A long export stays a task of bazis-bg
 (`TaskProgress`, "Background work"):
 
 ```python

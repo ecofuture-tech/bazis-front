@@ -247,10 +247,19 @@ def test_the_routes_of_every_statusy_route_set_are_not_custom_actions():
 def test_a_custom_action_answers_a_file_when_its_answer_is_not_json():
     """
     `file` of a custom action: its answer (200) has content of another type than JSON (a
-    `response_class` with a `media_type`); an answer with JSON among its types, or without
-    content, is not a file.
+    `response_class` with a `media_type`, also HTML); an answer with JSON among its types (a
+    type with the suffix `+json` too: `JsonApiResponse` of the core), or without content, is
+    not a file.
     """
+    from fastapi import FastAPI
+
     from bazis.contrib.front.contract.resources import _custom_actions
+    from bazis.core.routes_abstract.jsonapi.callbacks import JsonApiResponse
+
+    api = FastAPI()
+    api.post('/t/jsonapi/', response_class=JsonApiResponse)(lambda: {})
+    jsonapi = api.openapi()['paths']['/t/jsonapi/']['post']['responses']['200']['content']
+    assert list(jsonapi) == ['application/vnd.api+json']
 
     def route(name, content):
         answer = {} if content is None else {'200': {'description': 'OK', 'content': content}}
@@ -261,12 +270,18 @@ def test_a_custom_action_answers_a_file_when_its_answer_is_not_json():
         '/t/csv/': route('csv', {'text/csv': {'schema': {'type': 'string'}}}),
         '/t/both/': route('both', {'application/json': {'schema': {}}, 'text/csv': {}}),
         '/t/none/': route('none', None),
+        '/t/jsonapi/': route('jsonapi', jsonapi),
+        '/t/problem/': route('problem', {'application/problem+json; charset=utf-8': {'schema': {'type': 'object'}}}),
+        '/t/html/': route('html', {'text/html': {'schema': {'type': 'string'}}}),
     }
     operations = [it for item in paths.values() for it in item.values()]
     found = _custom_actions({'paths': paths}, '/t/', operations)
     assert {name: it['file'] for name, it in found.items()} == {
-        'action_csv': True, 'action_both': False, 'action_none': False,
+        'action_csv': True, 'action_both': False, 'action_none': False, 'action_jsonapi': False,
+        'action_problem': False, 'action_html': True,
     }
+    # the schema of a JSON answer of another JSON type is the answer
+    assert found['action_problem']['response'] == {'type': 'object'}
 
 
 def test_a_point_and_a_decimal_are_fields_of_the_model():

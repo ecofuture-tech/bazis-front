@@ -44,6 +44,11 @@ def component_name(screen_id: str) -> str:
     return pascal(screen_id) + 'Screen'
 
 
+def session_name(role_id: str) -> str:
+    """The session of a role in an end-to-end test (its step `as`): `team-lead`, `asTeamLead`."""
+    return 'as' + pascal(role_id)
+
+
 def constant_name(entity_id: str) -> str:
     """The constant of an entity in a generated screen: `task-step`, `TASK_STEP`."""
     return re.sub(r'[^A-Z0-9]', '_', entity_id.upper())

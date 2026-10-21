@@ -347,7 +347,8 @@ scenarios:
       - submit: {}
       - expect: {state: done}
   # two sessions (`as`): the manager has the list open while a guest suggests a task; the
-  # title of the answer of the action (`remember`) finds it in the list of the manager
+  # title that the action gave the task, with its reference (`remember`: a value the server
+  # made, not the text typed), finds that task in the list of the manager
   - id: manager-opens-a-suggested-task
     role: manager
     steps:

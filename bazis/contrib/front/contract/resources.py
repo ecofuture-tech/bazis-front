@@ -315,8 +315,9 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
     `$defs`), null without one: what the buttons of the specs need (S032); `response`, the
     JSON Schema of its JSON answer (200) as standalone, null without one: the properties that
     the result of a form of the specs may show (S053); `file`, whether its answer (200) is a
-    file, content of another type than JSON (`response_class` with a `media_type`, such as
-    `text/csv`): a form of the specs saves it, its result shows `{filename}` (S053).
+    file, content of another type than JSON (`is_json`; a `response_class` with a
+    `media_type`, such as `text/csv`, also `text/html`): a form of the specs saves it, its
+    result shows `{filename}` (S053).
     """
     result = {}
     for path, item in openapi.get('paths', {}).items():
@@ -339,14 +340,23 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 'public': meta['public'],
                 'body': _standalone(openapi, body) if body is not None else None,
                 'response': _standalone(openapi, response) if response is not None else None,
-                'file': bool(answer.get('content')) and 'application/json' not in answer['content'],
+                'file': bool(answer.get('content')) and not any(map(is_json, answer['content'])),
             }
     return result
 
 
+def is_json(media_type: str) -> bool:
+    """
+    Whether a media type of the OpenAPI is JSON: `application/json`, or a type with the suffix
+    `+json` (`application/vnd.api+json` of `JsonApiResponse`, `application/problem+json`).
+    """
+    kind = media_type.split(';', 1)[0].strip().lower()
+    return kind == 'application/json' or kind.endswith('+json')
+
+
 def _json_schema(part: dict) -> dict | None:
     """The schema of the JSON content of a request body or a response of the OpenAPI, None without one."""
-    return part.get('content', {}).get('application/json', {}).get('schema')
+    return next((it.get('schema') for kind, it in part.get('content', {}).items() if is_json(kind)), None)
 
 
 def _standalone(openapi: dict, schema: dict) -> dict:

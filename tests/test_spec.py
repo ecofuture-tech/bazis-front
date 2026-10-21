@@ -549,6 +549,16 @@ CASES = [
         [('P032', f'{PRODUCT}#/entities/3/id'), ('P032', f'{PRODUCT}#/entities/5/id')],
     ),
     (
+        'P032',
+        # the sessions of two roles named alike in the end-to-end tests (`asTeamLead`)
+        {PRODUCT: lambda d: d['roles'].extend([
+            {'id': 'team-lead', 'permit': 'manager', 'test_user': {'username': 'manager'}},
+            {'id': 'team__lead', 'permit': 'manager', 'test_user': {'username': 'manager'}},
+            {'id': 'team_lead2', 'permit': 'manager', 'test_user': {'username': 'manager'}},
+        ])},
+        [('P032', f'{PRODUCT}#/roles/4/id')],
+    ),
+    (
         'P033',
         # a scenario changes the task of `e2e_data` in every way: bulk, transit, edit, a step
         # added to it, its custom action, its deletion, its move on the board
@@ -2292,6 +2302,34 @@ def test_an_item_found_by_a_remembered_value_is_the_scenario_s_own(contract):
     assert issues(root) == []
     edit(root, PRODUCT, lambda d: steps(d, 21)[7]['open_item']['where'].update(title='Suggested for the manager'))
     assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/8/transit')]
+
+
+@pytest.mark.parametrize(('prop', 'remembered'), [
+    ({'type': 'string', 'format': 'uuid'}, True),
+    ({'anyOf': [{'type': 'integer'}, {'type': 'null'}]}, True),
+    ({'anyOf': [{'type': 'number'}, {'type': 'string'}]}, True),
+    ({'$ref': '#/$defs/Kind'}, True),
+    ({'type': 'boolean'}, False),
+    ({'type': 'object', 'properties': {'x': {'type': 'string'}}}, False),
+    ({'type': 'array', 'items': {'type': 'string'}}, False),
+    ({'anyOf': [{'type': 'string'}, {'type': 'boolean'}]}, False),
+])
+def test_a_scenario_remembers_a_text_or_a_number_of_the_answer(contract, prop, remembered):
+    # a step types or finds a text or a number: a boolean, an object or a list is not remembered
+    root = contract.parent.parent
+
+    def change(d):
+        response = d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['response']
+        response['properties']['extra'] = prop
+        response['$defs'] = {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}
+
+    edit(root, CONTRACT, change)
+    edit(root, PRODUCT, lambda d: steps(d, 21)[5].update(remember={'suggested': 'extra'}))
+    found = validate(root).issues
+    assert [(it.code, it.path) for it in found] == ([] if remembered else [('P022', '/scenarios/21/steps/5/remember/suggested')])
+    if not remembered:
+        assert 'is not a text or a number' in found[0].message
+        assert found[0].hint == 'Remember a text or a number of its answer: `task`, `title`.'
 
 
 @pytest.mark.django_db

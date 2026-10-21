@@ -26,7 +26,7 @@ from pathlib import Path
 from . import access
 from .design import check_icon
 from .issues import DECLARE_ROLES, DECLARE_WORKFLOWS, EXPORT_HINT, Document, Issues
-from .names import SCREEN_CONSTANTS, TEXT_KEY, camel, component_name, constant_name
+from .names import SCREEN_CONSTANTS, TEXT_KEY, camel, component_name, constant_name, session_name
 
 
 #: the field of an entity with a workflow: its status (bazis-statusy)
@@ -222,6 +222,7 @@ def check_product(doc: Document, contract: dict | None, issues: Issues) -> Produ
         entities={},
         navigation=data.get('navigation'),
     )
+    _check_role_names(doc, data.get('roles', []), issues)
     entities = index(doc, data.get('entities', []), ('entities',), 'entity', issues)
     _check_entity_names(doc, data.get('entities', []), issues)
     for i, item in enumerate(data.get('entities', [])):
@@ -255,6 +256,20 @@ def _check_entity_names(doc: Document, items: list[dict], issues: Issues) -> Non
         else:
             continue
         issues.add(doc, ('entities', i, 'id'), 'P032', problem, 'Rename the entity.')
+
+
+def _check_role_names(doc: Document, items: list[dict], issues: Issues) -> None:
+    """The sessions of the roles in the end-to-end tests (`as`): one for each (P032)."""
+    named: dict[str, str] = {}
+    for i, item in enumerate(items):
+        name = session_name(item['id'])
+        other = named.setdefault(name, item['id'])
+        if other != item['id']:
+            issues.add(
+                doc, ('roles', i, 'id'), 'P032',
+                f'The end-to-end tests name the sessions of the roles `{other}` and `{item["id"]}` alike, `{name}`.',
+                'Rename the role.',
+            )
 
 
 def _entity(doc: Document, data: dict, path: tuple, issues: Issues) -> Entity:
@@ -1439,16 +1454,23 @@ def parameters(value) -> list[str]:
     return sorted({it for text in texts if not TEXT_KEY.fullmatch(text) for it in PARAMETER.findall(text)})
 
 
-def answer(action: dict) -> set[str]:
+def answer(action: dict) -> dict[str, bool]:
     """
-    The properties of the answer of a custom action that the result of its form shows (S053)
-    and that a scenario remembers: those of its JSON answer in the contract, or `filename` of
-    an action that answers a file, the name the form saves it under.
+    The properties of the answer of a custom action that the result of its form shows (S053),
+    each with whether a scenario remembers it (a text or a number, which a step types or
+    finds; not a boolean, an object or a list): those of its JSON answer in the contract, or
+    `filename` of an action that answers a file, the name the form saves it under.
     """
-    return {'filename'} if action['file'] else set((action['response'] or {}).get('properties', {}))
+    if action['file']:
+        return {'filename': True}
+    response = action['response'] or {}
+    return {
+        name: (kind := local_type(schema, response)).get('type') in ('string', 'number', 'integer') or is_decimal(kind)
+        for name, schema in response.get('properties', {}).items()
+    }
 
 
-def form_answer(screen: dict, product: Product, contract: dict | None) -> set[str] | None:
+def form_answer(screen: dict, product: Product, contract: dict | None) -> dict[str, bool] | None:
     """
     `answer` of the action of a form screen (`form.action`, of the route set of its entity);
     None when the contract does not have it (S032).
