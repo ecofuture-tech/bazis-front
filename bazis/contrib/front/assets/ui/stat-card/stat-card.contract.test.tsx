@@ -28,13 +28,14 @@ import { StatCard } from '@/bazis/ui/stat-card';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
 
 // the contract of the product with the resource of the tests, whose `hours` and `price` are
-// decimals of two decimal places (`places`)
+// decimals of two decimal places (`places`), `whole` one of none
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   const decimal = { type: 'string', format: 'decimal', places: 2 };
+  const fields = { hours: decimal, price: decimal, whole: { ...decimal, places: 0 } };
   return {
     ...contract,
-    RESOURCES: { ...contract.RESOURCES, 'test.item': { path: '/api/test/item/', fields: { hours: decimal, price: decimal }, search: [] } },
+    RESOURCES: { ...contract.RESOURCES, 'test.item': { path: '/api/test/item/', fields, search: [] } },
   };
 });
 
@@ -122,6 +123,24 @@ describe('StatCard', () => {
       new Backend().on('GET', ITEMS, totals({ 'avg(price)': 1872.7 })),
     );
     expect((await within(screen.getByTestId('tile:price')).findByTestId('state:loaded')).textContent).toBe('1872.70');
+  });
+
+  it('rounds a negative average with its sign, and one rounded to zero without it', async () => {
+    const cases = [
+      ['hours', '-1.2550000000000000', '-1.26'],
+      ['whole', '-0.4000000000000000', '0'],
+      ['hours', '-0.0040000000000000', '0.00'],
+      ['whole', '2.4000000000000000', '2'],
+      ['hours', '0E-16', '0.00'],
+    ] as const;
+    for (const [name, average, shown] of cases) {
+      const tile = renderWithBazis(
+        <StatCard id="mean" path={ITEMS as never} label="Mean" value={{ avg: name }} />,
+        new Backend().on('GET', ITEMS, totals({ [`avg(${name})`]: average })),
+      );
+      expect((await within(screen.getByTestId('tile:mean')).findByTestId('state:loaded')).textContent).toBe(shown);
+      tile.unmount();
+    }
   });
 
   it('shows the error of an aggregate that the backend refuses', async () => {

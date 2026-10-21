@@ -99,9 +99,10 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     ]
     # the custom actions with the standalone schema of their body, what the buttons of the specs
     # need: of the collection and of an item (which requires the change of the item); not the
-    # ids of the list of the core or the transits of bazis-statusy (`NOT_CUSTOM`); whether
-    # anonymous users may call them (`public=True`: `suggest`, the action of the guests); the
-    # standalone schema of their JSON answer, whose properties the result of a form shows
+    # ids of the list of the core or the transits of bazis-statusy and their history
+    # (`NOT_CUSTOM`); whether anonymous users may call them (`public=True`: `suggest`, the
+    # action of the guests); the standalone schema of their JSON answer, whose properties the
+    # result of a form shows
     custom = task['custom_actions']
     assert sorted(custom) == ['action_count', 'action_escalate', 'action_suggest']
     assert resources['users.user']['custom_actions'] == {}
@@ -200,6 +201,32 @@ def test_the_label_is_the_first_group_of_label_fields_that_the_resource_has():
     assert label({'last_name': text, 'email': text}) == ['last_name']
     assert label({'name': {'relation': 'users.user', 'many': False}, 'slug': text}) == ['slug']
     assert label({'book': {'relation': 'library.book', 'many': False}}) == []
+
+
+def test_the_routes_of_every_statusy_route_set_are_not_custom_actions():
+    """
+    The transits and the history of the transits of an item (bazis-statusy 2.15), routes of
+    the kind `other` of every statusy route set, are not custom actions of the product,
+    whatever version of bazis-statusy is installed; a GET of the product is one, which the
+    code reads and no button of the specs runs (S032).
+    """
+    from bazis.contrib.front.contract.resources import _custom_actions
+
+    def route(action, access_action=None):
+        return {'x-bazis': {'kind': 'other', 'action': action, 'public': False, 'access_action': access_action}}
+
+    paths = {
+        '/t/{item_id}/transit/': {'post': route('action_transit')},
+        '/t/{item_id}/status_history/': {'get': route('action_status_history', 'history')},
+        '/t/{item_id}/report/': {'get': route('action_report')},
+    }
+    operations = [it for item in paths.values() for it in item.values()]
+    assert _custom_actions({'paths': paths}, '/t/', operations) == {
+        'action_report': {
+            'name': 'report', 'item': True, 'method': 'get', 'access_action': None, 'public': False, 'body': None,
+            'response': None,
+        },
+    }
 
 
 def test_a_point_and_a_decimal_are_fields_of_the_model():

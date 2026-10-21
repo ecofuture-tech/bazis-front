@@ -163,7 +163,8 @@ job of CI.
   of `resources.LABEL_FIELDS`, which S017 and S019 read; 6: `create` of the resources, the
   attributes and the relationships of the request of their create route, which S034 reads,
   and `custom_actions`, the routes of the kind `other` of their route set (but the ids of
-  the list of the core and the transits, `resources.NOT_CUSTOM`) with the standalone JSON
+  the list of the core, the transits and their history of bazis-statusy 2.15,
+  `resources.NOT_CUSTOM`) with the standalone JSON
   Schema of their body, which S032 reads; 7: `public` of the custom actions, open to
   anonymous users, which S046 reads; 8: the format `decimal` of the attributes of a
   `DecimalField`, read from the model, which S049 reads; 9: `places` of those attributes,

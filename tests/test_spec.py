@@ -947,6 +947,14 @@ CASES = [
         [('S033', f'{CARD}#/card/related/0/add/id'), ('S033', 'spec/screens/task_board.yaml#/id')],
     ),
     (
+        'S055',
+        # a screen with the id of the menu of the top bar (`nav:more`)
+        {'spec/screens/more.yaml': lambda d: {
+            **read(SAMPLE_SPEC / 'screens' / 'task-board.yaml'), 'id': 'more', 'route': '/more',
+        }},
+        [('S055', 'spec/screens/more.yaml#/id')],
+    ),
+    (
         'P022',
         # a custom action of a list is run on a row: the scenarios run it on the card
         {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-escalates-a-draft', 'role': 'manager', 'steps': [
@@ -1279,6 +1287,12 @@ CASES = [
         # the form of an action runs one of the route set, not one of an item
         {SUGGEST: lambda d: d['form'].update(action='escalate')},
         [('S032', f'{SUGGEST}#/form/action')],
+    ),
+    (
+        'S032',
+        # an action of the route set declared with GET reads: neither the toolbar nor a form runs it
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(method='get')},
+        [('S032', f'{PUBLIC}#/actions/0/action'), ('S032', f'{SUGGEST}#/form/action')],
     ),
     (
         'S032',

@@ -294,9 +294,11 @@ def _create_fields(openapi: dict, operations: list[dict]) -> list[str]:
 ITEM_PREFIX = '{item_id}/'
 
 #: the routes of the kind `other` of every route set of the core and of bazis-statusy that
-#: are not actions of the product: the ids of a list (`/_id/`) and the transits, which the
-#: section `statusy` describes and the specs run with `primitive: transit`
-NOT_CUSTOM = frozenset({'action_list_id', 'action_transit'})
+#: are not actions of the product: the ids of a list (`/_id/`), the transits, which the
+#: section `statusy` describes and the specs run with `primitive: transit`, and the history of
+#: the transits of an item (`/{item_id}/status_history/`, bazis-statusy 2.15), which no
+#: button of the specs runs
+NOT_CUSTOM = frozenset({'action_list_id', 'action_transit', 'action_status_history'})
 
 
 def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> dict:

@@ -696,6 +696,13 @@ def check_screens(
                 doc, ('id',), 'S003', f'The id `{data["id"]}` differs from the file name `{stem}`.',
                 f'Rename the file to `{data["id"]}.yaml` or the id to `{stem}`.',
             )
+        if data['id'] == 'more':
+            issues.add(
+                doc, ('id',), 'S055',
+                'The id `more` is the mark of the menu of the top bar (`nav:more`): the links of the screen would be '
+                'marked as it.',
+                'Give the screen another id, and its file that name.',
+            )
         component = component_name(data['id'])
         if (other := components.setdefault(component, data['id'])) != data['id']:
             issues.add(

@@ -130,6 +130,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S052': (ERROR, 'a property of the body of a custom action on a public screen (the fields of its dialog or of the form of the action) is the picker of a relationship whose entity an anonymous role of the screen does not view (its `access`): the picker of a guest is refused (403)'),
     'S053': (ERROR, 'the message of the result of the form of a custom action (`form.result.message`) shows a `{name}` that is not a property of the answer of the action in the contract (`response` of its custom action), or the action answers no JSON'),
     'S054': (WARNING, 'a property of the body of a custom action (a field of its dialog or of the form of the action) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship); the user types it as JSON'),
+    'S055': (ERROR, 'the id of the screen is the mark of the menu of the top bar, `more`: the links of the screen (`nav:more`) would be marked as the menu of the links that the top bar has no room for'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

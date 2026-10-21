@@ -41,9 +41,18 @@ function dataValue(value: AggregateValue | undefined): number | string | undefin
   return Number.isNaN(number) ? value : number;
 }
 
-/** A number with these decimal places, its digits rounded exactly (`1.545` → `'1.55'`). */
+/**
+ * A number with these decimal places, its digits rounded exactly (`1.545` → `'1.55'`), with no
+ * sign once rounded to zero (`-0.4` → `'0'`).
+ */
 function rounded(value: number | string, places: number): string {
-  const digits = { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places };
+  const digits: Intl.NumberFormatOptions = {
+    useGrouping: false,
+    minimumFractionDigits: places,
+    maximumFractionDigits: places,
+    // ES2023, which the lib of the template (ES2022) does not type
+    signDisplay: 'negative' as Intl.NumberFormatOptions['signDisplay'],
+  };
   // Intl rounds the decimal of the string itself, never a double (ES2023)
   return new Intl.NumberFormat('en', digits).format(String(value) as unknown as number);
 }

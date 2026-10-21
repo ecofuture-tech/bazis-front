@@ -588,7 +588,7 @@ each scenario into a Playwright test (see [The end-to-end tests](#the-end-to-end
 ```yaml
 # yaml-language-server: $schema=../schema/screen.schema.json
 spec: bazis-screen/1
-id: task-list                    # the name of the file
+id: task-list                    # the name of the file; never `more` (S055)
 title: Tasks
 route: /tasks
 entity: task
@@ -1160,6 +1160,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S052` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the picker of a relationship whose entity an anonymous role of the screen does not view (`access` of the entity in product.yaml, `view` of the role): the picker of a guest is refused (403). Let the role view the related items (`access` and the permit role of the anonymous users), or leave the property out |
 | `S053` | error | the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON. Give the action a `response_model` with it and export the contract again, or show another property |
 | `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
+| `S055` | error | the id of the screen is the mark of the menu of the top bar, `more`: its links (`nav:more`) would be marked as the menu of the links that the top bar has no room for. Give the screen another id |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -3885,6 +3886,11 @@ The API of the copies that 0.6.0 changes:
   `string` and the format `decimal`. A tile of a `value` takes the whole row of a phone.
 - `shots` reports V020 only for a role without a login; the failed login of a role with a
   `test_user` is V001 with its error.
+
+The API of the copies that 0.6.1 changes:
+
+- A screen with the id `more`, the mark of the menu of the top bar (`nav:more`), is an error
+  of `check` (S055): rename its file and its id, and the links to it.
 
 ## API: the client
 
