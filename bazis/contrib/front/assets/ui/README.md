@@ -187,12 +187,13 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `for_create` of its list, or a custom action in `custom_actions` of its list by its key in
   the contract, `customActionKey(path, '<name>')` of `resource`; `filters`: those fields in
   `route_filter_fields/` of the user), never before.
-  The top bar never widens the page: its row shows the links it has room for and the
-  others, from the first that does not fit, in the menu `nav:more` (a dropdown menu of
-  Radix, used with the keys; a group with its heading, the same `nav:<screen>` once it is
-  open), which is shown as the current link (`data-current`) while the current link is in
-  it. The row is measured on a hidden copy of it laid out whole (without its marks) when
-  its place or the copy changes its size (`ResizeObserver`: the fonts, the language and the
+  The top bar never widens the page: its row, as wide as the window, shows the links it has
+  room for, one by one, and the others, from the first that does not fit, in the menu
+  `nav:more` (a dropdown menu of Radix, used with the keys; a group with its heading, the
+  same `nav:<screen>` once it is open; a group the row ends in is shared by the row and the
+  menu, under its heading on both sides), which is shown as the current link
+  (`data-current`) while the current link is in it. The row is measured on a hidden copy of
+  it laid out whole (without its marks) when its place or the copy changes its size (`ResizeObserver`: the fonts, the language and the
   links that the backend allows change it) and when the current link changes; without
   `ResizeObserver` (jsdom) the row shows every link. Below `md` the drawer has every link.
   `ListCardLayout` renders the screen of a list and, as its child route, the

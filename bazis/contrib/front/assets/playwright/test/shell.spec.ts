@@ -51,15 +51,21 @@ test.afterAll(async () => {
   await server.close();
 });
 
-/** The links of the page with the group (`group=true`) in their order. */
-const LINKS = [...Array.from({ length: 10 }, (_, index) => `s${String(index + 1)}`), 'report', 's11', 's12'];
+/** The links of the page with the group (`group=true`) and `count` links in their order. */
+function expectedLinks(count: number): string[] {
+  const screens = Array.from({ length: count }, (_, index) => `s${String(index + 1)}`);
+  return [...screens.slice(0, 10), 'report', ...screens.slice(10)];
+}
 
 /**
  * Opens the page of the top bar at `width` with `links` links: the backend lets the user view
- * the items of the route set of the test (the link `report` of the group), not add one
- * (`item-new`), and the page is laid out once it answered.
+ * the items of the route set of the test (the link `report` of the group and `more` others),
+ * not add one (`item-new`), and the page is laid out once it answered.
  */
-async function open(page: Page, { width, links, group = false, path = '/' }: { width: number; links: number; group?: boolean; path?: string }) {
+async function open(
+  page: Page,
+  { width, links, group = false, more = 0, path = '/' }: { width: number; links: number; group?: boolean; more?: number; path?: string },
+) {
   await page.setViewportSize({ width, height: 800 });
   await page.route('**/api/test/item/**', async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -68,7 +74,7 @@ async function open(page: Page, { width, links, group = false, path = '/' }: { w
   });
   const answer = (pathname: string) => page.waitForResponse((response) => new URL(response.url()).pathname === pathname);
   const answered = group ? Promise.all([answer('/api/test/item/schema_list/'), answer('/api/test/item/')]) : null;
-  await page.goto(`${origin}/shell.html?links=${String(links)}&group=${String(group)}&path=${encodeURIComponent(path)}`);
+  await page.goto(`${origin}/shell.html?links=${String(links)}&group=${String(group)}&more=${String(more)}&path=${encodeURIComponent(path)}`);
   await answered;
   await expect(page.getByTestId('path')).toHaveText(path);
 }
@@ -94,9 +100,11 @@ async function scrollsSideways(page: Page): Promise<boolean> {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 }
 
-for (const width of [900, 1280, 1920]) {
+for (const width of [768, 900, 1280, 1920]) {
   test(`the row keeps the page within ${String(width)} px and the menu has the other links`, async ({ page }) => {
-    await open(page, { width, links: 12, group: true });
+    // more links than the row of the wide window has room for
+    const count = width >= 1920 ? 30 : 12;
+    await open(page, { width, links: count, group: true });
     await expect.poll(() => scrollsSideways(page)).toBe(false);
     // the session at the end of the bar is within the page
     const logout = await page.locator('[data-bz="action:logout"]').boundingBox();
@@ -107,11 +115,13 @@ for (const width of [900, 1280, 1920]) {
     // that the backend does not allow in neither
     expect(shown.length).toBeGreaterThan(0);
     expect(rest.length).toBeGreaterThan(0);
-    expect([...shown, ...rest]).toEqual(LINKS);
-    // the group near the end in the menu, under its heading
-    await expect(page.getByRole('menu').getByRole('group', { name: 'Reports' }).locator('[data-bz="nav:report"]')).toBeVisible();
-    await page.getByRole('menu').locator('[data-bz="nav:s12"]').click();
-    await expect(page.getByTestId('path')).toHaveText('/s12');
+    expect([...shown, ...rest]).toEqual(expectedLinks(count));
+    // the group, where the row has no room for it, in the menu under its heading
+    if (!shown.includes('report')) {
+      await expect(page.getByRole('menu').getByRole('group', { name: 'Reports' }).locator('[data-bz="nav:report"]')).toBeVisible();
+    }
+    await page.getByRole('menu').locator(`[data-bz="nav:s${String(count)}"]`).click();
+    await expect(page.getByTestId('path')).toHaveText(`/s${String(count)}`);
     await expect(page.getByRole('menu')).toHaveCount(0);
     // the current link is in the menu: its button is shown as the current link
     await expect(page.locator('[data-bz="nav:more"]')).toHaveAttribute('data-current', '');
@@ -124,6 +134,36 @@ for (const width of [900, 1280, 1920]) {
     expect(await scrollsSideways(page)).toBe(false);
   });
 }
+
+test('a group is shared by the row and the menu, link by link, under its heading on both sides', async ({ page }) => {
+  // the links of the group, as many as no width of the test has room for
+  const group = ['report', ...Array.from({ length: 11 }, (_, index) => `report-${String(index + 2)}`)];
+  await open(page, { width: 1280, links: 3, group: true, more: 11 });
+  await expect(page.locator('[data-bz="nav:more"]')).toBeVisible();
+  const shown = await row(page);
+  // the links of the group in the row, under its heading, but not all of them
+  expect(shown.slice(0, 3)).toEqual(['s1', 's2', 's3']);
+  expect(shown.length).toBeGreaterThan(3);
+  const nav = page.getByRole('navigation', { name: 'Main' });
+  await expect(nav.getByText('Reports')).toBeVisible();
+  await expect(nav.getByRole('list', { name: 'Reports' }).locator('[data-bz^="nav:"]')).toHaveCount(shown.length - 3);
+  // the others in the menu, under the same heading
+  const rest = await menu(page);
+  expect(rest.length).toBeGreaterThan(0);
+  expect([...shown, ...rest]).toEqual(['s1', 's2', 's3', ...group]);
+  await expect(page.getByRole('menu').getByRole('group', { name: 'Reports' }).locator('[data-bz^="nav:"]')).toHaveCount(rest.length);
+  expect(await scrollsSideways(page)).toBe(false);
+});
+
+test('the header uses the whole window, the page stays within its width', async ({ page }) => {
+  await open(page, { width: 1920, links: 12 });
+  const logout = await page.locator('[data-bz="action:logout"]').boundingBox();
+  const brand = await page.locator('header').getByText('Product').boundingBox();
+  // the brand at the left edge, the session at the right one, not at the edges of the page
+  expect(brand?.x ?? 1920).toBeLessThan(80);
+  expect(logout ? logout.x + logout.width : 0).toBeGreaterThan(1840);
+  expect(await scrollsSideways(page)).toBe(false);
+});
 
 test('the current link in the menu marks its button, a current link of the row does not', async ({ page }) => {
   await open(page, { width: 1280, links: 12, path: '/s12' });
@@ -164,7 +204,7 @@ test('the menu is used with the keys', async ({ page }) => {
 });
 
 test('the links move between the row and the menu as the page is resized', async ({ page }) => {
-  await open(page, { width: 1920, links: 12 });
+  await open(page, { width: 1920, links: 30 });
   await expect(page.locator('[data-bz="nav:more"]')).toBeVisible();
   const wide = (await row(page)).length;
   await page.setViewportSize({ width: 900, height: 800 });

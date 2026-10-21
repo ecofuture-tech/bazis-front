@@ -589,7 +589,8 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   the Tailwind utilities it relies on); `test/shell.spec.ts` runs the top bar of `AppShell`
   on the page `shell.html` there with the Tailwind of a product (its Vite plugin, a
   devDependency of this workspace): the links that the row has no room for in its menu
-  `nav:more`, the page never wider than the window; `test/types.typecheck.ts` has the type
+  `nav:more` (a group shared by the row and the menu, the header as wide as the window), the
+  page never wider than the window; `test/types.typecheck.ts` has the type
   tests.
 - `bazis/shots.ts` (copied with them) is `shoot`, the screenshot of a screen with the checks
   of what it renders (`check`, run in the page: the colors computed by the browser, converted

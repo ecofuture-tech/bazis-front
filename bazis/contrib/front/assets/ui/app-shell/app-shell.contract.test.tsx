@@ -239,6 +239,68 @@ describe('AppShell', () => {
     expect(screen.queryByTestId('nav:more')).toBeNull();
   });
 
+  it('shares a group of the top bar between its row and its menu, link by link', () => {
+    // a layout for jsdom: a place of 520 px, the links of the copy of the row 100 px each, then
+    // the button of the menu of 80 px: the room for the links is 440 px, four links
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly callback: (entries: unknown[]) => void) {}
+        observe() {
+          this.callback([]);
+        }
+        disconnect() {}
+      },
+    );
+    const rect = (left: number, right: number) => ({ left, right, width: right - left }) as DOMRect;
+    const measured = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.classList.contains('md:block')) return rect(0, 520);
+      const copy = this.closest('[aria-hidden="true"]')?.querySelector('ul');
+      if (!copy) return rect(0, 0);
+      const links = [...copy.querySelectorAll('[data-nav-entry]')];
+      const index = links.indexOf(this);
+      if (index >= 0) return rect(index * 100, (index + 1) * 100);
+      return this === copy.lastElementChild ? rect(links.length * 100, links.length * 100 + 80) : rect(0, 0);
+    });
+    try {
+      const sharing = [
+        ...items,
+        {
+          group: 'work',
+          label: 'Work',
+          items: [
+            { screen: 'board', label: 'Board', to: '/board' },
+            { screen: 'rejected', label: 'Rejected', to: '/rejected' },
+            { screen: 'price', label: 'Price', to: '/price' },
+          ],
+        },
+        { screen: 'about', label: 'About', to: '/about' },
+      ];
+      renderWithBazis(
+        <AppShell title="Product" navigation="topbar" items={sharing}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+        { route: '/price' },
+      );
+      const row = screen.getByRole('navigation', { name: 'Main' });
+      const ids = (root: HTMLElement) => within(root).queryAllByTestId(/^nav:(?!more)/).map((it) => it.getAttribute('data-bz'));
+      // the row: the first two links, the first two of the group under its heading
+      expect(ids(row)).toEqual(['nav:home', 'nav:task-list', 'nav:board', 'nav:rejected']);
+      expect(within(within(row).getByRole('list', { name: 'Work' })).getAllByRole('link')).toHaveLength(2);
+      // the menu: the others, the rest of the group under the same heading, as the current link
+      const more = screen.getByTestId('nav:more');
+      expect(more.getAttribute('data-current')).toBe('');
+      fireEvent.keyDown(more, { key: 'Enter' });
+      const menu = screen.getByRole('menu');
+      expect(ids(menu)).toEqual(['nav:price', 'nav:about']);
+      expect(within(within(menu).getByRole('group', { name: 'Work' })).getAllByTestId(/^nav:/)).toHaveLength(1);
+    } finally {
+      measured.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('shows the groups in the menu of a phone', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     try {

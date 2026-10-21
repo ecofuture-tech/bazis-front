@@ -2567,9 +2567,10 @@ down to the width of a phone.
 ### The top bar
 
 **The top bar** (`navigation: topbar`) never widens the page, whatever the number of the links
-of a role: its row shows the links it has room for, and the others, from the first that does
-not fit, are in its menu `nav:more` (More), shown as the current link while the current link
-is in it; a phone has every link in its drawer. Choose the navigation by the look of the
+of a role: its row, as wide as the window, shows the links it has room for one by one, and the
+others, from the first that does not fit, are in its menu `nav:more` (More), shown as the
+current link while the current link is in it. A group is shared by the row and the menu, its
+heading on both sides; a phone has every link in its drawer. Choose the navigation by the look of the
 product, not by the number of its links. The scenarios and the screenshots open the screens by
 their routes, never through the menu.
 
