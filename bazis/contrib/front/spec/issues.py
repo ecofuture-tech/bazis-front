@@ -45,6 +45,7 @@ CODES: dict[str, tuple[str, str]] = {
     'C002': (ERROR, 'contract/contract.json has another format: it was exported by another version of bazis-front'),
     'C003': (WARNING, 'the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or assets of a package are there without it'),
     'C004': (ERROR, 'the installed package of a capability of the contract is older than the version whose protocol the frontend follows'),
+    'C005': (WARNING, 'the Google login of the contract is that of bazis-authing 2.7 or older (`GET`), which the login screen does not offer'),
     'P001': (ERROR, 'spec/product.yaml is missing or is not valid YAML'),
     'P002': (ERROR, 'spec/product.yaml does not follow product.schema.json'),
     'P003': (ERROR, 'an id is declared twice (role, entity, field, transition, scenario)'),

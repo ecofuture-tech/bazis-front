@@ -196,6 +196,10 @@ WITH_END = {
 }
 
 
+#: the login action of the Google service of bazis-authing 2.8 (the sample has no Google)
+GOOGLE = {'code': 'google', 'name': 'Google Authentication', 'method': 'POST', 'url': '/api/v1/authing/google-auth-init/'}
+
+
 CASES = [
     ('C001', {CONTRACT: lambda d: '{'}, [('C001', CONTRACT)]),
     # a contract of another format: of bazis-front 0.1.0 (4), without the titles and the labels
@@ -205,6 +209,12 @@ CASES = [
         # the installed bazis-ws is older than the one whose protocol the hooks follow
         {VERSIONS: lambda versions: versions.update({'bazis-ws': '2.4.0'})},
         [('C004', f'{CONTRACT}#/capabilities/ws')],
+    ),
+    (
+        'C005',
+        # the Google login of bazis-authing 2.7, which the login screen does not offer
+        {CONTRACT: lambda d: d['capabilities']['authing']['actions'].append(GOOGLE | {'method': 'GET'})},
+        [('C005', f'{CONTRACT}#/capabilities/authing/actions/1')],
     ),
     # the sample has bazis-statusy and bazis-uploadable: a frontend made by `init` has their hooks
     (
@@ -1930,6 +1940,13 @@ def test_layers(root):
 def test_check_needs_the_specs(tmp_path):
     with override_settings(BASE_DIR=str(tmp_path)), pytest.raises(CommandError, match='init'):
         check()
+
+
+@pytest.mark.django_db
+def test_the_google_login_of_bazis_authing_2_8_is_no_issue(contract):
+    root = contract.parent.parent
+    edit(root, CONTRACT, lambda d: d['capabilities']['authing']['actions'].append(GOOGLE))
+    assert issues(root) == []
 
 
 @pytest.mark.django_db

@@ -1075,6 +1075,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
 | `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or assets of a package are there without it |
 | `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.13.0, bazis-uploadable 2.7.0, bazis-bg 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
+| `C005` | warning | the Google login of the contract is that of bazis-authing 2.7 or older (`GET`), which the login screen does not offer: upgrade bazis-authing to 2.8.0 (it requires bazis 2.19) and export the contract again; the password login works with 2.6 |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
@@ -1476,8 +1477,7 @@ differ from the backend; `--check` does the same in CI.
   (the auth endpoint of bazis-authing, null when it is not routed; the login actions of
   the services of `BAZIS_AUTH_KINDS` as the endpoint lists them in `meta.actions`, in the
   order of the setting, without those whose route is not registered; the logout endpoint
-  `logout_url`, null when it is not routed; the query parameter of the store token,
-  `BAZIS_AUTH_COOKIE_NAME`), `uploadable` (`max_size`, the
+  `logout_url`, null when it is not routed), `uploadable` (`max_size`, the
   `BAZIS_FILE_UPLOAD_MAX_SIZE` of an upload in bytes, null for no limit; `resources`, the
   JSON:API types of the route sets of `FileUploadRouteSet` and its subclasses: a to-one
   relationship to one of them is a file), `permit`
@@ -3413,8 +3413,8 @@ bazis-users, sent as the bearer token like the token of `token_url`. The templat
    Google send Cross-Origin-Opener-Policy, after which the opener sees the window as
    closed while the user still signs in there. A 400 in the window is a ticket used,
    expired (60 s) or without its cookie: sign in again. The Google action of an older
-   bazis-authing (`GET`, the store token in the URL) and the services with another body
-   than the password (an own service) are not offered.
+   bazis-authing (`GET`, the store token in the URL; `check` warns, `C005`) and the
+   services with another body than the password (an own service) are not offered.
 
 The client sends these requests without cookies (`credentials: 'omit'`): the endpoint sets
 the store token as a cookie, and a store that is signed in would sign the next user in as
@@ -3436,8 +3436,9 @@ bazis-users (`LOGIN_ENABLED`): the token endpoint of bazis-users, or with bazis-
 (`CAPABILITIES.authing`) its services: the username and the password through the service
 `password` (`login()`, `PASSWORD_LOGIN`), and a button for each service whose page opens in
 a window (`WINDOW_LOGINS`, `loginInWindow()`: Google, the `POST` of bazis-authing 2.8). Only
-the session token is kept, never the store token of bazis-authing. The sign-out of `AppShell` is `signOut(api)`: it drops the
-session at once and, with bazis-authing, posts to its logout endpoint.
+the session token is kept, never the store token of bazis-authing. The sign-out of
+`AppShell` is `signOut(api)`: it drops the session at once and, with bazis-authing, posts to
+its logout endpoint.
 
 ## Protocol facts that are easy to get wrong
 
@@ -3911,7 +3912,8 @@ The API of the copies that 0.7.0 changes (bazis-authing 2.8):
 - The login with Google is the `POST` of its init (`api.authInit` of the client:
   `{ticket, url}`), then its window at `url` (see
   [Logins with bazis-authing](#logins-with-bazis-authing)); `WINDOW_LOGINS` offers only the
-  action `google` with `POST`, so the template shows no Google with an older bazis-authing.
+  action `google` with `POST`, so the template shows no Google with an older bazis-authing,
+  whose `GET` action `check` reports (`C005`, a warning).
   A login screen of the product that opened the window at `<url>?<token_param>=<store>`
   calls `loginInWindow` of `src/app/session.ts` instead.
 
