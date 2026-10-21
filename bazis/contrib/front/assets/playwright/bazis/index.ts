@@ -24,7 +24,7 @@
 
 import path from 'node:path';
 
-import { errors, expect, type Locator, type Page, type Response } from '@playwright/test';
+import { test as base, errors, expect, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test';
 
 import { CAPABILITIES } from '@/bazis/generated/contract';
 
@@ -829,17 +829,44 @@ export async function loginAs<P extends Product>(page: Page, product: P, role: R
   return logIn(new App(page, product), role);
 }
 
+/** The contexts of the sessions that `sessionAs` opened in the running `test`, null out of one. */
+let sessions: BrowserContext[] | null = null;
+
+/**
+ * `test` of Playwright that closes the sessions of `sessionAs` as the test ends, before the
+ * next one starts: the tests of several sessions take it from here. A context still closing
+ * when the next test starts fails that test (Playwright records its trace on every context of
+ * the browser).
+ */
+export const test = base.extend<{ sessions: undefined }>({
+  sessions: [
+    // eslint-disable-next-line no-empty-pattern -- a fixture of no other
+    async ({}, run) => {
+      const opened: BrowserContext[] = [];
+      sessions = opened;
+      // the test, passed or failed
+      await run(undefined);
+      sessions = null;
+      await Promise.all(opened.map((context) => context.close()));
+    },
+    { auto: true },
+  ],
+});
+
 /**
  * Another session of the test of `app` as the role (the step `as` of the scenarios): a new
  * context of its browser, with the options of the test, where the role logs in as with
  * `loginAs`; it shares the start of the test and the items it created with `app`, and is closed
- * with the context of `app`.
+ * as the test ends: in a test of `test` of these helpers only.
  */
 export async function sessionAs<P extends Product>(app: App<P>, role: Role<P>): Promise<App<P>> {
   const browser = app.page.context().browser();
   if (browser === null) throw new Error('The page of the test has no browser to open another session in.');
+  if (sessions === null) {
+    throw new Error('sessionAs opens a session in a test of `test` of e2e/bazis, which closes it: import `test` from there.');
+  }
   const context = await browser.newContext();
-  app.page.context().once('close', () => void context.close());
+  sessions.push(context);
   return logIn(new App(await context.newPage(), app.product, app), role);
 }
 

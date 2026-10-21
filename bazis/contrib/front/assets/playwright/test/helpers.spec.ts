@@ -19,7 +19,7 @@
 
 import { errors, expect, test, type Page } from '@playwright/test';
 
-import { App, bz, loginAs, routePattern, sessionAs, stubForeignImages } from '../bazis';
+import { App, bz, loginAs, routePattern, sessionAs, stubForeignImages, test as sessionTest } from '../bazis';
 import { PRODUCT } from '../generated/product';
 
 /** Serves the pages by their path on the base URL of the config. */
@@ -1291,10 +1291,8 @@ test.describe('answer', () => {
 });
 
 test.describe('sessionAs', () => {
-  test('opens a session of another context, which shares the start and the items of the test, closed with it', async ({ browser }) => {
-    // the context of the test (its options: the base URL)
-    const first = await browser.newContext();
-    const app = new App(await first.newPage(), PRODUCT);
+  sessionTest('opens a session of another context, which shares the start and the items of the test', async ({ page }) => {
+    const app = new App(page, PRODUCT);
     await serve(app.page, {
       '/tasks': html(
         `<section data-bz="screen:task-list"><div data-bz="state:loaded">Tasks</div></section>
@@ -1319,7 +1317,7 @@ test.describe('sessionAs', () => {
 
     // the guest: an anonymous role, no login
     const visitor = await sessionAs(app, 'visitor');
-    expect(visitor.page.context()).not.toBe(first);
+    expect(visitor.page.context()).not.toBe(page.context());
     const row = (id: string) => `<tr data-bz="row:${id}" onclick="document.body.dataset.opened = '${id}'"><td data-bz="cell:title">Write the report</td></tr>`;
     await show(
       visitor.page,
@@ -1340,8 +1338,10 @@ test.describe('sessionAs', () => {
     await visitor.openItem({ where: { title: 'Write the report' }, created: true });
     await expect(visitor.page.locator('body')).toHaveAttribute('data-opened', 'new');
     await visitor.expectNotification('Task suggested');
+  });
 
-    await first.close();
-    await expect.poll(() => visitor.page.isClosed()).toBe(true);
+  test('opens no session in a test of Playwright, which would not close it', async ({ page }) => {
+    await expect(sessionAs(new App(page, PRODUCT), 'visitor')).rejects.toThrow('import `test` from there');
+    expect(page.context().browser()?.contexts()).toEqual([page.context()]);
   });
 });

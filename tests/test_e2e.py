@@ -198,7 +198,9 @@ def test_the_sessions_and_the_remembered_values_of_a_scenario():
         Step('transit', {'id': 'assign', 'payload': {'master': '$name'}}),
         Step('as', 'site-client'),
     ], screens=False)
-    assert "import { loginAs, sessionAs } from '../bazis';" in text
+    # the test of the helpers, which closes the sessions as it ends (not that of Playwright)
+    assert "import { loginAs, sessionAs, test } from '../bazis';" in text
+    assert '@playwright/test' not in text
     assert "test('board', async ({ page }) => {\n  const app = await loginAs(page, PRODUCT, 'dispatcher');\n" in text
     assert "  const asSiteClient = await test.step('as: site-client', () => sessionAs(app, 'site-client'));\n" in text
     # a list of labels is no value of `remember`

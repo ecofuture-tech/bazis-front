@@ -2820,7 +2820,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | Step | Calls |
   |---|---|
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
-  | `as: <role>` | `const asRole = await sessionAs(app, role)` the first time (a new context of the browser of the test with its options, the role logged in as by `loginAs`; it shares the start of the test and the items it created, and is closed with the test), its variable again (`app` for the role of the scenario): the next steps call it |
+  | `as: <role>` | `const asRole = await sessionAs(app, role)` the first time (a new context of the browser of the test with its options, the role logged in as by `loginAs`; it shares the start of the test and the items it created, and is closed as the test ends: the test is `test` of `e2e/bazis/`), its variable again (`app` for the role of the scenario): the next steps call it |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where, in}` | `openItem({where, in, created})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`), or with more items of the columns of a board (`action:more`); then `expectScreen` of `list.open`. `created: true` when the scenario created an item with these texts before (the walk of `check`: the values filled in a create form that saves, then in its edits, have the texts of `where`): only a row of an item that this test created, its id among those of the creates of its submits, never an item of a previous run with the same texts. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `select: {where}` | `select({where, created})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
@@ -4026,8 +4026,9 @@ The API of the copies that 0.9.0 changes:
   again. A custom screen that saved the file of an action from a JSON answer may become the
   form of the action ("The form of a custom action").
 - `e2e/bazis/` has `sessionAs(app, role)` and `App.answer(property)` (the steps `as` and
-  `remember`); `ActionResult` takes `answer`. A test of `e2e/custom/` with a second context
-  or a number read from a text may become a scenario.
+  `remember`), and `test`, the test of Playwright that closes the sessions as it ends, which a
+  test with `sessionAs` imports from there; `ActionResult` takes `answer`. A test of
+  `e2e/custom/` with a second context or a number read from a text may become a scenario.
 - `relatedField(path, property, label?, resource?)` of `@/bazis/ui/resource` (the
   `bodyField` of the forms of the actions) gives the payload of a transit the picker of the
   relationship of the same name; a custom dialog of a transit with a picker of its own may
@@ -6805,7 +6806,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 
 #### sessionAs
 
-`sessionAs<P extends Product>(app: App<P>, role: Role<P>): Promise<App<P>>`: Another session of the test of `app` as the role (the step `as` of the scenarios): a new context of its browser, with the options of the test, where the role logs in as with `loginAs`; it shares the start of the test and the items it created with `app`, and is closed with the context of `app`.
+`sessionAs<P extends Product>(app: App<P>, role: Role<P>): Promise<App<P>>`: Another session of the test of `app` as the role (the step `as` of the scenarios): a new context of its browser, with the options of the test, where the role logs in as with `loginAs`; it shares the start of the test and the items it created with `app`, and is closed as the test ends: in a test of `test` of these helpers only.
 
 #### Product
 
@@ -6856,3 +6857,4 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>`: The values of the fields of a form by name: a scalar, or the labels of the related items of a to-many relationship (a list, `[]` for none).
 - `type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid' | 'done'`: The states that the screens render (`state:<state>`).
 - `LOGIN_ROUTE: "/login"`: The login screen of the template (`LoginForm`), where the router sends a user without a session.
+- `test: TestType<PlaywrightTestArgs & PlaywrightTestOptions & { sessions: undefined; }, PlaywrightWorkerArgs & PlaywrightWorkerOptions>`: `test` of Playwright that closes the sessions of `sessionAs` as the test ends, before the next one starts: the tests of several sessions take it from here.

@@ -154,17 +154,21 @@ def calls(step: Step, screens: bool = False, app: str = 'app') -> list[str]:
 def render_scenario(scenario: dict, steps: list[Step], screens: bool) -> str:
     """
     The test of a scenario: a `test.step` for each step, in the session of the role of the
-    scenario (`app`, `loginAs`) or of the last `as` (`sessionAs` opens it the first time); a
-    `remember` declares the constants of the values it takes (`answer`).
+    scenario (`app`, `loginAs`) or of the last `as` (`sessionAs` opens it the first time, in
+    `test` of the helpers, which closes it); a `remember` declares the constants of the values it
+    takes (`answer`).
     """
     role = scenario['role']
     sessions = {role: 'app'}
-    helpers = 'loginAs, sessionAs' if any(step.name == 'as' and step.value != role for step in steps) else 'loginAs'
+    # the tests of several sessions are those of the helpers, which close the sessions
+    imports = (
+        ["import { loginAs, sessionAs, test } from '../bazis';"]
+        if any(step.name == 'as' and step.value != role for step in steps)
+        else ["import { test } from '@playwright/test';", '', "import { loginAs } from '../bazis';"]
+    )
     lines = [
         header(f'the scenario `{scenario["id"]}` of {PRODUCT_FILE}'),
-        "import { test } from '@playwright/test';",
-        '',
-        f"import {{ {helpers} }} from '../bazis';",
+        *imports,
         '',
         "import { PRODUCT } from './product';",
         '',
