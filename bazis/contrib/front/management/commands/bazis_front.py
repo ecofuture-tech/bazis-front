@@ -431,7 +431,11 @@ class Command(BaseCommand):
             raise CommandError(
                 f'Updated to bazis-front {plan.version} with conflicts in {len(plan.conflicts)} '
                 f'files: {", ".join(plan.conflicts)}. Resolve the conflict markers (<<<<<<< '
-                f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them. '
+                f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them, or '
+                'take the file of bazis-front listed for each and apply the changes of the product '
+                'to it again: the lines changed away from the conflicts are merged without markers, '
+                'so a change of the product that the new version now makes itself (a declaration of '
+                'a name that it imports) stays beside it and fails `tsc` (TS2440). '
                 f'{install}{verify}'
             )
         self.stdout.write(
@@ -455,6 +459,10 @@ class Command(BaseCommand):
             for it in asset.files:
                 if it.status != update.REPLACED:
                     self.stdout.write(f'  {it.path}: {update.DESCRIPTIONS[it.status]}')
+                if it.status == update.CONFLICT:
+                    self.stdout.write(
+                        f'    the file of bazis-front: {update.upstream_copy(asset.asset, it.path, plan.version)}'
+                    )
                 if it.status == update.ORPHANED and it.path in update.REPLACED_BY:
                     self.stdout.write(f'    {update.REPLACED_BY[it.path]}')
         if plan.package is not None:

@@ -395,8 +395,11 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   one). `FilesField` is the control of several files (a to-many relationship to the files,
   `list[UploadedFileId]` in the body of an action): the files chosen or dropped uploaded
   one after the other, each listed (`file:<i>`) with a cancel or a remove
-  (`action:remove-file-<i>`, the local copy released), the value the ids uploaded.
-  `FileFieldProvider` makes them the controls of every file field of the forms below it,
+  (`action:remove-file-<i>`, the local copy released), the value the ids uploaded; at most
+  `maxItems` of the field (that of the property of the body, `relatedField`), the files over
+  it never sent (an error of the field). Under the drop zone the field names its types as a
+  user reads them (`JPEG, PNG, or WebP`, in the language of the interface), its size limit and
+  its most files. `FileFieldProvider` makes them the controls of every file field of the forms below it,
   with `accept` by the name of a field; with `guest` (no session) the types of the
   anonymous uploads, `ANONYMOUS_ACCEPT`.
 - **`status-history`** shows what bazis-statusy exposes of the history of an item: its

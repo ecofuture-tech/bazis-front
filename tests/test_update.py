@@ -264,6 +264,10 @@ def test_update_writes_the_conflicts_and_fails(product):
         call_command('bazis_front', 'update', stdout=out)
     assert f'  {CLIENT}: CONFLICT' in out.getvalue()
     new = upstream(CLIENT)
+    # the file of bazis-front, whole: its pristine copy of the new version
+    whole = f'.bazis/base/client@{__version__}/client.ts'
+    assert f'  {CLIENT}: CONFLICT: changed in the frontend and in bazis-front, resolve the markers\n    the file of bazis-front: {whole}\n' in out.getvalue()
+    assert (product / 'frontend' / whole).read_text(encoding='utf-8') == new
     theirs = new.splitlines(keepends=True)[late(new)]
     conflict = f'{MARKERS[0]}// mine\n{MARKERS[1]}{theirs}{MARKERS[2]}'
     assert path.read_text(encoding='utf-8') == change_line(new, late(new), conflict)
@@ -646,6 +650,24 @@ def test_update_merges_the_template(product):
     # the deleted file stays deleted, and nothing asks for npm install
     out = update('template')
     assert out.endswith(f'are those of bazis-front {__version__}.\n')
+
+
+def test_a_conflict_of_the_template_names_its_file_of_bazis_front(product):
+    """
+    A router that the product changed where the template changed it too conflicts; the lines
+    merged without markers stay (a constant of the product that the template now imports
+    beside them): `update` names the file of the template to take whole.
+    """
+    downgrade(product, 'template', lambda path, text: change_line(text, late(text), '// old\n') if path == ROUTER else text)
+    router = product / 'frontend' / ROUTER
+    router.write_text(change_line(router.read_text(encoding='utf-8'), late(upstream(ROUTER)), '// mine\n'), encoding='utf-8')
+
+    out = StringIO()
+    with pytest.raises(CommandError, match=r'or take the file of bazis-front listed for each .* fails `tsc` \(TS2440\)'):
+        call_command('bazis_front', 'update', stdout=out)
+    whole = f'.bazis/base/template@{__version__}/{ROUTER}'
+    assert f'  {ROUTER}: CONFLICT: changed in the frontend and in bazis-front, resolve the markers\n    the file of bazis-front: {whole}\n' in out.getvalue()
+    assert (product / 'frontend' / whole).read_text(encoding='utf-8') == upstream(ROUTER)
 
 
 def test_update_asks_for_npm_install_only_for_a_new_package_json(product):

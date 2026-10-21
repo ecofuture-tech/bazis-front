@@ -278,7 +278,9 @@ job of CI.
   scenario before, generated as `created: true`, so that the test takes the item it created
   and not one of a previous run, the scenarios running again on a database that keeps them;
   P033 and P034 report the scenarios that would not; the sessions of `as`, each with its
-  `_State` and its card, and the values of `remember`, `$<name>`, are walked there too) in
+  `_State` and its card, and the values of `remember`, `$<name>`, are walked there too: `taken`
+  of a `remember` is the names that a next step takes, the only constants that its test
+  declares, the lint of a product refusing an unused one) in
   `validate.Result.specs`, which
   `spec/e2e.py` turns into calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the table of the steps in `bazis/contrib/front/AGENTS.md`.
@@ -389,7 +391,9 @@ job of CI.
   lines made those of the new version first, `copy.restamp`), raising a `CopyError` before
   anything is written; `apply` writes the files (conflicts with git markers), copies the
   new requirements, replaces the pristine copies, refreshes `spec/schema/`
-  (`spec/create.schema_updates`) and writes the lock last. The merge is `git merge-file`
+  (`spec/create.schema_updates`) and writes the lock last; the command names the file of
+bazis-front of each conflict, its pristine copy of the new version (`upstream_copy`), to take
+whole when the lines merged without markers clash. The merge is `git merge-file`
   (`merge_file`: temporary files, the labels of the markers, without the configuration of
   the user; Git is looked for only when a file needs a merge, and its absence fails the
   plan). Do not write a merge of our own: a diff3 that aligns the base with each side

@@ -878,6 +878,42 @@ test('openItem shows more items of a column of a board until it has the item', a
   await expect(page.locator('body')).toHaveAttribute('data-opened', 'row:5');
 });
 
+test.describe('openItem on a live page', () => {
+  /** A board whose item of another session comes after it is shown; `socket`: the page is live (`LiveQuery`). */
+  function board(socket: boolean): string {
+    return html(
+      `${socket ? '<span data-bz="socket:open"></span>' : ''}<section data-bz="screen:task-board"><div data-bz="state:loaded" id="cards">
+        <div data-bz="row:1"><span data-bz="cell:title">A</span></div></div></section>`,
+      `setTimeout(() => {
+         document.getElementById('cards').insertAdjacentHTML('beforeend', '<div data-bz="row:2" onclick="document.body.dataset.opened = this.dataset.bz"><span data-bz="cell:title">Sent by a guest</span></div>');
+       }, 1500);`,
+    );
+  }
+
+  test('waits for the row that the socket brings', async ({ page }) => {
+    await show(page, '/board', board(true));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-board');
+    await app.openItem({ where: { title: 'Sent by a guest' } });
+    await expect(page.locator('body')).toHaveAttribute('data-opened', 'row:2');
+  });
+
+  test('fails when the row does not come', async ({ page }) => {
+    await show(page, '/board', board(true));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-board');
+    await expect(app.openItem({ where: { title: 'Sent by nobody' } })).rejects.toThrow('No row of the list');
+  });
+
+  test('does not wait on a page without the socket', async ({ page }) => {
+    await show(page, '/board', board(false));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-board');
+    await expect(app.openItem({ where: { title: 'Sent by a guest' } })).rejects.toThrow('No row of the list');
+    await expect(page.locator('body')).not.toHaveAttribute('data-opened');
+  });
+});
+
 test('move fails at once with the refusal of the move', async ({ page }) => {
   await show(page, '/board',
     html(

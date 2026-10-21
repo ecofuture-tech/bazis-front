@@ -18,4 +18,5 @@ test('manager-exports-the-tasks', async ({ page }) => {
   await test.step('expect: {state: done}', async () => {
     await app.expectState('done');
   });
+  await test.step('remember: {file: filename}', () => app.answer('filename'));
 });

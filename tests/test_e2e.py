@@ -190,8 +190,8 @@ def test_the_sessions_and_the_remembered_values_of_a_scenario():
     text = e2e.render_scenario(scenario, [
         Step('as', 'site-client'),
         Step('fill', {'phone': '$number', 'note': ['$number']}),
-        Step('remember', {'number': 'number'}),
-        Step('remember', {'first': 'number', 'name': 'filename'}),
+        Step('remember', {'number': 'number'}, taken=('number',)),
+        Step('remember', {'first': 'number', 'name': 'filename'}, taken=('first', 'name')),
         Step('as', 'dispatcher'),
         Step('open_item', {'where': {'number': '$number'}}, created=True),
         Step('expect', {'values': {'number': '$number'}, 'notification': '$number'}),
@@ -218,6 +218,33 @@ def test_the_sessions_and_the_remembered_values_of_a_scenario():
     # without another role: `loginAs` only, as before
     alone = e2e.render_scenario(scenario, [Step('as', 'dispatcher')], screens=False)
     assert "import { loginAs } from '../bazis';" in alone
+
+
+def test_a_remembered_value_that_no_step_takes_has_no_constant(tmp_path):
+    """
+    A `remember` reads every value of the answer (`answer` waits for it) and declares the
+    constants of those that a next step takes only, in their places in the array of the
+    answers: the lint of the frontend refuses a constant that nothing uses.
+    """
+    assert rendered(REPOSITORY / 'sample')[EXPORTS].endswith(
+        "  await test.step('remember: {file: filename}', () => app.answer('filename'));\n});\n"
+    )
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+
+    def remember(data):
+        steps = next(it for it in data['scenarios'] if it['id'] == 'manager-opens-a-suggested-task')['steps']
+        index = steps.index({'remember': {'suggested': 'title'}})
+        steps[index:index + 1] = [{'remember': {'first': 'title', 'suggested': 'title', 'last': 'title'}}, {'remember': {'again': 'title'}}]
+
+    edit_product(tmp_path, remember)
+    text = rendered(tmp_path)[OPENS_SUGGESTED]
+    assert (
+        "  const [, $suggested] = await test.step('remember: {first: title, suggested: title, last: title}', () =>"
+        " Promise.all([asVisitor.answer('title'), asVisitor.answer('title'), asVisitor.answer('title')]));\n"
+        "  await test.step('remember: {again: title}', () => asVisitor.answer('title'));\n"
+    ) in text
+    assert '$first' not in text and '$last' not in text and '$again' not in text
+    assert '    await app.openItem({ where: { title: $suggested } });\n' in text
 
 
 def test_the_steps_follow_the_walk_of_the_scenario(tmp_path):

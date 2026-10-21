@@ -31,7 +31,7 @@ the actions (`remember`, used as `$<name>`) are of the whole scenario.
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from . import access
 from .issues import Document, Issues
@@ -92,6 +92,9 @@ class Step:
     #: before (`agrees`): the step takes one of the items its test created, never an item of a
     #: previous run with the same texts
     created: bool = False
+    #: a `remember`: the names of its values that a next step takes (`$<name>`), the constants
+    #: that its test declares; it reads the others without keeping them
+    taken: tuple[str, ...] = ()
 
 
 #: the states of a screen that a submit which does not save shows
@@ -240,8 +243,9 @@ class _Scenario:
         self.made: list[_Made] = []
         self.finds: list[tuple[tuple, str | None, dict]] = []
         self.lost = False
-        # the names of the values remembered (`remember`)
+        # the names of the values remembered (`remember`), and those that a step takes (`$<name>`)
         self.variables: set[str] = set()
+        self.taken: set[str] = set()
 
     @property
     def state(self) -> _State:
@@ -268,7 +272,10 @@ class _Scenario:
             getattr(self, f'step_{name}')((*self.path, 'steps', i, name), value)
             self.lost = self.lost or not self.state.known
             steps.append(Step(name, value, self.edit, self.then, self.failing, self.confirm, self.created))
-        return steps
+        return [
+            replace(it, taken=tuple(name for name in it.value if name in self.taken)) if it.name == 'remember' else it
+            for it in steps
+        ]
 
     def add(self, path, code, message, hint):
         self.issues.add(self.doc, path, code, message, hint)
@@ -291,9 +298,11 @@ class _Scenario:
             )
 
     def remembered(self, path, values: dict) -> None:
-        """Reports a value `$<name>` that no `remember` before took (P022)."""
+        """Takes the values `$<name>`, and reports one that no `remember` before took (P022)."""
         for name, value in values.items():
             taken = variable(value)
+            if taken is not None:
+                self.taken.add(taken)
             if taken is not None and taken not in self.variables:
                 self.add(
                     (*path, name), 'P022', f'No `remember` before this step takes `${taken}`.',

@@ -37,7 +37,7 @@ import {
   type FilesFieldProps,
 } from '@/bazis/ui/file-field';
 import { FieldInput } from '@/bazis/ui/resource';
-import { Backend, renderWithBazis, resource } from '@/bazis/ui/testing';
+import { Backend, renderWithBazis, resource, testLanguages } from '@/bazis/ui/testing';
 
 /** The route set of the uploaded files of the tests, of no product. */
 const FILES = '/api/test/file/';
@@ -196,9 +196,29 @@ describe('FileField', () => {
     renderWithBazis(<Field spies={typed} accept="image/*,.pdf" />, backend);
     expect(screen.getByTestId('field:attachment').getAttribute('accept')).toBe('image/*,.pdf');
     choose(BRIEF);
-    expect(typed.onError).toHaveBeenCalledWith('The file is not of the type image/*,.pdf.');
+    expect(typed.onError).toHaveBeenCalledWith('The file is not of the type images or PDF.');
     expect(backend.calls).toEqual([]);
     expect(large.onBusy).not.toHaveBeenCalled();
+  });
+
+  it('names the types that it takes as a user reads them, in the language of the interface', async () => {
+    const accept = 'image/jpeg,image/png,image/webp';
+    const { unmount } = renderWithBazis(<Field spies={spies()} accept={accept} maxSize={6 * 1024 * 1024} />, new Backend());
+    await screen.findByTestId('field:attachment');
+    expect(screen.getByTestId('upload:attachment').textContent).toContain('JPEG, PNG, or WebP, up to 6 MB');
+    unmount();
+
+    const field = spies();
+    renderWithBazis(<Field spies={field} accept={accept} maxSize={6 * 1024 * 1024} />, new Backend(), {
+      language: testLanguages('ru'),
+    });
+    await screen.findByTestId('field:attachment');
+    expect(screen.getByTestId('upload:attachment').textContent).toContain('JPEG, PNG или WebP, до 6 МБ');
+    expect(screen.getByTestId('upload:attachment').textContent).not.toContain('image/');
+    choose(BRIEF);
+    expect(field.onError).toHaveBeenCalledWith('Тип файла не подходит: JPEG, PNG или WebP.');
+    // the input offers the media types themselves
+    expect(screen.getByTestId('field:attachment').getAttribute('accept')).toBe(accept);
   });
 
   it('reports the error of the backend', async () => {
@@ -464,8 +484,42 @@ describe('FilesField', () => {
       expect(field.onChange).toHaveBeenCalledWith(['1']);
     });
     chooseFiles(new File(['gif'], 'cat.gif', { type: 'image/gif' }));
-    expect(field.onError).toHaveBeenLastCalledWith('The file is not of the type image/png,image/webp.');
+    expect(field.onError).toHaveBeenLastCalledWith('The file is not of the type PNG or WebP.');
     expect(backend.calls.map((it) => it.body)).toEqual([{ file: 'leak.png' }]);
+  });
+
+  it('takes at most the files of maxItems, the others never sent, and more once one is removed', async () => {
+    objectUrls();
+    const backend = new Backend().each(
+      'POST',
+      FILES,
+      { body: { data: uploaded(1, 'a.png') }, status: 201 },
+      { body: { data: uploaded(2, 'b.png') }, status: 201 },
+      { body: { data: uploaded(3, 'd.png') }, status: 201 },
+    );
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} field={{ ...PHOTOS, maxItems: 2 }} />, backend);
+    await screen.findByTestId('field:photos');
+    expect(screen.getByTestId('upload:photos').textContent).toContain('up to 2 files');
+
+    const png = (name: string) => new File(['png'], name, { type: 'image/png' });
+    chooseFiles(png('a.png'), png('b.png'), png('c.png'));
+    expect(field.onError).toHaveBeenLastCalledWith('At most 2 files.');
+    await waitFor(() => {
+      expect(field.onChange).toHaveBeenLastCalledWith(['1', '2']);
+    });
+    // full: nothing more is sent
+    chooseFiles(png('d.png'));
+    expect(field.onError).toHaveBeenLastCalledWith('At most 2 files.');
+    expect(backend.calls.map((it) => it.body)).toEqual([{ file: 'a.png' }, { file: 'b.png' }]);
+
+    fireEvent.click(screen.getByTestId('action:remove-file-0'));
+    chooseFiles(png('d.png'));
+    expect(field.onError).toHaveBeenLastCalledWith(null);
+    await waitFor(() => {
+      expect(field.onChange).toHaveBeenLastCalledWith(['2', '3']);
+    });
+    expect(backend.calls.map((it) => it.body)).toEqual([{ file: 'a.png' }, { file: 'b.png' }, { file: 'd.png' }]);
   });
 
   it.each([
@@ -559,7 +613,7 @@ describe('FileFieldProvider of several files', () => {
     act(() => {
       chooseFiles(PNG);
     });
-    expect(screen.getByTestId('error:photos').textContent).toBe('The file is not of the type .txt.');
+    expect(screen.getByTestId('error:photos').textContent).toBe('The file is not of the type TXT.');
     expect(onChange).not.toHaveBeenCalled();
     expect(backend.calls).toEqual([]);
   });

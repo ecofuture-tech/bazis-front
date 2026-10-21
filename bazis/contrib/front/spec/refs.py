@@ -1465,8 +1465,9 @@ def _check_body(
                     doc, field_path, 'S057',
                     f'The property `{prop}` of the body of `{name}` is uploaded by a guest, and the contract does not '
                     'let the guests upload files: their upload is refused (401).',
-                    'Turn the anonymous uploads of bazis-uploadable 2.8 on: BAZIS_FILE_UPLOAD_ANONYMOUS=true with a '
-                    f'size limit, BAZIS_FILE_UPLOAD_MAX_SIZE; then {EXPORT_HINT}. Or leave the property out of the '
+                    'Turn the anonymous uploads of bazis-uploadable 2.8 on in the environment of the project '
+                    '(project.env): BS_BAZIS_FILE_UPLOAD_ANONYMOUS=true with a size limit, '
+                    f'BS_BAZIS_FILE_UPLOAD_MAX_SIZE; then {EXPORT_HINT}. Or leave the property out of the '
                     'fields of the public screen.',
                 )
         elif ids is not None:

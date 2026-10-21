@@ -23,9 +23,9 @@ checks; each becomes calls of the helpers, which act through the `data-bz` marks
 screens. The text depends on the specs only: `--check` and `front.W003` render it again and
 compare it byte for byte, without Node. A scenario of several sessions (`as`) has a variable
 for each (`app` for the role of the scenario, `as<Role>` for the others, `sessionAs`), and a
-value that it remembers (`remember`) is the constant `$<name>`. The lock records the hashes of the specs the tests
-were generated from and their own (`e2e`): the files of a scenario that was removed are
-deleted by the next generation.
+value that it remembers (`remember`) and a next step takes is the constant `$<name>`. The
+lock records the hashes of the specs the tests were generated from and their own (`e2e`):
+the files of a scenario that was removed are deleted by the next generation.
 """
 
 import json
@@ -155,8 +155,9 @@ def render_scenario(scenario: dict, steps: list[Step], screens: bool) -> str:
     """
     The test of a scenario: a `test.step` for each step, in the session of the role of the
     scenario (`app`, `loginAs`) or of the last `as` (`sessionAs` opens it the first time, in
-    `test` of the helpers, which closes it); a `remember` declares the constants of the values it
-    takes (`answer`).
+    `test` of the helpers, which closes it); a `remember` reads the values of the answer
+    (`answer`) and declares the constants of those that a next step takes (`Step.taken`): the
+    lint of the frontend refuses a constant that nothing uses.
     """
     role = scenario['role']
     sessions = {role: 'app'}
@@ -186,12 +187,17 @@ def render_scenario(scenario: dict, steps: list[Step], screens: bool) -> str:
                 app = sessions[step.value] = session_name(step.value)
                 lines.append(f'  const {app} = await test.step({title}, () => sessionAs(app, {string(step.value)}));')
         elif step.name == 'remember':
-            names = ', '.join(f'${it}' for it in step.value)
             answers = [f'{app}.answer({string(it)})' for it in step.value.values()]
-            if len(answers) == 1:
-                lines.append(f'  const {names} = await test.step({title}, () => {answers[0]});')
+            read = answers[0] if len(answers) == 1 else f'Promise.all([{", ".join(answers)}])'
+            # the constants of the values taken, a hole in the array for another one
+            names = [f'${it}' if it in step.taken else '' for it in step.value]
+            while names and not names[-1]:
+                names.pop()
+            if not names:
+                lines.append(f'  await test.step({title}, () => {read});')
             else:
-                lines.append(f'  const [{names}] = await test.step({title}, () => Promise.all([{", ".join(answers)}]));')
+                declared = names[0] if len(answers) == 1 else f'[{", ".join(names)}]'
+                lines.append(f'  const {declared} = await test.step({title}, () => {read});')
         else:
             lines.append(f'  await test.step({title}, async () => {{')
             lines += [f'    await {call};' for call in calls(step, screens, app)]

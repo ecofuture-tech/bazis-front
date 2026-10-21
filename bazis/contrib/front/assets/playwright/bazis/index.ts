@@ -18,9 +18,10 @@
 // `e2e/generated/product.ts` (the test users and the routes of the specs), and so can the
 // tests of the product (`e2e/custom/`). They wait with the auto-waiting of Playwright and on
 // the marks of the states, never for a fixed time but for the confirmation of a deletion,
-// which a hand-written screen may not have (`CONFIRMATION_WAIT`). The tests run again on a
-// database that keeps what the previous runs created: a test finds the items it created by
-// their ids (`created`), and the notifications that came since it started.
+// which a hand-written screen may not have (`CONFIRMATION_WAIT`), and for a row that a live
+// list may still receive (`LIVE_ROW_WAIT`). The tests run again on a database that keeps what
+// the previous runs created: a test finds the items it created by their ids (`created`), and
+// the notifications that came since it started.
 
 import path from 'node:path';
 
@@ -127,6 +128,13 @@ const MAX_LANGUAGES = 20;
 const CONFIRMATION_WAIT = 2_000;
 
 /**
+ * How long `openItem` waits for a row that the page shown does not have yet when the page is
+ * live (the socket of bazis-ws, `socket:<status>` of `LiveQuery`), ms: the item that another
+ * session made after the list was read comes with the refetch that its message starts.
+ */
+const LIVE_ROW_WAIT = 2_000;
+
+/**
  * How long `loginAs` waits for the logout or the error of the login, ms. The first login of a
  * run warms the dev server of Vite (it compiles the application on the first requests), which
  * takes longer than the 5 s of `expect`.
@@ -190,8 +198,9 @@ export class App<P extends Product = Product> {
    * Opens the first item of the current screen whose cells `cell:<name>` have exactly these
    * texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen,
    * of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page
-   * shown, else searched with the search of the list (`field:$search`), each text of `where`
-   * in turn, else on the next pages (`action:next-page`) of the list without a search, or with
+   * shown (on a live page, as soon as it has it within `LIVE_ROW_WAIT`: an item of another
+   * session that the socket brings), else searched with the search of the list
+   * (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search, or with
    * more items of the columns of a board (`action:more`); fails when no page has it. A list
    * that grows with every run (the items that the scenarios create) is searched, never read on
    * its first page only. With `created`, only an item that this test created (`submit`): never
@@ -632,7 +641,7 @@ export class App<P extends Product = Product> {
     const lists = this.screen().locator('[data-bz^="list:"]');
     const list =
       recent !== undefined ? this.screen().locator(bz('recent', recent)) : (await lists.count()) > 0 ? lists.first() : this.screen();
-    const shown = await this.rowOnPage(list, where, created);
+    const shown = (await this.rowOnPage(list, where, created)) ?? (await this.liveRow(list, where, created));
     if (shown) return shown;
     const search = list.locator(bz('field', '$search'));
     if ((await search.count()) > 0) {
@@ -650,14 +659,37 @@ export class App<P extends Product = Product> {
     throw new Error(`No row ${which} of the screen ${String(this.current)} has the texts ${JSON.stringify(where)}.`);
   }
 
-  /** The first row of the list on its page whose cells have the texts (with `created`, one that this test created), or null. */
-  private async rowOnPage(list: Locator, where: Values, created: boolean): Promise<Locator | null> {
+  /** The rows of the list whose cells have the texts (with `created`, those that this test created). */
+  private rows(list: Locator, where: Values, created: boolean): Locator {
     let rows = list.locator('[data-bz^="row:"]');
     if (created) rows = rows.and(this.page.locator([...this.created].map((id) => bz('row', id)).join(', ')));
     for (const [name, value] of Object.entries(where)) {
       rows = rows.filter({ has: this.page.locator(bz('cell', name)).filter({ hasText: exactly(value) }) });
     }
+    return rows;
+  }
+
+  /** The first row of the list on its page whose cells have the texts (with `created`, one that this test created), or null. */
+  private async rowOnPage(list: Locator, where: Values, created: boolean): Promise<Locator | null> {
+    const rows = this.rows(list, where, created);
     return (await rows.count()) > 0 ? rows.first() : null;
+  }
+
+  /**
+   * The row that a live page (`socket:<status>`) shows within `LIVE_ROW_WAIT`, or null: none
+   * on a page without the socket, whose rows change only when it reads them again.
+   */
+  private async liveRow(list: Locator, where: Values, created: boolean): Promise<Locator | null> {
+    if ((await this.page.locator('[data-bz^="socket:"]').count()) === 0) return null;
+    const row = this.rows(list, where, created).first();
+    const shown = await row.waitFor({ state: 'attached', timeout: LIVE_ROW_WAIT }).then(
+      () => true,
+      (error: unknown) => {
+        if (error instanceof errors.TimeoutError) return false;
+        throw error;
+      },
+    );
+    return shown ? row : null;
   }
 
   /** The row on the page of the list or on its next pages (more items of a board), or null. */
@@ -829,25 +861,29 @@ export async function loginAs<P extends Product>(page: Page, product: P, role: R
   return logIn(new App(page, product), role);
 }
 
-/** The contexts of the sessions that `sessionAs` opened in the running `test`, null out of one. */
-let sessions: BrowserContext[] | null = null;
+/**
+ * The contexts of the sessions that `sessionAs` opens in the running `test`, as they are asked
+ * for (a context still being created when the test ends is one of them), null out of one.
+ */
+let sessions: Promise<BrowserContext>[] | null = null;
 
 /**
  * `test` of Playwright that closes the sessions of `sessionAs` as the test ends, before the
- * next one starts: the tests of several sessions take it from here. A context still closing
- * when the next test starts fails that test (Playwright records its trace on every context of
- * the browser).
+ * next one starts, also one whose context was being created when the test timed out: the tests
+ * of several sessions take it from here. A context still closing when the next test starts
+ * fails that test (Playwright records its trace on every context of the browser).
  */
 export const test = base.extend<{ sessions: undefined }>({
   sessions: [
     // eslint-disable-next-line no-empty-pattern -- a fixture of no other
     async ({}, run) => {
-      const opened: BrowserContext[] = [];
+      const opened: Promise<BrowserContext>[] = [];
       sessions = opened;
       // the test, passed or failed
       await run(undefined);
       sessions = null;
-      await Promise.all(opened.map((context) => context.close()));
+      // a context that could not be created failed its test already
+      await Promise.all(opened.map((context) => context.then((it) => it.close(), () => undefined)));
     },
     { auto: true },
   ],
@@ -865,9 +901,10 @@ export async function sessionAs<P extends Product>(app: App<P>, role: Role<P>): 
   if (sessions === null) {
     throw new Error('sessionAs opens a session in a test of `test` of e2e/bazis, which closes it: import `test` from there.');
   }
-  const context = await browser.newContext();
+  // in the sessions of the test before it is created: the test may end meanwhile
+  const context = browser.newContext();
   sessions.push(context);
-  return logIn(new App(await context.newPage(), app.product, app), role);
+  return logIn(new App(await (await context).newPage(), app.product, app), role);
 }
 
 /** Logs the role in the page of `app` (`loginAs`). */
