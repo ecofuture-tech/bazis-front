@@ -24,6 +24,7 @@ function setup(response: Response, token?: string) {
   // the route sets of the fixture have no download route: the paths are plain strings here
   const api = createClient({ baseUrl: BASE, fetch, token, language: 'ru' }) as unknown as {
     download: (path: string, id: string, options?: { signal?: AbortSignal }) => Promise<{ blob: Blob; name: string | null }>;
+    actionFile: (path: string, name: string, body?: unknown) => Promise<{ blob: Blob; name: string | null }>;
   };
   return { api, calls };
 }
@@ -49,6 +50,38 @@ describe('download', () => {
     const error = await api.download(FILES, '2').catch((reason: unknown) => reason);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).status).toBe(404);
+  });
+});
+
+describe('actionFile', () => {
+  const TASKS = '/api/v1/tasks/task/';
+
+  it('posts the JSON body of a custom action and reads the file of its answer', async () => {
+    const response = new Response('title\r\nPlan\r\n', {
+      headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="tasks.csv"' },
+    });
+    const { api, calls } = setup(response, 'jwt');
+    const file = await api.actionFile(TASKS, 'export', { priority: 'high' });
+    expect(file.name).toBe('tasks.csv');
+    expect(await file.blob.text()).toBe('title\r\nPlan\r\n');
+    expect(calls).toEqual([
+      {
+        url: `${BASE}${TASKS}export/`,
+        init: {
+          method: 'POST',
+          headers: { 'Accept-Language': 'ru', Authorization: 'Bearer jwt', 'Content-Type': 'application/json' },
+          body: '{"priority":"high"}',
+        },
+      },
+    ]);
+  });
+
+  it('rejects with the ApiError of the backend, the errors of the body at its fields', async () => {
+    const errors = [{ status: 422, code: 'ERR_VALIDATE', detail: 'Input should be high or low', source: { pointer: '/priority' } }];
+    const { api } = setup(new Response(JSON.stringify({ errors }), { status: 422 }));
+    const error = await api.actionFile(TASKS, 'export', { priority: 'urgent' }).catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).bodyErrors()).toEqual({ priority: ['Input should be high or low'] });
   });
 });
 

@@ -80,8 +80,9 @@ def resources(openapi: dict) -> dict:
             'actions': main['actions'],
             'fields': fields,
             'label': label(fields),
-            # the search fields that its LIST schema reaches, as declared: those the core
-            # searches (`bazis.W007` reports the others); none, a `search` is 400
+            # the search fields that its LIST schema reaches, as declared (`bazis.W007`
+            # reports the others), else the text fields of the schema (bazis 2.20): those
+            # the core searches; none, a `search` is 400
             'search': route_search_fields(main_cls) if scope is not None else [],
             'create': _create_fields(openapi, main['operations']),
             'custom_actions': _custom_actions(openapi, main['path'], main['operations']),
@@ -313,7 +314,10 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
     `body`, the JSON Schema of its JSON body, standalone (the components it references in its
     `$defs`), null without one: what the buttons of the specs need (S032); `response`, the
     JSON Schema of its JSON answer (200) as standalone, null without one: the properties that
-    the result of a form of the specs may show (S053).
+    the result of a form of the specs may show (S053); `file`, whether its answer (200) is a
+    file, content of another type than JSON (`is_json`; a `response_class` with a
+    `media_type`, such as `text/csv`, also `text/html`): a form of the specs saves it, its
+    result shows `{filename}` (S053).
     """
     result = {}
     for path, item in openapi.get('paths', {}).items():
@@ -326,7 +330,8 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 continue
             relative = path.removeprefix(collection)
             body = _json_schema(operation.get('requestBody', {}))
-            response = _json_schema(operation.get('responses', {}).get('200', {}))
+            answer = operation.get('responses', {}).get('200', {})
+            response = _json_schema(answer)
             result[meta['action']] = {
                 'name': relative.removeprefix(ITEM_PREFIX).rstrip('/'),
                 'item': relative.startswith(ITEM_PREFIX),
@@ -335,13 +340,23 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 'public': meta['public'],
                 'body': _standalone(openapi, body) if body is not None else None,
                 'response': _standalone(openapi, response) if response is not None else None,
+                'file': bool(answer.get('content')) and not any(map(is_json, answer['content'])),
             }
     return result
 
 
+def is_json(media_type: str) -> bool:
+    """
+    Whether a media type of the OpenAPI is JSON: `application/json`, or a type with the suffix
+    `+json` (`application/vnd.api+json` of `JsonApiResponse`, `application/problem+json`).
+    """
+    kind = media_type.split(';', 1)[0].strip().lower()
+    return kind == 'application/json' or kind.endswith('+json')
+
+
 def _json_schema(part: dict) -> dict | None:
     """The schema of the JSON content of a request body or a response of the OpenAPI, None without one."""
-    return part.get('content', {}).get('application/json', {}).get('schema')
+    return next((it.get('schema') for kind, it in part.get('content', {}).items() if is_json(kind)), None)
 
 
 def _standalone(openapi: dict, schema: dict) -> dict:

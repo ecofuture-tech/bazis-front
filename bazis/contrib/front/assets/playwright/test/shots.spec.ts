@@ -271,6 +271,17 @@ test('a text cut without its whole text', async ({ page }) => {
   expect(await found(page, LIGHT)).toEqual([['V010', '[data-bz="cell:title"]']]);
 });
 
+test('no text that only a screen reader reads is cut', async ({ page }) => {
+  // the hidden input of a file field (`sr-only`), whose label opens it
+  const srOnly = 'position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0';
+  await show(
+    page,
+    `<label for="photos">Photos</label><input id="photos" data-bz="field:photos" type="file" multiple style="${srOnly}; text-overflow: ellipsis">` +
+      `<span style="${srOnly}; text-overflow: ellipsis">Read only by a screen reader</span>`,
+  );
+  expect(await found(page, LIGHT)).toEqual([]);
+});
+
 test('a text cut to a few characters', async ({ page }) => {
   // the items of the narrow days of a calendar: the fields of an item share its width
   const cut = (width: string) => `width: ${width}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px`;

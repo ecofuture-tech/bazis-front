@@ -14,7 +14,7 @@
 
 export { BazisProvider, useApi, useErrorMessage, useSessionKey } from './context.js';
 export type { Api, BazisProviderProps } from './context.js';
-export { useAction, useActionQuery, useItemAction, useItemActionQuery } from './actions.js';
+export { useAction, useActionFile, useActionQuery, useItemAction, useItemActionQuery } from './actions.js';
 export { useDownload, useDownloadUrl } from './download.js';
 export type { DownloadPath } from './download.js';
 export type {

@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The files of bazis-uploadable: a model references an uploaded file with a to-one
-// relationship to a resource of the uploaded files (`resources` of the capability
-// `uploadable` of the contract), whose item has the attributes `file` (its URL in the
-// storage), `name`, `extension` and `size`. `FileValue` shows one (its name downloads it, an
-// image has a thumbnail), both read from the download route of its route set with the token:
-// never from the URL of the media host, which serves a file to anyone who has its link;
-// `FieldInput` edits one with the control that `FilesProvider` gives it (`FileField`
-// of the component file-field, which uploads), else with the picker of a relationship.
+// The files of bazis-uploadable: a model references an uploaded file with a relationship to a
+// resource of the uploaded files (`resources` of the capability `uploadable` of the contract),
+// whose item has the attributes `file` (its URL in the storage), `name`, `extension` and
+// `size`; the body of an action takes their ids (`UploadedFileId`, `x-relation`). `FileValue`
+// shows one (its name downloads it, an image has a thumbnail), both read from the download
+// route of its route set with the token: never from the URL of the media host, which serves a
+// file to anyone who has its link; `FieldInput` edits a file field with the controls that
+// `FilesProvider` gives it (`FileField` and `FilesField` of the component file-field, which
+// upload), else with the picker of a relationship.
 
 import { FileLock, FileText } from 'lucide-react';
 import { createContext, use, useMemo, type ComponentProps, type ComponentType, type ReactNode } from 'react';
@@ -57,40 +58,57 @@ export interface FileControlProps {
   onError: (message: string | null) => void;
 }
 
-interface Files {
-  /** The resources of the uploaded files: a to-one relationship to one of them is a file. */
-  resources: readonly string[];
-  /** The control of a file field in the forms; null: the picker of a relationship. */
-  control: ComponentType<FileControlProps> | null;
+/** What `FieldInput` gives the control of a field of several files. */
+export interface FilesControlProps extends Omit<FileControlProps, 'value' | 'onChange'> {
+  /** A to-many relationship to a resource of the uploaded files (the ids of a body of an action). */
+  field: RelationField;
+  /** The ids of the uploaded files, in their order. */
+  value: readonly string[];
+  onChange: (value: string[]) => void;
 }
 
-const FilesContext = createContext<Files>({ resources: FILE_RESOURCES, control: null });
+interface Files {
+  /** The resources of the uploaded files: a relationship to one of them is a file field. */
+  resources: readonly string[];
+  /** The control of a field of a file in the forms; null: the picker of a relationship. */
+  control: ComponentType<FileControlProps> | null;
+  /** The control of a field of several files; null: the picker of the related items. */
+  listControl: ComponentType<FilesControlProps> | null;
+}
+
+const FilesContext = createContext<Files>({ resources: FILE_RESOURCES, control: null, listControl: null });
 
 /**
- * Gives `FieldInput` the control of the file fields (`FileFieldProvider` of file-field), for
- * the forms and the payloads below it. `resources`: those of the contract by default.
+ * Gives `FieldInput` the controls of the file fields (`FileFieldProvider` of file-field), for
+ * the forms and the payloads below it: `control` of a field of a file, `listControl` of a field
+ * of several. `resources`: those of the contract by default.
  */
 export function FilesProvider({
   control,
+  listControl = null,
   resources = FILE_RESOURCES,
   children,
 }: {
   control: ComponentType<FileControlProps> | null;
+  listControl?: ComponentType<FilesControlProps> | null;
   resources?: readonly string[];
   children: ReactNode;
 }) {
-  const value = useMemo(() => ({ control, resources }), [control, resources]);
+  const value = useMemo(() => ({ control, listControl, resources }), [control, listControl, resources]);
   return <FilesContext value={value}>{children}</FilesContext>;
 }
 
-/** The resources of the uploaded files and the control of a file field. */
+/** The resources of the uploaded files and the controls of the file fields. */
 export function useFiles(): Files {
   return use(FilesContext);
 }
 
-/** Whether a field is a file: a to-one relationship to a resource of the uploaded files. */
+/**
+ * Whether a field is a file field: a relationship to a resource of the uploaded files, of a
+ * file or (`many`) of several.
+ */
 export function isFile(field: FormField | undefined, resources: readonly string[]): field is RelationField {
-  return field?.kind === 'relation' && !field.many && resources.includes(field.relation);
+  return field?.kind === 'relation' && resources.includes(field.relation);
 }
 
 /** The extensions of the files shown as images. */

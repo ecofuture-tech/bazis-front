@@ -13,4 +13,4 @@
 // limitations under the License.
 
 export { Dashboard, RecentList, Viewable } from './dashboard.js';
-export type { DashboardProps, RecentListProps } from './dashboard.js';
+export type { DashboardPart, DashboardProps, RecentListProps } from './dashboard.js';

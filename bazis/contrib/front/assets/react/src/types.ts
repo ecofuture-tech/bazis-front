@@ -112,6 +112,7 @@ export interface LooseClient {
   transit(path: string, id: string, transit: string, payload?: unknown): Promise<unknown>;
   action(path: string, name: string, body: unknown, options: ActionCall): Promise<unknown>;
   itemAction(path: string, id: string, name: string, body: unknown, options: ActionCall): Promise<unknown>;
+  actionFile(path: string, name: string, body: unknown): Promise<DownloadedFile>;
   download(path: string, id: string, options?: Signal): Promise<DownloadedFile>;
 }
 

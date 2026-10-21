@@ -20,6 +20,7 @@ navigation:
     items:
       - {screen: task-list, icon: list-checks}
       - {screen: draft-tasks, icon: file-pen}
+      - {screen: export-tasks, icon: download}   # the form of the custom action `export`, which answers a file
   - group: planning
     title: {en: Planning, ru: Планирование}
     items:
@@ -54,12 +55,14 @@ entities:
       transitions:
         - {id: start, from: draft, to: in_progress}
         - {id: finish, from: in_progress, to: done, payload: {fields: [{id: report, type: text}]}}
+        # the payload is the id of a user: its picker, as the relationship `assignee` of the task
+        - {id: reopen, from: done, to: in_progress, payload: {fields: [{id: assignee, relation: user}]}}
     access:
       manager:
         view: all
         add: all
         change: {selector: all, statuses: [draft]}
-        transit: [start, finish]
+        transit: [start, finish, reopen]
       viewer: {view: all}
       visitor: {view: all}
   - id: user
@@ -318,21 +321,61 @@ scenarios:
       - submit: {}
       - open_item: {where: {title: Plan on the calendar}}
       - expect: {screen: task-card, status: draft}
+  # the form of an action that answers a file: the CSV of all the tasks saved, then its name
+  - id: manager-exports-the-tasks
+    role: manager
+    steps:
+      - open: export-tasks
+      - submit: {}
+      - expect: {state: done}
   # a guest, without a login: the public list of the tasks, and a task suggested with the
-  # public custom action `suggest`
+  # public custom action `suggest`, with a photo uploaded in its dialog (an anonymous upload)
   - id: visitor-suggests-a-task
     role: visitor
     steps:
       - open: public-tasks
       - action: suggest
       - fill: {title: Suggested by a guest}
+      - upload: {field: photos, file: photo-1.png}
       - submit: {}
       - expect: {screen: public-tasks}
-  # the same on the page of the form of the action: its result, with the answer of the action
+  # the same on the page of the form of the action, with two photos: its result, with the
+  # answer of the action
   - id: visitor-suggests-a-task-on-its-page
     role: visitor
     steps:
       - open: suggest-task
       - fill: {title: Suggested on the page of a guest}
+      - upload: {field: photos, file: photo-1.png}
+      - upload: {field: photos, file: photo-2.png}
       - submit: {}
       - expect: {state: done}
+  # two sessions (`as`): the manager has the list open while a guest suggests a task; the
+  # title that the action gave the task, with its reference (`remember`: a value the server
+  # made, not the text typed), finds that task in the list of the manager
+  - id: manager-opens-a-suggested-task
+    role: manager
+    steps:
+      - open: task-list
+      - as: visitor
+      - open: suggest-task
+      - fill: {title: Suggested for the manager}
+      - submit: {}
+      - remember: {suggested: title}
+      - as: manager
+      - open_item: {where: {title: $suggested}}
+      - expect: {screen: task-card, status: draft}
+  # a payload with a relationship (`relation`): the transit `reopen` gives a finished task to the
+  # user chosen with the picker of its dialog
+  - id: manager-reopens-a-task-for-a-user
+    role: manager
+    steps:
+      - open: task-list
+      - action: create
+      - fill: {title: Redo the report}
+      - submit: {}
+      - expect: {screen: task-card, status: draft}
+      - transit: start
+      - transit: {id: finish, payload: {report: Done}}
+      - transit: {id: reopen, payload: {assignee: Victor Viewer}}
+      - expect: {status: in_progress, values: {assignee: Victor Viewer}}

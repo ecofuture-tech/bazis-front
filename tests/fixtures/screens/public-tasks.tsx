@@ -18,7 +18,8 @@ export function PublicTasksScreen() {
     path: TASK.path,
     action: 'suggest',
     target: 'route',
-    fields: ['title'],
+    fields: ['title', 'photos'],
+    labels: { photos: t('screens.public-tasks.actions.suggest.labels.photos') },
     description: t('screens.public-tasks.actions.suggest.description'),
     message: t('screens.public-tasks.actions.suggest.message'),
   });

@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { accepts, FileField, FileFieldProvider, MAX_SIZE } from './file-field.js';
-export type { FileFieldOptions, FileFieldProps } from './file-field.js';
+export { accepts, ANONYMOUS_ACCEPT, FileField, FileFieldProvider, FilesField, MAX_SIZE } from './file-field.js';
+export type { FileFieldOptions, FileFieldProps, FilesFieldProps } from './file-field.js';

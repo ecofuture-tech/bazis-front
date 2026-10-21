@@ -19,12 +19,14 @@
 // bazis-bg answers with its id, which `TaskProgress` (or `useBgTask`) follows. An action
 // declared with GET (`@http_get`) that a screen reads is a query instead (`useActionQuery`,
 // `useItemActionQuery`): keyed under its resource, so that a change of it refetches it, and
-// by its query parameters.
+// by its query parameters. An action that answers a file (`custom_actions[].file` of the
+// contract) is saved in the browser (`useActionFile`).
 
 import { useMutation, useQuery, useQueryClient, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
 
 import {
   ApiError,
+  saveFile,
   type ActionName,
   type BodyOf,
   type EndpointOf,
@@ -126,6 +128,32 @@ export function useAction<P extends ActionPath, N extends ActionName<paths, P, M
       mutationFn: (body) =>
         loose(api).action(path, name, body, { method }) as Promise<ActionResponse<P, N, M>>,
       onSuccess: () => (invalidate ? invalidateResource(queryClient, path) : undefined),
+    }),
+    errorMessage,
+  );
+}
+
+/**
+ * A custom action of a route set that answers a file (`custom_actions[].file` of the
+ * contract), `POST <path><name>/`: `mutate(body)` calls it (`client.actionFile`), saves the
+ * file in the browser under the name the backend gives it (`Content-Disposition`; the name of
+ * the action without one) and resolves to that name, not the content; the queries of its
+ * resource are refetched after it, as after `useAction`.
+ */
+export function useActionFile<P extends ActionPath, N extends ActionName<paths, P, 'post'>>(
+  path: P,
+  name: N,
+): ActionMutation<string, ActionVariables<ActionBody<P, N, 'post'>>> {
+  const { api, errorMessage } = useBazis();
+  const queryClient = useQueryClient();
+  return withErrors(
+    useMutation({
+      mutationFn: async (body) => {
+        const file = await loose(api).actionFile(path, name, body);
+        saveFile(file, name);
+        return file.name ?? name;
+      },
+      onSuccess: () => invalidateResource(queryClient, path),
     }),
     errorMessage,
   );

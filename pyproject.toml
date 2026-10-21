@@ -84,7 +84,9 @@ test = [
     "bazis-permit>=2.11.0",
     # the meta `for_transit` of a list (2.13), which the boards read
     "bazis-statusy>=2.13.0",
-    "bazis-uploadable>=2.7.0",
+    # the anonymous uploads (the photos that a guest attaches to a suggested task) and
+    # `UploadedFileId`, the ids of the uploaded files in the body of an action
+    "bazis-uploadable>=2.8.0",
     "bazis-ws>=2.7.0",
     "bazis-notify>=0.1.0",
     "bazis-author>=2.5.0",

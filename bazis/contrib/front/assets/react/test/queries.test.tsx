@@ -264,12 +264,12 @@ describe('useCan', () => {
     const LIST = `${PARENT}?page%5Blimit%5D=1&meta=custom_actions`;
     const backend = new Backend().on('GET', LIST, sample.list_custom_actions);
     const { result, queryClient } = render(
-      () => ({ count: useCan(PARENT, 'action_count'), export: useCan(PARENT, 'action_export') }),
+      () => ({ count: useCan(PARENT, 'action_count'), archive: useCan(PARENT, 'action_archive') }),
       backend,
     );
-    expect(result.current).toEqual({ count: undefined, export: undefined });
+    expect(result.current).toEqual({ count: undefined, archive: undefined });
     await waitFor(() => {
-      expect(result.current).toEqual({ count: true, export: false });
+      expect(result.current).toEqual({ count: true, archive: false });
     });
     // one list of one item, keyed under the resource: an action of it reads it again
     expect(backend.requests()).toEqual([`GET ${LIST}`]);

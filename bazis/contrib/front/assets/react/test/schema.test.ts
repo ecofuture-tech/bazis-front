@@ -27,37 +27,37 @@ describe('resourceSchema', () => {
       fields: [
         {
           kind: 'attribute', name: 'title', title: 'Title', required: true, readOnly: false,
-          nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false,
+          nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false, relation: null,
           schema: expect.objectContaining({ maxLength: 255 }) as unknown,
         },
         {
           kind: 'attribute', name: 'report', title: 'Report', required: false, readOnly: false,
-          nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false,
+          nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false, relation: null,
           schema: expect.objectContaining({ default: '' }) as unknown,
         },
         // choices, with their labels in the language of the request (`enumDict`)
         {
           kind: 'attribute', name: 'priority', title: 'Priority', required: false, readOnly: false,
           nullable: false, type: 'string', format: null, enum: ['low', 'normal', 'high'],
-          labels: { low: 'Low', normal: 'Normal', high: 'High' }, blank: false,
+          labels: { low: 'Low', normal: 'Normal', high: 'High' }, blank: false, relation: null,
           schema: expect.objectContaining({ default: 'normal' }) as unknown,
         },
         // a PointField: its GeoJSON object (the contract says that it is a point)
         {
           kind: 'attribute', name: 'location', title: 'Location', required: false, readOnly: false,
-          nullable: true, type: 'object', format: null, enum: null, labels: null, blank: false,
+          nullable: true, type: 'object', format: null, enum: null, labels: null, blank: false, relation: null,
           schema: expect.objectContaining({ required: ['type', 'coordinates'] }) as unknown,
         },
         // a nullable date and time
         {
           kind: 'attribute', name: 'due', title: 'Due', required: false, readOnly: false,
-          nullable: true, type: 'string', format: 'date-time', enum: null, labels: null, blank: false,
+          nullable: true, type: 'string', format: 'date-time', enum: null, labels: null, blank: false, relation: null,
           schema: expect.objectContaining({ default: null }) as unknown,
         },
         // a nullable DecimalField: a number or its digits written, a decimal
         {
           kind: 'attribute', name: 'hours', title: 'Hours', required: false, readOnly: false,
-          nullable: true, type: 'string', format: 'decimal', enum: null, labels: null, blank: false,
+          nullable: true, type: 'string', format: 'decimal', enum: null, labels: null, blank: false, relation: null,
           schema: expect.objectContaining({ type: 'string', format: 'decimal' }) as unknown,
         },
         // the initial status, which bazis-statusy accepts on a create
@@ -73,6 +73,11 @@ describe('resourceSchema', () => {
         {
           kind: 'relation', name: 'attachment', title: 'Attachment', required: false, readOnly: false,
           nullable: true, relation: 'uploadable.file_upload', many: false,
+        },
+        // the files of a many-to-many field: the ids of the uploaded files
+        {
+          kind: 'relation', name: 'photos', title: 'Photos', required: false, readOnly: false,
+          nullable: false, relation: 'uploadable.file_upload', many: true,
         },
         // a many-to-many field: the ids of its related items, optional with `blank=True`
         {
@@ -95,6 +100,7 @@ describe('resourceSchema', () => {
       ['hours', 'attribute', false],
       ['assignee', 'relation', false],
       ['attachment', 'relation', false],
+      ['photos', 'relation', false],
       ['watchers', 'relation', false],
     ]);
   });
@@ -157,6 +163,7 @@ describe('resourceSchema', () => {
         ['status_author', 'status author', false],
         ['assignee', 'Assignee', false],
         ['attachment', 'Attachment', false],
+        ['photos', 'Photos', false],
         ['watchers', 'Watchers', false],
       ]);
       expect(fields[0]).toMatchObject({ type: 'string', format: 'date-time' });
@@ -267,10 +274,35 @@ describe('objectFields', () => {
     expect(objectFields(payload)).toEqual([
       {
         kind: 'attribute', name: 'report', title: 'Report', required: true, readOnly: false,
-        nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false,
+        nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false, relation: null,
         schema: { title: 'Report', type: 'string' },
       },
     ]);
     expect(objectFields({})).toEqual([]);
+  });
+
+  it('reads the resource of the ids of a property of a body from its x-relation', () => {
+    // `UploadedFileId` of bazis-uploadable: a string, and a list of them (also by a reference)
+    const file = { type: 'string', 'x-relation': 'uploadable.file_upload' };
+    const fields = objectFields({
+      type: 'object',
+      properties: {
+        photo: { ...file, title: 'Photo' },
+        photos: { type: 'array', items: file, title: 'Photos' },
+        scans: { type: 'array', items: { $ref: '#/$defs/File' } },
+        cover: { anyOf: [file, { type: 'null' }] },
+        tags: { type: 'array', items: { type: 'string' } },
+        note: { type: 'string', 'x-relation': 7 },
+      },
+      $defs: { File: file },
+    });
+    expect(fields.map((it) => [it.name, it.type, it.relation, it.nullable])).toEqual([
+      ['photo', 'string', 'uploadable.file_upload', false],
+      ['photos', 'array', 'uploadable.file_upload', false],
+      ['scans', 'array', 'uploadable.file_upload', false],
+      ['cover', 'string', 'uploadable.file_upload', true],
+      ['tags', 'array', null, false],
+      ['note', 'string', null, false],
+    ]);
   });
 });

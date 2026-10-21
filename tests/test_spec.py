@@ -32,7 +32,7 @@ from bazis.contrib.front.spec.access import Grant
 from bazis.contrib.front.spec.issues import CODES
 from bazis.contrib.front.spec.validate import schema_files, validate
 
-from .support import SAMPLE_SPEC, copy_screen_code
+from .support import SAMPLE_SPEC, copy_screen_code, labels_of_choices, sample_contract
 
 
 AGENTS_MD = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front' / 'AGENTS.md'
@@ -57,9 +57,7 @@ def contract(root, sample_app, db):
     its declarations, in the product root.
     """
     (root / 'contract').mkdir()
-    (root / 'contract' / 'contract.json').write_text(
-        render(sample_app)['contract.json'], encoding='utf-8'
-    )
+    (root / 'contract' / 'contract.json').write_text(sample_contract(sample_app), encoding='utf-8')
     return root / 'contract' / 'contract.json'
 
 
@@ -134,12 +132,24 @@ def steps(data, scenario):
     return data['scenarios'][scenario]['steps']
 
 
+def reopen(data):
+    """The field of the payload of the transit `reopen` of the tasks: the id of a user (`relation`)."""
+    return task(data)['workflow']['transitions'][2]['payload']['fields'][0]
+
+
+def reopen_payload(data):
+    """The JSON Schema of the payload of `reopen` in the contract, `assignee: UUID`."""
+    return data['capabilities']['statusy']['models']['tasks.task']['transits'][1]['payload']['schema']
+
+
 PRODUCT, LIST, CARD = 'spec/product.yaml', 'spec/screens/task-list.yaml', 'spec/screens/task-card.yaml'
 DRAFTS = 'spec/screens/draft-tasks.yaml'
 #: the public screen of the sample: its role `visitor` is anonymous
 PUBLIC = 'spec/screens/public-tasks.yaml'
 #: the form of the action of the guests, `suggest`, as a public page of its own
 SUGGEST = 'spec/screens/suggest-task.yaml'
+#: the form of the custom action `export`, which answers a file
+EXPORT = 'spec/screens/export-tasks.yaml'
 HOME, BOARD, CALENDAR = 'spec/screens/home.yaml', 'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml'
 THEME, TOKENS, CONTRACT = 'spec/design/theme.yaml', 'spec/design/tokens.json', 'contract/contract.json'
 LOCK = 'frontend/bazis-front.lock.json'
@@ -329,7 +339,7 @@ CASES = [
         'P016',
         {PRODUCT: lambda d: task(d)['workflow']['transitions'].append(
             {'id': 'cancel', 'from': 'draft', 'to': 'done'})},
-        [('P016', f'{PRODUCT}#/entities/0/workflow/transitions/2')],
+        [('P016', f'{PRODUCT}#/entities/0/workflow/transitions/3')],
     ),
     (
         'P017',
@@ -350,7 +360,37 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/9/steps/9/transit'),
             # the board moves a task to in_progress, which only `start` leads to
             ('P024', f'{PRODUCT}#/scenarios/13/steps/6/move/to'),
+            ('P024', f'{PRODUCT}#/scenarios/22/steps/5/transit'),
+            ('P024', f'{PRODUCT}#/scenarios/22/steps/6/transit/payload/report'),
         ],
+    ),
+    # a field of a payload with `relation` is the id of an item of the entity, named as a to-one
+    # relationship of the resource to it: the picker of its dialog
+    (
+        'P017',
+        {PRODUCT: lambda d: reopen(d).update(relation='step')},
+        [('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')],
+    ),
+    (
+        'P017',
+        {CONTRACT: lambda d: reopen_payload(d)['properties'].update(assignee={'type': 'integer', 'title': 'Assignee'})},
+        [('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')],
+    ),
+    (
+        'P017',
+        # a property of the payload that no relationship of the resource is named as
+        {CONTRACT: lambda d: reopen_payload(d).update(
+            properties={'owner': reopen_payload(d)['properties']['assignee']}, required=['owner']),
+         PRODUCT: lambda d: reopen(d).update(id='owner')},
+        [
+            ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0'),
+            ('P024', f'{PRODUCT}#/scenarios/22/steps/7/transit/payload/assignee'),
+        ],
+    ),
+    (
+        'P005',
+        {PRODUCT: lambda d: reopen(d).update(relation='order')},
+        [('P005', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/relation')],
     ),
     (
         'P018',
@@ -507,6 +547,16 @@ CASES = [
         [('P032', f'{PRODUCT}#/entities/3/id'), ('P032', f'{PRODUCT}#/entities/5/id')],
     ),
     (
+        'P032',
+        # the sessions of two roles named alike in the end-to-end tests (`asTeamLead`)
+        {PRODUCT: lambda d: d['roles'].extend([
+            {'id': 'team-lead', 'permit': 'manager', 'test_user': {'username': 'manager'}},
+            {'id': 'team__lead', 'permit': 'manager', 'test_user': {'username': 'manager'}},
+            {'id': 'team_lead2', 'permit': 'manager', 'test_user': {'username': 'manager'}},
+        ])},
+        [('P032', f'{PRODUCT}#/roles/4/id')],
+    ),
+    (
         'P033',
         # a scenario changes the task of `e2e_data` in every way: bulk, transit, edit, a step
         # added to it, its custom action, its deletion, its move on the board
@@ -529,13 +579,13 @@ CASES = [
             {'move': {'where': {'title': 'Review the plan'}, 'to': 'in_progress'}},
         ]})},
         [
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/2/bulk'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/4/transit'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/6/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/9/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/12/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/13/action'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/15/move'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/2/bulk'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/4/transit'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/6/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/9/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/12/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/13/action'),
+            ('P033', f'{PRODUCT}#/scenarios/23/steps/15/move'),
         ],
     ),
     (
@@ -554,8 +604,54 @@ CASES = [
     (
         'P035',
         # the guest opens a screen of a session first: the frontend sends him to the login
-        {PRODUCT: lambda d: steps(d, 18).insert(0, {'open': 'task-list'})},
-        [('P035', f'{PRODUCT}#/scenarios/18/steps/0/open')],
+        {PRODUCT: lambda d: steps(d, 19).insert(0, {'open': 'task-list'})},
+        [('P035', f'{PRODUCT}#/scenarios/19/steps/0/open')],
+    ),
+    # the sessions of a scenario (`as`, the scenario 21: the manager, then a guest who suggests a
+    # task and its answer remembered, then the manager again)
+    (
+        'P004',
+        # a session of an unknown role: a new one, with no screen open
+        {PRODUCT: lambda d: steps(d, 21)[6].update({'as': 'nobody'})},
+        [('P004', f'{PRODUCT}#/scenarios/21/steps/6/as'), ('P022', f'{PRODUCT}#/scenarios/21/steps/7/open_item')],
+    ),
+    (
+        'P025',
+        # the session of a role whose test user cannot log in
+        {PRODUCT: lambda d: [d['roles'].append({'id': 'guest', 'permit': 'guest'}), steps(d, 21).insert(6, {'as': 'guest'})]},
+        [('P025', f'{PRODUCT}#/scenarios/21/steps/6/as')],
+    ),
+    (
+        'P022',
+        # the result is shown in the session of the guest, not in that of the manager
+        {PRODUCT: lambda d: steps(d, 21).insert(7, {'remember': {'again': 'title'}})},
+        [('P022', f'{PRODUCT}#/scenarios/21/steps/7/remember')],
+    ),
+    (
+        'P022',
+        # a property that the answer of the action does not have
+        {PRODUCT: lambda d: steps(d, 21)[5].update(remember={'suggested': 'number'})},
+        [('P022', f'{PRODUCT}#/scenarios/21/steps/5/remember/suggested')],
+    ),
+    (
+        'P022',
+        # a name remembered twice
+        {PRODUCT: lambda d: steps(d, 21).insert(6, {'remember': {'suggested': 'task'}})},
+        [('P022', f'{PRODUCT}#/scenarios/21/steps/6/remember/suggested')],
+    ),
+    (
+        'P022',
+        # a value that no `remember` before took, in `where`, `fill`, `values` and `payload`
+        {PRODUCT: lambda d: [
+            steps(d, 21)[7]['open_item']['where'].update(title='$unknown'),
+            steps(d, 21)[3]['fill'].update(title='$suggested'),
+            steps(d, 0)[4]['expect'].update(values={'title': '$title'}),
+            steps(d, 0)[6]['transit']['payload'].update(report='$report'),
+        ]},
+        [('P022', f'{PRODUCT}#/scenarios/0/steps/4/expect/values/title'),
+         ('P022', f'{PRODUCT}#/scenarios/0/steps/6/transit/payload/report'),
+         ('P022', f'{PRODUCT}#/scenarios/21/steps/3/fill/title'),
+         ('P022', f'{PRODUCT}#/scenarios/21/steps/7/open_item/where/title')],
     ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
@@ -983,7 +1079,7 @@ CASES = [
         {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-escalates-a-draft', 'role': 'manager', 'steps': [
             {'open': 'draft-tasks'}, {'action': 'escalate'},
         ]})},
-        [('P022', f'{PRODUCT}#/scenarios/20/steps/1/action')],
+        [('P022', f'{PRODUCT}#/scenarios/23/steps/1/action')],
     ),
     (
         'P023',
@@ -1302,7 +1398,7 @@ CASES = [
         'S047',
         # no screen of the guests (nor their scenarios)
         {PUBLIC: lambda d: d.__delitem__('roles'), SUGGEST: lambda d: d.__delitem__('roles'),
-         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-2])},
+         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-4])},
         [('S047', f'{PRODUCT}#/roles/2')],
     ),
     (
@@ -1324,7 +1420,7 @@ CASES = [
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'].update(
             required=['title', 'priority']),
          SUGGEST: lambda d: d['form']['fields'].append('report')},
-        [('S032', f'{PUBLIC}#/actions/0'), ('S032', f'{SUGGEST}#/form/fields/1'), ('S032', f'{SUGGEST}#/form')],
+        [('S032', f'{PUBLIC}#/actions/0'), ('S032', f'{SUGGEST}#/form/fields/2'), ('S032', f'{SUGGEST}#/form')],
     ),
     (
         'S052',
@@ -1334,7 +1430,7 @@ CASES = [
             'properties'].update(assignee={'type': 'string', 'format': 'uuid', 'title': 'Assignee'}),
          PRODUCT: lambda d: d['entities'][1].update(access={'visitor': {'view': 'none'}}),
          SUGGEST: lambda d: d['form']['fields'].append('assignee')},
-        [('S052', f'{SUGGEST}#/form/fields/1')],
+        [('S052', f'{SUGGEST}#/form/fields/2')],
     ),
     (
         'S053',
@@ -1344,10 +1440,37 @@ CASES = [
     ),
     (
         'S053',
-        # the action answers no JSON
+        # the title of the result shows what the answer does not have either
+        {SUGGEST: lambda d: d['form']['result'].update(title={'en': 'Task {number}', 'ru': 'Задача {number}'})},
+        [('S053', f'{SUGGEST}#/form/result/title')],
+    ),
+    (
+        'S053',
+        # the action answers no JSON: nor has it the title that a scenario remembers
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(
             response=None)},
-        [('S053', f'{SUGGEST}#/form/result/message')],
+        [('S053', f'{SUGGEST}#/form/result/message'), ('P022', f'{PRODUCT}#/scenarios/21/steps/5/remember/suggested')],
+    ),
+    (
+        'S053',
+        # the result of an action that answers a file shows `{filename}` only
+        {EXPORT: lambda d: d['form']['result'].update(message={'en': '{count} tasks in {filename}', 'ru': '{filename}'})},
+        [('S053', f'{EXPORT}#/form/result/message')],
+    ),
+    (
+        'S053',
+        # `{filename}` is that of an action that answers a file: one that answers no JSON nor a file
+        # has no parameter
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_export'].update(file=False)},
+        [('S053', f'{EXPORT}#/form/result/message')],
+    ),
+    (
+        'S032',
+        # an action that answers a file runs only in a form, which saves it: not in the toolbar
+        # of a list
+        {DRAFTS: lambda d: d.setdefault('actions', []).append(
+            {'id': 'export', 'primitive': 'custom', 'action': 'export', 'label': {'en': 'Export', 'ru': 'Выгрузить'}})},
+        [('S032', f'{DRAFTS}#/actions/1/action')],
     ),
     (
         'S054',
@@ -1362,13 +1485,68 @@ CASES = [
          SUGGEST: lambda d: d['form']['fields'].append('tags'),
          PUBLIC: lambda d: d['actions'][0]['fields'].append('tags')},
         [('S054', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/0'),
-         ('S054', f'{PUBLIC}#/actions/0/fields/1'), ('S054', f'{SUGGEST}#/form/fields/1')],
+         ('S054', f'{PUBLIC}#/actions/0/fields/2'), ('S054', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'S057',
+        # the guests of the public screens upload the photos of the body, and the contract does
+        # not let the guests upload files; files that are no field of the entity, by the
+        # `x-relation` of the items of their array
+        {CONTRACT: lambda d: (
+            d['capabilities']['uploadable'].update(anonymous=False, anonymous_types=[]),
+            d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body']['properties'].update(
+                scans={'type': 'array', 'items': {'type': 'string', 'x-relation': 'uploadable.file_upload'}}),
+         ),
+         SUGGEST: lambda d: d['form']['fields'].append('scans')},
+        [('S057', f'{PUBLIC}#/actions/0/fields/1'), ('S057', f'{SUGGEST}#/form/fields/1'),
+         ('S057', f'{SUGGEST}#/form/fields/2')],
+    ),
+    # the form of a screen of a session uploads the photos of the body with the token of the
+    # user, without the anonymous uploads
+    (
+        'S057',
+        {CONTRACT: lambda d: d['capabilities']['uploadable'].update(anonymous=False, anonymous_types=[]),
+         SUGGEST: lambda d: d.update(roles=['viewer']),
+         PUBLIC: lambda d: d['actions'][0]['fields'].remove('photos'),
+         PRODUCT: lambda d: (steps(d, 19).pop(3), d.update(scenarios=d['scenarios'][:-3]))},
+        [],
+    ),
+    (
+        'S052',
+        # the picker of the users by the `x-relation` of the id of a property that is no field
+        # of the entity, whom the guests do not view
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(reviewer={'type': 'string', 'x-relation': 'users.user'}),
+         PRODUCT: lambda d: d['entities'][1].update(access={'visitor': {'view': 'none'}}),
+         SUGGEST: lambda d: d['form']['fields'].append('reviewer')},
+        [('S052', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'S058',
+        # choices without their labels (a `Literal`, or a core before 2.21)
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(kind={'type': 'string', 'enum': ['bug', 'idea'], 'title': 'Kind'}),
+         SUGGEST: lambda d: d['form']['fields'].append('kind')},
+        [('S058', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'P022',
+        # a file of the body of an action is uploaded, not filled; another property is filled,
+        # the id of a user too
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(reviewer={'type': 'string', 'x-relation': 'users.user'}),
+         SUGGEST: lambda d: d['form']['fields'].append('reviewer'),
+         PRODUCT: lambda d: [
+            steps(d, 20)[1]['fill'].update(photos='photo-1.png'),
+            steps(d, 20)[2]['upload'].update(field='reviewer'),
+        ]},
+        [('P022', f'{PRODUCT}#/scenarios/20/steps/1/fill/photos'), ('P022', f'{PRODUCT}#/scenarios/20/steps/2/upload/field')],
     ),
     (
         'S006',
         # the form of an action saves no item: no screen of an item after it
         {SUGGEST: lambda d: (d.update(roles=['viewer']), d['form'].update(then='task-card')),
-         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-1])},
+         PRODUCT: lambda d: d.update(scenarios=d['scenarios'][:-3])},
         [('S006', f'{SUGGEST}#/form/then')],
     ),
     (
@@ -1571,12 +1749,12 @@ def test_a_custom_action_of_the_toolbar_of_a_list_changes_no_item(contract):
     action of the rows of a list is still run on its card or as a bulk action (P022).
     """
     root = contract.parent.parent
-    suggests = read(root / PRODUCT)['scenarios'][18]
+    suggests = read(root / PRODUCT)['scenarios'][19]
     assert suggests['id'] == 'visitor-suggests-a-task'
     assert suggests['steps'][1] == {'action': 'suggest'}
     assert issues(root) == []
     edit(root, PUBLIC, lambda d: d['list'].update(row_actions=['suggest']))
-    assert ('P022', f'{PRODUCT}#/scenarios/18/steps/1/action') in issues(root)
+    assert ('P022', f'{PRODUCT}#/scenarios/19/steps/1/action') in issues(root)
 
 
 @pytest.mark.django_db
@@ -1590,12 +1768,12 @@ def test_the_form_of_a_custom_action(contract):
     are not read (S053).
     """
     root = contract.parent.parent
-    scenario = read(root / PRODUCT)['scenarios'][19]
+    scenario = read(root / PRODUCT)['scenarios'][20]
     assert scenario['id'] == 'visitor-suggests-a-task-on-its-page'
     assert issues(root) == []
-    edit(root, PRODUCT, lambda d: steps(d, 19)[1].update(fill={'report': 'Done'}))
-    assert issues(root) == [('P023', f'{PRODUCT}#/scenarios/19/steps/1/fill/report')]
-    edit(root, PRODUCT, lambda d: steps(d, 19)[1].update(fill={'title': 'A task'}))
+    edit(root, PRODUCT, lambda d: steps(d, 20)[1].update(fill={'report': 'Done'}))
+    assert issues(root) == [('P023', f'{PRODUCT}#/scenarios/20/steps/1/fill/report')]
+    edit(root, PRODUCT, lambda d: steps(d, 20)[1].update(fill={'title': 'A task'}))
     edit(root, CONTRACT, lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
         'properties'].update(assignee={'type': 'string', 'format': 'uuid', 'title': 'Assignee'}))
     edit(root, SUGGEST, lambda d: d['form']['fields'].append('assignee'))
@@ -1605,10 +1783,10 @@ def test_the_form_of_a_custom_action(contract):
     edit(root, PRODUCT, lambda d: d['entities'][1].update(access={'visitor': {'view': 'all'}}))
     assert issues(root) == [('P019', f'{PRODUCT}#/entities/1/access/visitor/view')]
     edit(root, PRODUCT, lambda d: d['entities'][1].update(access={'visitor': {'view': 'none'}}))
-    assert issues(root) == [('S052', f'{SUGGEST}#/form/fields/1')]
+    assert issues(root) == [('S052', f'{SUGGEST}#/form/fields/2')]
     # a screen of a session
     edit(root, SUGGEST, lambda d: d.update(roles=['viewer']))
-    edit(root, PRODUCT, lambda d: d.update(scenarios=d['scenarios'][:-1]))
+    edit(root, PRODUCT, lambda d: d.update(scenarios=d['scenarios'][:-3]))
     assert issues(root) == []
     edit(root, SUGGEST, lambda d: d['form']['result'].update(message='suggest.done'))
     assert ('S053', f'{SUGGEST}#/form/result/message') not in issues(root)
@@ -1754,6 +1932,23 @@ def test_a_link_that_requires_an_add_without_a_create_route(contract):
 
 
 @pytest.mark.django_db
+def test_a_part_of_a_dashboard_that_requires_an_add_without_a_create_route(contract):
+    """
+    A tile, a chart or the last items that require that the user may add an item of a resource
+    without a create route in the contract are never shown (S030, as the link of the navigation).
+    """
+    root = contract.parent.parent
+    edit(root, HOME, lambda d: [d['dashboard']['recent'][0].update(requires={'can': 'add'})])
+    assert issues(root) == []
+
+    edit(root, CONTRACT, lambda d: [d['project']['resources']['tasks.task']['actions'].pop('action_create')])
+    assert issues(root) == [
+        ('S030', f'{HOME}#/dashboard/tiles/0/requires'), ('S030', f'{HOME}#/dashboard/charts/2/requires'),
+        ('S030', f'{HOME}#/dashboard/recent/0/requires'),
+    ]
+
+
+@pytest.mark.django_db
 def test_a_custom_action_of_the_route_set_named_as_one_of_an_item(contract):
     """
     The route set has `/escalate/` beside `/{item_id}/escalate/` (S032): the toolbar of a list
@@ -1762,7 +1957,7 @@ def test_a_custom_action_of_the_route_set_named_as_one_of_an_item(contract):
     root = contract.parent.parent
     edit(root, CONTRACT, lambda d: d['project']['resources']['tasks.task']['custom_actions'].update(action_escalate_all={
         'name': 'escalate', 'item': False, 'method': 'post', 'access_action': None,
-        'body': {'type': 'object', 'properties': {'level': {'type': 'integer'}}, 'required': ['level']},
+        'body': {'type': 'object', 'properties': {'level': {'type': 'integer'}}, 'required': ['level']}, 'file': False,
     }))
     edit(root, DRAFTS, lambda d: d['actions'].append(
         {'id': 'escalate-all', 'primitive': 'custom', 'action': 'escalate', 'label': {'en': 'Escalate all', 'ru': 'Повысить все'}},
@@ -1874,7 +2069,7 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
     ]}))
     # a day from the day of the run, as the dates of `e2e_data`
     edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'].insert(15, {'expect': {'day': {'today': 1, 'today+3': 0, 'today-1': 0}}}))
-    steps = f'{PRODUCT}#/scenarios/20/steps'
+    steps = f'{PRODUCT}#/scenarios/23/steps'
     assert issues(root) == [
         ('P022', f'{steps}/1/expect/tile/overdue'),
         ('P022', f'{steps}/2/expect/day'),
@@ -2107,6 +2302,105 @@ def test_a_text_with_a_colon_is_told_to_be_quoted(contract, text, quoted):
 
 
 @pytest.mark.django_db
+def test_a_piece_of_a_text_after_a_comma_of_a_flow_mapping_is_told_to_be_quoted(contract):
+    """
+    `fill: {title: 1 floor, 3 rooms}` is read as the key `title` and the key `3 rooms`
+    (P002): the hint tells that the text after the comma is a key of its own and goes in quotes,
+    not that the key does not match the pattern of the ids; a key that is an id gets the
+    ordinary hint.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: steps(d, 0)[2]['fill'].update({'3 этаж': None}))
+    (found,) = [it for it in validate(root).issues if it.code == 'P002']
+    assert found.path == '/scenarios/0/steps/2/fill'
+    assert 'The key `3 этаж` is a piece of a text' in found.hint
+    assert "{entrance_info: '1 floor, 3 rooms'}" in found.hint
+
+    edit(root, PRODUCT, lambda d: [steps(d, 0)[2]['fill'].pop('3 этаж'), steps(d, 0)[2]['fill'].update({'my-key': 'x'})])
+    (found,) = [it for it in validate(root).issues if it.code == 'P002']
+    assert 'piece of a text' not in found.hint
+
+
+@pytest.mark.django_db
+def test_a_role_that_cannot_add_changes_the_items_of_the_test_data(contract):
+    """
+    P033 asks a scenario to create the item it changes; a role whose `access` has no `add` for
+    the entity cannot, so the item of the test data (`e2e_data`) is the only one it can change:
+    no P033 (the entity without `access` is left as it was).
+    """
+    root = contract.parent.parent
+    changes = {'id': 'manager-changes-the-plan', 'role': 'manager', 'steps': [
+        {'open': 'task-list'},
+        {'open_item': {'where': {'title': 'Review the plan'}}},
+        {'transit': 'start'},
+    ]}
+    edit(root, PRODUCT, lambda d: d['scenarios'].append(changes))
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/23/steps/2/transit')]
+
+    edit(root, PRODUCT, lambda d: [task(d)['access']['manager'].pop('add')])
+    assert issues(root) == []
+
+    edit(root, PRODUCT, lambda d: [task(d).pop('access')])
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/23/steps/2/transit')]
+
+
+def test_an_item_found_by_a_remembered_value_is_the_scenario_s_own(contract):
+    """
+    The task that the action of the guest made, found by the title of its answer
+    (`$suggested`, the scenario 21), is one of the run: changed without P033, nor found by
+    texts (P034); found by its text, it is an item of the test data.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: steps(d, 21).insert(8, {'transit': 'start'}))
+    assert issues(root) == []
+    edit(root, PRODUCT, lambda d: steps(d, 21)[7]['open_item']['where'].update(title='Suggested for the manager'))
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/8/transit')]
+
+
+@pytest.mark.django_db
+def test_the_choices_of_the_bodies_of_the_sample_are_labeled_by_bazis_2_21(root, sample_app):
+    """
+    The priority of the bodies of `export` and `escalate` is typed by the choices of the model
+    (`Task.Priority`): bazis 2.21 exports their labels, an older core does not, and the forms
+    offer them by their values (S058).
+    """
+    (root / 'contract').mkdir()
+    (root / 'contract' / 'contract.json').write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    found = [it for it in issues(root) if it[0] == 'S058']
+    assert found == ([] if labels_of_choices() else [
+        ('S058', f'{EXPORT}#/form/fields/0'), ('S058', 'spec/screens/task-card.yaml#/actions/1/fields/0'),
+    ])
+
+
+@pytest.mark.parametrize(('prop', 'remembered'), [
+    ({'type': 'string', 'format': 'uuid'}, True),
+    ({'anyOf': [{'type': 'integer'}, {'type': 'null'}]}, True),
+    ({'anyOf': [{'type': 'number'}, {'type': 'string'}]}, True),
+    ({'$ref': '#/$defs/Kind'}, True),
+    ({'type': 'boolean'}, False),
+    ({'type': 'object', 'properties': {'x': {'type': 'string'}}}, False),
+    ({'type': 'array', 'items': {'type': 'string'}}, False),
+    ({'anyOf': [{'type': 'string'}, {'type': 'boolean'}]}, False),
+])
+def test_a_scenario_remembers_a_text_or_a_number_of_the_answer(contract, prop, remembered):
+    # a step types or finds a text or a number: a boolean, an object or a list is not remembered
+    root = contract.parent.parent
+
+    def change(d):
+        response = d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['response']
+        response['properties']['extra'] = prop
+        response['$defs'] = {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}
+
+    edit(root, CONTRACT, change)
+    edit(root, PRODUCT, lambda d: steps(d, 21)[5].update(remember={'suggested': 'extra'}))
+    found = validate(root).issues
+    assert [(it.code, it.path) for it in found] == ([] if remembered else [('P022', '/scenarios/21/steps/5/remember/suggested')])
+    if not remembered:
+        assert 'is not a text or a number' in found[0].message
+        assert found[0].hint == 'Remember a text or a number of its answer: `task`, `title`.'
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(('summary', 'expected'), [
     ('The tasks of a team', []),
     ({'en': 'The tasks of a team', 'ru': 'Задачи команды'}, []),
@@ -2144,6 +2438,32 @@ def test_no_warning_about_the_users_when_no_field_relates_to_them(contract):
     root = contract.parent.parent
     edit(root, CONTRACT, lambda d: d['capabilities']['users'].update(user_resource='accounts.user'))
     assert issues(root) == []
+
+
+@pytest.mark.django_db
+def test_a_payload_field_of_a_relation(contract):
+    """
+    The id of an item in a payload (`relation`, the transit `reopen` of the sample), also
+    nullable; `type: string` stays valid for it (its dialog has the picker of the relationship
+    of the same name anyway); a field has a `type` or a `relation`, never both; a to-many
+    relationship of the same name is not the id of one item.
+    """
+    root = contract.parent.parent
+    assert reopen(read(root / PRODUCT)) == {'id': 'assignee', 'relation': 'user'}
+    edit(root, CONTRACT, lambda d: reopen_payload(d)['properties'].update(
+        assignee={'anyOf': [{'type': 'string', 'format': 'uuid'}, {'type': 'null'}], 'title': 'Assignee'}))
+    assert issues(root) == []
+    edit(root, PRODUCT, lambda d: [reopen(d).pop('relation'), reopen(d).update(type='string')])
+    assert issues(root) == []
+    edit(root, PRODUCT, lambda d: reopen(d).update(relation='user'))
+    assert issues(root) == [('P002', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')]
+    edit(root, PRODUCT, lambda d: [reopen(d).pop('type'), reopen(d).update(id='watchers')])
+    edit(root, CONTRACT, lambda d: reopen_payload(d).update(
+        properties={'watchers': {'type': 'string', 'format': 'uuid'}}, required=['watchers']))
+    assert issues(root) == [
+        ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0'),
+        ('P024', f'{PRODUCT}#/scenarios/22/steps/7/transit/payload/assignee'),
+    ]
 
 
 @pytest.mark.django_db
@@ -2224,19 +2544,19 @@ def test_a_transit_id_generated_by_statusy(contract, sample_app):
         status_src=Status.objects.get(pk='draft'), status_dst=Status.objects.get(pk='done'),
     )
     assert transit.id == 'task#draft_to_done'
-    contract.write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    contract.write_text(sample_contract(sample_app), encoding='utf-8')
     root = contract.parent.parent
     edit(root, PRODUCT, lambda d: [
         task(d)['workflow']['transitions'].append({'id': transit.id, 'from': 'draft', 'to': 'done'}),
         task(d)['access']['manager']['transit'].append(transit.id),
     ])
     found = validate(root).issues
-    assert [(it.code, it.path) for it in found] == [('P019', '/entities/0/access/manager/transit/2')]
+    assert [(it.code, it.path) for it in found] == [('P019', '/entities/0/access/manager/transit/3')]
     assert '`tasks.task.item.transit.all.draft.task#draft_to_done`' in found[0].message
 
     group = apps.get_model('permit.GroupPermission').objects.get(slug='tasks_transit')
     group.permissions.create(slug='tasks.task.item.transit.all.draft.task#draft_to_done')
-    contract.write_text(render(sample_app)['contract.json'], encoding='utf-8')
+    contract.write_text(sample_contract(sample_app), encoding='utf-8')
     assert issues(root) == []
 
 

@@ -49,6 +49,7 @@ import {
   workflowStatuses,
   type DateInputProps,
   type FileControlProps,
+  type FilesControlProps,
 } from '@/bazis/ui/resource';
 import { Backend, errors, ITEMS, renderWithBazis, resource, runtimeSchema, testLanguages } from '@/bazis/ui/testing';
 
@@ -266,6 +267,44 @@ describe('file fields', () => {
     expect(screen.getByTestId('error:attachment').textContent).toBe('Required Too large');
   });
 
+  it('edits a field of several files with the list control of FilesProvider, the picker of the items without one', () => {
+    const photos: FormField = { ...file, name: 'photos', title: 'Photos', many: true };
+    const onChange = vi.fn();
+    function List({ value, control, onChange: change }: FilesControlProps) {
+      return (
+        <input
+          {...control}
+          type="file"
+          multiple
+          data-value={value.join(' ')}
+          onChange={() => {
+            change([...value, '9']);
+          }}
+        />
+      );
+    }
+    const { unmount } = renderWithBazis(
+      <FilesProvider control={Control} listControl={List} resources={['test.file']}>
+        <FieldInput field={photos} value={['3', 4]} onChange={onChange} />
+      </FilesProvider>,
+      new Backend(),
+    );
+    const control = screen.getByTestId('field:photos');
+    expect(control.getAttribute('data-value')).toBe('3 4');
+    fireEvent.change(control);
+    expect(onChange).toHaveBeenCalledWith(['3', '4', '9']);
+    unmount();
+
+    renderWithBazis(
+      <FilesProvider control={Control} resources={['test.file']}>
+        <FieldInput field={photos} value={['3']} onChange={vi.fn()} />
+      </FilesProvider>,
+      new Backend(),
+    );
+    // the picker of the related items (of a resource without a route here: their ids)
+    expect(screen.getByTestId('field:photos').getAttribute('type')).not.toBe('file');
+  });
+
   it('edits a file field with the picker of a relationship without a control', () => {
     renderWithBazis(
       <FilesProvider control={null} resources={['test.file']}>
@@ -298,6 +337,13 @@ describe('file fields', () => {
         <span data-bz="field:other">
           <FieldValue field={file} value="3" />
         </span>
+        {/* the files of a field of several: each one, none a dash */}
+        <span data-bz="field:photos">
+          <FieldValue field={{ ...file, name: 'photos', many: true }} value={['3', '4']} />
+        </span>
+        <span data-bz="field:none">
+          <FieldValue field={{ ...file, name: 'photos', many: true }} value={[]} />
+        </span>
       </FilesProvider>,
       backend,
     );
@@ -312,6 +358,8 @@ describe('file fields', () => {
     // the thumbnail of the image only: the other file is read when it is downloaded
     expect(backend.requests('GET').sort()).toEqual([`GET ${FILES}1/`, `GET ${FILES}2/`, `GET ${FILES}2/download/`]);
     expect(screen.getByTestId('field:other').textContent).toBe('3');
+    expect(screen.getByTestId('field:photos').textContent).toBe('34');
+    expect(screen.getByTestId('field:none').textContent).toBe('—');
   });
 
   it('downloads a file with the token, and says when it fails', async () => {

@@ -23,6 +23,9 @@ export const PRODUCT = {
     "draft-tasks": {
       route: "/drafts",
     },
+    "export-tasks": {
+      route: "/export",
+    },
     home: {
       route: "/",
     },
@@ -56,6 +59,14 @@ test.describe('light', () => {
 
   test('draft-tasks as viewer', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'draft-tasks', role: 'viewer', mode: 'light', via: null, creates: [], variant: null }, info);
+  });
+
+  test('export-tasks', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'export-tasks', role: 'manager', mode: 'light', via: null, creates: [], variant: null }, info);
+  });
+
+  test('export-tasks as viewer', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'export-tasks', role: 'viewer', mode: 'light', via: null, creates: [], variant: null }, info);
   });
 
   test('home', async ({ page }, info) => {
@@ -124,6 +135,10 @@ test.describe('dark', () => {
 
   test('draft-tasks', async ({ page }, info) => {
     await shoot(page, PRODUCT, { screen: 'draft-tasks', role: 'manager', mode: 'dark', via: null, creates: [], variant: null }, info);
+  });
+
+  test('export-tasks', async ({ page }, info) => {
+    await shoot(page, PRODUCT, { screen: 'export-tasks', role: 'manager', mode: 'dark', via: null, creates: [], variant: null }, info);
   });
 
   test('home', async ({ page }, info) => {

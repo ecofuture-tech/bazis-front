@@ -20,12 +20,12 @@
 // as a page, as the theme composes the forms.
 
 import { LoaderCircle } from 'lucide-react';
-import { useState, type ReactNode, type SubmitEvent } from 'react';
+import { type ReactNode, type SubmitEvent } from 'react';
 
 import { ApiError, type ErrorObject } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
 import { useErrorMessage, type CreatePath, type FixedValues, type ResourceForm as Form, type UpdatePath } from '@/bazis/react';
-import { contractFormat, FieldInput, fieldTitle, isReverse, useAnyResourceForm, type SavedDocument } from '@/bazis/ui/resource';
+import { contractFormat, FieldInput, fieldTitle, isReverse, useAnyResourceForm, useUploads, type SavedDocument } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -141,7 +141,7 @@ export function ResourceFormBody({
     ...(initial === undefined ? {} : { initial }),
   });
   // the fields whose file uploads: the form waits for them
-  const [uploading, setUploading] = useState<ReadonlySet<string>>(() => new Set());
+  const { uploading, onBusy } = useUploads();
   const { t } = useLanguage();
   const message = useErrorMessage();
 
@@ -168,11 +168,11 @@ export function ResourceFormBody({
   const failure = form.submitError ? errorState(form.submitError) : null;
   const messages = formMessages(form, path, new Set(shown.map((it) => it.name)), t, message);
 
-  const busy = form.isSubmitting || uploading.size > 0;
+  const busy = form.isSubmitting || uploading;
 
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (uploading.size > 0) return;
+    if (uploading) return;
     void form.submit().then((saved) => {
       if (!saved) return;
       toast({ title: t(id === undefined ? 'form.created' : 'form.saved') });
@@ -201,14 +201,7 @@ export function ResourceFormBody({
           onChange={(value) => {
             form.setValue(field.name, value);
           }}
-          onBusy={(running) => {
-            setUploading((current) => {
-              const next = new Set(current);
-              if (running) next.add(field.name);
-              else next.delete(field.name);
-              return next;
-            });
-          }}
+          onBusy={onBusy(field.name)}
         />
       ))}
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">

@@ -19,6 +19,7 @@ import { Filter } from '@/bazis/client';
 
 import {
   useAction,
+  useActionFile,
   useActionQuery,
   useCan,
   useCreate,
@@ -131,6 +132,13 @@ export function useTypedActions(): void {
   seen.push(task, errors, useAction(PARENT, 'export'));
   // @ts-expect-error the action is a POST
   seen.push(useAction(PARENT, 'count', { method: 'get' }));
+  const csv = useActionFile(PARENT, 'csv');
+  csv.mutate({ priority: 'low' });
+  // @ts-expect-error a body of another shape
+  csv.mutate({ priority: 'urgent' });
+  const name: string | undefined = csv.data;
+  // @ts-expect-error summary is an action of an item, read with GET
+  seen.push(name, useActionFile(PARENT, 'summary'));
   const summary = useItemAction(PARENT, 'summary', { method: 'get' });
   summary.mutate({ id: '1' });
   const total: number | undefined = summary.data?.total;

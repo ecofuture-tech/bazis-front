@@ -42,6 +42,7 @@ export const RESOURCES = {
       action_download: {
         access_action: null,
         body: null,
+        file: true,
         item: true,
         method: "get",
         name: "download",
@@ -111,8 +112,6 @@ export const RESOURCES = {
         type: "object",
       },
       error: {
-        filter: "error",
-        order: "error",
         title: "Error",
         type: "string",
       },
@@ -154,8 +153,6 @@ export const RESOURCES = {
         type: "object",
       },
       log: {
-        filter: "log",
-        order: "log",
         title: "Log",
         type: "string",
       },
@@ -215,7 +212,12 @@ export const RESOURCES = {
     model: "bg.Task",
     path: "/api/v1/bg/task/",
     route_set: "bazis.contrib.bg.routes.BgRoute",
-    search: [],
+    search: [
+      "name",
+      "cls_path",
+      "pid",
+      "phase",
+    ],
   },
   "notify.notification": {
     actions: {
@@ -237,6 +239,7 @@ export const RESOURCES = {
       action_clear: {
         access_action: null,
         body: null,
+        file: false,
         item: false,
         method: "post",
         name: "clear",
@@ -258,6 +261,7 @@ export const RESOURCES = {
       action_read_all: {
         access_action: null,
         body: null,
+        file: false,
         item: false,
         method: "post",
         name: "read_all",
@@ -279,6 +283,7 @@ export const RESOURCES = {
       action_unread_count: {
         access_action: null,
         body: null,
+        file: false,
         item: false,
         method: "get",
         name: "unread_count",
@@ -363,7 +368,11 @@ export const RESOURCES = {
     model: "notify.Notification",
     path: "/api/v1/notify/notification/",
     route_set: "bazis.contrib.notify.routes.NotificationRouteSet",
-    search: [],
+    search: [
+      "notification_type",
+      "title",
+      "body",
+    ],
   },
   "tasks.step": {
     actions: {
@@ -422,7 +431,9 @@ export const RESOURCES = {
     model: "tasks.Step",
     path: "/api/v1/tasks/step/",
     route_set: "tasks.routes.StepRouteSet",
-    search: [],
+    search: [
+      "title",
+    ],
   },
   "tasks.task": {
     actions: {
@@ -431,6 +442,7 @@ export const RESOURCES = {
       action_delete_relationships: "relationship",
       action_destroy: "delete",
       action_escalate: "other",
+      action_export: "other",
       action_list: "collection",
       action_list_id: "other",
       action_post_relationships: "relationship",
@@ -440,6 +452,7 @@ export const RESOURCES = {
       action_schema_retrieve: "schema",
       action_schema_transit: "schema",
       action_schema_update: "schema",
+      action_status_history: "other",
       action_suggest: "other",
       action_transit: "other",
       action_update: "update",
@@ -452,6 +465,7 @@ export const RESOURCES = {
       "due",
       "hours",
       "location",
+      "photos",
       "priority",
       "report",
       "status",
@@ -469,6 +483,11 @@ export const RESOURCES = {
                 "normal",
                 "high",
               ],
+              enumDict: {
+                high: "High",
+                low: "Low",
+                normal: "Normal",
+              },
               title: "Priority",
               type: "string",
             },
@@ -489,6 +508,7 @@ export const RESOURCES = {
           title: "CountRequest",
           type: "object",
         },
+        file: false,
         item: false,
         method: "post",
         name: "count",
@@ -518,6 +538,11 @@ export const RESOURCES = {
                 "normal",
                 "high",
               ],
+              enumDict: {
+                high: "High",
+                low: "Low",
+                normal: "Normal",
+              },
               title: "Priority",
               type: "string",
             },
@@ -532,6 +557,7 @@ export const RESOURCES = {
           title: "EscalateRequest",
           type: "object",
         },
+        file: false,
         item: true,
         method: "post",
         name: "escalate",
@@ -544,6 +570,11 @@ export const RESOURCES = {
                 "normal",
                 "high",
               ],
+              enumDict: {
+                high: "High",
+                low: "Low",
+                normal: "Normal",
+              },
               title: "Priority",
               type: "string",
             },
@@ -561,13 +592,64 @@ export const RESOURCES = {
           type: "object",
         },
       },
+      action_export: {
+        access_action: "view",
+        body: {
+          $defs: {
+            Priority: {
+              enum: [
+                "low",
+                "normal",
+                "high",
+              ],
+              enumDict: {
+                high: "High",
+                low: "Low",
+                normal: "Normal",
+              },
+              title: "Priority",
+              type: "string",
+            },
+          },
+          description: "The tasks to export: those of a priority, all without one.",
+          properties: {
+            priority: {
+              anyOf: [
+                {
+                  $ref: "#/$defs/Priority",
+                },
+                {
+                  type: "null",
+                },
+              ],
+            },
+          },
+          title: "ExportRequest",
+          type: "object",
+        },
+        file: true,
+        item: false,
+        method: "post",
+        name: "export",
+        public: false,
+        response: null,
+      },
       action_suggest: {
         access_action: null,
         body: {
-          description: "The title of the task that a guest suggests.",
+          description: "The title of the task that a guest suggests, room left in the title for its reference, and\nthe photos he uploaded for it (the ids that the uploads answered: `UploadedFileId`, which\nthe frontend asks for with a file field).",
           properties: {
+            photos: {
+              default: [],
+              items: {
+                type: "string",
+                "x-relation": "uploadable.file_upload",
+              },
+              title: "Photos",
+              type: "array",
+            },
             title: {
-              maxLength: 255,
+              maxLength: 244,
               minLength: 1,
               title: "Title",
               type: "string",
@@ -579,20 +661,26 @@ export const RESOURCES = {
           title: "SuggestRequest",
           type: "object",
         },
+        file: false,
         item: false,
         method: "post",
         name: "suggest",
         public: true,
         response: {
-          description: "The task suggested, a draft.",
+          description: "The task suggested, a draft, and the title it got: that of the guest with the reference\nof the task, which the guest and the team find it by.",
           properties: {
             task: {
               title: "Task",
               type: "string",
             },
+            title: {
+              title: "Title",
+              type: "string",
+            },
           },
           required: [
             "task",
+            "title",
           ],
           title: "Suggested",
           type: "object",
@@ -649,6 +737,13 @@ export const RESOURCES = {
         order: "location",
         title: "Location",
         type: "object",
+      },
+      photos: {
+        filter: "photos",
+        many: true,
+        order: "photos",
+        relation: "uploadable.file_upload",
+        title: "Photos",
       },
       priority: {
         filter: "priority",
@@ -724,6 +819,7 @@ export const RESOURCES = {
       action_download: {
         access_action: null,
         body: null,
+        file: true,
         item: true,
         method: "get",
         name: "download",
@@ -761,7 +857,10 @@ export const RESOURCES = {
     model: "uploadable.FileUpload",
     path: "/api/v1/uploadable/file_upload/",
     route_set: "bazis.contrib.uploadable.routes.FileUploadRouteSet",
-    search: [],
+    search: [
+      "name",
+      "extension",
+    ],
   },
   "users.user": {
     actions: {
@@ -931,6 +1030,7 @@ export const ROLES = [
       "tasks.task.field.change.all.all.report.readonly",
       "tasks.task.item.add.all.all",
       "tasks.task.item.change.all.draft",
+      "tasks.task.item.transit.all.done.reopen",
       "tasks.task.item.transit.all.draft.start",
       "tasks.task.item.transit.all.in_progress.finish",
       "tasks.task.item.view.all.all",
@@ -1010,6 +1110,31 @@ export const TRANSITS = {
       },
       {
         dst: "in_progress",
+        id: "reopen",
+        name: {
+          en: "Reopen",
+          ru: "Вернуть в работу",
+        },
+        payload: {
+          required: true,
+          schema: {
+            properties: {
+              assignee: {
+                format: "uuid",
+                title: "Assignee",
+                type: "string",
+              },
+            },
+            required: [
+              "assignee",
+            ],
+            type: "object",
+          },
+        },
+        src: "done",
+      },
+      {
+        dst: "in_progress",
         id: "start",
         name: {
           en: "Start",
@@ -1031,7 +1156,7 @@ export interface Capabilities {
   readonly notify: { readonly resource: string | null } | null;
   readonly permit: { readonly roles: typeof ROLES; readonly selectors: { readonly [resource: string]: { readonly [selector: string]: string } } } | null;
   readonly statusy: { readonly models: typeof TRANSITS } | null;
-  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;
+  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[]; readonly anonymous: boolean; readonly anonymous_types: readonly string[] } | null;
   readonly users: { readonly token_url: string; readonly user_resource: string; readonly profile_language: boolean } | null;
   readonly ws: { readonly path: string | null } | null;
 }
@@ -1076,7 +1201,13 @@ export const CAPABILITIES: Capabilities = {
     models: TRANSITS,
   },
   uploadable: {
-    max_size: null,
+    anonymous: true,
+    anonymous_types: [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ],
+    max_size: 5242880,
     resources: [
       "uploadable.file_upload",
     ],

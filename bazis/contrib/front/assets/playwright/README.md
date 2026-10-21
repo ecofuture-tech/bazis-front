@@ -36,6 +36,7 @@ marks of the states, never for a fixed time:
 | Helper | Step of a scenario | What it does |
 |---|---|---|
 | `loginAs(page, PRODUCT, role)` | the `role` of the scenario | logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`, and waits for `action:logout`; without bazis-users (`CAPABILITIES.users` of `contract.ts` is null) there is no login. It first stubs the images of other origins (`stubForeignImages`) |
+| `sessionAs(app, role)` | `as` | another session of the test as the role: a new context of the browser of `app` (the options of the test), where the role logs in as with `loginAs`; it shares the start of the test and the items it created with `app`, and is closed as the test ends, in a test of `test` of these helpers (`test` of Playwright that closes the sessions) |
 | `stubForeignImages(page)` | | answers the images of another origin than the page (the tiles of the maps) with a blank image: no test reaches a server outside the product |
 | `open(screen)` | `open` | goes to the route of the screen (one without the id of an item), then `expectScreen` |
 | `openItem({where})` | `open_item` | clicks the first `row:<id>` of the list of the current screen whose cells `cell:<name>` have exactly these texts: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn, waiting for `data-search` of `list:<entity>` to be the text and for its `aria-busy` to end), else on the next pages (`action:next-page`); it fails when no page has the row. The labels of the related items in the cells are read after the rows (skeletons marked `state:loading`): it starts once nothing on the page loads |
@@ -44,6 +45,7 @@ marks of the states, never for a fixed time:
 | `upload(field, file)` | `upload` | sets a file of `e2e/fixtures/` in the input `field:<name>` of a file field of the open form, and waits until its field `upload:<name>` is no longer busy (`aria-busy`) and shows the name of the file, or an error of this upload is shown |
 | `submit({saved?})` | `submit` | clicks `action:submit` of the open form and waits until it is closed or shows an error of this submit (`state:<error>`, `error:<name>`; those of a previous submit do not count); with `saved: true` (a submit that the next step does not expect to fail) it fails with the errors shown when the form stays open |
 | `transit(id, payload?)` | `transit` | clicks `transit:<id>`, fills and submits the dialog of its payload, and waits until the transit is no longer offered or an error is shown |
+| `answer(property)` | `remember` | the `data-value` of `answer:<property>` of the result shown (`state:done`): a text or a number of the JSON answer of the action, `filename` of a file it saved |
 | `expectScreen(id)` | `expect: {screen}`, and after a step that leads to another screen | `screen:<id>` is shown with a state rendered and nothing loading (`state:loading`); it is the current screen from then on |
 | `expectStatus(id)` | `expect: {status}` | `status:<id>` in the current screen |
 | `expectState(state)` | `expect: {state}` | `state:<state>` on the page |

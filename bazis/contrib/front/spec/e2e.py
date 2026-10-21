@@ -21,7 +21,9 @@ read at run time: the test users of the roles and the routes of the screens.
 The steps are those of the walk of `scenarios.py`, the one that `bazis_front check`
 checks; each becomes calls of the helpers, which act through the `data-bz` marks of the
 screens. The text depends on the specs only: `--check` and `front.W003` render it again and
-compare it byte for byte, without Node. The lock records the hashes of the specs the tests
+compare it byte for byte, without Node. A scenario of several sessions (`as`) has a variable
+for each (`app` for the role of the scenario, `as<Role>` for the others, `sessionAs`), and a
+value that it remembers (`remember`) is the constant `$<name>`. The lock records the hashes of the specs the tests
 were generated from and their own (`e2e`): the files of a scenario that was removed are
 deleted by the next generation.
 """
@@ -31,7 +33,8 @@ from pathlib import Path
 
 from ..contract.typescript import constant
 from ..vendor import lock as frontend_lock
-from .scenarios import Step
+from .names import session_name
+from .scenarios import Step, variable
 from .validate import PRODUCT_FILE, SPEC_DIR, Specs, screen_files
 
 
@@ -72,14 +75,19 @@ def string(value: str) -> str:
     return f"'{inner}'"
 
 
-def literal(value) -> str:
+def literal(value, remembered: bool = False) -> str:
     """
     The TypeScript literal of a scalar of the specs, or of an object of them (the values of
     the fields, whose names are identifiers) or a list of them (the labels of the items of a
-    to-many relationship), on one line.
+    to-many relationship), on one line; with `remembered`, a value `$<name>` of the object is
+    the constant of the value that `remember` took (`fill`, `values`, `payload`), as is one of
+    the object `where` of any object (`open_item`, `select`, `move`).
     """
     if isinstance(value, dict):
-        return '{ ' + ', '.join(f'{key}: {literal(item)}' for key, item in value.items()) + ' }'
+        return '{ ' + ', '.join(
+            f'{key}: {f"${variable(item)}" if remembered and variable(item) else literal(item, key == "where")}'
+            for key, item in value.items()
+        ) + ' }'
     if isinstance(value, list):
         return '[' + ', '.join(literal(item) for item in value) + ']'
     if isinstance(value, str):
@@ -100,66 +108,94 @@ def flow(value) -> str:
     return json.dumps(value)
 
 
-def calls(step: Step, screens: bool = False) -> list[str]:
+def calls(step: Step, screens: bool = False, app: str = 'app') -> list[str]:
     """
-    The calls of the helpers that run a step; with the screens generated from the specs
-    (`screens`), the dialog of a destroy action is confirmed: that of a generated screen must
-    be shown; a custom screen may show none (`optional`).
+    The calls of the helpers that run a step in the session of the variable `app`; with the
+    screens generated from the specs (`screens`), the dialog of a destroy action is confirmed:
+    that of a generated screen must be shown; a custom screen may show none (`optional`).
     """
     name, value = step.name, step.value
-    result = ["app.action('edit')"] if step.edit else []
+    result = [f"{app}.action('edit')"] if step.edit else []
     if name == 'open':
-        result.append(f'app.open({string(value)})')
+        result.append(f'{app}.open({string(value)})')
     elif name in ('open_item', 'select', 'move'):
         helper = 'openItem' if name == 'open_item' else name
         # the item that the test created, never one of a previous run with the same texts
-        result.append(f'app.{helper}({literal({**value, "created": True} if step.created else value)})')
+        result.append(f'{app}.{helper}({literal({**value, "created": True} if step.created else value)})')
     elif name in ('action', 'bulk'):
-        result.append(f'app.{name}({string(value)})')
+        result.append(f'{app}.{name}({string(value)})')
         if step.confirm and screens:
             optional = ', { optional: true }' if step.confirm == 'optional' else ''
-            result.append(f'app.confirm({string(value)}{optional})')
+            result.append(f'{app}.confirm({string(value)}{optional})')
     elif name == 'fill':
-        result.append(f'app.fill({literal(value)})')
+        result.append(f'{app}.fill({literal(value, True)})')
     elif name == 'upload':
-        result.append(f'app.upload({string(value["field"])}, {string(value["file"])})')
+        result.append(f'{app}.upload({string(value["field"])}, {string(value["file"])})')
     elif name == 'submit':
         # a submit that the next step does not expect to fail must save
-        result.append('app.submit()' if step.failing else 'app.submit({ saved: true })')
+        result.append(f'{app}.submit()' if step.failing else f'{app}.submit({{ saved: true }})')
     elif name == 'transit':
         transit = {'id': value} if isinstance(value, str) else value
-        payload = f', {literal(transit["payload"])}' if 'payload' in transit else ''
-        result.append(f'app.transit({string(transit["id"])}{payload})')
+        payload = f', {literal(transit["payload"], True)}' if 'payload' in transit else ''
+        result.append(f'{app}.transit({string(transit["id"])}{payload})')
     elif name == 'expect':
         for key, helper in EXPECT:
             if key in EXPECT_ENTRIES:
-                result += [f'app.{helper}({string(it)}, {literal(count)})' for it, count in value.get(key, {}).items()]
+                result += [f'{app}.{helper}({string(it)}, {literal(count)})' for it, count in value.get(key, {}).items()]
             elif key in value:
-                result.append(f'app.{helper}({literal(value[key])})')
+                result.append(f'{app}.{helper}({literal(value[key], key == "values")})')
     else:
         raise ValueError(f'unknown step {name}')
     if step.then is not None:
-        result.append(f'app.expectScreen({string(step.then)})')
+        result.append(f'{app}.expectScreen({string(step.then)})')
     return result
 
 
 def render_scenario(scenario: dict, steps: list[Step], screens: bool) -> str:
+    """
+    The test of a scenario: a `test.step` for each step, in the session of the role of the
+    scenario (`app`, `loginAs`) or of the last `as` (`sessionAs` opens it the first time, in
+    `test` of the helpers, which closes it); a `remember` declares the constants of the values it
+    takes (`answer`).
+    """
+    role = scenario['role']
+    sessions = {role: 'app'}
+    # the tests of several sessions are those of the helpers, which close the sessions
+    imports = (
+        ["import { loginAs, sessionAs, test } from '../bazis';"]
+        if any(step.name == 'as' and step.value != role for step in steps)
+        else ["import { test } from '@playwright/test';", '', "import { loginAs } from '../bazis';"]
+    )
     lines = [
         header(f'the scenario `{scenario["id"]}` of {PRODUCT_FILE}'),
-        "import { test } from '@playwright/test';",
-        '',
-        "import { loginAs } from '../bazis';",
+        *imports,
         '',
         "import { PRODUCT } from './product';",
         '',
         f'test({string(scenario["id"])}, async ({{ page }}) => {{',
-        f'  const app = await loginAs(page, PRODUCT, {string(scenario["role"])});',
+        f'  const app = await loginAs(page, PRODUCT, {string(role)});',
     ]
+    app = 'app'
     for step in steps:
-        title = step.name if step.value == {} else f'{step.name}: {flow(step.value)}'
-        lines.append(f'  await test.step({string(title)}, async () => {{')
-        lines += [f'    await {call};' for call in calls(step, screens)]
-        lines.append('  });')
+        title = string(step.name if step.value == {} else f'{step.name}: {flow(step.value)}')
+        if step.name == 'as':
+            if step.value in sessions:
+                app = sessions[step.value]
+                lines.append(f'  await test.step({title}, () => {app}.page.bringToFront());')
+            else:
+                app = sessions[step.value] = session_name(step.value)
+                lines.append(f'  const {app} = await test.step({title}, () => sessionAs(app, {string(step.value)}));')
+        elif step.name == 'remember':
+            names = ', '.join(f'${it}' for it in step.value)
+            answers = [f'{app}.answer({string(it)})' for it in step.value.values()]
+            if len(answers) == 1:
+                lines.append(f'  const {names} = await test.step({title}, () => {answers[0]});')
+            else:
+                lines.append(f'  const [{names}] = await test.step({title}, () => Promise.all([{", ".join(answers)}]));')
+        else:
+            lines.append(f'  await test.step({title}, async () => {{')
+            lines += [f'    await {call};' for call in calls(step, screens, app)]
+            lines.append('  });')
     lines.append('});')
     return '\n'.join(lines) + '\n'
 

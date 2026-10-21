@@ -37,7 +37,7 @@ from typing import NamedTuple
 from ..vendor import lock as frontend_lock
 from ..vendor.registry import load as load_registry
 from .names import camel, component_name, constant_name, pascal
-from .refs import action_form, host, is_public, parent, screen_actions
+from .refs import action_form, host, is_public, parameters, parent, screen_actions
 from .tsx import (
     SPREAD,
     Arr,
@@ -871,13 +871,24 @@ def tile(screen: Screen, index: int, spec: dict) -> Obj:
         props.append(('icon', Raw(f'{const.code}.Icon')))
     if 'open' in spec:
         props.append(('onOpen', Arrow([], screen.go(screen.route(spec['open'])))))
+    props += part_requires(spec)
     return Obj(props)
+
+
+def part_requires(spec: dict) -> list[tuple[str, Obj]]:
+    """The `requires` of a tile or the last items when the user must be allowed to add an item (view is the default)."""
+    return [('requires', Obj([('can', Str('add'))]))] if adds(spec) else []
+
+
+def adds(spec: dict) -> bool:
+    return spec.get('requires', {}).get('can') == 'add'
 
 
 def chart(screen: Screen, index: int, spec: dict) -> Jsx:
     """
     A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`),
-    shown to the users who may view them (`Viewable`, as the tiles and the last items).
+    shown to the users who may view them, and add one with `requires` (`Viewable`, as the tiles
+    and the last items).
     """
     const = screen.entity(spec['entity'])
     attrs = [Attr('id', spec['id']), Attr('path', Raw(f'{const.code}.path'))]
@@ -894,7 +905,10 @@ def chart(screen: Screen, index: int, spec: dict) -> Jsx:
     name = 'StatusChart' if by_status else 'TimeChart'
     screen.code.use('@/bazis/ui/charts', name)
     screen.code.use('@/bazis/ui/dashboard', 'Viewable')
-    return Jsx('Viewable', [Attr('path', Raw(f'{const.code}.path'))], [Jsx(name, attrs)])
+    viewable = [Attr('path', Raw(f'{const.code}.path'))]
+    if adds(spec):
+        viewable.append(Attr('can', 'add'))
+    return Jsx('Viewable', viewable, [Jsx(name, attrs)])
 
 
 def aggregate_value(value: dict) -> Obj:
@@ -918,6 +932,7 @@ def recent_list(screen: Screen, index: int, spec: dict) -> Obj:
         props.append(('display', Raw(f'{const.code}.display')))
     if 'open' in spec:
         props.append(('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
+    props += part_requires(spec)
     return Obj(props)
 
 
@@ -1053,10 +1068,16 @@ def render_action_form(screen: Screen, const: Raw, spec: dict) -> Jsx:
     then = spec.get('then')
     if 'result' in spec:
         result = []
-        if (title := screen.text('form', 'result', 'title') or screen.text('title')) is not None:
-            result.append(('title', title))
         screen.translate('t')
-        key = text_key(screen_prefix(screen.data['id']), screen.data, ('form', 'result', 'message'))
+        prefix = screen_prefix(screen.data['id'])
+        title = spec['result'].get('title')
+        if title is not None and parameters(title):
+            # the title shows the answer too (`Order № {number}`)
+            key = text_key(prefix, screen.data, ('form', 'result', 'title'))
+            result.append(('title', Arrow(['response'], Call('t', [message_key(title, key), Raw('response')]))))
+        elif (own := screen.text('form', 'result', 'title') or screen.text('title')) is not None:
+            result.append(('title', own))
+        key = text_key(prefix, screen.data, ('form', 'result', 'message'))
         message = Call('t', [message_key(spec['result']['message'], key), Raw('response')])
         result.append(('message', Arrow(['response'], message)))
         attrs.append(Attr('result', Obj(result)))
@@ -1179,10 +1200,15 @@ def render_routes(product: Product) -> str:
     for it in screens:
         if nested.get(it['id']) is None:
             routes[product.public(it)].append(route_element(product, it, hosted.get(it['id'], [])))
-    if all(it['route'] != HOME_ROUTE for it in screens) and (home := first_link(product)) is not None:
+    home_screen = next((it for it in screens if it['route'] == HOME_ROUTE), None)
+    first = first_link(product)
+    if home_screen is None and first is not None:
         code.use('react-router', 'Navigate')
-        redirect = Jsx('Navigate', [Attr('to', home['route']), Attr('replace')])
-        routes[product.public(home)].insert(0, Jsx('Route', [Attr('index'), Attr('element', redirect)]))
+        redirect = Jsx('Navigate', [Attr('to', first['route']), Attr('replace')])
+        routes[product.public(first)].insert(0, Jsx('Route', [Attr('index'), Attr('element', redirect)]))
+    # a guest who opens `/` lands on the first public link, unless `/` is public itself
+    home = home_screen or first
+    guest_home = None if home is not None and product.public(home) else first_public_link(product)
     lazy = '\n'.join(printed(lazy_screen(it).doc()) for it in screens)
 
     def fragment(name: str, items: list[Jsx]) -> str:
@@ -1204,6 +1230,12 @@ def render_routes(product: Product) -> str:
             'route is that of a list followed by `/:id` beside the list or in its place (`ListCardLayout`);',
             '`/` without a screen leads to the first link of the navigation.',
         ) + '\n' + fragment('SCREEN_ROUTES', routes[False]),
+        doc_comment(
+            'The route that a user without a session who opens `/` is led to: the first public link of the',
+            'navigation, null when `/` is public itself or no link is.',
+        ) + '\n' + printed(
+            Const('GUEST_HOME', Str(guest_home) if guest_home else Raw('null'), exported=True, type='string | null').doc()
+        ),
     )
 
 
@@ -1230,12 +1262,23 @@ def default_navigation(product: Product) -> list[dict]:
     return [{'screen': it['id']} for it in links]
 
 
+def linked_screens(product: Product) -> list[dict]:
+    """The screens of the links of the navigation, in their order, the groups expanded."""
+    return [
+        product.screens[link['screen']]
+        for item in product.specs.product.get('navigation', default_navigation(product))
+        for link in (item['items'] if 'group' in item else [item])
+    ]
+
+
 def first_link(product: Product) -> dict | None:
     """The screen of the first link of the navigation (of its first group), None without any."""
-    for item in product.specs.product.get('navigation', default_navigation(product)):
-        for link in item['items'] if 'group' in item else [item]:
-            return product.screens[link['screen']]
-    return None
+    return next(iter(linked_screens(product)), None)
+
+
+def first_public_link(product: Product) -> str | None:
+    """The route of the first link of the navigation that a guest sees, None without any."""
+    return next((it['route'] for it in linked_screens(product) if product.public(it)), None)
 
 
 def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
@@ -1355,23 +1398,26 @@ def render_product(product: Product) -> str:
 def render_providers(product: Product) -> str:
     """
     The providers that the packages and the fields of the product need around the router: the
-    socket of bazis-ws, the upload of the files (bazis-uploadable), the maps of the points, the
+    socket of bazis-ws, the upload of the files (bazis-uploadable: the file fields of the
+    entities and of the bodies of the actions, which only the contract tells; a guest without
+    a session uploads the types of the anonymous uploads), the maps of the points, the
     pickers of the dates.
     """
     code = Code()
     code.use('react', 'type ReactNode')
     statements: list = []
     wrappers: list[tuple[str, list]] = []
-    if 'ws' in product.packages:
+    if 'ws' in product.packages or 'uploadable' in product.packages:
         code.use('@/app/session', 'useToken')
+        statements.append('const token = useToken();')
+    if 'ws' in product.packages:
         code.use('@/bazis/generated/contract', 'CAPABILITIES')
         code.use('@/bazis/react/ws', 'SocketProvider')
-        statements.append('const token = useToken();')
         socket = [Attr('path', Raw('CAPABILITIES.ws?.path ?? null')), Attr('token', Raw('token'))]
         wrappers.append(('SocketProvider', socket))
-    if 'uploadable' in product.packages and product.has_field('file'):
+    if 'uploadable' in product.packages:
         code.use('@/bazis/ui/file-field', 'FileFieldProvider')
-        wrappers.append(('FileFieldProvider', []))
+        wrappers.append(('FileFieldProvider', [Attr('guest', Raw('token === null'))]))
     if product.has_field('point'):
         code.use('@/bazis/ui/map', 'MapProvider')
         wrappers.append(('MapProvider', []))
@@ -1388,8 +1434,8 @@ def render_providers(product: Product) -> str:
         *code.imports(),
         doc_comment(
             'The providers that the packages and the fields of the product need, around the router: the',
-            'socket of bazis-ws (with the token of the session), the upload of the files, the maps of the',
-            'points and the pickers of the dates.',
+            'socket of bazis-ws (with the token of the session), the upload of the files (that of a guest',
+            'without a session), the maps of the points and the pickers of the dates.',
         ) + '\n' + printed(function.doc()),
     )
 

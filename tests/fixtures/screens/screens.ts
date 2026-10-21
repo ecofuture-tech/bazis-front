@@ -4,6 +4,7 @@
 /** The route of each screen of the specs by its id. */
 export const SCREENS = {
   'draft-tasks': '/drafts',
+  'export-tasks': '/export',
   home: '/',
   'public-tasks': '/public',
   'suggest-task': '/suggest',

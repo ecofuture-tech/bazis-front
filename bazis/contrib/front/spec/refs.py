@@ -26,7 +26,7 @@ from pathlib import Path
 from . import access
 from .design import check_icon
 from .issues import DECLARE_ROLES, DECLARE_WORKFLOWS, EXPORT_HINT, Document, Issues
-from .names import SCREEN_CONSTANTS, TEXT_KEY, camel, component_name, constant_name
+from .names import SCREEN_CONSTANTS, TEXT_KEY, camel, component_name, constant_name, session_name
 
 
 #: the field of an entity with a workflow: its status (bazis-statusy)
@@ -199,6 +199,43 @@ def is_file(schema: dict, contract: dict) -> bool:
     return schema.get('many') is False and schema.get('relation') in uploads(contract)
 
 
+def ids_of(schema: dict, root: dict) -> dict | None:
+    """
+    The relationship of a property of a body (`local_type`) whose value is the ids of the items
+    of a resource, by its `x-relation` (`UploadedFileId` of bazis-uploadable, `list[...]` of
+    them in `items`), as a field of the contract has it (`{relation, many}`): the frontend asks
+    for it with a file field or the picker of the items, as `relation` of the AttributeField of
+    the property; None for another property.
+    """
+    many = schema.get('type') == 'array'
+    node = local_type(schema.get('items', {}), root) if many else schema
+    relation = node.get('x-relation')
+    if not isinstance(relation, str) or node.get('type') != 'string':
+        return None
+    return {'relation': relation, 'many': many}
+
+
+def body_ids(prop: str, schema: dict, body: dict, resource: dict) -> dict | None:
+    """
+    The relationship that a property of a body (`local_type`) picks the items of: that of the
+    resource of the same name (`_is_picker`), else that of its `x-relation` (`ids_of`).
+    """
+    own = resource['fields'].get(prop, {})
+    return own if _is_picker(schema, own) else ids_of(schema, body)
+
+
+def body_files(body: dict, resource: dict, contract: dict) -> set[str]:
+    """
+    The properties of the body of a custom action of a resource of the contract that a form
+    asks for with a file field: the ids of the uploaded files of bazis-uploadable.
+    """
+    return {
+        prop for prop, value in body.get('properties', {}).items()
+        if (ids := body_ids(prop, local_type(value, body), body, resource)) is not None
+        and ids['relation'] in uploads(contract)
+    }
+
+
 def _describe(schema: dict) -> str:
     if 'relation' in schema:
         return f'a relationship to {schema["relation"]} (many: {str(schema["many"]).lower()})'
@@ -222,6 +259,7 @@ def check_product(doc: Document, contract: dict | None, issues: Issues) -> Produ
         entities={},
         navigation=data.get('navigation'),
     )
+    _check_role_names(doc, data.get('roles', []), issues)
     entities = index(doc, data.get('entities', []), ('entities',), 'entity', issues)
     _check_entity_names(doc, data.get('entities', []), issues)
     for i, item in enumerate(data.get('entities', [])):
@@ -255,6 +293,20 @@ def _check_entity_names(doc: Document, items: list[dict], issues: Issues) -> Non
         else:
             continue
         issues.add(doc, ('entities', i, 'id'), 'P032', problem, 'Rename the entity.')
+
+
+def _check_role_names(doc: Document, items: list[dict], issues: Issues) -> None:
+    """The sessions of the roles in the end-to-end tests (`as`): one for each (P032)."""
+    named: dict[str, str] = {}
+    for i, item in enumerate(items):
+        name = session_name(item['id'])
+        other = named.setdefault(name, item['id'])
+        if other != item['id']:
+            issues.add(
+                doc, ('roles', i, 'id'), 'P032',
+                f'The end-to-end tests name the sessions of the roles `{other}` and `{item["id"]}` alike, `{name}`.',
+                'Rename the role.',
+            )
 
 
 def _entity(doc: Document, data: dict, path: tuple, issues: Issues) -> Entity:
@@ -303,15 +355,8 @@ def _check_entity(doc: Document, entity: Entity, product: Product, issues: Issue
                 'Name fields of the entity in `label`, or declare the field in `fields`.',
             )
 
-    workflow = entity.workflow
-    if workflow is not None:
-        statuses = workflow['statuses']
-        if workflow['initial'] not in statuses:
-            _unknown_status(doc, (*path, 'workflow', 'initial'), workflow['initial'], issues)
-        for i, item in enumerate(workflow.get('transitions', [])):
-            for end in ('from', 'to'):
-                if item[end] not in statuses:
-                    _unknown_status(doc, (*path, 'workflow', 'transitions', i, end), item[end], issues)
+    if entity.workflow is not None:
+        _check_workflow_refs(doc, entity, product, issues)
 
     for role, grants in entity.data.get('access', {}).items():
         role_path = (*path, 'access', role)
@@ -322,6 +367,26 @@ def _check_entity(doc: Document, entity: Entity, product: Product, issues: Issue
             )
         for operation, grant in grants.items():
             _check_grant(doc, entity, (*role_path, operation), operation, grant, issues)
+
+
+def _check_workflow_refs(doc: Document, entity: Entity, product: Product, issues: Issues) -> None:
+    """The statuses of the transitions and the entities of the relations of their payloads."""
+    workflow, path = entity.workflow, (*entity.path, 'workflow')
+    statuses = workflow['statuses']
+    if workflow['initial'] not in statuses:
+        _unknown_status(doc, (*path, 'initial'), workflow['initial'], issues)
+    for i, item in enumerate(workflow.get('transitions', [])):
+        for end in ('from', 'to'):
+            if item[end] not in statuses:
+                _unknown_status(doc, (*path, 'transitions', i, end), item[end], issues)
+        for j, payload_field in enumerate(item.get('payload', {}).get('fields', [])):
+            if 'relation' in payload_field and payload_field['relation'] not in product.entities:
+                issues.add(
+                    doc, (*path, 'transitions', i, 'payload', 'fields', j, 'relation'), 'P005',
+                    f'The field `{payload_field["id"]}` of the payload of `{item["id"]}` references the unknown '
+                    f'entity `{payload_field["relation"]}`.',
+                    'Declare the entity in `entities`, with its resource.',
+                )
 
 
 def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> None:
@@ -536,7 +601,7 @@ def _check_entity_contract(
             f'give its route set an attribute of a label, and {EXPORT_HINT}.',
         )
     if entity.workflow is not None:
-        _check_workflow(doc, entity, contract, issues)
+        _check_workflow(doc, entity, resource, product, contract, issues)
     if data.get('access'):
         statusy = statusy_model(contract, data['resource'])
         access.check(doc, entity, statusy, product, contract, issues)
@@ -604,7 +669,9 @@ def _check_field(
     )
 
 
-def _check_workflow(doc: Document, entity: Entity, contract: dict, issues: Issues) -> None:
+def _check_workflow(
+    doc: Document, entity: Entity, resource: dict, product: Product, contract: dict, issues: Issues
+) -> None:
     data, path, workflow = entity.data, entity.path, entity.workflow
     model = statusy_model(contract, data['resource'])
     if model is None:
@@ -649,10 +716,19 @@ def _check_workflow(doc: Document, entity: Entity, contract: dict, issues: Issue
                 f'The transition `{item["id"]}` goes from `{transit["src"]}` to `{transit["dst"]}` in the contract.',
                 'Make the spec follow the Transit of the backend, or change the Transit.',
             )
-        _check_payload(doc, (*item_path, 'payload'), item, transit, issues)
+        _check_payload(doc, (*item_path, 'payload'), item, transit, resource, product, issues)
 
 
-def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues: Issues) -> None:
+def _check_payload(
+    doc: Document, path: tuple, item: dict, transit: dict, resource: dict, product: Product, issues: Issues
+) -> None:
+    """
+    The fields of the payload of a transition are those of the payload of its transit: an
+    attribute of its type, or the id of an item (`relation`), which the dialog asks for with
+    the picker of the to-one relationship of the entity of the same name (`relatedField` of
+    the frontend), so the property is a text named as such a relationship to the resource of
+    the related entity.
+    """
     payload = transit['payload']
     if (payload is None) != ('payload' not in item):
         issues.add(
@@ -676,6 +752,9 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
             )
             continue
         schema = local_type(prop, payload['schema'])
+        if 'relation' in item_field:
+            _check_payload_relation(doc, (*path, 'fields', i), item, item_field, schema, resource, product, issues)
+            continue
         # a decimal is a number or its digits as a string: the spec declares either member; any
         # other union is typed by its first member
         decimal = is_decimal(schema)
@@ -697,6 +776,29 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
                 'Give the payload of the transit a field of a type that a field takes (a text, a number, a '
                 'decimal, a date, a choice), or run the transition from the code of a screen.',
             )
+
+
+def _check_payload_relation(
+    doc: Document, path: tuple, item: dict, item_field: dict, schema: dict, resource: dict, product: Product,
+    issues: Issues,
+) -> None:
+    target = product.entities.get(item_field['relation'])
+    if target is None:
+        return
+    name = item_field['id']
+    own = resource['fields'].get(name, {})
+    member = schema.get('anyOf', [schema])[0]
+    if own.get('relation') == target.data['resource'] and not own.get('many', False) and member.get('type') == 'string':
+        return
+    issues.add(
+        doc, path, 'P017',
+        f'The field `{name}` of the payload of `{item["id"]}` is {_describe(member)} in the contract, and the '
+        f'field `{name}` of the resource {"is " + _describe(own) if own else "is missing"}: the spec declares '
+        f'the id of an item of `{target.data["resource"]}`, which the dialog asks for with the picker of the '
+        'to-one relationship of the same name.',
+        'Type the property of the payload as the id of the related item (a UUID) and name it as a to-one '
+        f'relationship of the resource to `{target.data["resource"]}`, or declare the `type` of the field.',
+    )
 
 
 # screens
@@ -1117,6 +1219,14 @@ def _check_dashboard(doc: Document, product: Product, screens: dict, contract: d
             _check_value(doc, path, part['value'], entity, resource, issues)
         if resource is None:
             continue
+        if part.get('requires', {}).get('can') == 'add' and 'create' not in resource['actions'].values():
+            issues.add(
+                doc, (*path, 'requires'), 'S030',
+                f'The part requires that the user may add a `{entity.data["resource"]}`, which has no create '
+                'route in the contract: it is never shown.',
+                f'Remove `requires`, or give the route set of `{entity.data["resource"]}` its create route and '
+                f'{EXPORT_HINT}.',
+            )
         _check_queries(doc, path, part, entity, resource, issues)
         if key == 'actions':
             _check_pickers(doc, resource, form_fields(path, part, entity), contract, issues)
@@ -1252,7 +1362,8 @@ def _check_custom_actions(
     its route set declared with POST (one declared with GET reads), of an item on a card, on the
     rows and in a bulk action (the route set may have an action of the same name for its toolbar
     and its forms); on the rows of a list and in a bulk action, one that requires nothing of the
-    item but what a list tells of each row (its view, its change or its delete); the fields that
+    item but what a list tells of each row (its view, its change or its delete); one that answers
+    a file only in a form, which saves it; the fields that
     its dialog or its form asks for are properties of its body, and the body needs nothing else
     (a property that the body requires is among them; a bulk action asks for none). On a public
     screen, one declared `public=True` (S046), whose pickers list what the anonymous roles view
@@ -1297,6 +1408,9 @@ def _check_custom_actions(
         elif action['method'] != 'post':
             problem = f'The custom action `{name}` is declared with {action["method"].upper()}: it reads, a button runs a POST.'
             hint = 'Read it in the code of the screen (`useActionQuery`, `useItemActionQuery`), or declare the action with POST.'
+        elif action['file'] and where != 'form':
+            problem = f'The custom action `{name}` answers a file, which a button of a dialog does not save.'
+            hint = 'Run it as the form of the action (`primitive: form` with `form.action`), which saves the file.'
         elif where in ('row', 'bulk') and action['access_action'] not in (None, 'view', 'change', 'delete'):
             problem = (
                 f'The custom action `{name}` requires `{action["access_action"]}` on the item: '
@@ -1316,7 +1430,7 @@ def _check_custom_actions(
             )
         _check_body(doc, path, name, fields, action['body'] or {}, resource, public, product, contract, issues)
         if where == 'form' and 'result' in form:
-            _check_result(doc, name, form['result'], action['response'], issues)
+            _check_result(doc, name, form['result'], action, issues)
 
 
 def _check_body(
@@ -1325,10 +1439,15 @@ def _check_body(
 ) -> None:
     """
     The fields that the dialog or the form of a custom action asks for against its body: its
-    properties (S032), the pickers of the relationships (S012, S017; S052 on a public screen),
-    the types that a field takes (S054), and the properties that the body requires (S032).
+    properties (S032), the pickers of the relationships, of the entity by the name of the
+    property or by its `x-relation` (S012, S017; S052 on a public screen), the uploaded files
+    of a guest (S057), the choices without labels (S058), the types that a field takes (S054),
+    and the properties that the body requires (S032).
     """
     properties = body.get('properties', {})
+    # the relationships that the fields pick: of the entity by the name of the property, else
+    # by its `x-relation`
+    related: dict[str, dict] = {}
     pickers = []
     for i, prop in enumerate(fields or []):
         if prop not in properties:
@@ -1338,12 +1457,31 @@ def _check_body(
             )
             continue
         field_path = (*path, 'fields', i)
-        own = resource['fields'].get(prop, {})
         schema = local_type(properties[prop], body)
-        if _is_picker(schema, own):
+        ids = body_ids(prop, schema, body, resource)
+        if ids is not None and ids['relation'] in uploads(contract):
+            if public and not contract['capabilities']['uploadable'].get('anonymous'):
+                issues.add(
+                    doc, field_path, 'S057',
+                    f'The property `{prop}` of the body of `{name}` is uploaded by a guest, and the contract does not '
+                    'let the guests upload files: their upload is refused (401).',
+                    'Turn the anonymous uploads of bazis-uploadable 2.8 on: BAZIS_FILE_UPLOAD_ANONYMOUS=true with a '
+                    f'size limit, BAZIS_FILE_UPLOAD_MAX_SIZE; then {EXPORT_HINT}. Or leave the property out of the '
+                    'fields of the public screen.',
+                )
+        elif ids is not None:
+            related[prop] = ids
             pickers.append((field_path, prop))
             if public:
-                _check_guest_picker(doc, field_path, prop, own['relation'], product, issues)
+                _check_guest_picker(doc, field_path, prop, ids['relation'], product, issues)
+        elif 'enum' in schema and 'enumDict' not in schema:
+            issues.add(
+                doc, field_path, 'S058',
+                f'The property `{prop}` of the body of `{name}` has choices without their labels: the form offers '
+                'them by their values.',
+                'Type it by the `TextChoices` of the model (bazis 2.21 gives the labels of Django choices, '
+                f'`enumDict`), not by a `Literal`; then {EXPORT_HINT}.',
+            )
         elif (kind := unaskable(schema)) is not None:
             issues.add(
                 doc, field_path, 'S054',
@@ -1353,7 +1491,7 @@ def _check_body(
                 'choice, the id of a related item named as the relationship of the entity), or fill it in the '
                 'code of the screen (`extend`).',
             )
-    _check_pickers(doc, resource, pickers, contract, issues)
+    _check_pickers(doc, {'fields': related}, pickers, contract, issues)
     missing = [it for it in body.get('required', []) if it not in (fields or [])]
     if missing:
         issues.add(
@@ -1368,30 +1506,70 @@ def _check_body(
 PARAMETER = re.compile(r'\{(\w+)\}')
 
 
-def _check_result(doc: Document, name: str, result: dict, response: dict | None, issues: Issues) -> None:
+def parameters(value) -> list[str]:
     """
-    The parameters of the message of the result of a form of an action are properties of the
-    JSON answer of the action in the contract (S053); a key of the dictionaries of the
-    frontend is not read.
+    The parameters (`{number}`) of a text of the specs, or of its translations; none for a
+    key of the dictionaries of the frontend, which is not read.
     """
-    message = result['message']
-    texts = [message] if isinstance(message, str) else list(message.values())
-    used = sorted({it for text in texts if not TEXT_KEY.fullmatch(text) for it in PARAMETER.findall(text)})
-    properties = (response or {}).get('properties', {})
-    unknown = [it for it in used if it not in properties]
-    if not unknown:
-        return
-    named = ', '.join(f'`{{{it}}}`' for it in unknown)
-    if response is None:
-        problem = f'The message of the result shows {named}, and the custom action `{name}` answers no JSON in the contract.'
-        hint = (
-            f'Give the action a `response_model` with these properties and {EXPORT_HINT}, or remove them from the '
-            'message.'
-        )
-    else:
-        problem = f'The message of the result shows {named}, which the answer of `{name}` does not have in the contract.'
-        hint = f'Show the properties of its answer: {", ".join(f"`{{{it}}}`" for it in sorted(properties)) or "none"}.'
-    issues.add(doc, ('form', 'result', 'message'), 'S053', problem, hint)
+    texts = [value] if isinstance(value, str) else list(value.values())
+    return sorted({it for text in texts if not TEXT_KEY.fullmatch(text) for it in PARAMETER.findall(text)})
+
+
+def answer(action: dict) -> dict[str, bool]:
+    """
+    The properties of the answer of a custom action that the result of its form shows (S053),
+    each with whether a scenario remembers it (a text or a number, which a step types or
+    finds; not a boolean, an object or a list): those of its JSON answer in the contract, or
+    `filename` of an action that answers a file, the name the form saves it under.
+    """
+    if action['file']:
+        return {'filename': True}
+    response = action['response'] or {}
+    return {
+        name: (kind := local_type(schema, response)).get('type') in ('string', 'number', 'integer') or is_decimal(kind)
+        for name, schema in response.get('properties', {}).items()
+    }
+
+
+def form_answer(screen: dict, product: Product, contract: dict | None) -> dict[str, bool] | None:
+    """
+    `answer` of the action of a form screen (`form.action`, of the route set of its entity);
+    None when the contract does not have it (S032).
+    """
+    entity = product.entities.get(screen.get('entity'))
+    resource = contract['project']['resources'].get(entity.data['resource']) if contract and entity else None
+    actions = (resource or {}).get('custom_actions', {}).values()
+    action = next((it for it in actions if it['name'] == screen['form']['action'] and not it['item']), None)
+    return None if action is None else answer(action)
+
+
+def _check_result(doc: Document, name: str, result: dict, action: dict, issues: Issues) -> None:
+    """
+    The parameters of the title and of the message of the result of a form of an action are
+    properties of its answer (`answer`, S053); a key of the dictionaries of the frontend is
+    not read.
+    """
+    response, properties = action['response'], answer(action)
+    for part in ('title', 'message'):
+        if part not in result:
+            continue
+        unknown = [it for it in parameters(result[part]) if it not in properties]
+        if not unknown:
+            continue
+        named = ', '.join(f'`{{{it}}}`' for it in unknown)
+        if action['file']:
+            problem = f'The {part} of the result shows {named}, and the custom action `{name}` answers a file.'
+            hint = f'A file answers `{{filename}}` only, the name it is saved under: remove the others from the {part}.'
+        elif response is None:
+            problem = f'The {part} of the result shows {named}, and the custom action `{name}` answers no JSON in the contract.'
+            hint = (
+                f'Give the action a `response_model` with these properties and {EXPORT_HINT}, or remove them from the '
+                f'{part}.'
+            )
+        else:
+            problem = f'The {part} of the result shows {named}, which the answer of `{name}` does not have in the contract.'
+            hint = f'Show the properties of its answer: {", ".join(f"`{{{it}}}`" for it in sorted(properties)) or "none"}.'
+        issues.add(doc, ('form', 'result', part), 'S053', problem, hint)
 
 
 def local_type(schema: dict, root: dict) -> dict:
@@ -1466,8 +1644,7 @@ def _check_guest_picker(doc: Document, path: tuple, prop: str, relation: str, pr
     for role in doc.data.get('roles', []):
         if not product.roles.get(role, {}).get('anonymous'):
             continue
-        grants = access.listed(related.data['access'].get(role, {}).get('view', []))
-        if any((it if isinstance(it, str) else it['selector']) != access.NONE for _, it in grants):
+        if access.allows(related.data['access'].get(role, {}), 'view'):
             continue
         issues.add(
             doc, path, 'S052',

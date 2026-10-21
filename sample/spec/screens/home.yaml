@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # The home: the tasks by status and by week, their hours by month, the last ones, and a task
-# created from here.
+# created from here; the drafts and the hours are shown to those who may add a task.
 spec: bazis-screen/1
 id: home
 title: {en: Home, ru: Главная}
@@ -10,7 +10,7 @@ roles: [manager, viewer]
 primitive: dashboard
 dashboard:
   tiles:
-    - {id: drafts, entity: task, filter: {status: draft}, label: {en: Drafts, ru: Черновики}, open: draft-tasks}
+    - {id: drafts, entity: task, filter: {status: draft}, label: {en: Drafts, ru: Черновики}, open: draft-tasks, requires: {can: add}}
     - {id: in-progress, entity: task, filter: {status: in_progress}, tone: info, label: {en: In progress, ru: В работе}}
     - {id: done, entity: task, filter: {status: done}, tone: success, label: {en: Done, ru: Готово}}
     # the task that `manage.py e2e_data` creates: one at every run
@@ -20,7 +20,7 @@ dashboard:
   charts:
     - {id: by-status, entity: task, by: status, kind: donut, label: {en: By status, ru: По статусам}}
     - {id: created-by-week, entity: task, by: dt_created, bucket: week, last: 12, kind: bar, label: {en: Created by week, ru: Созданы по неделям}}
-    - {id: hours-by-month, entity: task, by: dt_created, bucket: month, last: 6, kind: line, value: {sum: hours}, label: {en: Hours by month, ru: Часы по месяцам}}
+    - {id: hours-by-month, entity: task, by: dt_created, bucket: month, last: 6, kind: line, value: {sum: hours}, requires: {can: add}, label: {en: Hours by month, ru: Часы по месяцам}}
   recent:
     - {id: last-tasks, entity: task, columns: [title, status, dt_created], sort: [-dt_created], limit: 5, open: task-card, label: {en: The last tasks, ru: Последние задачи}}
   actions:

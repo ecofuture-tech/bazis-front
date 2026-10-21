@@ -133,6 +133,25 @@ YAML_HINTS = {
 }
 
 
+def piece_of_text(error, data) -> str | None:
+    """
+    The key that a mapping of the data (at the path of a shape error) cannot have and that is a
+    piece of a text, not an id (it has a space or a letter beyond ASCII): the text after the
+    comma of a flow mapping, `{entrance_info: 1 floor, 3 rooms}`, which YAML reads as a key of
+    its own. The error is that of an extra key, or of a key that is not an id (`error.instance`).
+    """
+    node = data
+    for step in error.absolute_path:
+        node = node[step]
+    if not isinstance(node, dict):
+        return None
+    if error.validator == 'additionalProperties':
+        keys = [it for it in node if it not in error.schema.get('properties', {})]
+    else:
+        keys = [error.instance] if isinstance(error.instance, str) and error.instance in node else []
+    return next((it for it in keys if isinstance(it, str) and (' ' in it or not it.isascii())), None)
+
+
 class _Loader(yaml.SafeLoader):
     """
     YAML whose implicit types are those of YAML 1.2: `2026-10-07` stays a string (no
@@ -183,9 +202,13 @@ def load(
         # the alternative of a oneOf/anyOf that came closest, rather than "not valid under
         # any of the given schemas"
         error = best_match(error.context) if error.context else error
+        piece = piece_of_text(error, data)
         issues.add(
             doc, error.absolute_path, shape_code, error.message,
-            f'Follow {SPEC_DIR}/{SCHEMA_DIR}/{schema}.',
+            f'Follow {SPEC_DIR}/{SCHEMA_DIR}/{schema}.' if piece is None else (
+                f'The key `{piece}` is a piece of a text: in a flow mapping `{{a: x, y}}` the text after `, ` is '
+                "read as another key. Quote the text that has the comma, `{entrance_info: '1 floor, 3 rooms'}`."
+            ),
         )
     doc.valid = not errors
     return doc
@@ -682,7 +705,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = Fa
         if doc.valid:
             check_texts(doc, schema, languages, issues)
     check_dictionaries(root, documents, issues)
-    walked = scenarios.check(product_doc, product, screens, issues)
+    walked = scenarios.check(product_doc, product, screens, contract, issues)
     screened = {
         data['entity'] for data in screens.values()
         if data is not None and product is not None and data.get('entity') in product.entities

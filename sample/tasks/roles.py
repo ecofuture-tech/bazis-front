@@ -41,9 +41,10 @@ CHANGE = Group('tasks_change', _('Change the tasks'), [
     'tasks.task.field.change.all.all.report.readonly',
 ])
 
-TRANSIT = Group('tasks_transit', _('Start and finish the tasks'), [
+TRANSIT = Group('tasks_transit', _('Run the transits of the tasks'), [
     'tasks.task.item.transit.all.draft.start',
     'tasks.task.item.transit.all.in_progress.finish',
+    'tasks.task.item.transit.all.done.reopen',
 ])
 
 # a field permission: the report is left out of `schema_list`/`schema_retrieve` and of the

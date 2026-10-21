@@ -17,8 +17,11 @@ export function SuggestTaskScreen() {
       <ActionForm
         path={TASK.path}
         action="suggest"
-        fields={['title']}
-        labels={{ title: t('screens.suggest-task.form.labels.title') }}
+        fields={['title', 'photos']}
+        labels={{
+          title: t('screens.suggest-task.form.labels.title'),
+          photos: t('screens.suggest-task.form.labels.photos'),
+        }}
         submitLabel={t('screens.suggest-task.form.submit')}
         result={{
           title: t('screens.suggest-task.form.result.title'),

@@ -16,7 +16,8 @@
 // transit without a payload runs at once, but one that the specs `confirm` (a payment, a
 // cancellation), which a dialog asks for first (`action:confirm-<transit>`); one whose action
 // takes a typed payload opens a dialog with its fields (`FieldInput`, `field:<name>`,
-// `error:<name>`, `action:submit`), which is its confirmation. A toast tells the status the
+// `error:<name>`, `action:submit`; a property named as a to-one relationship of the resource
+// is its picker, `relatedField`), which is its confirmation. A toast tells the status the
 // item moved to. The dialog of a transit of a list (a board: `for_transit`, its id only) reads
 // the transits of its item once as it opens, in the request of its card (`ITEM_META`): the
 // titles of the fields of the payload in the language of the user, and its hint.
@@ -27,7 +28,7 @@ import { ApiError, errorText, type ErrorObject } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { objectFields, useErrorMessage } from '@/bazis/react';
 import { useItemsTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
-import { FieldInput, ITEM_META, statusyModel } from '@/bazis/ui/resource';
+import { FieldInput, ITEM_META, relatedField, statusyModel } from '@/bazis/ui/resource';
 import { statusName, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -178,7 +179,8 @@ function TransitForm({ path, open, mutation, run, onCancel }: TransitFormProps) 
         {fields.map((field) => (
           <FieldInput
             key={field.name}
-            field={field}
+            // titled by the payload, in the language of the user, not by the field of the resource
+            field={relatedField(path, field, field.title)}
             value={values[field.name]}
             errors={errors.fields[field.name]}
             disabled={mutation.isPending}

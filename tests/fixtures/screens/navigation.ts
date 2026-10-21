@@ -3,6 +3,7 @@
 
 import {
   CalendarDaysIcon,
+  DownloadIcon,
   FilePenIcon,
   GlobeIcon,
   HouseIcon,
@@ -13,6 +14,7 @@ import {
 
 import type { Translate } from '@/bazis/i18n';
 import type { NavEntry } from '@/bazis/ui/app-shell';
+import { customActionKey } from '@/bazis/ui/resource';
 
 import { ENTITIES } from './entities';
 
@@ -41,6 +43,13 @@ export function navigation(t: Translate): readonly NavEntry[] {
           to: '/drafts',
           icon: FilePenIcon,
           requires: { path: ENTITIES.task.path, filters: ['status'] },
+        },
+        {
+          screen: 'export-tasks',
+          label: t('screens.export-tasks.title'),
+          to: '/export',
+          icon: DownloadIcon,
+          requires: { path: ENTITIES.task.path, can: customActionKey(ENTITIES.task.path, 'export') },
         },
       ],
     },

@@ -83,6 +83,8 @@ def test_the_shots_of_the_specs(root):
         ('draft-tasks', None, 'manager', None, every),
         # the screen as its other roles too, in the first color mode only
         ('draft-tasks', None, 'viewer', None, first),
+        ('export-tasks', None, 'manager', None, every),
+        ('export-tasks', None, 'viewer', None, first),
         ('home', None, 'manager', None, every),
         ('home', None, 'viewer', None, first),
         # a public screen as its anonymous role, without a session

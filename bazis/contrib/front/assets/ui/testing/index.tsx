@@ -59,6 +59,8 @@ interface Reply {
   status: number;
   body?: unknown;
   pending?: boolean;
+  /** No answer: the request fails as when the backend cannot be reached. */
+  unreachable?: boolean;
   /** The headers of a file (`file`): its body is a text, not JSON. */
   headers?: Record<string, string>;
 }
@@ -96,15 +98,20 @@ class UploadRequest {
     const fields = Object.fromEntries(
       [...body.entries()].map(([name, value]) => [name, value instanceof File ? value.name : value]),
     );
-    void this.backend.fetch(this.url, { method: 'POST', body: JSON.stringify(fields) }).then(async (response) => {
-      if (this.aborted) return;
-      this.upload.onprogress?.({ loaded: Math.floor(size / 2), total: size, lengthComputable: true });
-      this.upload.onprogress?.({ loaded: size, total: size, lengthComputable: true });
-      this.status = response.status;
-      this.statusText = response.statusText;
-      this.responseText = await response.text();
-      this.onload?.();
-    });
+    void this.backend.fetch(this.url, { method: 'POST', body: JSON.stringify(fields) }).then(
+      async (response) => {
+        if (this.aborted) return;
+        this.upload.onprogress?.({ loaded: Math.floor(size / 2), total: size, lengthComputable: true });
+        this.upload.onprogress?.({ loaded: size, total: size, lengthComputable: true });
+        this.status = response.status;
+        this.statusText = response.statusText;
+        this.responseText = await response.text();
+        this.onload?.();
+      },
+      () => {
+        if (!this.aborted) this.onerror?.();
+      },
+    );
   }
 
   abort() {
@@ -120,16 +127,31 @@ class UploadRequest {
  */
 export class Backend {
   readonly calls: Call[] = [];
-  private readonly replies = new Map<string, Reply>();
+  private readonly replies = new Map<string, Reply | Reply[]>();
 
   on(method: string, url: string, body?: unknown, status = 200): this {
     this.replies.set(`${method} ${url}`, { status, body });
     return this;
   }
 
-  /** A file of a download route (`GET`): its content and its `Content-Disposition`. */
-  file(url: string, content: string, disposition: string): this {
-    this.replies.set(`GET ${url}`, { status: 200, body: content, headers: { 'Content-Disposition': disposition } });
+  /** The requests get these replies in turn, the last one again after them (several uploads). */
+  each(method: string, url: string, ...replies: { body?: unknown; status?: number }[]): this {
+    this.replies.set(
+      `${method} ${url}`,
+      replies.map(({ body, status = 200 }) => ({ status, body })),
+    );
+    return this;
+  }
+
+  /** The request fails as when the backend cannot be reached (a `TypeError` of `fetch`). */
+  unreachable(method: string, url: string): this {
+    this.replies.set(`${method} ${url}`, { status: 0, unreachable: true });
+    return this;
+  }
+
+  /** A file of a download route (`GET`), or the answer of an action (`POST`): its content and its `Content-Disposition`. */
+  file(url: string, content: string, disposition: string, method = 'GET'): this {
+    this.replies.set(`${method} ${url}`, { status: 200, body: content, headers: { 'Content-Disposition': disposition } });
     return this;
   }
 
@@ -158,10 +180,12 @@ export class Backend {
       body: text === undefined ? undefined : (JSON.parse(text) as unknown),
       language: headers.get('Accept-Language'),
     });
-    const reply =
+    const replies =
       this.replies.get(`${method} ${url}`) ?? this.replies.get(`${method} ${url.split('?')[0] ?? ''}`);
+    const reply = Array.isArray(replies) ? (replies.length > 1 ? replies.shift() : replies[0]) : replies;
     if (!reply) return new Response('', { status: 404, statusText: `no reply to ${method} ${url}` });
     if (reply.pending) return new Promise<Response>(() => undefined);
+    if (reply.unreachable) throw new TypeError('Failed to fetch');
     if (reply.headers) return new Response(String(reply.body), { status: reply.status, headers: reply.headers });
     const body = reply.body === undefined ? null : JSON.stringify(reply.body);
     return new Response(reply.status === 204 ? null : body, { status: reply.status });

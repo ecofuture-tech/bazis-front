@@ -2,7 +2,7 @@
 # A dashboard of two entities, extended: a tile of two conditions labelled by a key of the
 # dictionaries of the components, a tile with an icon of its own, a tile of the latest date of
 # a field, a chart by a date and one of the average of a decimal by week, the last items
-# without an order, the create forms of both entities in its header (one shows the card of
+# without an order (shown to those who may add a step), the create forms of both entities in its header (one shows the card of
 # the saved task, the other the home).
 spec: bazis-screen/1
 id: overview
@@ -20,7 +20,7 @@ dashboard:
     - {id: steps-by-day, entity: step, by: dt_created, kind: line, label: {en: Steps by day, ru: Шаги по дням}}
     - {id: hours-by-week, entity: task, by: due, bucket: week, kind: bar, value: {avg: hours}, label: {en: Average hours by week, ru: Средние часы по неделям}}
   recent:
-    - {id: steps, entity: step, columns: [title], label: {en: Steps, ru: Шаги}}
+    - {id: steps, entity: step, columns: [title], requires: {can: add}, label: {en: Steps, ru: Шаги}}
   actions:
     - {id: create-task, primitive: form, entity: task, mode: create, fields: [title], then: task-card, label: {en: New task, ru: Новая задача}}
     - {id: create-step, primitive: form, entity: step, mode: create, then: home, label: {en: New step, ru: Новый шаг}}

@@ -41,6 +41,7 @@ export function HomeScreen() {
           label: t('screens.home.dashboard.tiles.drafts.label'),
           icon: TASK.Icon,
           onOpen: () => void navigate(routeTo('draft-tasks')),
+          requires: { can: 'add' },
         },
         {
           id: 'in-progress',
@@ -98,7 +99,7 @@ export function HomeScreen() {
               last={12}
             />
           </Viewable>
-          <Viewable path={TASK.path}>
+          <Viewable path={TASK.path} can="add">
             <TimeChart
               id="hours-by-month"
               path={TASK.path}

@@ -18,8 +18,8 @@
 // that bazis-statusy adds to its route sets are added to `parent_entity`, with two custom
 // actions as a route set declares them (`@http_post('/count/')`, an item `summary/`, and
 // `@http_get('/report/')` with an optional query parameter, `year: int | None = None`, and
-// `@http_get('/check/')` with a required one, `code: str`), and the download route of
-// bazis-uploadable and bazis-bg.
+// `@http_get('/check/')` with a required one, `code: str`, and `@http_post('/csv/')` that
+// answers a CSV file), and the download route of bazis-uploadable and bazis-bg.
 
 import type { paths as corePaths } from '../../../client/test/fixtures/schema.js';
 
@@ -39,6 +39,12 @@ export type paths = corePaths & {
     post: {
       requestBody: { content: { 'application/json': { priority?: 'low' | 'high' | null } } };
       responses: { 200: { content: { 'application/json': { task: string } } } };
+    };
+  };
+  '/api/v1/entity/parent_entity/csv/': {
+    post: {
+      requestBody: { content: { 'application/json': { priority?: 'low' | 'high' | null } } };
+      responses: { 200: { content: { 'text/csv': string } } };
     };
   };
   '/api/v1/entity/parent_entity/report/': {

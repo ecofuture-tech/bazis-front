@@ -14,7 +14,7 @@
 
 export { DateInput, DatesProvider, useDates } from './dates.js';
 export type { DateInputProps } from './dates.js';
-export { FieldInput } from './field-input.js';
+export { FieldInput, useUploads } from './field-input.js';
 export type { FieldInputProps } from './field-input.js';
 export { FieldValue, ItemValue, titleFromText } from './field-value.js';
 export type { FieldValueProps, ItemValueProps } from './field-value.js';
@@ -35,6 +35,7 @@ export {
   itemName,
   localizedName,
   permitted,
+  relatedField,
   resourceAt,
   routeOf,
   statusName,
@@ -55,7 +56,7 @@ export {
   isImage,
   useFiles,
 } from './files.js';
-export type { ControlProps, FileControlProps, FileViewProps, UploadedFile } from './files.js';
+export type { ControlProps, FileControlProps, FilesControlProps, FileViewProps, UploadedFile } from './files.js';
 export {
   formatPoint,
   geoJsonPoint,
@@ -71,6 +72,7 @@ export {
   ITEM_META,
   text,
   useAnyAction,
+  useAnyActionFile,
   useAnyFilterFields,
   useAnyItem,
   useAnyItemAction,

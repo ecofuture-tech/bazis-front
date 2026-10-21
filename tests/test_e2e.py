@@ -39,7 +39,7 @@ from bazis.contrib.front.spec.scenarios import Step
 from bazis.contrib.front.spec.validate import validate
 from bazis.contrib.front.vendor.lock import digest
 
-from .support import SAMPLE_SPEC, read_lock, write_lock
+from .support import SAMPLE_SPEC, read_lock, sample_contract, write_lock
 
 
 REPOSITORY = Path(__file__).resolve().parent.parent
@@ -62,9 +62,12 @@ BOARD = 'e2e/generated/manager-moves-a-task-on-the-board.spec.ts'
 BULK = 'e2e/generated/manager-starts-tasks-at-once.spec.ts'
 CALENDAR = 'e2e/generated/viewer-reads-the-calendar.spec.ts'
 ESCALATES = 'e2e/generated/manager-escalates-a-task.spec.ts'
+EXPORTS = 'e2e/generated/manager-exports-the-tasks.spec.ts'
 PLANS = 'e2e/generated/manager-plans-on-the-calendar.spec.ts'
 SUGGESTS = 'e2e/generated/visitor-suggests-a-task.spec.ts'
 SUGGESTS_PAGE = 'e2e/generated/visitor-suggests-a-task-on-its-page.spec.ts'
+OPENS_SUGGESTED = 'e2e/generated/manager-opens-a-suggested-task.spec.ts'
+REOPENS = 'e2e/generated/manager-reopens-a-task-for-a-user.spec.ts'
 
 
 def generate(*args) -> str:
@@ -176,6 +179,45 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
         "app.expectScreen('home')", "app.expectTile('in-progress', 2)",
         "app.expectDay('2026-10-07', 1)", "app.expectDay('2026-10-08', 0)",
     ]
+
+
+def test_the_sessions_and_the_remembered_values_of_a_scenario():
+    """
+    A session for each role of `as` (`app` for that of the scenario), the constants of
+    `remember`, and the values `$<name>` of `fill`, `where`, `values` and `payload` only.
+    """
+    scenario = {'id': 'board', 'role': 'dispatcher'}
+    text = e2e.render_scenario(scenario, [
+        Step('as', 'site-client'),
+        Step('fill', {'phone': '$number', 'note': ['$number']}),
+        Step('remember', {'number': 'number'}),
+        Step('remember', {'first': 'number', 'name': 'filename'}),
+        Step('as', 'dispatcher'),
+        Step('open_item', {'where': {'number': '$number'}}, created=True),
+        Step('expect', {'values': {'number': '$number'}, 'notification': '$number'}),
+        Step('transit', {'id': 'assign', 'payload': {'master': '$name'}}),
+        Step('as', 'site-client'),
+    ], screens=False)
+    # the test of the helpers, which closes the sessions as it ends (not that of Playwright)
+    assert "import { loginAs, sessionAs, test } from '../bazis';" in text
+    assert '@playwright/test' not in text
+    assert "test('board', async ({ page }) => {\n  const app = await loginAs(page, PRODUCT, 'dispatcher');\n" in text
+    assert "  const asSiteClient = await test.step('as: site-client', () => sessionAs(app, 'site-client'));\n" in text
+    # a list of labels is no value of `remember`
+    assert "    await asSiteClient.fill({ phone: $number, note: ['$number'] });\n" in text
+    assert "  const $number = await test.step('remember: {number: number}', () => asSiteClient.answer('number'));\n" in text
+    assert (
+        "  const [$first, $name] = await test.step('remember: {first: number, name: filename}', "
+        "() => Promise.all([asSiteClient.answer('number'), asSiteClient.answer('filename')]));\n"
+    ) in text
+    assert "  await test.step('as: dispatcher', () => app.page.bringToFront());\n" in text
+    assert '    await app.openItem({ where: { number: $number }, created: true });\n' in text
+    assert "    await app.expectValues({ number: $number });\n    await app.expectNotification('$number');\n" in text
+    assert "    await app.transit('assign', { master: $name });\n" in text
+    assert text.endswith("  await test.step('as: site-client', () => asSiteClient.page.bringToFront());\n});\n")
+    # without another role: `loginAs` only, as before
+    alone = e2e.render_scenario(scenario, [Step('as', 'dispatcher')], screens=False)
+    assert "import { loginAs } from '../bazis';" in alone
 
 
 def test_the_steps_follow_the_walk_of_the_scenario(tmp_path):
@@ -381,7 +423,7 @@ def test_a_refused_submit_leads_to_no_other_screen(tmp_path):
 
     edit_product(tmp_path, scenario)
     found = [(it.code, it.location) for it in validate(tmp_path).issues]
-    assert found == [('P022', 'spec/product.yaml#/scenarios/20/steps/4/expect/screen')]
+    assert found == [('P022', 'spec/product.yaml#/scenarios/23/steps/4/expect/screen')]
 
 
 def test_the_product_module():
@@ -411,13 +453,13 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     frontend = root / 'frontend'
     files = rendered(root)
     assert sorted(files) == [
-        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, EXPORTS, MANAGER, NOTIFIED, BOARD, OPENS_SUGGESTED, PLACES, PLANS, REOPENS, PRIORITY,
         HOME, BULK,
         e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS, SUGGESTS_PAGE, SUGGESTS,
     ]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 20 end-to-end tests' in out
+    assert 'Generated 23 end-to-end tests' in out
     # a to-many relationship is filled with the list of the labels of its items, in the step
     # and in its title
     assert "test.step('fill: {watchers: []}'" in files[WATCHER]
@@ -428,7 +470,7 @@ def test_e2e_writes_the_tests_and_the_lock(root):
         'spec': {
             path: digest((root / path).read_bytes())
             for path in [
-                'spec/product.yaml', 'spec/screens/draft-tasks.yaml', 'spec/screens/home.yaml',
+                'spec/product.yaml', 'spec/screens/draft-tasks.yaml', 'spec/screens/export-tasks.yaml', 'spec/screens/home.yaml',
                 'spec/screens/public-tasks.yaml', 'spec/screens/suggest-task.yaml', 'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml', 'spec/screens/task-card.yaml',
                 'spec/screens/task-list.yaml',
             ]
@@ -464,7 +506,7 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
     assert sorted(read_lock(root)['e2e']['generated']) == [
-        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, EXPORTS, MANAGER, NOTIFIED, BOARD, OPENS_SUGGESTED, PLACES, PLANS, REOPENS, PRIORITY,
         HOME, BULK,
         e2e.PRODUCT_TS, CALENDAR, DRAFTS, SUGGESTS_PAGE, SUGGESTS,
     ]
@@ -488,7 +530,7 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     generate()
     assert {path: (frontend / path).read_bytes() for path in others} == before
     assert sorted(read_lock(root)['e2e']['generated']) == [
-        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, EXPORTS, MANAGER, NOTIFIED, BOARD, OPENS_SUGGESTED, PLACES, PLANS, REOPENS, PRIORITY,
         HOME, BULK,
         e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS, SUGGESTS_PAGE, SUGGESTS,
     ]
@@ -550,12 +592,10 @@ def test_e2e_needs_a_frontend(tmp_path):
 
 @pytest.mark.django_db
 def test_the_declarations_of_the_sample_create_the_data_of_its_specs(sample_app, tmp_path):
-    from bazis.contrib.front.contract.export import render
-
     # the contract of the migrated database: the roles, statuses and transits that `migrate`
     # applied from `tasks/roles.py` and `tasks/workflow.py`
     shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
-    text = render(sample_app)['contract.json']
+    text = sample_contract(sample_app)
     (tmp_path / 'contract').mkdir()
     (tmp_path / 'contract' / 'contract.json').write_text(text, encoding='utf-8')
     contract = json.loads(text)['capabilities']

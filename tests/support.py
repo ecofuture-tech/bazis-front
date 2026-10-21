@@ -48,6 +48,48 @@ def write_lock(root: Path, lock: dict) -> None:
     (root / 'frontend' / 'bazis-front.lock.json').write_text(json.dumps(lock), encoding='utf-8')
 
 
+def labels_of_choices() -> bool:
+    """
+    Whether the core gives the labels of the choices of a body (`enumDict` of a type of Django
+    choices, bazis 2.21).
+    """
+    from bazis.core.utils import fastapi_monkey_patch
+
+    return hasattr(fastapi_monkey_patch, 'ChoicesJsonSchema')
+
+
+def sample_contract(app) -> str:
+    """
+    The contract of the sample as `contract` exports it, with the labels of the choices of its
+    bodies that bazis 2.21 gives (`enumDict` of `Task.Priority`) also with an older core: the
+    tests of the other checks see no S058 of the sample whatever the core
+    (`test_the_choices_of_the_bodies_of_the_sample_are_labeled_by_bazis_2_21` checks the export
+    itself).
+    """
+    from bazis.contrib.front.contract.export import render
+
+    text = render(app)['contract.json']
+    if labels_of_choices():
+        return text
+    from tasks.models import Task
+
+    labels = {value: str(label) for value, label in Task.Priority.choices}
+
+    def label(node) -> None:
+        if isinstance(node, dict):
+            if node.get('enum') == list(labels):
+                node.setdefault('enumDict', labels)
+            for value in node.values():
+                label(value)
+        elif isinstance(node, list):
+            for value in node:
+                label(value)
+
+    contract = json.loads(text)
+    label(contract)
+    return json.dumps(contract, ensure_ascii=False, indent=2)
+
+
 def write_contract(root: Path, *names: str) -> None:
     """
     A contract.json in the product root with these capabilities only.

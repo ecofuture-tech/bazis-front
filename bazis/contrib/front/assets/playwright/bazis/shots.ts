@@ -623,12 +623,15 @@ function audit(options: CheckOptions): Found[] {
     return best;
   }
 
-  // V010: the texts cut without their whole text; V017: those cut to a few characters
+  // V010: the texts cut without their whole text; V017: those cut to a few characters; not
+  // what only a screen reader reads (`sr-only`: 1×1 px, the hidden input of a file field)
   for (const element of document.body.querySelectorAll('*')) {
     const style = getComputedStyle(element);
     const ellipsis = style.textOverflow === 'ellipsis' && element.scrollWidth > element.clientWidth + 1;
     const cut = ellipsis || (style.webkitLineClamp !== 'none' && style.webkitLineClamp !== '' && element.scrollHeight > element.clientHeight + 1);
     if (!cut || !shown(element)) continue;
+    const box = element.getBoundingClientRect();
+    if (box.width < 2 || box.height < 2) continue;
     if (ellipsis && element.clientWidth < 4 * parseFloat(style.fontSize)) {
       add('V017', element, `The text ${quote(text(element))} is cut to ${String(element.clientWidth)} px.`);
     }

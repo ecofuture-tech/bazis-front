@@ -12,12 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import csv
+import io
+
 from django.apps import apps
+from django.utils.http import content_disposition_header
+from django.utils.translation import gettext_lazy as _
+
+from fastapi.responses import Response
 
 from pydantic import BaseModel, Field
 
 from bazis.contrib.permit.routes_abstract import PermitRouteBase
 from bazis.contrib.statusy.routes_abstract import StatusyRouteSetBase
+from bazis.contrib.uploadable.models import FileUpload
+from bazis.contrib.uploadable.schemas import UploadedFileId
+from bazis.contrib.users.models_abstract import UserMixin
+from bazis.core.errors import JsonApiBazisError, JsonApiBazisException
 from bazis.core.routes_abstract.initial import http_post
 from bazis.core.schemas.enums import CrudAccessAction, RouteKind
 
@@ -48,16 +59,41 @@ class Escalated(BaseModel):
     priority: Task.Priority
 
 
-class SuggestRequest(BaseModel):
-    """The title of the task that a guest suggests."""
+#: the length of the reference of a suggested task, the start of its id, in its title
+REFERENCE = 8
 
-    title: str = Field(min_length=1, max_length=255)
+
+class SuggestRequest(BaseModel):
+    """
+    The title of the task that a guest suggests, room left in the title for its reference, and
+    the photos he uploaded for it (the ids that the uploads answered: `UploadedFileId`, which
+    the frontend asks for with a file field).
+    """
+
+    title: str = Field(min_length=1, max_length=255 - REFERENCE - 3)
+    photos: list[UploadedFileId] = Field([], title=_('Photos'))
 
 
 class Suggested(BaseModel):
-    """The task suggested, a draft."""
+    """
+    The task suggested, a draft, and the title it got: that of the guest with the reference
+    of the task, which the guest and the team find it by.
+    """
 
     task: str
+    title: str
+
+
+class ExportRequest(BaseModel):
+    """The tasks to export: those of a priority, all without one."""
+
+    priority: Task.Priority | None = None
+
+
+class CsvResponse(Response):
+    """A CSV file: the OpenAPI declares its media type as the answer of the action."""
+
+    media_type = 'text/csv'
 
 
 class TaskRouteSet(StatusyRouteSetBase):
@@ -70,6 +106,8 @@ class TaskRouteSet(StatusyRouteSetBase):
     """
 
     model = apps.get_model('tasks.Task')
+    # the photos of a suggested task: its readers read them (bazis-uploadable)
+    files_visible = ('photos',)
     # the search of the list of the tasks (the core 2.9 answers a search of a route set
     # without search fields with 400)
     search_fields = ['title']
@@ -89,6 +127,26 @@ class TaskRouteSet(StatusyRouteSetBase):
         task = CountTasks.delay(priority=data.priority, author=self.inject.user)
         return CountStarted(task=str(task.pk))
 
+    @http_post('/export/', kind=RouteKind.OTHER, response_class=CsvResponse, access_action=CrudAccessAction.VIEW)
+    def action_export(self, data: ExportRequest, **kwargs):
+        """
+        A custom action that answers a file (`custom_actions[].file` of the contract): the
+        tasks that the user views, of a priority or all, as CSV named `tasks.csv`
+        (`Content-Disposition`), which the form of the specs (`export-tasks`) saves. It
+        requires the view of the tasks (`access_action`: 403 for a role without it) and
+        exports the rows that bazis-permit lets the user view.
+        """
+        tasks = self.restrict_queryset(Task.objects.order_by('dt_created'), CrudAccessAction.VIEW)
+        if data.priority is not None:
+            tasks = tasks.filter(priority=data.priority)
+        content = io.StringIO()
+        writer = csv.writer(content)
+        writer.writerow(['title', 'status', 'priority'])
+        writer.writerows(tasks.values_list('title', 'status', 'priority'))
+        return CsvResponse(
+            content.getvalue(), headers={'Content-Disposition': content_disposition_header(True, 'tasks.csv')}
+        )
+
     @http_post('/suggest/', response_model=Suggested, kind=RouteKind.OTHER, public=True)
     def action_suggest(self, data: SuggestRequest, **kwargs):
         """
@@ -96,10 +154,24 @@ class TaskRouteSet(StatusyRouteSetBase):
         throttle of the core, `BAZIS_THROTTLE_PUBLIC`): a guest suggests a task, created as a
         draft for the team, the action of the public screen of the specs (`public-tasks`). A
         guest creates nothing through the create route: bazis-permit refuses it to anonymous
-        users.
+        users. The title of the task ends with its reference (`Plan (1a2b3c4d)`): the suggestions
+        of the same text stay apart. The photos are the anonymous uploads of the guest (a user
+        attaches his own files): one missing, expired or of another is 422 `ERR_PHOTO`.
         """
-        task = Task.objects.create(title=data.title)
-        return Suggested(task=str(task.pk))
+        user = UserMixin.authenticated_user(self.inject.user)
+        files = FileUpload.objects
+        photos = list(files.anonymous(data.photos) if user is None else files.filter(
+            pk__in=[it for it in data.photos if it.isdigit()], author=user,
+        ))
+        if len(photos) != len(set(data.photos)):
+            raise JsonApiBazisException([JsonApiBazisError(
+                _('A photo is missing or expired: upload it again.'), loc=('photos',), code='ERR_PHOTO',
+            )], status=422)
+        task = Task()
+        task.title = f'{data.title} ({str(task.pk)[:REFERENCE]})'
+        task.save()
+        task.photos.set(photos)
+        return Suggested(task=str(task.pk), title=task.title)
 
     @http_post(
         '/{item_id}/escalate/', response_model=Escalated, kind=RouteKind.OTHER,

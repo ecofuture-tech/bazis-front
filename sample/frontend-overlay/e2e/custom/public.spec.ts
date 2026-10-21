@@ -14,8 +14,8 @@
 
 // The router of the template with the public screen of the sample (`public-tasks`, of the
 // anonymous role `visitor`): a user without a session opens it with its link only and the
-// sign-in, which brings him back to it once logged in; a screen of a session sends him to the
-// login; the layout stays mounted between a public screen and a screen of a session.
+// sign-in, after which he is at home; a screen of a session sends him to the login, `/` the
+// first public link; the layout stays mounted between a public screen and a screen of a session.
 
 import { expect, test } from '@playwright/test';
 
@@ -37,8 +37,8 @@ test('a guest opens the public screen and signs in from it', async ({ page }) =>
   if (!password) throw new Error('Set E2E_PASSWORD, the password of the test users.');
   await new App(page, PRODUCT).fill({ username: PRODUCT.roles.manager.username, password });
   await page.locator(bz('action', 'submit')).click();
-  // back on the public screen, with every link and the session
-  await expect(page.locator(bz('screen', 'public-tasks'))).toBeVisible();
+  // at home, with every link and the session
+  await expect(page.locator(bz('screen', 'home'))).toBeVisible();
   await expect(sidebar.locator(bz('action', 'logout'))).toBeVisible();
   await expect(sidebar.locator(bz('action', 'sign-in'))).toHaveCount(0);
 
@@ -57,4 +57,11 @@ test('a screen of a session sends a guest to the login', async ({ page }) => {
   await page.goto('/tasks');
   await expect(page).toHaveURL(LOGIN_ROUTE);
   await expect(app.form().locator(bz('action', 'submit'))).toBeVisible();
+});
+
+test('the home of a session sends a guest to the first public link of the navigation', async ({ page }) => {
+  await loginAs(page, PRODUCT, 'visitor');
+  await page.goto('/');
+  await expect(page).toHaveURL('/suggest');
+  await expect(page.locator(bz('screen', 'suggest-task'))).toBeVisible();
 });

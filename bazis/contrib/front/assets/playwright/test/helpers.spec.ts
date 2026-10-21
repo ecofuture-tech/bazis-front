@@ -19,7 +19,7 @@
 
 import { errors, expect, test, type Page } from '@playwright/test';
 
-import { App, bz, loginAs, routePattern, stubForeignImages } from '../bazis';
+import { App, bz, loginAs, routePattern, sessionAs, stubForeignImages, test as sessionTest } from '../bazis';
 import { PRODUCT } from '../generated/product';
 
 /** Serves the pages by their path on the base URL of the config. */
@@ -1264,5 +1264,84 @@ test.describe('loginAs', () => {
     await expect
       .poll(() => page.locator('#tile').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0))
       .toBe(true);
+  });
+});
+
+test.describe('answer', () => {
+  /** The result of an action shown after a delay; a hidden one of before does not count. */
+  const result = html(
+    `<div data-bz="state:done" hidden><span hidden data-bz="answer:title" data-value="Old"></span></div><div id="slot"></div>`,
+    `setTimeout(() => {
+       document.getElementById('slot').outerHTML = '<div data-bz="state:done"><p>Thank you</p>'
+         + '<span hidden data-bz="answer:title" data-value="Paint the fence"></span><span hidden data-bz="answer:count" data-value="3"></span></div>';
+     }, 300);`,
+  );
+
+  test('reads a property of the answer of the result shown', async ({ page }) => {
+    await show(page, '/suggest', result);
+    const app = new App(page, PRODUCT);
+    expect(await app.answer('title')).toBe('Paint the fence');
+    expect(await app.answer('count')).toBe('3');
+  });
+
+  test('fails when the answer has no such property', async ({ page }) => {
+    await show(page, '/suggest', result);
+    await expect(new App(page, PRODUCT).answer('number')).rejects.toThrow();
+  });
+});
+
+test.describe('sessionAs', () => {
+  sessionTest('opens a session of another context, which shares the start and the items of the test', async ({ page }) => {
+    const app = new App(page, PRODUCT);
+    await serve(app.page, {
+      '/tasks': html(
+        `<section data-bz="screen:task-list"><div data-bz="state:loaded">Tasks</div></section>
+         <form id="form"><input data-bz="field:title"><button type="submit" data-bz="action:submit">Save</button></form>`,
+        `document.getElementById('form').addEventListener('submit', async (event) => {
+           event.preventDefault();
+           await fetch('/api/tasks/', { method: 'POST', body: '{}' });
+           event.target.remove();
+         });`,
+      ),
+    });
+    await app.page.route('http://bazis.test/api/tasks/', (route) =>
+      route.fulfill({ status: 201, contentType: 'application/vnd.api+json', body: JSON.stringify({ data: { type: 'tasks.task', id: 'new' } }) }),
+    );
+    await app.page.goto('/tasks');
+    await app.expectScreen('task-list');
+    await app.submit({ saved: true });
+    // a notification that came after the test started, before the other session opened
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const time = new Date().toISOString();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // the guest: an anonymous role, no login
+    const visitor = await sessionAs(app, 'visitor');
+    expect(visitor.page.context()).not.toBe(page.context());
+    const row = (id: string) => `<tr data-bz="row:${id}" onclick="document.body.dataset.opened = '${id}'"><td data-bz="cell:title">Write the report</td></tr>`;
+    await show(
+      visitor.page,
+      '/tasks',
+      html(
+        `<section data-bz="screen:task-list"><div data-bz="list:task"><div data-bz="state:loaded"><table><tbody>${row('old')}${row('new')}</tbody></table></div></div></section>
+         <button data-bz="action:notifications" id="bell">Notifications</button>`,
+        `document.getElementById('bell').onclick = () => {
+           document.body.insertAdjacentHTML('beforeend', '<ul data-bz="list:notifications"><li data-bz="notification:1">Task suggested<time datetime="${time}">now</time></li></ul>');
+         };
+         document.addEventListener('keydown', (event) => {
+           if (event.key === 'Escape') document.querySelector('[data-bz="list:notifications"]')?.remove();
+         });`,
+      ),
+    );
+    await visitor.expectScreen('task-list');
+    // the item that the submit of the first session created
+    await visitor.openItem({ where: { title: 'Write the report' }, created: true });
+    await expect(visitor.page.locator('body')).toHaveAttribute('data-opened', 'new');
+    await visitor.expectNotification('Task suggested');
+  });
+
+  test('opens no session in a test of Playwright, which would not close it', async ({ page }) => {
+    await expect(sessionAs(new App(page, PRODUCT), 'visitor')).rejects.toThrow('import `test` from there');
+    expect(page.context().browser()?.contexts()).toEqual([page.context()]);
   });
 });

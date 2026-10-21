@@ -19,7 +19,9 @@ actions:
   - id: suggest
     primitive: custom
     action: suggest
-    fields: [title]
+    fields: [title, photos]           # the photos uploaded in the dialog, before its submit
+    labels:
+      photos: {en: Photos of the place, ru: Фотографии места}
     label: {en: Suggest a task, ru: Предложить задачу}
     description: {en: The team sees it among its drafts., ru: Команда увидит её среди черновиков.}
     message: {en: The task is suggested., ru: Задача предложена.}

@@ -27,7 +27,7 @@ import { useRef, useState, type ReactNode } from 'react';
 
 import type { CustomActionName } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { customActionAt, useAnyAction, useAnyItemAction, useListFields } from '@/bazis/ui/resource';
+import { customActionAt, useAnyAction, useAnyItemAction, useListFields, useUploads } from '@/bazis/ui/resource';
 import type { BulkAction, RowAction } from '@/bazis/ui/resource-list';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -128,6 +128,8 @@ export function useCustomAction({
   // the items (the route set: '') whose request runs: a click on one of them again sends
   // nothing, one on another item runs beside it
   const running = useRef(new Set<string>());
+  // the fields of the dialog whose files upload: it waits for them
+  const { uploading, onBusy } = useUploads();
   const declared = customActionAt(path, action, target === 'item');
   if (declared === undefined) {
     throw new Error(`The contract has no custom action "${action}" of the ${target} of ${path}: export the contract again.`);
@@ -183,7 +185,7 @@ export function useCustomAction({
             className="grid gap-4"
             onSubmit={(event) => {
               event.preventDefault();
-              submit(open.item, values);
+              if (!uploading) submit(open.item, values);
             }}
           >
             <DialogHeader>
@@ -205,6 +207,7 @@ export function useCustomAction({
                 onChange={(name, value) => {
                   setValues((current) => ({ ...current, [name]: value }));
                 }}
+                onBusy={onBusy}
               />
             )}
             <DialogFooter>
@@ -219,7 +222,11 @@ export function useCustomAction({
               >
                 {t('action.cancel')}
               </Button>
-              <Button type="submit" data-bz={fields.length ? 'action:submit' : `action:confirm-${id}`} disabled={mutation.isPending}>
+              <Button
+                type="submit"
+                data-bz={fields.length ? 'action:submit' : `action:confirm-${id}`}
+                disabled={mutation.isPending || uploading}
+              >
                 {mutation.isPending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
                 {label}
               </Button>

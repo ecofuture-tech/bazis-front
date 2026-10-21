@@ -64,14 +64,22 @@ creates a task: the action of the public screen `public-tasks` of the anonymous 
 `visitor` of the specs (the permit role `viewer`, `for_anonymous`), whom bazis-permit refuses
 the create route (`tests/test_suggest.py`), also from the public form of the action
 `suggest-task` (`primitive: form` with `form.action`, its result showing the `task` of the
-answer), the custom actions of the specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
+answer, whose `title` the scenario `manager-opens-a-suggested-task` remembers in the session of
+the guest, `as` and `remember`, to open the task in that of the manager), and the custom action `export` (`POST /api/v1/tasks/task/export/`, a JSON body
+`{priority}`, `access_action` view, `tests/test_export.py`), which answers the CSV of the tasks the user views, `tasks.csv` (a
+`response_class` of `text/csv`: `file` of its custom action in the contract), saved by the form
+of the action `export-tasks` (its result showing `{filename}`), the custom actions of the
+specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
 `card.related` of the card of a task, added there with the task fixed, to a draft only:
 `Step.validate_item`, `tests/test_steps.py`), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of
 bazis-uploadable, routed as it is: it requires a user and gives him only his own files,
 also to the other routes, so the core refuses as the attachment of a task a file of another
 user, 403 `ERR_RELATION_ACCESS`, and leaves it out of `included`: `tasks.routes.TaskRouteSet`
-has no check of its own); the auth endpoint and the password service of
+has no check of its own), and whose `photos` are the files that a guest attaches to the task he
+suggests (`photos: list[UploadedFileId]` of the body of `suggest`: the anonymous uploads of
+bazis-uploadable 2.8, on in `sample/project.env` with a size limit, read by the team through
+`files_visible`; `tests/test_suggest.py`); the auth endpoint and the password service of
 bazis-authing are routed under `/api/v1/authing/`, so that the login of the frontend of the
 sample is that of bazis-authing (the token endpoint of bazis-users stays). The sample is in
 English and Russian (`BS_LANGUAGES` of `sample/project.env`, `LANGUAGE_CODE` `en`): the
@@ -88,7 +96,9 @@ The user model of the sample has a language of its own
 and the end-to-end test `frontend-overlay/e2e/custom/profile-language.spec.ts` check
 (`e2e_data` clears the language of the test users). The roles (with their permission
 groups) are declared in `sample/tasks/roles.py`, the statuses and transits in
-`sample/tasks/workflow.py` (bazis-permit and bazis-statusy 2.9): `migrate` and the flush
+`sample/tasks/workflow.py` (bazis-permit and bazis-statusy 2.9; the payload of `reopen` is the
+id of a user, `relation: user` of the specs, asked for with the picker of the assignee in its
+dialog, `manager-reopens-a-task-for-a-user`): `migrate` and the flush
 of a `transaction=True` test apply them, so no fixture of the tests creates them (the
 pytest plugin of bazis-test-utils 2.5 also installs the triggers of `pgtrigger`), and
 `tests/test_e2e.py` checks the contract of the migrated database against `sample/spec/`;
@@ -267,7 +277,9 @@ job of CI.
   the scenario created: `created`, its `where` has the values filled in a create form of the
   scenario before, generated as `created: true`, so that the test takes the item it created
   and not one of a previous run, the scenarios running again on a database that keeps them;
-  P033 and P034 report the scenarios that would not) in `validate.Result.specs`, which
+  P033 and P034 report the scenarios that would not; the sessions of `as`, each with its
+  `_State` and its card, and the values of `remember`, `$<name>`, are walked there too) in
+  `validate.Result.specs`, which
   `spec/e2e.py` turns into calls of the Playwright helpers. A new step or `expect` key changes both, the schema, the
   helpers (`assets/playwright`) and the table of the steps in `bazis/contrib/front/AGENTS.md`.
 - `spec/theme.py` (`bazis_front design`, also run by `init`) compiles the design into

@@ -24,6 +24,7 @@ import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import type { AggregatesMeta, PaginationLinks, PaginationMeta, PermitMeta } from '@/bazis/client';
 import {
   useAction,
+  useActionFile,
   useDownload,
   useDownloadUrl,
   useFilterFields,
@@ -119,6 +120,12 @@ export const useAnyAction = useAction as unknown as (
   path: string,
   name: string,
 ) => ActionMutation<unknown, Readonly<Record<string, unknown>>>;
+
+/** `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name. */
+export const useAnyActionFile = useActionFile as unknown as (
+  path: string,
+  name: string,
+) => ActionMutation<string, Readonly<Record<string, unknown>>>;
 
 /** `useItemAction(path, name)`: a custom action of an item (POST), `mutateAsync({id, body})`. */
 export const useAnyItemAction = useItemAction as unknown as (

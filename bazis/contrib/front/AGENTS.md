@@ -352,6 +352,7 @@ entities:
       transitions:
         - {id: start, from: draft, to: in_progress}
         - {id: finish, from: in_progress, to: done, payload: {fields: [{id: report, type: text}]}}
+        - {id: reopen, from: done, to: in_progress, payload: {fields: [{id: assignee, relation: user}]}}
     access:
       manager:
         view: all
@@ -468,7 +469,9 @@ headed by the values of the first two fields of its sections.
 
 **Workflow**: the statuses and the transits of bazis-statusy; a transit has one `from`
 (a Transit row has one source status), and `payload` when an action of the transit takes
-a typed payload (a decimal field of it is `string`, as the field of an entity, or `number`). The ids are those of the Status and Transit rows, including those that
+a typed payload (a decimal field of it is `string`, as the field of an entity, or `number`;
+the id of an item is `relation: <entity>`, a property named as a to-one relationship of the
+entity to it: its picker in the dialog, P017). The ids are those of the Status and Transit rows, including those that
 bazis-statusy generates for a Transit created without one (`task#draft_to_done`,
 `task#draft_to_done#1`); any characters but `.` and white space.
 
@@ -559,7 +562,16 @@ current calendar; a day from the day of the run, `today±<n>` in UTC, for the da
 `e2e_data` sets from the day of the run),
 `error`, `notification` (a notification of the user whose text contains the text, in the
 list of the notifications; the product has bazis-notify or bazis-ws, `packages` has
-`notify` or `ws`: P027). The
+`notify` or `ws`: P027), `as: <role>` (the next steps run in the session of the role, a
+context of the browser of its own, its `test_user` logged in the first time: P004, P025;
+each session has its screen, its form and its card, the items created and the values
+remembered are of the whole scenario), `remember: {<name>: <property>}` (after the `submit`
+of the form of an action with `result`, a property of its answer, `filename` of a file:
+`$<name>` is that value in `fill`, `where`, `values` and `payload` of the next steps, in any
+session; P022 without the result in the session, for a property its answer does not have
+or that is not a text or a number, or a `$<name>` not remembered before; an item found by
+it is one the run made, which the scenario may change: no P033; remember what the server
+made, a number or an id, not the echo of a text typed, which an older item may have). The
 validator follows the steps from screen to screen
 and checks each against the screen it acts on: `open` takes a screen without an item in
 its route (an item is reached with `open_item` or the `then` of a form), a form with
@@ -580,6 +592,26 @@ when one of its `roles` is anonymous: the frontend routes it outside the screens
 session, and a scenario of the role opens only public screens (P035; see
 [The routes and the navigation](#the-routes-and-the-navigation)). `bazis_front e2e` turns
 each scenario into a Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
+
+A flow of several users is one scenario: the board of the dispatcher shows the order of a
+guest live (`LiveQuery`: `open_item` waits for its row, no reload), the master is notified:
+
+```yaml
+- id: a-guest-order-is-assigned
+  role: dispatcher
+  steps:
+    - open: order-board
+    - as: client                      # anonymous: no login
+    - open: new-order
+    - fill: {address: 1 Main St}
+    - submit: {}                      # its result: `Order No. {number}`
+    - remember: {number: number}
+    - as: dispatcher
+    - open_item: {where: {number: $number}}
+    - transit: {id: assign, payload: {master: Bob Stone}}
+    - as: master
+    - expect: {notification: assigned to you}
+```
 
 ## The specs of the screens and the design
 
@@ -898,9 +930,9 @@ aggregate of its `value` over them: `{sum: <field>}`, `{avg: …}` of a number, 
 of the entity, that of a row of the last items a card of it (S006). **A tile, a chart and
 the last items are shown to the users whom the backend lets view their entity**
 (`useCan(path, 'view')`, `Viewable` of the dashboard): one dashboard serves every role of the
-screen, the tiles of the invoices shown to the receptionist and not to the doctor who may
-not view them, without an `extend` (a part of an entity that no role of the screen may view
-is never shown). A chart is by `status`
+screen, the tiles of the invoices shown to the receptionist and not to the doctor, without an
+`extend`. `requires: {can: add}` of a part asks that the user may add an item too, as that of
+a link: the tile "New" of the dispatcher, not of the master (S030: no create route). A chart is by `status`
 (an entity with a workflow: a value for each status) or by a field `date` or `datetime`, a
 value for each `bucket` (`day`, `week`, `month`; a week by default), the `last` ones up to the
 current one (12 by default) (S021); the value is the count of the items, or the `{sum: …}`
@@ -920,9 +952,7 @@ core aggregates only the fields that the filter of the list reaches for the user
 over too many groups it answers 400 `ERR_AGGREGATE`, which the part shows as its error. The
 last items are a list sorted by `sort` with `page[limit]`; a board lists each column with
 `filter=status=<id>` (more items by its pagination), a calendar the items of the period
-shown with a range of its field (a month in one list of up to 500 items). A dashboard over
-thousands of items is a few requests, which the cache of the queries keeps and the live
-updates refresh. The fields they filter and sort by are those of the contract (S008).
+shown with a range of its field (a month in one list of up to 500 items). The fields they filter and sort by are those of the contract (S008).
 
 A board shows the items of an entity with a workflow (S022) in a column for each status of
 `columns` (the statuses of the workflow, all of them in their order by default); an item
@@ -1077,10 +1107,10 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.13.0, bazis-uploadable 2.7.0, bazis-bg 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
 | `C005` | warning | the Google login of the contract is that of bazis-authing 2.7 or older (`GET`), which the login screen does not offer: upgrade bazis-authing to 2.8.0 (it requires bazis 2.19) and export the contract again; the password login works with 2.6 |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
-| `P002` | error | spec/product.yaml does not follow product.schema.json |
+| `P002` | error | spec/product.yaml does not follow product.schema.json (a key with a space or a letter beyond ASCII is the text after the comma of a flow mapping, `{a: x, y}`: quote the text) |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
-| `P004` | error | an unknown role (in access or in a scenario) |
-| `P005` | error | a relation references an unknown entity |
+| `P004` | error | an unknown role (in access, in a scenario or in its step `as`) |
+| `P005` | error | a relation (of a field or of a payload) references an unknown entity |
 | `P006` | error | the workflow is inconsistent: a status or a transition that the workflow of the entity does not declare |
 | `P010` | error | a package is not installed: the contract has no section for it |
 | `P011` | error | the resource of an entity is not in the contract |
@@ -1089,28 +1119,28 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P014` | error | the entity has a workflow, the resource is not a statusy model of the contract |
 | `P015` | error | a status of the workflow is not in the contract, or the initial status differs |
 | `P016` | error | a transition is not in the contract, or its from/to differ |
-| `P017` | error | the payload of a transition differs from the contract (a decimal is `string` or `number`) |
+| `P017` | error | the payload of a transition differs from the contract (a decimal is `string` or `number`; a field with `relation` is the id of an item named as a to-one relationship of the entity to it) |
 | `P018` | error | the permit role of a role is not in the contract |
 | `P019` | error | the permit role lacks a permission that `access` grants |
 | `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a field of its path is not a relationship (a relation that the contract does not describe is not checked) |
 | `P021` | error | a scenario step references an unknown screen |
-| `P022` | error | a scenario step is not possible on the current screen |
+| `P022` | error | a scenario step is not possible on the current screen (of the session of the step); a `remember` not after the result of the form of an action, of a property that its answer does not have or that is not a text or a number, or of a name remembered before; a `$<name>` that no `remember` before took |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
 | `P024` | error | a scenario step references an unknown status or transition, or its payload differs |
-| `P025` | error | the role of a scenario has no `test_user` and is not `anonymous`, and the product logs in (`packages` has `users`) |
+| `P025` | error | the role of a scenario or of its step `as` has no `test_user` and is not `anonymous`, and the product logs in (`packages` has `users`) |
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has neither `notify` nor `ws`) |
 | `P028` | error | `packages` has `ws`, and the contract has no path of the socket: the socket of bazis-ws is not routed where the export sees it (the router module) |
 | `P029` | error | the languages of the product differ from the contract (`languages`: LANGUAGES, `language`: the code of LANGUAGES that LANGUAGE_CODE names), or `language` is not one of `languages` |
 | `P030` | error | an anonymous role is not what bazis-permit gives the users who do not log in: its permit role is not `for_anonymous`, it has `access` without a permit role, or a selector of its access is not `all` |
 | `P031` | error | the `label` of an entity names a field that the entity does not declare |
-| `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`) |
-| `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is |
+| `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`); the end-to-end tests would name the sessions of two roles alike (`team-lead` and `team_lead`: `asTeamLead`). Rename one |
+| `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is; not for a role whose `access` has no `add` for the entity (it cannot create one: `e2e_data` creates the item afresh at every run, the scenario opens it by `where`), nor for one found by a value it remembered (`$<name>`: an item that an action of the run made) |
 | `P034` | warning | a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs |
 | `P035` | error | a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`), by `open`, `open_item` or the `then` of a form: the frontend sends a user without a session to the login. List the role in `roles` of the screen, or give the scenario a role that logs in |
 | `P036` | warning | `packages` has `users`, the contract has no route of the user resource, and a field relates to it (the author of a status, an assignee): the screens label the users by the start of their id. Register the user route set of the project, see "The users that the pickers offer" |
 | `S001` | error | a screen file is not valid YAML |
-| `S002` | error | a screen does not follow screen.schema.json |
+| `S002` | error | a screen does not follow screen.schema.json (a key that is a piece of a text: as P002) |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
 | `S004` | error | a screen references an unknown entity |
 | `S005` | error | a screen references an unknown role |
@@ -1138,9 +1168,9 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S027` | warning | a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them (a key of the dictionaries is in all); the frontend shows the text of another language |
 | `S028` | error | a custom screen has no code: the module of `custom` (`frontend/src/screens/<id>/index.tsx` for `custom: true`) is missing, or does not export its component |
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run) |
-| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, the form of a custom action (it requires its action, `custom_actions` of the list: remove `requires`), or `can: add` of a resource without a create route |
+| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, the form of a custom action (it requires its action, `custom_actions` of the list: remove `requires`), or `can: add` of a resource without a create route (also `requires: {can: add}` of a tile, a chart or the last items of a dashboard) |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
-| `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
+| `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); one that answers a file (`file` of its custom action) anywhere but in a form, which saves it; or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
 | `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`), or two custom bulk actions of a list |
 | `S034` | error | the add of a calendar creates the item on the selected day, in a field that the create route of its resource does not take (a date that the backend sets, such as that of the creation: the day is lost), or the resource has no create route |
 | `S035` | warning | the buttons of the create forms of a screen cannot be told apart: two create actions (or the add of a calendar) with the same label, or without one (both say `Create`), or a create action of a dashboard without a label |
@@ -1160,9 +1190,11 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S049` | error | The `value` of a tile or a chart aggregates a field of a type that its function does not take: `sum` and `avg` take a number (`integer`, `number`, a DecimalField: a `string` of the format `decimal` in the contract), `min` and `max` (a tile) also a date. Aggregate a number or a date, or count the items without `value` |
 | `S050` | error | The `value` of a tile or a chart aggregates a field that the route set of the entity does not filter by (no `filter` in the contract): the core aggregates the fields that the filter of the list reaches for the user (400 `ERR_AGGREGATE`). Make the field filtered by in the route set, or show another one |
 | `S052` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the picker of a relationship whose entity an anonymous role of the screen does not view (`access` of the entity in product.yaml, `view` of the role): the picker of a guest is refused (403). Let the role view the related items (`access` and the permit role of the anonymous users), or leave the property out |
-| `S053` | error | the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON. Give the action a `response_model` with it and export the contract again, or show another property |
-| `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
+| `S053` | error | the `title` or the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON; an action that answers a file (`file`) answers `{filename}` only. Give the action a `response_model` with it and export the contract again, or show another property |
+| `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship or of uploaded files); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
 | `S055` | error | the id of the screen is the mark of the menu of the top bar, `more`: its links (`nav:more`) would be marked as the menu of the links that the top bar has no room for. Give the screen another id |
+| `S057` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the id of an uploaded file (`UploadedFileId` of bazis-uploadable, `x-relation` of its files), and the contract does not let the guests upload files (`anonymous` of `uploadable`): their upload is refused (401). Turn the anonymous uploads of bazis-uploadable 2.8 on (`BAZIS_FILE_UPLOAD_ANONYMOUS` with `BAZIS_FILE_UPLOAD_MAX_SIZE`) and export the contract again, or leave the property out of the public screen |
+| `S058` | warning | a property of the body of a custom action (in its dialog or its form) has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.21): the form offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1413,7 +1445,7 @@ differ from the backend; `--check` does the same in CI.
     "authing": {"auth_url": "/api/v1/authing/auth/", "logout_url": "/api/v1/authing/logout/",
                 "actions": [{"code": "password", "name": "Login/Password", "method": "POST",
                              "url": "/api/v1/authing/password/"}]},
-    "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"]},
+    "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"], "anonymous": false, "anonymous_types": []},
     "ws": {"path": "/api/v1/ws"},
     "bg": {"resource": "bg.task"},
     "notify": {"resource": "notify.notification"},
@@ -1463,9 +1495,9 @@ differ from the backend; `--check` does the same in CI.
   be filtered or sorted: they are those the core takes (bazis 2.9), the fields of the LIST
   schema of the route set that can filter or order (`query_fields`), so a field of the item
   schema that the LIST schema does not have has neither. `search` lists the search fields of
-  the route set (`search_fields`, as declared) that its LIST schema reaches, those the core
-  searches with `search`; empty, the route set has no search, and a `search` is 400
-  `ERR_FILTER`. Both are read for the LIST schema of the route set itself: a package that
+  the route set that its LIST schema reaches (`search_fields` as declared, else, bazis 2.20,
+  the text fields of the schema), those the core searches with `search`; empty, the route
+  set has no search, and a `search` is 400 `ERR_FILTER`. Both are read for the LIST schema of the route set itself: a package that
   narrows it per user (the field permissions of bazis-permit) may refuse a field for some
   users.
 
@@ -1481,7 +1513,9 @@ differ from the backend; `--check` does the same in CI.
   `logout_url`, null when it is not routed), `uploadable` (`max_size`, the
   `BAZIS_FILE_UPLOAD_MAX_SIZE` of an upload in bytes, null for no limit; `resources`, the
   JSON:API types of the route sets of `FileUploadRouteSet` and its subclasses: a to-one
-  relationship to one of them is a file), `permit`
+  relationship to one of them is a file; `anonymous`, whether guests upload files,
+  `BAZIS_FILE_UPLOAD_ANONYMOUS` with a size limit of bazis-uploadable 2.8, and
+  `anonymous_types`, the media types they may, empty when they may not), `permit`
   (the roles with the slugs of their permission groups and their effective permissions:
   the union of the permissions of the groups, as bazis-permit checks them for the current
   role of a user; a role has no permissions of its own; `selectors`, the selectors of every
@@ -1595,7 +1629,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects, or the aggregate of their field of `value` (`{sum}`, `{avg}`, `{min}`, `{max}`, formatted by `display`), from the aggregates of the core (a list of one item with `meta.aggregates`), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded, a date of `min` or `max` as its ISO text), `state:<loading\|loaded\|error\|forbidden>` | |
-| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
+| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, and add an item too with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
 | `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), both the count of the items or the `{sum}` or `{avg}` of a field of `value`, from the groups of the aggregates of the core, `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
 | `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, the transits of `meta.for_transit` of the lists of the columns (bazis-statusy 2.13), `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (the transits of `for_transit` of its list; an item without one has no `action:move` and cannot be dragged) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
@@ -1605,8 +1639,8 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
-| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation), from `state_actions` of the request of the item that its card shares (`ITEM_META`); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
-| `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`): `FileField` becomes the control of the file fields of `FieldInput` (the forms); `FileField`, `accepts(file, accept)`, `MAX_SIZE` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while its file uploads), its errors `error:<name>` | `uploadable` |
+| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation), from `state_actions` of the request of the item that its card shares (`ITEM_META`); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload (a property named as a to-one relationship: its picker) or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
+| `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`, `guest`): `FileField` and `FilesField` become the controls of the file fields of `FieldInput` (the forms, the bodies of the actions); `FileField`, `FilesField`, `accepts(file, accept)`, `MAX_SIZE`, `ANONYMOUS_ACCEPT` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while a file uploads), the files `file:<i>` and `action:remove-file-<i>` of `FilesField`, its errors `error:<name>` | `uploadable` |
 | `live-query` | `LiveQuery`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` and `CAPABILITIES.notify.resource` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter`: a bell with the count of the unread notifications, their list (a click marks one read and opens it, `onOpen`), mark all read, a toast for each new one (`toasts`); `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only, which also has `clear`: forget those of the session); the stored notifications are deleted only with `onDeleteAll={inbox.deleteAll}`, after a confirmation | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` (`useNotifications`), `action:delete-notifications` and `action:confirm-delete-notifications` (`onDeleteAll`) | none (its source: `notify` or `ws`) |
 | `task-progress` | `TaskProgress` (the task of its `id`), `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
@@ -1670,12 +1704,12 @@ of the specs and the paths of `ROUTES`.
 | an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | `primitive: custom` in the spec when a button, its fields and its toast say it all ("Custom actions of the specs"); else a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
 | `card.tabs` | `tabs` of `ResourceCard`: `{id, title, sections: [...]}`, a related section or the history as its `content` (`(item, meta) => <RelatedList …/>`, `(item) => <StatusHistory resource={item} />`); the `TransitBar` in the `children`, above the tabs |
 | `list.bulk` (a transition, a deletion) | `bulk` of `ResourceList`: `{id, label, run: (id) => transit.mutateAsync({id, transit: '<transit>'})}` with `const transit = useItemsTransit(path)` of `@/bazis/react/statusy`, or `run: (id) => destroy.mutateAsync(id)` with `permission: 'delete'` |
-| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, value, display, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`, `value`; each in `<Viewable path={…}>` of `@/bazis/ui/dashboard`, as a tile and the last items, so that a role the backend does not let view the entity sees none of them), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
+| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, value, display, label, tone, icon, onOpen, requires}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`, `value`; each in `<Viewable path={…}>` of `@/bazis/ui/dashboard` (`can="add"` for `requires`), as a tile and the last items, so that a role the backend does not let view the entity sees none of them), `recent` (`{id, path, label, columns, sort, limit, onOpen, requires}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
 | `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`title` and `fields` of `card`, `badge`, `columns`, `filters`, `move` and `transits={ENTITY.transits}` for `move: true` (the moves in the order of `workflow.transitions`, with their `confirm`), `onOpen`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
 | `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (initial) => …}}`: `initial` is an object of the values the create form starts with (`{<field>: day}`, the moment of `time` for a date-time, `end`, the choice of a filter), given as `initial={initial}` to the `ResourceForm` in `FormSurface`, which the user may change; the generated screen passes `onAdd: <form>.onOpenWith` of `CreateFormAction.use()`) |
 | the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
-| `primitive: form` with `form.action` | `ActionForm` of `@/bazis/ui/screens` (`path`, `action`, `fields`, `labels`, `submitLabel`, `result: {title, message: (response) => t(key, response)}`, `then: {screen, label, to}` with a result, else `onDone`) |
+| `primitive: form` with `form.action` | `ActionForm` of `@/bazis/ui/screens` (`path`, `action`, `fields`, `labels`, `submitLabel`, `result: {title, message: (response) => t(key, response)}`, the title a function too when it shows the answer, `then: {screen, label, to}` with a result, else `onDone`) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, titled by `title` of the action, a question, `Delete this item?` by default, and saying its `description`: the deletion runs once confirmed) |
 | an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`path`, `action`, `target`: `route` in the toolbar of a list, else `item`, `item` of a card, `fields`, `labels`, `confirm`, `message`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
@@ -1835,7 +1869,9 @@ screen (`RequireSession` within it), mounted once across them: with a session, e
 link, the logout and the tools; without one (`session={null}`), only the links of the
 public screens (`public: true` of their `NavItem`, a group with its public links), no tools
 (the notifications and the live queries need a session) and the sign-in `action:sign-in`
-(`signIn` of `AppShell`), which opens `/login` and comes back to the screen after the
+(`signIn` of `AppShell`), which opens `/login`; after the login the user is at home. A guest
+who opens `/`, a screen of a session, is led to the first public link of the navigation
+(`GUEST_HOME` of `routes.tsx`, null when `/` is public itself or no link is), not to the
 login. Their screens read only what the backend gives anonymous users (a permit role
 `for_anonymous`; a 401/403 is the `forbidden` state of a screen, never a redirect). A
 guest writes only through a custom action declared `public=True` (S046; its throttle,
@@ -2020,16 +2056,17 @@ member has all the fields any row can show). Check them in the scenarios with `e
 
 ### Relationships
 
-**Relationships**: `RelationPicker` (a to-one relationship in a form, a payload, a filter)
-is a combobox over the list of the related resource, read page after page (`Load more`),
+**Relationships**: `RelationPicker` (a to-one relationship in a form, a payload, a filter;
+a property of a body or of a payload named as a to-one relationship of the entity is its
+picker, `relatedField`) is a combobox over the list of the related resource, read page after page (`Load more`),
 that clears a nullable value: choose a related item with it, never with a list of every
 item. It searches the backend (`search`) only when the route set
 of the related resource has search fields (`search` of the resource in the contract; the
-prop `searchable` overrides it): the core answers a search of a route set without
-`search_fields` with 400 `ERR_FILTER` (bazis 2.9), so without them the picker lists the
-items without a search box, and `check` warns of such a picker (S012). **Give the route
-sets that the pickers list `search_fields`** (fields of their LIST schema, such as
-`username`); `RelationLabel` shows a related item, the
+prop `searchable` overrides it): the core answers a search of a route set without them
+with 400 `ERR_FILTER` (bazis 2.9; `search_fields = []`, or, before bazis 2.20, none
+declared), so the picker lists the items without a search box, and `check` warns of such a
+picker (S012). **Give the route sets that the pickers list `search_fields`** (fields of
+their LIST schema, such as `username`); `RelationLabel` shows a related item, the
 items of a resource shown together (the rows of a page) read with one request
 (`useRelatedItem`, `filter=pk=<a>|pk=<b>|…`; a skeleton marked `state:loading` until then,
 which the helpers of the end-to-end tests wait for). Both need the route of the related
@@ -2110,22 +2147,29 @@ lists. The content (the download, the thumbnail) is read with the token from
 the media host, which serves it to anyone who has the link; the file of
 another user, which bazis-uploadable does not give (a 404), is `file:unavailable`
 ("File not available"). In the
-forms, with `FileFieldProvider` around the routes (`GeneratedProviders`, once an entity of
-the specs has a file field), `FieldInput`
+forms, with `FileFieldProvider` around the routes (`GeneratedProviders`, once `packages` has
+`uploadable`), `FieldInput`
 edits it with `FileField`: a drop zone and a picker, the file uploaded at once with its
 progress and a cancel (one file at a time: another one is not taken while it uploads),
 its id set as the value of the relationship, a replace and a
 remove (when the relationship is nullable); a file larger than `max_size` of the
-contract, or of a type that `accept` refuses, is not sent, and the 413
-`ERR_FILE_TOO_LARGE` of the backend is the error of the field; `ResourceForm` is not
-submitted while a file uploads. Without the provider the field is the picker of a
-relationship. The payloads of the transits have no files (a payload has no
-relationships).
+contract, or of a type that `accept` refuses, is not sent, and a refusal of the backend
+(413 `ERR_FILE_TOO_LARGE`, 422 of its type or its name, 429 of the rate) is the error of
+the field; the file chosen is shown from the browser (its name, its size, a thumbnail of
+an image), not read back. A many-to-many field to the files, or `list[UploadedFileId]` in
+the body of an action, is `FilesField`: several files chosen or dropped at once, uploaded one
+after the other, listed (`file:<i>`) with a cancel or a remove (`action:remove-file-<i>`)
+until the submit, the value the ids in their order; the specs have no to-many file field
+(`type: file` is a to-one relationship), so it is asked for in a body or in the code of a
+screen. `ResourceForm`, the form and the dialog of an action are not submitted while a file
+uploads. Without the provider the field is the picker of a relationship. The payloads of
+the transits have no files (a payload has no relationships).
 
-With bazis-uploadable, `manage.py bazis_front add file-field` and wrap the routes in
-`FileFieldProvider`, so that the forms upload the files of their file fields (without it a
-file field is the picker of the uploaded files); `accept` limits the types of a field, the
-size limit is `max_size` of the contract:
+With bazis-uploadable the generated providers wrap the routes in `FileFieldProvider` (`screens`
+copies `file-field`; a frontend without generated screens adds it with
+`manage.py bazis_front add file-field`), so that the forms upload the files of their file
+fields (without it a file field is the picker of the uploaded files); `accept` limits the
+types of a field, the size limit is `max_size` of the contract:
 
 ```tsx
 import { FileFieldProvider } from '@/bazis/ui/file-field';
@@ -2134,6 +2178,26 @@ import { FileFieldProvider } from '@/bazis/ui/file-field';
   <BrowserRouter>…</BrowserRouter>
 </FileFieldProvider>
 ```
+
+### Anonymous uploads
+
+**Anonymous uploads** (bazis-uploadable 2.8): a public form with files, the photos that a
+guest sends with a request. The backend turns them on with `BAZIS_FILE_UPLOAD_ANONYMOUS=true`
+and a size limit, `BAZIS_FILE_UPLOAD_MAX_SIZE`; the contract has them (`anonymous` and
+`anonymous_types` of `uploadable`), and a property of the body of a public action that takes
+uploaded files without them is S057 (the guest would get 401). The body takes
+`photos: list[UploadedFileId] = []`; the action attaches the files of a guest with
+`FileUpload.objects.anonymous(data.photos)` and those of a user by their ids among his own
+(a missing one is a 422 at `/photos`), and the route set of the model declares
+`files_visible` for its readers (the sample: `suggest` of `tasks/routes.py`). Without a
+session (`FileFieldProvider guest`, which the generated providers set from the token) the
+fields take the types of `anonymous_types` (recognized by their content: JPEG, PNG, WebP),
+of at most `max_size`; a guest reads back a token as the id and never the file, which the
+form shows from the browser. The backend limits the uploads of a guest by the rate
+(`BAZIS_FILE_UPLOAD_ANONYMOUS_RATE`, a 429 is the error of the field) and deletes those that
+nothing references after `BAZIS_FILE_UPLOAD_ANONYMOUS_TTL` hours
+(`manage.py uploadable_clean_anonymous`, run on a schedule). Upload one in a scenario with
+`upload: {field: photos, file: <an image of e2e/fixtures/>}`.
 
 ### The uploaded files belong to their author
 
@@ -2243,7 +2307,8 @@ resource after it (`invalidate: false` for an action that changes nothing); its 
 is the `ApiError` (`StatePanel` `errorState(error)`), and `errors` gives the errors of its
 body by field (the core points them to `/<field>` of a JSON body: `ApiError.bodyErrors()`).
 An action that queues a task of bazis-bg answers with its id: show it with `TaskProgress`
-(`<TaskProgress id={action.data.task} />`). The arguments of an action that are neither in
+(`<TaskProgress id={action.data.task} />`); one that answers a file (`file` of its custom
+action in the contract) is `useActionFile(path, '<name>')`, which saves it. The arguments of an action that are neither in
 its path nor in its body (`code: str`, `year: int | None = None`; a list with `Query()`)
 are its query parameters: `useActionQuery(path, '<name>', {query: {code}})` (and
 `useItemActionQuery`, `client.action(path, name, undefined, {method: 'get', query})`), typed
@@ -2292,16 +2357,24 @@ contract (the JSON Schema of the body, `body` of its custom action), whatever th
 read: a property named as a relationship of the entity (`relation` of its field in the
 contract) is the picker of its related items, `RelationPicker` for a text (the id of the item)
 and `RelationListPicker` for an array (a to-many one), the related route set searched by its
-search fields (S012, S017); another is a field of its type (a `Decimal` typed with a point or
-a comma; the choices of an enum). Its label is that of `labels`, else the title of the field
-of the entity (in a dialog, of the runtime schema of the list, in the language of the
-interface; else of the contract), else the title of the property of the body. Name the
-properties of the body as the fields of the entity: a relationship is then a picker and a
-title is translated. A property that no field takes (a union, an object, an array of no
-relationship) is typed as JSON (S054, a warning): fill it in the code of the screen. On a
-public screen, the picker of a relationship lists items that the anonymous role views
-(`access` of the related entity in product.yaml, `view` of the role: S052; an entity without
-`access` is left to the backend), else a guest gets 403.
+search fields (S012, S017); a property whose JSON Schema names the resource of its ids,
+`x-relation` of a text or of the items of an array, is the same picker of that resource,
+and for the uploaded files of bazis-uploadable (`UploadedFileId`, `list[UploadedFileId]`) the
+upload of a file field: `FileField` for one, `FilesField` for a list (see
+[Files](#files)); another is a field of its type (a `Decimal` typed with a point or a comma;
+the choices of an enum, offered by their labels, `enumDict` of the `TextChoices` of a model
+with bazis 2.21, else by their values: S058, a warning). Its label is that of `labels`, else
+the title of the field of the entity (in a dialog, of the runtime schema of the list, in the
+language of the interface; else of the contract), else the title of the property of the
+body. Name the properties of the body as the fields of the entity: a relationship is then a
+picker and a title is translated. A property that no field takes (a union, an object, an
+array of no relationship) is typed as JSON (S054, a warning): fill it in the code of the
+screen. On a public screen, the picker of a relationship lists items that the anonymous role
+views (`access` of the related entity in product.yaml, `view` of the role: S052; an entity
+without `access` is left to the backend), else a guest gets 403; the files are uploaded by
+the guest only when the contract lets the guests upload (`anonymous` of `uploadable`: S057).
+A scenario uploads a file of the body with `upload` (P022 for `fill`). The dialog and the
+form are not submitted while a file uploads, nor twice while their request runs.
 
 ### The form of a custom action
 
@@ -2311,8 +2384,8 @@ suggestion of a guest, without code of its own. `fields` are the properties of t
 it asks for (required: those that the body requires among them, S032), `labels` their labels,
 `submit` the label of its button (`Send` by default). Once the action is done, the page shows
 its `result` in place of the form (`state:done`, which `states` lists, S009): its `title`
-(the title of the screen by default) and its `message`, whose `{name}` are the properties of
-the JSON answer of the action (`response` of its custom action in the contract, S053: the
+(the title of the screen by default) and its `message`, whose `{name}`, also in the `title`
+(`Order No. {number}`), are the properties of the JSON answer of the action (`response` of its custom action in the contract, S053: the
 answer of the action has them, a `response_model`), with a link to the screen `then`
 (`nav:<then>`, labelled by its title) and `action:again`, which shows the form again, empty.
 Without a `result`, the action is done with a toast and the screen `then` is shown; a form of
@@ -2342,6 +2415,26 @@ form:
   then: public-tasks
 states: [loading, error, forbidden, invalid, done]
 # product.yaml: steps [{open: suggest-task}, {fill: {title: …}}, {submit: {}}, {expect: {state: done}}]
+```
+
+**An action that answers a file** (an export of a few hundred rows): the route declares the
+class of its answer with its media type and names the file; the contract marks it `file`
+(`custom_actions[].file`, an answer of another type than JSON, `application/json` or a
+`+json` type such as `application/vnd.api+json`: an HTML answer is a file too), and its form
+saves the file (`useActionFile`) before its result, whose only parameter is `{filename}`
+(S053). Only a form runs it: a dialog does not save it (S032). A long export stays a task of bazis-bg
+(`TaskProgress`, "Background work"):
+
+```python
+class CsvResponse(Response):  # fastapi.responses
+    media_type = 'text/csv'
+
+@http_post('/export/', kind=RouteKind.OTHER, response_class=CsvResponse, access_action=CrudAccessAction.VIEW)
+def action_export(self, data: ExportRequest, **kwargs):
+    rows = ...  # of self.restrict_queryset(Model.objects.all(), CrudAccessAction.VIEW): those he views (not
+    # get_queryset_for_list(), whose search and filter a custom action does not have)
+    return CsvResponse(text, headers={'Content-Disposition': content_disposition_header(True, 'tasks.csv')})
+# the screen: form: {action: export, fields: [priority], result: {message: {en: 'Saved {filename}.'}}}
 ```
 
 ### Background work
@@ -2727,6 +2820,7 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | Step | Calls |
   |---|---|
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
+  | `as: <role>` | `const asRole = await sessionAs(app, role)` the first time (a new context of the browser of the test with its options, the role logged in as by `loginAs`; it shares the start of the test and the items it created, and is closed as the test ends: the test is `test` of `e2e/bazis/`), its variable again (`app` for the role of the scenario): the next steps call it |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
   | `open_item: {where, in}` | `openItem({where, in, created})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`), or with more items of the columns of a board (`action:more`); then `expectScreen` of `list.open`. `created: true` when the scenario created an item with these texts before (the walk of `check`: the values filled in a create form that saves, then in its edits, have the texts of `where`): only a row of an item that this test created, its id among those of the creates of its submits, never an item of a previous run with the same texts. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `select: {where}` | `select({where, created})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
@@ -2735,7 +2829,8 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog), and so is a custom action with `confirm: true`; one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result`, shown on its page: `expect: {state: done}`), a refused one by none (the form stays open on its screen) |
-  | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog, or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
+  | `remember: {name: property}` | `const $name = await app.answer(property)`: the `data-value` of `answer:<property>` of the result shown (`ActionResult` renders each text and number of the answer hidden); `$name` is the constant in the values of the next steps |
+  | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog (as `fill`: a relationship by the label of its item), or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, value)` (`data-value` of `tile:<id>`, a count or an aggregate, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
@@ -2802,7 +2897,8 @@ E2E_PASSWORD=... python manage.py e2e_data
   - a scenario that changes an item (a transit, a move, an edit, a custom or a bulk action,
     a deletion, a related item added to it) creates that item itself: the records of
     `e2e_data` are only read, so that the other scenarios and the next runs find them as
-    they are (P033 reports a change of an item that the scenario did not create);
+    they are (P033 reports a change of an item that the scenario did not create; a role that cannot add
+    one changes an item that `e2e_data` creates afresh at every run);
   - a scenario finds the items it created by their ids: when the values that it filled in a
     create form (then in its edits) have the texts of a `where`, the test takes only an item
     that it created (`created: true` of `openItem`, `select`, `move`; the ids of the creates
@@ -3081,7 +3177,8 @@ client".
   `api.itemAction` for `<path><id>/<name>/`), or `useAction`: the JSON body, the query
   parameters (`?code=A1`: a list repeats the parameter, null and undefined are left out) and
   the response of its OpenAPI; the errors of the body by field are `ApiError.bodyErrors()`
-  (`/<field>`), not `fieldErrors()` (the pointers of a JSON:API document).
+  (`/<field>`), not `fieldErrors()` (the pointers of a JSON:API document). One that answers
+  a file is `api.actionFile` (`{blob, name}`, as `download`).
 - Run a request in the background with `api.background` (or `useAsyncRequest`,
   bazis-async-request): it is queued with the id of its task, or done with its response
   when the backend ran it at once; read the task with `api.backgroundResult` (or
@@ -3256,7 +3353,8 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
 - `useAction(path, name)` calls a custom action of a route set (`useItemAction`: of an
   item), typed by its OpenAPI, then refetches the queries of the resource (not with
   `invalidate: false`); its `errors` are those of its body by field
-  (`ApiError.bodyErrors()`).
+  (`ApiError.bodyErrors()`). `useActionFile(path, name)` calls one that answers a file,
+  saves it and resolves to its name (that of the action without `Content-Disposition`).
 - `useActionQuery(path, name)` and `useItemActionQuery(path, id, name)` read a custom
   action declared with GET as a query (a summary, a check, the content of a screen; no
   request while `id` or `query` is null), keyed under its resource and by its query
@@ -3479,8 +3577,9 @@ its logout endpoint.
   `loc=('attributes', '<name>')` is `/attributes/<name>`, which is no field of the form.
 - `filter`, `sort` and `search` reach only the fields of the LIST schema of the route set
   (bazis 2.9; through a relation, those of the default route of the related model, and
-  only the related items the user can see); `search` searches only its `search_fields`,
-  and a route set without them answers it with 400 `ERR_FILTER` (`/query/search`).
+  only the related items the user can see); `search` searches its `search_fields`, else
+  (bazis 2.20) the text fields of its LIST schema; `search_fields = []` (before 2.20, none
+  declared) answers it with 400 `ERR_FILTER` (`/query/search`).
 - An uploaded file (bazis-uploadable) is the multipart create of its route set (`file`,
   optional `name`), not a JSON:API document; the response is the item with `file` (the URL
   of the file in the storage: the path of `MEDIA_URL` for the file system, which the API
@@ -3920,6 +4019,21 @@ The API of the copies that 0.7.0 changes (bazis-authing 2.8):
   A login screen of the product that opened the window at `<url>?<token_param>=<store>`
   calls `loginInWindow` of `src/app/session.ts` instead.
 
+The API of the copies that 0.9.0 changes:
+
+- `contract.json` is of format 11 (`file` of the custom actions, `anonymous` and
+  `anonymous_types` of the section `uploadable`): `check` reports `C002` until it is exported
+  again. A custom screen that saved the file of an action from a JSON answer may become the
+  form of the action ("The form of a custom action").
+- `e2e/bazis/` has `sessionAs(app, role)` and `App.answer(property)` (the steps `as` and
+  `remember`), and `test`, the test of Playwright that closes the sessions as it ends, which a
+  test with `sessionAs` imports from there; `ActionResult` takes `answer`. A test of
+  `e2e/custom/` with a second context or a number read from a text may become a scenario.
+- `relatedField(path, property, label?, resource?)` of `@/bazis/ui/resource` (the
+  `bodyField` of the forms of the actions) gives the payload of a transit the picker of the
+  relationship of the same name; a custom dialog of a transit with a picker of its own may
+  become `relation` of the payload.
+
 ## API: the client
 
 <!-- Generated by scripts/gen_api_reference.mjs from the TypeScript of the assets: never edit it, run `npm run api-reference`. -->
@@ -3963,6 +4077,7 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `transit<P extends RouteSetWith<Paths, '{item_id}/transit/', 'post'>>(path: P, id: string, transit: string, payload?: unknown, options?: RequestOptions): Promise<ResponseOf<EndpointOf<Paths, P, '{item_id}/transit/', 'post'>> | null>`: Runs a transit of bazis-statusy (`POST {item_id}/transit/`).
 - `` action<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M>, M extends HttpMethod = 'post'>(path: P, name: N, body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>, ...options: ActionOptionsArg<M, QueryParams<EndpointOf<Paths, P, `${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>> ``: Calls a custom action of a route set, `<path><name>/` (a route of the backend declared with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for `get`), its query parameters (`query` of the options, required with a required parameter) and its JSON response, typed by the OpenAPI; resolves to undefined for 204.
 - `` itemAction<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M, Item>, M extends HttpMethod = 'post'>(path: P, id: string, name: N, body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>, ...options: ActionOptionsArg<M, QueryParams<EndpointOf<Paths, P, `${Item}${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>> ``: Calls a custom action of an item, `<path><id>/<name>/`, as `action` does.
+- `` actionFile<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, 'post'>>(path: P, name: N, body?: BodyOf<EndpointOf<Paths, P, `${N}/`, 'post'>>, options?: RequestOptions): Promise<DownloadedFile> ``: Calls a custom action of a route set that answers a file, `POST <path><name>/` (`custom_actions[].file` of the contract: a `response_class` with a `media_type`, such as `text/csv`): its JSON body, and the file of its answer with the name of `Content-Disposition`, as `download` reads it; `saveFile` saves it.
 - `download(path: RouteSetWith<Paths, '{item_id}/download/', 'get'>, id: string, options?: RequestOptions): Promise<DownloadedFile>`: Reads a file from the download route of an item, `<path><id>/download/` (bazis-uploadable `FileUploadRouteSet`, bazis-bg `BgRoute`), with the token: its content and the name of `Content-Disposition`.
 - `login(credentials: { username: string; password: string; }, options?: RequestOptions & { path?: string; }): Promise<TokenResponse>`: Gets a token from the token endpoint of bazis-users (an OAuth2 password form).
 - `upload<P extends RouteSetWith<Paths, '', 'post'>>(path: P, file: Blob, options?: UploadOptions): Promise<ResponseOf<EndpointOf<Paths, P, '', 'post'>>>`: Uploads a file to a route set of bazis-uploadable (`FileUploadRouteSet` or a subclass): a `POST` of multipart form data with `file` (and `name`), sent with XMLHttpRequest, whose progress `onProgress` reports.
@@ -4280,6 +4395,10 @@ Its props, `BazisProviderProps`:
 
 `useAction<P extends ActionPath, N extends ActionName<paths, P, M>, M extends HttpMethod = 'post'>(path: P, name: N, options?: ActionHookOptions<M>): ActionMutation<ActionResponse<P, N, M>, ActionVariables<ActionBody<P, N, M>>>`: A custom action of a route set, `<path><name>/`: `mutate(body)` calls it (`client.action`) and resolves to its response, e.g. the id of a task of bazis-bg to follow.
 
+#### useActionFile
+
+`useActionFile<P extends ActionPath, N extends ActionName<paths, P, 'post'>>(path: P, name: N): ActionMutation<string, ActionVariables<ActionBody<P, N, 'post'>>>`: A custom action of a route set that answers a file (`custom_actions[].file` of the contract), `POST <path><name>/`: `mutate(body)` calls it (`client.actionFile`), saves the file in the browser under the name the backend gives it (`Content-Disposition`; the name of the action without one) and resolves to that name, not the content; the queries of its resource are refetched after it, as after `useAction`.
+
 #### useActionQuery
 
 `useActionQuery<P extends ActionPath, N extends ActionName<paths, P, 'get'>>(path: P, name: N, ...options: ActionQueryArg<ActionQuery<P, N, 'get'>>): UseQueryResult<ActionResponse<P, N, 'get'>>`: A custom action of a route set declared with GET, `<path><name>/`, read as a query (the response of `client.action` with the method `get` and the query parameters of `query`, required with a required parameter): a summary, a report, a check, the content that a screen shows.
@@ -4439,6 +4558,7 @@ Its props, `BazisProviderProps`:
 - `enum: readonly unknown[] | null`: The allowed values (the choices of the model field).
 - `blank: boolean`: The empty string is a value of the field besides those of its type and format: a `URLField` with `blank=True` (an alternative `{type: 'string', maxLength: 0}` next to the URL).
 - `labels: Readonly<Record<string, string>> | null`: The labels of the choices by the value as text (`enumDict` of Bazis: the labels of the choices of the model field, in the language of the request); null without them.
+- `relation: string | null`: The JSON:API type of the items whose ids it is (`x-relation` of a string, or of the items of an array: `UploadedFileId` of bazis-uploadable in the body of an action); null for another value.
 - `schema: JsonSchema`: The schema of the attribute (`maxLength`, `minimum`, `default`, ...).
 
 #### RelationField
@@ -5199,10 +5319,10 @@ Its props, `DashboardProps`:
 - `actions?: ReactNode`: The actions of the screen, such as the forms that create an item (`action:<id>`).
 - `hero?: boolean`: The title, the description and the actions as a hero: a portal (`preset` of the theme) by default.
 - `before?: ReactNode`: What the screen shows before its parts (after the hero), such as the extension of a generated screen.
-- `tiles?: readonly StatCardProps[]`
+- `tiles?: readonly (StatCardProps & DashboardPart)[]`
 - `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`.
 - `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`.
-- `recent?: readonly RecentListProps[]`
+- `recent?: readonly (RecentListProps & DashboardPart)[]`
 - `children?: ReactNode`: What the screen shows after its parts, such as the create forms of its actions: in the screen, so that a form composed as a page takes its place.
 
 #### RecentList
@@ -5225,7 +5345,13 @@ Its props, `RecentListProps`:
 
 #### Viewable
 
-`Viewable(props: { path: ListPath; children: ReactNode; }): ReactNode`: A part of a dashboard once the backend lets the user view the items of its route set (`useCan(path, 'view')`): nothing when it does not, its loading state until it tells.
+`Viewable(props: { path: ListPath; can?: Requirement; children: ReactNode; }): ReactNode`: A part of a dashboard once the backend lets the user view the items of its route set, and add one too with `can: 'add'` (`useCan(path, can)`): its tile and its last items read the list, which a user who may only add is refused.
+
+#### DashboardPart
+
+`interface DashboardPart`: A part of a dashboard that is shown to the users who may add an item (`requires.can`), not only view them.
+
+- `requires?: { can: Requirement; }`
 
 #### The types and the constants of `@/bazis/ui/dashboard`
 
@@ -5286,7 +5412,16 @@ Its props, `FileFieldProps`:
 
 #### FileFieldProvider
 
-`FileFieldProvider(props: { children: ReactNode; accept?: Readonly<Record<string, string>>; maxSize?: number | null; resources?: readonly string[]; }): Element`: Makes `FileField` the control of the file fields of `FieldInput` below it (put it in `src/app/providers.tsx`, inside `BazisProvider`).
+`FileFieldProvider(props: { children: ReactNode; accept?: Readonly<Record<string, string>>; maxSize?: number | null; guest?: boolean; resources?: readonly string[]; }): Element`: Makes `FileField` and `FilesField` the controls of the file fields of `FieldInput` below it (put it in `src/app/providers.tsx`, inside `BazisProvider`).
+
+#### FilesField
+
+`FilesField(props: FilesFieldProps): Element`: The control of a field of several files (the ids of the uploaded files in the body of an action, `list[UploadedFileId]`): the files of the field (`file:<i>`, each with its remove, `action:remove-file-<i>`), those chosen and not uploaded yet with the progress of the one that uploads and its cancel, and a drop zone that takes several files, uploaded one after the other; the value is the ids of the uploaded files in their order.
+
+
+Its props, `FilesFieldProps`:
+
+- `= FilesControlProps & FileFieldOptions`
 
 #### FileFieldOptions
 
@@ -5298,8 +5433,10 @@ Its props, `FileFieldProps`:
 
 #### The types and the constants of `@/bazis/ui/file-field`
 
+- `ANONYMOUS_ACCEPT: string | undefined`: The types of the files that a guest uploads (`anonymous_types` of the contract, recognized by their content: bazis-uploadable 2.8), as `accept` of an input; undefined when guests upload none.
 - `MAX_SIZE: number | null`: The largest file of an upload of the backend (`BAZIS_FILE_UPLOAD_MAX_SIZE`); null: no limit.
 - `FileFieldProps`: the props of `FileField`, listed with it
+- `FilesFieldProps`: the props of `FilesField`, listed with it
 
 ### `@/bazis/ui/live-query`
 
@@ -5525,7 +5662,7 @@ Its props, `DateInputProps`:
 
 #### FieldInput
 
-`FieldInput(props: FieldInputProps): Element`: A field of a runtime schema with its label and its errors: the control by the type, format and choices of an attribute (a select of the labels of the choices, a decimal typed with a point or a comma and given as its digits with a point, `'2.5'`), the coordinates of a point field of the route set `path` (`PointInput`, with the map of `MapProvider`), the picker of the related item of a to-one relationship (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the upload of a file field (the control of `FilesProvider`, `FileField` of file-field); read-only when the user may not change it.
+`FieldInput(props: FieldInputProps): Element`: A field of a runtime schema with its label and its errors: the control by the type, format and choices of an attribute (a select of the labels of the choices, a decimal typed with a point or a comma and given as its digits with a point, `'2.5'`), the coordinates of a point field of the route set `path` (`PointInput`, with the map of `MapProvider`), the picker of the related item of a to-one relationship (`RelationPicker`) or of the related items of a to-many one (`RelationListPicker`), the upload of a file field (the controls of `FilesProvider`: `FileField` of file-field, and `FilesField` of several files); read-only when the user may not change it.
 
 
 Its props, `FieldInputProps`:
@@ -5538,9 +5675,13 @@ Its props, `FieldInputProps`:
 - `onBusy?: (busy: boolean) => void`: A file of the field starts or ends uploading: the form waits for it to be submitted.
 - `path?: string | undefined`: The route set of the resource of the field: a point field of it (`PointsProvider`, the contract) is edited as a point.
 
+#### useUploads
+
+`useUploads(): { uploading: boolean; onBusy: (name: string) => (busy: boolean) => void; }`: The uploads of the file fields of a form, `onBusy(name)` of each `FieldInput`: `uploading` while a file of one of them uploads, when the form is not submitted.
+
 #### FieldValue
 
-`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), an uploaded file (`FileValue`).
+`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`).
 
 
 Its props, `FieldValueProps`:
@@ -5630,6 +5771,10 @@ Its props, `ItemValueProps`:
 
 `permitted(meta: PermitMeta | null | undefined, action: 'add' | 'change' | 'delete' | CustomActionName, id?: string): boolean`: Whether the backend allows an action now, from the permission meta of bazis-permit (`can()` of the client): `add` from `for_create` of a list or `crud_actions` of an item, `change` and `delete` of an item of a list from `for_change`/`for_delete` with its id, a custom action (`'action_<name>'`, `action` of `x-bazis`) from `custom_actions` (bazis-permit 2.11; by what the action declares, not the checks of its own code).
 
+#### relatedField
+
+`relatedField(path: string, property: AttributeField, label?: string, resource?: Fields): FormField`: The field of a property of the body of a custom action or of the payload of a transit of the route set of `path`: the picker of the related items of the relationship of the resource of the same name in the contract (`relation`: a text for a to-one one, an array for a to-many one), else of the resource of its `x-relation` (`relation` of the property: the uploaded files of `UploadedFileId` of bazis-uploadable, a file field), else the property as it is.
+
 #### resourceAt
 
 `resourceAt(path: string): ContractResource | undefined`: The resource of the contract whose route set has this path, if it has one.
@@ -5671,6 +5816,7 @@ Its props, `ItemValueProps`:
 - `readonly method: string`
 - `readonly access_action: string | null`: What the route requires of the user on the item (`change`), null for nothing more than the route.
 - `readonly body: JsonSchema | null`: The JSON Schema of its body, null without one.
+- `readonly file: boolean`: Whether it answers a file (`useActionFile`), not JSON.
 
 #### Fields
 
@@ -5694,7 +5840,7 @@ Its props, `ItemValueProps`:
 
 #### FilesProvider
 
-`FilesProvider(props: { control: ComponentType<FileControlProps> | null; resources?: readonly string[]; children: ReactNode; }): Element`: Gives `FieldInput` the control of the file fields (`FileFieldProvider` of file-field), for the forms and the payloads below it.
+`FilesProvider(props: { control: ComponentType<FileControlProps> | null; listControl?: ComponentType<FilesControlProps> | null; resources?: readonly string[]; children: ReactNode; }): Element`: Gives `FieldInput` the controls of the file fields (`FileFieldProvider` of file-field), for the forms and the payloads below it: `control` of a field of a file, `listControl` of a field of several.
 
 #### FileValue
 
@@ -5719,7 +5865,7 @@ Its props, `FileViewProps`:
 
 #### isFile
 
-`isFile(field: FormField | undefined, resources: readonly string[]): field is RelationField`: Whether a field is a file: a to-one relationship to a resource of the uploaded files.
+`isFile(field: FormField | undefined, resources: readonly string[]): field is RelationField`: Whether a field is a file field: a relationship to a resource of the uploaded files, of a file or (`many`) of several.
 
 #### isImage
 
@@ -5727,7 +5873,7 @@ Its props, `FileViewProps`:
 
 #### useFiles
 
-`useFiles(): Files`: The resources of the uploaded files and the control of a file field.
+`useFiles(): Files`: The resources of the uploaded files and the controls of the file fields.
 
 #### ControlProps
 
@@ -5747,6 +5893,14 @@ Its props, `FileViewProps`:
 - `control: ControlProps`: The attributes of the `<input type="file">`.
 - `onBusy: (busy: boolean) => void`: An upload of the field starts or ends: the form is not submitted meanwhile.
 - `onError: (message: string | null) => void`: The error of the file (too large, refused by the backend), shown with the errors of the field; null clears it.
+
+#### FilesControlProps
+
+`interface FilesControlProps extends Omit<FileControlProps, 'value' | 'onChange'>`: What `FieldInput` gives the control of a field of several files.
+
+- `field: RelationField`: A to-many relationship to a resource of the uploaded files (the ids of a body of an action).
+- `value: readonly string[]`: The ids of the uploaded files, in their order.
+- `onChange: (value: string[]) => void`
 
 #### UploadedFile
 
@@ -5900,6 +6054,7 @@ Its props, `RelationPickerProps`:
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
 - `ITEM_META: readonly string[]`: The meta of the retrieve of an item that its card reads (`ResourceCard`) and the transits of the card (`TransitBar`): one request for both.
 - `useAnyAction: (path: string, name: string) => ActionMutation<unknown, Readonly<Record<string, unknown>>>`: `useAction(path, name)`: a custom action of the route set (POST), `mutateAsync(body)`.
+- `useAnyActionFile: (path: string, name: string) => ActionMutation<string, Readonly<Record<string, unknown>>>`: `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name.
 - `useAnyFilterFields: (path: string) => UseQueryResult<FilterFieldsDocument>`: `useFilterFields(path)`.
 - `useAnyItem: (path: string, id: string, query?: Pick<QueryOptions, "include" | "fields" | "meta"> | undefined) => UseQueryResult<ItemDocument>`: `useItem(path, id, query)`.
 - `useAnyItemAction: (path: string, name: string) => ActionMutation<unknown, { id: string; body: Readonly<Record<string, unknown>>; }>`: `useItemAction(path, name)`: a custom action of an item (POST), `mutateAsync({id, body})`.
@@ -6261,6 +6416,7 @@ Its props, `ActionFieldsProps`:
 - `errors: Readonly<Record<string, readonly string[]>>`
 - `disabled: boolean`
 - `onChange: (name: string, value: unknown) => void`
+- `onBusy: (name: string) => (busy: boolean) => void`: A file of a field starts or ends uploading (`useUploads`): the action waits for it.
 
 #### ActionForm
 
@@ -6274,7 +6430,7 @@ Its props, `ActionFormProps`:
 - `fields: readonly string[]`: The properties of its body that the form asks for, in this order.
 - `labels?: Readonly<Record<string, string>> | undefined`: The labels of the fields by property, before the titles of the contract.
 - `submitLabel?: ReactNode`: The label of the submit button: `Send` by default.
-- `result?: { title?: ReactNode; message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, given the texts and the numbers of the JSON answer of the action.
+- `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action, or `{filename}` of the file it saved.
 - `then?: ActionThen | undefined`: The screen that the result links to.
 - `onDone?: (() => void) | undefined`: Called once the action is done, without a `result` (after a toast): the screen after it.
 
@@ -6289,6 +6445,7 @@ Its props, `ActionResultProps`:
 - `message: ReactNode`
 - `then?: ActionThen | undefined`: The screen that it links to (`nav:<screen>`).
 - `onAgain: () => void`: Shows the form again, empty (`action:again`).
+- `answer?: Params | undefined`: The texts and the numbers of the answer of the action (`filename` of a file it saved): each a hidden `answer:<property>` with its `data-value`, which the tests read.
 
 #### ActionThen
 
@@ -6647,6 +6804,10 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 
 `loginAs<P extends Product>(page: Page, product: P, role: Role<P>): Promise<App<P>>`: Opens the application as the test user of the role (`test_user` of spec/product.yaml, the password of the environment variable E2E_PASSWORD) through the login screen, the images of other origins stubbed (`stubForeignImages`), until the application has its logout (`action:logout`, also in a menu hidden at the width of a phone).
 
+#### sessionAs
+
+`sessionAs<P extends Product>(app: App<P>, role: Role<P>): Promise<App<P>>`: Another session of the test of `app` as the role (the step `as` of the scenarios): a new context of its browser, with the options of the test, where the role logs in as with `loginAs`; it shares the start of the test and the items it created with `app`, and is closed as the test ends: in a test of `test` of these helpers only.
+
 #### Product
 
 `interface Product`: The part of the specs that the helpers read, `PRODUCT` of `e2e/generated/product.ts`: the test user of each role of spec/product.yaml (`test_user`, null without one; `anonymous`: the users who do not log in) and the route of each screen of spec/screens/.
@@ -6658,7 +6819,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 
 `class App`: The application in a page, at a screen of the specs.
 
-- `constructor(page: Page, product: P)`
+- `constructor(page: Page, product: P, of?: App<P>)`: The application in the page; `of`: another session of the same test (`sessionAs`), whose start and the items it created this one shares.
 - `screen(): Locator`: The current screen, `screen:<id>`.
 - `form(): Locator`: The open form.
 - `open(screen: ScreenId<P>): Promise<void>`: Opens a screen by its route (one without the id of an item) and waits for its state.
@@ -6674,6 +6835,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `transit(id: string, payload?: Values): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog, or confirmed in its dialog when the specs confirm it, and waits until it is done (the transit is no longer offered) or shows an error.
 - `expectScreen(screen: ScreenId<P>): Promise<void>`: The current screen is this one: at its route (another screen may show next to it, such as a list next to its card), with its state rendered.
 - `expectStatus(status: string): Promise<void>`: The item of the current screen has this status, `status:<id>`.
+- `answer(property: string): Promise<string>`: The value of a property of the answer of the action whose result the page shows, `answer:<property>` in `state:done` (its `data-value`): a text or a number of its JSON answer, `filename` of a file it saved; the step `remember` of the scenarios.
 - `expectState(state: State): Promise<void>`: The page shows this state, `state:<state>` (a screen kept hidden next to it does not count).
 - `expectActionAbsent(id: string): Promise<void>`: The current screen, once loaded, does not offer this action.
 - `expectFieldReadonly(field: string): Promise<void>`: The user may not change the field: read-only (or not there) in the open form; on a card without a form, the card has no edit (`action:edit`), or its edit has the field read-only (the edit is opened and cancelled).
@@ -6695,3 +6857,4 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>`: The values of the fields of a form by name: a scalar, or the labels of the related items of a to-many relationship (a list, `[]` for none).
 - `type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid' | 'done'`: The states that the screens render (`state:<state>`).
 - `LOGIN_ROUTE: "/login"`: The login screen of the template (`LoginForm`), where the router sends a user without a session.
+- `test: TestType<PlaywrightTestArgs & PlaywrightTestOptions & { sessions: undefined; }, PlaywrightWorkerArgs & PlaywrightWorkerOptions>`: `test` of Playwright that closes the sessions of `sessionAs` as the test ends, before the next one starts: the tests of several sessions take it from here.
