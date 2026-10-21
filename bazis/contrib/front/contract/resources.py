@@ -80,8 +80,9 @@ def resources(openapi: dict) -> dict:
             'actions': main['actions'],
             'fields': fields,
             'label': label(fields),
-            # the search fields that its LIST schema reaches, as declared: those the core
-            # searches (`bazis.W007` reports the others); none, a `search` is 400
+            # the search fields that its LIST schema reaches, as declared (`bazis.W007`
+            # reports the others), else the text fields of the schema (bazis 2.20): those
+            # the core searches; none, a `search` is 400
             'search': route_search_fields(main_cls) if scope is not None else [],
             'create': _create_fields(openapi, main['operations']),
             'custom_actions': _custom_actions(openapi, main['path'], main['operations']),

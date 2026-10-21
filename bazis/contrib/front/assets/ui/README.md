@@ -337,7 +337,7 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   that clears the value (`data-value=""`, which the helpers of the end-to-end tests choose
   for null). The search is there only when the route set has search fields (`searchable`;
   by default `search` of the resource in the contract, `hasSearch`): the core answers a
-  search of a route set without `search_fields` with 400 `ERR_FILTER`, so such a picker
+  search of a route set without search fields with 400 `ERR_FILTER`, so such a picker
   lists the items without a search box, the list taking the focus and the keys, also while
   its first page loads (and the
   helpers of the end-to-end tests read its pages until the item is listed). The keyboard follows the

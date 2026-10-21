@@ -30,6 +30,7 @@ from bazis.contrib.front.checks import check_contract
 from bazis.contrib.front.contract.export import render
 from bazis.contrib.front.contract.openapi import dumps
 from bazis.contrib.front.contract.resources import resources
+from bazis.core.utils import fastapi_monkey_patch, query_complex
 
 
 def export(directory, *args):
@@ -107,6 +108,9 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert sorted(custom) == ['action_count', 'action_escalate', 'action_export', 'action_suggest']
     assert resources['users.user']['custom_actions'] == {}
     priority = {'enum': ['low', 'normal', 'high'], 'title': 'Priority', 'type': 'string'}
+    if hasattr(fastapi_monkey_patch, 'ChoicesJsonSchema'):
+        # the labels of a type of Django choices (bazis 2.21), which the form shows
+        priority['enumDict'] = {'low': 'Low', 'normal': 'Normal', 'high': 'High'}
     count = custom['action_count']
     assert set(count) == {'name', 'item', 'method', 'access_action', 'public', 'body', 'response', 'file'}
     assert count['file'] is False
@@ -175,7 +179,9 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert sorted(files['fields']) == ['extension', 'file', 'name', 'size']
     assert resources['users.user']['fields']['roles']['many'] is True
     # the search fields of the route sets (the pickers search the users by their username
-    # and the names of their labels); none: the route set answers a search with 400 (bazis 2.9)
+    # and the names of their labels): its `search_fields`, or, without them, the text fields
+    # of its LIST schema (bazis 2.20; before, none); none: a search is 400 (bazis 2.9)
+    default_search = hasattr(query_complex, 'default_search_fields')
     assert task['search'] == ['title']
     assert resources['users.user']['route_set'] == 'users.routes.UserRouteSet'
     assert resources['users.user']['search'] == ['username', 'first_name', 'last_name']
@@ -183,8 +189,8 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert fields['watchers'] == {
         'title': 'Watchers', 'relation': 'users.user', 'many': True, 'filter': 'watchers', 'order': 'watchers'
     }
-    assert files['search'] == []
-    assert resources['bg.task']['search'] == []
+    assert files['search'] == (['name', 'extension'] if default_search else [])
+    assert bool(resources['bg.task']['search']) is default_search
     # a write-only attribute can be neither filtered nor sorted; without a title of its route
     # set, a calculated field is titled by its name
     assert resources['users.user']['fields']['raw_password'] == {'title': 'raw_password', 'type': 'string'}

@@ -1489,9 +1489,9 @@ differ from the backend; `--check` does the same in CI.
   be filtered or sorted: they are those the core takes (bazis 2.9), the fields of the LIST
   schema of the route set that can filter or order (`query_fields`), so a field of the item
   schema that the LIST schema does not have has neither. `search` lists the search fields of
-  the route set (`search_fields`, as declared) that its LIST schema reaches, those the core
-  searches with `search`; empty, the route set has no search, and a `search` is 400
-  `ERR_FILTER`. Both are read for the LIST schema of the route set itself: a package that
+  the route set that its LIST schema reaches (`search_fields` as declared, else, bazis 2.20,
+  the text fields of the schema), those the core searches with `search`; empty, the route
+  set has no search, and a `search` is 400 `ERR_FILTER`. Both are read for the LIST schema of the route set itself: a package that
   narrows it per user (the field permissions of bazis-permit) may refuse a field for some
   users.
 
@@ -2055,11 +2055,11 @@ is a combobox over the list of the related resource, read page after page (`Load
 that clears a nullable value: choose a related item with it, never with a list of every
 item. It searches the backend (`search`) only when the route set
 of the related resource has search fields (`search` of the resource in the contract; the
-prop `searchable` overrides it): the core answers a search of a route set without
-`search_fields` with 400 `ERR_FILTER` (bazis 2.9), so without them the picker lists the
-items without a search box, and `check` warns of such a picker (S012). **Give the route
-sets that the pickers list `search_fields`** (fields of their LIST schema, such as
-`username`); `RelationLabel` shows a related item, the
+prop `searchable` overrides it): the core answers a search of a route set without them
+with 400 `ERR_FILTER` (bazis 2.9; `search_fields = []`, or, before bazis 2.20, none
+declared), so the picker lists the items without a search box, and `check` warns of such a
+picker (S012). **Give the route sets that the pickers list `search_fields`** (fields of
+their LIST schema, such as `username`); `RelationLabel` shows a related item, the
 items of a resource shown together (the rows of a page) read with one request
 (`useRelatedItem`, `filter=pk=<a>|pk=<b>|…`; a skeleton marked `state:loading` until then,
 which the helpers of the end-to-end tests wait for). Both need the route of the related
@@ -3534,8 +3534,9 @@ its logout endpoint.
   `loc=('attributes', '<name>')` is `/attributes/<name>`, which is no field of the form.
 - `filter`, `sort` and `search` reach only the fields of the LIST schema of the route set
   (bazis 2.9; through a relation, those of the default route of the related model, and
-  only the related items the user can see); `search` searches only its `search_fields`,
-  and a route set without them answers it with 400 `ERR_FILTER` (`/query/search`).
+  only the related items the user can see); `search` searches its `search_fields`, else
+  (bazis 2.20) the text fields of its LIST schema; `search_fields = []` (before 2.20, none
+  declared) answers it with 400 `ERR_FILTER` (`/query/search`).
 - An uploaded file (bazis-uploadable) is the multipart create of its route set (`file`,
   optional `name`), not a JSON:API document; the response is the item with `file` (the URL
   of the file in the storage: the path of `MEDIA_URL` for the file system, which the API

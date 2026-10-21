@@ -175,14 +175,18 @@ BG_TASKS = '/api/v1/bg/task/'
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_picker_searches_only_a_route_set_with_search_fields(sample_app):
+def test_the_picker_searches_only_a_route_set_with_search_fields(sample_app, monkeypatch):
     """
-    The core (2.9) searches only the `search_fields` of a route set, and answers a search of
-    a route set without them with 400 `ERR_FILTER` (`/query/search`): the contract says which
-    resources search (`search`), and `RelationPicker` searches only them. The users of the
-    sample are searched by their username (the picker of the assignee).
+    The core searches the search fields of a route set (`route_search_fields`): its
+    `search_fields`, or, without them, the text fields of its LIST schema (2.20; before, none),
+    and answers a search of a route set without any with 400 `ERR_FILTER` (`/query/search`,
+    2.9): the contract says which resources search (`search`), and `RelationPicker` searches
+    only them. The users of the sample are searched by their username (the picker of the
+    assignee).
     """
+    from bazis.contrib.bg.routes import BgRoute
     from bazis.contrib.users import get_user_model
+    from bazis.core.utils.query_complex import route_search_fields
 
     user, client = manager_client(sample_app)
     user.is_staff = True
@@ -194,6 +198,12 @@ def test_the_picker_searches_only_a_route_set_with_search_fields(sample_app):
     response = client.get(TASKS, params={'search': 'report'})
     assert response.status_code == 200, response.text
 
+    # the tasks of bazis-bg declare no `search_fields`: searched as the contract says
+    response = client.get(BG_TASKS, params={'search': 'x'})
+    assert response.status_code == (200 if route_search_fields(BgRoute) else 400), response.text
+    # `search_fields = []`: none
+    monkeypatch.setattr(BgRoute, 'search_fields', [])
+    assert route_search_fields(BgRoute) == []
     response = client.get(BG_TASKS, params={'search': 'x'})
     assert response.status_code == 400, response.text
     error = response.json()['errors'][0]
