@@ -1240,6 +1240,14 @@ test.describe('loginAs', () => {
     await expect(loginAs(page, PRODUCT, 'manager')).rejects.toThrow('manager cannot log in: Wrong password.');
   });
 
+  test('waits for a slow login longer than the expectations of the test do', async ({ page }) => {
+    // the first login of a run on the cold server of Vite: past the 1.5 s of `expect` here, the 5 s of a product
+    await serve(page, { '/login': login.replace('}, 200);', '}, 7000);') });
+    process.env.E2E_PASSWORD = 'secret';
+    await loginAs(page, PRODUCT, 'manager');
+    await expect(page.locator(bz('action', 'logout'))).toBeVisible();
+  });
+
   test('needs the password', async ({ page }) => {
     await expect(loginAs(page, PRODUCT, 'viewer')).rejects.toThrow('Set E2E_PASSWORD');
   });

@@ -26,6 +26,8 @@ export default defineConfig({
   testDir: 'e2e/generated',
   testMatch: 'shots.ts',
   workers: undefined,
+  // a login of up to 15 s on the cold server of Vite (`loginAs`), then the screen and its checks
+  timeout: 60_000,
   reporter: 'list',
   // the screenshots are the output: no trace of the runs
   use: { ...e2e.use, trace: 'off' },

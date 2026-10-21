@@ -78,6 +78,7 @@ CODES: dict[str, tuple[str, str]] = {
     'P033': (WARNING, 'a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is'),
     'P034': (WARNING, 'a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs'),
     'P035': (ERROR, 'a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`): the frontend sends a user without a session to the login'),
+    'P036': (WARNING, 'the product has the users (`packages`), the contract has no route of the user resource, and a field relates to it (the author of a status, an assignee): the screens label the users by the start of their id'),
     'S001': (ERROR, 'a screen file is not valid YAML'),
     'S002': (ERROR, 'a screen does not follow screen.schema.json'),
     'S003': (ERROR, 'the id of a screen differs from its file name, or its route is taken'),

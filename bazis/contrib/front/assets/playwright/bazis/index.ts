@@ -126,6 +126,13 @@ const MAX_LANGUAGES = 20;
 /** How long `confirm` waits for the dialog of a confirmation before it assumes there is none, ms. */
 const CONFIRMATION_WAIT = 2_000;
 
+/**
+ * How long `loginAs` waits for the logout or the error of the login, ms. The first login of a
+ * run warms the dev server of Vite (it compiles the application on the first requests), which
+ * takes longer than the 5 s of `expect`.
+ */
+const LOGIN_WAIT = 15_000;
+
 /** The button of the dialog that confirms a transit that the specs confirm (`confirm` of the workflow). */
 const CONFIRM_TRANSIT = '[role="dialog"] [data-bz^="action:confirm-"]';
 
@@ -817,7 +824,7 @@ export async function loginAs<P extends Product>(page: Page, product: P, role: R
   await app.fill({ username, password });
   await form.locator(bz('action', 'submit')).click();
   const failed = form.locator(FAILED);
-  await expect(page.locator(bz('action', 'logout')).or(failed).first()).toBeAttached();
+  await expect(page.locator(bz('action', 'logout')).or(failed).first()).toBeAttached({ timeout: LOGIN_WAIT });
   if ((await failed.count()) > 0) {
     throw new Error(`${username} cannot log in: ${await failed.first().innerText()}`);
   }

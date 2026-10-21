@@ -85,6 +85,33 @@ export interface NavGroup {
 /** An entry of the navigation: a link, or a group of links. */
 export type NavEntry = NavItem | NavGroup;
 
+/**
+ * The entries that show the first `count` links of `entries` and those that show the others:
+ * a group the count ends in is in both, with its heading, the links before the end of the
+ * count in the first, the others in the second.
+ */
+function splitEntries(entries: readonly NavEntry[], count: number): [NavEntry[], NavEntry[]] {
+  const shown: NavEntry[] = [];
+  const rest: NavEntry[] = [];
+  let left = count;
+  for (const entry of entries) {
+    if (!('items' in entry)) {
+      (left > 0 ? shown : rest).push(entry);
+      left -= 1;
+      continue;
+    }
+    const taken = Math.min(Math.max(left, 0), entry.items.length);
+    if (taken === entry.items.length) shown.push(entry);
+    else if (taken === 0) rest.push(entry);
+    else {
+      shown.push({ ...entry, items: entry.items.slice(0, taken) });
+      rest.push({ ...entry, items: entry.items.slice(taken) });
+    }
+    left -= entry.items.length;
+  }
+  return [shown, rest];
+}
+
 /** The key of an entry among the entries. */
 function entryKey(entry: NavEntry): string {
   return 'items' in entry ? `group:${entry.group}` : entry.screen;
@@ -257,8 +284,8 @@ interface EntryProps {
   vertical: boolean;
   onNavigate?: (() => void) | undefined;
   /**
-   * In the copy of the row of the top bar that is measured: its items are marked by their
-   * entry (`data-nav-entry`), its links are not marked (`data-bz`).
+   * In the copy of the row of the top bar that is measured: its links are marked by their
+   * screen (`data-nav-entry`), they are not marked for the tests (`data-bz`).
    */
   copy?: boolean;
 }
@@ -282,7 +309,7 @@ function Navigation({ items, onNavigate }: { items: readonly NavEntry[]; onNavig
   );
 }
 
-/** The entries that the row of the top bar shows: those before `count`; `current`, the current link is after them. */
+/** The links that the row of the top bar shows: the first `count` of them; `current`, the current link is after them. */
 interface Row {
   count: number;
   current: boolean;
@@ -292,22 +319,24 @@ const WHOLE: Row = { count: Infinity, current: false };
 
 /**
  * The row of the top bar that `place` has room for, measured on `copy`, the row laid out whole
- * (its items, then the button of the menu): the entries from the first that ends past the room
- * that the button leaves go to the menu.
+ * (its entries, then the button of the menu): the links from the first that ends past the room
+ * that the button leaves go to the menu, a group is shared by the row and the menu. The ends of
+ * the links include the headings of the groups before them. `screens` are those of the links in
+ * their order, also those that the backend does not allow and the copy has not.
  */
-function measureRow(place: Element, copy: Element, keys: readonly string[]): Row {
+function measureRow(place: Element, copy: Element, screens: readonly string[]): Row {
   const width = place.getBoundingClientRect().width;
   const start = copy.getBoundingClientRect().left;
   const end = (element: Element) => element.getBoundingClientRect().right - start;
-  const items = [...copy.children];
-  const button = items.pop();
-  const last = items.at(-1);
+  const button = copy.lastElementChild;
+  const links = [...copy.querySelectorAll('[data-nav-entry]')];
+  const last = links.at(-1);
   if (!button || !last || end(last) <= width) return WHOLE;
   const room = width - (end(button) - end(last));
-  const first = items.findIndex((it) => end(it) > room);
+  const first = links.findIndex((it) => end(it) > room);
   return {
-    count: keys.indexOf(items[first]?.getAttribute('data-nav-entry') ?? ''),
-    current: items.slice(first).some((it) => it.querySelector('[aria-current="page"]') !== null),
+    count: screens.indexOf(links[first]?.getAttribute('data-nav-entry') ?? ''),
+    current: links.slice(first).some((it) => it.querySelector('[aria-current="page"]') !== null),
   };
 }
 
@@ -324,14 +353,14 @@ function TopNavigation({ items }: { items: readonly NavEntry[] }) {
   const place = useRef<HTMLDivElement>(null);
   const copy = useRef<HTMLUListElement>(null);
   const [row, setRow] = useState(WHOLE);
-  const keys = useMemo(() => items.map(entryKey), [items]);
+  const screens = useMemo(() => navLinks(items).map((it) => it.screen), [items]);
   // a new observer reports the sizes at once
   useLayoutEffect(() => {
     const box = place.current;
     const whole = copy.current;
     if (!box || !whole) return;
     const observer = new ResizeObserver(() => {
-      const next = measureRow(box, whole, keys);
+      const next = measureRow(box, whole, screens);
       setRow((it) => (it.count === next.count && it.current === next.current ? it : next));
     });
     observer.observe(box);
@@ -339,8 +368,8 @@ function TopNavigation({ items }: { items: readonly NavEntry[] }) {
     return () => {
       observer.disconnect();
     };
-  }, [keys, pathname]);
-  const rest = items.slice(row.count);
+  }, [screens, pathname]);
+  const [shown, rest] = splitEntries(items, row.count);
   return (
     <div ref={place} className="hidden min-w-0 flex-1 md:block">
       {typeof ResizeObserver === 'function' && (
@@ -357,7 +386,7 @@ function TopNavigation({ items }: { items: readonly NavEntry[] }) {
       )}
       <nav aria-label={t('shell.navigation')}>
         <ul className="flex items-center gap-1">
-          {items.slice(0, row.count).map((entry) => (
+          {shown.map((entry) => (
             <Entry key={entryKey(entry)} entry={entry} vertical={false} />
           ))}
           {rest.length > 0 && (
@@ -444,7 +473,6 @@ function NavGroupEntry({ group, vertical, onNavigate, copy = false }: EntryProps
     <AnyAllowed requirements={group.items.map((it) => it.requires)}>
       <li
         data-nav-group=""
-        data-nav-entry={copy ? entryKey(group) : undefined}
         className={cn('flex gap-1', vertical ? 'flex-col pt-3' : 'items-center')}
       >
         <span
@@ -630,7 +658,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
       <ShellContext value={navigation}>
         <div className="flex min-h-dvh flex-col [--bleed:1rem] [--sticky-top:4rem] md:[--bleed:var(--space-page-x)]">
           <header className="sticky top-0 z-30 h-16 border-b bg-background">
-            <div className="mx-auto flex h-full w-full max-w-6xl items-center gap-6 px-4 md:px-(--space-page-x)">
+            <div className="flex h-full w-full items-center gap-6 px-4 md:px-(--space-page-x)">
               <Brand title={title} />
               <TopNavigation items={items} />
               <div className="ml-auto flex items-center gap-1">

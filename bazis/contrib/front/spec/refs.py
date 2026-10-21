@@ -234,6 +234,7 @@ def check_product(doc: Document, contract: dict | None, issues: Issues) -> Produ
     _check_languages(doc, data, contract, issues)
     if contract is not None:
         _check_packages(doc, data, contract, issues)
+        _check_user_route(doc, data, contract, issues)
         _check_login(doc, data, contract, issues)
         _check_roles(doc, product, contract, issues)
         for entity in product.entities.values():
@@ -393,6 +394,34 @@ def _check_packages(doc: Document, data: dict, contract: dict, issues: Issues) -
                 'the router: `/api/v1/ws`), or `router.routes.append(ws_route)` (`/ws`); then '
                 f'{EXPORT_HINT}.',
             )
+
+
+def _check_user_route(doc: Document, data: dict, contract: dict, issues: Issues) -> None:
+    """
+    P036: the users have no resource in the contract, and a field relates to them (the author
+    of a status, the assignee): the screens label them by the start of their id.
+    """
+    if 'users' not in data.get('packages', []):
+        return
+    resource = (contract['capabilities'].get('users') or {}).get('user_resource')
+    resources = contract['project']['resources']
+    if resource is None or resource in resources:
+        return
+    related = [
+        f'{name}.{field_id}' for name, it in resources.items()
+        for field_id, schema in it['fields'].items() if schema.get('relation') == resource
+    ]
+    if not related:
+        return
+    shown = ', '.join(f'`{it}`' for it in related[:3]) + (' and others' if len(related) > 3 else '')
+    issues.add(
+        doc, ('packages', data['packages'].index('users')), 'P036',
+        f'The users have no route in the contract (`{resource}`): the fields {shown} relate to them, and '
+        'every user that a screen shows (the author of a status, an assignee) is labeled by the start of '
+        'his id.',
+        'Register the user route set of the project in its router (`users/routes.py`: the team), see '
+        'the guide "The users that the pickers offer", and ' + EXPORT_HINT + '.',
+    )
 
 
 def _check_languages(doc: Document, data: dict, contract: dict | None, issues: Issues) -> None:
@@ -645,14 +674,22 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
                 f'The payload of `{item["id"]}` has no field `{item_field["id"]}` in the contract.',
                 f'Use the fields of the payload: {", ".join(sorted(properties)) or "none"}.',
             )
-        elif not matches_type(item_field['type'], _not_null(prop)):
+            continue
+        schema = local_type(prop, payload['schema'])
+        # a decimal is a number or its digits as a string: the spec declares either member; any
+        # other union is typed by its first member
+        decimal = is_decimal(schema)
+        members = schema['anyOf'] if decimal else [schema.get('anyOf', [schema])[0]]
+        if not any(matches_type(item_field['type'], member) for member in members):
             issues.add(
                 doc, (*path, 'fields', i, 'type'), 'P017',
                 f'The field `{item_field["id"]}` of the payload of `{item["id"]}` is '
-                f'{_describe(_not_null(prop))} in the contract.',
-                'Make the spec follow the payload type of the transit.',
+                f'{" or ".join(_describe(member) for member in members)} in the contract.',
+                'Make the spec follow the payload type of the transit; a decimal (a number or its digits as '
+                'a string) is `type: string`, as the field of the entity (P013), or `number`.'
+                if decimal else 'Make the spec follow the payload type of the transit.',
             )
-        elif (kind := unaskable(local_type(prop, payload['schema']))) is not None:
+        elif (kind := unaskable(schema)) is not None:
             issues.add(
                 doc, (*path, 'fields', i), 'S054',
                 f'The field `{item_field["id"]}` of the payload of `{item["id"]}` is {kind}: the form of the '
@@ -660,17 +697,6 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
                 'Give the payload of the transit a field of a type that a field takes (a text, a number, a '
                 'decimal, a date, a choice), or run the transition from the code of a screen.',
             )
-
-
-def _not_null(schema: dict) -> dict:
-    """
-    The JSON Schema of a property of a payload without its `null` alternative; a model
-    (`$ref`) is an object.
-    """
-    for alternative in schema.get('anyOf', [schema]):
-        if alternative.get('type') != 'null':
-            return {'type': 'object'} if '$ref' in alternative else alternative
-    return schema
 
 
 # screens
@@ -1391,6 +1417,17 @@ def _plain(schema: dict, kind: str) -> bool:
     return schema.get('type') == kind and not {'format', 'enum', 'const'} & schema.keys()
 
 
+def is_decimal(schema: dict) -> bool:
+    """
+    Whether a property (`local_type`) is a decimal of pydantic: a number and a string (and
+    `null`, which `local_type` leaves out).
+    """
+    members = schema.get('anyOf', [])
+    return len(members) == 2 and any(_plain(it, 'number') for it in members) and any(
+        _plain(it, 'string') for it in members
+    )
+
+
 def unaskable(schema: dict) -> str | None:
     """
     What a property (`local_type`) is when the form cannot ask for it but as JSON, as the
@@ -1401,10 +1438,7 @@ def unaskable(schema: dict) -> str | None:
     members = schema.get('anyOf')
     if members is not None:
         strings = all(it.get('type') == 'string' for it in members) and any(it.get('maxLength') == 0 for it in members)
-        decimal = len(members) == 2 and any(_plain(it, 'number') for it in members) and any(
-            _plain(it, 'string') for it in members
-        )
-        return None if strings or decimal else 'a union of ' + ' and '.join(_describe(it) for it in members)
+        return None if strings or is_decimal(schema) else 'a union of ' + ' and '.join(_describe(it) for it in members)
     return {'object': 'an object', 'array': 'an array'}.get(schema.get('type'))
 
 

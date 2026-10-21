@@ -17,7 +17,8 @@
 // `vitest.config.ts` and the Tailwind of a product): the links that the row has no room for
 // in its menu, what jsdom does not lay out. The query sets the number of the links `links`
 // (`s<n>`, at `/s<n>`), the group `reports` after the tenth link (`group=true`: `report`,
-// which requires to view the route set of the test, and `item-new`, to add to it) and the
+// which requires to view the route set of the test, and `item-new`, to add to it), the number
+// of the other links of the group that the backend allows, `more` (`report-<n>`), and the
 // path shown first, `path`; the backend is the route of the test.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -43,12 +44,19 @@ const links: NavEntry[] = Array.from({ length: Number(query.get('links') ?? '0')
   to: `/s${String(index + 1)}`,
 }));
 if (query.get('group') === 'true') {
+  const more = Array.from({ length: Number(query.get('more') ?? '0') }, (_, index) => ({
+    screen: `report-${String(index + 2)}`,
+    label: `Report ${String(index + 2)}`,
+    to: `/report-${String(index + 2)}`,
+    requires: { path: ITEMS },
+  }));
   links.splice(10, 0, {
     group: 'reports',
     label: 'Reports',
     items: [
       { screen: 'report', label: 'Report', to: '/report', requires: { path: ITEMS } },
       { screen: 'item-new', label: 'New item', to: '/items/new', requires: { path: ITEMS, can: 'add' } },
+      ...more,
     ],
   });
 }
