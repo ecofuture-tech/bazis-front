@@ -38,6 +38,12 @@ export function isoDate(date: Date): string {
 }
 
 /**
+ * A number rounded to zero has no sign (`-0.0001` → `0`, never `-0`): `signDisplay` of ES2023,
+ * which the lib of the template (ES2022) does not type; `options` may set another.
+ */
+const SIGN: Intl.NumberFormatOptions = { signDisplay: 'negative' as Intl.NumberFormatOptions['signDisplay'] };
+
+/**
  * The digits grouped by thousands from five digits, as most languages write a number (a year
  * `2020`, `1234.5`, `12,345`), unless `options` sets `useGrouping`.
  */
@@ -47,10 +53,10 @@ function grouping(value: number, options?: Intl.NumberFormatOptions): Intl.Numbe
 
 /**
  * A number: `12,345.5` in English, `12 345,5` in Russian, grouped by thousands from five
- * digits (`1234.5`); `{useGrouping: false}` never groups it.
+ * digits (`1234.5`); `{useGrouping: false}` never groups it. One rounded to zero has no sign.
  */
 export function formatNumber(value: number, language: string, options?: Intl.NumberFormatOptions): string {
-  return value.toLocaleString(language, grouping(value, options));
+  return value.toLocaleString(language, grouping(value, { ...SIGN, ...options }));
 }
 
 /**
@@ -62,8 +68,8 @@ const DECIMAL = /^[+-]?\d+(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/;
 /**
  * A decimal of the backend: a `DecimalField` is a string in the API and in the contract
  * (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it
- * has (`45,000.10` in English, `45 000,10` in Russian, grouped as `formatNumber` groups)
- * unless `options` sets them; a sum is
+ * has (`45,000.10` in English, `45 000,10` in Russian, grouped as `formatNumber` groups, a
+ * zero without a sign: `-0.00` is `0.00`) unless `options` sets them; a sum is
  * `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`). It takes the value of a field as it
  * is (`fieldValue(row, 'total')`): a number is formatted as `formatNumber` does, no value
  * (null, undefined, '') is `—` as `FieldValue` shows it, another value its text.
@@ -82,7 +88,7 @@ export function formatDecimal(value: unknown, language: string, options?: Intl.N
       ? { minimumFractionDigits: digits, maximumFractionDigits: digits }
       : {};
   // Intl formats the string itself, its exponent too (ES2023), never rounded to a double first
-  return new Intl.NumberFormat(language, grouping(Number(text), { ...precision, ...options })).format(text as unknown as number);
+  return new Intl.NumberFormat(language, grouping(Number(text), { ...SIGN, ...precision, ...options })).format(text as unknown as number);
 }
 
 /**

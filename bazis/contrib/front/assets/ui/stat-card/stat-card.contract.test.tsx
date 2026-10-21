@@ -126,16 +126,24 @@ describe('StatCard', () => {
   });
 
   it('rounds a negative average with its sign, and one rounded to zero without it', async () => {
+    // a decimal to its decimal places; a number (`count`, no places) as a number is shown
+    const unit = { count: { unit: 'h' } };
+    const usd = { count: { currency: 'USD' } };
     const cases = [
       ['hours', '-1.2550000000000000', '-1.26'],
       ['whole', '-0.4000000000000000', '0'],
       ['hours', '-0.0040000000000000', '0.00'],
       ['whole', '2.4000000000000000', '2'],
       ['hours', '0E-16', '0.00'],
+      ['count', -0.0001, '0'],
+      ['count', -2.5, '-2.5'],
+      ['count', -0.0004, '0 h', unit],
+      ['count', -0.004, '$0.00', usd],
+      ['count', -1.25, '-$1.25', usd],
     ] as const;
-    for (const [name, average, shown] of cases) {
+    for (const [name, average, shown, display] of cases) {
       const tile = renderWithBazis(
-        <StatCard id="mean" path={ITEMS as never} label="Mean" value={{ avg: name }} />,
+        <StatCard id="mean" path={ITEMS as never} label="Mean" value={{ avg: name }} display={display} />,
         new Backend().on('GET', ITEMS, totals({ [`avg(${name})`]: average })),
       );
       expect((await within(screen.getByTestId('tile:mean')).findByTestId('state:loaded')).textContent).toBe(shown);

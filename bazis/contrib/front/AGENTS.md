@@ -4767,7 +4767,7 @@ Its props, `SocketProviderProps`:
 
 #### formatDecimal
 
-`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it has (`45,000.10` in English, `45 000,10` in Russian, grouped as `formatNumber` groups) unless `options` sets them; a sum is `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`).
+`formatDecimal(value: unknown, language: string, options?: Intl.NumberFormatOptions): string`: A decimal of the backend: a `DecimalField` is a string in the API and in the contract (`"45000.10"`, its exact digits), formatted exactly with the digits after the point that it has (`45,000.10` in English, `45 000,10` in Russian, grouped as `formatNumber` groups, a zero without a sign: `-0.00` is `0.00`) unless `options` sets them; a sum is `{style: 'currency', currency: 'RUB'}` (`45 000,10 ₽`).
 
 #### formatNumber
 

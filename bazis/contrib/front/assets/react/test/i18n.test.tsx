@@ -205,6 +205,10 @@ describe('the formats', () => {
     expect(formatNumber(-1234.5, 'ru')).toBe('-1234,5');
     expect(formatNumber(1234.5, 'en', { useGrouping: true })).toBe('1,234.5');
     expect(formatNumber(12345, 'en', { useGrouping: false })).toBe('12345');
+    // a number rounded to zero has no sign, another negative one keeps it
+    expect(formatNumber(-0.0001, 'en')).toBe('0');
+    expect(formatNumber(-0.004, 'en', { style: 'currency', currency: 'USD' })).toBe('$0.00');
+    expect(formatNumber(-0.001, 'en')).toBe('-0.001');
     // the spaces of the formats depend on the version of ICU
     expect(formatDate('2026-10-08', 'en')).toBe('Oct 8, 2026');
     expect(formatDate('2026-10-08', 'ru')).toMatch(/^8 окт\. 2026\sг\.$/);
@@ -221,6 +225,8 @@ describe('the formats', () => {
     expect(formatDecimal('45000.10', 'en')).toBe('45,000.10');
     expect(formatDecimal('45000.10', 'ru')).toMatch(/^45\s000,10$/);
     expect(formatDecimal('-7', 'en')).toBe('-7');
+    expect(formatDecimal('-0.00', 'en')).toBe('0.00');
+    expect(formatDecimal('-0.4', 'en', { maximumFractionDigits: 0 })).toBe('0');
     // more digits than a double keeps
     expect(formatDecimal('12345678901234567.89', 'en')).toBe('12,345,678,901,234,567.89');
     // a sum, in the currency of the product
