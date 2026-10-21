@@ -161,6 +161,12 @@ def lock(*assets):
     }
 
 
+def unrouted_users(data):
+    """The users of the contract are the model `accounts.user`, which no resource routes; the author of the statuses relates to it."""
+    data['capabilities']['users'].update(user_resource='accounts.user')
+    data['project']['resources']['tasks.task']['fields']['status_author']['relation'] = 'accounts.user'
+
+
 def remove_statusy_section(data):
     del data['capabilities']['statusy']
 
@@ -314,8 +320,9 @@ CASES = [
     ),
     (
         'P036',
-        # the user model of the project has no route set in its router (no `users/routes.py`)
-        {CONTRACT: lambda d: d['capabilities']['users'].update(user_resource='accounts.user')},
+        # the user model of the project has no route set in its router (no `users/routes.py`),
+        # and the author of the statuses relates to it
+        {CONTRACT: lambda d: unrouted_users(d)},
         [('P036', f'{PRODUCT}#/packages/0')],
     ),
     (
@@ -2129,6 +2136,42 @@ def test_a_decimal_of_a_payload_is_a_string_or_a_number(contract, spec_type):
     edit(root, PRODUCT, lambda d: task(d)['workflow']['transitions'][1]['payload']['fields'][0].update(
         type=spec_type))
     assert issues(root) == []
+
+
+@pytest.mark.django_db
+def test_no_warning_about_the_users_when_no_field_relates_to_them(contract):
+    # `packages` has `users`, and no field of the contract relates to a user model that no resource routes
+    root = contract.parent.parent
+    edit(root, CONTRACT, lambda d: d['capabilities']['users'].update(user_resource='accounts.user'))
+    assert issues(root) == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('spec_type', 'prop', 'defs', 'expected'), [
+    # a decimal is a number or a string; any other union is typed by its first member
+    ('string', {'anyOf': [{'type': 'integer'}, {'type': 'string'}]}, {}, ['P017']),
+    ('integer', {'anyOf': [{'type': 'integer'}, {'type': 'string'}]}, {}, ['S054']),
+    ('number', {'anyOf': [{'type': 'string', 'format': 'uri'}, {'type': 'string', 'maxLength': 0}]}, {}, ['P017']),
+    ('string', {'anyOf': [DECIMAL['anyOf'][1], {'type': 'null'}, DECIMAL['anyOf'][0]]}, {}, []),
+    # an enum is a `$ref` to a string with choices: `string`, not `json`
+    ('string', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}, []),
+    ('json', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}, ['P017']),
+    # a model is an object: `json`, which the form asks for as JSON (S054)
+    ('json', {'$ref': '#/$defs/Part'}, {'Part': {'type': 'object', 'properties': {'x': {'type': 'string'}}}}, ['S054']),
+    ('string', {'$ref': '#/$defs/Part'}, {'Part': {'type': 'object', 'properties': {'x': {'type': 'string'}}}}, ['P017']),
+])
+def test_the_type_of_a_payload_field_by_its_schema(contract, spec_type, prop, defs, expected):
+    root = contract.parent.parent
+
+    def change(d):
+        schema = d['capabilities']['statusy']['models']['tasks.task']['transits'][0]['payload']['schema']
+        schema['properties']['report'] = prop
+        schema['$defs'] = defs
+
+    edit(root, CONTRACT, change)
+    edit(root, PRODUCT, lambda d: task(d)['workflow']['transitions'][1]['payload']['fields'][0].update(
+        type=spec_type))
+    assert [it.code for it in validate(root).issues] == expected
 
 
 @pytest.mark.django_db

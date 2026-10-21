@@ -398,13 +398,16 @@ def _check_packages(doc: Document, data: dict, contract: dict, issues: Issues) -
 
 def _check_user_route(doc: Document, data: dict, contract: dict, issues: Issues) -> None:
     """
-    P036: the users have a resource in the contract, or the screens label them by the start of
-    their id (the author of a status, the assignee, the watchers).
+    P036: the users have no resource in the contract, and a field relates to them (the author
+    of a status, the assignee): the screens label them by the start of their id.
     """
     if 'users' not in data.get('packages', []):
         return
     resource = (contract['capabilities'].get('users') or {}).get('user_resource')
-    if resource is None or resource in contract['project']['resources']:
+    resources = contract['project']['resources']
+    if resource is None or resource in resources or not any(
+        schema.get('relation') == resource for it in resources.values() for schema in it['fields'].values()
+    ):
         return
     issues.add(
         doc, ('packages', data['packages'].index('users')), 'P036',
@@ -667,8 +670,10 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
             )
             continue
         schema = local_type(prop, payload['schema'])
-        # the type of the spec fits any member of a union (a decimal is a number or a string)
-        members = schema.get('anyOf', [schema])
+        # a decimal is a number or its digits as a string: the spec declares either member; any
+        # other union is typed by its first member
+        decimal = is_decimal(schema)
+        members = schema['anyOf'] if decimal else [schema.get('anyOf', [schema])[0]]
         if not any(matches_type(item_field['type'], member) for member in members):
             issues.add(
                 doc, (*path, 'fields', i, 'type'), 'P017',
@@ -676,7 +681,7 @@ def _check_payload(doc: Document, path: tuple, item: dict, transit: dict, issues
                 f'{" or ".join(_describe(member) for member in members)} in the contract.',
                 'Make the spec follow the payload type of the transit; a decimal (a number or its digits as '
                 'a string) is `type: string`, as the field of the entity (P013), or `number`.'
-                if len(members) > 1 else 'Make the spec follow the payload type of the transit.',
+                if decimal else 'Make the spec follow the payload type of the transit.',
             )
         elif (kind := unaskable(schema)) is not None:
             issues.add(
@@ -1406,6 +1411,17 @@ def _plain(schema: dict, kind: str) -> bool:
     return schema.get('type') == kind and not {'format', 'enum', 'const'} & schema.keys()
 
 
+def is_decimal(schema: dict) -> bool:
+    """
+    Whether a property (`local_type`) is a decimal of pydantic: a number and a string (and
+    `null`, which `local_type` leaves out).
+    """
+    members = schema.get('anyOf', [])
+    return len(members) == 2 and any(_plain(it, 'number') for it in members) and any(
+        _plain(it, 'string') for it in members
+    )
+
+
 def unaskable(schema: dict) -> str | None:
     """
     What a property (`local_type`) is when the form cannot ask for it but as JSON, as the
@@ -1416,10 +1432,7 @@ def unaskable(schema: dict) -> str | None:
     members = schema.get('anyOf')
     if members is not None:
         strings = all(it.get('type') == 'string' for it in members) and any(it.get('maxLength') == 0 for it in members)
-        decimal = len(members) == 2 and any(_plain(it, 'number') for it in members) and any(
-            _plain(it, 'string') for it in members
-        )
-        return None if strings or decimal else 'a union of ' + ' and '.join(_describe(it) for it in members)
+        return None if strings or is_decimal(schema) else 'a union of ' + ' and '.join(_describe(it) for it in members)
     return {'object': 'an object', 'array': 'an array'}.get(schema.get('type'))
 
 

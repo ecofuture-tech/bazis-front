@@ -1108,7 +1108,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is |
 | `P034` | warning | a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs |
 | `P035` | error | a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`), by `open`, `open_item` or the `then` of a form: the frontend sends a user without a session to the login. List the role in `roles` of the screen, or give the scenario a role that logs in |
-| `P036` | warning | `packages` has `users` and the contract has no route of the user resource: the author of a status and every user that a screen shows is labeled by the start of his id. Register the user route set of the project, see "The users that the pickers offer" |
+| `P036` | warning | `packages` has `users`, the contract has no route of the user resource, and a field relates to it (the author of a status, an assignee): the screens label the users by the start of their id. Register the user route set of the project, see "The users that the pickers offer" |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
