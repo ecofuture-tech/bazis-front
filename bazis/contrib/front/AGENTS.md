@@ -313,7 +313,7 @@ package; `init` copies them to `spec/schema/`, and every starter references its 
 the editors), then the references between the files and, when the product has
 `contract/contract.json`, against the contract. The YAML files are read with the types of
 YAML 1.2: only `true` and `false` are booleans (`yes`, `No`, `on` are strings) and dates
-stay strings. Without the contract only the shape and
+stay strings; a text with `: ` or a special first character goes in quotes. Without the contract only the shape and
 the references between the specs are checked, and the output says so (`"contract": false`
 in JSON). Export the contract first (`bazis_front contract`); `check` reads it, it does not
 compare it with the backend (that is `contract --check` and `front.W001`).
@@ -468,7 +468,7 @@ headed by the values of the first two fields of its sections.
 
 **Workflow**: the statuses and the transits of bazis-statusy; a transit has one `from`
 (a Transit row has one source status), and `payload` when an action of the transit takes
-a typed payload. The ids are those of the Status and Transit rows, including those that
+a typed payload (a decimal field of it is `string`, as the field of an entity, or `number`). The ids are those of the Status and Transit rows, including those that
 bazis-statusy generates for a Transit created without one (`task#draft_to_done`,
 `task#draft_to_done#1`); any characters but `.` and white space.
 
@@ -1089,7 +1089,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P014` | error | the entity has a workflow, the resource is not a statusy model of the contract |
 | `P015` | error | a status of the workflow is not in the contract, or the initial status differs |
 | `P016` | error | a transition is not in the contract, or its from/to differ |
-| `P017` | error | the payload of a transition differs from the contract |
+| `P017` | error | the payload of a transition differs from the contract (a decimal is `string` or `number`) |
 | `P018` | error | the permit role of a role is not in the contract |
 | `P019` | error | the permit role lacks a permission that `access` grants |
 | `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a field of its path is not a relationship (a relation that the contract does not describe is not checked) |
@@ -1108,6 +1108,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is |
 | `P034` | warning | a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs |
 | `P035` | error | a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`), by `open`, `open_item` or the `then` of a form: the frontend sends a user without a session to the login. List the role in `roles` of the screen, or give the scenario a role that logs in |
+| `P036` | warning | `packages` has `users` and the contract has no route of the user resource: the author of a status and every user that a screen shows is labeled by the start of his id. Register the user route set of the project, see "The users that the pickers offer" |
 | `S001` | error | a screen file is not valid YAML |
 | `S002` | error | a screen does not follow screen.schema.json |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
@@ -1629,7 +1630,8 @@ the exports of each component with their props.
 **The status history** (`StatusHistory`) is what bazis-statusy exposes: the current
 status with `status_dt` and `status_author`. bazis-statusy records every transit
 (`<Model>StatusyTransit`) but has no endpoint that reads them, so the earlier transits
-are not shown.
+are not shown. The author is labeled by the user route set of the project; a contract
+without one (P036) shows him as the start of his id (see "The users that the pickers offer").
 
 ## Writing the screens
 

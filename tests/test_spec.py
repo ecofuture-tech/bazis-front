@@ -313,6 +313,12 @@ CASES = [
         ],
     ),
     (
+        'P036',
+        # the user model of the project has no route set in its router (no `users/routes.py`)
+        {CONTRACT: lambda d: d['capabilities']['users'].update(user_resource='accounts.user')},
+        [('P036', f'{PRODUCT}#/packages/0')],
+    ),
+    (
         'P016',
         {PRODUCT: lambda d: task(d)['workflow']['transitions'].append(
             {'id': 'cancel', 'from': 'draft', 'to': 'done'})},
@@ -2077,6 +2083,72 @@ def test_a_number_declared_for_a_string_names_the_decimal_field(contract):
     assert 'formatDecimal' in hints[f'/entities/0/fields/{hours}']
     assert 'DecimalField' not in hints['/entities/0/fields/0']
     assert 'DecimalField' not in hints['/entities/0/fields/2']
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('text', 'quoted'), [
+    ('product:\n  summary: Workshop "Spitsa": sign up\n', True),
+    ('product:\n  name: {ru: Workshop "Spitsa": sign up}\n', True),
+    ('product: [\n', False),
+])
+def test_a_text_with_a_colon_is_told_to_be_quoted(contract, text, quoted):
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: text)
+    (found,) = [it for it in validate(root).issues if it.code == 'P001']
+    assert ('Quote the text' in found.hint) == quoted
+    assert 'goes in quotes' in found.hint
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('summary', 'expected'), [
+    ('The tasks of a team', []),
+    ({'en': 'The tasks of a team', 'ru': 'Задачи команды'}, []),
+    ({'en': 'The tasks of a team'}, []),
+    ({}, ['P002']),
+    ({'english': 'The tasks of a team'}, ['P002']),
+    (5, ['P002']),
+])
+def test_the_summary_of_the_product_is_a_text_or_a_map_of_languages(contract, summary, expected):
+    # no S027 for a summary in one language: it is no text of the interface
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: d['product'].update(summary=summary))
+    assert [it.code for it in validate(root).issues] == expected
+
+
+DECIMAL = {'anyOf': [{'type': 'number', 'minimum': 0}, {'type': 'string'}]}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('spec_type', ['string', 'number'])
+def test_a_decimal_of_a_payload_is_a_string_or_a_number(contract, spec_type):
+    # a pydantic Decimal is a union of a number and a string in the contract: the spec
+    # declares either of the members (a string, as the field of the entity, or a number)
+    root = contract.parent.parent
+    edit(root, CONTRACT, lambda d: d['capabilities']['statusy']['models']['tasks.task']['transits'][0][
+        'payload']['schema']['properties'].update(report=DECIMAL))
+    edit(root, PRODUCT, lambda d: task(d)['workflow']['transitions'][1]['payload']['fields'][0].update(
+        type=spec_type))
+    assert issues(root) == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('spec_type', 'prop'), [
+    ('boolean', DECIMAL),
+    ('string', {'type': 'integer'}),
+])
+def test_a_payload_type_that_is_no_member_of_the_contract(contract, spec_type, prop):
+    root = contract.parent.parent
+    edit(root, CONTRACT, lambda d: d['capabilities']['statusy']['models']['tasks.task']['transits'][0][
+        'payload']['schema']['properties'].update(report=prop))
+    edit(root, PRODUCT, lambda d: task(d)['workflow']['transitions'][1]['payload']['fields'][0].update(
+        type=spec_type))
+    found = [it for it in validate(root).issues if it.code == 'P017']
+    assert [it.path for it in found] == ['/entities/0/workflow/transitions/1/payload/fields/0/type']
+    if prop is DECIMAL:
+        assert 'an attribute of type number or an attribute of type string in the contract' in found[0].message
+        assert '`type: string`' in found[0].hint
+    else:
+        assert 'an attribute of type integer in the contract' in found[0].message
 
 
 @pytest.mark.django_db

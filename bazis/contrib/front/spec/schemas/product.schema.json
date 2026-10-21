@@ -15,7 +15,18 @@
       "properties": {
         "id": {"$ref": "#/$defs/id"},
         "name": {"description": "The name of the product, the title of its frontend.", "$ref": "#/$defs/text", "minLength": 1},
-        "summary": {"type": "string"}
+        "summary": {
+          "description": "What the product is, for the readers of the specs: a text, or the text in each language (`{en: ..., ru: ...}`). Shown nowhere, not checked against `languages`.",
+          "oneOf": [
+            {"type": "string"},
+            {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {"$ref": "#/$defs/language"},
+              "additionalProperties": {"type": "string", "minLength": 1}
+            }
+          ]
+        }
       }
     },
     "packages": {

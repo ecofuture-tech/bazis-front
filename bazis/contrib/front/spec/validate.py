@@ -121,6 +121,18 @@ def validator(name: str) -> Draft202012Validator:
     return Draft202012Validator(schema)
 
 
+#: the hint by the `problem` of PyYAML: a text with `: ` in a block or in a flow mapping is read as a mapping
+_QUOTE = (
+    "Quote the text: a text with `: ` or a special first character (`'`, `#`, `[`, `{`) goes in quotes, "
+    "`title: 'Workshop \"Spitsa\": sign up'`."
+)
+_SYNTAX = 'Fix its syntax; a text with `: ` or special characters goes in quotes.'
+YAML_HINTS = {
+    'mapping values are not allowed here': _QUOTE,
+    "expected ',' or '}', but got ':'": _QUOTE,
+}
+
+
 class _Loader(yaml.SafeLoader):
     """
     YAML whose implicit types are those of YAML 1.2: `2026-10-07` stays a string (no
@@ -161,7 +173,8 @@ def load(
         )
         return doc
     except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError) as err:
-        issues.add(doc, (), read_code, f'{doc.file} cannot be read: {err}', 'Fix its syntax.')
+        hint = YAML_HINTS.get(getattr(err, 'problem', None), _SYNTAX)
+        issues.add(doc, (), read_code, f'{doc.file} cannot be read: {err}', hint)
         return doc
 
     doc.data = data
