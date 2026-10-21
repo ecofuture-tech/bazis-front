@@ -41,12 +41,12 @@ const PASSWORD_ACTION = AUTHING?.actions.find((it) => it.code === 'password' && 
 export const PASSWORD_LOGIN = LOGIN_ENABLED && (AUTHING === null || PASSWORD_ACTION !== null);
 
 /**
- * The logins of bazis-authing in a page of their service (`GET`: Google), opened in a window:
- * a button each on the login screen. The services with another body than the password are
- * not offered.
+ * The logins of bazis-authing in a window of their service: Google, whose action is the
+ * `POST` of its init (bazis-authing 2.8; the `GET` of an older one is not offered), a button
+ * on the login screen. The services with another body than the password are not offered.
  */
 export const WINDOW_LOGINS: readonly AuthAction[] = LOGIN_ENABLED
-  ? (AUTHING?.actions.filter((it) => it.method === 'GET') ?? [])
+  ? (AUTHING?.actions.filter((it) => it.code === 'google' && it.method === 'POST') ?? [])
   : [];
 
 const listeners = new Set<() => void>();
@@ -137,12 +137,14 @@ export async function login(api: Api, credentials: { username: string; password:
 }
 
 /**
- * Logs in with a service of bazis-authing whose page is opened in a window (Google): a new
- * store of its auth endpoint, the page of the service with the store token, then the auth
- * endpoint is asked until the store is signed in (the window is closed then), a login of the
- * store fails or the store expires (BAZIS_AUTH_COOKIE_LIFETIME). The signal aborts it: the
- * cancel of the login screen, which is also how a user who closed the window stops it. The
- * window is opened at once: a browser blocks a window that a click does not open.
+ * Logs in with a service of bazis-authing in a window (Google): a new store of its auth
+ * endpoint, the init of the service in the store (`api.authInit`: a one-time ticket bound to
+ * this browser by a cookie), the window at the URL of the ticket, then the auth endpoint is
+ * asked until the store is signed in (the window is closed then), a login of the store fails
+ * or the store expires (BAZIS_AUTH_COOKIE_LIFETIME). The signal aborts it: the cancel of the
+ * login screen, which is also how a user who closed the window stops it. The window is
+ * opened at once, before the init gives its URL: a browser blocks a window that a click does
+ * not open. A failed init closes it.
  *
  * `popup.closed` is not read: the sign-in pages of Google send Cross-Origin-Opener-Policy,
  * after which the opener sees the window as closed while the user still signs in there.
@@ -152,14 +154,16 @@ export async function loginInWindow(api: Api, action: AuthAction, signal?: Abort
   const popup = window.open('', 'bazis-login', 'popup,width=520,height=680');
   if (popup === null) throw new Error(t('login.blocked'));
   try {
-    const { auth_url: authUrl, token_param: param } = AUTHING;
-    const start = await api.auth(authUrl, signal ? { signal } : {});
+    const { auth_url: authUrl } = AUTHING;
+    const options = signal ? { signal } : {};
+    const start = await api.auth(authUrl, options);
     if (start.status === 'signed_in') {
       setToken(start.user.token);
       return;
     }
-    popup.location.href = `${action.url}?${new URLSearchParams({ [param]: start.store }).toString()}`;
-    const state = await api.authWait(authUrl, start.store, signal ? { signal } : {});
+    const { url } = await api.authInit(action.url, start.store, options);
+    popup.location.href = url;
+    const state = await api.authWait(authUrl, start.store, options);
     if (state.status === 'signed_out' && !state.errors.length) {
       throw new Error(t('login.expired'));
     }

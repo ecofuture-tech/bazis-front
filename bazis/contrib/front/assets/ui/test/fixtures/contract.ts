@@ -1026,7 +1026,7 @@ export const TRANSITS = {
 export interface Capabilities {
   readonly async_background: { readonly result_path: string | null } | null;
   readonly async_request: { readonly header: string } | null;
-  readonly authing: { readonly auth_url: string | null; readonly actions: readonly { readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; readonly logout_url: string | null; readonly token_param: string } | null;
+  readonly authing: { readonly auth_url: string | null; readonly actions: readonly { readonly code: string; readonly name: string; readonly method: string; readonly url: string }[]; readonly logout_url: string | null } | null;
   readonly bg: { readonly resource: string | null } | null;
   readonly notify: { readonly resource: string | null } | null;
   readonly permit: { readonly roles: typeof ROLES; readonly selectors: { readonly [resource: string]: { readonly [selector: string]: string } } } | null;
@@ -1054,7 +1054,6 @@ export const CAPABILITIES: Capabilities = {
     ],
     auth_url: "/api/v1/authing/auth/",
     logout_url: "/api/v1/authing/logout/",
-    token_param: "bazis_auth",
   },
   bg: {
     resource: "bg.task",

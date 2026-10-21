@@ -19,6 +19,7 @@ import type {
   ActionName,
   ActionOptions,
   ActionOptionsArg,
+  AuthInit,
   AuthState,
   AuthUser,
   BackgroundMethod,
@@ -249,6 +250,14 @@ export interface BazisClient<Paths> {
    * auth endpoint answers.
    */
   authLogin(path: string, store: string, body: unknown, options?: RequestOptions): Promise<AuthState>;
+
+  /**
+   * bazis-authing 2.8: the init of a sign-in in a window of a service (Google), `POST` of its
+   * login action with the store token; resolves to the ticket and the URL that the window
+   * opens. With the cookies of the browser: its answer sets the cookie that binds the ticket
+   * to this browser, which the window must send (the API same-site with the page).
+   */
+  authInit(path: string, store: string, options?: RequestOptions): Promise<AuthInit>;
 
   /**
    * bazis-authing: waits for a login in a page of a service (Google) in the store: asks the
@@ -631,6 +640,18 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
 
     authLogin: (path: string, store: string, body: unknown, { signal }: RequestOptions = {}) =>
       authorize('POST', path, { store, body, signal }),
+
+    authInit: async (path: string, store: string, { signal }: RequestOptions = {}) => {
+      const response = await fetcher(`${baseUrl}${path}`, {
+        method: 'POST',
+        headers: { Accept: ACCEPT, ...languageHeaders(), Authorization: `Bearer ${store}` },
+        credentials: 'include',
+        ...(signal ? { signal } : {}),
+      });
+      const text = await response.text();
+      if (!response.ok) throw errorFromResponse(response.status, response.statusText, text);
+      return JSON.parse(text) as AuthInit;
+    },
 
     authWait,
 

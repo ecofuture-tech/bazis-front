@@ -280,6 +280,26 @@ def check_packages(contract: dict, issues: Issues) -> None:
         )
 
 
+def check_logins(contract: dict, issues: Issues) -> None:
+    """
+    The Google login of bazis-authing 2.7 or older, its action `google` with `GET` (the store
+    token in the URL of its window): the template follows the init of bazis-authing 2.8, a
+    `POST`, and shows no button for it. A warning, not C004: the password login works with
+    bazis-authing 2.6, the `minimum` of the capability.
+    """
+    authing = contract.get('capabilities', {}).get('authing') or {}
+    doc = Document(CONTRACT, CONTRACT_FILE)
+    for index, action in enumerate(authing.get('actions', [])):
+        if action.get('code') == 'google' and action.get('method') == 'GET':
+            issues.add(
+                doc, ('capabilities', 'authing', 'actions', index), 'C005',
+                'The login action `google` of bazis-authing is `GET` (bazis-authing 2.7 or '
+                'older): the login screen has no Google button.',
+                "Upgrade it (`pip install -U 'bazis-authing>=2.8.0'`, which requires bazis "
+                '2.19), then export the contract again.',
+            )
+
+
 TEXT = '#/$defs/text'
 
 
@@ -620,6 +640,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = Fa
     if contract is not None:
         check_assets(root, contract, issues)
         check_packages(contract, issues)
+        check_logins(contract, issues)
 
     product_doc = load(root, root / PRODUCT_FILE, 'product', PRODUCT_SCHEMA, ('P001', 'P002'), issues)
     screen_docs = [

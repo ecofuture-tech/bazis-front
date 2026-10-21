@@ -90,7 +90,9 @@ reimplement it:
 - runtime schemas (`schema_list`, `schema_create`, `schema_retrieve`, `schema_update`) and
   `route_filter_fields`;
 - the token endpoint of bazis-users, the authorization store of bazis-authing (a store
-  token without `exp`, anonymous on HTTP, exchanged for the session token), the permission
+  token without `exp`, anonymous on HTTP, exchanged for the session token; requests without
+  the cookies of the browser but the init of a sign-in in a window, whose cookie binds its
+  ticket to the browser, and the logout), the permission
   meta of bazis-permit, the transits of bazis-statusy, the multipart uploads of
   bazis-uploadable (with XMLHttpRequest for their progress) and the background requests of
   bazis-async-request with the results of bazis-async-background (a 202 with a task, or the
@@ -170,9 +172,10 @@ the state of the socket), both in the `tools` of `AppShell`, with bazis-bg
 `task-progress` and with bazis-async-background `async-result`, and `map` (the items with a
 point on a Leaflet map, and the map of a point field of the forms, given to the input of the
 fields by `MapProvider`, with the tiles of the product). The login form takes the
-logins of bazis-authing: the password through its service `password`, and a button for a
-service whose page opens in a window. The parts of the screens of the other primitives
-are components too: `dashboard` (the home: the tiles of `stat-card`, the aggregates of the
+logins of bazis-authing: the password through its service `password`, and a button for
+Google, whose window opens at the URL that the `POST` of its init gives (bazis-authing
+2.8). The parts of the screens of the other primitives are components too:
+`dashboard` (the home: the tiles of `stat-card`, the aggregates of the
 core over filtered lists, `page[limit]=1` with `meta=aggregates`; the links of the
 navigation; the charts of `charts`, the groups of those aggregates; the last items),
 `resource-board` (a column per status of a workflow, a card moved by a transit of

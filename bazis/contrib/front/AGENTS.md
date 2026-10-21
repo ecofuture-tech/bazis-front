@@ -1075,6 +1075,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `C002` | error | contract/contract.json has another format: it was exported by another version of bazis-front |
 | `C003` | warning | the assets of the frontend (its lock) differ from the capabilities of the contract: the hooks of a package are missing, or assets of a package are there without it |
 | `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.13.0, bazis-uploadable 2.7.0, bazis-bg 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
+| `C005` | warning | the Google login of the contract is that of bazis-authing 2.7 or older (`GET`), which the login screen does not offer: upgrade bazis-authing to 2.8.0 (it requires bazis 2.19) and export the contract again; the password login works with 2.6 |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
 | `P002` | error | spec/product.yaml does not follow product.schema.json |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
@@ -1408,7 +1409,7 @@ differ from the backend; `--check` does the same in CI.
   },
   "capabilities": {
     "users": {"token_url": "/api/openapi-token/", "user_resource": "users.user", "profile_language": false},
-    "authing": {"auth_url": "/api/v1/authing/auth/", "logout_url": "/api/v1/authing/logout/", "token_param": "bazis_auth",
+    "authing": {"auth_url": "/api/v1/authing/auth/", "logout_url": "/api/v1/authing/logout/",
                 "actions": [{"code": "password", "name": "Login/Password", "method": "POST",
                              "url": "/api/v1/authing/password/"}]},
     "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"]},
@@ -1476,8 +1477,7 @@ differ from the backend; `--check` does the same in CI.
   (the auth endpoint of bazis-authing, null when it is not routed; the login actions of
   the services of `BAZIS_AUTH_KINDS` as the endpoint lists them in `meta.actions`, in the
   order of the setting, without those whose route is not registered; the logout endpoint
-  `logout_url`, null when it is not routed; the query parameter of the store token,
-  `BAZIS_AUTH_COOKIE_NAME`), `uploadable` (`max_size`, the
+  `logout_url`, null when it is not routed), `uploadable` (`max_size`, the
   `BAZIS_FILE_UPLOAD_MAX_SIZE` of an upload in bytes, null for no limit; `resources`, the
   JSON:API types of the route sets of `FileUploadRouteSet` and its subclasses: a to-one
   relationship to one of them is a file), `permit`
@@ -3067,7 +3067,7 @@ client".
   of an item from its runtime schema `schema_update` (`useResourceForm`, `useSchema`).
 - Log in with `api.login()` and keep the token in the application; the client reads it
   through the `token` option on every request. With bazis-authing the template logs in
-  with `api.auth()`, `api.authLogin()` and `api.authWait()` (see
+  with `api.auth()`, `api.authLogin()`, `api.authInit()` and `api.authWait()` (see
   [Logins with bazis-authing](#logins-with-bazis-authing)).
 
 ### The uploads, the custom actions and the background requests
@@ -3399,20 +3399,31 @@ bazis-users, sent as the bearer token like the token of `token_url`. The templat
    `Authorization: Bearer <store>` and `{username, password}`; it answers 303 to the auth
    endpoint, which answers 200 `{user_id, username, …, token}` (`token` is the session
    token), or 400 with the error `USERNAME_PASSWORD_ERROR` (status 422) of the store.
-3. A service in its page (`GET`, Google): the template opens a window at
-   `<url>?<token_param>=<store>` (the service ends in that window on a page of
-   bazis-authing without tokens, which tries to close it)
-   and asks the auth endpoint with the store token every 1.5 s until it is signed in, has an
-   error (`GOOGLE_AUTH_ERROR`), or has expired (`BAZIS_AUTH_COOKIE_LIFETIME`: the endpoint
-   answers with another store); the login screen offers a cancel meanwhile, also for a user
-   who closed the window. The closing of the window is not watched: the sign-in pages of
+3. Google in a window (the action `google`, `POST`, bazis-authing 2.8): on the click the
+   template opens an empty window at once (a browser blocks a window that a click does not
+   open), then `POST <url>` with `Authorization: Bearer <store>` (`api.authInit`) answers
+   `{ticket, url}` and sets a cookie that binds the one-time ticket to this browser; the
+   window goes to that `url` (a path of the API with `?ticket=`, never the store token),
+   which redirects to Google (the service ends in that window on a page of bazis-authing
+   without tokens, which tries to close it). A failed init (401: the store is gone) closes
+   the window. Then the template asks the auth endpoint with the store token every 1.5 s
+   until it is signed in, has an error (`GOOGLE_AUTH_ERROR`), or has expired
+   (`BAZIS_AUTH_COOKIE_LIFETIME`: the endpoint answers with another store); the login screen
+   offers a cancel meanwhile, also for a user who closed the window. The closing of the window is not watched: the sign-in pages of
    Google send Cross-Origin-Opener-Policy, after which the opener sees the window as
-   closed while the user still signs in there. The services
-   with another body than the password (an own service) are not offered.
+   closed while the user still signs in there. A 400 in the window is a ticket used,
+   expired (60 s) or without its cookie: sign in again. The Google action of an older
+   bazis-authing (`GET`, the store token in the URL; `check` warns, `C005`) and the
+   services with another body than the password (an own service) are not offered.
 
 The client sends these requests without cookies (`credentials: 'omit'`): the endpoint sets
 the store token as a cookie, and a store that is signed in would sign the next user in as
-the previous one until it expires. The store token is kept only during the login; a store
+the previous one until it expires. The init of Google is the exception (`credentials:
+'include'`): the window must send the cookie that its answer sets, `SameSite=Lax`, which a
+browser keeps only when the page is same-site with the API. The template is on the origin
+of its API (the proxy of Vite routes `/api`); an API on another origin must be on the same
+site (`app.site.com` and `api.site.com`) and answer CORS with credentials, and the window
+opens `url` on the origin of the API. The store token is kept only during the login; a store
 gives its session once (bazis-authing 2.6.0). The sign-out of the template (`signOut` of
 `src/app/session.ts`) drops the session token, which is stateless, and posts to the logout
 endpoint (`logout_url` of the section, `POST /logout/`, `api.authLogout`) with the cookies
@@ -3424,9 +3435,10 @@ The login of the template (`src/app/session.ts`, `src/screens/login/`) exists on
 bazis-users (`LOGIN_ENABLED`): the token endpoint of bazis-users, or with bazis-authing
 (`CAPABILITIES.authing`) its services: the username and the password through the service
 `password` (`login()`, `PASSWORD_LOGIN`), and a button for each service whose page opens in
-a window (`WINDOW_LOGINS`, `loginInWindow()`: Google). Only the session token is kept, never
-the store token of bazis-authing. The sign-out of `AppShell` is `signOut(api)`: it drops the
-session at once and, with bazis-authing, posts to its logout endpoint.
+a window (`WINDOW_LOGINS`, `loginInWindow()`: Google, the `POST` of bazis-authing 2.8). Only
+the session token is kept, never the store token of bazis-authing. The sign-out of
+`AppShell` is `signOut(api)`: it drops the session at once and, with bazis-authing, posts to
+its logout endpoint.
 
 ## Protocol facts that are easy to get wrong
 
@@ -3892,6 +3904,19 @@ The API of the copies that 0.6.1 changes:
 - A screen with the id `more`, the mark of the menu of the top bar (`nav:more`), is an error
   of `check` (S055): rename its file and its id, and the links to it.
 
+The API of the copies that 0.7.0 changes (bazis-authing 2.8):
+
+- `contract.json` is of format 10: the section `authing` has no `token_param` (the store
+  token is in no URL): `check` reports `C002` until it is exported again, and a code of the
+  product that read `CAPABILITIES.authing.token_param` no longer compiles.
+- The login with Google is the `POST` of its init (`api.authInit` of the client:
+  `{ticket, url}`), then its window at `url` (see
+  [Logins with bazis-authing](#logins-with-bazis-authing)); `WINDOW_LOGINS` offers only the
+  action `google` with `POST`, so the template shows no Google with an older bazis-authing,
+  whose `GET` action `check` reports (`C005`, a warning).
+  A login screen of the product that opened the window at `<url>?<token_param>=<store>`
+  calls `loginInWindow` of `src/app/session.ts` instead.
+
 ## API: the client
 
 <!-- Generated by scripts/gen_api_reference.mjs from the TypeScript of the assets: never edit it, run `npm run api-reference`. -->
@@ -3940,6 +3965,7 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `upload<P extends RouteSetWith<Paths, '', 'post'>>(path: P, file: Blob, options?: UploadOptions): Promise<ResponseOf<EndpointOf<Paths, P, '', 'post'>>>`: Uploads a file to a route set of bazis-uploadable (`FileUploadRouteSet` or a subclass): a `POST` of multipart form data with `file` (and `name`), sent with XMLHttpRequest, whose progress `onProgress` reports.
 - `auth(path: string, options?: RequestOptions & { store?: string; }): Promise<AuthState>`: bazis-authing: the state of an authorization store, `GET` of its auth endpoint with the store token of `store` (a new store without one).
 - `authLogin(path: string, store: string, body: unknown, options?: RequestOptions): Promise<AuthState>`: bazis-authing: a login action with a body in a store (`POST` of the password service, `{username, password}`); resolves to the state of the store, which its redirect to the auth endpoint answers.
+- `authInit(path: string, store: string, options?: RequestOptions): Promise<AuthInit>`: bazis-authing 2.8: the init of a sign-in in a window of a service (Google), `POST` of its login action with the store token; resolves to the ticket and the URL that the window opens.
 - `authWait(path: string, store: string, options?: RequestOptions & { interval?: number; }): Promise<AuthState>`: bazis-authing: waits for a login in a page of a service (Google) in the store: asks the auth endpoint every `interval` ms until the store is signed in, has an error of a login, or has expired (the endpoint answers with another store).
 - `authLogout(path: string, options?: RequestOptions): Promise<void>`: bazis-authing: `POST` of its logout endpoint (`logout_url` of the contract), at a sign-out: it deletes the stores of the request and their cookie (204, idempotent).
 - `background(method: BackgroundMethod, path: string, options?: RequestOptions & { body?: unknown; }): Promise<BackgroundStart>`: bazis-async-request: sends a request of the API with `X-Async-Background` (a body as `application/vnd.api+json`).
@@ -4082,7 +4108,14 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 
 - `code: string`: The service: `password`, `google`...
 - `name: string`
-- `method: string`: `POST` (a body, such as the username and the password) or `GET` (a page of the service, opened in the browser).
+- `method: string`: `POST`: a login with a body (the password service, `authLogin`) or the init of a sign-in in a window (the Google service of bazis-authing 2.8, `authInit`).
+- `url: string`
+
+#### AuthInit
+
+`interface AuthInit`: The init of a sign-in of bazis-authing in a window of its service (Google): a one-time ticket and the URL that the window opens, a path of the API with the ticket, valid only in the browser whose cookie the init set.
+
+- `ticket: string`
 - `url: string`
 
 #### AuthState

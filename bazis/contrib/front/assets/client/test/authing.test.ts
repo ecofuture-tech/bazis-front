@@ -111,6 +111,29 @@ describe('authLogin', () => {
   });
 });
 
+describe('authInit', () => {
+  const GOOGLE = '/api/v1/authing/google-auth-init/';
+
+  it('posts the store token with the cookies of the browser and reads the ticket and the URL of the window', async () => {
+    const init = { ticket: 'ticket-1', url: `${GOOGLE}?ticket=ticket-1` };
+    const { api, calls } = setup([json(init)]);
+    await expect(api.authInit(GOOGLE, 'store-1')).resolves.toEqual(init);
+    expect(calls).toEqual([
+      {
+        url: `${BASE}${GOOGLE}`,
+        init: { method: 'POST', headers: { Accept: ACCEPT, Authorization: 'Bearer store-1' }, credentials: 'include' },
+      },
+    ]);
+  });
+
+  it('throws an error of the init: the store is gone', async () => {
+    const { api } = setup([json({ errors: [{ status: 401, detail: 'Token has been expired' }] }, 401)]);
+    const error = await api.authInit(GOOGLE, 'store-1').catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 401 });
+  });
+});
+
 describe('authWait', () => {
   afterEach(() => {
     vi.useRealTimers();
