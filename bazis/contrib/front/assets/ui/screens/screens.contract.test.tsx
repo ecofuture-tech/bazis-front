@@ -97,6 +97,15 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
           action_mark_done: { name: 'mark-done', item: false, method: 'post', access_action: null, body: null },
           action_export: { name: 'export', item: false, method: 'post', access_action: null, body: null },
           action_export_item: { name: 'export', item: true, method: 'post', access_action: null, body: null },
+          // a `response_class` of CSV: it answers a file
+          action_report: {
+            name: 'report',
+            item: false,
+            method: 'post',
+            access_action: null,
+            body: { type: 'object', properties: { year: { type: 'integer', title: 'Year' } } },
+            file: true,
+          },
           action_suggest: {
             name: 'suggest',
             item: false,
@@ -783,6 +792,25 @@ describe('ActionForm', () => {
     expect(screen.getByTestId('state:invalid')).toBeTruthy();
     expect(screen.getByTestId('action:submit')).toBeTruthy();
     expect(screen.queryByTestId('state:done')).toBeNull();
+  });
+
+  it('saves the file that the action answers, then shows its name in the result', async () => {
+    // jsdom has no object URLs and saves no file
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:report'), revokeObjectURL: vi.fn() });
+    const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const backend = new Backend().file(`${ITEMS}report/`, 'year', 'attachment; filename="report-2026.csv"', 'POST');
+    renderWithBazis(
+      <ActionForm path={ITEMS} action="report" fields={['year']} result={{ message: (response) => `Saved ${String(response.filename)}` }} />,
+      backend,
+    );
+    fireEvent.change(screen.getByTestId('field:year'), { target: { value: '2026' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    const done = await screen.findByTestId('state:done');
+    expect(done.textContent).toContain('Saved report-2026.csv');
+    expect(backend.calls.map((it) => [it.method, it.url, it.body])).toEqual([['POST', `${ITEMS}report/`, { year: 2026 }]]);
+    expect(saved).toHaveBeenCalledOnce();
+    expect((saved.mock.contexts[0] as HTMLAnchorElement).download).toBe('report-2026.csv');
+    saved.mockRestore();
   });
 
   it('without a result, says that it is done and calls onDone', async () => {

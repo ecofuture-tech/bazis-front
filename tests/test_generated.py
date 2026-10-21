@@ -176,7 +176,8 @@ def test_contract_ts_is_rendered_from_the_contract():
         '  readonly permit: { readonly roles: typeof ROLES; readonly selectors: '
         '{ readonly [resource: string]: { readonly [selector: string]: string } } } | null;',
         '  readonly statusy: { readonly models: typeof TRANSITS } | null;',
-        '  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[] } | null;',
+        '  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[]; '
+        'readonly anonymous: boolean; readonly anonymous_types: readonly string[] } | null;',
         '  readonly users: { readonly token_url: string; readonly user_resource: string; '
         'readonly profile_language: boolean } | null;',
         '  readonly ws: { readonly path: string | null } | null;',

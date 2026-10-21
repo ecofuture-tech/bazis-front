@@ -12,7 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import csv
+import io
+
 from django.apps import apps
+from django.utils.http import content_disposition_header
+
+from fastapi.responses import Response
 
 from pydantic import BaseModel, Field
 
@@ -60,6 +66,18 @@ class Suggested(BaseModel):
     task: str
 
 
+class ExportRequest(BaseModel):
+    """The tasks to export: those of a priority, all without one."""
+
+    priority: Task.Priority | None = None
+
+
+class CsvResponse(Response):
+    """A CSV file: the OpenAPI declares its media type as the answer of the action."""
+
+    media_type = 'text/csv'
+
+
 class TaskRouteSet(StatusyRouteSetBase):
     """
     The tasks. The files are routed by bazis-uploadable itself
@@ -88,6 +106,26 @@ class TaskRouteSet(StatusyRouteSetBase):
 
         task = CountTasks.delay(priority=data.priority, author=self.inject.user)
         return CountStarted(task=str(task.pk))
+
+    @http_post('/export/', kind=RouteKind.OTHER, response_class=CsvResponse, access_action=CrudAccessAction.VIEW)
+    def action_export(self, data: ExportRequest, **kwargs):
+        """
+        A custom action that answers a file (`custom_actions[].file` of the contract): the
+        tasks that the user views, of a priority or all, as CSV named `tasks.csv`
+        (`Content-Disposition`), which the form of the specs (`export-tasks`) saves. It
+        requires the view of the tasks (`access_action`: 403 for a role without it) and
+        exports the rows that bazis-permit lets the user view.
+        """
+        tasks = self.restrict_queryset(Task.objects.order_by('dt_created'), CrudAccessAction.VIEW)
+        if data.priority is not None:
+            tasks = tasks.filter(priority=data.priority)
+        content = io.StringIO()
+        writer = csv.writer(content)
+        writer.writerow(['title', 'status', 'priority'])
+        writer.writerows(tasks.values_list('title', 'status', 'priority'))
+        return CsvResponse(
+            content.getvalue(), headers={'Content-Disposition': content_disposition_header(True, 'tasks.csv')}
+        )
 
     @http_post('/suggest/', response_model=Suggested, kind=RouteKind.OTHER, public=True)
     def action_suggest(self, data: SuggestRequest, **kwargs):

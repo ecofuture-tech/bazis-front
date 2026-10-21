@@ -45,7 +45,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 10
+    assert data['format'] == 11
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -102,13 +102,14 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     # ids of the list of the core or the transits of bazis-statusy and their history
     # (`NOT_CUSTOM`); whether anonymous users may call them (`public=True`: `suggest`, the
     # action of the guests); the standalone schema of their JSON answer, whose properties the
-    # result of a form shows
+    # result of a form shows, or whether they answer a file
     custom = task['custom_actions']
-    assert sorted(custom) == ['action_count', 'action_escalate', 'action_suggest']
+    assert sorted(custom) == ['action_count', 'action_escalate', 'action_export', 'action_suggest']
     assert resources['users.user']['custom_actions'] == {}
     priority = {'enum': ['low', 'normal', 'high'], 'title': 'Priority', 'type': 'string'}
     count = custom['action_count']
-    assert set(count) == {'name', 'item', 'method', 'access_action', 'public', 'body', 'response'}
+    assert set(count) == {'name', 'item', 'method', 'access_action', 'public', 'body', 'response', 'file'}
+    assert count['file'] is False
     assert {key: count[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
         'name': 'count', 'item': False, 'method': 'post', 'access_action': None, 'public': False,
     }
@@ -126,11 +127,17 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert suggest['response']['properties'] == {'task': {'title': 'Task', 'type': 'string'}}
     assert escalate['response']['properties'] == {'priority': {'$ref': '#/$defs/Priority'}}
     assert escalate['response']['$defs'] == {'Priority': priority}
+    # an action that answers a file (`response_class` of CSV): no JSON answer
+    export_ = custom['action_export']
+    assert {key: export_[key] for key in ('name', 'item', 'method', 'access_action', 'response', 'file')} == {
+        'name': 'export', 'item': False, 'method': 'post', 'access_action': 'view', 'response': None, 'file': True,
+    }
+    assert export_['body']['properties'] == count['body']['properties']
     # an action without a body (a GET) and without a JSON answer (a file)
     download = resources['bg.task']['custom_actions']['action_download']
     assert download == {
         'name': 'download', 'item': True, 'method': 'get', 'access_action': None, 'public': False, 'body': None,
-        'response': None,
+        'response': None, 'file': True,
     }
 
     fields = task['fields']
@@ -224,8 +231,33 @@ def test_the_routes_of_every_statusy_route_set_are_not_custom_actions():
     assert _custom_actions({'paths': paths}, '/t/', operations) == {
         'action_report': {
             'name': 'report', 'item': True, 'method': 'get', 'access_action': None, 'public': False, 'body': None,
-            'response': None,
+            'response': None, 'file': False,
         },
+    }
+
+
+def test_a_custom_action_answers_a_file_when_its_answer_is_not_json():
+    """
+    `file` of a custom action: its answer (200) has content of another type than JSON (a
+    `response_class` with a `media_type`); an answer with JSON among its types, or without
+    content, is not a file.
+    """
+    from bazis.contrib.front.contract.resources import _custom_actions
+
+    def route(name, content):
+        answer = {} if content is None else {'200': {'description': 'OK', 'content': content}}
+        meta = {'kind': 'other', 'action': f'action_{name}', 'public': False, 'access_action': None}
+        return {'post': {'x-bazis': meta, 'responses': answer}}
+
+    paths = {
+        '/t/csv/': route('csv', {'text/csv': {'schema': {'type': 'string'}}}),
+        '/t/both/': route('both', {'application/json': {'schema': {}}, 'text/csv': {}}),
+        '/t/none/': route('none', None),
+    }
+    operations = [it for item in paths.values() for it in item.values()]
+    found = _custom_actions({'paths': paths}, '/t/', operations)
+    assert {name: it['file'] for name, it in found.items()} == {
+        'action_csv': True, 'action_both': False, 'action_none': False,
     }
 
 
@@ -386,8 +418,11 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
         # the logout endpoint of bazis-authing 2.6.0, which the frontend calls at a sign-out
         'logout_url': '/api/v1/authing/logout/',
     }
-    # the resources of the route sets of FileUploadRouteSet; no size limit by default
-    assert sections['uploadable'] == {'max_size': None, 'resources': ['uploadable.file_upload']}
+    # the resources of the route sets of FileUploadRouteSet; no size limit by default, and no
+    # anonymous uploads
+    assert sections['uploadable'] == {
+        'max_size': None, 'resources': ['uploadable.file_upload'], 'anonymous': False, 'anonymous_types': [],
+    }
     # the effective permissions of a role: the union of those of its groups, sorted
     # the names in every language of the project (translated fields)
     assert sections['permit']['roles'] == [
@@ -652,6 +687,29 @@ def test_the_sections_follow_the_routes_and_the_settings(sample_app, settings, m
     assert authing.section()['auth_url'] == '/api/v1/authing/auth/'
     monkeypatch.setattr(authing, 'url_path', lambda app, name: None if name == 'auth' else routed(app, name))
     assert authing.section() == {'auth_url': None, 'actions': [], 'logout_url': '/api/v1/authing/logout/'}
+
+
+@pytest.mark.django_db
+def test_the_guests_upload_files_with_bazis_uploadable_2_8(sample_app, settings, monkeypatch):
+    """
+    `anonymous` and `anonymous_types` of the section `uploadable`: `anonymous_uploads()` of
+    bazis-uploadable 2.8 (its setting with a size limit) and the types of the guests; none with
+    an older version, which has no anonymous uploads.
+    """
+    from bazis.contrib.front.capabilities import uploadable
+    from bazis.contrib.uploadable import routes
+
+    def guests():
+        section = uploadable.section()
+        return section['anonymous'], section['anonymous_types']
+
+    monkeypatch.delattr(routes, 'anonymous_uploads', raising=False)
+    assert guests() == (False, [])
+    settings.BAZIS_FILE_UPLOAD_ANONYMOUS_TYPES = ['image/png', 'image/webp']
+    monkeypatch.setattr(routes, 'anonymous_uploads', lambda: True, raising=False)
+    assert guests() == (True, ['image/png', 'image/webp'])
+    monkeypatch.setattr(routes, 'anonymous_uploads', lambda: False)
+    assert guests() == (False, [])
 
 
 @pytest.mark.django_db

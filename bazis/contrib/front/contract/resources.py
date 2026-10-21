@@ -313,7 +313,9 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
     `body`, the JSON Schema of its JSON body, standalone (the components it references in its
     `$defs`), null without one: what the buttons of the specs need (S032); `response`, the
     JSON Schema of its JSON answer (200) as standalone, null without one: the properties that
-    the result of a form of the specs may show (S053).
+    the result of a form of the specs may show (S053); `file`, whether its answer (200) is a
+    file, content of another type than JSON (`response_class` with a `media_type`, such as
+    `text/csv`): a form of the specs saves it, its result shows `{filename}` (S053).
     """
     result = {}
     for path, item in openapi.get('paths', {}).items():
@@ -326,7 +328,8 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 continue
             relative = path.removeprefix(collection)
             body = _json_schema(operation.get('requestBody', {}))
-            response = _json_schema(operation.get('responses', {}).get('200', {}))
+            answer = operation.get('responses', {}).get('200', {})
+            response = _json_schema(answer)
             result[meta['action']] = {
                 'name': relative.removeprefix(ITEM_PREFIX).rstrip('/'),
                 'item': relative.startswith(ITEM_PREFIX),
@@ -335,6 +338,7 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 'public': meta['public'],
                 'body': _standalone(openapi, body) if body is not None else None,
                 'response': _standalone(openapi, response) if response is not None else None,
+                'file': bool(answer.get('content')) and 'application/json' not in answer['content'],
             }
     return result
 

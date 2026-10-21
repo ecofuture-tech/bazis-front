@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError, saveFile } from '@/bazis/client';
 
-import { useDownload, useDownloadUrl } from '../src/index.js';
+import { useActionFile, useDownload, useDownloadUrl, useList } from '../src/index.js';
 import { Backend, PARENT, render } from './support.js';
 
 const DOWNLOAD = `${PARENT}7/download/`;
@@ -86,6 +86,54 @@ describe('useDownload', () => {
     await waitFor(() => {
       expect(result.current.error).toBeInstanceOf(ApiError);
     });
+    expect(clicked).toEqual([]);
+  });
+});
+
+describe('useActionFile', () => {
+  const CSV = `${PARENT}csv/`;
+
+  it('posts the body, saves the file of the answer under its name and refetches the resource', async () => {
+    const backend = new Backend()
+      .on('GET', PARENT, { data: [], links: {}, meta: {} })
+      .file(CSV, 'title', 'attachment; filename="tasks.csv"', 'POST');
+    const { result } = render(() => ({ list: useList(PARENT), file: useActionFile(PARENT, 'csv') }), backend);
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true);
+    });
+    backend.calls.length = 0;
+    let name: string | undefined;
+    await act(async () => {
+      name = await result.current.file.mutateAsync({ priority: 'high' });
+    });
+    expect(backend.calls[0]).toMatchObject({ method: 'POST', body: { priority: 'high' } });
+    expect(backend.requests()).toEqual([`POST ${CSV}`, `GET ${PARENT}`]);
+    expect(clicked).toEqual([{ href: 'blob:5', download: 'tasks.csv', attached: true }]);
+    expect(name).toBe('tasks.csv');
+  });
+
+  it('saves a file without a name under the name of the action', async () => {
+    const backend = new Backend().file(CSV, 'title', 'attachment', 'POST');
+    const { result } = render(() => useActionFile(PARENT, 'csv'), backend);
+    let name: string | undefined;
+    await act(async () => {
+      name = await result.current.mutateAsync({});
+    });
+    expect(clicked).toEqual([{ href: 'blob:5', download: 'csv', attached: true }]);
+    expect(name).toBe('csv');
+  });
+
+  it('gives the errors of the body by field and saves nothing', async () => {
+    const errors = [{ status: 422, code: 'ERR_VALIDATE', detail: 'Input should be low or high', source: { pointer: '/priority' } }];
+    const backend = new Backend().on('POST', CSV, { errors }, 422);
+    const { result } = render(() => useActionFile(PARENT, 'csv'), backend);
+    act(() => {
+      result.current.mutate({ priority: null });
+    });
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(ApiError);
+    });
+    expect(result.current.errors).toEqual({ priority: ['Input should be low or high'] });
     expect(clicked).toEqual([]);
   });
 });

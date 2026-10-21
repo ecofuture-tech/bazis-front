@@ -62,6 +62,7 @@ BOARD = 'e2e/generated/manager-moves-a-task-on-the-board.spec.ts'
 BULK = 'e2e/generated/manager-starts-tasks-at-once.spec.ts'
 CALENDAR = 'e2e/generated/viewer-reads-the-calendar.spec.ts'
 ESCALATES = 'e2e/generated/manager-escalates-a-task.spec.ts'
+EXPORTS = 'e2e/generated/manager-exports-the-tasks.spec.ts'
 PLANS = 'e2e/generated/manager-plans-on-the-calendar.spec.ts'
 SUGGESTS = 'e2e/generated/visitor-suggests-a-task.spec.ts'
 SUGGESTS_PAGE = 'e2e/generated/visitor-suggests-a-task-on-its-page.spec.ts'
@@ -381,7 +382,7 @@ def test_a_refused_submit_leads_to_no_other_screen(tmp_path):
 
     edit_product(tmp_path, scenario)
     found = [(it.code, it.location) for it in validate(tmp_path).issues]
-    assert found == [('P022', 'spec/product.yaml#/scenarios/20/steps/4/expect/screen')]
+    assert found == [('P022', 'spec/product.yaml#/scenarios/21/steps/4/expect/screen')]
 
 
 def test_the_product_module():
@@ -411,13 +412,13 @@ def test_e2e_writes_the_tests_and_the_lock(root):
     frontend = root / 'frontend'
     files = rendered(root)
     assert sorted(files) == [
-        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, EXPORTS, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
         HOME, BULK,
         e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS, SUGGESTS_PAGE, SUGGESTS,
     ]
     for path, text in files.items():
         assert (frontend / path).read_text(encoding='utf-8') == text
-    assert 'Generated 20 end-to-end tests' in out
+    assert 'Generated 21 end-to-end tests' in out
     # a to-many relationship is filled with the list of the labels of its items, in the step
     # and in its title
     assert "test.step('fill: {watchers: []}'" in files[WATCHER]
@@ -428,7 +429,7 @@ def test_e2e_writes_the_tests_and_the_lock(root):
         'spec': {
             path: digest((root / path).read_bytes())
             for path in [
-                'spec/product.yaml', 'spec/screens/draft-tasks.yaml', 'spec/screens/home.yaml',
+                'spec/product.yaml', 'spec/screens/draft-tasks.yaml', 'spec/screens/export-tasks.yaml', 'spec/screens/home.yaml',
                 'spec/screens/public-tasks.yaml', 'spec/screens/suggest-task.yaml', 'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml', 'spec/screens/task-card.yaml',
                 'spec/screens/task-list.yaml',
             ]
@@ -464,7 +465,7 @@ def test_e2e_deletes_the_tests_of_a_removed_scenario(root):
     assert (frontend / MANAGER).is_file()
     assert (frontend / 'e2e' / 'generated' / 'mine.spec.ts').is_file()
     assert sorted(read_lock(root)['e2e']['generated']) == [
-        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, EXPORTS, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
         HOME, BULK,
         e2e.PRODUCT_TS, CALENDAR, DRAFTS, SUGGESTS_PAGE, SUGGESTS,
     ]
@@ -488,7 +489,7 @@ def test_e2e_deletes_only_files_of_e2e_generated(root):
     generate()
     assert {path: (frontend / path).read_bytes() for path in others} == before
     assert sorted(read_lock(root)['e2e']['generated']) == [
-        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
+        STEP, WATCHER, ASSIGNS, ATTACHES, REPORT, EMPTY_TITLE, ESCALATES, EXPORTS, MANAGER, NOTIFIED, BOARD, PLACES, PLANS, PRIORITY,
         HOME, BULK,
         e2e.PRODUCT_TS, VIEWER, CALENDAR, DRAFTS, SUGGESTS_PAGE, SUGGESTS,
     ]

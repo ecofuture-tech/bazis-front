@@ -13,6 +13,9 @@ import { ListCardLayout } from '@/bazis/ui/app-shell';
 const DraftTasksScreen = lazyScreen(() =>
   import('@/screens/generated/draft-tasks').then((module) => module.DraftTasksScreen),
 );
+const ExportTasksScreen = lazyScreen(() =>
+  import('@/screens/generated/export-tasks').then((module) => module.ExportTasksScreen),
+);
 const HomeScreen = lazyScreen(() => import('@/screens/generated/home').then((module) => module.HomeScreen));
 const PublicTasksScreen = lazyScreen(() =>
   import('@/screens/generated/public-tasks').then((module) => module.PublicTasksScreen),
@@ -52,6 +55,7 @@ export const PUBLIC_ROUTES = (
 export const SCREEN_ROUTES = (
   <>
     <Route path="/drafts" element={<DraftTasksScreen />} />
+    <Route path="/export" element={<ExportTasksScreen />} />
     <Route index element={<HomeScreen />} />
     <Route path="/board" element={<TaskBoardScreen />} />
     <Route path="/calendar" element={<TaskCalendarScreen />} />

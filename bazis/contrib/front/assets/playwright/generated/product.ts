@@ -19,6 +19,9 @@ export const PRODUCT = {
     "draft-tasks": {
       route: "/drafts",
     },
+    "export-tasks": {
+      route: "/export",
+    },
     home: {
       route: "/",
     },

@@ -41,8 +41,10 @@ from .resources import resources
 #: users, `public`; 8: the format `decimal` of the attributes of a `DecimalField`; 9: the
 #: decimal places of such an attribute, `places`, and the JSON Schema of the JSON answer of
 #: a custom action, `custom_actions[].response`; 10: `token_param` of the section `authing`
-#: removed (bazis-authing 2.8 puts the store token in no URL)
-CONTRACT_FORMAT = 10
+#: removed (bazis-authing 2.8 puts the store token in no URL); 11: whether a custom action
+#: answers a file, `custom_actions[].file`, and whether guests upload files,
+#: `anonymous` and `anonymous_types` of the section `uploadable`
+CONTRACT_FORMAT = 11
 
 #: the directory of the contract in the product root
 CONTRACT_DIR = 'contract'

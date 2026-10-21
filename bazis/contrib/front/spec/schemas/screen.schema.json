@@ -213,7 +213,7 @@
             "labels": {"$ref": "#/$defs/labels"},
             "submit": {"description": "The label of its submit button: `Send` by default.", "$ref": "#/$defs/text"},
             "result": {
-              "description": "What the page shows once the action is done (`state:done`), in place of the form: `message`, whose `{name}` are the properties of the JSON answer of the action in the contract (S053), under `title` (the title of the screen by default), with the link of `then` and `action:again`, which shows the form again, empty.",
+              "description": "What the page shows once the action is done (`state:done`), in place of the form: `message`, whose `{name}` are the properties of the JSON answer of the action in the contract, or `{filename}` of an action that answers a file, which the form saves first (S053), under `title` (the title of the screen by default), with the link of `then` and `action:again`, which shows the form again, empty.",
               "type": "object",
               "additionalProperties": false,
               "required": ["message"],

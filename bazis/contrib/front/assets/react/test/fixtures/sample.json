@@ -2511,6 +2511,7 @@
     "meta": {
       "custom_actions": [
         "action_count",
+        "action_export",
         "action_suggest",
         "action_list_id"
       ]
@@ -2519,6 +2520,7 @@
   "list_custom_actions_anonymous": {
     "meta": {
       "custom_actions": [
+        "action_export",
         "action_suggest",
         "action_list_id"
       ]

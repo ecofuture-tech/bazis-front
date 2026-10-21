@@ -140,6 +140,8 @@ DRAFTS = 'spec/screens/draft-tasks.yaml'
 PUBLIC = 'spec/screens/public-tasks.yaml'
 #: the form of the action of the guests, `suggest`, as a public page of its own
 SUGGEST = 'spec/screens/suggest-task.yaml'
+#: the form of the custom action `export`, which answers a file
+EXPORT = 'spec/screens/export-tasks.yaml'
 HOME, BOARD, CALENDAR = 'spec/screens/home.yaml', 'spec/screens/task-board.yaml', 'spec/screens/task-calendar.yaml'
 THEME, TOKENS, CONTRACT = 'spec/design/theme.yaml', 'spec/design/tokens.json', 'contract/contract.json'
 LOCK = 'frontend/bazis-front.lock.json'
@@ -529,13 +531,13 @@ CASES = [
             {'move': {'where': {'title': 'Review the plan'}, 'to': 'in_progress'}},
         ]})},
         [
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/2/bulk'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/4/transit'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/6/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/9/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/12/submit'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/13/action'),
-            ('P033', f'{PRODUCT}#/scenarios/20/steps/15/move'),
+            ('P033', f'{PRODUCT}#/scenarios/21/steps/2/bulk'),
+            ('P033', f'{PRODUCT}#/scenarios/21/steps/4/transit'),
+            ('P033', f'{PRODUCT}#/scenarios/21/steps/6/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/21/steps/9/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/21/steps/12/submit'),
+            ('P033', f'{PRODUCT}#/scenarios/21/steps/13/action'),
+            ('P033', f'{PRODUCT}#/scenarios/21/steps/15/move'),
         ],
     ),
     (
@@ -554,8 +556,8 @@ CASES = [
     (
         'P035',
         # the guest opens a screen of a session first: the frontend sends him to the login
-        {PRODUCT: lambda d: steps(d, 18).insert(0, {'open': 'task-list'})},
-        [('P035', f'{PRODUCT}#/scenarios/18/steps/0/open')],
+        {PRODUCT: lambda d: steps(d, 19).insert(0, {'open': 'task-list'})},
+        [('P035', f'{PRODUCT}#/scenarios/19/steps/0/open')],
     ),
     ('S001', {LIST: lambda d: 'id: [\n'}, [('S001', LIST)]),
     ('S002', {CARD: lambda d: d['states'].append('gone')}, [('S002', f'{CARD}#/states/4')]),
@@ -983,7 +985,7 @@ CASES = [
         {PRODUCT: lambda d: d['scenarios'].append({'id': 'manager-escalates-a-draft', 'role': 'manager', 'steps': [
             {'open': 'draft-tasks'}, {'action': 'escalate'},
         ]})},
-        [('P022', f'{PRODUCT}#/scenarios/20/steps/1/action')],
+        [('P022', f'{PRODUCT}#/scenarios/21/steps/1/action')],
     ),
     (
         'P023',
@@ -1356,6 +1358,27 @@ CASES = [
         [('S053', f'{SUGGEST}#/form/result/message')],
     ),
     (
+        'S053',
+        # the result of an action that answers a file shows `{filename}` only
+        {EXPORT: lambda d: d['form']['result'].update(message={'en': '{count} tasks in {filename}', 'ru': '{filename}'})},
+        [('S053', f'{EXPORT}#/form/result/message')],
+    ),
+    (
+        'S053',
+        # `{filename}` is that of an action that answers a file: one that answers no JSON nor a file
+        # has no parameter
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_export'].update(file=False)},
+        [('S053', f'{EXPORT}#/form/result/message')],
+    ),
+    (
+        'S032',
+        # an action that answers a file runs only in a form, which saves it: not in the toolbar
+        # of a list
+        {DRAFTS: lambda d: d.setdefault('actions', []).append(
+            {'id': 'export', 'primitive': 'custom', 'action': 'export', 'label': {'en': 'Export', 'ru': 'Выгрузить'}})},
+        [('S032', f'{DRAFTS}#/actions/1/action')],
+    ),
+    (
         'S054',
         # the form and the dialog of an action ask for a list of texts, and the payload of a
         # transition for a union: typed as JSON
@@ -1577,12 +1600,12 @@ def test_a_custom_action_of_the_toolbar_of_a_list_changes_no_item(contract):
     action of the rows of a list is still run on its card or as a bulk action (P022).
     """
     root = contract.parent.parent
-    suggests = read(root / PRODUCT)['scenarios'][18]
+    suggests = read(root / PRODUCT)['scenarios'][19]
     assert suggests['id'] == 'visitor-suggests-a-task'
     assert suggests['steps'][1] == {'action': 'suggest'}
     assert issues(root) == []
     edit(root, PUBLIC, lambda d: d['list'].update(row_actions=['suggest']))
-    assert ('P022', f'{PRODUCT}#/scenarios/18/steps/1/action') in issues(root)
+    assert ('P022', f'{PRODUCT}#/scenarios/19/steps/1/action') in issues(root)
 
 
 @pytest.mark.django_db
@@ -1596,12 +1619,12 @@ def test_the_form_of_a_custom_action(contract):
     are not read (S053).
     """
     root = contract.parent.parent
-    scenario = read(root / PRODUCT)['scenarios'][19]
+    scenario = read(root / PRODUCT)['scenarios'][20]
     assert scenario['id'] == 'visitor-suggests-a-task-on-its-page'
     assert issues(root) == []
-    edit(root, PRODUCT, lambda d: steps(d, 19)[1].update(fill={'report': 'Done'}))
-    assert issues(root) == [('P023', f'{PRODUCT}#/scenarios/19/steps/1/fill/report')]
-    edit(root, PRODUCT, lambda d: steps(d, 19)[1].update(fill={'title': 'A task'}))
+    edit(root, PRODUCT, lambda d: steps(d, 20)[1].update(fill={'report': 'Done'}))
+    assert issues(root) == [('P023', f'{PRODUCT}#/scenarios/20/steps/1/fill/report')]
+    edit(root, PRODUCT, lambda d: steps(d, 20)[1].update(fill={'title': 'A task'}))
     edit(root, CONTRACT, lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
         'properties'].update(assignee={'type': 'string', 'format': 'uuid', 'title': 'Assignee'}))
     edit(root, SUGGEST, lambda d: d['form']['fields'].append('assignee'))
@@ -1785,7 +1808,7 @@ def test_a_custom_action_of_the_route_set_named_as_one_of_an_item(contract):
     root = contract.parent.parent
     edit(root, CONTRACT, lambda d: d['project']['resources']['tasks.task']['custom_actions'].update(action_escalate_all={
         'name': 'escalate', 'item': False, 'method': 'post', 'access_action': None,
-        'body': {'type': 'object', 'properties': {'level': {'type': 'integer'}}, 'required': ['level']},
+        'body': {'type': 'object', 'properties': {'level': {'type': 'integer'}}, 'required': ['level']}, 'file': False,
     }))
     edit(root, DRAFTS, lambda d: d['actions'].append(
         {'id': 'escalate-all', 'primitive': 'custom', 'action': 'escalate', 'label': {'en': 'Escalate all', 'ru': 'Повысить все'}},
@@ -1897,7 +1920,7 @@ def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions(
     ]}))
     # a day from the day of the run, as the dates of `e2e_data`
     edit(root, PRODUCT, lambda d: d['scenarios'][-1]['steps'].insert(15, {'expect': {'day': {'today': 1, 'today+3': 0, 'today-1': 0}}}))
-    steps = f'{PRODUCT}#/scenarios/20/steps'
+    steps = f'{PRODUCT}#/scenarios/21/steps'
     assert issues(root) == [
         ('P022', f'{steps}/1/expect/tile/overdue'),
         ('P022', f'{steps}/2/expect/day'),
@@ -2163,13 +2186,13 @@ def test_a_role_that_cannot_add_changes_the_items_of_the_test_data(contract):
         {'transit': 'start'},
     ]}
     edit(root, PRODUCT, lambda d: d['scenarios'].append(changes))
-    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/20/steps/2/transit')]
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/2/transit')]
 
     edit(root, PRODUCT, lambda d: [task(d)['access']['manager'].pop('add')])
     assert issues(root) == []
 
     edit(root, PRODUCT, lambda d: [task(d).pop('access')])
-    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/20/steps/2/transit')]
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/2/transit')]
 
 
 @pytest.mark.django_db

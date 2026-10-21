@@ -1138,7 +1138,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run) |
 | `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, the form of a custom action (it requires its action, `custom_actions` of the list: remove `requires`), or `can: add` of a resource without a create route (also `requires: {can: add}` of a tile, a chart or the last items of a dashboard) |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
-| `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
+| `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); one that answers a file (`file` of its custom action) anywhere but in a form, which saves it; or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
 | `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`), or two custom bulk actions of a list |
 | `S034` | error | the add of a calendar creates the item on the selected day, in a field that the create route of its resource does not take (a date that the backend sets, such as that of the creation: the day is lost), or the resource has no create route |
 | `S035` | warning | the buttons of the create forms of a screen cannot be told apart: two create actions (or the add of a calendar) with the same label, or without one (both say `Create`), or a create action of a dashboard without a label |
@@ -1158,7 +1158,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S049` | error | The `value` of a tile or a chart aggregates a field of a type that its function does not take: `sum` and `avg` take a number (`integer`, `number`, a DecimalField: a `string` of the format `decimal` in the contract), `min` and `max` (a tile) also a date. Aggregate a number or a date, or count the items without `value` |
 | `S050` | error | The `value` of a tile or a chart aggregates a field that the route set of the entity does not filter by (no `filter` in the contract): the core aggregates the fields that the filter of the list reaches for the user (400 `ERR_AGGREGATE`). Make the field filtered by in the route set, or show another one |
 | `S052` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the picker of a relationship whose entity an anonymous role of the screen does not view (`access` of the entity in product.yaml, `view` of the role): the picker of a guest is refused (403). Let the role view the related items (`access` and the permit role of the anonymous users), or leave the property out |
-| `S053` | error | the `title` or the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON. Give the action a `response_model` with it and export the contract again, or show another property |
+| `S053` | error | the `title` or the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON; an action that answers a file (`file`) answers `{filename}` only. Give the action a `response_model` with it and export the contract again, or show another property |
 | `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
 | `S055` | error | the id of the screen is the mark of the menu of the top bar, `more`: its links (`nav:more`) would be marked as the menu of the links that the top bar has no room for. Give the screen another id |
 | `D001` | error | a design file is not valid YAML or JSON |
@@ -1411,7 +1411,7 @@ differ from the backend; `--check` does the same in CI.
     "authing": {"auth_url": "/api/v1/authing/auth/", "logout_url": "/api/v1/authing/logout/",
                 "actions": [{"code": "password", "name": "Login/Password", "method": "POST",
                              "url": "/api/v1/authing/password/"}]},
-    "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"]},
+    "uploadable": {"max_size": null, "resources": ["uploadable.file_upload"], "anonymous": false, "anonymous_types": []},
     "ws": {"path": "/api/v1/ws"},
     "bg": {"resource": "bg.task"},
     "notify": {"resource": "notify.notification"},
@@ -1479,7 +1479,9 @@ differ from the backend; `--check` does the same in CI.
   `logout_url`, null when it is not routed), `uploadable` (`max_size`, the
   `BAZIS_FILE_UPLOAD_MAX_SIZE` of an upload in bytes, null for no limit; `resources`, the
   JSON:API types of the route sets of `FileUploadRouteSet` and its subclasses: a to-one
-  relationship to one of them is a file), `permit`
+  relationship to one of them is a file; `anonymous`, whether guests upload files,
+  `BAZIS_FILE_UPLOAD_ANONYMOUS` with a size limit of bazis-uploadable 2.8, and
+  `anonymous_types`, the media types they may, empty when they may not), `permit`
   (the roles with the slugs of their permission groups and their effective permissions:
   the union of the permissions of the groups, as bazis-permit checks them for the current
   role of a user; a role has no permissions of its own; `selectors`, the selectors of every
@@ -2243,7 +2245,8 @@ resource after it (`invalidate: false` for an action that changes nothing); its 
 is the `ApiError` (`StatePanel` `errorState(error)`), and `errors` gives the errors of its
 body by field (the core points them to `/<field>` of a JSON body: `ApiError.bodyErrors()`).
 An action that queues a task of bazis-bg answers with its id: show it with `TaskProgress`
-(`<TaskProgress id={action.data.task} />`). The arguments of an action that are neither in
+(`<TaskProgress id={action.data.task} />`); one that answers a file (`file` of its custom
+action in the contract) is `useActionFile(path, '<name>')`, which saves it. The arguments of an action that are neither in
 its path nor in its body (`code: str`, `year: int | None = None`; a list with `Query()`)
 are its query parameters: `useActionQuery(path, '<name>', {query: {code}})` (and
 `useItemActionQuery`, `client.action(path, name, undefined, {method: 'get', query})`), typed
@@ -2342,6 +2345,25 @@ form:
   then: public-tasks
 states: [loading, error, forbidden, invalid, done]
 # product.yaml: steps [{open: suggest-task}, {fill: {title: …}}, {submit: {}}, {expect: {state: done}}]
+```
+
+**An action that answers a file** (an export of a few hundred rows): the route declares the
+class of its answer with its media type and names the file; the contract marks it `file`
+(`custom_actions[].file`, an answer of another type than JSON), and its form saves the file
+(`useActionFile`) before its result, whose only parameter is `{filename}` (S053). Only a form
+runs it: a dialog does not save it (S032). A long export stays a task of bazis-bg
+(`TaskProgress`, "Background work"):
+
+```python
+class CsvResponse(Response):  # fastapi.responses
+    media_type = 'text/csv'
+
+@http_post('/export/', kind=RouteKind.OTHER, response_class=CsvResponse, access_action=CrudAccessAction.VIEW)
+def action_export(self, data: ExportRequest, **kwargs):
+    rows = ...  # of self.restrict_queryset(Model.objects.all(), CrudAccessAction.VIEW): those he views (not
+    # get_queryset_for_list(), whose search and filter a custom action does not have)
+    return CsvResponse(text, headers={'Content-Disposition': content_disposition_header(True, 'tasks.csv')})
+# the screen: form: {action: export, fields: [priority], result: {message: {en: 'Saved {filename}.'}}}
 ```
 
 ### Background work
@@ -3082,7 +3104,8 @@ client".
   `api.itemAction` for `<path><id>/<name>/`), or `useAction`: the JSON body, the query
   parameters (`?code=A1`: a list repeats the parameter, null and undefined are left out) and
   the response of its OpenAPI; the errors of the body by field are `ApiError.bodyErrors()`
-  (`/<field>`), not `fieldErrors()` (the pointers of a JSON:API document).
+  (`/<field>`), not `fieldErrors()` (the pointers of a JSON:API document). One that answers
+  a file is `api.actionFile` (`{blob, name}`, as `download`).
 - Run a request in the background with `api.background` (or `useAsyncRequest`,
   bazis-async-request): it is queued with the id of its task, or done with its response
   when the backend ran it at once; read the task with `api.backgroundResult` (or
@@ -3257,7 +3280,8 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
 - `useAction(path, name)` calls a custom action of a route set (`useItemAction`: of an
   item), typed by its OpenAPI, then refetches the queries of the resource (not with
   `invalidate: false`); its `errors` are those of its body by field
-  (`ApiError.bodyErrors()`).
+  (`ApiError.bodyErrors()`). `useActionFile(path, name)` calls one that answers a file,
+  saves it and resolves to its name (that of the action without `Content-Disposition`).
 - `useActionQuery(path, name)` and `useItemActionQuery(path, id, name)` read a custom
   action declared with GET as a query (a summary, a check, the content of a screen; no
   request while `id` or `query` is null), keyed under its resource and by its query
@@ -3921,6 +3945,13 @@ The API of the copies that 0.7.0 changes (bazis-authing 2.8):
   A login screen of the product that opened the window at `<url>?<token_param>=<store>`
   calls `loginInWindow` of `src/app/session.ts` instead.
 
+The API of the copies that 0.9.0 changes:
+
+- `contract.json` is of format 11 (`file` of the custom actions, `anonymous` and
+  `anonymous_types` of the section `uploadable`): `check` reports `C002` until it is exported
+  again. A custom screen that saved the file of an action from a JSON answer may become the
+  form of the action ("The form of a custom action").
+
 ## API: the client
 
 <!-- Generated by scripts/gen_api_reference.mjs from the TypeScript of the assets: never edit it, run `npm run api-reference`. -->
@@ -3964,6 +3995,7 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 - `transit<P extends RouteSetWith<Paths, '{item_id}/transit/', 'post'>>(path: P, id: string, transit: string, payload?: unknown, options?: RequestOptions): Promise<ResponseOf<EndpointOf<Paths, P, '{item_id}/transit/', 'post'>> | null>`: Runs a transit of bazis-statusy (`POST {item_id}/transit/`).
 - `` action<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M>, M extends HttpMethod = 'post'>(path: P, name: N, body?: BodyOf<EndpointOf<Paths, P, `${N}/`, M>>, ...options: ActionOptionsArg<M, QueryParams<EndpointOf<Paths, P, `${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${N}/`, M>>> ``: Calls a custom action of a route set, `<path><name>/` (a route of the backend declared with `@http_post('/<name>/')`, kind `other` in the contract): its JSON body (none for `get`), its query parameters (`query` of the options, required with a required parameter) and its JSON response, typed by the OpenAPI; resolves to undefined for 204.
 - `` itemAction<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, M, Item>, M extends HttpMethod = 'post'>(path: P, id: string, name: N, body?: BodyOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>, ...options: ActionOptionsArg<M, QueryParams<EndpointOf<Paths, P, `${Item}${N}/`, M>>>): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>> ``: Calls a custom action of an item, `<path><id>/<name>/`, as `action` does.
+- `` actionFile<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, 'post'>>(path: P, name: N, body?: BodyOf<EndpointOf<Paths, P, `${N}/`, 'post'>>, options?: RequestOptions): Promise<DownloadedFile> ``: Calls a custom action of a route set that answers a file, `POST <path><name>/` (`custom_actions[].file` of the contract: a `response_class` with a `media_type`, such as `text/csv`): its JSON body, and the file of its answer with the name of `Content-Disposition`, as `download` reads it; `saveFile` saves it.
 - `download(path: RouteSetWith<Paths, '{item_id}/download/', 'get'>, id: string, options?: RequestOptions): Promise<DownloadedFile>`: Reads a file from the download route of an item, `<path><id>/download/` (bazis-uploadable `FileUploadRouteSet`, bazis-bg `BgRoute`), with the token: its content and the name of `Content-Disposition`.
 - `login(credentials: { username: string; password: string; }, options?: RequestOptions & { path?: string; }): Promise<TokenResponse>`: Gets a token from the token endpoint of bazis-users (an OAuth2 password form).
 - `upload<P extends RouteSetWith<Paths, '', 'post'>>(path: P, file: Blob, options?: UploadOptions): Promise<ResponseOf<EndpointOf<Paths, P, '', 'post'>>>`: Uploads a file to a route set of bazis-uploadable (`FileUploadRouteSet` or a subclass): a `POST` of multipart form data with `file` (and `name`), sent with XMLHttpRequest, whose progress `onProgress` reports.
@@ -4280,6 +4312,10 @@ Its props, `BazisProviderProps`:
 #### useAction
 
 `useAction<P extends ActionPath, N extends ActionName<paths, P, M>, M extends HttpMethod = 'post'>(path: P, name: N, options?: ActionHookOptions<M>): ActionMutation<ActionResponse<P, N, M>, ActionVariables<ActionBody<P, N, M>>>`: A custom action of a route set, `<path><name>/`: `mutate(body)` calls it (`client.action`) and resolves to its response, e.g. the id of a task of bazis-bg to follow.
+
+#### useActionFile
+
+`useActionFile<P extends ActionPath, N extends ActionName<paths, P, 'post'>>(path: P, name: N): ActionMutation<string, ActionVariables<ActionBody<P, N, 'post'>>>`: A custom action of a route set that answers a file (`custom_actions[].file` of the contract), `POST <path><name>/`: `mutate(body)` calls it (`client.actionFile`), saves the file in the browser under the name the backend gives it (`Content-Disposition`; the name of the action without one) and resolves to that name, not the content; the queries of its resource are refetched after it, as after `useAction`.
 
 #### useActionQuery
 
@@ -5678,6 +5714,7 @@ Its props, `ItemValueProps`:
 - `readonly method: string`
 - `readonly access_action: string | null`: What the route requires of the user on the item (`change`), null for nothing more than the route.
 - `readonly body: JsonSchema | null`: The JSON Schema of its body, null without one.
+- `readonly file: boolean`: Whether it answers a file (`useActionFile`), not JSON.
 
 #### Fields
 
@@ -5907,6 +5944,7 @@ Its props, `RelationPickerProps`:
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
 - `ITEM_META: readonly string[]`: The meta of the retrieve of an item that its card reads (`ResourceCard`) and the transits of the card (`TransitBar`): one request for both.
 - `useAnyAction: (path: string, name: string) => ActionMutation<unknown, Readonly<Record<string, unknown>>>`: `useAction(path, name)`: a custom action of the route set (POST), `mutateAsync(body)`.
+- `useAnyActionFile: (path: string, name: string) => ActionMutation<string, Readonly<Record<string, unknown>>>`: `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name.
 - `useAnyFilterFields: (path: string) => UseQueryResult<FilterFieldsDocument>`: `useFilterFields(path)`.
 - `useAnyItem: (path: string, id: string, query?: Pick<QueryOptions, "include" | "fields" | "meta"> | undefined) => UseQueryResult<ItemDocument>`: `useItem(path, id, query)`.
 - `useAnyItemAction: (path: string, name: string) => ActionMutation<unknown, { id: string; body: Readonly<Record<string, unknown>>; }>`: `useItemAction(path, name)`: a custom action of an item (POST), `mutateAsync({id, body})`.
@@ -6281,7 +6319,7 @@ Its props, `ActionFormProps`:
 - `fields: readonly string[]`: The properties of its body that the form asks for, in this order.
 - `labels?: Readonly<Record<string, string>> | undefined`: The labels of the fields by property, before the titles of the contract.
 - `submitLabel?: ReactNode`: The label of the submit button: `Send` by default.
-- `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action.
+- `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action, or `{filename}` of the file it saved.
 - `then?: ActionThen | undefined`: The screen that the result links to.
 - `onDone?: (() => void) | undefined`: Called once the action is done, without a `result` (after a toast): the screen after it.
 

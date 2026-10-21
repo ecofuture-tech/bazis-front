@@ -20,6 +20,7 @@ navigation:
     items:
       - {screen: task-list, icon: list-checks}
       - {screen: draft-tasks, icon: file-pen}
+      - {screen: export-tasks, icon: download}   # the form of the custom action `export`, which answers a file
   - group: planning
     title: {en: Planning, ru: Планирование}
     items:
@@ -318,6 +319,13 @@ scenarios:
       - submit: {}
       - open_item: {where: {title: Plan on the calendar}}
       - expect: {screen: task-card, status: draft}
+  # the form of an action that answers a file: the CSV of all the tasks saved, then its name
+  - id: manager-exports-the-tasks
+    role: manager
+    steps:
+      - open: export-tasks
+      - submit: {}
+      - expect: {state: done}
   # a guest, without a login: the public list of the tasks, and a task suggested with the
   # public custom action `suggest`
   - id: visitor-suggests-a-task

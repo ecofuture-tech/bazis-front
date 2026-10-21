@@ -64,7 +64,11 @@ creates a task: the action of the public screen `public-tasks` of the anonymous 
 `visitor` of the specs (the permit role `viewer`, `for_anonymous`), whom bazis-permit refuses
 the create route (`tests/test_suggest.py`), also from the public form of the action
 `suggest-task` (`primitive: form` with `form.action`, its result showing the `task` of the
-answer), the custom actions of the specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
+answer), and the custom action `export` (`POST /api/v1/tasks/task/export/`, a JSON body
+`{priority}`, `access_action` view, `tests/test_export.py`), which answers the CSV of the tasks the user views, `tasks.csv` (a
+`response_class` of `text/csv`: `file` of its custom action in the contract), saved by the form
+of the action `export-tasks` (its result showing `{filename}`), the custom actions of the
+specs of the sample; its steps, `tasks.Step`, a `PermitRouteBase` route set, are the related section
 `card.related` of the card of a task, added there with the task fixed, to a draft only:
 `Step.validate_item`, `tests/test_steps.py`), whose `attachment` is a file of bazis-uploadable (a foreign key to
 `uploadable.FileUpload`, uploaded through the bundled `FileUploadRouteSet` of

@@ -50,7 +50,10 @@ SECTION_TYPES = {
         '{ readonly [resource: string]: { readonly [selector: string]: string } } }'
     ),
     'statusy': '{ readonly models: typeof TRANSITS }',
-    'uploadable': '{ readonly max_size: number | null; readonly resources: readonly string[] }',
+    'uploadable': (
+        '{ readonly max_size: number | null; readonly resources: readonly string[]; '
+        'readonly anonymous: boolean; readonly anonymous_types: readonly string[] }'
+    ),
     'users': (
         '{ readonly token_url: string; readonly user_resource: string; '
         'readonly profile_language: boolean }'

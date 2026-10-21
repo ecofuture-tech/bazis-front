@@ -205,6 +205,20 @@ export interface BazisClient<Paths> {
   ): Promise<ResponseOf<EndpointOf<Paths, P, `${Item}${N}/`, M>>>;
 
   /**
+   * Calls a custom action of a route set that answers a file, `POST <path><name>/`
+   * (`custom_actions[].file` of the contract: a `response_class` with a `media_type`, such
+   * as `text/csv`): its JSON body, and the file of its answer with the name of
+   * `Content-Disposition`, as `download` reads it; `saveFile` saves it. An error status is
+   * an `ApiError`, the errors of the body at its fields as for `action`.
+   */
+  actionFile<P extends RouteSetPath<Paths>, N extends ActionName<Paths, P, 'post'>>(
+    path: P,
+    name: N,
+    body?: BodyOf<EndpointOf<Paths, P, `${N}/`, 'post'>>,
+    options?: RequestOptions,
+  ): Promise<DownloadedFile>;
+
+  /**
    * Reads a file from the download route of an item, `<path><id>/download/` (bazis-uploadable
    * `FileUploadRouteSet`, bazis-bg `BgRoute`), with the token: its content and the name of
    * `Content-Disposition`. An error status is an `ApiError` (404: a file the user does not
@@ -522,6 +536,12 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
     return typeof id === 'string' ? id : null;
   }
 
+  /** The file of a response: its content and the name of `Content-Disposition`. */
+  async function fileOf(response: Response): Promise<DownloadedFile> {
+    if (!response.ok) throw errorFromResponse(response.status, response.statusText, await response.text());
+    return { blob: await response.blob(), name: dispositionName(response.headers.get('Content-Disposition')) };
+  }
+
   const item = (path: string, id: string): string => `${path}${encodeURIComponent(id)}/`;
   const jsonapi = (document: unknown) => ({ body: JSON.stringify(document), contentType: JSONAPI });
   const json = (body: unknown) => ({ body: JSON.stringify(body), contentType: JSON_TYPE });
@@ -613,14 +633,23 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
       options: ActionOptions<HttpMethod, ActionQuery> = {},
     ) => action(`${item(path, id)}${name}/`, body, options),
 
-    download: async (path: string, id: string, { signal }: RequestOptions = {}): Promise<DownloadedFile> => {
-      const response = await fetcher(`${baseUrl}${item(path, id)}download/`, {
-        headers: await sessionHeaders(),
-        ...(signal ? { signal } : {}),
-      });
-      if (!response.ok) throw errorFromResponse(response.status, response.statusText, await response.text());
-      return { blob: await response.blob(), name: dispositionName(response.headers.get('Content-Disposition')) };
-    },
+    actionFile: async (path: string, name: string, body?: unknown, { signal }: RequestOptions = {}) =>
+      fileOf(
+        await fetcher(`${baseUrl}${path}${name}/`, {
+          method: 'POST',
+          headers: { ...(await sessionHeaders()), ...(body === undefined ? {} : { 'Content-Type': JSON_TYPE }) },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          ...(signal ? { signal } : {}),
+        }),
+      ),
+
+    download: async (path: string, id: string, { signal }: RequestOptions = {}) =>
+      fileOf(
+        await fetcher(`${baseUrl}${item(path, id)}download/`, {
+          headers: await sessionHeaders(),
+          ...(signal ? { signal } : {}),
+        }),
+      ),
 
     login: async (
       { username, password }: { username: string; password: string },

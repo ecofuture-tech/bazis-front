@@ -104,6 +104,8 @@ export interface ContractCustomAction {
   readonly access_action: string | null;
   /** The JSON Schema of its body, null without one. */
   readonly body: JsonSchema | null;
+  /** Whether it answers a file (`useActionFile`), not JSON. */
+  readonly file: boolean;
 }
 
 const CONTRACT_RESOURCES = RESOURCES as Readonly<Record<string, ContractResource | undefined>>;

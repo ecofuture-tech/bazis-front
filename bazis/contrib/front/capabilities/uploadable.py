@@ -14,14 +14,29 @@
 
 """
 bazis-uploadable: the resources whose files are uploaded with multipart form data (a route
-set of the application that is `FileUploadRouteSet` or a subclass of it, with its create)
-and the size limit of an upload. A model references an uploaded file with a foreign key to
-such a model: its relationship to the resource is a file field.
+set of the application that is `FileUploadRouteSet` or a subclass of it, with its create),
+the size limit of an upload, and whether guests upload files, with the types they may
+(bazis-uploadable 2.8). A model references an uploaded file with a foreign key to such a
+model: its relationship to the resource is a file field.
 """
 
 from django.conf import settings
 
 from bazis.core.introspect import route_sets
+
+
+def anonymous() -> bool:
+    """
+    Whether guests upload files: `anonymous_uploads()` of bazis-uploadable 2.8
+    (`BAZIS_FILE_UPLOAD_ANONYMOUS` with a size limit). Never with bazis-uploadable 2.7, the
+    oldest version that the assets follow (`CAPABILITIES`), which has no anonymous uploads:
+    the import goes once that is 2.8.
+    """
+    try:
+        from bazis.contrib.uploadable.routes import anonymous_uploads
+    except ImportError:
+        return False
+    return anonymous_uploads()
 
 
 def section() -> dict:
@@ -34,8 +49,12 @@ def section() -> dict:
         if issubclass(route_set, FileUploadRouteSet)
         and any(it.get('action') == 'action_create' for it in routes)
     }
+    guests = anonymous()
     return {
         # BAZIS_FILE_UPLOAD_MAX_SIZE: 0 is no limit
         'max_size': settings.BAZIS_FILE_UPLOAD_MAX_SIZE or None,
         'resources': sorted(resources),
+        'anonymous': guests,
+        # the media types of the files of the guests, recognized by their content
+        'anonymous_types': list(settings.BAZIS_FILE_UPLOAD_ANONYMOUS_TYPES) if guests else [],
     }

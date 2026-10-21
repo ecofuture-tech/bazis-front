@@ -71,6 +71,7 @@ export {
   ITEM_META,
   text,
   useAnyAction,
+  useAnyActionFile,
   useAnyFilterFields,
   useAnyItem,
   useAnyItemAction,

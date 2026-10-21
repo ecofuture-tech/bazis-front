@@ -1260,7 +1260,8 @@ def _check_custom_actions(
     its route set declared with POST (one declared with GET reads), of an item on a card, on the
     rows and in a bulk action (the route set may have an action of the same name for its toolbar
     and its forms); on the rows of a list and in a bulk action, one that requires nothing of the
-    item but what a list tells of each row (its view, its change or its delete); the fields that
+    item but what a list tells of each row (its view, its change or its delete); one that answers
+    a file only in a form, which saves it; the fields that
     its dialog or its form asks for are properties of its body, and the body needs nothing else
     (a property that the body requires is among them; a bulk action asks for none). On a public
     screen, one declared `public=True` (S046), whose pickers list what the anonymous roles view
@@ -1305,6 +1306,9 @@ def _check_custom_actions(
         elif action['method'] != 'post':
             problem = f'The custom action `{name}` is declared with {action["method"].upper()}: it reads, a button runs a POST.'
             hint = 'Read it in the code of the screen (`useActionQuery`, `useItemActionQuery`), or declare the action with POST.'
+        elif action['file'] and where != 'form':
+            problem = f'The custom action `{name}` answers a file, which a button of a dialog does not save.'
+            hint = 'Run it as the form of the action (`primitive: form` with `form.action`), which saves the file.'
         elif where in ('row', 'bulk') and action['access_action'] not in (None, 'view', 'change', 'delete'):
             problem = (
                 f'The custom action `{name}` requires `{action["access_action"]}` on the item: '
@@ -1324,7 +1328,7 @@ def _check_custom_actions(
             )
         _check_body(doc, path, name, fields, action['body'] or {}, resource, public, product, contract, issues)
         if where == 'form' and 'result' in form:
-            _check_result(doc, name, form['result'], action['response'], issues)
+            _check_result(doc, name, form['result'], action, issues)
 
 
 def _check_body(
@@ -1385,13 +1389,15 @@ def parameters(value) -> list[str]:
     return sorted({it for text in texts if not TEXT_KEY.fullmatch(text) for it in PARAMETER.findall(text)})
 
 
-def _check_result(doc: Document, name: str, result: dict, response: dict | None, issues: Issues) -> None:
+def _check_result(doc: Document, name: str, result: dict, action: dict, issues: Issues) -> None:
     """
     The parameters of the title and of the message of the result of a form of an action are
-    properties of the JSON answer of the action in the contract (S053); a key of the
-    dictionaries of the frontend is not read.
+    properties of the JSON answer of the action in the contract, or `{filename}` of an action
+    that answers a file, the name the form saves it under (S053); a key of the dictionaries of
+    the frontend is not read.
     """
-    properties = (response or {}).get('properties', {})
+    response = action['response']
+    properties = {'filename': {}} if action['file'] else (response or {}).get('properties', {})
     for part in ('title', 'message'):
         if part not in result:
             continue
@@ -1399,7 +1405,10 @@ def _check_result(doc: Document, name: str, result: dict, response: dict | None,
         if not unknown:
             continue
         named = ', '.join(f'`{{{it}}}`' for it in unknown)
-        if response is None:
+        if action['file']:
+            problem = f'The {part} of the result shows {named}, and the custom action `{name}` answers a file.'
+            hint = f'A file answers `{{filename}}` only, the name it is saved under: remove the others from the {part}.'
+        elif response is None:
             problem = f'The {part} of the result shows {named}, and the custom action `{name}` answers no JSON in the contract.'
             hint = (
                 f'Give the action a `response_model` with these properties and {EXPORT_HINT}, or remove them from the '
