@@ -381,6 +381,8 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "              value: { max: 'due' },\n              display: TASK.display,\n" in overview
     assert "                  value={{ avg: 'hours' }}\n" in overview
     assert "requires={{ path: STEP.path, can: 'add' }}" in overview
+    # the last items that the user must be allowed to add, not only to view
+    assert "              columns: ['title'],\n              requires: { can: 'add' },\n" in overview
     assert "onSaved={() => void navigate(routeTo('home'))}" in overview
 
     # a plain card: no workflow, no texts, no parent, a related list without history and add
@@ -524,6 +526,62 @@ def test_the_routes_of_the_home(tmp_path):
     assert 'Navigate' not in routes and ' index' not in routes
     assert '    <Route path="/" element={<ListCardLayout list={<TaskListScreen />} />}>\n' in routes
     assert '      <Route path="/:id" element={<TaskCardScreen />} />\n' in routes
+
+
+def test_the_title_of_a_result_shows_the_answer_when_it_has_a_parameter(tmp_path):
+    """
+    The title of the result of the form of an action is a text, or a function of the answer when
+    it has a `{parameter}`, as the message is; without a title of its own, that of the screen.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    form = f'{screens.GENERATED_DIR}/suggest-task.tsx'
+    own = rendered(tmp_path)[form]
+    assert "title: t('screens.suggest-task.form.result.title')," in own
+    edit_screen(tmp_path, 'suggest-task', lambda data: data['form']['result'].update(title={'en': 'Task {task}', 'ru': 'Задача {task}'}))
+    files = rendered(tmp_path)
+    assert "title: (response) => t('screens.suggest-task.form.result.title', response)," in files[form]
+    assert "'screens.suggest-task.form.result.title': 'Task {task}'" in files[f'{screens.GENERATED_DIR}/messages.ts']
+    edit_screen(tmp_path, 'suggest-task', lambda data: data['form']['result'].pop('title'))
+    assert "title: t('screens.suggest-task.title')," in rendered(tmp_path)[form]
+
+
+def test_the_guest_home_is_the_first_public_link_unless_the_home_is_public(tmp_path):
+    """
+    `GUEST_HOME` leads a user without a session from `/` to the first public link of the
+    navigation (a group expanded); null when `/` is public itself (a public screen, or a
+    redirect to a first link that is public) or the navigation has no public link.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+
+    def guest_home() -> str:
+        routes = rendered(tmp_path)[f'{screens.GENERATED_DIR}/routes.tsx']
+        return re.search(r'^export const GUEST_HOME: string \| null = (.*);$', routes, re.M).group(1)
+
+    # the home of the sample is of a session: its guests go to the first public link
+    assert guest_home() == "'/suggest'"
+    edit_product(tmp_path, lambda data: data['navigation'].insert(0, data['navigation'].pop()))
+    assert guest_home() == "'/public'"
+    # a public group of links: its first public link
+    edit_product(tmp_path, lambda data: data.update(navigation=[
+        {'group': 'guests', 'title': 'Guests', 'items': [{'screen': 'task-list'}, {'screen': 'suggest-task'}]},
+        {'screen': 'home'},
+    ]))
+    assert guest_home() == "'/suggest'"
+
+    # no public link: no home for a guest
+    edit_product(tmp_path, lambda data: data.update(navigation=[{'screen': 'home'}, {'screen': 'task-list'}]))
+    assert guest_home() == 'null'
+
+    # `/` leads to a public first link: public itself
+    edit_screen(tmp_path, 'home', lambda data: data.update(route='/home'))
+    edit_product(tmp_path, lambda data: data.update(navigation=[{'screen': 'public-tasks'}, {'screen': 'home'}]))
+    assert guest_home() == 'null'
+    # a redirect to a first link of a session
+    edit_product(tmp_path, lambda data: data.update(navigation=[{'screen': 'home'}, {'screen': 'public-tasks'}]))
+    assert guest_home() == "'/public'"
+    # a public screen at `/`
+    edit_screen(tmp_path, 'public-tasks', lambda data: data.update(route='/'))
+    assert guest_home() == 'null'
 
 
 def test_a_card_links_back_to_a_list_as_public_as_it():

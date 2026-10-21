@@ -259,7 +259,8 @@
               "tone": {"$ref": "#/$defs/tone"},
               "label": {"$ref": "#/$defs/label"},
               "icon": {"description": "The icon of the tile, a lucide icon (D013); that of its entity (`icons` of theme.yaml) by default.", "$ref": "#/$defs/icon"},
-              "open": {"description": "The list screen of the entity that the tile opens.", "$ref": "#/$defs/id"}
+              "open": {"description": "The list screen of the entity that the tile opens.", "$ref": "#/$defs/id"},
+              "requires": {"$ref": "#/$defs/requires"}
             }
           }
         },
@@ -288,7 +289,8 @@
                   "avg": {"$ref": "#/$defs/field"}
                 }
               },
-              "label": {"$ref": "#/$defs/label"}
+              "label": {"$ref": "#/$defs/label"},
+              "requires": {"$ref": "#/$defs/requires"}
             }
           }
         },
@@ -306,7 +308,8 @@
               "sort": {"$ref": "#/$defs/sort"},
               "limit": {"type": "integer", "minimum": 1, "maximum": 50},
               "open": {"description": "The card screen of the entity that a row opens.", "$ref": "#/$defs/id"},
-              "label": {"$ref": "#/$defs/label"}
+              "label": {"$ref": "#/$defs/label"},
+              "requires": {"$ref": "#/$defs/requires"}
             }
           }
         },
@@ -437,6 +440,13 @@
   ],
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"},
+    "requires": {
+      "description": "What the backend must let the user do for the part to be shown: view the items of its entity (the default) or add one (`can: add`: the tile \"New\" only for those who may add), as `requires` of a link of the navigation (S030).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["can"],
+      "properties": {"can": {"enum": ["view", "add"]}}
+    },
     "icon": {
       "description": "The name of a lucide icon (lucide.dev), in kebab-case (D013).",
       "type": "string",

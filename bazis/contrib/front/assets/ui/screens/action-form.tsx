@@ -43,11 +43,12 @@ export interface ActionFormProps {
   submitLabel?: ReactNode;
   /**
    * What the page shows once the action is done, in place of the form: its title (`Done` by
-   * default) and its message, given the texts and the numbers of the JSON answer of the action.
+   * default) and its message, the title too when it is a function, given the texts and the
+   * numbers of the JSON answer of the action.
    */
   result?:
     | {
-        title?: ReactNode;
+        title?: ReactNode | ((response: Params) => ReactNode);
         message: (response: Params) => ReactNode;
       }
     | undefined;
@@ -86,7 +87,7 @@ export function ActionForm({ path, action, fields, labels, submitLabel, result, 
   if (result && answer !== null) {
     return (
       <ActionResult
-        title={result.title ?? t('action.done')}
+        title={(typeof result.title === 'function' ? result.title(answer) : result.title) ?? t('action.done')}
         message={result.message(answer)}
         then={then}
         onAgain={() => {

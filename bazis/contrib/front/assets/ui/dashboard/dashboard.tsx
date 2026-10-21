@@ -20,7 +20,9 @@
 // a working screen, the hero of a portal (`preset` of the theme): never a path of the API or
 // the name of a resource. A tile, a chart or the last items of a route set that the backend
 // does not let the user view are not shown to him (`Viewable`): the money of a clinic on the
-// home of its receptionist, not on that of its doctor.
+// home of its receptionist, not on that of its doctor; with `requires: {can: 'add'}` a part is
+// shown to those who may add an item, as the link of the navigation is: the tile "New" of a
+// dispatcher, not of a master.
 
 import { ChevronRight } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
@@ -39,6 +41,14 @@ import { cn } from '@/lib/utils';
 
 const CARD = 'rounded-xl border bg-card text-card-foreground shadow-xs';
 const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+
+/** What the backend must let the user do with the items of a part for it to be shown (`requires` of the specs). */
+type Requirement = 'view' | 'add';
+
+/** A part of a dashboard that is shown to the users who may add an item (`requires.can`), not only view them. */
+export interface DashboardPart {
+  requires?: { can: Requirement };
+}
 
 export interface RecentListProps {
   /** The id of the list in the specs: `recent:<id>`. */
@@ -61,14 +71,15 @@ export interface RecentListProps {
 }
 
 // the hook with the plain path of a part: the screens pass the typed paths of their contract
-const useAnyCan = useCan as unknown as (path: string, action: 'view') => boolean | undefined;
+const useAnyCan = useCan as unknown as (path: string, action: Requirement) => boolean | undefined;
 
 /**
- * A part of a dashboard once the backend lets the user view the items of its route set
- * (`useCan(path, 'view')`): nothing when it does not, its loading state until it tells.
+ * A part of a dashboard once the backend lets the user view the items of its route set, or add
+ * one with `can: 'add'` (`useCan(path, can)`): nothing when it does not, its loading state
+ * until it tells.
  */
-export function Viewable({ path, children }: { path: ListPath; children: ReactNode }): ReactNode {
-  const allowed = useAnyCan(path, 'view');
+export function Viewable({ path, can = 'view', children }: { path: ListPath; can?: Requirement; children: ReactNode }): ReactNode {
+  const allowed = useAnyCan(path, can);
   if (allowed === false) return null;
   if (allowed === undefined) return <StatePanel state="loading" skeleton={<Skeleton className="h-28 w-full rounded-xl" />} />;
   return children;
@@ -184,7 +195,7 @@ export interface DashboardProps {
   hero?: boolean;
   /** What the screen shows before its parts (after the hero), such as the extension of a generated screen. */
   before?: ReactNode;
-  tiles?: readonly StatCardProps[];
+  tiles?: readonly (StatCardProps & DashboardPart)[];
   /**
    * The links to the screens, the items of the navigation of `AppShell` by default: all but
    * the dashboard itself, each once the backend allows what it `requires`.
@@ -192,7 +203,7 @@ export interface DashboardProps {
   links?: readonly NavItem[];
   /** The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`. */
   charts?: ReactNode;
-  recent?: readonly RecentListProps[];
+  recent?: readonly (RecentListProps & DashboardPart)[];
   /**
    * What the screen shows after its parts, such as the create forms of its actions: in the
    * screen, so that a form composed as a page takes its place.
@@ -239,8 +250,8 @@ export function Dashboard({
         {before}
         {tiles.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-            {tiles.map((it) => (
-              <Viewable key={it.id} path={it.path}>
+            {tiles.map(({ requires, ...it }) => (
+              <Viewable key={it.id} path={it.path} can={requires?.can}>
                 {/* a sum or an average takes the row of a phone: two columns of it cut a sum */}
                 <StatCard {...it} className={cn(it.value && 'max-sm:col-span-2', it.className)} />
               </Viewable>
@@ -266,8 +277,8 @@ export function Dashboard({
         {charts !== undefined && <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">{charts}</div>}
         {recent.length > 0 && (
           <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4', recent.length > 1 && 'xl:grid-cols-2')}>
-            {recent.map((it) => (
-              <Viewable key={it.id} path={it.path}>
+            {recent.map(({ requires, ...it }) => (
+              <Viewable key={it.id} path={it.path} can={requires?.can}>
                 <RecentList {...it} />
               </Viewable>
             ))}

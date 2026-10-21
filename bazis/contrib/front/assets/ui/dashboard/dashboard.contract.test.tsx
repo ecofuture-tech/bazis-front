@@ -199,6 +199,38 @@ describe('Dashboard', () => {
     expect(screen.queryByTestId('chart:other')).toBeNull();
   });
 
+  it('shows a part with `requires: {can: add}` only to the users who may add an item, as the link of the navigation is', async () => {
+    const locked = '/api/test/locked/';
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { meta: { aggregates: { count: 1 }, for_create: true } }))
+      .on('GET', locked, listDocument([resource('b', { title: 'Beta', count: 1 })], { meta: { aggregates: { count: 1 }, for_create: false } }));
+    renderWithBazis(
+      <Dashboard
+        hero={false}
+        tiles={[
+          { id: 'new', path: ITEMS as never, label: 'New', requires: { can: 'add' } },
+          { id: 'locked', path: locked as never, label: 'Locked', requires: { can: 'add' } },
+          { id: 'viewed', path: locked as never, label: 'Viewed' },
+        ]}
+        recent={[{ id: 'locked', path: locked as never, label: 'Locked', columns: ['title'], requires: { can: 'add' } }]}
+        charts={
+          <Viewable path={locked as never} can="add">
+            <div data-bz="chart:locked" />
+          </Viewable>
+        }
+      />,
+      server,
+    );
+    expect(await screen.findByTestId('tile:new')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByTestId('tile:viewed')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('tile:locked')).toBeNull();
+    expect(screen.queryByTestId('recent:locked')).toBeNull();
+    expect(screen.queryByTestId('chart:locked')).toBeNull();
+  });
+
   it('shows what it is given before its parts, after its hero', async () => {
     renderWithBazis(
       <Dashboard hero title="Home" before={<p data-bz="before">Before</p>} tiles={[{ id: 'all', path: ITEMS as never, label: 'All' }]} />,

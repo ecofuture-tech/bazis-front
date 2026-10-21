@@ -756,6 +756,20 @@ describe('ActionForm', () => {
     expect(backend.requests('GET')).toEqual([]);
   });
 
+  it('shows the numbers of the answer in the title of the result too, when it is a function', async () => {
+    const backend = new Backend().on('POST', SUGGESTED, { task: 't-1', count: 52 });
+    renderWithBazis(
+      <Suggesting
+        fields={['title']}
+        result={{ title: (response) => `Order No. ${String(response.count)}`, message: () => 'Accepted' }}
+      />,
+      backend,
+    );
+    fireEvent.click(screen.getByTestId('action:submit'));
+    const done = await screen.findByTestId('state:done');
+    expect(done.textContent).toContain('Order No. 52');
+  });
+
   it('keeps the form with the errors of its fields and the state of a refusal', async () => {
     const backend = new Backend().on(
       'POST',

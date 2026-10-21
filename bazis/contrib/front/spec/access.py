@@ -101,6 +101,13 @@ def listed(value) -> list[tuple[tuple, object]]:
     return [((i,), it) for i, it in enumerate(value)] if isinstance(value, list) else [((), value)]
 
 
+def allows(role_access: dict, operation: str) -> bool:
+    """Whether the access of a role grants the operation to anyone's objects (a selector other than `none`)."""
+    return any(
+        (it if isinstance(it, str) else it['selector']) != NONE for _, it in listed(role_access.get(operation, []))
+    )
+
+
 def grants(resource: str, role_access: dict, statusy: dict | None) -> list[tuple[tuple, Grant]]:
     """
     The grants of the access of a role to a resource with their paths (relative to the

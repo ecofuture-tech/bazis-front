@@ -28,6 +28,7 @@ not create (P033), or finds one by the texts of the items that a scenario create
 
 from dataclasses import dataclass, field
 
+from . import access
 from .issues import Document, Issues
 from .refs import Entity, Product, is_public, related_fields, related_sections, screen_actions
 
@@ -245,16 +246,25 @@ class _Scenario:
     def changes(self, path, own: bool, what: str) -> None:
         """
         Reports a step that changes an item that the scenario did not create (P033), unless a
-        step before could not be followed.
+        step before could not be followed, or the role of the scenario cannot add an item of the
+        entity (`access` has no `add` for it): there is nothing it could create, the items of the
+        test data are the only ones it can change.
         """
-        if not own and not self.lost:
+        if not own and not self.lost and not self.cannot_add():
             self.add(
                 path, 'P033',
                 f'The scenario {what} an item that it did not create: an item of the test data, which the '
                 'other scenarios and the next runs expect as it is.',
                 'Create the item in the scenario (a create form) and change that one; open the items of the '
-                'test data (`e2e_data`) only to read them.',
+                'test data (`e2e_data`) only to read them. A role that cannot add an item changes one that '
+                '`e2e_data` creates afresh at every run, which the scenario opens by `where`.',
             )
+
+    def cannot_add(self) -> bool:
+        """Whether `access` of the entity of the step grants the role of the scenario no `add`."""
+        entity = self.entity
+        grants = entity.data.get('access', {}).get(self.role) if entity else None
+        return grants is not None and not access.allows(grants, 'add')
 
     def changes_item(self, path, what: str) -> None:
         """

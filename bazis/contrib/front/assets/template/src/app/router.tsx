@@ -23,7 +23,7 @@ import { AppShell, type NavEntry } from '@/bazis/ui/app-shell';
 import { navigation } from '@/screens/generated/navigation';
 import { PRODUCT_NAME } from '@/screens/generated/product';
 import { GeneratedProviders } from '@/screens/generated/providers';
-import { PUBLIC_ROUTES, SCREEN_ROUTES } from '@/screens/generated/routes';
+import { GUEST_HOME, PUBLIC_ROUTES, SCREEN_ROUTES } from '@/screens/generated/routes';
 import { TOOLS } from '@/screens/generated/tools';
 
 // The screens, their routes, the navigation, the providers and the tools of the layout are
@@ -45,8 +45,8 @@ function publicLinks(entries: readonly NavEntry[]): NavEntry[] {
  * The layout of the application (a sidebar or a top bar, `navigation` of spec/design/theme.yaml)
  * around every screen, public or not, so that it stays mounted between them. With a session:
  * every link, the logout and the tools (the notifications, the live queries). Without one: the
- * links of the public screens and the sign-in, which comes back here after the login. Without a
- * login (no bazis-users) every screen is open.
+ * links of the public screens and the sign-in, after which the user is at home. Without a login
+ * (no bazis-users) every screen is open.
  */
 function Layout() {
   const token = useToken();
@@ -61,7 +61,7 @@ function Layout() {
     signOut(api);
   };
   const signIn = () => {
-    void navigate('/login', { state: { from: location.pathname + location.search } });
+    void navigate('/login');
   };
   return (
     <AppShell
@@ -78,11 +78,15 @@ function Layout() {
   );
 }
 
-/** The screens of a session: a user without one goes to the login screen and comes back. */
+/**
+ * The screens of a session: a user without one goes to the login screen and comes back; from `/`
+ * he goes to the first public screen of the navigation, when the product has one (`GUEST_HOME`).
+ */
 function RequireSession() {
   const token = useToken();
   const location = useLocation();
   if (LOGIN_ENABLED && !token) {
+    if (location.pathname === '/' && GUEST_HOME) return <Navigate to={GUEST_HOME} replace />;
     const from = location.pathname + location.search;
     return <Navigate to="/login" replace state={{ from }} />;
   }

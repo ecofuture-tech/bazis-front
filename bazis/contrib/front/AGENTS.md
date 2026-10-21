@@ -898,9 +898,9 @@ aggregate of its `value` over them: `{sum: <field>}`, `{avg: …}` of a number, 
 of the entity, that of a row of the last items a card of it (S006). **A tile, a chart and
 the last items are shown to the users whom the backend lets view their entity**
 (`useCan(path, 'view')`, `Viewable` of the dashboard): one dashboard serves every role of the
-screen, the tiles of the invoices shown to the receptionist and not to the doctor who may
-not view them, without an `extend` (a part of an entity that no role of the screen may view
-is never shown). A chart is by `status`
+screen, the tiles of the invoices shown to the receptionist and not to the doctor, without an
+`extend`. `requires: {can: add}` of a part asks that the user may add an item too, as that of
+a link: the tile "New" of the dispatcher, not of the master (S030: no create route). A chart is by `status`
 (an entity with a workflow: a value for each status) or by a field `date` or `datetime`, a
 value for each `bucket` (`day`, `week`, `month`; a week by default), the `last` ones up to the
 current one (12 by default) (S021); the value is the count of the items, or the `{sum: …}`
@@ -920,9 +920,7 @@ core aggregates only the fields that the filter of the list reaches for the user
 over too many groups it answers 400 `ERR_AGGREGATE`, which the part shows as its error. The
 last items are a list sorted by `sort` with `page[limit]`; a board lists each column with
 `filter=status=<id>` (more items by its pagination), a calendar the items of the period
-shown with a range of its field (a month in one list of up to 500 items). A dashboard over
-thousands of items is a few requests, which the cache of the queries keeps and the live
-updates refresh. The fields they filter and sort by are those of the contract (S008).
+shown with a range of its field (a month in one list of up to 500 items). The fields they filter and sort by are those of the contract (S008).
 
 A board shows the items of an entity with a workflow (S022) in a column for each status of
 `columns` (the statuses of the workflow, all of them in their order by default); an item
@@ -1077,7 +1075,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.13.0, bazis-uploadable 2.7.0, bazis-bg 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
 | `C005` | warning | the Google login of the contract is that of bazis-authing 2.7 or older (`GET`), which the login screen does not offer: upgrade bazis-authing to 2.8.0 (it requires bazis 2.19) and export the contract again; the password login works with 2.6 |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
-| `P002` | error | spec/product.yaml does not follow product.schema.json |
+| `P002` | error | spec/product.yaml does not follow product.schema.json (a key with a space or a letter beyond ASCII is the text after the comma of a flow mapping, `{a: x, y}`: quote the text) |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
 | `P004` | error | an unknown role (in access or in a scenario) |
 | `P005` | error | a relation references an unknown entity |
@@ -1105,12 +1103,12 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P030` | error | an anonymous role is not what bazis-permit gives the users who do not log in: its permit role is not `for_anonymous`, it has `access` without a permit role, or a selector of its access is not `all` |
 | `P031` | error | the `label` of an entity names a field that the entity does not declare |
 | `P032` | error | the generated screens would name two entities alike (`task-step` and `task_step`: `TASK_STEP`), or an entity by a name of their own (`ENTITIES`, `FILTER`) |
-| `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is |
+| `P033` | warning | a scenario changes an item that it did not create (a transit, a move, an edit, a custom or a bulk action, a deletion, a related item added to it): an item of the test data, which the other scenarios and the next runs expect as it is; not for a role whose `access` has no `add` for the entity (it cannot create one: `e2e_data` creates the item afresh at every run, the scenario opens it by `where`) |
 | `P034` | warning | a scenario finds an item that it did not create by the texts of the items that a scenario creates: on a database that keeps the items of the previous runs it may find one of theirs |
 | `P035` | error | a scenario of an anonymous role opens a screen that is not public (no anonymous role in its `roles`), by `open`, `open_item` or the `then` of a form: the frontend sends a user without a session to the login. List the role in `roles` of the screen, or give the scenario a role that logs in |
 | `P036` | warning | `packages` has `users`, the contract has no route of the user resource, and a field relates to it (the author of a status, an assignee): the screens label the users by the start of their id. Register the user route set of the project, see "The users that the pickers offer" |
 | `S001` | error | a screen file is not valid YAML |
-| `S002` | error | a screen does not follow screen.schema.json |
+| `S002` | error | a screen does not follow screen.schema.json (a key that is a piece of a text: as P002) |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
 | `S004` | error | a screen references an unknown entity |
 | `S005` | error | a screen references an unknown role |
@@ -1138,7 +1136,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S027` | warning | a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them (a key of the dictionaries is in all); the frontend shows the text of another language |
 | `S028` | error | a custom screen has no code: the module of `custom` (`frontend/src/screens/<id>/index.tsx` for `custom: true`) is missing, or does not export its component |
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run) |
-| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, the form of a custom action (it requires its action, `custom_actions` of the list: remove `requires`), or `can: add` of a resource without a create route |
+| `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, the form of a custom action (it requires its action, `custom_actions` of the list: remove `requires`), or `can: add` of a resource without a create route (also `requires: {can: add}` of a tile, a chart or the last items of a dashboard) |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
 | `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
 | `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`), or two custom bulk actions of a list |
@@ -1160,7 +1158,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S049` | error | The `value` of a tile or a chart aggregates a field of a type that its function does not take: `sum` and `avg` take a number (`integer`, `number`, a DecimalField: a `string` of the format `decimal` in the contract), `min` and `max` (a tile) also a date. Aggregate a number or a date, or count the items without `value` |
 | `S050` | error | The `value` of a tile or a chart aggregates a field that the route set of the entity does not filter by (no `filter` in the contract): the core aggregates the fields that the filter of the list reaches for the user (400 `ERR_AGGREGATE`). Make the field filtered by in the route set, or show another one |
 | `S052` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the picker of a relationship whose entity an anonymous role of the screen does not view (`access` of the entity in product.yaml, `view` of the role): the picker of a guest is refused (403). Let the role view the related items (`access` and the permit role of the anonymous users), or leave the property out |
-| `S053` | error | the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON. Give the action a `response_model` with it and export the contract again, or show another property |
+| `S053` | error | the `title` or the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON. Give the action a `response_model` with it and export the contract again, or show another property |
 | `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
 | `S055` | error | the id of the screen is the mark of the menu of the top bar, `more`: its links (`nav:more`) would be marked as the menu of the links that the top bar has no room for. Give the screen another id |
 | `D001` | error | a design file is not valid YAML or JSON |
@@ -1595,7 +1593,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects, or the aggregate of their field of `value` (`{sum}`, `{avg}`, `{min}`, `{max}`, formatted by `display`), from the aggregates of the core (a list of one item with `meta.aggregates`), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded, a date of `min` or `max` as its ISO text), `state:<loading\|loaded\|error\|forbidden>` | |
-| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
+| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, or add an item with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
 | `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), both the count of the items or the `{sum}` or `{avg}` of a field of `value`, from the groups of the aggregates of the core, `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
 | `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, the transits of `meta.for_transit` of the lists of the columns (bazis-statusy 2.13), `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (the transits of `for_transit` of its list; an item without one has no `action:move` and cannot be dragged) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
@@ -1670,12 +1668,12 @@ of the specs and the paths of `ROUTES`.
 | an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | `primitive: custom` in the spec when a button, its fields and its toast say it all ("Custom actions of the specs"); else a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
 | `card.tabs` | `tabs` of `ResourceCard`: `{id, title, sections: [...]}`, a related section or the history as its `content` (`(item, meta) => <RelatedList …/>`, `(item) => <StatusHistory resource={item} />`); the `TransitBar` in the `children`, above the tabs |
 | `list.bulk` (a transition, a deletion) | `bulk` of `ResourceList`: `{id, label, run: (id) => transit.mutateAsync({id, transit: '<transit>'})}` with `const transit = useItemsTransit(path)` of `@/bazis/react/statusy`, or `run: (id) => destroy.mutateAsync(id)` with `permission: 'delete'` |
-| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, value, display, label, tone, icon, onOpen}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`, `value`; each in `<Viewable path={…}>` of `@/bazis/ui/dashboard`, as a tile and the last items, so that a role the backend does not let view the entity sees none of them), `recent` (`{id, path, label, columns, sort, limit, onOpen}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
+| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, value, display, label, tone, icon, onOpen, requires}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`, `value`; each in `<Viewable path={…}>` of `@/bazis/ui/dashboard` (`can="add"` for `requires`), as a tile and the last items, so that a role the backend does not let view the entity sees none of them), `recent` (`{id, path, label, columns, sort, limit, onOpen, requires}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
 | `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`title` and `fields` of `card`, `badge`, `columns`, `filters`, `move` and `transits={ENTITY.transits}` for `move: true` (the moves in the order of `workflow.transitions`, with their `confirm`), `onOpen`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
 | `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (initial) => …}}`: `initial` is an object of the values the create form starts with (`{<field>: day}`, the moment of `time` for a date-time, `end`, the choice of a filter), given as `initial={initial}` to the `ResourceForm` in `FormSurface`, which the user may change; the generated screen passes `onAdd: <form>.onOpenWith` of `CreateFormAction.use()`) |
 | the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
-| `primitive: form` with `form.action` | `ActionForm` of `@/bazis/ui/screens` (`path`, `action`, `fields`, `labels`, `submitLabel`, `result: {title, message: (response) => t(key, response)}`, `then: {screen, label, to}` with a result, else `onDone`) |
+| `primitive: form` with `form.action` | `ActionForm` of `@/bazis/ui/screens` (`path`, `action`, `fields`, `labels`, `submitLabel`, `result: {title, message: (response) => t(key, response)}`, the title a function too when it shows the answer, `then: {screen, label, to}` with a result, else `onDone`) |
 | `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
 | an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, titled by `title` of the action, a question, `Delete this item?` by default, and saying its `description`: the deletion runs once confirmed) |
 | an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`path`, `action`, `target`: `route` in the toolbar of a list, else `item`, `item` of a card, `fields`, `labels`, `confirm`, `message`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
@@ -1835,7 +1833,9 @@ screen (`RequireSession` within it), mounted once across them: with a session, e
 link, the logout and the tools; without one (`session={null}`), only the links of the
 public screens (`public: true` of their `NavItem`, a group with its public links), no tools
 (the notifications and the live queries need a session) and the sign-in `action:sign-in`
-(`signIn` of `AppShell`), which opens `/login` and comes back to the screen after the
+(`signIn` of `AppShell`), which opens `/login`; after the login the user is at home. A guest
+who opens `/`, a screen of a session, is led to the first public link of the navigation
+(`GUEST_HOME` of `routes.tsx`, null when `/` is public itself or no link is), not to the
 login. Their screens read only what the backend gives anonymous users (a permit role
 `for_anonymous`; a 401/403 is the `forbidden` state of a screen, never a redirect). A
 guest writes only through a custom action declared `public=True` (S046; its throttle,
@@ -2311,8 +2311,8 @@ suggestion of a guest, without code of its own. `fields` are the properties of t
 it asks for (required: those that the body requires among them, S032), `labels` their labels,
 `submit` the label of its button (`Send` by default). Once the action is done, the page shows
 its `result` in place of the form (`state:done`, which `states` lists, S009): its `title`
-(the title of the screen by default) and its `message`, whose `{name}` are the properties of
-the JSON answer of the action (`response` of its custom action in the contract, S053: the
+(the title of the screen by default) and its `message`, whose `{name}`, also in the `title`
+(`Order No. {number}`), are the properties of the JSON answer of the action (`response` of its custom action in the contract, S053: the
 answer of the action has them, a `response_model`), with a link to the screen `then`
 (`nav:<then>`, labelled by its title) and `action:again`, which shows the form again, empty.
 Without a `result`, the action is done with a toast and the screen `then` is shown; a form of
@@ -2802,7 +2802,8 @@ E2E_PASSWORD=... python manage.py e2e_data
   - a scenario that changes an item (a transit, a move, an edit, a custom or a bulk action,
     a deletion, a related item added to it) creates that item itself: the records of
     `e2e_data` are only read, so that the other scenarios and the next runs find them as
-    they are (P033 reports a change of an item that the scenario did not create);
+    they are (P033 reports a change of an item that the scenario did not create; a role that cannot add
+    one changes an item that `e2e_data` creates afresh at every run);
   - a scenario finds the items it created by their ids: when the values that it filled in a
     create form (then in its edits) have the texts of a `where`, the test takes only an item
     that it created (`created: true` of `openItem`, `select`, `move`; the ids of the creates
@@ -5199,10 +5200,10 @@ Its props, `DashboardProps`:
 - `actions?: ReactNode`: The actions of the screen, such as the forms that create an item (`action:<id>`).
 - `hero?: boolean`: The title, the description and the actions as a hero: a portal (`preset` of the theme) by default.
 - `before?: ReactNode`: What the screen shows before its parts (after the hero), such as the extension of a generated screen.
-- `tiles?: readonly StatCardProps[]`
+- `tiles?: readonly (StatCardProps & DashboardPart)[]`
 - `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`.
 - `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`.
-- `recent?: readonly RecentListProps[]`
+- `recent?: readonly (RecentListProps & DashboardPart)[]`
 - `children?: ReactNode`: What the screen shows after its parts, such as the create forms of its actions: in the screen, so that a form composed as a page takes its place.
 
 #### RecentList
@@ -5225,7 +5226,13 @@ Its props, `RecentListProps`:
 
 #### Viewable
 
-`Viewable(props: { path: ListPath; children: ReactNode; }): ReactNode`: A part of a dashboard once the backend lets the user view the items of its route set (`useCan(path, 'view')`): nothing when it does not, its loading state until it tells.
+`Viewable(props: { path: ListPath; can?: Requirement; children: ReactNode; }): ReactNode`: A part of a dashboard once the backend lets the user view the items of its route set, or add one with `can: 'add'` (`useCan(path, can)`): nothing when it does not, its loading state until it tells.
+
+#### DashboardPart
+
+`interface DashboardPart`: A part of a dashboard that is shown to the users who may add an item (`requires.can`), not only view them.
+
+- `requires?: { can: Requirement; }`
 
 #### The types and the constants of `@/bazis/ui/dashboard`
 
@@ -6274,7 +6281,7 @@ Its props, `ActionFormProps`:
 - `fields: readonly string[]`: The properties of its body that the form asks for, in this order.
 - `labels?: Readonly<Record<string, string>> | undefined`: The labels of the fields by property, before the titles of the contract.
 - `submitLabel?: ReactNode`: The label of the submit button: `Send` by default.
-- `result?: { title?: ReactNode; message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, given the texts and the numbers of the JSON answer of the action.
+- `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action.
 - `then?: ActionThen | undefined`: The screen that the result links to.
 - `onDone?: (() => void) | undefined`: Called once the action is done, without a `result` (after a toast): the screen after it.
 

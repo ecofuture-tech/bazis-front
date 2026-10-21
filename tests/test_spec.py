@@ -1344,6 +1344,12 @@ CASES = [
     ),
     (
         'S053',
+        # the title of the result shows what the answer does not have either
+        {SUGGEST: lambda d: d['form']['result'].update(title={'en': 'Task {number}', 'ru': 'Задача {number}'})},
+        [('S053', f'{SUGGEST}#/form/result/title')],
+    ),
+    (
+        'S053',
         # the action answers no JSON
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest'].update(
             response=None)},
@@ -1754,6 +1760,23 @@ def test_a_link_that_requires_an_add_without_a_create_route(contract):
 
 
 @pytest.mark.django_db
+def test_a_part_of_a_dashboard_that_requires_an_add_without_a_create_route(contract):
+    """
+    A tile, a chart or the last items that require that the user may add an item of a resource
+    without a create route in the contract are never shown (S030, as the link of the navigation).
+    """
+    root = contract.parent.parent
+    edit(root, HOME, lambda d: [d['dashboard']['recent'][0].update(requires={'can': 'add'})])
+    assert issues(root) == []
+
+    edit(root, CONTRACT, lambda d: [d['project']['resources']['tasks.task']['actions'].pop('action_create')])
+    assert issues(root) == [
+        ('S030', f'{HOME}#/dashboard/tiles/0/requires'), ('S030', f'{HOME}#/dashboard/charts/2/requires'),
+        ('S030', f'{HOME}#/dashboard/recent/0/requires'),
+    ]
+
+
+@pytest.mark.django_db
 def test_a_custom_action_of_the_route_set_named_as_one_of_an_item(contract):
     """
     The route set has `/escalate/` beside `/{item_id}/escalate/` (S032): the toolbar of a list
@@ -2104,6 +2127,49 @@ def test_a_text_with_a_colon_is_told_to_be_quoted(contract, text, quoted):
     (found,) = [it for it in validate(root).issues if it.code == 'P001']
     assert ('Quote the text' in found.hint) == quoted
     assert 'goes in quotes' in found.hint
+
+
+@pytest.mark.django_db
+def test_a_piece_of_a_text_after_a_comma_of_a_flow_mapping_is_told_to_be_quoted(contract):
+    """
+    `fill: {title: 1 floor, 3 rooms}` is read as the key `title` and the key `3 rooms`
+    (P002): the hint tells that the text after the comma is a key of its own and goes in quotes,
+    not that the key does not match the pattern of the ids; a key that is an id gets the
+    ordinary hint.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: steps(d, 0)[2]['fill'].update({'3 этаж': None}))
+    (found,) = [it for it in validate(root).issues if it.code == 'P002']
+    assert found.path == '/scenarios/0/steps/2/fill'
+    assert 'The key `3 этаж` is a piece of a text' in found.hint
+    assert "{entrance_info: '1 floor, 3 rooms'}" in found.hint
+
+    edit(root, PRODUCT, lambda d: [steps(d, 0)[2]['fill'].pop('3 этаж'), steps(d, 0)[2]['fill'].update({'my-key': 'x'})])
+    (found,) = [it for it in validate(root).issues if it.code == 'P002']
+    assert 'piece of a text' not in found.hint
+
+
+@pytest.mark.django_db
+def test_a_role_that_cannot_add_changes_the_items_of_the_test_data(contract):
+    """
+    P033 asks a scenario to create the item it changes; a role whose `access` has no `add` for
+    the entity cannot, so the item of the test data (`e2e_data`) is the only one it can change:
+    no P033 (the entity without `access` is left as it was).
+    """
+    root = contract.parent.parent
+    changes = {'id': 'manager-changes-the-plan', 'role': 'manager', 'steps': [
+        {'open': 'task-list'},
+        {'open_item': {'where': {'title': 'Review the plan'}}},
+        {'transit': 'start'},
+    ]}
+    edit(root, PRODUCT, lambda d: d['scenarios'].append(changes))
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/20/steps/2/transit')]
+
+    edit(root, PRODUCT, lambda d: [task(d)['access']['manager'].pop('add')])
+    assert issues(root) == []
+
+    edit(root, PRODUCT, lambda d: [task(d).pop('access')])
+    assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/20/steps/2/transit')]
 
 
 @pytest.mark.django_db

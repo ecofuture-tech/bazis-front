@@ -60,3 +60,9 @@ export const SCREEN_ROUTES = (
     </Route>
   </>
 );
+
+/**
+ * The route that a user without a session who opens `/` is led to: the first public link of the
+ * navigation, null when `/` is public itself or no link is.
+ */
+export const GUEST_HOME: string | null = '/suggest';

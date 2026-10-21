@@ -106,13 +106,15 @@
           "minLength": 1
         },
         "icon": {"$ref": "#/$defs/icon"},
-        "requires": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["can"],
-          "properties": {"can": {"enum": ["view", "add"]}}
-        }
+        "requires": {"$ref": "#/$defs/requires"}
       }
+    },
+    "requires": {
+      "description": "What the backend must let the user do for a part to be shown: view the items of its entity, the default, or add one (S030).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["can"],
+      "properties": {"can": {"enum": ["view", "add"]}}
     },
     "nav_group": {
       "description": "Links under a heading of the navigation.",

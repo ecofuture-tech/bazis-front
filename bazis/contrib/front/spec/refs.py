@@ -1117,6 +1117,14 @@ def _check_dashboard(doc: Document, product: Product, screens: dict, contract: d
             _check_value(doc, path, part['value'], entity, resource, issues)
         if resource is None:
             continue
+        if part.get('requires', {}).get('can') == 'add' and 'create' not in resource['actions'].values():
+            issues.add(
+                doc, (*path, 'requires'), 'S030',
+                f'The part requires that the user may add a `{entity.data["resource"]}`, which has no create '
+                'route in the contract: it is never shown.',
+                f'Remove `requires`, or give the route set of `{entity.data["resource"]}` its create route and '
+                f'{EXPORT_HINT}.',
+            )
         _check_queries(doc, path, part, entity, resource, issues)
         if key == 'actions':
             _check_pickers(doc, resource, form_fields(path, part, entity), contract, issues)
@@ -1368,30 +1376,39 @@ def _check_body(
 PARAMETER = re.compile(r'\{(\w+)\}')
 
 
+def parameters(value) -> list[str]:
+    """
+    The parameters (`{number}`) of a text of the specs, or of its translations; none for a
+    key of the dictionaries of the frontend, which is not read.
+    """
+    texts = [value] if isinstance(value, str) else list(value.values())
+    return sorted({it for text in texts if not TEXT_KEY.fullmatch(text) for it in PARAMETER.findall(text)})
+
+
 def _check_result(doc: Document, name: str, result: dict, response: dict | None, issues: Issues) -> None:
     """
-    The parameters of the message of the result of a form of an action are properties of the
-    JSON answer of the action in the contract (S053); a key of the dictionaries of the
-    frontend is not read.
+    The parameters of the title and of the message of the result of a form of an action are
+    properties of the JSON answer of the action in the contract (S053); a key of the
+    dictionaries of the frontend is not read.
     """
-    message = result['message']
-    texts = [message] if isinstance(message, str) else list(message.values())
-    used = sorted({it for text in texts if not TEXT_KEY.fullmatch(text) for it in PARAMETER.findall(text)})
     properties = (response or {}).get('properties', {})
-    unknown = [it for it in used if it not in properties]
-    if not unknown:
-        return
-    named = ', '.join(f'`{{{it}}}`' for it in unknown)
-    if response is None:
-        problem = f'The message of the result shows {named}, and the custom action `{name}` answers no JSON in the contract.'
-        hint = (
-            f'Give the action a `response_model` with these properties and {EXPORT_HINT}, or remove them from the '
-            'message.'
-        )
-    else:
-        problem = f'The message of the result shows {named}, which the answer of `{name}` does not have in the contract.'
-        hint = f'Show the properties of its answer: {", ".join(f"`{{{it}}}`" for it in sorted(properties)) or "none"}.'
-    issues.add(doc, ('form', 'result', 'message'), 'S053', problem, hint)
+    for part in ('title', 'message'):
+        if part not in result:
+            continue
+        unknown = [it for it in parameters(result[part]) if it not in properties]
+        if not unknown:
+            continue
+        named = ', '.join(f'`{{{it}}}`' for it in unknown)
+        if response is None:
+            problem = f'The {part} of the result shows {named}, and the custom action `{name}` answers no JSON in the contract.'
+            hint = (
+                f'Give the action a `response_model` with these properties and {EXPORT_HINT}, or remove them from the '
+                f'{part}.'
+            )
+        else:
+            problem = f'The {part} of the result shows {named}, which the answer of `{name}` does not have in the contract.'
+            hint = f'Show the properties of its answer: {", ".join(f"`{{{it}}}`" for it in sorted(properties)) or "none"}.'
+        issues.add(doc, ('form', 'result', part), 'S053', problem, hint)
 
 
 def local_type(schema: dict, root: dict) -> dict:
@@ -1466,8 +1483,7 @@ def _check_guest_picker(doc: Document, path: tuple, prop: str, relation: str, pr
     for role in doc.data.get('roles', []):
         if not product.roles.get(role, {}).get('anonymous'):
             continue
-        grants = access.listed(related.data['access'].get(role, {}).get('view', []))
-        if any((it if isinstance(it, str) else it['selector']) != access.NONE for _, it in grants):
+        if access.allows(related.data['access'].get(role, {}), 'view'):
             continue
         issues.add(
             doc, path, 'S052',
