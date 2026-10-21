@@ -74,14 +74,15 @@ export interface RecentListProps {
 const useAnyCan = useCan as unknown as (path: string, action: Requirement) => boolean | undefined;
 
 /**
- * A part of a dashboard once the backend lets the user view the items of its route set, or add
- * one with `can: 'add'` (`useCan(path, can)`): nothing when it does not, its loading state
- * until it tells.
+ * A part of a dashboard once the backend lets the user view the items of its route set, and add
+ * one too with `can: 'add'` (`useCan(path, can)`): its tile and its last items read the list,
+ * which a user who may only add is refused. Nothing when it does not, its loading state until
+ * it tells.
  */
 export function Viewable({ path, can = 'view', children }: { path: ListPath; can?: Requirement; children: ReactNode }): ReactNode {
-  const allowed = useAnyCan(path, can);
-  if (allowed === false) return null;
-  if (allowed === undefined) return <StatePanel state="loading" skeleton={<Skeleton className="h-28 w-full rounded-xl" />} />;
+  const allowed = [useAnyCan(path, 'view'), useAnyCan(path, can)];
+  if (allowed.includes(false)) return null;
+  if (allowed.includes(undefined)) return <StatePanel state="loading" skeleton={<Skeleton className="h-28 w-full rounded-xl" />} />;
   return children;
 }
 

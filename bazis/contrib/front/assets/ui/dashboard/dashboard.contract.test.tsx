@@ -231,6 +231,28 @@ describe('Dashboard', () => {
     expect(screen.queryByTestId('chart:locked')).toBeNull();
   });
 
+  it('hides a part with `requires: {can: add}` from the users who may add an item but not view the items', async () => {
+    const drop = '/api/test/drop/';
+    const server = new Backend()
+      .on('GET', `${drop}schema_list/`, errors(403), 403)
+      .on('GET', drop, errors(403), 403)
+      .on('GET', `${drop}schema_create/`, schema);
+    renderWithBazis(
+      <Dashboard
+        hero={false}
+        tiles={[{ id: 'drop', path: drop as never, label: 'Drop', requires: { can: 'add' } }]}
+        recent={[{ id: 'drop', path: drop as never, label: 'Drop', columns: ['title'], requires: { can: 'add' } }]}
+      />,
+      server,
+    );
+    await waitFor(() => {
+      expect(screen.queryAllByTestId('state:loading')).toEqual([]);
+    });
+    expect(server.requests('GET')).toContain(`GET ${drop}schema_create/`);
+    expect(screen.queryByTestId('tile:drop')).toBeNull();
+    expect(screen.queryByTestId('recent:drop')).toBeNull();
+  });
+
   it('shows what it is given before its parts, after its hero', async () => {
     renderWithBazis(
       <Dashboard hero title="Home" before={<p data-bz="before">Before</p>} tiles={[{ id: 'all', path: ITEMS as never, label: 'All' }]} />,

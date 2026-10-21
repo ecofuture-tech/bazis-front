@@ -887,8 +887,8 @@ def adds(spec: dict) -> bool:
 def chart(screen: Screen, index: int, spec: dict) -> Jsx:
     """
     A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`),
-    shown to the users who may view them, or add one with `requires` (`Viewable`, as the tiles and
-    the last items).
+    shown to the users who may view them, and add one with `requires` (`Viewable`, as the tiles
+    and the last items).
     """
     const = screen.entity(spec['entity'])
     attrs = [Attr('id', spec['id']), Attr('path', Raw(f'{const.code}.path'))]
