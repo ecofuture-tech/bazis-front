@@ -73,8 +73,9 @@ def test_a_guest_attaches_the_photos_he_uploaded(sample_app):
     The project turns the anonymous uploads of bazis-uploadable 2.8 on (`project.env`, with a
     size limit): a guest uploads an image without a session, reads back a token as its id
     and not the file, and suggests a task with it; the team reads the photos of the task
-    (`files_visible`). A bare id, a forged token, a file of a user and a token sent twice are
-    not his uploads (422 `ERR_PHOTO` at `/photos`); a text is not an image (422).
+    (`files_visible`). A bare id, a forged token and a file of a user are not his uploads (422
+    `ERR_PHOTO` at `/photos`); a token sent twice attaches its photo once, and within the TTL
+    to another task too; a text is not an image (422).
     """
     guest = get_api_client(sample_app)
     photo = uploaded(guest)
@@ -100,6 +101,19 @@ def test_a_guest_attaches_the_photos_he_uploaded(sample_app):
         refused = guest.post(f'{TASKS}suggest/', json_data={'title': 'Not his', 'photos': photos})
         assert refused.status_code == 422, (photos, refused.text)
         assert [(it['code'], it['source']['pointer']) for it in refused.json()['errors']] == [('ERR_PHOTO', '/photos')]
+
+    def photos_of(answer):
+        assert answer.status_code == 200, answer.text
+        task = manager.get(f'{TASKS}{answer.json()["task"]}/').json()['data']
+        return [it['id'] for it in task['relationships']['photos']['data']]
+
+    twice = photos_of(guest.post(f'{TASKS}suggest/', json_data={'title': 'Twice', 'photos': [other, other]}))
+    assert len(twice) == 1 and twice != [linked['id']]
+    # The residual risk of bazis-uploadable 2.8: a token attaches its upload until
+    # `BAZIS_FILE_UPLOAD_ANONYMOUS_TTL`, also to another object; the signature keeps it to the
+    # guest who read it back, not to one use (the same photo, not a copy).
+    again = guest.post(f'{TASKS}suggest/', json_data={'title': 'The same photo', 'photos': [token]})
+    assert photos_of(again) == [linked['id']]
 
 
 @pytest.mark.django_db(transaction=True)

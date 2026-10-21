@@ -1501,6 +1501,16 @@ CASES = [
         [('S057', f'{PUBLIC}#/actions/0/fields/1'), ('S057', f'{SUGGEST}#/form/fields/1'),
          ('S057', f'{SUGGEST}#/form/fields/2')],
     ),
+    # the form of a screen of a session uploads the photos of the body with the token of the
+    # user, without the anonymous uploads
+    (
+        'S057',
+        {CONTRACT: lambda d: d['capabilities']['uploadable'].update(anonymous=False, anonymous_types=[]),
+         SUGGEST: lambda d: d.update(roles=['viewer']),
+         PUBLIC: lambda d: d['actions'][0]['fields'].remove('photos'),
+         PRODUCT: lambda d: (steps(d, 19).pop(3), d.update(scenarios=d['scenarios'][:-3]))},
+        [],
+    ),
     (
         'S052',
         # the picker of the users by the `x-relation` of the id of a property that is no field

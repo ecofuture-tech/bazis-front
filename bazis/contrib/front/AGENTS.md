@@ -2165,10 +2165,11 @@ screen. `ResourceForm`, the form and the dialog of an action are not submitted w
 uploads. Without the provider the field is the picker of a relationship. The payloads of
 the transits have no files (a payload has no relationships).
 
-With bazis-uploadable, `manage.py bazis_front add file-field`: the generated providers wrap
-the routes in `FileFieldProvider`, so that the forms upload the files of their file fields
-(without it a file field is the picker of the uploaded files); `accept` limits the types of
-a field, the size limit is `max_size` of the contract:
+With bazis-uploadable the generated providers wrap the routes in `FileFieldProvider` (`screens`
+copies `file-field`; a frontend without generated screens adds it with
+`manage.py bazis_front add file-field`), so that the forms upload the files of their file
+fields (without it a file field is the picker of the uploaded files); `accept` limits the
+types of a field, the size limit is `max_size` of the contract:
 
 ```tsx
 import { FileFieldProvider } from '@/bazis/ui/file-field';
