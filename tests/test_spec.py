@@ -948,6 +948,14 @@ CASES = [
     ),
     (
         'P013',
+        # a file of the spec that is a polymorphic relationship (a list of resources) in the
+        # contract: not the uploaded files
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['fields']['attachment'].update(
+            relation=['uploadable.file_upload', 'users.user'])},
+        [('P013', f'{PRODUCT}#/entities/0/fields/4')],
+    ),
+    (
+        'P013',
         # a point is not any JSON: the contract reads it from the model
         {PRODUCT: lambda d: task(d)['fields'][6].update(type='json')},
         [('P013', f'{PRODUCT}#/entities/0/fields/6'), ('S016', f'{LIST}#/list/map/field')],
@@ -1738,6 +1746,24 @@ CASES = [
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['report'].pop('filter')],
          SUGGEST: lambda d: d['form'].update(filters={'location': {'is_active': True}, 'report': {'is_active': True}})},
         [('S061', f'{SUGGEST}#/form/filters/location'), ('S061', f'{SUGGEST}#/form/filters/report')],
+    ),
+    (
+        'S061',
+        # a polymorphic relationship (a list of resources) of a form without `fields`: no picker,
+        # so its filter filters nothing
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['fields'].update(
+            subject={'title': 'Subject', 'relation': ['users.user', 'tasks.task'], 'many': False}),
+         LIST: lambda d: [d['actions'][0].pop('fields'), d['actions'][0].update(filters={'subject': {'is_active': True}})]},
+        [('S061', f'{LIST}#/actions/0/filters/subject')],
+    ),
+    (
+        'S061',
+        # a filter through a polymorphic relationship: the fields of its resources are not known,
+        # it is not checked
+        {CONTRACT: lambda d: d['project']['resources']['users.user']['fields'].update(
+            owner={'title': 'Owner', 'relation': ['tasks.task', 'users.user'], 'many': False, 'filter': 'owner'}),
+         PRODUCT: lambda d: reopen(d).update(filter={'owner__slug': 'manager'})},
+        [],
     ),
     (
         'P022',

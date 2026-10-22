@@ -198,9 +198,10 @@ def is_file(schema: dict, contract: dict) -> bool:
     """
     Whether a field of the contract is a file of the specs (`type: file`): a relationship to
     a resource of the uploaded files of bazis-uploadable, to-one for a file, to-many for
-    several (`many: true`).
+    several (`many: true`); never a polymorphic one (a list of resources).
     """
-    return isinstance(schema.get('many'), bool) and schema.get('relation') in uploads(contract)
+    relation = schema.get('relation')
+    return isinstance(schema.get('many'), bool) and isinstance(relation, str) and relation in uploads(contract)
 
 
 def ids_of(schema: dict, root: dict) -> dict | None:
@@ -2414,7 +2415,8 @@ def _check_filter_route(
 def _check_form_filters(doc: Document, resource: dict, contract: dict, issues: Issues) -> None:
     """
     The filters of the pickers of the forms of the entity (the form of a page, the form
-    actions) by field: its relationships among the fields of the form (S061).
+    actions) by field: its relationships among the fields of the form (S061), not a
+    polymorphic one (a list of resources), whose picker has no resource to list.
     """
     data = doc.data
     forms = [(path, it) for path, it in screen_actions(data) if it['primitive'] == 'form']
@@ -2424,8 +2426,8 @@ def _check_form_filters(doc: Document, resource: dict, contract: dict, issues: I
     for path, form in forms:
         names = form.get('fields', resource['fields'])
         pickers = {
-            name: field['relation'] for name in names
-            if 'relation' in (field := resource['fields'].get(name, {})) and field['relation'] not in files
+            name: relation for name in names
+            if isinstance(relation := resource['fields'].get(name, {}).get('relation'), str) and relation not in files
         }
         _check_picker_filters(doc, path, form.get('filters', {}), pickers, contract, issues)
 
@@ -2486,6 +2488,9 @@ def _filter_problem(key: str, value, relation: str, resources: dict) -> tuple[st
             )
         if i < len(names) - 1:
             relation = field['relation']
+            # through a polymorphic relationship (a list of resources): its fields are not known
+            if not isinstance(relation, str):
+                return None
         elif not filter_value_fits(value, field):
             return (
                 f'The value {value!r} of `{key}` does not fit `{name}` of `{relation}` ({_describe(field)} in the '
