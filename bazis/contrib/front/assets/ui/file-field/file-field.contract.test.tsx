@@ -19,8 +19,9 @@
 // replace and the remove; of several files (`FilesField`), the files listed (`file:<i>`) with
 // their remove (`action:remove-file-<i>`), uploaded one after the other, their ids as the value,
 // the local copies of the images dropped with their files; and in a form (`FieldInput` under
-// `FileFieldProvider`), the errors of the file as `error:<name>`, the types of the guests. Keep
-// it passing when the component is changed.
+// `FileFieldProvider`), the errors of the file as `error:<name>`, the types of the guests; an
+// image larger than the limit reduced to it (`fitImage`: a canvas, which the tests stub), never
+// another file. Keep it passing when the component is changed.
 
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
@@ -33,6 +34,7 @@ import {
   FileField,
   FileFieldProvider,
   FilesField,
+  fitImage,
   type FileFieldProps,
   type FilesFieldProps,
 } from '@/bazis/ui/file-field';
@@ -654,5 +656,173 @@ describe('FileFieldProvider of several files', () => {
     // `anonymous_types` of the contract; any type when the guests upload none
     expect(screen.getByTestId('field:photos').getAttribute('accept')).toBe(ANONYMOUS_ACCEPT ?? null);
     expect(screen.getByTestId('field:attachment').getAttribute('accept')).toBe(ANONYMOUS_ACCEPT ?? null);
+  });
+});
+
+/**
+ * The images of the tests, which jsdom does not draw: `createImageBitmap` gives an image of
+ * these sides (or fails, `undecoded`), a canvas a blob of a byte for each 1000 pixels.
+ */
+function images({ width = 4000, height = 3000, undecoded = false } = {}) {
+  const close = vi.fn();
+  const decode = vi.fn(() => (undecoded ? Promise.reject(new Error('HEIC')) : Promise.resolve({ width, height, close })));
+  vi.stubGlobal('createImageBitmap', decode);
+  const drawImage = vi.fn();
+  const sizes: [number, number][] = [];
+  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({ drawImage })) as never;
+  HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, done: BlobCallback, type?: string) {
+    sizes.push([this.width, this.height]);
+    done(new Blob([new Uint8Array(Math.round((this.width * this.height) / 1000))], { type }));
+  };
+  return { decode, close, sizes };
+}
+
+/** A file of these bytes. */
+const sized = (bytes: number, name: string, type: string) => new File([new Uint8Array(bytes)], name, { type });
+
+describe('fitImage', () => {
+  it('reduces an image larger than the limit until it fits, turned as its EXIF says', async () => {
+    const image = images();
+    const photo = sized(9000, 'photo.jpg', 'image/jpeg');
+    const fitted = await fitImage(photo, 8000);
+    // at its size (12000 bytes), then its sides by 0.8 (7680 bytes)
+    expect(image.sizes).toEqual([
+      [4000, 3000],
+      [3200, 2400],
+    ]);
+    expect([fitted?.name, fitted?.type, fitted?.size]).toEqual(['photo.jpg', 'image/jpeg', 7680]);
+    expect(image.decode).toHaveBeenCalledWith(photo, { imageOrientation: 'from-image' });
+    expect(image.close).toHaveBeenCalled();
+  });
+
+  it('keeps a PNG a PNG and draws another image as a JPEG', async () => {
+    images();
+    const png = await fitImage(sized(20000, 'plan.png', 'image/png'), 12000);
+    expect([png?.name, png?.type]).toEqual(['plan.png', 'image/png']);
+    const heic = await fitImage(sized(20000, 'IMG_1.heic', 'image/heic'), 12000);
+    expect([heic?.name, heic?.type]).toEqual(['IMG_1.jpg', 'image/jpeg']);
+  });
+
+  it('gives the file itself within the limit, and nothing for a file that it does not reduce', async () => {
+    const image = images();
+    const brief = sized(9000, 'brief.pdf', 'application/pdf');
+    expect(await fitImage(brief, 9000)).toBe(brief);
+    expect(await fitImage(brief, null)).toBe(brief);
+    expect(await fitImage(brief, 8000)).toBeNull();
+    expect(await fitImage(sized(9000, 'cat.gif', 'image/gif'), 8000)).toBeNull();
+    expect(await fitImage(sized(9000, 'logo.svg', 'image/svg+xml'), 8000)).toBeNull();
+    expect(image.decode).not.toHaveBeenCalled();
+    // an image that the browser does not decode
+    images({ undecoded: true });
+    expect(await fitImage(sized(9000, 'IMG_1.heic', 'image/heic'), 8000)).toBeNull();
+  });
+
+  it('draws the long side of the image never under 1024 pixels, in four tries at most', async () => {
+    const small = images({ width: 1200, height: 900 });
+    expect(await fitImage(sized(9000, 'photo.jpg', 'image/jpeg'), 10)).toBeNull();
+    expect(small.sizes).toEqual([
+      [1200, 900],
+      [1024, 768],
+    ]);
+    const large = images({ width: 8000, height: 6000 });
+    expect(await fitImage(sized(90000, 'photo.jpg', 'image/jpeg'), 10)).toBeNull();
+    expect(large.sizes.map(([width]) => width)).toEqual([8000, 6400, 5120, 4096]);
+  });
+});
+
+describe('the images larger than the limit', () => {
+  it('are reduced to it before FileField uploads them', async () => {
+    objectUrls();
+    images();
+    const backend = new Backend().on('POST', FILES, { data: uploaded(1, 'photo.jpg', 7680) }, 201);
+    const field = spies();
+    renderWithBazis(<Field spies={field} maxSize={8000} />, backend);
+    await screen.findByTestId('field:attachment');
+    expect(screen.getByTestId('upload:attachment').textContent).toContain('up to 7.8 KB, a larger image reduced to it');
+    choose(sized(9000, 'photo.jpg', 'image/jpeg'));
+    await waitFor(() => {
+      expect(field.onChange).toHaveBeenCalledWith('1');
+    });
+    // the reduced image, shown with its size
+    expect(screen.getByTestId('upload:attachment').textContent).toContain('7.5 KB');
+    expect(field.onError.mock.calls).toEqual([[null]]);
+    expect(field.onBusy.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('are refused when they do not fit, and a field of other files says nothing of them', async () => {
+    images({ width: 1200, height: 900 });
+    const backend = new Backend();
+    const field = spies();
+    const { unmount } = renderWithBazis(<Field spies={field} maxSize={10} accept=".pdf" />, backend);
+    await screen.findByTestId('field:attachment');
+    expect(screen.getByTestId('upload:attachment').textContent).toContain('PDF, up to 10 B');
+    expect(screen.getByTestId('upload:attachment').textContent).not.toContain('reduced');
+    choose(sized(9000, 'photo.jpg', 'image/jpeg'));
+    expect(field.onError).toHaveBeenCalledWith('The file is not of the type PDF.');
+    choose(sized(9000, 'brief.pdf', 'application/pdf'));
+    expect(field.onError).toHaveBeenLastCalledWith('The file is larger than 10 B.');
+    unmount();
+    renderWithBazis(<Field spies={field} maxSize={10} />, backend);
+    await screen.findByTestId('field:attachment');
+    choose(sized(9000, 'photo.jpg', 'image/jpeg'));
+    await waitFor(() => {
+      expect(field.onError).toHaveBeenLastCalledWith('The file is larger than 10 B.');
+    });
+    expect(backend.calls).toEqual([]);
+  });
+
+  it('are not uploaded by a FileField closed while they are reduced', async () => {
+    const image = images();
+    let decoded = (): void => undefined;
+    image.decode.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          decoded = () => {
+            resolve({ width: 4000, height: 3000, close: image.close });
+          };
+        }),
+    );
+    const backend = new Backend();
+    const field = spies();
+    const { unmount } = renderWithBazis(<Field spies={field} maxSize={8000} />, backend);
+    await screen.findByTestId('field:attachment');
+    choose(sized(9000, 'photo.jpg', 'image/jpeg'));
+    unmount();
+    decoded();
+    await waitFor(() => {
+      expect(image.close).toHaveBeenCalled();
+    });
+    expect(backend.calls).toEqual([]);
+    expect(field.onChange).not.toHaveBeenCalled();
+  });
+
+  it('are reduced as FilesField uploads them, one cancelled meanwhile left out', async () => {
+    objectUrls();
+    const image = images();
+    // the first image decodes once the test lets it
+    let decoded = (): void => undefined;
+    image.decode.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          decoded = () => {
+            resolve({ width: 4000, height: 3000, close: image.close });
+          };
+        }),
+    );
+    const backend = new Backend().each('POST', FILES, { body: { data: uploaded(2, 'second.png') }, status: 201 });
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} maxSize={8000} />, backend);
+    await screen.findByTestId('field:photos');
+    chooseFiles(sized(9000, 'first.jpg', 'image/jpeg'), sized(9000, 'second.png', 'image/png'));
+    // the first is reduced: still waiting, cancelled
+    fireEvent.click(screen.getByTestId('action:remove-file-0'));
+    act(() => {
+      decoded();
+    });
+    await waitFor(() => {
+      expect(field.onChange).toHaveBeenCalledWith(['2']);
+    });
+    expect(backend.calls.map((it) => it.body)).toEqual([{ file: 'second.png' }]);
+    expect(screen.getByTestId('file:0').textContent).toContain('7.5 KB');
   });
 });

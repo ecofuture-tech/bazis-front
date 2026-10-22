@@ -22,7 +22,8 @@
 // search (`role="status"`) and clears a nullable value (the option `data-value=""`, which the
 // helpers of the end-to-end tests choose for null). The picker of a to-many relationship has
 // the same list, `aria-multiselectable`: an item is added and removed, the list stays open,
-// the option `data-value=""` removes every item. The labels of the related items shown
+// the option `data-value=""` removes every item. A filter narrows the items of every request
+// of the list (`filter`). The labels of the related items shown
 // together are read with one request, marked `state:loading` until then. Keep it passing when
 // the component is changed.
 
@@ -30,6 +31,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
 import { FieldValue, PICKER_PAGE, RelationLabel, RelationListPicker, RelationPicker } from '@/bazis/ui/resource';
 import { Backend, ITEMS, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
 
@@ -247,6 +249,35 @@ describe('RelationPicker', () => {
     const listbox = await open();
     await within(listbox).findByText('Ann');
     expect(screen.queryByRole('combobox', { name: 'Search Owner' })).toBeNull();
+  });
+
+  it('offers the items that match its filter, searched and page after page', async () => {
+    const backend = new Backend().on('GET', ITEMS, listDocument([ann], { next: `${ITEMS}?page%5Boffset%5D=${String(PICKER_PAGE)}` }));
+    renderWithBazis(
+      <RelationPicker
+        relation="test.item"
+        path={ITEMS}
+        searchable
+        filter={Filter.and(Filter.where('roles__slug', 'master'), Filter.where('is_active', true))}
+        data-bz="field:owner"
+        aria-label="Owner"
+        value={null}
+        onChange={vi.fn()}
+      />,
+      backend,
+    );
+    const listbox = await open();
+    fireEvent.click(await within(listbox).findByText('Load more'));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Search Owner' }), { target: { value: 'zz' } });
+    // every request of its items is filtered: the first page, the next one, a search
+    const filter = 'filter=roles__slug%3Dmaster%26is_active%3Dtrue';
+    await waitFor(() => {
+      expect(backend.requests()).toEqual([
+        `GET ${ITEMS}?${filter}&page%5Blimit%5D=20`,
+        `GET ${ITEMS}?${filter}&page%5Blimit%5D=20&page%5Boffset%5D=20`,
+        `GET ${ITEMS}?${filter}&search=zz&page%5Blimit%5D=20`,
+      ]);
+    });
   });
 
   it('is disabled when read-only, an input without a route for its resource', () => {

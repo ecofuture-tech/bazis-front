@@ -215,6 +215,7 @@ export const en: Messages = {
   'upload.type.image': 'images',
   'upload.type.video': 'video',
   'upload.up_to': 'up to {size}',
+  'upload.up_to_reduced': 'up to {size}, a larger image reduced to it',
   'upload.up_to_files.one': 'up to {count} file',
   'upload.up_to_files.other': 'up to {count} files',
   'upload.wrong_type': 'The file is not of the type {accept}.',

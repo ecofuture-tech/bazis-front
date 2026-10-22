@@ -299,8 +299,8 @@ mix with its output.
 The product is described in `spec/` of the product root, in three layers: the product
 (`product.yaml`: roles, entities, access, scenarios), the screens (`screens/<id>.yaml`)
 and the design (`design/theme.yaml`, `design/tokens.json`). They reference each other by
-id: a screen the entities and the roles of the product, a scenario the screens, their
-actions and the transitions; the contract knows nothing of them. The agent writes them; the backend is built to satisfy them and
+id: a screen the entities and the roles, a scenario the screens, their actions and the
+transitions; the contract knows nothing of them. The backend is built to satisfy them and
 the validator checks them against the contract:
 
 ```bash
@@ -329,8 +329,8 @@ The specs of the sample of this package (its roles, statuses and transits are de
 spec: bazis-product/1
 product: {id: tasks, name: Tasks, summary: The tasks of a team}
 packages: [users, authing, permit, statusy, uploadable, ws, bg, async_background, async_request]   # each needs its section in the contract
-languages: [en, ru]                  # optional: LANGUAGES of the backend (P029)
-language: en                         # optional: the code of LANGUAGES of LANGUAGE_CODE (P029)
+languages: [en, ru]                  # optional: LANGUAGES of the backend
+language: en                         # optional: that of LANGUAGE_CODE (P029)
 roles:
   - {id: manager, permit: manager, title: Manager, test_user: {username: manager}}
   - {id: viewer, permit: viewer, title: Viewer, test_user: {username: viewer}}
@@ -380,33 +380,18 @@ scenarios:
 
 #### Languages
 
-**Languages** (optional): `languages`, the codes of the languages of the interface, and
-`language`, the default one (one of them), as the backend has them: `check` compares them
-with `project.languages` (`LANGUAGES`) and `project.language` (the code of `LANGUAGES`
-that `LANGUAGE_CODE` names) of the contract (P029). See [The language](#the-language).
-The texts of the specs (`product.name`, the titles of the entities, the titles and the labels
-of the screens) are in each of them: see "Texts" in
+**Languages** (optional): `languages` and `language`, as the backend has them (P029; see
+[The language](#the-language)). The texts of the specs are in each of them: see "Texts" in
 [The specs of the screens and the design](#the-specs-of-the-screens-and-the-design).
 
 #### Navigation
 
-**Navigation** (optional): the links of the navigation in their order, `{screen}` each,
-and groups of them under a heading, `{group: <id>, title: <text>, items: [...]}`. A link
-is labelled by its `label` (a text, shorter than the title of its screen: `Catalog` for
-`Book catalog`), else by the title of its screen, and shown to the users whom the backend lets view
-the items of its entity (a report: filter them by the fields of its `list.filter`);
-`requires: {can: add}` asks that they may add one too (a link of a screen of an entity
-whose route set creates). Its `icon` is a name of lucide
-(D013), by default the icon of its entity (`icons` of theme.yaml), `square-kanban` for a
-board, `calendar-days` for a calendar, `list-filter` for a report, `house` for the home.
-A link opens a screen without an item in its route, not a form of the items, once (S030).
-The form of a custom action is linked, shown to the users whose list of its entity lists the
-action (`custom_actions`): a role whose list is refused (403) gets no link even if it may call
-the action. On a public screen it is shown at once; it takes no `requires` (S030). The
-generated navigation is made from it (`src/screens/generated/navigation.ts`).
-Without `navigation`: the home, then of each entity in the order of `entities` its list, its
-board, its calendar, its reports and the forms of its custom actions, but the screens with
-`nav: false`.
+**Navigation** (optional): the links in their order and their groups, as the schema says
+who sees a link, its label and its icon (a name of lucide, D013) and what it is without
+`navigation`; the generated navigation is made from it (`src/screens/generated/navigation.ts`).
+A link opens a screen without an item in its route, not a form of the items, once (S030). A
+role whose list of the entity is refused (403) gets no link of the form of a custom action,
+even if it may call the action.
 
 ```yaml
 navigation:
@@ -431,8 +416,9 @@ and send `2.5`. A `point` is a
 `PointField` of the model (`format: point` of the contract; `json` is another object: a
 point field declared `json` is P013, declare it `point`). A `file` is a to-one
 relationship to a resource of the uploaded files of bazis-uploadable (`resources` of the
-capability `uploadable`; P013 otherwise): declare such a relationship as a `file`, not as
-a `relation`; it needs no entity. A payload of a transit has no `file`. What is required, writable or
+capability `uploadable`; P013 otherwise), several files `file` with `many: true` (a
+many-to-many field; `many` is of a relationship or of files only): declare such a
+relationship as a `file`, not as a `relation`; it needs no entity. What is required, writable or
 visible for the current user is not in the spec: the runtime schemas of the backend
 decide it. The label of a field is not in the spec either: it is its title in the backend
 (`title` of the field in the contract; S018 when it is the name of the field, see "The
@@ -440,31 +426,20 @@ labels of the fields").
 
 #### Display
 
-**Display** (optional) of an attribute says how the screens show its value, the only
-place where the spec speaks of it: `plain`, a number without the separators of its
-thousands (a code: `18770`, not `18,770`); `{currency: RUB}`, a sum in the currency
-(ISO 4217); `{unit: pcs}`, a quantity followed by its unit; `{bar: 100}`, a number as a bar
-of its share of the maximum (a progress); `phone`, a phone number to call. `plain` and
-`bar` are of an `integer` or a `number`, `currency` and `unit` also of a `string` (a
-DecimalField), `phone` of a `string` (S020). The screen gives it to the components, as
-it gives them the columns of a list: `display={{code: 'plain', price: {currency: 'RUB'}}}`
+**Display** (optional) of an attribute says how the screens show its value (`display` of the
+schema, S020), the only place where the spec speaks of it. The screen gives it to the
+components as it gives them the columns: `display={{code: 'plain', price: {currency: 'RUB'}}}`
 of `ResourceList` and `ResourceCard` (`display` of `FieldValue` for a value of its own). The
-components group every number by thousands from five digits, as most languages write it
-(`formatNumber` of `@/bazis/i18n`: a year `2020` and `1234` as they are, `12,345`), so a
-year needs no `display`. A phone is a link to call it (a number
-written without separators shown in groups, `+7 916 123-45-67`), a bar a `meter` next to
-the number.
+components group a number by thousands from five digits (`formatNumber` of `@/bazis/i18n`),
+so a year needs no `display`; a phone is a link to call it, shown in groups
+(`+7 916 123-45-67`), a bar a `meter` next to the number.
 
 #### Label
 
-**Label** (optional) of an entity names its fields that label an item (the book and the
-reader of a loan: `label: [book, reader]`, fields of the entity, P031), for a resource
-that has no attribute of a label in the contract (`label` of the resource: a `name`, a
-`title`, the names of a person...; see "The label of an item"): `check` warns of an
-entity without either (S019), whose items the frontend would show by their id. The screen
-gives them to the card, `label={['book', 'reader']}` of `ResourceCard`, which is headed by
-their values (`Idiot · Ann Lee`); without it, a card of an item without a label attribute is
-headed by the values of the first two fields of its sections.
+**Label** (optional) of an entity names its fields that label an item, as the schema says
+(P031, S019). The screen gives them to the card, `label={['book', 'reader']}` of
+`ResourceCard`, headed by their values (`Idiot · Ann Lee`); without it, a card of an item
+without a label attribute is headed by the values of the first two fields of its sections.
 
 #### Workflow
 
@@ -472,18 +447,17 @@ headed by the values of the first two fields of its sections.
 (a Transit row has one source status), and `payload` when an action of the transit takes
 a typed payload (a decimal field of it is `string`, as the field of an entity, or `number`;
 the id of an item is `relation: <entity>`, a property named as a to-one relationship of the
-entity to it: its picker in the dialog, P017). The ids are those of the Status and Transit rows, including those that
+entity to it: its picker in the dialog; the id of an uploaded file, `UploadedFileId`, is
+`type: file`, their list `many: true`: its file field in the dialog, P017). The ids are those of the Status and Transit rows, including those that
 bazis-statusy generates for a Transit created without one (`task#draft_to_done`,
 `task#draft_to_done#1`); any characters but `.` and white space.
 
 The order of `transitions` is the order of the buttons of a card and of the moves of a
 board, the first the main button: put the usual next step first (`complete` before
-`cancel`), not the order of the ids, which the backend answers. `confirm: true` asks the
-user in a dialog before the transit runs (`action:confirm-<id>`): give it to a transit that
-cannot be undone and matters, a payment, a cancellation; not to the routine next step,
-which a question would only slow down (a transit is never confirmed by default). A transit
-with a `payload` is confirmed by the dialog of its payload. The scenarios run a confirmed
-transit as any other (`transit: <id>`, `move`): the helpers confirm it.
+`cancel`), not the order of the ids, which the backend answers. Give `confirm: true` to a
+transit that cannot be undone and matters, not to the routine next step, which a question
+would only slow down; the scenarios run a confirmed transit as any other (the helpers
+confirm it).
 
 ```yaml
 workflow:
@@ -498,16 +472,11 @@ workflow:
 
 **Access** says what a role may do; it is compiled to permissions of bazis-permit that
 the permit role of the role must have (through its permission groups). It does not
-decide what the frontend shows: that is the permission meta and the runtime schemas. An operation
-(`view`, `add`, `change`, `delete`) takes a selector: `all`, `none` (not granted, as an
-absent operation), `self` (the object is the selector source itself, such as the user),
-a relationship that links the object to the user (`author`, `org_owner`) or a path of
-relationships to it (`parent__author`); on a statusy model also `{selector, statuses}` to grant it only in these statuses.
-Several of them are a list (`view: [author, participants]`, not `none`): the role may do
-the operation on the objects of any of them, as bazis-permit unites the permissions of a
-role, and each is a permission of its own. `transit` is a list of transits (selector
-`all`) or `{transit: selector}` (or a list of selectors, `{finish: [author, assignee]}`).
-The permissions, as bazis-permit and bazis-statusy name them:
+decide what the frontend shows: that is the permission meta and the runtime schemas. An
+operation (`view`, `add`, `change`, `delete`) takes a selector (`$defs/selector`), on a
+statusy model also `{selector, statuses}`, or a list of them; `transit` is a list of
+transits (selector `all`) or `{transit: selector}` (or a list of selectors,
+`{finish: [author, assignee]}`). The permissions, as bazis-permit and bazis-statusy name them:
 
 | Access | Model without statuses | Statusy model |
 |---|---|---|
@@ -518,94 +487,66 @@ The permissions, as bazis-permit and bazis-statusy name them:
 | `transit: [finish]` | | `app.model.item.transit.all.in_progress.finish` (the source status of the transit) |
 
 A permission of the role with the selector `all` covers any selector, and the status
-`all` any status. Missing permissions are errors (P019); permissions the role has beyond
-the access are not reported (the absence of an operation is what the scenarios check,
-with `expect`: `action_absent` of an action, `edit` of a card too, `transit_absent` of a
-transit, `field_readonly` of a field). A selector that is not one of the resource is a
-warning (P020): its last name must be one of the `selectors` of the section `permit` of
-the resource it reaches (a reverse relation such as `members` or a many-to-many field,
-bazis-permit 2.6.0, whether the route shows it or not; `self` only on a selector
-source), and each relation of its path a relationship of the contract or a selector;
-what the contract does not describe is not checked. A path through a relation that the
-route set does not show and that is not a selector (a reverse relation to a model that
-is no selector source: the participants of the events of an organizer,
-`registrations__event__author` on the user) is written in `access` as it is, like any
-other grant: the contract does not describe the relation, bazis-permit checks the
-selectors of the permissions it declares (`permit.E005`) and `check` that the role has
-the permission (P019). Never leave a grant out of the spec to silence a warning.
-`access` has the operations `view`, `add`, `change`, `delete` and `transit` only: the other
-permissions of a role, such as the status history of bazis-statusy (`history`) or the
-`access_action` of a custom action (`export`), are declared in `roles.py` alone, and the
-frontend follows the meta of the backend for them.
+`all` any status. Missing permissions are errors (P019); permissions beyond the access are
+not reported (the scenarios check an absence with `expect`: `action_absent`, `transit_absent`,
+`field_readonly`). A selector that is not one of the resource is a warning (P020): its last
+name is one of the `selectors` of the section `permit` of the resource it reaches (a reverse
+relation or a many-to-many field, bazis-permit 2.6.0; `self` only on a selector source), each
+relation of its path a relationship of the contract or a selector. A path through a relation
+that the contract does not describe (`registrations__event__author` on the user) is written
+as it is: bazis-permit checks the selectors it declares (`permit.E005`) and `check` that the
+role has the permission (P019). Never leave a grant out of the spec to silence a warning.
+`access` has `view`, `add`, `change`, `delete` and `transit` only: the other permissions of
+a role (the status history, `history`; the `access_action` of a custom action, `export`) are
+declared in `roles.py` alone, and the frontend follows the meta of the backend for them.
 
 #### Scenarios
 
-**Scenarios** are the end-to-end tests of the product: steps over the screens, each one
-key: `open: <screen>`, `open_item: {where: {field: value}}` (a row of the current list,
-which opens the screen of its `list.open`; an item of a board or a calendar, its `open`; on a
-dashboard a row of its last items, `open_item: {in: <recent>, where: {...}}`),
-`select: {where: {...}}` and `bulk: <id>` (rows of a list with `bulk` selected, then a bulk
-action run on them; P022 without a selection), `move: {where: {...}, to: <status>}` (an item
-of a board with `move: true` moved to a column that a transition leads to: P024; with
-`payload: {...}`, as `transit`, the values of the dialog of a transition with a payload,
-which a move to its status needs: P024 without it), `action: <action of the screen>` (a custom action, `primitive: custom`, on a card,
-or one of the route set in the toolbar of a list: P022 for one of `list.row_actions`, run
-as a bulk action; one with `fields` opens its dialog, filled with `fill` and run with
-`submit`, P023 for a property it does not ask for; one with `confirm: true` is confirmed),
-`fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
-`edit: true`; a `file` field, and a property of the body of an action that takes uploaded
-files, `UploadedFileId` or `list[UploadedFileId]`, in its dialog or its form, is uploaded, a
-file of `e2e/fixtures/` of the frontend, never filled: P022; `photo.png` of the template is
-an image for an image field, a file of another kind is the product's own; a to-many relationship, `many: true`, is filled with the list of the
-labels of its items, `fill: {interviewers: [Ann Lee, Bob Stone]}`, which replace those it
-had, `[]` for none: P022 for one value; a date or a date-time takes a day of the run too,
-`today`, `today+3`, `today-1 10:30`, in UTC, as `day`), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
-`transitions: true`), `expect` with `screen`, `status`, `state`, `action_absent`,
-`transit_absent` (a transit of the workflow that the card does not offer the role),
-`field_readonly`, `field_absent` (a field the screen shows that the user may not see:
-not on the screen once it is loaded), `values` (`{field: text}`: the fields of the
-current card, without an open form, show these texts; a file its name), `rows`,
-`tile` (`{<tile>: number}`: the values of tiles of the current dashboard, a count or the
-aggregate of their `value`), `day`
-(`{today: count}`, `{today+3: count}`, `{2026-10-07: count}`: the items of days of the
-current calendar; a day from the day of the run, `today±<n>` in UTC, for the dates that
-`e2e_data` sets from the day of the run),
-`error`, `notification` (a notification of the user whose text contains the text, in the
-list of the notifications; the product has bazis-notify or bazis-ws, `packages` has
-`notify` or `ws`: P027), `as: <role>` (the next steps run in the session of the role, a
-context of the browser of its own, its `test_user` logged in the first time: P004, P025;
-each session has its screen, its form and its card, the items created and the values
-remembered are of the whole scenario), `remember: {<name>: <property>}` (after the `submit`
-of the form of an action with `result`, a property of its answer, `filename` of a file:
-`$<name>` is that value in `fill`, `where`, `values` and `payload` of the next steps, in any
-session; P022 without the result in the session, for a property its answer does not have
-or that is not a text or a number, or a `$<name>` not remembered before; an item found by
-it is one the run made, which the scenario may change: no P033; remember what the server
-made, a number or an id, not the echo of a text typed, which an older item may have). The
-validator follows the steps from screen to screen
-and checks each against the screen it acts on: `open` takes a screen without an item in
-its route (an item is reached with `open_item` or the `then` of a form), a form with
-`fields` is filled only in them, `action_absent` names an action of the screen (`edit` of a
-card with `edit: true`) and `field_absent` a field it shows (a column, a field of a section
-or of the open form); `transit_absent` is on a card with `transitions: true`, never of a
-transit that `access` grants the role on every item (`all`) while the item is in its source
-status: the card shows it (P022). The walk knows the status of an item that the scenario
-created: its initial status, then that of its transits and moves, or the `status` expected
-on its card; not that of another item. A step has the keys of the schema only: `created` and
-`saved` are parameters that the generator gives the helpers (P002). A
-`submit` followed by an `expect` of a refusal, an `error` of a field or a `state` of a
-failure (`invalid`, `error`, `forbidden`, `not_found`), is refused: its form stays open on
-its screen (no `then`), the expectation names no other `screen` (P022), and the next steps
-fix it and submit again; every other submit saves. When the
-product logs in (`packages` has `users`), the role of a scenario has a `test_user`, the
-user its end-to-end test logs in as (P025) with its password: with bazis-authing, through
-its service `password` (P026). A role of the users who do not log in (the guests of a
-public site, the form of a public action) is `anonymous: true`, without a `test_user`: its
-scenarios log in as nobody. Its permit role is one that bazis-permit gives anonymous users
-(`Role(..., for_anonymous=True)`), or none when they use only the public routes and actions
-(no `access` then); anonymous users match no selector but `all` (P030). A screen is public
-when one of its `roles` is anonymous: the frontend routes it outside the screens of a
-session, and a scenario of the role opens only public screens (P035; see
+**Scenarios** are the end-to-end tests of the product: steps over the screens, one key
+each, as the schema describes them (`$defs/step`). What `check` adds to it:
+`select` needs a list with `bulk` and `bulk` a selection (P022); `move` goes to a column that
+a transition leads to, with the `payload` of its dialog when only a transition with a payload
+leads there (P024); `action` runs a custom action (`primitive: custom`) of a card or of the
+toolbar of a list, not one of `list.row_actions` (P022: run it as a bulk action), its
+dialog filled with `fill` and run with `submit` (P023 for a property it does not ask for),
+confirmed when it has `confirm: true`; `fill` and `upload` act in the open form or on a card
+with `edit: true`, a file field (and `UploadedFileId` of a body or a payload) is uploaded
+from `e2e/fixtures/` of the frontend, never filled (P022; `photo.png` of the template is an
+image, a file of another kind is the product's own; a file of a payload is given in it,
+several a list: `photos: [photo.png]`); a to-many relationship is filled with the labels of
+its items, `fill: {interviewers: [Ann Lee, Bob Stone]}`, which replace those it had (`[]`:
+none; P022 for one value); a date takes a day of the run too, `today`, `today+3`,
+`today-1 10:30` (UTC, as `day`); `transit` is on a card with `transitions: true`;
+`notification` needs `notify` or `ws` in `packages` (P027); `as` needs the role's
+`test_user` (P004, P025), and the items created and the values remembered are of the whole
+scenario; `remember` follows the `submit` of a form with `result` and takes a text or a
+number of its answer (P022 otherwise, and for a `$<name>` not remembered before): remember
+what the server made, a number or an id, not a text typed, which an older item may have (an
+item found by it is one the run made: no P033).
+
+The validator follows the steps from screen to screen and checks each against the screen it
+acts on: `open` takes a screen without an item in its route (an item is reached with
+`open_item` or the `then` of a form), a form with `fields` is filled only in them,
+`action_absent` names an action of the screen (`edit` of a card with `edit: true`),
+`field_absent` a field it shows (a column, a field of a section or of the open form), and
+`transit_absent` is on a card with `transitions: true`, never of a transit that `access`
+grants the role on every item (`all`) while the item is in its source status (P022). The
+walk knows the status of an item that the scenario created: its initial status, then that of
+its transits and moves, or the `status` expected on its card; not that of another item. A
+step has the keys of the schema only (`created` and `saved` are parameters of the helpers:
+P002). A `submit` followed by an `expect` of a refusal (an `error` of a field, a `state` of a
+failure: `invalid`, `error`, `forbidden`, `not_found`) is refused: its form stays open on its
+screen (no `then`), the expectation names no other `screen` (P022), and the next steps fix it
+and submit again; every other submit saves.
+
+When the product logs in (`packages` has `users`), the role of a scenario has a `test_user`
+(P025), logged in with its password (with bazis-authing, through its service `password`:
+P026). A role of the users who do not log in (the guests of a public site) is
+`anonymous: true`, without a `test_user`; its permit role is one that bazis-permit gives
+anonymous users (`Role(..., for_anonymous=True)`), or none when they use only the public
+routes and actions (no `access` then); they match no selector but `all` (P030). A screen is
+public when one of its `roles` is anonymous: it is routed outside the session, and a
+scenario of the role opens only public screens (P035; see
 [The routes and the navigation](#the-routes-and-the-navigation)). `bazis_front e2e` turns
 each scenario into a Playwright test (see [The end-to-end tests](#the-end-to-end-tests)).
 
@@ -653,17 +594,13 @@ actions:
 states: [loading, empty, error, forbidden]
 ```
 
-A list of some of the items (a report) has `filter`, the fields (with `filter` in the
-contract) equal to their values, combined with the filters of the user; `highlight` marks
-the rows whose boolean field is true with a tone of the theme (`neutral`, `primary`,
-`info`, `success`, `warning`, `danger`) and its `label` (a key of the dictionaries of the
-frontend or a text, required: the color alone tells nothing to some users). In the screen
-they are `filter` of `ResourceList` (`Filter.where('is_overdue', true)`; `Filter.and` of
-one for each field), `rowTone` and `rowToneLabel` (see "The filters of a list" in
-[Choices, filters, permissions and relationships](#choices-filters-permissions-and-relationships)); the link of the screen requires
-the fields of its filter (`requires.filters`), which every role that sees it must be able
-to filter by. S014 reports a value of another type than its field and a highlight by a
-field that is not a boolean or without a label:
+A list of some of the items (a report) has `filter`, combined with the filters of the user;
+`highlight` marks the rows whose boolean field is true with a tone and its `label` (required:
+the color alone tells nothing to some users). In the screen they are `filter` of
+`ResourceList` (`Filter.where('is_overdue', true)`), `rowTone` and `rowToneLabel` (see "The
+filters of a list"); the link of the screen requires the fields of its filter
+(`requires.filters`), which every role that sees it must be able to filter by. S014 reports a
+value of another type than its field and a highlight by a field that is not a boolean:
 
 ```yaml
 list:
@@ -672,11 +609,10 @@ list:
   highlight: {field: is_overdue, tone: danger, label: tickets.overdue}
 ```
 
-`map` puts the items of a list with a point on a map beside it: `map: {field: location}`, a
-field of the entity with `type: point` (S016), in the screen `ResourceMap` of the component
-map with the `filter` of the list, its markers opening `open`. A point field is never one of
-the `filters` (S016): a list of what is near filters by the distance in the screen
-(`nearFilter`).
+`map: {field: location}` puts the items of a list with a point (`type: point`, S016) on a map
+beside it, `ResourceMap` with the `filter` of the list, its markers opening `open`. A point
+field is never one of the `filters` (S016): a list of what is near filters by the distance in
+the screen (`nearFilter`).
 
 ```yaml
 spec: bazis-screen/1
@@ -694,23 +630,19 @@ actions: [{id: delete, primitive: destroy, then: task-list}]
 states: [loading, error, forbidden, not_found]
 ```
 
-A deletion is confirmed in a dialog titled by its `title`, a question (`{en: 'Delete the
-task?', ru: 'Удалить задачу?'}`, quoted in a flow mapping; `Delete this item?` by default),
-not by the `label` of its button, which confirms it, and saying its `description` (that it
-cannot be undone by default).
+A deletion is confirmed in a dialog titled by its `title`, a question (quoted in a flow
+mapping), not by the `label` of its button, and saying its `description`.
 
 A card shows the items that reference its item in `related` sections: a list of the related
-entity filtered by its to-one relationship to the entity of the card (`relation`, a field of
-the related entity with `relation: <entity of the card>`, S015; one the contract filters by,
-S008), its `columns`, the card a row opens (`open`), and `add`, "add here": the action
-`add.id` of the card opens the create form of the related entity (`add.fields`, all its
-fields but the relationship when omitted) with the relationship fixed to the item. A scenario
-runs it as an action of the card (`action: add-step`), fills the form (never the fixed
-relationship: P022) and submits it; the card stays. A card lists by default the items of
-every entity of the product that references its entity by a to-one relationship and has a
-list screen (the loans of a book and of a reader); the contract has no reverse relationship
-for them unless the route set of the card shows one. In the screen it is `RelatedList`
-("Related items" in
+entity filtered by its to-one relationship to the entity of the card (`relation`, S015; one
+the contract filters by, S008), and `add`, "add here": the action `add.id` of the card opens
+the create form of the related entity (`add.fields`, all but the relationship by default)
+with the relationship fixed to the item. A scenario runs it as an action of the card
+(`action: add-step`), fills the form (never the fixed relationship: P022) and submits it;
+the card stays. By default a card lists the items of every entity that references its
+entity by a to-one relationship and has a list screen (the loans of a book); the contract
+has no reverse relationship for them unless the route set shows one. In the screen it is
+`RelatedList` ("Related items" in
 [Choices, filters, permissions and relationships](#choices-filters-permissions-and-relationships)):
 
 ```yaml
@@ -725,35 +657,29 @@ card:
       add: {id: add-step, fields: [title]}
 ```
 
-A `form` screen has `form: {mode: create | update, fields, then}`, or `form: {action, fields,
-labels, submit, result, then}` ([The form of a custom action](#the-form-of-a-custom-action)). Actions are `form`
-(`mode: create` on a list, a card, a board or a calendar, `mode: update` on a card) and
-`destroy` (on a card), and `custom` (on a list or a card, see below). The states that a primitive must render are required (S009): list
-`loading, empty, error, forbidden`; card `loading, error, forbidden, not_found`; form
-`loading, error, forbidden, invalid` (and `done` with `form.result`);
-dashboard `loading, error`; board and calendar `loading, empty, error, forbidden`.
+A `form` screen has `form: {mode, fields, then}`, or `form: {action, ...}`
+([The form of a custom action](#the-form-of-a-custom-action)). Actions are `form` (`mode:
+create` on a list, a card, a board or a calendar, `mode: update` on a card), `destroy` (on a
+card) and `custom` (on a list or a card, see below). The states that a primitive must render
+(the description of the screen schema) are required (S009).
 
 #### Custom actions of the specs
 
 A **custom action** (`primitive: custom`) is a button that calls a custom action of the route
 set of the entity, a POST declared with `http_post` (`custom_actions` of its resource in the
-contract, with the JSON Schema of its body): `action` is its name in its path
-(`escalate` of `/{item_id}/escalate/`), `label` its button (required). On a card it is an
-action of the item; on a list an action of the route set in the toolbar, or one of an item on
-each row when its id is in `list.row_actions`; `list.bulk` runs one of an item on the
-selected rows (`{id, action, label}`) with an empty body. A route set may have an action of
-an item and one of the route set of the same name (`/{item_id}/export/` and `/export/`): the
-toolbar runs the second, the card, the rows and a bulk action the first. `fields` are the properties of its
-body that its dialog asks for, `labels` their labels (`{<property>: text}`), `confirm: true` confirms one without fields in a dialog (`title`,
-`description`), `message` is the toast once it is done; the queries of the resource are
-refetched. The button shows when the backend lets the user run it: on a card and in the
-toolbar by `custom_actions` of the meta of bazis-permit, on the rows and in a bulk action
-when the row may be changed (or deleted) as its `access_action` requires: a list tells of each
-row only these (`for_change`, `for_delete`), so an action that requires another access of the
-item runs on its card (S032). On a public screen an action is one declared `public=True`,
-`public` of its `custom_actions` in the contract (S046). A click on a row while its action runs sends nothing; on
-another row it runs beside it. An action declared with GET reads and belongs to an extension
-(`useActionQuery`), what the contract cannot say (its response in a dialog, a task followed) too:
+contract, with the JSON Schema of its body), as the schema of the screen describes its keys.
+On a card it is an action of the item; on a list one of the route set in the toolbar, or one
+of an item on each row (`list.row_actions`); `list.bulk` runs one of an item on the selected
+rows with an empty body. Of an action of an item and one of the route set of the same name
+(`/{item_id}/export/` and `/export/`), the toolbar runs the second, the card, the rows and a
+bulk action the first. Once it is done the queries of the resource are refetched. The button
+shows when the backend lets the user run it: on a card and in the toolbar by `custom_actions`
+of the meta of bazis-permit, on the rows and in a bulk action when the row may be changed (or
+deleted) as its `access_action` requires (a list tells of each row only these, so an action
+that requires another access runs on its card: S032). On a public screen an action is one
+declared `public=True` (S046). An action declared with GET reads and belongs to an extension
+(`useActionQuery`), and so does what the contract cannot say (its response in a dialog, a task
+followed):
 
 ```yaml
 actions:
@@ -768,24 +694,18 @@ actions:
 
 #### Texts
 
-**Texts** of a screen: its `title` and `description` (the subtitle), `list.empty` (the
-text of a list without items), the `label` of an action (its button, the title of its
-form) and its `description`, of a bulk action, of "add here" (`card.related[].add.label`)
-and of the add of a calendar, the titles of the sections, related sections and tabs of a
-card, the label of a highlight and of the parts of a dashboard. A text is the text in each
-language of the product, `{en: New loan, ru: Новая выдача}`, a text in its default
-language, or a key of the dictionaries of the frontend (lowercase words joined by dots,
-`tiles.on_hand`), which have every language. `check` warns about a text that is not in
-every language of `languages` (S027). `bazis_front screens` writes the texts of every spec
-in the dictionaries of the generated screens (`GENERATED_MESSAGES` of
-`src/screens/generated/messages.ts`) by the key of their place, `screens.<id>.title`,
+**Texts** of a screen (its title, description, labels, the titles of its sections and tabs,
+the texts of its parts) are `$defs/text` of the schema: the text in each language of the
+product, `{en: New loan, ru: Новая выдача}`, a text in its default language, or a key of the
+dictionaries of the frontend (`tiles.on_hand`), which have every language (S027 for a text
+missing a language of `languages`). `bazis_front screens` writes the texts of the specs in
+the dictionaries of the generated screens (`GENERATED_MESSAGES` of
+`src/screens/generated/messages.ts`) by the key of their place: `screens.<id>.title`,
 `screens.<id>.card.sections.<section>.title`, `navigation.<group>.title`,
-`navigation.<screen>.label` (`navigation.<group>.items.<screen>.label` in a group), `product.name`,
-`entities.<id>.title` (the `title` of an entity, a text like the others; `ENTITIES.<id>.title` is
-the key of its text).
-A map without the default language gives it the text of the first language of the product
-that it has (the others fall back to the default). The dictionaries of the product
-(`src/i18n/<language>.ts`) override them key by key.
+`navigation.<screen>.label` (`navigation.<group>.items.<screen>.label` in a group),
+`product.name`, `entities.<id>.title` (`ENTITIES.<id>.title` is the key). A text without the
+default language takes that of the first language of the product it has. The dictionaries of
+the product (`src/i18n/<language>.ts`) override them key by key.
 
 #### Custom screens and extensions
 
@@ -806,12 +726,10 @@ an edited file (`--force` drops the edits) and `front.W010` reports it.
   its texts are generated all the same (a generated card at `<its route>/:id` beside a
   custom list, a custom card beside a generated list); it composes the same components.
 
-`check` reports a missing module or export (S028); once the frontend generates its screens, a
-`frontend/src/screens/<id>/index.tsx` of a screen that is not custom (S029: two
-implementations; the code of an extension is `extend.tsx`; `screens` refuses it even on its
-first run, and `--force` does not lift it); a screen with `extend` without
-`export const extension` in `frontend/src/screens/<id>/extend.tsx`, or a custom screen with
-`extend` (S031: a custom screen extends itself in its own code).
+`check` reports a missing module or export (S028), a `frontend/src/screens/<id>/index.tsx`
+of a screen that is not custom once the frontend generates its screens (S029: two
+implementations; the code of an extension is `extend.tsx`), and `extend` without
+`export const extension` in `extend.tsx`, or on a custom screen (S031).
 
 The extension is `export const extension: ScreenExtension<Props>` (`@/bazis/ui/screens`), the
 props of the component of its primitive: `ResourceListProps` (with a map,
@@ -849,11 +767,10 @@ export const extension: ScreenExtension<ResourceListProps, ResourceMapProps> = {
   `map.tiles` of an extension sets those of one map.
 
 **Ejecting.** An extended screen that has outgrown its spec becomes custom: copy
-`src/screens/generated/<id>.tsx` to `src/screens/<id>/index.tsx`, write the extension into it
-(its slots in place of `extension.before`..., its props in place of `extended(...)`), delete
-`extend.tsx`, set `custom: true` and remove `extend`; `bazis_front screens` then deletes the
-generated file and routes the custom one. Back to generated: delete the code of the custom
-screen (keep what the spec cannot say in `extend.tsx`) and remove `custom`.
+`src/screens/generated/<id>.tsx` to `src/screens/<id>/index.tsx`, write the extension into it,
+delete `extend.tsx`, set `custom: true` and remove `extend`; `bazis_front screens` then
+deletes the generated file. Back to generated: delete the custom code (keep what the spec
+cannot say in `extend.tsx`) and remove `custom`.
 
 A screen of an item, a card or an update form, has `:id` in its route (S038): its screen reads
 the item there, and every screen opens it with the id of the item; a custom one may find its
@@ -871,11 +788,11 @@ in one of these (P022).
 
 #### Tabs and bulk actions
 
-A card with many parts is in tabs, `card.tabs`: each section, each related section and the
-history (`history: true`, of a card with `history`) in exactly one tab (S024); the transits
-stay above the tabs. Without `tabs` the parts are one below the other: the transits under
-the heading, then the sections, then the related sections and the history. The scenarios do not
-name the tabs: the helpers of the tests show the tab of what a step acts on.
+A card with many parts is in tabs, `card.tabs`: each section, related section and the
+history in exactly one tab (S024); the transits stay above the tabs. Without `tabs` the
+parts are one below the other: the transits under the heading, then the sections, the
+related sections and the history. The scenarios do not name the tabs: the helpers show the
+tab of what a step acts on.
 
 ```yaml
 card:
@@ -888,13 +805,12 @@ card:
     - {id: history, title: History, history: true}
 ```
 
-A list acts on the rows that the user selects with `bulk`: a transition of the workflow of
-the entity (one without a payload, S025; one with a payload is run on the card of each
-item), the deletion, `primitive: destroy`, or a custom action of an item, `action` (with an
-empty body, see [Custom actions of the specs](#custom-actions-of-the-specs)). The screen runs it on each selected item in
-turn (a transit, a delete or an action per item, bazis-bulk is not needed) after a confirmation; it
-reads nothing per item first: the backend refuses an item it does not allow (a transition
-its status does not have now), which stays selected, with the error shown (`error:bulk`):
+A list acts on the rows that the user selects with `bulk`: a transition without a payload
+(S025; one with a payload is run on the card of each item), the deletion (`primitive:
+destroy`) or a custom action of an item with an empty body. The screen runs it on each
+selected item in turn after a confirmation, reading nothing first: an item that the backend
+refuses (a transition its status does not have now) stays selected, with the error shown
+(`error:bulk`):
 
 ```yaml
 list:
@@ -906,13 +822,11 @@ list:
 
 #### Dashboard, board and calendar
 
-**The home of the frontend is a dashboard**, `spec/screens/home.yaml` at the route `/`: the
-counts that matter to the users (tiles by the statuses and the dates of the entities with a
-workflow or dates), the last items of the main entity, the create forms of the entities.
-Without it `/` leads to the first link of the navigation. `init` writes it without tiles,
-and `check` warns once `product.yaml` declares entities (S026: no screen at `/`, another
-primitive there, or a dashboard without tiles): fill it then. A dashboard has no `entity`:
-each part names its own.
+**The home of the frontend is a dashboard**, `spec/screens/home.yaml` at `/`: the counts
+that matter to the users (tiles by the statuses and the dates), the last items of the main
+entity, the create forms of the entities; without it `/` leads to the first link. `init`
+writes it without tiles, and `check` warns once `product.yaml` declares entities (S026):
+fill it then. A dashboard has no `entity`: each part names its own.
 
 ```yaml
 spec: bazis-screen/1
@@ -940,47 +854,32 @@ states: [loading, error]
 
 The `label` of a part is a key of the dictionaries of the frontend or a text. A tile counts
 the items of its entity with its `filter` (as `list.filter`: S008, S014), or shows the
-aggregate of its `value` over them: `{sum: <field>}`, `{avg: …}` of a number, `{min: …}`,
-`{max: …}` of a number or a date (S049), formatted by the `display` of the field (a sum in a
-`currency`, a quantity in a `unit`; an average of a DecimalField with its decimal places,
-`places` of the contract), and takes the whole row of a phone (a count half of it); `open` is a list
-of the entity, that of a row of the last items a card of it (S006). **A tile, a chart and
-the last items are shown to the users whom the backend lets view their entity**
-(`useCan(path, 'view')`, `Viewable` of the dashboard): one dashboard serves every role of the
-screen, the tiles of the invoices shown to the receptionist and not to the doctor, without an
-`extend`. `requires: {can: add}` of a part asks that the user may add an item too, as that of
-a link: the tile "New" of the dispatcher, not of the master (S030: no create route). A chart is by `status`
-(an entity with a workflow: a value for each status) or by a field `date` or `datetime`, a
-value for each `bucket` (`day`, `week`, `month`; a week by default), the `last` ones up to the
-current one (12 by default) (S021); the value is the count of the items, or the `{sum: …}`
-or `{avg: …}` of a number field of its `value` (S049).
+aggregate of its `value` (S049), formatted by the `display` of the field; `open` is a list of
+the entity, that of a row of the last items a card of it (S006). **A tile, a chart and the
+last items are shown to the users whom the backend lets view their entity** (`Viewable` of
+the dashboard): one dashboard serves every role of the screen, without an `extend`.
+`requires: {can: add}` of a part asks that the user may add an item too, as that of a link
+(S030). A chart is by `status` (a value for each status) or by a field `date` or
+`datetime`, a value for each `bucket` (a week by default), the `last` ones up to the current
+one (12 by default; S021); the
+value is the count of the items, or the `{sum: …}` or `{avg: …}` of a number field (S049).
 
-**The data of a dashboard, a board and a calendar comes from the lists of the API**. A tile
-and a chart are the aggregates of the core (bazis 2.17) over the list of their entity with
-its filter: `GET <path>?page[limit]=1&meta=aggregates&aggregate=<terms>&filter=<filter>`,
-its `meta.aggregates` (`aggregateValues` of the client: `{count: 3}`, `{"sum(fine)": "60.50"}`,
-a DecimalField summed as its digits); a chart adds `group=status` (one request, a group for
-each status) or `group=<field>:day|month` over the range of its periods
-(`filter=<field>__gte=<start>&<field>__lt=<end>`, dates that the backend reads in its time
-zone, `TIME_ZONE` of the project, as it groups the items: the axis is in that time zone;
-the days folded into the weeks of the language of the user), its groups `[{group, values}]` (`aggregateGroups`); an average is a
-sum and a count, so that the periods of days folded into a week weigh their items. The
-core aggregates only the fields that the filter of the list reaches for the user (S050);
-over too many groups it answers 400 `ERR_AGGREGATE`, which the part shows as its error. The
-last items are a list sorted by `sort` with `page[limit]`; a board lists each column with
-`filter=status=<id>` (more items by its pagination), a calendar the items of the period
-shown with a range of its field (a month in one list of up to 500 items). The fields they filter and sort by are those of the contract (S008).
+**The data of a dashboard, a board and a calendar comes from the lists of the API**: a
+tile and a chart are the aggregates of the core (bazis 2.17) over the list of their entity
+with its filter (`aggregateValues`, `aggregateGroups` of the client), a chart grouped by
+`status` or by its date over the range of its periods, read in the time zone of the backend
+(`TIME_ZONE`: the axis is in it); the core aggregates only the fields that the filter of the
+list reaches for the user (S050), and over too many groups answers 400 `ERR_AGGREGATE`,
+which the part shows as its error. The last items are a list sorted by `sort`, a board a
+list for each column, a calendar the items of the period shown (a month in one list of up to
+500 items); the fields they filter and sort by are those of the contract (S008).
 
 A board shows the items of an entity with a workflow (S022) in a column for each status of
-`columns` (the statuses of the workflow, all of them in their order by default); an item
-shows its `card.title`, its `card.fields` and a badge while its boolean field `card.badge` is
-true (S022). With `move: true` an item moves to the column of a status that a transit
-allowed to it leads to: the lists of the columns ask for `meta: ['for_transit']` of
-bazis-statusy 2.13 (the ids of the transits that each item may run now, in the same
-request), and an item without one cannot be dragged and has no menu of its moves; a transit
-with a payload (`TRANSITS` of the contract) opens its dialog, which reads the item once with
-the meta of its card for the payload in the language of the user, a column without a
-transit takes nothing.
+`columns` (all of them in their order by default); an item shows its `card.title`, its
+`card.fields` and a badge while its boolean field `card.badge` is true (S022). With
+`move: true` an item moves to the column of a status that a transit allowed to it now leads
+to (`for_transit` of bazis-statusy 2.13, in the request of the column); an item without one
+has no moves, and a transit with a payload opens its dialog.
 
 ```yaml
 primitive: board
@@ -996,17 +895,14 @@ states: [loading, empty, error, forbidden]
 ```
 
 A calendar shows the items of an entity on the days of a field `date` or `datetime`
-(`field`; `end`, a second one, for the items that span days), a month or a week at a time
-(`views`), each item by its `label` fields (the label of the entity by default), in the tone
-of `tone` while its boolean field is true (S023). `filters` are those of a list (S008,
-S040): the schedule of one doctor, one room, one master is a filter by the relation, not a
-screen of your own; the backend still decides what each user sees (a doctor who views only
-his own appointments sees only them, whatever he filters). `add` is the create form of the
-entity, the action `add.id`, with `field` filled with the day selected (today by default) at
-`time` (`HH:MM`, the start of the day by default) for a date-time, its `end` `duration`
-minutes later (S042; without it the form shows the end empty, S043), and the related item or
-the choice that a filter of the user selects, for a field of its form (a visit booked with
-the doctor of the schedule shown).
+(`field`; `end` for the items that span days), a month or a week at a time (`views`), each
+item by its `label` fields, in the tone of `tone` while its boolean field is true (S023).
+`filters` are those of a list (S008, S040): the schedule of one doctor or one room is a
+filter by the relation, not a screen of your own (the backend still decides what each user
+sees). `add` is the create form of the entity, the action `add.id`, with `field` filled with
+the day selected (today by default) at `time` (`HH:MM`) for a date-time, its `end`
+`duration` minutes later (S042; S043 without it), and the related item or the choice that a
+filter of the user selects (a visit booked with the doctor of the schedule shown).
 
 ```yaml
 primitive: calendar
@@ -1037,28 +933,18 @@ states: [loading, empty, error, forbidden]
 
 #### `data-bz`
 
-**`data-bz`**: the screens mark their elements, and the scenarios act through them:
-`screen:<id>`, `state:<loading|empty|loaded|error|forbidden|not_found|invalid>`,
-`list:<entity>`, `row:<id>` (its cells `cell:<column>`), `field:<field>`,
-`error:<field>`, `upload:<field>` (a file field, `aria-busy` while its file uploads; the
-input of the file is its `field:<field>`), `file:unavailable` (a file the user may not
-read), `action:<id>` (in a row too: a row action), its confirmation `action:confirm-<id>`
-(a destroy action, a custom action with `confirm`), `transit:<id>`, `status:<id>`,
-`nav:<screen>`, `map:<entity>` with `marker:<id>` (`list.map`); `select:<id>` (a row,
-`select:all` the rows of the page), `bulk:<id>`, its confirmation `action:confirm-bulk` and
-its failures `error:bulk` (`list.bulk`); `tab:<id>` (`role="tab"`, its panel, `role="tabpanel"`
-named by its `aria-controls`, kept in the page, hidden, while another tab is shown:
-`card.tabs`); `tile:<id>` (its number in `data-value`), `chart:<id>`, `recent:<id>` (a
-dashboard); `board:<entity>`, `column:<status>`, the menu of an item `action:move` with
-`move:<status>` (a board); `calendar:<entity>` (the days shown, `data-from` and `data-to`,
-`YYYY-MM-DD`; `action:previous-period`, `action:next-period`), `day:<YYYY-MM-DD>` (the
-number of its items in `data-count`) (a calendar); the items of a board, a calendar and the
-last items are `row:<id>` with their cells `cell:<field>`, without a `list:<entity>`; of the components of the
-packages `socket:<status>` (the socket of bazis-ws), `list:notifications` with
-`notification:<key>` (opened by `action:notifications`), `bg:<state>` (a task of
-bazis-bg) with `action:download`, `async:<status>` (a background result). The components
-render the marks of their parts (see [The components](#the-components)); a screen of
-your own renders them itself.
+**`data-bz`**: the screens mark their elements and the scenarios act through them: those of
+the description of the screen schema, and `upload:<field>` (a file field, `aria-busy` while
+its file uploads; the input is its `field:<field>`), `file:unavailable` (a file the user may
+not read), `action:confirm-<id>` (a destroy, a custom action with `confirm`),
+`map:<entity>` with `marker:<id>`; `select:all`, `action:confirm-bulk` and `error:bulk`
+(`list.bulk`); a tab `role="tab"` with its panel kept hidden while another is shown;
+`board:<entity>` and the menu of an item `action:move`; `calendar:<entity>` (`data-from`,
+`data-to`; `action:previous-period`, `action:next-period`) and the number of a day in
+`data-count`; the items of a board, a calendar and the last items are `row:<id>` with their
+cells `cell:<field>`, without a `list:<entity>`; of the packages `socket:<status>`,
+`list:notifications` with `notification:<key>` (`action:notifications`), `bg:<state>` with
+`action:download`, `async:<status>`. A screen of your own renders them itself.
 
 ### `spec/design/` (`spec: bazis-design/1`)
 
@@ -1097,13 +983,9 @@ tokens of the preset (D005). An option of `theme.yaml` that is left out is that 
 preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$value` and
 `$type` (`color`, `dimension` in `px`/`rem`/`em`, `fontFamily`, `fontWeight`, `number`,
 `duration` in `ms`, `shadow`, `cubicBezier`) on every token, and references
-`{group.token}` to a token of the same type (D006), never coming back to the token they
-start from (D004). `bazis_front design` compiles them into the theme of the frontend (see
-[The design](#the-design)); `check` reports the statuses of `statuses` that the contract
-does not have (D008), the text colors below the contrast of WCAG AA (D009), `mode: dark`
-without the values of the dark mode (D010), an entity with a screen and no icon
-(D011), a layer of theme.yaml that `tokens.json` hides, replacing more than half of its
-tokens (D012), and the name of an icon that lucide-react does not have (D013).
+`{group.token}` to a token of the same type. `bazis_front design` compiles them into the
+theme of the frontend (see [The design](#the-design)); `check` reports them with the codes
+D004–D013 (the contrast of WCAG AA, the statuses of the contract, the icons of lucide).
 
 ## The issues of check
 
@@ -1136,14 +1018,14 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P014` | error | the entity has a workflow, the resource is not a statusy model of the contract |
 | `P015` | error | a status of the workflow is not in the contract, or the initial status differs |
 | `P016` | error | a transition is not in the contract, or its from/to differ |
-| `P017` | error | the payload of a transition differs from the contract (a decimal is `string` or `number`; a field with `relation` is the id of an item named as a to-one relationship of the entity to it) |
+| `P017` | error | the payload of a transition differs from the contract (a decimal is `string` or `number`; a field with `relation` is the id of an item named as a to-one relationship of the entity to it; `type: file` the id of an uploaded file, `UploadedFileId`, their list with `many: true`) |
 | `P018` | error | the permit role of a role is not in the contract |
 | `P019` | error | the permit role lacks a permission that `access` grants |
 | `P020` | warning | a selector of `access` is not a selector of the resource in the contract (`selectors` of the section `permit`), or a field of its path is not a relationship (a relation that the contract does not describe is not checked) |
 | `P021` | error | a scenario step references an unknown screen |
 | `P022` | error | a scenario step is not possible on the current screen (of the session of the step); a `remember` not after the result of the form of an action, of a property that its answer does not have or that is not a text or a number, or of a name remembered before; a `$<name>` that no `remember` before took; an `expect` of an absence that cannot fail (an action that the screen does not have) or cannot pass (a transit that `access` grants the role on every item, the item in its source status) |
 | `P023` | error | a scenario step references a field that the entity of the screen does not declare |
-| `P024` | error | a scenario step references an unknown status or transition, or its payload differs (also that of a `move`: a status that only a transition with a payload leads to needs it) |
+| `P024` | error | a scenario step references an unknown status or transition, or its payload differs (also that of a `move`: a status that only a transition with a payload leads to needs it; a list is the files of a field `type: file` with `many: true` only) |
 | `P025` | error | the role of a scenario or of its step `as` has no `test_user` and is not `anonymous`, and the product logs in (`packages` has `users`) |
 | `P026` | error | the scenarios log in with a password, and the bazis-authing of the contract has no service `password` |
 | `P027` | error | a scenario expects a notification, and the product has no notifications (`packages` has neither `notify` nor `ws`) |
@@ -1185,7 +1067,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S026` | warning | the frontend has no home of its own: the product declares entities, and no screen has the route `/` (it leads to the first link of the navigation), the screen there is not a dashboard, or a dashboard has no tile |
 | `S027` | warning | a text of the specs is not in every language of the product (`languages`): a text without the map of its languages, or a map without one of them (a key of the dictionaries is in all); the frontend shows the text of another language |
 | `S028` | error | a custom screen has no code: the module of `custom` (`frontend/src/screens/<id>/index.tsx` for `custom: true`) is missing, or does not export its component |
-| `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run) |
+| `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run); `screens` refuses it, on its first run and with `--force` too |
 | `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, the form of a custom action (it requires its action, `custom_actions` of the list: remove `requires`), or `can: add` of a resource without a create route (also `requires: {can: add}` of a tile, a chart or the last items of a dashboard) |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
 | `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); one that answers a file (`file` of its custom action) anywhere but in a form, which saves it; or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
@@ -1215,6 +1097,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S058` | warning | a property of the body of a custom action (in its dialog or its form) has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.21): the form offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
 | `S059` | error | a section of a card shown by the status of its item (`when`) names a status that is not of the workflow of the entity, or the entity has no workflow. Use the statuses of the workflow, or remove `when` |
 | `S060` | error | a value that a field of a custom action starts with (`values` of its dialog or its form) is not of its `fields`, or does not fit its property in the body: a value of another type or out of its choices, a day of the browser (`today`, `month_start`, ...) of a property that is not a date, a time of a date, a text of a date that is neither a day of the browser nor `YYYY-MM-DD` |
+| `S061` | error | the filter of the picker of a relationship (`filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register its router), or its value does not fit the field. See "The items that a picker offers" |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -1659,8 +1542,8 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource-form` | `ResourceForm` (`fixed`: the values the screen sets), `FormSurface` (a dialog or a page, `mode`) | `state:<loading\|loaded\|error\|forbidden\|invalid>`, `field:<name>`, `error:<name>`, `action:submit`, `action:cancel` | |
 | `status-badge` | `StatusBadge` (in the tone of its status), `statusOf`, `statusName(type, id, language?)`, `statusOptions(type, language?)`, `statusTone`, `transitName(type, id, language?)`, `transitTarget` | `status:<id>` | `statusy` |
 | `status-history` | `StatusHistory`: the status since `status_dt`, by `status_author` | none | `statusy` |
-| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation), from `state_actions` of the request of the item that its card shares (`ITEM_META`); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload (a property named as a to-one relationship: its picker) or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
-| `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`, `guest`): `FileField` and `FilesField` become the controls of the file fields of `FieldInput` (the forms, the bodies of the actions); `FileField`, `FilesField`, `accepts(file, accept)`, `MAX_SIZE`, `ANONYMOUS_ACCEPT` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while a file uploads), the files `file:<i>` and `action:remove-file-<i>` of `FilesField`, its errors `error:<name>` | `uploadable` |
+| `transit-bar` | `TransitBar`: the transits of an item (`transits`: their order, the first the main button, and their confirmation), from `state_actions` of the request of the item that its card shares (`ITEM_META`); `useRunTransit(path, onDone, transits)`: a transit of any item with the dialog of its payload (a property named as a to-one relationship: its picker, of the items of `filters` of the transit) or of its confirmation | `transit:<id>`, `state:<loading\|error\|forbidden>`; in the dialog of a payload `field:<name>`, `error:<name>`, `action:submit`, `action:cancel`; in that of a confirmation `action:confirm-<id>`, `action:cancel` | `statusy` |
+| `file-field` | `FileFieldProvider` (`accept` by field, `maxSize`, `guest`): `FileField` and `FilesField` become the controls of the file fields of `FieldInput` (the forms, the bodies of the actions, the payloads); `FileField`, `FilesField`, `accepts(file, accept)`, `fitImage(file, maxSize)` (an image over the limit reduced to it), `MAX_SIZE`, `ANONYMOUS_ACCEPT` | the input `field:<name>`, the field `upload:<name>` (`aria-busy` while a file uploads), the files `file:<i>` and `action:remove-file-<i>` of `FilesField`, its errors `error:<name>` | `uploadable` |
 | `live-query` | `LiveQuery`: refetches what the messages of the socket say changed (`useLiveQueries`, `ROUTES` and `CAPABILITIES.notify.resource` by default) and shows the state of the socket (the texts `socket.<status>`) | `socket:<idle\|connecting\|open\|rejected\|unavailable>`, `action:reconnect` (unavailable) | `ws` |
 | `notification-center` | `NotificationCenter`: a bell with the count of the unread notifications, their list (a click marks one read and opens it, `onOpen`), mark all read, a toast for each new one (`toasts`); `notifications` is `useInbox(ROUTES['notify.notification'])` (bazis-notify) or `useNotifications()` (bazis-ws only, which also has `clear`: forget those of the session); the stored notifications are deleted only with `onDeleteAll={inbox.deleteAll}`, after a confirmation | `action:notifications`, `list:notifications` with `notification:<key>`, `action:read-notifications`, `action:clear-notifications` (`useNotifications`), `action:delete-notifications` and `action:confirm-delete-notifications` (`onDeleteAll`) | none (its source: `notify` or `ws`) |
 | `task-progress` | `TaskProgress` (the task of its `id`), `taskView`, `BG_TASKS` (the texts `bg.<view>`); a task with a file (an export) has its download | `bg:<waiting\|running\|success\|error\|interrupted>`, a progress bar per counter, `action:download`, `state:<loading\|error\|forbidden\|not_found>` | `bg` |
@@ -1689,98 +1572,66 @@ without one (P036) shows him as the start of his id (see "The users that the pic
 
 ## Writing the screens
 
-`python manage.py bazis_front screens` generates the screens in
-`frontend/src/screens/generated/` from their specs, never edited: the screen of each spec
-(`<id>.tsx`), their routes, the navigation of `spec/product.yaml`, the texts of the specs,
-the providers of the fields of the specs (`SocketProvider`, `FileFieldProvider`,
-`MapProvider`, `DatePickerProvider`) and the tools of the layout (the notifications, the
-live queries), which `src/app/router.tsx` of the template renders. It copies the components
-that they import that the frontend lacks (their npm dependencies set in `package.json`: run
-`npm install` then), deletes the files of a screen that is no longer generated, and never
-overwrites a generated file edited since it was generated (`--force` drops the edits);
-`--check` and `front.W010` compare them with the specs byte for byte, without Node. What a
-spec cannot say goes to the extension of its screen, and a screen that the generated one does
-not fit is written by hand in `frontend/src/screens/<id>/` (`custom: true`) from the same
-components, as the table says, and routed and linked as the others (see "Custom screens and
-extensions" in "The specs of the screens and the design"). A screen is one primitive (`list`, `card`, `form`, `board` or `calendar`) over an
-entity, or a `dashboard`:
-implement it with the route of its spec, from the components of `src/bazis/ui/` (their
-`data-bz` in [The components](#the-components), their props in the `API:` sections), and
-render every state that it lists. The components decide nothing: pass them the field ids
-of the specs and the paths of `ROUTES`.
+`python manage.py bazis_front screens` generates `frontend/src/screens/generated/` from the
+specs, never edited: each screen (`<id>.tsx`), the routes, the navigation of
+`spec/product.yaml`, the texts, the providers of the fields (`SocketProvider`,
+`FileFieldProvider`, `MapProvider`, `DatePickerProvider`) and the tools of the layout (the
+notifications, the live queries) that `src/app/router.tsx` renders around the routes. It
+copies the components they import that the frontend lacks (their npm dependencies in
+`package.json`: run `npm install`), deletes the files of a screen no longer generated, and never overwrites a
+generated file edited since (`--force` drops the edits); `--check` and `front.W010` compare
+them with the specs byte for byte, without Node. What a spec cannot say goes to the extension
+of its screen; a screen that the generated one does not fit is written by hand in
+`frontend/src/screens/<id>/` (`custom: true`) from the same components, routed and linked as
+the others ("Custom screens and extensions"). A screen is one primitive (`list`, `card`,
+`form`, `board`, `calendar`) over an entity, or a `dashboard`: implement it from the
+components of `src/bazis/ui/` (their `data-bz` in [The components](#the-components), their
+props in the `API:` sections) and render every state it lists. The components decide nothing:
+pass them the field ids of the specs and the paths of `ROUTES`.
 
 | Spec | Component |
 |---|---|
-| a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell` (a card: `parent`, the link back to its list, and no `title`: the card heads the screen with the label of its item, its `h1`, instead of the name of the entity); the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
-| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (a filter the backend does not offer the user has no control; `display` of the entity; the `status` of a statusy model is its badge, no `cells` needed; the icon of the entity in `icon`) |
-| `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with the filters of the user: fields that every role that sees the screen may filter by, its link `requires: {path, filters: [<field>]}` (else the list answers 400 to the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, the words of the highlight for those who do not see the color |
-| `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (only the fields the user may see; with `edit`, those its update does not change marked read-only; `label` and `display` of the entity), with `StatusBadge`, `TransitBar` and `StatusHistory` of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar` and `@/bazis/ui/status-history` (bazis-statusy); `<TransitBar path={…} id={id} transits={ENTITY.transits} onDone={…} />`, `transits` of the entity in `src/screens/generated/entities.ts`: the order of `workflow.transitions` (the first the main button) and their `confirm`; leave it out and the buttons follow the order of the backend |
-| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card`: `path`, `entity`, `relation`, `item={id}`, `itemPath` (the `path` of the card), `columns`, `add={{id, label, fields}}` (the create form with the relationship fixed; leave it out while the item takes no more of them: `permitted(meta, 'change')`). In `after` of the card it is drawn under the sections of fields (a card without tabs), in its `children` under the heading, above them; one placed after the card reads it again too ("Composing beyond the specs"). They read the card again after an add |
-| a field with choices (a column, a field of a card or a form, a filter) | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
+| a screen (`screen:<id>`, its title, its actions) | `Screen` of `@/bazis/ui/app-shell` (a card: `parent`, the link back to its list, and no `title`: its `h1` is the label of its item); the layout, the navigation (`nav:<screen>`, `navigation` of `spec/design/theme.yaml`) and the logout are `AppShell` in `src/app/router.tsx` |
+| `primitive: list` (`columns`, `filters`, `sort`, `search`, `open`) | `ResourceList` of `@/bazis/ui/resource-list` (no control for a filter the backend does not offer the user; `display` of the entity; the `status` of a statusy model is its badge without `cells`; the icon of the entity in `icon`) |
+| `list.filter` (a report), `list.highlight: {field, tone, label}` | `filter={Filter.where('<field>', <value>)}` of `ResourceList` (`Filter.and` for several), combined with those of the user: fields every role of the screen may filter by, its link `requires: {path, filters: [<field>]}` (else 400 for the others); `rowTone={(row) => fieldValue(row, '<field>') === true ? '<tone>' : undefined}` (`fieldValue` of `@/bazis/ui/resource`) and `rowToneLabel={() => t('<label>')}`, its words for those who do not see the color |
+| `primitive: card` (`sections`, `edit`, `transitions`, `history`) | `ResourceCard` of `@/bazis/ui/resource-card` (the fields the user may see; with `edit`, those its update does not change read-only; `label` and `display` of the entity), `StatusBadge`, `TransitBar` and `StatusHistory` (bazis-statusy) of `@/bazis/ui/status-badge`, `@/bazis/ui/transit-bar`, `@/bazis/ui/status-history`; `transits={ENTITY.transits}` of `TransitBar` (`src/screens/generated/entities.ts`): the order of `workflow.transitions` (the first the main button) and their `confirm`; without it, the order of the backend |
+| `card.related` (the items that reference the item, "add here") | `RelatedList` of `@/bazis/ui/resource-card` (`itemPath`: the `path` of the card; `add={{id, label, fields}}`: the create form with the relationship fixed, left out while the item takes no more: `permitted(meta, 'change')`). In `after` of the card it is under the sections (a card without tabs), in its `children` above them; one after the card reads it again too ("Composing beyond the specs"). It reads the card again after an add |
+| a field with choices | nothing to do: the components show, offer and filter it by the labels of its choices (`enumDict` of the runtime schemas, in the language of the interface) |
 | the notifications and the live updates (bazis-notify, bazis-ws) | `NotificationCenter` of `@/bazis/ui/notification-center` (its `notifications`: `useInbox` with bazis-notify, else `useNotifications`) and `LiveQuery` of `@/bazis/ui/live-query` in the `tools` of `AppShell`, under `SocketProvider` ("The socket") |
 | a background task (bazis-bg), a background request (bazis-async-request) | `TaskProgress` of `@/bazis/ui/task-progress` (by the id of the task), `AsyncResult` of `@/bazis/ui/async-result` (what `useAsyncRequest` resolved to) |
-| a field `type: file` (bazis-uploadable) | shown by the components (its name downloads it, a thumbnail of an image, both read with the token from its download route); edited in the forms by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes ("Files, points and maps") |
-| a field `type: point`, `list.map: {field}` | shown as its coordinates (`55.7558, 37.6173`) and edited as them in the forms, on a map too once `MapProvider` of `@/bazis/ui/map` wraps the routes; `ResourceMap` of `@/bazis/ui/map` beside the `ResourceList` of the screen, with its `filter` ("Files, points and maps") |
-| an action of the backend that is no CRUD (an export, a report: a custom action of the route set) | `primitive: custom` in the spec when a button, its fields and its toast say it all ("Custom actions of the specs"); else a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
+| a field `type: file` (bazis-uploadable) | shown by the components (its name downloads it, an image as a thumbnail, both with the token from its download route); edited by `FileField` of `@/bazis/ui/file-field` once `FileFieldProvider` wraps the routes ("Files, points and maps") |
+| a field `type: point`, `list.map: {field}` | shown and edited as its coordinates (`55.7558, 37.6173`), on a map too once `MapProvider` of `@/bazis/ui/map` wraps the routes; `ResourceMap` of `@/bazis/ui/map` beside the `ResourceList`, with its `filter` ("Files, points and maps") |
+| a custom action of the route set (an export, a report) | `primitive: custom` in the spec when a button, its fields and its toast say it all ("Custom actions of the specs"); else a button calling `useAction(path, '<name>')` of `@/bazis/react`, its error in `StatePanel`, the task of bazis-bg it queues in `TaskProgress` ("Custom actions and background work") |
 | `card.tabs` | `tabs` of `ResourceCard`: `{id, title, sections: [...]}`, a related section or the history as its `content` (`(item, meta) => <RelatedList …/>`, `(item) => <StatusHistory resource={item} />`); the `TransitBar` in the `children`, above the tabs |
 | `list.bulk` (a transition, a deletion) | `bulk` of `ResourceList`: `{id, label, run: (id) => transit.mutateAsync({id, transit: '<transit>'})}` with `const transit = useItemsTransit(path)` of `@/bazis/react/statusy`, or `run: (id) => destroy.mutateAsync(id)` with `permission: 'delete'` |
-| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles` (`{id, path, filter, value, display, label, tone, icon, onOpen, requires}`), the links of the navigation of the layout (`links` only for others), `charts` (`StatusChart` and `TimeChart` of `@/bazis/ui/charts`: `by: status`, `by: <field>` with `bucket` and `last`, `value`; each in `<Viewable path={…}>` of `@/bazis/ui/dashboard` (`can="add"` for `requires`), as a tile and the last items, so that a role the backend does not let view the entity sees none of them), `recent` (`{id, path, label, columns, sort, limit, onOpen, requires}`), `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`) |
-| `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`title` and `fields` of `card`, `badge`, `columns`, `filters`, `move` and `transits={ENTITY.transits}` for `move: true` (the moves in the order of `workflow.transitions`, with their `confirm`), `onOpen`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
-| `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar` (`field`, `end`, `label`, `tone`, `views`, `onOpen`; `add={{id, label, onAdd: (initial) => …}}`: `initial` is an object of the values the create form starts with (`{<field>: day}`, the moment of `time` for a date-time, `end`, the choice of a filter), given as `initial={initial}` to the `ResourceForm` in `FormSurface`, which the user may change; the generated screen passes `onAdd: <form>.onOpenWith` of `CreateFormAction.use()`) |
-| the dates of the forms and the filters | `DatePickerProvider` of `@/bazis/ui/date-picker` around the routes (as `FileFieldProvider`) |
+| `primitive: dashboard` (the home) | `Dashboard` of `@/bazis/ui/dashboard`: `tiles`, `links` (only links other than the navigation), `charts` (`StatusChart`, `TimeChart` of `@/bazis/ui/charts`), `recent`, `actions` (the buttons `action:<id>` of the create forms in `FormSurface`, shown when `useCan(path, 'add')`); each chart, tile and last items in `<Viewable path={…}>` of `@/bazis/ui/dashboard` (`can="add"` for `requires`): a role the backend does not let view the entity sees none of them |
+| `primitive: board` | `ResourceBoard` of `@/bazis/ui/resource-board` (`transits={ENTITY.transits}` for `move: true`: the moves in the order of `workflow.transitions`, with their `confirm`), in `BoardDnd` of `@/bazis/ui/board-dnd` for its drag and drop |
+| `primitive: calendar` | `ResourceCalendar` of `@/bazis/ui/resource-calendar`; its `add={{id, label, onAdd: (initial) => …}}`: `initial`, the values the create form starts with (`{<field>: day}`, the moment of `time` for a date-time, `end`, the choice of a filter), is `initial={initial}` of the `ResourceForm` in `FormSurface`, which the user may change; generated: `onAdd: <form>.onOpenWith` of `CreateFormAction.use()` |
 | `primitive: form`, an action `primitive: form` | `ResourceForm` of `@/bazis/ui/resource-form` (`fields`, then `onSaved` for `then`), an action in `FormSurface` of the same asset (a dialog or a page, as the theme composes the forms) |
-| `primitive: form` with `form.action` | `ActionForm` of `@/bazis/ui/screens` (`path`, `action`, `fields`, `labels`, `submitLabel`, `result: {title, message: (response) => t(key, response)}`, the title a function too when it shows the answer, `then: {screen, label, to}` with a result, else `onDone`) |
-| `list.open` (the card of a list) | the card route as the child of the list in `ListCardLayout` of `@/bazis/ui/app-shell` (`composition.list_card`), the open row `selected` |
-| an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, titled by `title` of the action, a question, `Delete this item?` by default, and saying its `description`: the deletion runs once confirmed) |
-| an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`path`, `action`, `target`: `route` in the toolbar of a list, else `item`, `item` of a card, `fields`, `labels`, `confirm`, `message`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
+| `primitive: form` with `form.action` | `ActionForm` of `@/bazis/ui/screens` (`result: {title, message: (response) => t(key, response)}`, the title a function too when it shows the answer; `then: {screen, label, to}` with a result, else `onDone`) |
+| an action `primitive: destroy` | `useDestroyCardAction` of `@/bazis/ui/screens`: its `action` in the `actions` of the card, its `confirm` in the screen (the dialog `action:confirm-<id>`, titled by the `title` of the action, a question, `Delete this item?` by default, saying its `description`; the deletion runs once confirmed) |
+| an action `primitive: custom`, `list.row_actions`, a bulk action with `action` | `useCustomAction` of `@/bazis/ui/screens` (`target`: `route` in the toolbar of a list, else `item`): its `action` in the `actions` of the card or of the list, its `row` in `rowActions`, its `bulk` in `bulk`, its `dialog` in the screen |
 | `states` | the components render them (`state:<state>`); `StatePanel` of `@/bazis/ui/state-panel` for a screen of your own |
 
 ```tsx
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
-
-import { ROUTES } from '@/bazis/generated/contract';
-import { Screen } from '@/bazis/ui/app-shell';
-import { permitted } from '@/bazis/ui/resource';
-import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
-import { FormSurface, ResourceForm } from '@/bazis/ui/resource-form';
-import { ResourceList } from '@/bazis/ui/resource-list';
-import { useDestroyCardAction } from '@/bazis/ui/screens';
-import { StatusBadge, statusOptions } from '@/bazis/ui/status-badge';
-import { StatusHistory } from '@/bazis/ui/status-history';
-import { TransitBar } from '@/bazis/ui/transit-bar';
-
 const TASKS = ROUTES['tasks.task'];
-// `workflow.transitions` of the spec: the first the main button; generated screens read it from `TASK.transits`
-const TASK_TRANSITS = [{ id: 'finish' }, { id: 'start', confirm: true }];
+const TASK_TRANSITS = [{ id: 'finish' }, { id: 'start', confirm: true }];   // `TASK.transits`
 
 // spec/screens/task-list.yaml
 export function TaskListScreen() {
   const navigate = useNavigate();
-  const { id } = useParams();   // the task open next to the list (`list_card: split`)
+  const { id } = useParams();   // the open task
   const [creating, setCreating] = useState(false);
+  const close = () => { setCreating(false); };
   return (
     <Screen id="task-list" title="Tasks" description="The tasks of the team.">
-      <ResourceList
-        path={TASKS}
-        entity="task"
-        columns={['title', 'status', 'assignee', 'dt_created']}
-        filters={[{ field: 'status', options: statusOptions('tasks.task') }, 'assignee']}
-        sort={['-dt_created']}
-        search
-        selected={id}
-        onOpen={(task) => void navigate(`/tasks/${task}`)}
-        actions={[{ id: 'create', label: 'New task', icon: Plus, permission: 'add', onClick: () => { setCreating(true); } }]}
-      />
-      {/* a dialog or a page, as `composition.forms` of the theme says */}
-      <FormSurface open={creating} title="New task" description="The task is created as a draft." onClose={() => { setCreating(false); }}>
-        <ResourceForm
-          path={TASKS}
-          fields={['title', 'assignee']}
-          onSaved={(saved) => { setCreating(false); void navigate(`/tasks/${saved.data.id}`); }}
-          onCancel={() => { setCreating(false); }}
-        />
+      <ResourceList path={TASKS} entity="task" columns={['title', 'status', 'assignee', 'dt_created']}
+        filters={[{ field: 'status', options: statusOptions('tasks.task') }, 'assignee']} sort={['-dt_created']} search
+        selected={id} onOpen={(task) => void navigate(`/tasks/${task}`)}
+        actions={[{ id: 'create', label: 'New task', icon: Plus, permission: 'add', onClick: () => { setCreating(true); } }]} />
+      <FormSurface open={creating} title="New task" onClose={close}>
+        <ResourceForm path={TASKS} fields={['title', 'assignee']} onCancel={close}
+          onSaved={(saved) => { close(); void navigate(`/tasks/${saved.data.id}`); }} />
       </FormSurface>
     </Screen>
   );
@@ -1793,31 +1644,18 @@ export function TaskCardScreen() {
   const destroy = useDestroyCardAction({ id: 'delete', label: 'Delete', path: TASKS, item: id, then: '/tasks' });
   return (
     <Screen id="task-card" parent={{ screen: 'task-list', label: 'Tasks', to: '/tasks' }}>
-      <ResourceCard
-        path={TASKS}
-        id={id}
-        edit
+      <ResourceCard path={TASKS} id={id} edit actions={[destroy.action]}
         sections={[{ id: 'main', title: 'Details', fields: ['title', 'assignee'] }, { id: 'report', title: 'Report', fields: ['report'] }]}
         badge={(item) => <StatusBadge resource={item} />}
-        actions={[destroy.action]}
         after={(item, meta) => (
           <>
-            {/* `card.related`: the steps of the task, added here with the task fixed */}
-            <RelatedList
-              path={ROUTES['tasks.step']}
-              entity="step"
-              relation="task"
-              item={id}
-              itemPath={TASKS}
-              title="Steps"
-              columns={['title', 'dt_created']}
-              add={permitted(meta, 'change') ? { id: 'add-step', label: 'Add a step', fields: ['title'] } : undefined}
-            />
+            <RelatedList path={ROUTES['tasks.step']} entity="step" relation="task" item={id} itemPath={TASKS} title="Steps"
+              columns={['title', 'dt_created']} add={permitted(meta, 'change') ? { id: 'add-step', label: 'Add a step', fields: ['title'] } : undefined} />
             <StatusHistory resource={item} />
           </>
         )}
       >
-        {/* null: the user can no longer view the item */}
+        {/* done === null: the user can no longer view the item */}
         <TransitBar path={TASKS} id={id} transits={TASK_TRANSITS} onDone={(done) => { if (done === null) void navigate('/tasks'); }} />
       </ResourceCard>
       {destroy.confirm}
@@ -1829,48 +1667,37 @@ export function TaskCardScreen() {
 ### The routes and the navigation
 
 The routes of the screens of the specs are `PUBLIC_ROUTES` and `SCREEN_ROUTES` of
-`src/screens/generated/routes.tsx`, the public screens and the others, which
-`src/app/router.tsx` puts in its layout, the others inside `RequireSession`: the
-route of each spec, `/` the index (the layout route `/` of a list there with its cards;
-without a screen at `/`, a redirect to the first link of the navigation, public when that
-screen is), a card under the
-list whose route its route continues (below). Each screen is imported with `lazyScreen` of `src/app/lazy.tsx`, a custom one from
-its module (its own chunk,
-loaded when its route is first shown, under the `ErrorBoundary` of the layout: a static
-import puts every screen and the libraries it uses, a map, in the one bundle that every page
-loads). Until its chunk is loaded a screen shows the loading state of the screens in a
-`Suspense` of its own: a navigation of React Router is a transition, which a `Suspense`
-above the routes would keep on the previous screen, a row opened with no sign of it. A chunk that fails to load (a new version deployed since the
-page was opened) reloads the page, at most once in 30 s (the time of the reload in
-`sessionStorage`; never when the storage is blocked), else shows the error, whose retry loads
-it again:
+`src/screens/generated/routes.tsx`, which `src/app/router.tsx` puts in its layout, the others
+inside `RequireSession`: the route of each spec, `/` the index (a list there is the layout
+route `/` with its cards; without a screen at `/`, a redirect to the first link of the
+navigation, public when that screen is), a card under the list whose route its route
+continues. Each screen is imported with `lazyScreen` of `src/app/lazy.tsx`, a custom one from
+its module: its own chunk, loaded when its route is first shown, under the `ErrorBoundary` of
+the layout (never a static import: it puts every screen and its libraries in the bundle of
+every page), with the loading state in a `Suspense` of its own (one above the routes would
+hold the previous screen through the transition of the navigation). A chunk that fails to load (a new version deployed) reloads the page, at most once in
+30 s (the time in `sessionStorage`; never when the storage is blocked), else shows the error,
+whose retry loads it again:
 
 ```tsx
 const TaskListScreen = lazyScreen(() => import('@/screens/task-list').then((module) => module.TaskListScreen));
 ```
 
-The npm libraries that every page loads (React with the router, TanStack Query, the Radix
-primitives of the layout) are chunks of their own, listed by package in `manualChunks` of
-`vite.config.ts`, so that the chunk of the entry holds the code of the product: a library
-that one screen needs is imported by that screen and stays in its chunk (never add it to the
-list); never raise `chunkSizeWarningLimit` to hide a large chunk.
+The npm libraries that every page loads (React and the router, TanStack Query, the Radix
+primitives of the layout) are chunks of their own, by package in `manualChunks` of
+`vite.config.ts`; the chunk of the entry holds the code of the product. A library that one
+screen needs stays in the chunk of that screen (never add it to the list); never raise
+`chunkSizeWarningLimit` to hide a large chunk.
 
 Their links are `navigation` of `spec/product.yaml`, generated as `navigation(t)` of
-`src/screens/generated/navigation.ts` (the items of `AppShell`, a group under its heading,
-shown with its first allowed link; a link after a group is set apart from it by a line). A
-link shown only to the users that the backend allows names what it `requires`, and `AppShell` shows it once the backend answers (the screens read
-the same queries: no request of its own):
-
-```tsx
-{ screen: 'task-list', label: 'nav.tasks', to: '/tasks', icon: ListChecks, requires: { path: TASKS } },   // may view
-{ screen: 'task-new', label: 'nav.new', to: '/tasks/new', icon: Plus, requires: { path: TASKS, can: 'add' } },
-{ screen: 'overdue', label: 'nav.overdue', to: '/overdue', icon: AlarmClock, requires: { path: TICKETS, filters: ['is_overdue'] } },
-```
-
-`useCan(path, 'view' | 'add')` of `@/bazis/react` gives the same answer to a screen of your
-own. The card of a list is the
-child route of the list in `ListCardLayout` of `@/bazis/ui/app-shell`, which shows it next to
-the list or in its place (`composition.list_card` of the theme):
+`src/screens/generated/navigation.ts` (the items of `AppShell`; a group under its heading,
+shown with its first allowed link; a line sets a link after a group apart). A link shown only
+to the users the backend allows names what it `requires`: `{path}` to view, `{path, can:
+'add'}`, `{path, filters: [<field>]}` to filter by; `AppShell` shows it once the backend
+answers (from the queries of the screens). `useCan(path, 'view' | 'add')` of
+`@/bazis/react` gives the same answer to a screen of your own. The card of a list
+(`list.open`) is the child route of the list in `ListCardLayout` of `@/bazis/ui/app-shell`,
+next to the list or in its place (`composition.list_card`), the open row `selected`:
 
 ```tsx
 <Route path="tasks" element={<ListCardLayout list={<TaskListScreen />} />}>
@@ -1880,29 +1707,23 @@ the list or in its place (`composition.list_card` of the theme):
 
 #### The public screens
 
-**The public screens**, those of the users who do not log in, are generated: a screen is
-public when one of its `roles` is an anonymous role of `spec/product.yaml` (`anonymous:
-true`), and its route is in `PUBLIC_ROUTES`, outside `RequireSession`, which sends a user
-without a session to the login. The specs say nothing else (no key `public`): a screen
-without `roles` is never public. The layout is the same `AppShell`, one route around every
-screen (`RequireSession` within it), mounted once across them: with a session, every
-link, the logout and the tools; without one (`session={null}`), only the links of the
-public screens (`public: true` of their `NavItem`, a group with its public links), no tools
-(the notifications and the live queries need a session) and the sign-in `action:sign-in`
+**The public screens**, those of the users who do not log in, are generated: a screen with an
+anonymous role of `spec/product.yaml` in its `roles` (no key `public`: a screen without `roles`
+is never public) is in `PUBLIC_ROUTES`, outside `RequireSession`, which sends a user without a
+session to the login. One `AppShell` route is around every screen (`RequireSession` within
+it), mounted once: with a session, every link, the logout and the tools; without one
+(`session={null}`), only the links of the public screens (`public: true` of their `NavItem`, a
+group with its public links), no tools and the sign-in `action:sign-in`
 (`signIn` of `AppShell`), which opens `/login`; after the login the user is at home. A guest
-who opens `/`, a screen of a session, is led to the first public link of the navigation
-(`GUEST_HOME` of `routes.tsx`, null when `/` is public itself or no link is), not to the
-login. Their screens read only what the backend gives anonymous users (a permit role
-`for_anonymous`; a 401/403 is the `forbidden` state of a screen, never a redirect). A
-guest writes only through a custom action declared `public=True` (S046; its throttle,
-`BAZIS_THROTTLE_PUBLIC`, limits him, also every run of its end-to-end test): its dialog, or its
-form as a page of its own, `primitive: form` with `form.action` ([The form of a custom
-action](#the-form-of-a-custom-action)). bazis-permit refuses every create, change and deletion of the routes of the
-entities to anonymous users, so a public screen has no other form, deletion, bulk action or
-move (S044). A public screen leads only to public screens, and a card is in
-the layout of its list when both are public or neither (S045). A product without anonymous
-roles has `PUBLIC_ROUTES` null and the router of before. Registration and the reset of a
-password are not in the packages: a guest who needs an account is given one.
+who opens `/`, a screen of a session, is led to the first public link (`GUEST_HOME` of
+`routes.tsx`, null when `/` is public or no link is), not to the login. Their screens read
+only what the backend gives anonymous users (a 401/403 is the `forbidden` state, never a
+redirect) and write only through a custom action declared `public=True` (S044, S046; its
+throttle, `BAZIS_THROTTLE_PUBLIC`, limits the guest, also every run of its end-to-end test):
+its dialog, or its page `primitive: form` with `form.action` ([The form of a custom
+action](#the-form-of-a-custom-action)); they lead only to public screens (S045). A product
+without anonymous roles has `PUBLIC_ROUTES` null and the router of before. Registration and
+the reset of a password are not in the packages: a guest who needs an account is given one.
 
 ## Composing beyond the specs
 
@@ -2153,6 +1974,17 @@ than `collection` and `item`, `self.route_ctx.kind`); the sample of bazis-front 
 does not let link. `useRelationship` changes one item outside a form (see
 [Composing beyond the specs](#composing-beyond-the-specs)).
 
+**The items that a picker offers** are all those of the related list; a form narrows them
+by a filter of its picker: `filters: {assignee: {is_active: true}}` of the form of a page, of
+a form action or of a custom action (by property), `filter: {is_active: true}` of a field of
+a payload with `relation`. Each key is a field of the related resource that the contract
+filters by, or a path through its relationships, `roles__slug: master` (the users of a role),
+equal to its value (S061). A path reads the route set of the related model: the roles of
+bazis-permit need `bazis.contrib.permit.router` in the root router, which makes them a public
+catalog (guests read their slugs and names); else filter by the id of the role (`roles`, not
+portable between databases) or narrow the list in `get_queryset`. The filter narrows the
+choice only: the backend validates the value.
+
 ## Files, points and maps
 
 ### Files
@@ -2172,8 +2004,11 @@ forms, with `FileFieldProvider` around the routes (`GeneratedProviders`, once `p
 edits it with `FileField`: a drop zone and a picker, the file uploaded at once with its
 progress and a cancel (one file at a time: another one is not taken while it uploads),
 its id set as the value of the relationship, a replace and a
-remove (when the relationship is nullable); a file larger than `max_size` of the
-contract, or of a type that `accept` refuses, is not sent, and a refusal of the backend
+remove (when the relationship is nullable); an image larger than `max_size` of the
+contract is reduced in the browser to fit it (`fitImage`: turned as its EXIF says, a PNG
+stays a PNG, its long side never under 1024 px; a HEIC that the browser does not decode is
+refused), one within it and any other file sent as they are; another file larger than it,
+or of a type that `accept` refuses, is not sent, and a refusal of the backend
 (413 `ERR_FILE_TOO_LARGE`, 422 of its type or its name, 429 of the rate) is the error of
 the field; the file chosen is shown from the browser (its name, its size, a thumbnail of
 an image), not read back. Under the drop zone a field names its types as a user reads them
@@ -2183,11 +2018,13 @@ the body of an action, is `FilesField`: several files chosen or dropped at once,
 after the other, listed (`file:<i>`) with a cancel or a remove (`action:remove-file-<i>`)
 until the submit, the value the ids in their order, at most `maxItems` of the property of the
 body (`list[UploadedFileId]` with a `max_length`: the files over it are not sent, an error of
-the field); the specs have no to-many file field
-(`type: file` is a to-one relationship), so it is asked for in a body or in the code of a
-screen. `ResourceForm`, the form and the dialog of an action are not submitted while a file
-uploads. Without the provider the field is the picker of a relationship. The payloads of
-the transits have no files (a payload has no relationships).
+the field); in the specs it is `type: file` with `many: true`, and a scenario uploads its
+files one `upload` after the other. `UploadedFileId` in the payload of a transit is its file
+field in the dialog of the transit (`type: file` of the payload, `many: true` for a list), whose
+files a scenario gives in the payload (`payload: {photos: [photo.png]}`); the action of the
+transit links only the files of its user (`author`). `ResourceForm`, the form and the dialog of
+an action and the dialog of a transit are not submitted while a file uploads. Without the
+provider the field is the picker of a relationship.
 
 With bazis-uploadable the generated providers wrap the routes in `FileFieldProvider` (`screens`
 copies `file-field`; a frontend without generated screens adds it with
@@ -2621,105 +2458,83 @@ python manage.py bazis_front design           # frontend/src/bazis/generated/fon
 python manage.py bazis_front design --check   # write nothing; exit 1 if the theme differs from the design
 ```
 
-The design layer is what makes the products look designed rather than like a bare admin
-panel: one preset, the layers of its tokens (a palette, a pair of fonts, a shape and a
+The design layer makes the products look designed rather than like a bare admin panel: one
+preset, the layers of its tokens (a palette, a pair of fonts, a shape and a
 surface, starters of the package named in `theme.yaml`), the tokens of a brand over them
-and a few options, compiled into the frontend.
-`init` generates the theme; generate it again after every change of `spec/design/` (and
-after `bazis_front update`). The text depends on the design only: `--check` and the system
-check `front.W005` (when the lock has `design`; without Node and the database) render it
-again and compare it byte for byte; `front.W005` also reports a frontend with components and
-no theme (an `init` whose design had errors).
-The generated files are never edited. The design must have no errors
-(`bazis_front check --layer design`).
+and a few options, compiled into the frontend. `init` generates the theme; generate it again
+after every change of `spec/design/` (and after `bazis_front update`). The text depends on
+the design only: `--check` and the system check `front.W005` (when the lock has `design`;
+without Node and the database) render it again and compare it byte for byte; `front.W005`
+also reports a frontend with components and no theme (an `init` whose design had errors).
+The generated files are never edited. The design must have no errors (`bazis_front check
+--layer design`).
 
 - `src/bazis/generated/fonts.css`, imported first by `src/index.css` of the template: the
-  imports of the fonts of the design, only those of its pair (an `@import` after a rule is
-  dropped, so a stylesheet of Google Fonts goes before Tailwind).
+  imports of the fonts of its pair only (an `@import` after a rule is dropped, so a
+  stylesheet of Google Fonts goes before Tailwind).
 - `src/bazis/generated/theme.css`, imported by `src/index.css` after Tailwind: every token
-  as a CSS variable of `:root` (`color.<name>` is `--<name>`, any other token its dotted name
-  with dashes: `radius` is `--radius`, `font.body` `--font-body`, `shadow.md` `--shadow-md`,
-  `spacing.gutter` `--spacing-gutter`), the variables of the dark mode, the spacing of the density
+  as a CSS variable of `:root` (`color.<name>` is `--<name>`, another token its dotted name
+  with dashes, `font.body` `--font-body`), those of the dark mode, the spacing of the density
   (`--space-page-x`, `--space-section`, `--space-card`, `--space-cell-x`, `--space-cell-y`,
-  `--space-field`; and `--space-cell-x`, `--space-cell-y` of each density under
-  `[data-density]`, the rows of a table whose density the user chooses in the view of a
-  list), the Tailwind theme over them (a color utility for every color token:
-  `bg-primary`, `text-muted-foreground`, `bg-<token>` of a token of the product; the soft
-  colors of the tones, `bg-success-soft text-success-ink`; `font-sans` is `font.body`,
-  `font-display` `font.heading`, `font-mono` `font.mono`; `rounded-sm` … `rounded-2xl` from
-  `radius`; `shadow-xs`, `shadow-sm`, `shadow-md`, `shadow-lg` from `shadow.*`; `ease-standard` and the
-  duration and the curve of every `transition` from `motion.*`) and the base styles of the
-  preset (`h1`–`h3` in `font.heading` with `font.weight-heading` and
-  `font.tracking-heading`).
+  `--space-field`; the cells also under `[data-density]`, chosen by the user in the view of a
+  list), the Tailwind theme over them (a color utility for every color token, `bg-<token>`;
+  the soft colors of the tones, `bg-success-soft text-success-ink`; `font-sans`,
+  `font-display`, `font-mono`; `rounded-sm` … `rounded-2xl` from `radius`; `shadow-xs` …
+  `shadow-lg`; `ease-standard` and every `transition` from `motion.*`) and the base styles of
+  the preset (`h1`–`h3` in `font.heading`).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
-  `density`, `composition: {list, list_phone, list_card, forms}`, `statuses`, `icons`, and
-  `dark`: whether the user switches to a dark mode), which the components read for their
-  defaults.
+  `density`, `composition`, `statuses`, `icons`, and `dark`: whether the user switches to a
+  dark mode).
 
-| Token | Type | CSS variable | When no layer defines it |
-|---|---|---|---|
-| `color.background`, `color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`, `color.muted-foreground`, `color.border`, `color.destructive` | color | `--background`, `--foreground`, `--primary`, … (the name in the group) | required by both presets |
-| `radius` | dimension | `--radius` | required by both presets |
-| `font.body` | fontFamily | `--font-body` (`font-sans`) | required by both presets |
-| `color.sidebar`, `color.sidebar-foreground` | color | `--sidebar`, `--sidebar-foreground` | required by `workspace`; else the background and the foreground |
-| `color.accent` | color | `--accent` (the hover and the current link of the top bar) | required by `portal`; else `muted` |
-| `font.heading` | fontFamily | `--font-heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
-| `color.card`, `color.card-foreground`, `color.popover`, `color.popover-foreground`, `color.secondary`, `color.secondary-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | color | the name in the group | the background, the foreground, the card, `muted`, the border, the primary (`spec/design.py`, `DEFAULTS`) |
-| `color.success`, `color.warning`, `color.info` | color | `--success`, `--warning`, `--info` (the tones of the statuses) | a green, an amber and a blue of both modes |
-| `color.sidebar-primary`, `color.sidebar-accent`, … | color | the variables of the sidebar of shadcn/ui | from the primary and the sidebar |
-| `color.chart-1` … `color.chart-6` | color | `--chart-1` … `--chart-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
-| `font.mono` | fontFamily | `--font-mono` (`font-mono`) | the monospace fonts of Tailwind |
-| `font.weight-heading`, `font.tracking-heading` | fontWeight, dimension | `--font-weight-heading`, `--font-tracking-heading` (`h1`–`h3`) | 600; `0em` (`-0.02em` for `portal`) |
-| `shadow.xs`, `shadow.sm`, `shadow.md`, `shadow.lg` | shadow | `--shadow-xs` … (`shadow-xs` of the cards, the tables and the fields, `shadow-md` of the popovers, `shadow-lg` of the dialogs) | the shadows of Tailwind |
-| `motion.fast`, `motion.base`, `motion.slow`, `motion.ease` | duration, cubicBezier | `--motion-fast` … (`duration-(--motion-fast)`, `ease-standard`; `motion.base` and `motion.ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
+| Token (its CSS variable `--<name>`) | When no layer defines it |
+|---|---|
+| `color.background`, `color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`, `color.muted-foreground`, `color.border`, `color.destructive`; `radius`; `font.body` (`font-sans`) | required by both presets |
+| `color.sidebar`, `color.sidebar-foreground` | required by `workspace`; else the background and the foreground |
+| `color.accent` (the hover and the current link of the top bar) | required by `portal`; else `muted` |
+| `font.heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
+| `color.card`, `color.card-foreground`, `color.popover`, `color.popover-foreground`, `color.secondary`, `color.secondary-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS` of `spec/design.py`) |
+| `color.success`, `color.warning`, `color.info` (the tones of the statuses) | a green, an amber and a blue of both modes |
+| `color.sidebar-primary`, `color.sidebar-accent`, … (the sidebar of shadcn/ui) | from the primary and the sidebar |
+| `color.chart-1` … `color.chart-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
+| `font.mono` (`font-mono`) | the monospace fonts of Tailwind |
+| `font.weight-heading`, `font.tracking-heading` (`h1`–`h3`) | 600; `0em` (`-0.02em` for `portal`) |
+| `shadow.xs` (the cards, the tables, the fields), `shadow.sm`, `shadow.md` (the popovers), `shadow.lg` (the dialogs) | the shadows of Tailwind |
+| `motion.fast`, `motion.base`, `motion.slow`, `motion.ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
 
-The defaults keep the look of a design that names no layer, such as one of an older version
-of bazis-front: `update` and `design` add the new tokens without changing it until
-`theme.yaml` names a palette, fonts, a shape or a surface.
+A design that names no layer (of an older version) keeps its look: `update` and `design` add
+the new tokens with these defaults until `theme.yaml` names one.
 
 ### Presets
 
 **Presets.** `workspace` is an internal tool for daily work: a sidebar with the icons of the
 screens (a drawer on a phone), a sticky header with the title and the actions of the screen,
-tables with a sticky header, aligned numbers and the open row selected, filters in a
-toolbar, the card next to the list on a wide screen (`list_card: split`; the list stays
-mounted and keeps its search, filters and page, and shows its first two columns next to the
-card, `compactColumns` of `ResourceList`; a list in the card, a related list, shows the cards of
-a phone there), forms in dialogs. A table scrolls in its own
-area as high as the screen, with its header at the top: a wide table scrolls sideways
-instead of losing columns. On a phone a list shows cards (`composition.list_phone: cards`,
-the default of both presets; `table` keeps the table scrolled sideways).
-`portal` is a public shell: a top bar, larger type and more air, lists as grids of cards,
-the card in place of the list, forms in place of the content of the screen, softer shapes
-(the shape `round` of its starter). Both have a light and a dark mode, focus rings, and work
-down to the width of a phone.
+tables with a sticky header, aligned numbers and the open row selected, filters in a toolbar,
+the card next to the list on a wide screen (`list_card: split`; the list stays mounted with
+its search, filters and page and shows its first two columns, `compactColumns` of
+`ResourceList`; a list in the card shows the cards of a phone), forms in dialogs. A table
+scrolls in its own area as high as the screen, its header at the top, and sideways when wide
+instead of losing columns. On a phone a list shows cards (`composition.list_phone`).
+`portal` is a public shell: a top bar, larger type and more air, lists as grids of cards, the
+card in place of the list, forms in place of the content, softer shapes. Both have both
+modes and focus rings, and work down to the width of a phone.
 
 ### The top bar
 
-**The top bar** (`navigation: topbar`) never widens the page, whatever the number of the links
-of a role: its row, as wide as the window, shows the links it has room for one by one, and the
-others, from the first that does not fit, are in its menu `nav:more` (More), shown as the
-current link while the current link is in it. A group is shared by the row and the menu, its
-heading on both sides; a phone has every link in its drawer. Choose the navigation by the look of the
-product, not by the number of its links. The scenarios and the screenshots open the screens by
-their routes, never through the menu.
+**The top bar** (`navigation: topbar`) never widens the page: the links that do not fit, from
+the first, are in its menu `nav:more` (More), the current link while it has the current link;
+a group keeps its heading on both sides; a phone has every link in its drawer. Choose the navigation by the look of the
+product, not by the number of its links. The scenarios and the screenshots open the screens
+by their routes, never through the menu.
 
 ### The layers: palette, fonts, shape, surface
 
 **The layers.** Choose the look in `theme.yaml`, never by writing colors: each option names a
-starter of tokens of the package (`init` names those of the preset: `indigo`, `inter`,
-`soft`, `elevated` for `workspace`; `ocean`, `source-serif-display`, `round`, `elevated` for
-`portal`), and `tokens.json` defines only what the product adds over them. Every palette has
-both modes and reaches the contrast of WCAG AA with every pair of fonts, shape and surface.
-
-| Option | Starters |
-|---|---|
-| `palette` | `indigo` (cool, neutral), `forest` (book-cloth green on warm paper), `ember` (burnt orange, warm), `slate` (quiet blue-grey), `ocean` (deep teal on warm neutrals), `plum` (plum on rosy neutrals) |
-| `fonts` | `inter` (Inter), `manrope` (Manrope, bold headings), `ibm-plex` (IBM Plex Sans, headings in IBM Plex Serif), `geist` (Geist), `source-serif-display` (Source Sans 3, headings in Source Serif 4), `system` (the fonts of the system, nothing to load) |
-| `shape` | `sharp` (0.25rem), `soft` (0.5rem), `round` (0.875rem) |
-| `surface` | the shadows (`shadow.*`, the cards with `shadow.xs`): `flat` (borders, no shadow on the cards and almost none elsewhere), `bordered` (borders with the light shadows of Tailwind), `elevated` (soft layered shadows) |
-
-Choose them for the domain of the product, one decision for the whole product:
+starter of tokens of the package (described in `design.schema.json`;
+`init` names those of the preset: `indigo`, `inter`, `soft`, `elevated` for `workspace`;
+`ocean`, `source-serif-display`, `round`, `elevated` for `portal`), and `tokens.json` defines
+only what the product adds over them. Every palette has both modes and reaches the contrast
+of WCAG AA with every pair of fonts, shape and surface. Choose them for the domain of the
+product, one decision for the whole product:
 
 | Domain | Palette | Fonts | Shape |
 |---|---|---|---|
@@ -2731,11 +2546,12 @@ Choose them for the domain of the product, one decision for the whole product:
 
 ### Fonts
 
-**Fonts.** The pairs are shipped with the frontend: the template declares their
-`@fontsource` packages (OFL), and `fonts.css` imports only those of the pair it names, so
-nothing is downloaded at run time and the frontend works offline. `fonts: {google:
-"Inter:wght@400..700"}` loads a family of Google Fonts from its stylesheet instead (online
-only). A font of the product is a token of `tokens.json` with its import:
+**Fonts.** The pairs (`inter`; `manrope`, bold headings; `ibm-plex`, IBM Plex Sans with
+headings in IBM Plex Serif; `geist`; `source-serif-display`, Source Sans 3 with headings in
+Source Serif 4; `system`, nothing to load) are shipped with the frontend: the template
+declares their `@fontsource` packages (OFL), and `fonts.css` imports only those of its pair,
+so the frontend works offline. `fonts: {google: …}` loads a family of Google Fonts instead
+(online only). A font of the product is a token of `tokens.json` with its import:
 `"body": {"$type": "fontFamily", "$value": ["Brand Sans", "ui-sans-serif", "sans-serif"],
 "$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}}` (an npm package
 that the product installs, or the `https://` URL of a stylesheet).
@@ -2743,23 +2559,21 @@ that the product installs, or the `https://` URL of a stylesheet).
 ### Brand
 
 **Brand.** The brand of a customer goes over the palette, in `tokens.json`: change
-`color.primary` and `color.primary-foreground` (and their values of the dark mode,
-`dark.color.primary`): the focus rings, the current link, the selected row and the soft
-tints are derived from the primary in CSS (`color-mix`), so one color brands the product.
-The palettes are OKLCH (`oklch(L C H)`): keep the lightness and the chroma of the palette and
-change the hue for a consistent brand; `check` reports a text color that loses its contrast
-(D009). A token of `tokens.json` replaces that of the layers: a `tokens.json` that defines
-every color (that of an older version) hides the palette, so remove the colors it should
-take from the palette (`check` reports a layer whose tokens it mostly replaces, D012). Set `density` for the spacing.
+`color.primary` and `color.primary-foreground` (and `dark.color.primary`): the focus rings,
+the current link, the selected row and the soft tints derive from the primary
+(`color-mix`). The palettes are OKLCH (`oklch(L C H)`): keep the lightness
+and the chroma of the palette and change the hue; `check` reports a text color that loses
+its contrast (D009). A token of `tokens.json` replaces that of the layers: a `tokens.json`
+that defines every color (of an older version) hides the palette, so remove the colors it
+should take from the palette (D012). Set `density` for the spacing.
 
 ### Icons
 
 **Icons.** `icons` gives every entity with a screen the name of a lucide icon
-([lucide.dev](https://lucide.dev), kebab-case; `check` reports an entity without one, D011,
-and a name that the lucide-react of the template does not have, D013);
-the components and the screens read it from `THEME.icons[entity]` (the navigation, the
-empty states, the dashboard). Choose by the meaning of the entity: people `users` (one
-person `user`), a document `file-text`, money `wallet`, a deadline or a booking
+([lucide.dev](https://lucide.dev), kebab-case; D011 for an entity without one, D013 for a
+name that the lucide-react of the template lacks), read from `THEME.icons[entity]` (the
+navigation, the empty states, the dashboard). Choose by the meaning of the entity: people
+`users` (one person `user`), a document `file-text`, money `wallet`, a deadline or a booking
 `calendar-clock`, a task `square-check`, a book `book-open`, a loan or a request
 `clipboard-list`, an order `shopping-cart`, a product `package`, a place `map-pin`, a company
 `building-2`, a message `message-square`, a report `chart-column`.
@@ -2768,31 +2582,30 @@ person `user`), a document `file-text`, money `wallet`, a deadline or a booking
 
 **Dark mode.** The tokens of the group `dark` are the values of the dark mode (every palette
 has them): each overrides the token of the same name (`dark.color.background`; D007 when
-there is none of that name and type), the others keep their value. The theme applies them to the class `dark`
-of `<html>` and, until the application starts, to a dark system (unless `<html>` has the
-class `light`); `initColorMode()` of `app-shell` (called by `src/main.tsx`) sets the class
-from the choice of the user (system, light or dark, kept in the storage of the browser, the
-button of `AppShell`). Without the group `dark` there is no dark mode (`THEME.dark` is false).
-`mode: light` keeps the light mode only; `mode: dark` puts the values of the dark mode in
-`:root` and turns the variant `dark:` on for every element (D010 without them): neither has
-the button, `THEME.dark` is false.
+there is none of that name and type). The theme applies them to the class `dark` of `<html>`
+and, until the application starts, to a dark system (unless `<html>` has the class `light`);
+`initColorMode()` of `app-shell` (called by `src/main.tsx`) sets the class from the choice of
+the user (system, light or dark, kept in the storage of the browser, the button of
+`AppShell`). Without the group `dark` there is no dark mode. `mode: light` keeps the light
+mode only; `mode: dark` puts the dark values in `:root` and turns the variant `dark:` on for
+every element (D010 without them): neither has the button; `THEME.dark` is false.
 
 ### Statuses
 
-**Statuses.** `statuses` of `theme.yaml` gives each status of bazis-statusy a tone, by the
-id of the status: bazis-statusy has one table of statuses for every model, so an id is the
-same status everywhere (`draft` of the tasks is `draft` of the orders). It
-draws the `StatusBadge` in the soft colors of the tone, the transits to a status of the tone
-`danger` are destructive buttons; a status without a tone is `neutral`. Give the tones by
-meaning: the initial status `neutral`, in progress `info`, done or accepted `success`,
-waiting or near a deadline `warning`, refused, cancelled or overdue `danger`.
+**Statuses.** `statuses` of `theme.yaml` gives each status of bazis-statusy a tone by its id:
+bazis-statusy has one table of statuses for every model, so an id is the same status
+everywhere (`draft` of the tasks is `draft` of the orders). The `StatusBadge` takes the soft
+colors of the tone, a transit to a status of the tone `danger` is a destructive button; a
+status without a tone is `neutral`. Give the tones by meaning: the initial status `neutral`,
+in progress `info`, done or accepted `success`, waiting or near a deadline `warning`,
+refused, cancelled or overdue `danger`.
 
 ### The theme in the screens
 
 #### Follow the preset; do not restyle the components screen by screen
 
 **Follow the preset; do not restyle the components screen by screen.** The components
-read `THEME` for the defaults of the preset; pass a prop (`layout`, `mode`, `forms`,
+read their defaults from `THEME`; pass a prop (`layout`, `mode`, `forms`,
 `navigation`) only for a screen that needs another one.
 
 #### Colors, radii and fonts only through the tokens
@@ -2800,10 +2613,10 @@ read `THEME` for the defaults of the preset; pass a prop (`layout`, `mode`, `for
 **Colors, radii and fonts only through the tokens.** Use the Tailwind classes of the
 theme: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border`,
 `bg-primary text-primary-foreground`, `bg-primary-soft text-primary-ink` (and `success`,
-`warning`, `info`, `danger`, `neutral` for the tones), `rounded-lg`, `font-display`. Never
-a color of the Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)` in a
-class) or `style={{ color }}`: they break the brand and the dark mode. A color the
-product needs is a token (`color.highlight` in `tokens.json` is `bg-highlight`).
+`warning`, `info`, `danger`, `neutral`), `rounded-lg`, `font-display`. Never a color of the
+Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)`) or
+`style={{ color }}`: they break the brand and the dark mode. A color the product needs is a token
+(`color.highlight` in `tokens.json` is `bg-highlight`).
 
 #### The spacing of the density
 
@@ -2828,47 +2641,43 @@ cd frontend && npx playwright install chromium && npm run e2e   # with E2E_PASSW
 ```
 
 - `e2e` needs a frontend made by `init` (with the helpers, `e2e/bazis/`) and specs without
-  errors (`bazis_front check`). It
-  writes a Playwright test per scenario, `frontend/e2e/generated/<scenario>.spec.ts`, and
-  `e2e/generated/product.ts` (`PRODUCT`: the test user of each role, the route of each
-  screen), deletes the tests of a scenario removed from the specs, and records in the lock
-  the hashes of `spec/product.yaml`, `spec/screens/*.yaml` and the generated files (`e2e`).
-  The text depends on the specs only: `--check` and the system check `front.W003` (when
-  the lock has `e2e`; without Node and the database) render it again, compare it byte for
-  byte, and say which specs changed or which test was edited.
+  errors (`bazis_front check`). It writes a Playwright test per scenario,
+  `frontend/e2e/generated/<scenario>.spec.ts`, and `e2e/generated/product.ts` (`PRODUCT`: the
+  test user of each role, the route of each screen), deletes the tests of a scenario removed
+  from the specs, and records in the lock the hashes of `spec/product.yaml`,
+  `spec/screens/*.yaml` and the generated files (`e2e`). The text depends on the specs only:
+  `--check` and the system check `front.W003` (when the lock has `e2e`; without Node and the
+  database) render it again, compare it byte for byte, and say which specs changed or which
+  test was edited.
 
 ### The generated tests are never edited
 
-**The generated tests are never edited**: change the scenario and generate again. Tests
-of your own go to `frontend/e2e/custom/`, with the same helpers (and `language(code)`,
-which switches the language of the interface: not a step of the scenarios). `../bazis`
-exports `loginAs(page, PRODUCT, role)` (the `App` of the user), the class `App` (its
-methods below, and `page`, `screen()`, the current screen, `form()`, the open form),
-`bz(kind, id)` (the selector of a mark), `routePattern(route)` and the types `Product`,
-`Role`, `ScreenId`, `Values`, `FormValues`, `State`.
+**The generated tests are never edited**: change the scenario and generate again. Tests of
+your own go to `frontend/e2e/custom/` ("The tests of your own" below).
 
 ### The steps and their helpers
 
 - The helpers, `frontend/e2e/bazis/` (the asset `playwright`, copied by `init` like the
-  hooks, not edited), act only through the `data-bz` marks of the screens and wait on their
-  states (until no `state:loading` is left), never for a fixed time. Each step of a
-  scenario is a `test.step` titled with the step:
+  hooks, not edited; their signatures in "API: the helpers of the end-to-end tests", never
+  read the copies), act only through the `data-bz` marks of the screens and wait on their
+  states, never for a fixed time: every step waits until no `state:loading` is left on the
+  page (the labels of the related items, `RelationLabel`, too). Each step of a scenario is a
+  `test.step` titled with the step:
 
   | Step | Calls |
   |---|---|
-  | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
-  | `as: <role>` | `const asRole = await sessionAs(app, role)` the first time (a new context of the browser of the test with its options, the role logged in as by `loginAs`; it shares the start of the test and the items it created, and is closed as the test ends: the test is `test` of `e2e/bazis/`), its variable again (`app` for the role of the scenario): the next steps call it |
-  | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
-  | `open_item: {where, in}` | `openItem({where, in})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown (on a live page, `socket:<status>`, once it shows it within 2 s: the row of another session, `as`, that the socket brings), else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`), or with more items of the columns of a board (`action:more`); then `expectScreen` of `list.open`. The generator adds `created: true` (a parameter of the helper, never a key of the step: P002) when the scenario created an item with these texts before (the walk of `check`: the values filled in a create form that saves, then in its edits, have the texts of `where`): only a row of an item that this test created, its id among those of the creates of its submits, never an item of a previous run with the same texts. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
-  | `select: {where}` | `select({where})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
-  | `bulk: <id>` | `bulk(id)`: `bulk:<id>` of the screen, then `action:confirm-bulk` of its confirmation; waits until it is no longer offered (the selection is cleared) or an error is shown (`error:bulk`) |
-  | `move: {where, to, payload}` | `move({where, to, payload})`: the item that `openItem` would open (with `created` as it), its menu `action:move`, then `move:<to>`, the payload in the dialog of its transit (as `transit`), or confirmed in its dialog when the workflow confirms the transit; waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
-  | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog), and so is a custom action with `confirm: true`; one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend, `photo.png` of the template or one of the product beside it, into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
-  | `submit: {}` | `submit({saved: true})` (`saved` given by the generator, never a key of the step: P002): waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result`, shown on its page: `expect: {state: done}`), a refused one by none (the form stays open on its screen) |
-  | `remember: {name: property}` | `const $name = await app.answer(property)`: the `data-value` of `answer:<property>` of the result shown (`ActionResult` renders each text and number of the answer hidden); `$name` is the constant in the values of the next steps; a value that no next step takes is read without a constant, `await app.answer(property)` (the lint refuses a constant that nothing uses) |
-  | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog (as `fill`: a relationship by the label of its item), or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
-  | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectTransitAbsent` (once the transits of the card are loaded, no `transit:<id>`), `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, value)` (`data-value` of `tile:<id>`, a count or an aggregate, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
+  | the `role` | `loginAs(page, PRODUCT, role)`: the `test_user` of the role with the password of `E2E_PASSWORD`, on `/login` (`LoginForm`); no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins (the tiles of the maps) are answered blank (`stubForeignImages(page)`): the tests never reach a server outside the product |
+  | `as: <role>` | `const asRole = await sessionAs(app, role)` the first time (a new context of the browser logged in as the role, sharing the start of the test and the items it created, closed as the test ends by `test` of `e2e/bazis/`), its variable again (`app` for the role of the scenario): the next steps call it |
+  | `open: <screen>` | `open(screen)`, then `expectScreen` |
+  | `open_item: {where, in}` | `openItem({where, in})` (on the page shown, on a live page once the socket brings it within 2 s, else searched, else on the next pages), then `expectScreen` of `list.open`; `created: true` from the generator (below; never a key of the step: P002). A list that the scenarios add to at every run is searched, not read on its first page: give its route set `search_fields` |
+  | `select: {where}`, `bulk: <id>` | `select({where})`, `bulk(id)` |
+  | `move: {where, to, payload}` | `move({where, to, payload, files})`, its payload as `transit`; fails as soon as the move is refused (`error:move`) with its error |
+  | `action: <id>` | `action(id)`; a destroy (once the lock has `screens`) and a custom action with `confirm: true` are confirmed by `confirm(id)` (a generated screen shows the dialog; on a custom screen `confirm(id, { optional: true })`: delete with `useDestroyCardAction`, its dialog); one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
+  | `fill`, `upload` | `fill(values)`, `upload(field, file)` in the open form (on a card with `edit: true` whose edit is not open, `action('edit')` first): a to-many picker by the list of the labels that replace its items (`[]`: none); a date-time as `YYYY-MM-DDTHH:mm` in UTC, the time zone of the browser (`FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`); `today`, `today+3`, `today-1 10:30` a day of the run in UTC, as `expectDay`; a file of `e2e/fixtures/` of the frontend (`photo.png` of the template or one of the product) |
+  | `submit: {}` | `submit({saved: true})` (`saved` from the generator, never a key of the step: P002) fails with the errors that the form shows when it stays open; the items it creates (the answers 201 in JSON of the POSTs meanwhile, their item in `data.id`) are those that `created` finds. `submit()` when the next step expects a refusal (an `error`, or a `state` `invalid`, `error`, `forbidden`, `not_found`). A submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result` on its page: `expect: {state: done}`), a refused one by none |
+  | `remember: {name: property}` | `const $name = await app.answer(property)` (`ActionResult` renders each text and number of the answer hidden), `$name` in the values of the next steps; a value that no next step takes is read without a constant (the lint refuses an unused one) |
+  | `transit` | `transit(id, payload?, files?)`: the files of the payload uploaded in its dialog (as `upload`, one after the other), its other values filled (as `fill`), or its confirmation when the workflow confirms it |
+  | `expect` | `expectScreen`, `expectStatus`, `expectState`, `expectActionAbsent`, `expectTransitAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues`, `expectRows`, `expectTile` (once per tile), `expectDay` (`today±<n>` in UTC, once per day), `expectError`, `expectNotification` (one that came since the test started), in this order |
 
   The screen after a step is the one that `check` follows (the `then` of a form or a
   destroy, the `list.open` of `open_item`): `check` and the generator read the steps with
@@ -2881,110 +2690,90 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
 #### A form of your own
 
 **A form of your own** is driven by the steps through the marks that `ResourceForm`
-renders: the helpers take as the open form the `<form>` that has the submit button
-`action:submit` (`app.form()`), its controls by `field:<name>` (an input, a select, a
-checkbox, a picker or a select of Radix: `role="combobox"` with its popup in
-`aria-controls`), the errors of a
-submit by `error:<name>` and the states of a failure (`state:invalid`, `state:error`,
-`state:forbidden`, `state:not_found`); a submit that saves closes the form or leads to
-another screen. Render each field with `FieldInput` (it gives the marks of the control and
-of its errors, and the pickers) in such a `<form>`, show `submitError` with `StatePanel`,
-and the scenarios fill and submit it as any form. The signatures of the helpers are in
-"API: the helpers of the end-to-end tests"; never read the copies in `frontend/e2e/bazis/`.
+renders: the open form is the `<form>` with the submit button `action:submit` (`app.form()`),
+its controls `field:<name>` (an input, a select, a checkbox, a picker or a select of Radix:
+`role="combobox"` with its popup in `aria-controls`), the errors of a submit `error:<name>`
+and the states of a failure (`state:invalid`, `state:error`, `state:forbidden`,
+`state:not_found`); a submit that saves closes the form or leads to another screen. Render
+each field with `FieldInput` (the marks of the control and of its errors, and the pickers) in
+such a `<form>` and show `submitError` with `StatePanel`: the scenarios fill and submit it as
+any form.
 
 #### The test data is the job of the backend: `manage.py e2e_data`
 
-**The test data is the job of the backend: `manage.py e2e_data`.** Before `npm run e2e`
-the database of the backend is migrated (the roles, statuses and transits of the specs
-are the declarations that `migrate` applies; see the contract) and
-has the data of the e2e data
-command recommended by bazis-front: a management command of the product named
-`e2e_data` (the sample of this package has it,
-`sample/tasks/management/commands/e2e_data.py`):
-
-```bash
-python manage.py migrate
-E2E_PASSWORD=... python manage.py e2e_data
-```
+**The test data is the job of the backend: `manage.py e2e_data`.** Before `npm run e2e` the
+database of the backend is migrated (the roles, statuses and transits of the specs are the
+declarations that `migrate` applies) and has the data of a management command of the product
+named `e2e_data` (`sample/tasks/management/commands/e2e_data.py`).
 
 - it creates only a user per `test_user` of the roles of the specs, with its role (in
-  `roles` and `role_current`) and the password of the environment variable
-  `E2E_PASSWORD` (it fails without it), and the items that the scenarios open
-  (`open_item`) and need, and an item at least for each list, board, calendar and part of a
-  dashboard that a role sees, so that the screenshots show them (V016);
-- **its dates are relative to the day of the run** (`timezone.now() + timedelta(days=3)`,
-  its date in UTC, the day that `expectDay` counts, never `timezone.localdate()`; some of
-  them in the current month and the next days), never fixed (`2030-03-04`): a
-  calendar opens on the month of today, the last items and the deadlines of a dashboard are
-  those of the next days, and a fixed date leaves them empty once it is past or far. A
+  `roles` and `role_current`) and the password of `E2E_PASSWORD` (it fails without it), the
+  items that the scenarios open (`open_item`) and need, and an item at least for each list,
+  board, calendar and part of a dashboard that a role sees, for the screenshots (V016);
+- **its dates are relative to the day of the run** (`timezone.now() + timedelta(days=3)`, its
+  date in UTC, the day that `expectDay` counts, never `timezone.localdate()`; some in the
+  current month and the next days), never fixed (`2030-03-04`): a calendar opens on the month
+  of today, the last items and the deadlines of a dashboard are those of the next days. A
   scenario expects the day of such an item as `today+3` (`expect: {day: {today+3: 1}}`);
-- it never creates a role, a permission, a status or a transit: a role of a `test_user`
-  that the migrations did not create is an error of the command;
+- it never creates a role, a permission, a status or a transit: a role of a `test_user` that
+  the migrations did not create is an error of the command;
 - **it only adds, and runs before every run of the tests**: it never deletes a user or a
-  record, neither those of the previous runs and of the scenarios nor its own (no option
-  of its own such as `--clean`, also at the end of a task): they stay for the user to log in
-  and look at, and a database shared with others is never emptied. Run again, it finds its
-  records by a key of their own (`update_or_create` by the title) and creates those that
-  are missing, sets their dates relative to the day of the run again, and sets the password
-  of the test users again, so that the tests log in with the current `E2E_PASSWORD`; it runs
-  in one transaction. The sample creates its task once and moves its date
-  (`sample/tasks/e2e.py`).
+  record, of the previous runs, of the scenarios or its own (no option such as `--clean`, also
+  at the end of a task): they stay for the user to look at, and a database shared with others
+  is never emptied. Run again, in one transaction, it finds its records by a key of their own
+  (`update_or_create` by the title), creates those that are missing, sets their dates relative
+  to the day of the run again and the password of the test users to the current
+  `E2E_PASSWORD` (the sample moves the date of its task: `sample/tasks/e2e.py`).
 - **the scenarios run again on the same database**, which keeps the items of the previous
   runs, and pass every time:
   - a scenario that changes an item (a transit, a move, an edit, a custom or a bulk action,
     a deletion, a related item added to it) creates that item itself: the records of
-    `e2e_data` are only read, so that the other scenarios and the next runs find them as
-    they are (P033 reports a change of an item that the scenario did not create; a role that cannot add
-    one changes an item that `e2e_data` creates afresh at every run);
-  - a scenario finds the items it created by their ids: when the values that it filled in a
-    create form (then in its edits) have the texts of a `where`, the test takes only an item
-    that it created (`created: true` of `openItem`, `select`, `move`; the ids of the creates
-    of its submits), never an item of a previous run with the same texts (a task already
-    moved). An item of `e2e_data` is found by texts that no scenario gives the items it
-    creates (P034 reports them);
-  - a count or an aggregate (`rows`, `tile`, `day`) is of the records of `e2e_data` alone: a
-    filter or a title that no scenario gives its items (the tiles `review` and `review-hours`
-    of the sample count the task of `e2e_data` by its title and sum its hours), never the
-    items that the scenarios add at every run;
-  - a notification is one that came since its test started (`expectNotification`, by its
-    time): those of the previous runs stay in the list.
+    `e2e_data` are only read (P033; a role that cannot add one changes an item that
+    `e2e_data` creates afresh at every run);
+  - when the values that a scenario filled in a create form that saves (then in its edits)
+    have the texts of a `where`, the generator adds `created: true` (`openItem`, `select`,
+    `move`): the test takes only an item that it created (its id among the creates of its
+    submits), never an item of a previous run with the same texts (a task already moved). An
+    item of `e2e_data` is found by texts that no scenario gives the items it creates (P034);
+  - a count or an aggregate (`rows`, `tile`, `day`) is of the records of `e2e_data` alone, by
+    a filter or a title that no scenario gives its items (the tiles `review` and
+    `review-hours` of the sample count the task of `e2e_data` by its title and sum its hours);
+  - a notification is one that came since its test started: those of the previous runs stay.
 
 The scenarios share the database and run one at a time (`playwright.config.ts`); none
-should depend on another: a scenario opens an item that `e2e_data` creates, or one it
-creates itself.
+depends on another: a scenario opens an item that `e2e_data` creates, or one it creates.
 
 ### Running the tests
 
-- `npm run e2e` starts its own dev server of the frontend on `E2E_PORT` (5173 by default;
-  its `/api` goes to `BAZIS_API_URL`, `http://localhost:8000` by default, as for `npm run
-  dev`) and runs the tests once the backend answers its health check through it, unless
-  `E2E_BASE_URL` names a running frontend; the backend runs separately. It never reuses a
-  server already on the port: the run fails instead of testing another frontend (choose
-  another `E2E_PORT`, or `E2E_BASE_URL`). Its dev server optimizes the dependencies again as
-  it starts (`--force`): a dependency imported since the last start (the charts of a new
-  dashboard) would be optimized once a page imports it, and the server would reload the
-  pages of the tests (a login that fails, a blank screenshot); a running frontend of
-  `E2E_BASE_URL` may do so. It keeps them in a cache of its own,
-  `frontend/node_modules/.vite-e2e` (`BAZIS_VITE_CACHE_DIR`, the `cacheDir` of
-  `vite.config.ts`), never in that of `npm run dev` (`node_modules/.vite`): a dev server of
-  the developer running beside the tests keeps its modules, and its optimizations never
-  reload the pages of the tests. The browser is in UTC and in the default language
-  of the backend (`timezoneId`, `locale`): the times that the scenarios fill and the dates
-  they read are in UTC, like the data of `e2e_data`. In CI, an HTML report is written to
-  `frontend/playwright-report/`.
+- `npm run e2e` starts its own dev server of the frontend on `E2E_PORT` (5173 by default; its
+  `/api` goes to `BAZIS_API_URL`, `http://localhost:8000` by default, also read from
+  `frontend/.env.local`) and runs the tests once the backend answers its health check through
+  it, unless `E2E_BASE_URL` names a running frontend (`npm run build` and `npm run preview` in
+  CI); the backend runs separately. It never reuses a server already on the port: the run
+  fails instead of testing another frontend (choose a free `E2E_PORT`, or `E2E_BASE_URL`). A
+  run that waits for the web server until its timeout has no Bazis backend at
+  `BAZIS_API_URL`. Its dev server optimizes the dependencies again as it starts (`--force`;
+  else one imported since the last start, the charts of a new dashboard, would reload the
+  pages of the tests: a failed login, a blank screenshot; a frontend of `E2E_BASE_URL` may do
+  so), in a cache of its own, `frontend/node_modules/.vite-e2e` (`BAZIS_VITE_CACHE_DIR`, the
+  `cacheDir` of `vite.config.ts`), never that of `npm run dev` (`node_modules/.vite`), whose
+  server may run beside the tests. The browser is in UTC and in the default language of the
+  backend (`timezoneId`, `locale`), like the data of `e2e_data`. In CI, an HTML report is
+  written to `frontend/playwright-report/`.
 
 A screen that renders the marks of its spec (the components do) passes its scenarios; a
 screen without them fails them, even when it looks right. A submit that is not refused must
-save, also on a card where no `then` follows. When the port is taken (`npm run dev` of this
-frontend, or another app) choose a free one, `E2E_PORT=5191 BAZIS_API_URL=http://localhost:8031
-npm run e2e` (`BAZIS_API_URL` is also read from `frontend/.env.local`), or name a frontend
-already running with `E2E_BASE_URL` (`npm run build` and `npm run preview` in CI). A run that
-waits for the web server until its timeout has no Bazis backend at `BAZIS_API_URL`.
+save, also on a card where no `then` follows.
 
 ### The tests of your own
 
 A test of your own (`frontend/e2e/custom/`), for what a scenario does not express, uses the
-same helpers (their signatures: "API: the helpers of the end-to-end tests"):
+same helpers: `../bazis` exports `loginAs(page, PRODUCT, role)` (the `App` of the user), the
+class `App` (the methods of the steps, `language(code)`, which switches the language of the
+interface, and `page`, `screen()`, the current screen, `form()`, the open form), `bz(kind,
+id)` (the selector of a mark), `routePattern(route)` and the types `Product`, `Role`,
+`ScreenId`, `Values`, `FormValues`, `State`. It runs again on the same database too: it reads
+the records of `e2e_data` and finds an item it created with `created: true`.
 
 ```ts
 // e2e/custom/tasks.spec.ts
@@ -3003,21 +2792,16 @@ test('a manager sees the drafts', async ({ page }) => {
 });
 ```
 
-A test of your own runs again on the same database too: it reads the records of `e2e_data`,
-and finds an item that it created with `created: true` (`openItem`, `select`, `move`), never
-one of a previous run with the same texts.
-
-For what they do not cover, `app.page`, `app.screen()` (the current screen), `app.form()`
-(the open form) and `bz(kind, id)` of `../bazis` (the selector of a mark): a transit that a
-validator restricts is disabled, with the errors of the validators next to it,
+For what the helpers do not cover, `app.page`, `app.screen()`, `app.form()` and `bz`: a
+transit that a validator restricts is disabled, with the errors of the validators next to it,
 `await expect(app.screen().locator(bz('transit', 'reopen'))).toBeDisabled()`.
 
 ## The visual check
 
-The scenarios check what the screens do; the screenshots check how they look. `shots` takes
-a screenshot of every screen of the specs and checks what each one renders, so that an agent
-fixes what it would not see in the code: a page wider than a phone, a raw name, a text without
-contrast, a value of an item longer than the data of the tests.
+The scenarios check what the screens do; the screenshots check how they look. `shots` shoots
+every screen of the specs and checks what each renders, so that an agent fixes what it would
+not see in the code: a page wider than a phone, a raw name, a text without contrast, a value
+longer than the data of the tests.
 
 ```bash
 python manage.py bazis_front shots           # e2e/generated/shots.ts, the screenshots and .scratch/shots/report.json
@@ -3027,86 +2811,65 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
 
 ### What it shoots
 
-- Every screen as the first of its `roles` (the first role of the product that logs in for a
-  screen without: it is not public), in each color mode of the theme (`mode`, and the tokens of the dark mode), at the
-  width of a desktop (1280×800) and of a phone (390×844): the projects `desktop` and `phone`
-  of `frontend/playwright.shots.config.ts`. The screen of an item is reached through the
-  first item of a screen that opens it (`open` of a list, of a board or a calendar, of the
-  last items of a dashboard: the first item of that part, `recent:<id>`), one of a role of
-  the screen of the item, which is shot as the first of its roles that one is for: a list
-  first, all the items before a report (a list with a `filter` of its own); a screen that
-  none opens is not shot, listed at the top of `shots.ts` (`// Not shot: …`).
-- Every screen also as each other of its roles, in the first color mode only (the role that
-  the screens opening an item are not for is not shot on it): `<screen> as <role>` in
-  `shots.ts`, `role` in the report and in the names of the files. What the screen shows to
-  each role (its actions, its moves, its empty parts) is checked once; the other color modes
-  are those of the first role.
-- A list is also shot searched for a text that no item has (its empty state, when it has
-  `search`; the empty state of a search offers no creation, so V008 checks its text only)
-  and with its first create form open, as the first of its roles that the `access` of the
-  entity of the form lets create (`add`; any role of an entity without an `access`; none:
-  `// Not shot: <screen>.form`): the variants `empty` and `form` of the screen,
-  `<screen>.<variant>` in `shots.ts`, in the names of the files and `variant` in the report.
-  A calendar with `add` is shot with its add form open too (the variant `form`, as the
-  first of its roles that may create). The dialogs of the custom actions are not shot: an
-  item may not allow its action.
-- Once the test user is logged in, the shot also listens to the page: an error that nothing
-  caught (V011), an error written to the console (V012; not the failed connection of the
-  socket of a page left, once the socket of the page shot is open again) and a request to the API (`/api/`)
-  that failed or was answered with an error status (V013); a 403 or a 404 of a `GET`, which
-  a screen shows as its state, and a request that the page cancelled are not reported, nor
-  the requests of the login. The fields of the filters (`route_filter_fields/`) are never a
-  state: their 404 is reported (a route set whose `actions` leave out
-  `get_route_filter_fields`, which `check` reports as S040), and a 500 of the proxy of the dev
-  server that did not reach the backend (a `text/plain` without a body) says so: not an error
-  of the backend.
+- Every screen as the first of its `roles` (without `roles`, the first role of the product
+  that logs in: it is not public), in each color mode of the theme (`mode`, and the tokens of
+  the dark mode), at the width of a desktop (1280×800) and of a phone (390×844): the projects
+  `desktop` and `phone` of `frontend/playwright.shots.config.ts`. The screen of an item is
+  reached through the first item of a screen that opens it (`open` of a list, a board, a
+  calendar, `recent:<id>` of a dashboard), one of a role of the screen of the
+  item, shot as the first of its roles that one is for: a list first, all the items before a
+  report (a list with a `filter`); a screen that none opens is not shot (`// Not shot: …` at
+  the top of `shots.ts`).
+- Every screen also as each other of its roles (not on an item that no screen opening it is
+  for), in the first color mode only: `<screen> as <role>` in `shots.ts`, `role` in the report
+  and the names of the files: what it shows each role (its actions, moves, empty parts) is
+  checked once.
+- A list is also shot searched for a text that no item has (with `search`; V008 checks only
+  the text of the empty state of a search) and with its first create form
+  open, as the first of its roles that the `access` of the entity lets create (`add`; any role
+  without an `access`; none: `// Not shot: <screen>.form`): the variants `empty` and `form`,
+  `<screen>.<variant>` in `shots.ts` and the names of the files, `variant` in the report. A
+  calendar with `add` is shot with its add form open too (`form`, as the first of its roles
+  that may create). The dialogs of the custom actions are not shot: an item may not allow its
+  action.
+- Once the test user is logged in, the shot also listens to the page (V011, V012, V013); a
+  403 or a 404 of a `GET`, which a screen shows as its state, a request that the page
+  cancelled and the requests of the login are not reported. The fields of the filters
+  (`route_filter_fields/`) are never a state: their 404 is reported (S040).
 - A screen is shot once again, the user still logged in, when the proxy of the dev server did
-  not reach the backend (from the login on) or when the page loaded again between its check
-  and its screenshot (the dev server of Vite reloads the pages once it has optimized a
-  dependency that it found late: the screenshot would be a blank page); `retried` of the
-  report, the result is that of the second time, and the summary of the command counts the
-  screens shot again. The second time the proxy is reported as V013, the page that loaded
-  again as V019.
-- It runs as `npm run e2e` does (the same `playwright.config.ts`, which the config of the
-  shots extends): the backend running, migrated and with the data of `manage.py e2e_data`,
-  `E2E_PASSWORD` set, a dev server of its own on `E2E_PORT` (a free port without it, not
-  5173, which a dev server of the developer may have) or a running frontend at
-  `E2E_BASE_URL`, and Chromium (`npx playwright install chromium` in `frontend/`). A screen
-  with no item (an empty list before its card) cannot be shot: the data of `e2e_data` has
-  one.
-- It writes `frontend/.scratch/shots/<screen>[.<variant>]-<role>-<mode>-<width>.png` and `report.json`,
-  after it emptied the directory. `.scratch/` is in the `.gitignore` of the frontend: never
-  commit it.
-- It exits with 0 when the report has no error, 1 when it has errors, 2 when no screen could
-  be shot (no Node, no browser, no backend or frontend, no `E2E_PASSWORD`, a port of
-  `E2E_PORT` already used: the output of Playwright says which).
+  not reach the backend (from the login on) or the page loaded again between its check and its
+  screenshot (a blank screenshot); `retried` of the report, the result is that of the second
+  time (V013, V019), and the summary of the command counts the screens shot again.
+- It runs as `npm run e2e` does (its `playwright.config.ts`, which the config of the shots
+  extends): the backend running, migrated and with the data of `manage.py e2e_data` (a screen
+  with no item, an empty list before its card, cannot be shot), `E2E_PASSWORD` set, a dev
+  server of its own on `E2E_PORT` (without it a free port, not 5173, which a dev server of the
+  developer may have) or a running frontend at `E2E_BASE_URL`, and Chromium (`npx playwright
+  install chromium` in `frontend/`).
+- It empties `frontend/.scratch/shots/`, then writes
+  `<screen>[.<variant>]-<role>-<mode>-<width>.png` and `report.json` there. `.scratch/` is in
+  the `.gitignore` of the frontend: never commit it.
+- It exits with 0 without errors, 1 with errors, 2 when no screen could be shot (no Node, no
+  browser, no backend or frontend, no `E2E_PASSWORD`, `E2E_PORT` used: Playwright says which).
 - `shots.ts` is generated like the end-to-end tests: never edited, the hashes of the specs
-  and of the file in the lock (`shots`), `--check`; the system check `front.W008` reports a
-  stale `shots.ts`, `front.W009` a report with errors or no report that can be read (the
-  screenshots not taken yet; a warning, CI has none). It is not a `.spec.ts`: `npm run e2e`
-  does not run it.
+  and of the file in the lock (`shots`), `--check`; `front.W008` reports a stale `shots.ts`,
+  `front.W009` a report with errors or none that can be read (a warning: CI has none). It is not a `.spec.ts`: `npm run e2e` does not run it.
 
 ### The report
 
 ```json
-{"errors": 1, "warnings": 1,
+{"errors": 0, "warnings": 1,
  "shots": [{"screen": "task-list", "role": "manager", "mode": "dark", "width": 390, "variant": null,
             "retried": false, "file": "task-list-manager-dark-390.png",
-            "issues": [{"code": "V002", "severity": "error", "selector": "[data-bz=\"list:task\"]",
-                        "message": "The page is 812 px wide at 390 px."},
-                       {"code": "V009", "severity": "warning", "selector": "[data-bz=\"action:edit\"] button",
-                        "message": "3 controls are smaller than 44×44 px: [data-bz=\"action:edit\"] button 24×24, …"}]},
-           {"screen": "task-list", "role": "manager", "mode": "dark", "width": 390, "variant": "form",
-            "retried": false, "file": "task-list.form-manager-dark-390.png",
-            "issues": [{"code": "V013", "severity": "error", "selector": "GET /api/v1/tasks/task/schema_create/",
-                        "message": "500 Internal Server Error"}]}]}
+            "issues": [{"code": "V009", "severity": "warning", "selector": "[data-bz=\"action:edit\"] button",
+                        "message": "3 controls are smaller than 44×44 px: …"}]}]}
 ```
 
 `selector` is the nearest `data-bz` mark of the element (with its tag when the element is
 inside it): the component or the cell to fix; for V011 and V012 `page` and `console`, for
-V013 the method and the path of the request. A code reports at most ten elements of a
-screenshot, the last with the number of the others; V009 is one issue for the screenshot,
-with the number of the small controls and the first five of them.
+V013 the method and the path of the request (`GET /api/v1/tasks/task/schema_create/`). A code
+reports at most ten elements of a screenshot, the last with the number of the others; V009 is
+one issue for the screenshot, with the number of the small controls and the first five.
 
 ### The codes of the report
 
@@ -3115,23 +2878,23 @@ with the number of the small controls and the first five of them.
 | `V001` | error | the screen was not shot: the login, the route, the item to open or the run failed (the message says which); run the backend with the data of `e2e_data`, give the role its `test_user`, render the marks of the screen and of its states `state:<state>` (a custom screen too) |
 | `V002` | error | the page scrolls sideways at the width of a phone: a list shown as a table, a fixed width, a long word; show the cards of the list on a phone (the components do), let the texts wrap |
 | `V003` | warning | a part of the page scrolls sideways at the width of a phone: a table where cards would fit (a board, `board:<entity>`, scrolls its columns: it is not reported) |
-| `V004` | error | a label shows a raw name: a column, a term of a card, a label of a field or a filter, a heading that is a snake_case name, an id or a key of the translations; give the field its title in the backend (S018) or the text its key in `src/i18n/` |
+| `V004` | error | a label shows a raw name (a column, a term of a card, a field, a filter, a heading): a snake_case name, an id or a key of the translations; give the field its title in the backend (S018) or the text its key in `src/i18n/` |
 | `V005` | error | the screen shows a UUID, the id of an item instead of its label: show a related item by its label (`RelationLabel`, the `label` of the entity) |
 | `V006` | error | a text has a contrast below 4.5:1 (3:1 for a large text) on its background, as rendered: a literal color, or a text color of the tokens on a background it was not made for; use the pairs of the tokens (`text-foreground` on `bg-background`, `text-<tone>-ink` on `bg-<tone>-soft`) |
 | `V007` | warning | a light surface in the dark mode: a literal color that ignores the tokens of the theme; use the classes of the tokens |
 | `V008` | warning | an empty state without a text, or without the action that creates an item when the user may create one: put the create action in the empty state |
-| `V009` | warning | controls smaller than 44×44 px at the width of a phone, one issue for the screenshot with their number: give them the size of the components (an icon button of shadcn/ui is `size="icon"`; on a touch screen the components are 44 px at least); the `<label>` around a control and its stretched `::after` count in its size |
+| `V009` | warning | controls smaller than 44×44 px at the width of a phone: give them the size of the components (an icon button of shadcn/ui is `size="icon"`; on a touch screen the components are 44 px at least); the `<label>` around a control and its stretched `::after` count in its size |
 | `V010` | warning | a text cut by an ellipsis without its whole text in a title or a tooltip: give it `title`, or let it wrap |
 | `V011` | error | an error of the page that nothing caught (`pageerror`): fix the code of the screen that throws it (the message says which) |
-| `V012` | warning | an error written to the console (`console.error`: a warning of React, a failure that the page handles), also a failed connection of the socket of the page that is not open again within 2 s (`socket:open`): fix what React warns of (a key, a nested form), handle the failure without writing it, and route the socket where the contract has it |
-| `V013` | error | a request of the page to the API failed or was answered with an error status, but a 403 or a 404 of a `GET` that a screen shows as its state: a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 404 of `route_filter_fields/` or a 405 of an action it does not route (its `actions`, S040); a 500 of the proxy of the dev server that did not reach the backend says so (the screen was shot again: the proxy failed twice); restart the dev server or the backend (the output of the dev server says why) and take the screenshots again |
+| `V012` | warning | an error written to the console (`console.error`: a warning of React, a failure that the page handles), also a failed connection of the socket of the page that is not open again within 2 s (`socket:open`; not that of a page left): fix what React warns of (a key, a nested form), handle the failure without writing it, and route the socket where the contract has it |
+| `V013` | error | a request of the page to the API failed or was answered with an error status (but a 403 or a 404 of a `GET`, a state of the screen): a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 404 of `route_filter_fields/` or a 405 of an action it does not route (its `actions`, S040); a 500 of the proxy of the dev server that did not reach the backend (a `text/plain` without a body, twice: the screen was shot again) says so: restart the dev server or the backend (its output says why) and take the screenshots again |
 | `V014` | error | the page scrolls sideways at the width of a desktop: a fixed width, a grid whose implicit column grows to a long word; give the grid its column (`grid-cols-[minmax(0,1fr)]`), let the texts wrap |
-| `V015` | error | the page scrolls sideways once the texts of its items are long: before the screenshot, for the check only, the texts of the items in their cells and fields (`data-text` of `FieldValue` in `cell:<name>`, `field:<name>`, not in a form: a string without a choice or a format, the label of a related item; not a date, a number or the label of a choice, short by their nature, nor a cell of the product) are made 120 characters long with a word of 40, then given back; the data of `e2e_data` are short, the data of the users are not. Bound the column of the grid that holds them and let them wrap (`wrap-anywhere`) or cut them with their text in a title (`truncate`) |
-| `V016` | warning | a list, a board, a calendar (neither a row nor a day with items) or the last items of a dashboard show no item (but the list searched for nothing): the screenshot does not show them, nor what a long value does there; give `e2e_data` items for them, their dates relative to the day of the run (a calendar opens on the month of today) |
+| `V015` | error | the page scrolls sideways once the texts of its items are long: for the check only, the texts of the items in their cells and fields (`data-text` of `FieldValue` in `cell:<name>`, `field:<name>`, not in a form: a string without a choice or a format, the label of a related item; not a date, a number, a choice, nor a cell of the product) are made 120 characters long with a word of 40, then given back: the data of the users are longer than those of `e2e_data`. Bound the column of the grid that holds them and let them wrap (`wrap-anywhere`) or cut them with their text in a title (`truncate`) |
+| `V016` | warning | a list, a board, a calendar (no row nor day with items) or the last items of a dashboard show no item (but the list searched for nothing): give `e2e_data` items for them, their dates relative to the day of the run (a calendar opens on the month of today) |
 | `V017` | warning | a text cut by an ellipsis to a few characters, its box narrower than 4 em: the item of a narrow day of a calendar, a narrow column; give it the width of a line of its own or let it wrap |
-| `V018` | warning | a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap; let them wrap (`whitespace-normal wrap-anywhere` with a `min-w-*` and the same `max-w-*`, so that a long text does not narrow the columns of short words either) |
-| `V019` | error | the page loaded again between its check and its screenshot, also when the screen was shot again: the screenshot (a blank page, a page that loads) is not of the screen checked; the dev server reloads the pages (a dependency optimized late by a running frontend of `E2E_BASE_URL`, a file of the frontend changed during the run): take the screenshots again |
-| `V020` | error | the screen was not shot: the router sent a role without a login (nobody, an anonymous role) to the login, the route of the screen needs a session that the role does not have. An anonymous role shoots only public screens; a frontend whose `src/app/router.tsx` is its own (from before 0.4.0) routes no public screen: take the router of the template. A role with a `test_user` whose login fails is V001 with the error of the login |
+| `V018` | warning | a part of the page that scrolls sideways (a table) grows wider once the texts of its items are long (those of V015): a column whose texts do not wrap; let them wrap (`whitespace-normal wrap-anywhere` with a `min-w-*` and the same `max-w-*`, so that a long text does not narrow the columns of short words either) |
+| `V019` | error | the page loaded again between its check and its screenshot, also when shot again: the screenshot is not of the screen checked; the dev server reloads the pages (a dependency optimized late by a frontend of `E2E_BASE_URL`, a file of the frontend changed during the run): take the screenshots again |
+| `V020` | error | the screen was not shot: the router sent a role without a login (nobody, an anonymous role) to the login: the route needs a session. An anonymous role shoots only public screens; a frontend with its own `src/app/router.tsx` (from before 0.4.0) routes no public screen: take the router of the template. A role whose login fails is V001 |
 
 ### The checklist of the screenshots
 
@@ -3150,10 +2913,9 @@ Open the screenshots (the PNG files) and look at what no check measures:
 A screen is done when `shots` reports no error for it, its screenshots pass the checklist
 and its scenarios pass (`npm run e2e`). Fix in the specs, the screens, the design or the
 backend (the labels of the fields are titles of the backend, S018), never in `shots.ts` or
-the report, and take the screenshots again: at most three rounds; after the third, report
-what is left with the codes and the screenshots. The errors left, or
-screenshots never taken, are the warning `front.W009` of `status`, not a stale part of the
-frontend.
+the report, and take the screenshots again: at most three rounds; then report what is left
+with the codes and the screenshots. The errors left, or screenshots never taken, are the
+warning `front.W009` of `status`, not a stale part of the frontend.
 
 ## The client
 
@@ -5475,6 +5237,10 @@ Its props, `FilesFieldProps`:
 - `accept?: string | undefined`: The types of the files that the picker offers and the field takes, as `accept` of an input (`image/*`, `.pdf,.docx`); any by default: bazis-uploadable takes any file.
 - `path?: string | undefined`: The route set of the uploaded files; the route of the resource of the field in `ROUTES` by default.
 
+#### fitImage
+
+`fitImage(file: File, maxSize: number | null): Promise<File | null>`: The file to upload under the limit `maxSize` (in bytes; null: none): the file itself within it; an image over it (`reducible`) drawn again, turned as its EXIF says, at its size, then smaller by `STEP` (at most `TRIES` tries, its long side never under `MIN_SIDE` px), until it fits: a PNG stays a PNG, a WebP a WebP, another image is a JPEG, its name kept (with `.jpg` for a JPEG of another type).
+
 #### The types and the constants of `@/bazis/ui/file-field`
 
 - `ANONYMOUS_ACCEPT: string | undefined`: The types of the files that a guest uploads (`anonymous_types` of the contract, recognized by their content: bazis-uploadable 2.8), as `accept` of an input; undefined when guests upload none.
@@ -5718,6 +5484,7 @@ Its props, `FieldInputProps`:
 - `disabled?: boolean`: Disables the control, e.g. while the form is submitted.
 - `onBusy?: (busy: boolean) => void`: A file of the field starts or ends uploading: the form waits for it to be submitted.
 - `path?: string | undefined`: The route set of the resource of the field: a point field of it (`PointsProvider`, the contract) is edited as a point.
+- `filter?: Filter | undefined`: The items that the picker of a relationship offers: those of the related resource that match it (`filters` of the specs).
 
 #### useUploads
 
@@ -6076,6 +5843,7 @@ Its props, `RelationPickerProps`:
 - `relation: string`: The JSON:API type of the related resource.
 - `path?: string | undefined`: The route set of the related resource, instead of its route in `ROUTES` of the contract.
 - `searchable?: boolean | undefined`: Whether the route set searches (`search`): a search box over the items, else the items without a search.
+- `filter?: Filter | undefined`: The items it offers: those of the related resource that match it (`filter` of its list), such as the users of a role, `Filter.where('roles__slug', 'master')`; all by default.
 - `value: string | null`: The id of the related item, null for none.
 - `onChange: (value: string | null) => void`
 - `placeholder?: string`: The text of no item, and the label of the option that clears the value.
@@ -6089,6 +5857,7 @@ Its props, `RelationPickerProps`:
 #### The types and the constants of `@/bazis/ui/resource`
 
 - `DateInputProps`: the props of `DateInput`, listed with it
+- `type FieldFilters = Readonly<Record<string, Filter>>`: The filters of the pickers of the relationships of a form by their fields (`filters` of the specs).
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
 - `ItemValueProps`: the props of `ItemValue`, listed with it
@@ -6316,6 +6085,7 @@ Its props, `ResourceFormProps`:
 - or: `path: UpdatePath`; `id: string`; `initial?: undefined`
 - `fields?: readonly string[]`: The fields, in this order (those the runtime schema does not have are left out); by default every field of the schema but the `fixed` ones and the reverse relationships (`isReverse`: the core deletes the unlinked items of a reverse foreign key).
 - `fixed?: FixedValues`: The values of fields that the screen sets and the user does not change (`useResourceForm` `fixed`): the item of a card that a related item is added to, `{request: id}`.
+- `filters?: FieldFilters | undefined`: The items that the pickers of its relationships offer, by field: those that match (`filters` of the specs).
 - `onSaved?: (saved: SavedDocument) => void`: Called with the saved document.
 - `onCancel?: () => void`: Shows a cancel button (`action:cancel`); the changes are dropped.
 - `submitLabel?: ReactNode`
@@ -6456,6 +6226,7 @@ Its props, `ActionFieldsProps`:
 - `body: JsonSchema`: The JSON Schema of the body of the action (`body` of its custom action in the contract).
 - `names: readonly string[]`: The properties of the body that it asks for, in this order.
 - `labels?: Readonly<Record<string, string>> | undefined`: The labels of the specs by property (`labels` of the action), before any other title.
+- `filters?: FieldFilters | undefined`: The items that the pickers of its relationships offer, by property (`filters` of the action).
 - `resource?: Fields | undefined`: The fields of a runtime schema of the route set that a screen has read (the list of a dialog): the titles and the labels of the choices of the properties named as its fields, in the language of the interface.
 - `values: Readonly<Record<string, unknown>>`
 - `errors: Readonly<Record<string, readonly string[]>>`
@@ -6474,6 +6245,7 @@ Its props, `ActionFormProps`:
 - `action: string`: The name of the custom action of the route set in its path, as `custom_actions` of the contract has it.
 - `fields: readonly string[]`: The properties of its body that the form asks for, in this order.
 - `labels?: Readonly<Record<string, string>> | undefined`: The labels of the fields by property, before the titles of the contract.
+- `filters?: FieldFilters | undefined`: The items that the pickers of its relationships offer, by property (`filters` of the specs).
 - `values?: StartValues | undefined`: The values that the fields start with by property, over the defaults of the body: a day of the browser (`today`, `month_start`, ...) for a date, computed when the form opens.
 - `submitLabel?: ReactNode`: The label of the submit button: `Send` by default.
 - `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action, or `{filename}` of the file it saved.
@@ -6512,6 +6284,7 @@ Its props, `CreateFormActionProps`:
 - `onClose: () => void`
 - `path: CreatePath`: The route set of the entity (`ROUTES` of the contract).
 - `fields?: readonly string[]`: The fields of the form (`fields` of the action); every field of the create schema by default.
+- `filters?: FieldFilters | undefined`: The items that the pickers of its relationships offer, by field (`filters` of the action).
 - `initial?: Readonly<Record<string, unknown>> | undefined`: The values that the form starts with, which the user may change (`ResourceForm` `initial`).
 - `title: ReactNode`
 - `description?: ReactNode`
@@ -6600,6 +6373,7 @@ Its props, `UpdateFormActionProps`:
 - `item?: string`: The item of a card, whose action it is; none on a list (a row or the selected rows give theirs).
 - `fields?: readonly string[]`: The properties of the body that its dialog asks for, in this order; none by default (an empty body).
 - `labels?: Readonly<Record<string, string>>`: The labels of its fields by property, before their titles (`ActionFields`).
+- `filters?: FieldFilters`: The items that the pickers of its relationships offer, by property (`filters` of the specs).
 - `values?: StartValues`: The values that its fields start with by property, over the defaults of the body: a day of the browser (`today`, `month_start`, ...) for a date, computed when the dialog opens.
 - `title?: ReactNode`: The title of its dialog: the label by default.
 - `description?: ReactNode`: What its dialog says.
@@ -6804,6 +6578,7 @@ Its props, `TaskProgressProps`:
 
 - `id: string`
 - `confirm?: boolean`
+- `filters?: FieldFilters`: The items that the pickers of the payload offer, by field (`filter` of a field of the payload).
 
 #### TransitRun
 
@@ -6874,13 +6649,13 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `openItem(options: { where: Values; in?: string; created?: boolean; }): Promise<void>`: Opens the first item of the current screen whose cells `cell:<name>` have exactly these texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page shown (on a live page, as soon as it has it within `LIVE_ROW_WAIT`: an item of another session that the socket brings), else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search, or with more items of the columns of a board (`action:more`); fails when no page has it.
 - `select(options: { where: Values; created?: boolean; }): Promise<void>`: Selects the row of the list of the current screen that `openItem` would open, its checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
 - `bulk(id: string): Promise<void>`: Runs a bulk action of the list of the current screen on the selected rows, `bulk:<id>`, confirmed in its dialog (`action:confirm-bulk`), and waits until it is done (the action is no longer offered: the selection is cleared) or shows an error (`error:bulk`).
-- `move(options: { where: Values; to: string; payload?: Values; created?: boolean; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), with the values of the payload of its transit in its dialog (as `transit`), or confirmed in its dialog when the specs confirm the transit, and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
+- `move(options: { where: Values; to: string; payload?: Values; files?: Files; created?: boolean; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), with the values of the payload of its transit in its dialog and its files (as `transit`), or confirmed in its dialog when the specs confirm the transit, and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
 - `confirm(id: string, options?: { optional?: boolean; }): Promise<void>`: Confirms the action `<id>` of the current screen in its dialog, `action:confirm-<id>` (the deletion of the item of a card), and waits until the dialog is closed; the dialog must be shown, but with `optional` (a hand-written screen may run the action without a confirmation), where nothing is done when none is shown within 2 s.
 - `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false; an input of a date or a date-time also by a day of the run (`today`, `today+1 10:30`: `dateOfRun`).
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).
-- `transit(id: string, payload?: Values): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog, or confirmed in its dialog when the specs confirm it, and waits until it is done (the transit is no longer offered) or shows an error.
+- `transit(id: string, payload?: Values, files?: Files): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog and the files that it uploads into its file fields (a file of `e2e/fixtures/`, a list of them for several, as `upload`), or confirmed in its dialog when the specs confirm it, and waits until it is done (the transit is no longer offered) or shows an error.
 - `expectScreen(screen: ScreenId<P>): Promise<void>`: The current screen is this one: at its route (another screen may show next to it, such as a list next to its card), with its state rendered.
 - `expectStatus(status: string): Promise<void>`: The item of the current screen has this status, `status:<id>`.
 - `answer(property: string): Promise<string>`: The value of a property of the answer of the action whose result the page shows, `answer:<property>` in `state:done` (its `data-value`): a text or a number of its JSON answer, `filename` of a file it saved; the step `remember` of the scenarios.
@@ -6904,6 +6679,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `type ScreenId<P extends Product> = keyof P['screens'] & string`: A screen of the specs.
 - `type Values = Readonly<Record<string, string | number | boolean | null>>`: The values of fields by name, scalars as in the specs.
 - `type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>`: The values of the fields of a form by name: a scalar, or the labels of the related items of a to-many relationship (a list, `[]` for none).
+- `type Files = Readonly<Record<string, string | readonly string[]>>`: The files that a dialog uploads by field: a file of `e2e/fixtures/`, a list of them for several.
 - `type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid' | 'done'`: The states that the screens render (`state:<state>`).
 - `LOGIN_ROUTE: "/login"`: The login screen of the template (`LoginForm`), where the router sends a user without a session.
 - `test: TestType<PlaywrightTestArgs & PlaywrightTestOptions & { sessions: undefined; }, PlaywrightWorkerArgs & PlaywrightWorkerOptions>`: `test` of Playwright that closes the sessions of `sessionAs` as the test ends, before the next one starts, also one whose context was being created when the test timed out: the tests of several sessions take it from here.

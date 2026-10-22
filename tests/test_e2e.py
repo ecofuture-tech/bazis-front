@@ -162,6 +162,23 @@ def test_a_notification_is_expected_after_the_other_keys():
     )
 
 
+def test_the_files_of_a_payload_are_uploaded_in_its_dialog():
+    """
+    The files of the payload of a transit or a move (`Step.files`, its fields `type: file`) are
+    uploaded in its dialog, the other values filled: an argument of `transit`, `files` of `move`.
+    """
+    text = rendered(REPOSITORY / 'sample')[NOTIFIED]
+    assert "    await app.transit('finish', { report: 'Done' }, { photos: ['photo.png'] });\n" in text
+    payload = {'payload': {'report': 'Done', 'photos': ['a.png', 'b.png']}}
+    assert e2e.calls(Step('move', {'where': {'title': 'A'}, 'to': 'done', **payload}, files=('photos',))) == [
+        "app.move({ where: { title: 'A' }, to: 'done', payload: { report: 'Done' }, files: { photos: ['a.png', 'b.png'] } })",
+    ]
+    # a payload of files only
+    assert e2e.calls(Step('transit', {'id': 'return', 'payload': {'photo': 'a.png'}}, files=('photo',))) == [
+        "app.transit('return', {}, { photo: 'a.png' })",
+    ]
+
+
 def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions():
     """The new steps are calls of their helpers; a count of a tile or of a day is a call each."""
     where = {'where': {'title': 'A'}}

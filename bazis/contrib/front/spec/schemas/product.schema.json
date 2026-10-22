@@ -177,7 +177,7 @@
       "else": {"required": ["permit"]}
     },
     "field": {
-      "description": "An attribute (`type`) or a relationship (`relation`: the id of the entity it references, `many`) of the resource.",
+      "description": "An attribute (`type`) or a relationship (`relation`: the id of the entity it references, `many`) of the resource; a file (`type: file`) is a relationship to the uploaded files, several with `many: true`.",
       "type": "object",
       "additionalProperties": false,
       "required": ["id"],
@@ -190,7 +190,7 @@
       },
       "if": {"required": ["relation"]},
       "then": {"not": {"required": ["type"]}},
-      "else": {"required": ["type"], "not": {"required": ["many"]}}
+      "else": {"required": ["type"], "if": {"required": ["many"]}, "then": {"properties": {"type": {"const": "file"}}}}
     },
     "display": {
       "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a code of five digits or more; a number below 10,000, such as a year, has none without it); `{currency: <ISO 4217 code>}`, a sum in the currency; `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`.",
@@ -211,16 +211,27 @@
       ]
     },
     "payload_field": {
-      "description": "A property of the payload: an attribute (`type`), or the id of an item of an entity (`relation`), which the dialog of the transit asks for with its picker: the property is named as a to-one relationship of the entity to it.",
+      "description": "A property of the payload: an attribute (`type`), the id of an uploaded file (`type: file`, `UploadedFileId` of bazis-uploadable; their list with `many: true`), which its dialog uploads, or the id of an item of an entity (`relation`), which the dialog of the transit asks for with its picker: the property is named as a to-one relationship of the entity to it.",
       "type": "object",
       "additionalProperties": false,
       "required": ["id"],
       "properties": {
         "id": {"$ref": "#/$defs/field_id"},
         "type": {"$ref": "#/$defs/type"},
-        "relation": {"$ref": "#/$defs/id"}
+        "many": {"type": "boolean"},
+        "relation": {"$ref": "#/$defs/id"},
+        "filter": {
+          "description": "The items that the picker of the relationship offers: those of the related resource whose fields equal these values, each a field or a path through its relationships (`roles__slug: master`) that the contract can filter by (S061).",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+          "additionalProperties": {"type": ["string", "number", "boolean"]}
+        }
       },
-      "oneOf": [{"required": ["type"]}, {"required": ["relation"]}]
+      "oneOf": [{"required": ["type"]}, {"required": ["relation"]}],
+      "dependentRequired": {"filter": ["relation"]},
+      "if": {"required": ["many"]},
+      "then": {"required": ["type"], "properties": {"type": {"const": "file"}}}
     },
     "workflow": {
       "description": "The statuses and transits of bazis-statusy for the resource. An entity with a workflow has the field `status`.",
@@ -367,6 +378,18 @@
       "propertyNames": {"$ref": "#/$defs/field_id"},
       "additionalProperties": {"$ref": "#/$defs/scalar"}
     },
+    "payload_values": {
+      "description": "The values of the fields of the payload of a transit, filled in its dialog: a scalar; a file of `e2e/fixtures/` that the dialog uploads into a field `type: file`, the list of its files with `many: true`.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/field_id"},
+      "additionalProperties": {
+        "anyOf": [
+          {"$ref": "#/$defs/scalar"},
+          {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+        ]
+      }
+    },
     "form_values": {
       "description": "The values of the fields of a form: a scalar, or the labels of the related items of a to-many relationship (`many: true`), which replace those it has (`[]`: none).",
       "type": "object",
@@ -416,7 +439,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["where", "to"],
-          "properties": {"where": {"$ref": "#/$defs/values"}, "to": {"$ref": "#/$defs/status_id"}, "payload": {"$ref": "#/$defs/values"}}
+          "properties": {"where": {"$ref": "#/$defs/values"}, "to": {"$ref": "#/$defs/status_id"}, "payload": {"$ref": "#/$defs/payload_values"}}
         },
         "action": {"description": "Run an action of the current screen.", "$ref": "#/$defs/id"},
         "fill": {"description": "Fill fields of the open form.", "$ref": "#/$defs/form_values"},
@@ -429,7 +452,7 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["id"],
-            "properties": {"id": {"$ref": "#/$defs/status_id"}, "payload": {"$ref": "#/$defs/values"}}
+            "properties": {"id": {"$ref": "#/$defs/status_id"}, "payload": {"$ref": "#/$defs/payload_values"}}
           }
         },
         "as": {"description": "The next steps run in the session of this role: its test user logged in (`test_user`; none for an `anonymous` role) in a new browser context the first time, the same one again; its screens and its forms are its own. The first session is that of the role of the scenario.", "$ref": "#/$defs/id"},

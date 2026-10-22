@@ -24,7 +24,7 @@ import { LoaderCircle } from 'lucide-react';
 import { useRef, useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { useLanguage, type Params } from '@/bazis/i18n';
-import { customActionAt, useAnyAction, useAnyActionFile, useUploads } from '@/bazis/ui/resource';
+import { customActionAt, useAnyAction, useAnyActionFile, useUploads, type FieldFilters } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 
@@ -40,6 +40,8 @@ export interface ActionFormProps {
   fields: readonly string[];
   /** The labels of the fields by property, before the titles of the contract. */
   labels?: Readonly<Record<string, string>> | undefined;
+  /** The items that the pickers of its relationships offer, by property (`filters` of the specs). */
+  filters?: FieldFilters | undefined;
   /**
    * The values that the fields start with by property, over the defaults of the body: a day
    * of the browser (`today`, `month_start`, ...) for a date, computed when the form opens.
@@ -78,7 +80,7 @@ function answerOf(response: unknown): Params {
  * The form of a custom action of the route set of `path` (`POST <path><action>/`). The
  * contract must have it (the check of the specs, S032).
  */
-export function ActionForm({ path, action, fields, labels, values: startValues, submitLabel, result, then, onDone }: ActionFormProps) {
+export function ActionForm({ path, action, fields, labels, filters, values: startValues, submitLabel, result, then, onDone }: ActionFormProps) {
   const { t } = useLanguage();
   const answersJson = useAnyAction(path, action);
   const answersFile = useAnyActionFile(path, action);
@@ -153,6 +155,7 @@ export function ActionForm({ path, action, fields, labels, values: startValues, 
         body={body}
         names={fields}
         labels={labels}
+        filters={filters}
         values={values}
         errors={mutation.errors}
         disabled={mutation.isPending}

@@ -18,9 +18,14 @@ from django.utils.translation import gettext_lazy as _
 
 from pydantic import BaseModel, Field
 
+from bazis.contrib.uploadable.schemas import UploadedFileId
+
 
 class FinishPayload(BaseModel):
     report: str
+    # the photos of the work, uploaded in the dialog of the transit (`type: file, many: true` of
+    # the payload in the specs): the ids that the uploads of the user answered
+    photos: list[UploadedFileId] = Field([], title=_('Photos'))
 
 
 class ReopenPayload(BaseModel):

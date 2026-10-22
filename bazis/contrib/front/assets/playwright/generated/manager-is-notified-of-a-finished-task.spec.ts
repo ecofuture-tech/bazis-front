@@ -29,8 +29,8 @@ test('manager-is-notified-of-a-finished-task', async ({ page }) => {
   await test.step('transit: start', async () => {
     await app.transit('start');
   });
-  await test.step('transit: {id: finish, payload: {report: Done}}', async () => {
-    await app.transit('finish', { report: 'Done' });
+  await test.step('transit: {id: finish, payload: {report: Done, photos: [photo.png]}}', async () => {
+    await app.transit('finish', { report: 'Done' }, { photos: ['photo.png'] });
   });
   await test.step('expect: {status: done, notification: Notify the assignee}', async () => {
     await app.expectStatus('done');

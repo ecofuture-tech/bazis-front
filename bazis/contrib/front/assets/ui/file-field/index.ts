@@ -14,3 +14,4 @@
 
 export { accepts, ANONYMOUS_ACCEPT, FileField, FileFieldProvider, FilesField, MAX_SIZE } from './file-field.js';
 export type { FileFieldOptions, FileFieldProps, FilesFieldProps } from './file-field.js';
+export { fitImage } from './fit-image.js';

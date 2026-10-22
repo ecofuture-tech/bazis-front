@@ -191,8 +191,9 @@ def test_a_link_of_the_navigation_is_labelled_by_its_label_else_by_the_title_of_
 
 def test_the_transits_in_their_order_and_the_values_of_the_add_of_a_calendar(tmp_path):
     """
-    The transits of a workflow in the order of the specs, those confirmed marked (the
-    entities give them to the transits of a card and the moves of a board); the add of a
+    The transits of a workflow in the order of the specs, those confirmed marked, with the
+    filters of the pickers of their payloads (the entities give them to the transits of a card
+    and the moves of a board); the add of a
     calendar with its time, the duration to its end and the fields that the filters of the
     user start.
     """
@@ -208,7 +209,10 @@ def test_the_transits_in_their_order_and_the_values_of_the_add_of_a_calendar(tmp
         data['calendar'].update(end='ends'), data['calendar']['add'].update(fields=['title', 'due', 'ends'], duration=45),
     ])
     files = rendered(tmp_path)
-    assert "transits: [{ id: 'reopen' }, { id: 'finish' }, { id: 'start', confirm: true }]," in files[f'{screens.GENERATED_DIR}/entities.ts']
+    assert (
+        "    transits: [\n      { id: 'reopen', filters: { assignee: Filter.where('is_active', true) } },\n"
+        "      { id: 'finish' },\n      { id: 'start', confirm: true },\n    ],\n"
+    ) in files[f'{screens.GENERATED_DIR}/entities.ts']
     assert 'transits={TASK.transits}' in files[CARD]
     assert 'transits={TASK.transits}' in files[f'{screens.GENERATED_DIR}/task-board.tsx']
     calendar = files[f'{screens.GENERATED_DIR}/task-calendar.tsx']
@@ -268,7 +272,8 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     own icon, the aggregates of a tile and of a chart; forms that show a screen without an item after them, whose code takes no saved
     item; the form of a custom action without a result, then a list, linked once the backend
     lists its action; a plain card, whose code uses no navigation, no translation and no item (the lint of
-    the frontend job refuses them unused).
+    the frontend job refuses them unused); the filters of the pickers of a form as a page, of a custom
+    action and of the form of one.
     """
     kitchen_sink(tmp_path)
 
@@ -286,7 +291,12 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     edit_screen(tmp_path, 'task-flow', lambda data: data['board']['card'].update(badge='urgent'))
     edit_screen(tmp_path, 'user-schedule', lambda data: data['calendar'].update(tone={'field': 'urgent', 'tone': 'danger'}))
     edit_product(tmp_path, lambda data: data['navigation'].append({'screen': 'task-suggestion'}))
+    # the filters of the pickers of a custom action and of the form of one (a property of each)
+    edit_screen(tmp_path, 'task-card', lambda data: data['actions'][-1].update(filters={'assignee': {'is_active': True}}))
+    edit_screen(tmp_path, 'task-suggestion', lambda data: data['form'].update(filters={'reviewer': {'is_staff': False}}))
     files = rendered(tmp_path)
+    card = files[f'{screens.GENERATED_DIR}/task-card.tsx']
+    assert "    fields: ['priority'],\n    filters: { assignee: Filter.where('is_active', true) },\n" in card
     places = files[f'{screens.GENERATED_DIR}/task-places.tsx']
     assert '        {...createForm}\n' in places
     assert "        filters={[{ field: 'status', options: statusOptions(TASK.type, language) }]}\n" in places
@@ -336,6 +346,8 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     # the forms as pages: a create, then the card of the item; an update of the item of the route
     new = files[f'{screens.GENERATED_DIR}/task-new.tsx']
     assert "onSaved: (saved) => void navigate(routeTo('task-card', saved.data.id))," in new
+    # the picker of the assignee among the active users who are not staff
+    assert "filters: { assignee: Filter.and(Filter.where('is_active', true), Filter.where('is_staff', false)) }," in new
     edit = files[f'{screens.GENERATED_DIR}/task-edit.tsx']
     assert "  const { id = '' } = useParams();\n" in edit
     assert '      <ResourceForm\n        path={TASK.path}\n        id={id}\n' in edit
@@ -343,6 +355,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     # the form of a custom action without a result: the list of the tasks once it is done
     suggestion = files[f'{screens.GENERATED_DIR}/task-suggestion.tsx']
     assert "            action: 'suggest',\n            fields: ['title', 'photos'],\n" in suggestion
+    assert "            filters: { reviewer: Filter.where('is_staff', false) },\n" in suggestion
     assert "            labels: { title: t('screens.task-suggestion.form.labels.title') },\n" in suggestion
     assert "            submitLabel: t('screens.task-suggestion.form.submit'),\n" in suggestion
     assert "            onDone: () => void navigate(routeTo('task-list')),\n" in suggestion

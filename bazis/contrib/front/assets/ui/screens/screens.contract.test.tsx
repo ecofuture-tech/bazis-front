@@ -30,8 +30,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
 import type * as Contract from '@/bazis/generated/contract';
 
 import { AppShell, Screen } from '@/bazis/ui/app-shell';
@@ -149,6 +150,20 @@ vi.mock('@/bazis/ui/state-panel', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/bazis/ui/state-panel')>()),
   toast: vi.fn(),
 }));
+
+// the popover of a picker is positioned with ResizeObserver and scrolls its active option into
+// view, which jsdom does not have
+beforeAll(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 const ITEM = `${ITEMS}${ITEM_ID}/`;
 
@@ -606,6 +621,7 @@ describe('useCustomAction', () => {
         target: 'route',
         fields: ['priority', 'title', 'owner'],
         labels: { title: 'What to do' },
+        filters: { owner: Filter.where('is_active', true) },
       });
       return (
         <>
@@ -621,6 +637,12 @@ describe('useCustomAction', () => {
     expect(screen.getByTestId('field:owner').tagName).toBe('BUTTON');
     // a property that the body does not have is not asked for
     expect(screen.queryByTestId('field:priority')).toBeNull();
+    // its picker offers the items of its filter
+    fireEvent.click(screen.getByTestId('field:owner'));
+    await screen.findByRole('listbox');
+    await waitFor(() => {
+      expect(backend.requests('GET')).toContain('GET /api/test/owner/?filter=is_active%3Dtrue&page%5Blimit%5D=20');
+    });
   });
 
   it('keeps its dialog open with the errors of its fields', async () => {
@@ -829,6 +851,14 @@ function fileControls() {
 }
 
 describe('ActionForm', () => {
+  it('offers the items of its filters in the pickers of its relationships', async () => {
+    const backend = new Backend().on('GET', '/api/test/owner/', listDocument([resource('a1', { name: 'Ann' }, {}, 'test.owner')]));
+    renderWithBazis(<Suggesting filters={{ watchers: Filter.where('is_staff', false) }} />, backend);
+    fireEvent.click(await screen.findByTestId('field:watchers'));
+    await within(await screen.findByRole('listbox')).findByText('Ann');
+    expect(backend.requests('GET')).toEqual(['GET /api/test/owner/?filter=is_staff%3Dfalse&page%5Blimit%5D=20']);
+  });
+
   it('asks for the ids of the uploaded files with the file fields, waits for their uploads and sends them once', async () => {
     const backend = new Backend().on('POST', SUGGESTED, { task: 't-1' });
     const files = fileControls();

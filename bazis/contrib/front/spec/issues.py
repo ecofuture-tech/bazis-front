@@ -138,6 +138,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S058': (WARNING, 'a property of the body of a custom action (a field of its dialog or of the form of the action) has choices without their labels (`enum` without `enumDict`, a `Literal` or a core before 2.21): the form offers them by their values'),
     'S059': (ERROR, 'a section of a card shown by the status of its item (`when`) names a status that is not of the workflow of the entity, or the entity has no workflow'),
     'S060': (ERROR, 'a value that a field of a custom action starts with (`values` of its dialog or its form) is not of its fields, or not of the type of its property (a day of the browser for a property that is not a date, a time for a date, a value out of its choices)'),
+    'S061': (ERROR, 'the filter of the picker of a relationship (`filter` of a field of a payload, `filters` of a form) is not of a picker that the form asks for, or a key of it is not a field (or a path through the relationships: `roles__slug`) of the related resource that the contract can filter by (the related resource of the path has no route set in the contract), or its value is not of the type of the field'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

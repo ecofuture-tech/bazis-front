@@ -25,7 +25,16 @@ import { type ReactNode, type SubmitEvent } from 'react';
 import { ApiError, type ErrorObject } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
 import { useErrorMessage, type CreatePath, type FixedValues, type ResourceForm as Form, type UpdatePath } from '@/bazis/react';
-import { contractFormat, FieldInput, fieldTitle, isReverse, useAnyResourceForm, useUploads, type SavedDocument } from '@/bazis/ui/resource';
+import {
+  contractFormat,
+  FieldInput,
+  fieldTitle,
+  isReverse,
+  useAnyResourceForm,
+  useUploads,
+  type FieldFilters,
+  type SavedDocument,
+} from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,6 +66,8 @@ export type ResourceFormProps = (
    * sent with the form; a fixed field is shown read-only when `fields` names it, else not.
    */
   fixed?: FixedValues;
+  /** The items that the pickers of its relationships offer, by field: those that match (`filters` of the specs). */
+  filters?: FieldFilters | undefined;
   /** Called with the saved document. */
   onSaved?: (saved: SavedDocument) => void;
   /** Shows a cancel button (`action:cancel`); the changes are dropped. */
@@ -130,6 +141,7 @@ export function ResourceFormBody({
   id,
   fields,
   fixed,
+  filters,
   initial,
   onSaved,
   onCancel,
@@ -195,6 +207,7 @@ export function ResourceFormBody({
           key={field.name}
           path={path}
           field={field}
+          filter={filters?.[field.name]}
           value={form.values[field.name]}
           errors={form.errors[field.name]}
           disabled={form.isSubmitting}

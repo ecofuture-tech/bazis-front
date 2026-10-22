@@ -18,6 +18,7 @@
 
 import { useCallback, useId, useState } from 'react';
 
+import type { Filter } from '@/bazis/client';
 import { choiceLabel, type AttributeField, type FormField } from '@/bazis/react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,7 +49,12 @@ export interface FieldInputProps {
   onBusy?: (busy: boolean) => void;
   /** The route set of the resource of the field: a point field of it (`PointsProvider`, the contract) is edited as a point. */
   path?: string | undefined;
+  /** The items that the picker of a relationship offers: those of the related resource that match it (`filters` of the specs). */
+  filter?: Filter | undefined;
 }
+
+/** The filters of the pickers of the relationships of a form by their fields (`filters` of the specs). */
+export type FieldFilters = Readonly<Record<string, Filter>>;
 
 const TEXTAREA =
   'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none ' +
@@ -261,6 +267,7 @@ export function FieldInput({
   disabled = false,
   onBusy = noBusy,
   path,
+  filter,
 }: FieldInputProps) {
   const id = useId();
   const files = useFiles();
@@ -318,6 +325,7 @@ export function FieldInput({
           <RelationListPicker
             {...control}
             relation={field.relation}
+            filter={filter}
             label={field.title}
             value={Array.isArray(value) ? value.map(text) : []}
             disabled={disabled || field.readOnly}
@@ -328,6 +336,7 @@ export function FieldInput({
           <RelationPicker
             {...control}
             relation={field.relation}
+            filter={filter}
             label={field.title}
             value={typeof value === 'string' && value ? value : null}
             nullable={field.nullable}

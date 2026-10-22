@@ -54,6 +54,9 @@ export type Values = Readonly<Record<string, string | number | boolean | null>>;
  */
 export type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>;
 
+/** The files that a dialog uploads by field: a file of `e2e/fixtures/`, a list of them for several. */
+export type Files = Readonly<Record<string, string | readonly string[]>>;
+
 /** The states that the screens render (`state:<state>`). */
 export type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid' | 'done';
 
@@ -234,11 +237,24 @@ export class App<P extends Product = Product> {
   /**
    * Moves the item of the board of the current screen that `openItem` would open to the
    * column of a status, by its menu (`action:move`, then `move:<status>`), with the values of
-   * the payload of its transit in its dialog (as `transit`), or confirmed in its dialog when the
-   * specs confirm the transit, and waits until it is in the column `column:<status>`; fails as
-   * soon as the move is refused (`error:move`, or another error shown), with the error.
+   * the payload of its transit in its dialog and its files (as `transit`), or confirmed in its
+   * dialog when the specs confirm the transit, and waits until it is in the column
+   * `column:<status>`; fails as soon as the move is refused (`error:move`, or another error
+   * shown), with the error.
    */
-  async move({ where, to, payload, created = false }: { where: Values; to: string; payload?: Values; created?: boolean }): Promise<void> {
+  async move({
+    where,
+    to,
+    payload,
+    files = {},
+    created = false,
+  }: {
+    where: Values;
+    to: string;
+    payload?: Values;
+    files?: Files;
+    created?: boolean;
+  }): Promise<void> {
     const row = await this.row(where, { created });
     const mark = (await row.getAttribute('data-bz')) ?? '';
     await this.seen(this.page.locator('body'));
@@ -247,6 +263,7 @@ export class App<P extends Product = Product> {
     const moved = this.screen().locator(`${bz('column', to)} [data-bz=${JSON.stringify(mark)}]`);
     const failed = this.page.locator(NEW_FAILED);
     if (payload !== undefined) {
+      await this.uploadAll(files);
       await this.fill(payload);
       await this.submit();
     } else {
@@ -418,6 +435,13 @@ export class App<P extends Product = Product> {
       .toBe(true);
   }
 
+  /** Uploads the files of the fields of the open form (`upload`), one after the other. */
+  private async uploadAll(files: Files): Promise<void> {
+    for (const [field, value] of Object.entries(files)) {
+      for (const file of typeof value === 'string' ? [value] : value) await this.upload(field, file);
+    }
+  }
+
   /**
    * Submits the open form and waits until it is closed (saved) or shows an error of this
    * submit (not one of a previous submit), which the next step expects (`expectError`,
@@ -439,15 +463,18 @@ export class App<P extends Product = Product> {
 
   /**
    * Runs a transit of the item of the current screen, `transit:<id>`, with the values of
-   * its payload in its dialog, or confirmed in its dialog when the specs confirm it, and
-   * waits until it is done (the transit is no longer offered) or shows an error.
+   * its payload in its dialog and the files that it uploads into its file fields (a file of
+   * `e2e/fixtures/`, a list of them for several, as `upload`), or confirmed in its dialog when
+   * the specs confirm it, and waits until it is done (the transit is no longer offered) or
+   * shows an error.
    */
-  async transit(id: string, payload?: Values): Promise<void> {
+  async transit(id: string, payload?: Values, files: Files = {}): Promise<void> {
     const button = this.screen().locator(bz('transit', id));
     const failed = this.page.locator(NEW_FAILED);
     await this.seen(this.page.locator('body'));
     await button.click();
     if (payload !== undefined) {
+      await this.uploadAll(files);
       await this.fill(payload);
       await this.submit();
     } else {

@@ -19,7 +19,7 @@
 // field; another is the attribute of the body (a decimal typed as such).
 
 import { objectFields, type JsonSchema } from '@/bazis/react';
-import { FieldInput, relatedField, type Fields } from '@/bazis/ui/resource';
+import { FieldInput, relatedField, type FieldFilters, type Fields } from '@/bazis/ui/resource';
 
 /** The values of the specs that the fields of an action start with (`values`), by property. */
 export type StartValues = Readonly<Record<string, string | number | boolean>>;
@@ -74,6 +74,8 @@ export interface ActionFieldsProps {
   names: readonly string[];
   /** The labels of the specs by property (`labels` of the action), before any other title. */
   labels?: Readonly<Record<string, string>> | undefined;
+  /** The items that the pickers of its relationships offer, by property (`filters` of the action). */
+  filters?: FieldFilters | undefined;
   /**
    * The fields of a runtime schema of the route set that a screen has read (the list of a
    * dialog): the titles and the labels of the choices of the properties named as its fields,
@@ -89,7 +91,7 @@ export interface ActionFieldsProps {
 }
 
 /** The fields of the properties of the body of a custom action that a dialog or a form asks for. */
-export function ActionFields({ path, body, names, labels, resource, values, errors, disabled, onChange, onBusy }: ActionFieldsProps) {
+export function ActionFields({ path, body, names, labels, filters, resource, values, errors, disabled, onChange, onBusy }: ActionFieldsProps) {
   const properties = objectFields(body);
   return names.map((name) => {
     const property = properties.find((it) => it.name === name);
@@ -98,6 +100,7 @@ export function ActionFields({ path, body, names, labels, resource, values, erro
       <FieldInput
         key={name}
         field={relatedField(path, property, labels?.[name], resource)}
+        filter={filters?.[name]}
         value={values[name]}
         errors={errors[name]}
         disabled={disabled}

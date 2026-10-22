@@ -49,14 +49,17 @@ entities:
       - {id: watchers, relation: user, many: true}   # a to-many relationship: chosen in the forms
       - {id: due, type: datetime}        # the calendar of the tasks, whose add takes its time
       - {id: hours, type: string, display: {unit: h}}   # a decimal: summed by the tile and the chart of the home
+      - {id: photos, type: file, many: true}   # several files: a many-to-many field to the uploaded files
     workflow:
       initial: draft
       statuses: [draft, in_progress, done]
       transitions:
         - {id: start, from: draft, to: in_progress}
-        - {id: finish, from: in_progress, to: done, payload: {fields: [{id: report, type: text}]}}
-        # the payload is the id of a user: its picker, as the relationship `assignee` of the task
-        - {id: reopen, from: done, to: in_progress, payload: {fields: [{id: assignee, relation: user}]}}
+        # the payload is the report and the photos of the work, uploaded in its dialog
+        - {id: finish, from: in_progress, to: done, payload: {fields: [{id: report, type: text}, {id: photos, type: file, many: true}]}}
+        # the payload is the id of a user: its picker, as the relationship `assignee` of the task, of
+        # the active users (`filter`; through a relationship, the users of a role: `roles__slug: manager`)
+        - {id: reopen, from: done, to: in_progress, payload: {fields: [{id: assignee, relation: user, filter: {is_active: true}}]}}
     access:
       manager:
         view: all
@@ -175,7 +178,8 @@ scenarios:
       - submit: {}
       - expect: {screen: task-card, status: draft}
       - transit: start
-      - transit: {id: finish, payload: {report: Done}}
+      # its photo uploaded in the dialog of the transit (`e2e/fixtures/photo.png` of the template)
+      - transit: {id: finish, payload: {report: Done, photos: [photo.png]}}
       - expect: {status: done, notification: Notify the assignee}
   - id: viewer-reads-the-drafts
     role: viewer

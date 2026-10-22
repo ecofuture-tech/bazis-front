@@ -250,7 +250,7 @@ CASES = [
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/3/id'), ('P003', f'{PRODUCT}#/entities/0/fields/10/id')],
+        [('P003', f'{PRODUCT}#/roles/3/id'), ('P003', f'{PRODUCT}#/entities/0/fields/11/id')],
     ),
     (
         'P004',
@@ -287,7 +287,7 @@ CASES = [
     (
         'P012',
         {PRODUCT: lambda d: task(d)['fields'].append({'id': 'due_date', 'type': 'date'})},
-        [('P012', f'{PRODUCT}#/entities/0/fields/10')],
+        [('P012', f'{PRODUCT}#/entities/0/fields/11')],
     ),
     (
         'P013',
@@ -317,6 +317,14 @@ CASES = [
             ('P022', f'{PRODUCT}#/scenarios/5/steps/5/upload/field'),
         ],
     ),
+    (
+        'P013',
+        # several files are a to-many relationship to the uploaded files, one file a to-one one
+        {PRODUCT: lambda d: [task(d)['fields'][10].pop('many'), task(d)['fields'][4].update(many=True)]},
+        [('P013', f'{PRODUCT}#/entities/0/fields/4'), ('P013', f'{PRODUCT}#/entities/0/fields/10')],
+    ),
+    # `many` is of a relationship or of files only
+    ('P002', {PRODUCT: lambda d: task(d)['fields'][0].update(many=True)}, [('P002', f'{PRODUCT}#/entities/0/fields/0/type')]),
     (
         'P014',
         {CONTRACT: remove_statusy_model},
@@ -362,6 +370,7 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/4/steps/13/transit'),
             ('P024', f'{PRODUCT}#/scenarios/6/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/report'),
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/photos'),
             ('P024', f'{PRODUCT}#/scenarios/9/steps/9/transit'),
             # the board moves a task to in_progress, which only `start` leads to, and to done
             # with the payload of `finish`, which now has none
@@ -377,6 +386,28 @@ CASES = [
         'P017',
         {PRODUCT: lambda d: reopen(d).update(relation='step')},
         [('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')],
+    ),
+    (
+        'P017',
+        # a file of a payload is the id of an uploaded file, several their list (`many`)
+        {PRODUCT: lambda d: [task(d)['workflow']['transitions'][1]['payload']['fields'][0].update(type='file'),
+                             task(d)['workflow']['transitions'][1]['payload']['fields'][1].pop('many')]},
+        [
+            ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/0/type'),
+            ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/1/type'),
+            # and the scenarios: a text of the photos, a list of them
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/photos'),
+        ],
+    ),
+    (
+        'P017',
+        # the ids of uploaded files of a payload are a file field, not a JSON one (no S054)
+        {PRODUCT: lambda d: task(d)['workflow']['transitions'][1]['payload']['fields'].__setitem__(
+            1, {'id': 'photos', 'type': 'json'})},
+        [
+            ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/1/type'),
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/photos'),
+        ],
     ),
     (
         'P017',
@@ -486,6 +517,17 @@ CASES = [
         [
             ('P024', f'{PRODUCT}#/scenarios/0/steps/4/expect/status'),
             ('P024', f'{PRODUCT}#/scenarios/0/steps/5/transit'),
+        ],
+    ),
+    (
+        'P024',
+        # the photos of a payload are a list of files; a text is one value; a file of a move
+        {PRODUCT: lambda d: [steps(d, 6)[6]['transit']['payload'].update(photos='photo.png'),
+                             steps(d, 22)[6]['transit']['payload'].update(report=['Done']),
+                             steps(d, 13)[10]['move']['payload'].update(photos=['photo.png'])]},
+        [
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/photos'),
+            ('P024', f'{PRODUCT}#/scenarios/22/steps/6/transit/payload/report'),
         ],
     ),
     (
@@ -800,6 +842,31 @@ CASES = [
         {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=[])},
         [
             ('S012', f'{DRAFTS}#/list/filters/0'),
+            ('S012', f'{BOARD}#/board/filters/0'),
+            ('S012', f'{CALENDAR}#/calendar/filters/0'),
+            ('S012', f'{CARD}#/card/sections/0/fields/2'),
+            ('S012', f'{CARD}#/card/sections/0/fields/3'),
+            ('S012', f'{LIST}#/list/filters/1'),
+            ('S012', f'{LIST}#/actions/0/fields/1'),
+            ('S012', f'{LIST}#/actions/0/fields/3'),
+        ],
+    ),
+    (
+        'S012',
+        # the filters of the pickers of a form are not filters of the user with pickers of their
+        # own (a filter of the files, a relationship of the task, is S061 only): the users and the
+        # uploaded files without a search report the pickers alone
+        {CONTRACT: lambda d: [
+            d['project']['resources']['users.user'].update(search=[]),
+            d['project']['resources']['uploadable.file_upload'].update(search=[]),
+            d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body']['properties'].update(
+                reviewer={'type': 'string', 'x-relation': 'users.user'})],
+         SUGGEST: lambda d: [d['form']['fields'].append('reviewer'), d['form'].update(filters={
+            'reviewer': {'is_staff': False}, 'photos': {'is_active': True}})]},
+        [
+            ('S012', f'{DRAFTS}#/list/filters/0'),
+            ('S012', f'{SUGGEST}#/form/fields/2'),
+            ('S061', f'{SUGGEST}#/form/filters/photos'),
             ('S012', f'{BOARD}#/board/filters/0'),
             ('S012', f'{CALENDAR}#/calendar/filters/0'),
             ('S012', f'{CARD}#/card/sections/0/fields/2'),
@@ -1284,6 +1351,18 @@ CASES = [
     ),
     (
         'S040',
+        # the filters of the pickers of a form are not those of the user: the form reads no
+        # fields of the filters
+        {CONTRACT: lambda d: [
+            d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields'),
+            d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body']['properties'].update(
+                reviewer={'type': 'string', 'x-relation': 'users.user'})],
+         SUGGEST: lambda d: [d['form']['fields'].append('reviewer'), d['form'].update(filters={'reviewer': {'is_staff': False}})]},
+        [('S040', f'{DRAFTS}#/list/filters'), ('S040', f'{DRAFTS}#/list/filter'),
+         ('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters')],
+    ),
+    (
+        'S040',
         # a report that the navigation does not link reads no filters of its link: only the
         # filters of the board and of the list are reported
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')],
@@ -1611,6 +1690,54 @@ CASES = [
         {EXPORT: lambda d: d['form']['values'].update(created_from='2026-02-01'),
          CARD: lambda d: d['actions'][1].update(values={'priority': 'high'})},
         [],
+    ),
+    (
+        'S061',
+        # the roles of the users are filtered by their slug through the route set of the roles,
+        # which the sample does not register
+        {PRODUCT: lambda d: reopen(d).update(filter={'roles__slug': 'manager'})},
+        [('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/roles__slug')],
+    ),
+    (
+        'S061',
+        # with the route set of the roles: a slug is a text; a field that is not a relationship,
+        # one that the contract does not filter by, one that it does not have
+        {CONTRACT: lambda d: d['project']['resources'].update({'permit.role': {
+            **d['project']['resources']['users.user'], 'fields': {'slug': {'filter': 'slug', 'type': 'string'}}}}),
+         PRODUCT: lambda d: reopen(d).update(filter={
+            'roles__slug': 'manager', 'role_current__slug': 3, 'username__slug': 'a', 'raw_password': 'a',
+            'nickname': 'a'})},
+        [
+            ('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/role_current__slug'),
+            ('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/username__slug'),
+            ('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/raw_password'),
+            ('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/nickname'),
+        ],
+    ),
+    (
+        'S061',
+        # the filters of a form: of its pickers only (not of a text, of a field it does not ask
+        # for, of the files of a custom action), each value of the type of its field
+        {LIST: lambda d: d['actions'][0].update(filters={
+            'assignee': {'is_active': 'yes'}, 'title': {'is_active': True}, 'attachment': {'is_active': True}}),
+         CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(reviewer={'type': 'string', 'x-relation': 'users.user'}),
+         SUGGEST: lambda d: [d['form']['fields'].append('reviewer'), d['form'].update(filters={
+            'reviewer': {'is_staff': False}, 'photos': {'is_active': True}})]},
+        [
+            ('S061', f'{SUGGEST}#/form/filters/photos'),
+            ('S061', f'{LIST}#/actions/0/filters/assignee/is_active'),
+            ('S061', f'{LIST}#/actions/0/filters/title'),
+            ('S061', f'{LIST}#/actions/0/filters/attachment'),
+        ],
+    ),
+    (
+        'S061',
+        # the filters of a form are not queries of its items: a point, a field that the contract
+        # does not filter by are filters of no picker (S061), not filters of the user (S016, S008)
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['report'].pop('filter')],
+         SUGGEST: lambda d: d['form'].update(filters={'location': {'is_active': True}, 'report': {'is_active': True}})},
+        [('S061', f'{SUGGEST}#/form/filters/location'), ('S061', f'{SUGGEST}#/form/filters/report')],
     ),
     (
         'P022',
@@ -2449,7 +2576,7 @@ def test_the_hints_of_a_move_and_of_an_absent_action(contract):
     assert set(found) == {'/scenarios/13/steps/10/move/to', '/scenarios/1/steps/1/expect/action_absent'}
     move = found['/scenarios/13/steps/10/move/to']
     assert (move.code, move.message) == ('P024', 'No transition without a payload leads to `done`.')
-    assert move.hint == 'Give the payload of its dialog: {where: ..., to: done, payload: {...}} with report.'
+    assert move.hint == 'Give the payload of its dialog: {where: ..., to: done, payload: {...}} with photos, report.'
     absent = found['/scenarios/1/steps/1/expect/action_absent']
     assert (absent.code, absent.message) == ('P022', 'The screen has no action `edit`: it is always absent.')
     assert '`transit_absent: <id>`' in absent.hint and '`field_readonly`' in absent.hint
@@ -2644,15 +2771,18 @@ def test_a_payload_field_of_a_relation(contract):
     """
     The id of an item in a payload (`relation`, the transit `reopen` of the sample), also
     nullable; `type: string` stays valid for it (its dialog has the picker of the relationship
-    of the same name anyway); a field has a `type` or a `relation`, never both; a to-many
-    relationship of the same name is not the id of one item.
+    of the same name anyway); a field has a `type` or a `relation`, never both, the filter of
+    its picker only with `relation`; a to-many relationship of the same name is not the id of
+    one item.
     """
     root = contract.parent.parent
-    assert reopen(read(root / PRODUCT)) == {'id': 'assignee', 'relation': 'user'}
+    assert reopen(read(root / PRODUCT)) == {'id': 'assignee', 'relation': 'user', 'filter': {'is_active': True}}
     edit(root, CONTRACT, lambda d: reopen_payload(d)['properties'].update(
         assignee={'anyOf': [{'type': 'string', 'format': 'uuid'}, {'type': 'null'}], 'title': 'Assignee'}))
     assert issues(root) == []
     edit(root, PRODUCT, lambda d: [reopen(d).pop('relation'), reopen(d).update(type='string')])
+    assert issues(root) == [('P002', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')]
+    edit(root, PRODUCT, lambda d: [reopen(d).pop('filter')])
     assert issues(root) == []
     edit(root, PRODUCT, lambda d: reopen(d).update(relation='user'))
     assert issues(root) == [('P002', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')]

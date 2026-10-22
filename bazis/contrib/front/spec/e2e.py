@@ -85,6 +85,8 @@ def literal(value, remembered: bool = False) -> str:
     the objects `where` and `payload` of any object (`open_item`, `select`, `move`).
     """
     if isinstance(value, dict):
+        if not value:
+            return '{}'
         return '{ ' + ', '.join(
             f'{key}: {f"${variable(item)}" if remembered and variable(item) else literal(item, key in ("where", "payload"))}'
             for key, item in value.items()
@@ -109,6 +111,13 @@ def flow(value) -> str:
     return json.dumps(value)
 
 
+def uploaded(payload: dict | None, files: tuple[str, ...]) -> tuple[dict | None, dict]:
+    """The values of a payload that its dialog fills, and the files that it uploads (`Step.files`)."""
+    if payload is None:
+        return None, {}
+    return {k: v for k, v in payload.items() if k not in files}, {k: v for k, v in payload.items() if k in files}
+
+
 def calls(step: Step, screens: bool = False, app: str = 'app') -> list[str]:
     """
     The calls of the helpers that run a step in the session of the variable `app`; with the
@@ -121,6 +130,9 @@ def calls(step: Step, screens: bool = False, app: str = 'app') -> list[str]:
         result.append(f'{app}.open({string(value)})')
     elif name in ('open_item', 'select', 'move'):
         helper = 'openItem' if name == 'open_item' else name
+        if step.files:
+            payload, files = uploaded(value['payload'], step.files)
+            value = {**value, 'payload': payload, 'files': files}
         # the item that the test created, never one of a previous run with the same texts
         result.append(f'{app}.{helper}({literal({**value, "created": True} if step.created else value)})')
     elif name in ('action', 'bulk'):
@@ -137,8 +149,10 @@ def calls(step: Step, screens: bool = False, app: str = 'app') -> list[str]:
         result.append(f'{app}.submit()' if step.failing else f'{app}.submit({{ saved: true }})')
     elif name == 'transit':
         transit = {'id': value} if isinstance(value, str) else value
-        payload = f', {literal(transit["payload"], True)}' if 'payload' in transit else ''
-        result.append(f'{app}.transit({string(transit["id"])}{payload})')
+        payload, files = uploaded(transit.get('payload'), step.files)
+        arguments = f', {literal(payload, True)}' if payload is not None else ''
+        arguments += f', {literal(files)}' if files else ''
+        result.append(f'{app}.transit({string(transit["id"])}{arguments})')
     elif name == 'expect':
         for key, helper in EXPECT:
             if key in EXPECT_ENTRIES:

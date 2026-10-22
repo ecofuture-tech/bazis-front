@@ -99,6 +99,9 @@ class Step:
     #: a `remember`: the names of its values that a next step takes (`$<name>`), the constants
     #: that its test declares; it reads the others without keeping them
     taken: tuple[str, ...] = ()
+    #: a `transit` or a `move`: the fields of its payload that are files (`type: file`), which
+    #: its dialog uploads; the others are filled
+    files: tuple[str, ...] = ()
 
 
 #: the states of a screen that a submit which does not save shows
@@ -240,9 +243,9 @@ class _Scenario:
         self.scenario, self.path, self.issues = scenario, path, issues
         # what the current step implies (`Step`), whether it is a refused submit, whether
         # the step before was one, whether its action is confirmed and whether it finds an
-        # item that the scenario created
+        # item that the scenario created, the files of its payload
         self.edit, self.then, self.failing, self.refused, self.confirm = False, None, False, False, None
-        self.created = False
+        self.created, self.files = False, ()
         # the items that the scenario creates; the item of the current card (one of them,
         # OTHER, or None when no item is known); the steps that find an item it did not create
         # (P034: their path, the entity and `where`); whether a step could not be followed
@@ -289,9 +292,10 @@ class _Scenario:
             (name, value), = step.items()
             self.edit, self.then, self.refused, self.confirm = False, None, self.failing, None
             self.failing, self.created = name == 'submit' and fails(self.scenario['steps'], i), False
+            self.files = ()
             getattr(self, f'step_{name}')((*self.path, 'steps', i, name), value)
             self.lost = self.lost or not self.state.known
-            steps.append(Step(name, value, self.edit, self.then, self.failing, self.confirm, self.created))
+            steps.append(Step(name, value, self.edit, self.then, self.failing, self.confirm, self.created, files=self.files))
         return [
             replace(it, taken=tuple(name for name in it.value if name in self.taken)) if it.name == 'remember' else it
             for it in steps
@@ -622,26 +626,41 @@ class _Scenario:
             self.payload_fields(
                 path, ' or '.join(f'`{it["id"]}`' for it in asking),
                 f'{{where: ..., to: {to}, payload: {{...}}}}',
-                {field['id'] for it in asking for field in it['payload']['fields']}, payload,
+                {field['id']: field for it in asking for field in it['payload']['fields']}, payload,
             )
         if made is not None and to in entity.workflow['statuses']:
             made.status = to
 
-    def payload_fields(self, path, transit: str, example: str, declared: set[str], payload: dict | None) -> None:
+    def payload_fields(self, path, transit: str, example: str, declared: dict[str, dict], payload: dict | None) -> None:
         """
         The payload of a step that runs a transition (`transit`, `move`) against the fields of the
-        payload of the transition (P024): given when it has some, and of them only.
+        payload of the transition (P024): given when it has some, and of them only; a file
+        (`type: file`) is a file of `e2e/fixtures/`, which its dialog uploads (`Step.files`),
+        several a list of them (`many`), and only they are lists.
         """
         if declared and not payload:
             self.add(
                 path, 'P024', f'The transition {transit} requires a payload.',
                 f'Give the payload: {example} with {", ".join(sorted(declared))}.',
             )
-        for name in payload or {}:
-            if name not in declared:
+        for name, value in (payload or {}).items():
+            field = declared.get(name)
+            if field is None:
                 self.add(
                     (*path, 'payload', name), 'P024', f'The payload of {transit} has no field `{name}`.',
                     'Use the fields of the payload of the transition.',
+                )
+                continue
+            file, many = field.get('type') == 'file', field.get('many', False)
+            if file:
+                self.files += (name,)
+            if isinstance(value, list) != (file and many):
+                self.add(
+                    (*path, 'payload', name), 'P024',
+                    f'The field `{name}` of the payload of {transit} takes '
+                    + ('a list of files.' if file and many else 'one value, not a list.'),
+                    f'Give the files of `e2e/fixtures/` that its dialog uploads: `{name}: [photo.png]`.' if file and many
+                    else 'A list gives the files of a field `type: file` with `many: true` only.',
                 )
 
     def actions(self) -> dict[str, dict]:
@@ -927,7 +946,7 @@ class _Scenario:
             return
         self.payload_fields(
             path, f'`{transit_id}`', f'{{id: {transit_id}, payload: {{...}}}}',
-            {it['id'] for it in transition.get('payload', {}).get('fields', [])}, payload,
+            {it['id']: it for it in transition.get('payload', {}).get('fields', [])}, payload,
         )
         self.reached(transition['to'])
 

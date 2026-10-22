@@ -18,8 +18,9 @@
 // while a file uploads. Keep it passing when the component is changed.
 
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
 import type * as Contract from '@/bazis/generated/contract';
 
 import { Screen } from '@/bazis/ui/app-shell';
@@ -34,6 +35,7 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   return {
     ...contract,
+    ROUTES: { ...contract.ROUTES, 'test.owner': '/api/test/owner/' },
     RESOURCES: {
       ...contract.RESOURCES,
       'test.item': {
@@ -47,6 +49,20 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
       },
     },
   };
+});
+
+// the popover of a picker is positioned with ResizeObserver and scrolls its active option into
+// view, which jsdom does not have
+beforeAll(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  Element.prototype.scrollIntoView = vi.fn();
 });
 
 const schema = runtimeSchema({
@@ -84,6 +100,16 @@ describe('ResourceForm', () => {
     });
     expect(backend.calls.find((call) => call.method === 'POST')?.body).toEqual({
       data: { type: 'test.item', attributes: { title: 'Report' }, relationships: {} },
+    });
+  });
+
+  it('offers the items of its filters in the pickers of its relationships', async () => {
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, runtimeSchema({ owner: { relation: 'test.owner' } }));
+    renderWithBazis(<ResourceForm path={ITEMS as never} filters={{ owner: Filter.where('is_active', true) }} />, backend);
+    fireEvent.click(await screen.findByTestId('field:owner'));
+    await screen.findByRole('listbox');
+    await waitFor(() => {
+      expect(backend.requests('GET')).toContain('GET /api/test/owner/?filter=is_active%3Dtrue&page%5Blimit%5D=20');
     });
   });
 

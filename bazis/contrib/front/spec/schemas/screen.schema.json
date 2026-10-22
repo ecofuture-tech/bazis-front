@@ -207,6 +207,7 @@
           "properties": {
             "mode": {"enum": ["create", "update"]},
             "fields": {"description": "The fields of the form; all the writable fields of its runtime schema when omitted.", "$ref": "#/$defs/fields"},
+            "filters": {"$ref": "#/$defs/filters"},
             "then": {"description": "The screen shown after a submit.", "$ref": "#/$defs/id"}
           }
         },
@@ -218,6 +219,7 @@
             "action": {"description": "The custom action of the route set of the entity (a POST, not of an item): its name in its path (`apply` of `/repairs/repair/apply/`), as `custom_actions` of the contract has it (S032).", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
             "fields": {"description": "The properties of its JSON body that the form asks for, in this order; each that the body requires among them (S032). A property named as a to-one relationship of the entity in the contract is the picker of its related item (an array named as a to-many one, of its items), its title that of the field of the entity in the contract.", "$ref": "#/$defs/fields"},
             "labels": {"$ref": "#/$defs/labels"},
+            "filters": {"$ref": "#/$defs/filters"},
             "values": {"$ref": "#/$defs/values"},
             "submit": {"description": "The label of its submit button: `Send` by default.", "$ref": "#/$defs/text"},
             "result": {
@@ -480,6 +482,13 @@
       "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
       "additionalProperties": {"type": ["string", "number", "boolean"]}
     },
+    "filters": {
+      "description": "The items that the pickers of the relationships of a form offer, by field (by property of the body of a custom action) among those it asks for: the items of the related resource that match the filter (S061), each of its keys a field or a path through the relationships (`roles__slug: master`) that the contract can filter by.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/field"},
+      "additionalProperties": {"$ref": "#/$defs/filter"}
+    },
     "tone": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]},
     "language": {
       "description": "A language code of Django: `en`, `ru`, `pt-br`.",
@@ -524,6 +533,7 @@
         "mode": {"enum": ["create", "update"]},
         "fields": {"description": "The fields of a form; of a custom action, the properties of its JSON body that its dialog asks for (none: an empty body), as the form of an action (`form.action`) shows them.", "$ref": "#/$defs/fields"},
         "labels": {"$ref": "#/$defs/labels"},
+        "filters": {"$ref": "#/$defs/filters"},
         "values": {"$ref": "#/$defs/values"},
         "action": {"description": "The custom action: its name in its path (`escalate` of `/tasks/task/{id}/escalate/`), as `custom_actions` of the contract has it.", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
         "confirm": {"description": "Whether a custom action without `fields` is confirmed in a dialog first (`action:confirm-<id>`).", "type": "boolean"},
@@ -540,7 +550,7 @@
         },
         {
           "if": {"properties": {"primitive": {"const": "destroy"}}},
-          "then": {"properties": {"mode": false, "fields": false}}
+          "then": {"properties": {"mode": false, "fields": false, "filters": false}}
         },
         {
           "if": {"properties": {"primitive": {"const": "custom"}}},

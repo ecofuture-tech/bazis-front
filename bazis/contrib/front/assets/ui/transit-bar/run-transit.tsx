@@ -17,7 +17,9 @@
 // cancellation), which a dialog asks for first (`action:confirm-<transit>`); one whose action
 // takes a typed payload opens a dialog with its fields (`FieldInput`, `field:<name>`,
 // `error:<name>`, `action:submit`; a property named as a to-one relationship of the resource
-// is its picker, `relatedField`), which is its confirmation. A toast tells the status the
+// is its picker, `relatedField`, of the items that match its `filters`; the ids of uploaded
+// files their file field, which it waits for),
+// which is its confirmation. A toast tells the status the
 // item moved to. The dialog of a transit of a list (a board: `for_transit`, its id only) reads
 // the transits of its item once as it opens, in the request of its card (`ITEM_META`): the
 // titles of the fields of the payload in the language of the user, and its hint.
@@ -28,7 +30,7 @@ import { ApiError, errorText, type ErrorObject } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { objectFields, useErrorMessage } from '@/bazis/react';
 import { useItemsTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
-import { FieldInput, ITEM_META, relatedField, statusyModel } from '@/bazis/ui/resource';
+import { FieldInput, ITEM_META, relatedField, statusyModel, useUploads, type FieldFilters } from '@/bazis/ui/resource';
 import { statusName, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -79,6 +81,8 @@ function defaults(transit: Transit): Record<string, unknown> {
 export interface DeclaredTransit {
   id: string;
   confirm?: boolean;
+  /** The items that the pickers of the payload offer, by field (`filter` of a field of the payload). */
+  filters?: FieldFilters;
 }
 
 /**
@@ -128,6 +132,8 @@ interface TransitFormProps {
   mutation: ReturnType<typeof useItemsTransit>;
   run: (id: string, transit: Transit, payload?: Record<string, unknown>) => void;
   onCancel: () => void;
+  /** The filters of the pickers of its payload (`DeclaredTransit`). */
+  filters: FieldFilters | undefined;
 }
 
 /**
@@ -136,13 +142,15 @@ interface TransitFormProps {
  * the card (`ITEM_META`), again over its stale data on a board, not beside the card that
  * shows it (the transit bar); that of `start` (the contract) when it cannot be read.
  */
-function TransitForm({ path, open, mutation, run, onCancel }: TransitFormProps) {
+function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFormProps) {
   const { language, t } = useLanguage();
   const errorMessage = useErrorMessage();
   const read = useTransits(path, open.transit.payload === null ? null : open.id, ITEM_META);
   const transit = read.data?.find((it) => it.id === open.transit.id) ?? open.transit;
   // the values that the user entered, over the defaults of the payload
   const [entered, setEntered] = useState<Record<string, unknown>>({});
+  // the fields whose files upload (the ids of uploaded files of the payload): it waits for them
+  const { uploading, onBusy } = useUploads();
   const values = { ...defaults(transit), ...entered };
   const fields = read.isLoading ? [] : objectFields(transit.payload ?? {});
   const target = transitTarget(transit.resource.type, transit.id);
@@ -165,6 +173,7 @@ function TransitForm({ path, open, mutation, run, onCancel }: TransitFormProps) 
         className="grid gap-4"
         onSubmit={(event) => {
           event.preventDefault();
+          if (uploading) return;
           run(open.id, transit, question === null ? values : undefined);
         }}
       >
@@ -181,9 +190,11 @@ function TransitForm({ path, open, mutation, run, onCancel }: TransitFormProps) 
             key={field.name}
             // titled by the payload, in the language of the user, not by the field of the resource
             field={relatedField(path, field, field.title)}
+            filter={filters?.[field.name]}
             value={values[field.name]}
             errors={errors.fields[field.name]}
             disabled={mutation.isPending}
+            onBusy={onBusy(field.name)}
             onChange={(value) => {
               setEntered({ ...entered, [field.name]: value });
             }}
@@ -196,7 +207,7 @@ function TransitForm({ path, open, mutation, run, onCancel }: TransitFormProps) 
           <Button
             type="submit"
             data-bz={question === null ? 'action:submit' : `action:confirm-${transit.id}`}
-            disabled={mutation.isPending || read.isLoading}
+            disabled={mutation.isPending || read.isLoading || uploading}
           >
             {transitName(transit.resource.type, transit.id, language)}
           </Button>
@@ -266,6 +277,7 @@ export function useRunTransit(
           onCancel={() => {
             setOpen(null);
           }}
+          filters={declared.find((it) => it.id === open.transit.id)?.filters}
         />
       )}
     </Dialog>

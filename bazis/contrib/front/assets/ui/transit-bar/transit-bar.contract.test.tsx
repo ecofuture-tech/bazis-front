@@ -15,15 +15,16 @@
 // The contract of the transits of an item: `transit:<id>` of each transit the user may run,
 // in the order of the specs (the first the main button), disabled when a validator restricts
 // it, the dialog of a typed payload (`field:<name>`, `error:<name>`, `action:submit`; the
-// picker of a property named as a to-one relationship of the resource), that of the
-// confirmation of a transit the specs confirm (`action:confirm-<id>`), `state:loading` and
+// picker of a property named as a to-one relationship of the resource, the file field of
+// the id of an uploaded file, which it waits for), that of the confirmation of a transit the specs confirm (`action:confirm-<id>`), `state:loading` and
 // `state:error`. Keep it passing when the component is changed.
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
 import type * as Contract from '@/bazis/generated/contract';
-import { ITEM_META, useAnyItem } from '@/bazis/ui/resource';
+import { FilesProvider, ITEM_META, useAnyItem, type FileControlProps } from '@/bazis/ui/resource';
 import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
 import { TransitBar } from '@/bazis/ui/transit-bar';
 
@@ -256,6 +257,75 @@ describe('TransitBar', () => {
     fireEvent.click(screen.getByTestId('action:submit'));
     await waitFor(() => {
       expect(server.calls.find((call) => call.method === 'POST')?.body).toEqual({ transit: 'assign', payload: { owner: 'a1' } });
+    });
+  });
+
+  it('offers the items of the filter that the specs give the picker of the payload', async () => {
+    const payload = { type: 'object', required: ['owner'], properties: { owner: { type: 'string', format: 'uuid' } } };
+    const server = new Backend()
+      .on('GET', ITEM, { data: resource(ITEM_ID), meta: { state_actions: [action('assign', payload)] } })
+      .on('GET', OWNERS, listDocument([resource('a1', { name: 'Ann' }, {}, 'test.owner')]));
+    renderWithBazis(
+      <TransitBar path={ITEMS as never} id={ITEM_ID} transits={[{ id: 'assign', filters: { owner: Filter.where('is_active', true) } }]} />,
+      server,
+    );
+    fireEvent.click(await screen.findByTestId('transit:assign'));
+    fireEvent.click(await screen.findByTestId('field:owner'));
+    await within(await screen.findByRole('listbox')).findByText('Ann');
+    expect(server.requests('GET')).toContain(`GET ${OWNERS}?filter=is_active%3Dtrue&page%5Blimit%5D=20`);
+  });
+
+  it('uploads the file of the payload with its file field and waits for it', async () => {
+    // `photo: UploadedFileId` of bazis-uploadable, of the files of the tests (`test.file`)
+    const payload = {
+      type: 'object',
+      required: ['photo'],
+      properties: { photo: { type: 'string', 'x-relation': 'test.file', title: 'Photo' } },
+    };
+    const server = new Backend()
+      .on('GET', ITEM, { data: resource(ITEM_ID), meta: { state_actions: [action('return', payload)] } })
+      .on('POST', `${ITEM}transit/`, { data: resource(ITEM_ID) });
+    // a control that uploads until `finish` is called
+    let finish = () => {};
+    function Upload({ control, onChange, onBusy }: FileControlProps) {
+      return (
+        <button
+          type="button"
+          id={control.id}
+          data-bz={control['data-bz']}
+          onClick={() => {
+            onBusy(true);
+            finish = () => {
+              onChange('9');
+              onBusy(false);
+            };
+          }}
+        >
+          a file
+        </button>
+      );
+    }
+    renderWithBazis(
+      <FilesProvider control={Upload} resources={['test.file']}>
+        <TransitBar path={ITEMS as never} id={ITEM_ID} />
+      </FilesProvider>,
+      server,
+    );
+    fireEvent.click(await screen.findByTestId('transit:return'));
+    fireEvent.click(await screen.findByTestId('field:photo'));
+    const submit = screen.getByTestId<HTMLButtonElement>('action:submit');
+    expect(submit.disabled).toBe(true);
+    fireEvent.submit(submit.closest('form') as HTMLFormElement);
+    expect(server.requests('POST')).toEqual([]);
+    act(() => {
+      finish();
+    });
+    expect(submit.disabled).toBe(false);
+    fireEvent.click(submit);
+    await waitFor(() => {
+      expect(server.calls.filter((call) => call.method === 'POST').map((it) => it.body)).toEqual([
+        { transit: 'return', payload: { photo: '9' } },
+      ]);
     });
   });
 

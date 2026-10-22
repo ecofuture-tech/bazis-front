@@ -73,6 +73,26 @@ def test_handwritten_sections_precede_the_api_reference():
     assert list(SECTIONS)[: len(HANDWRITTEN)] == HANDWRITTEN
 
 
+#: the most characters of the narrative sections that an agent reads for every product: the
+#: keys are described by the schemas of the specs and the codes by their tables, the guide
+#: gives their order and one example of each idea
+BUDGETS = {
+    None: 20_000,
+    'The specs': 16_000,
+    'The specs of the screens and the design': 24_000,
+    'Writing the screens': 15_000,
+    'The end-to-end tests': 15_000,
+    'The design': 12_000,
+    'The visual check': 12_000,
+}
+
+
+@pytest.mark.parametrize('title', BUDGETS)
+def test_narrative_section_keeps_its_budget(title):
+    text = INTRODUCTION if title is None else SECTIONS[title]
+    assert len(text) <= BUDGETS[title], f'"{title or "the introduction"}": {len(text)} characters'
+
+
 @pytest.mark.parametrize('title', HANDWRITTEN)
 def test_handwritten_section_fits_in_one_retrieval(title):
     size = len(json.dumps(SECTIONS[title], ensure_ascii=False).encode('utf-8')) - 2

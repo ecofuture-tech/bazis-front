@@ -32,7 +32,7 @@ import {
   type RefObject,
 } from 'react';
 
-import { nextPage } from '@/bazis/client';
+import { nextPage, type Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -64,6 +64,11 @@ export interface RelationPickerProps
    * contract (`search` of `RESOURCES`).
    */
   searchable?: boolean | undefined;
+  /**
+   * The items it offers: those of the related resource that match it (`filter` of its list),
+   * such as the users of a role, `Filter.where('roles__slug', 'master')`; all by default.
+   */
+  filter?: Filter | undefined;
   /** The id of the related item, null for none. */
   value: string | null;
   onChange: (value: string | null) => void;
@@ -89,6 +94,7 @@ type Entry = { kind: 'clear' } | { kind: 'item'; item: ResourceObject } | { kind
 
 interface OptionsProps {
   path: string;
+  filter: Filter | undefined;
   /** The ids of the selected items. */
   selected: readonly string[];
   /** Several items are selected: a click toggles an item and keeps the list open. */
@@ -117,6 +123,7 @@ interface OptionsProps {
  */
 function Options({
   path,
+  filter,
   selected,
   multiple,
   clearable,
@@ -150,7 +157,11 @@ function Options({
     };
   }, [text, search]);
 
-  const list = useAnyList(path, { ...(search ? { search } : {}), page: offset ? { limit: PICKER_PAGE, offset } : { limit: PICKER_PAGE } });
+  const list = useAnyList(path, {
+    ...(filter ? { filter } : {}),
+    ...(search ? { search } : {}),
+    page: offset ? { limit: PICKER_PAGE, offset } : { limit: PICKER_PAGE },
+  });
   // the previous page (another search, another offset) is not this one
   const page = list.isPlaceholderData ? [] : (list.data?.data ?? []);
   const items = [...earlier, ...page];
@@ -293,6 +304,7 @@ function Options({
 
 function Picker({
   path,
+  filter,
   relation,
   value,
   onChange,
@@ -377,6 +389,7 @@ function Picker({
       >
         <Options
           path={path}
+          filter={filter}
           selected={value}
           multiple={multiple}
           clearable={clearable}
@@ -423,6 +436,7 @@ export function RelationPicker({
   path,
   relation,
   searchable,
+  filter,
   value,
   onChange,
   ...props
@@ -434,6 +448,7 @@ export function RelationPicker({
         {...props}
         relation={relation}
         path={route}
+        filter={filter}
         value={value === null ? [] : [value]}
         onChange={(ids) => {
           onChange(ids[0] ?? null);
@@ -481,6 +496,7 @@ export function RelationListPicker({
   path,
   relation,
   searchable,
+  filter,
   value,
   onChange,
   ...props
@@ -492,6 +508,7 @@ export function RelationListPicker({
         {...props}
         relation={relation}
         path={route}
+        filter={filter}
         value={value}
         onChange={onChange}
         multiple
@@ -512,7 +529,7 @@ function IdsInput({
   'aria-readonly': readOnly,
   label,
   ...control
-}: Omit<RelationListPickerProps, 'relation' | 'path' | 'searchable'> & { placeholder: string }) {
+}: Omit<RelationListPickerProps, 'relation' | 'path' | 'searchable' | 'filter'> & { placeholder: string }) {
   const [draft, setDraft] = useState(() => value.join(', '));
   return (
     <Input

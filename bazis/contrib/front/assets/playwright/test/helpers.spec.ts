@@ -744,6 +744,37 @@ test('transit fills its payload and waits until it is done', async ({ page }) =>
   await app.expectStatus('done');
 });
 
+test('transit uploads the files of its payload in its dialog, one after the other, then fills it', async ({ page }) => {
+  await show(page, '/tasks/1',
+    html(
+      `<section data-bz="screen:task-card"><article data-bz="state:loaded">
+        <button id="finish" data-bz="transit:finish">Finish</button></article></section>`,
+      `document.getElementById('finish').addEventListener('click', () => {
+         document.body.insertAdjacentHTML('beforeend', '<div role="dialog"><form id="payload"><textarea data-bz="field:report"></textarea><div data-bz="upload:photos"><span></span><input type="file" data-bz="field:photos"></div><button type="submit" data-bz="action:submit">Finish</button></form></div>');
+         const zone = document.querySelector('[data-bz="upload:photos"]');
+         const uploaded = [];
+         zone.querySelector('input').addEventListener('change', (event) => {
+           const name = event.target.files[0].name;
+           // as the file fields: the same file may be chosen again
+           event.target.value = '';
+           zone.setAttribute('aria-busy', 'true');
+           setTimeout(() => { uploaded.push(name); zone.firstChild.textContent = uploaded.join(' '); zone.removeAttribute('aria-busy'); }, 200);
+         });
+         document.getElementById('payload').addEventListener('submit', (event) => {
+           event.preventDefault();
+           document.body.dataset.sent = event.target.querySelector('textarea').value + ':' + uploaded.join(',');
+           document.querySelector('[role=dialog]').remove();
+           setTimeout(() => { document.getElementById('finish').remove(); }, 100);
+         });
+       });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-card');
+  await app.transit('finish', { report: 'Done' }, { photos: ['brief.txt', 'brief.txt'] });
+  await expect(page.locator('body')).toHaveAttribute('data-sent', 'Done:brief.txt,brief.txt');
+});
+
 test('transit confirms a transit that the specs confirm, and runs one that they do not at once', async ({ page }) => {
   await show(page, '/tasks/1',
     html(

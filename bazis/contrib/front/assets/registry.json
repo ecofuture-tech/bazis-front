@@ -523,6 +523,7 @@
       "files": [
         "file-field.contract.test.tsx",
         "file-field.tsx",
+        "fit-image.ts",
         "index.ts",
         "upload-field.tsx"
       ]

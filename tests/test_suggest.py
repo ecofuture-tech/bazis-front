@@ -128,3 +128,27 @@ def test_a_user_attaches_only_his_own_files(sample_app):
     assert [str(it['id']) for it in task['relationships']['photos']['data']] == [mine]
     refused = client.post(f'{TASKS}suggest/', json_data={'title': 'A guest one', 'photos': [token]})
     assert refused.status_code == 422, refused.text
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_photos_of_a_finished_task_are_those_its_user_uploaded(sample_app):
+    """
+    The payload of `finish` takes the photos of the work (`list[UploadedFileId]`, uploaded in
+    the dialog of the transit): the task links those the user uploaded, never the file of
+    another user nor a token of a guest.
+    """
+    user, client = manager_client(sample_app)
+    mine = str(uploaded(client).json()['data']['id'])
+    _, other = manager_client(sample_app, 'other')
+    theirs = str(uploaded(other).json()['data']['id'])
+    token = uploaded(get_api_client(sample_app)).json()['data']['id']
+    created = client.post(TASKS, json_data={'data': {'type': 'tasks.task', 'attributes': {'title': 'With photos'}}})
+    assert created.status_code == 201, created.text
+    item = f'{TASKS}{created.json()["data"]["id"]}/'
+    assert client.post(f'{item}transit/', json_data={'transit': 'start'}).status_code == 200
+    finished = client.post(
+        f'{item}transit/', json_data={'transit': 'finish', 'payload': {'report': 'Done', 'photos': [mine, theirs, token]}},
+    )
+    assert finished.status_code == 200, finished.text
+    task = client.get(item).json()['data']
+    assert [str(it['id']) for it in task['relationships']['photos']['data']] == [mine]

@@ -2,7 +2,8 @@
 # A card without tabs, extended: its history and its related list under its heading, a create
 # form in the header, an update form, a delete that says what it deletes and a custom action of
 # its item with an empty body; its title is not shown (the label of its item heads it), nor
-# among the texts of the specs.
+# among the texts of the specs. Its photos are several files (`many: true`), edited with the
+# field of several files.
 spec: bazis-screen/1
 id: task-summary
 title: {en: Summary, ru: Сводка}
@@ -13,7 +14,7 @@ primitive: card
 extend: true
 card:
   sections:
-    - {id: main, fields: [title, status, assignee, dt_created]}
+    - {id: main, fields: [title, status, assignee, dt_created, photos]}
   transitions: true
   history: true
   related:
@@ -31,7 +32,7 @@ actions:
   - id: edit
     primitive: form
     mode: update
-    fields: [title, priority]
-    description: {en: The title and the priority of the task., ru: Название и приоритет задачи.}
+    fields: [title, priority, photos]
+    description: {en: 'The title, the priority and the photos of the task.', ru: 'Название, приоритет и фото задачи.'}
   - {id: escalate, primitive: custom, action: escalate, confirm: false, label: {en: Escalate, ru: Повысить}}
 states: [loading, error, forbidden, not_found]

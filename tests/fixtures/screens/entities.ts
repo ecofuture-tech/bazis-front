@@ -3,13 +3,15 @@
 
 import { ListChecksIcon, SquareCheckIcon, UsersIcon } from 'lucide-react';
 
+import { Filter } from '@/bazis/client';
 import { ROUTES } from '@/bazis/generated/contract';
 
 /**
  * The entities of the product by their id: the JSON:API type of the resource, its route set
  * (`ROUTES` of the contract), the key of the name of the entity in the dictionaries (`t(title)`),
  * the fields that label an item, how the values of fields are shown, the transits of its workflow
- * in their order (those confirmed before they run), and the icon of the entity.
+ * in their order (those confirmed before they run, the filters of the pickers of their payloads),
+ * and the icon of the entity.
  */
 export const ENTITIES = {
   task: {
@@ -17,7 +19,11 @@ export const ENTITIES = {
     path: ROUTES['tasks.task'],
     title: 'entities.task.title',
     display: { hours: { unit: 'h' } },
-    transits: [{ id: 'start' }, { id: 'finish' }, { id: 'reopen' }],
+    transits: [
+      { id: 'start' },
+      { id: 'finish' },
+      { id: 'reopen', filters: { assignee: Filter.where('is_active', true) } },
+    ],
     Icon: SquareCheckIcon,
   },
   user: { type: 'users.user', path: ROUTES['users.user'], title: 'entities.user.title', Icon: UsersIcon },
