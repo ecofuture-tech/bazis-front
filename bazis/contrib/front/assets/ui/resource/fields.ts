@@ -170,7 +170,8 @@ export function fieldTitle(path: string, name: string, title?: string): string {
  * a to-many one), else of the resource of its `x-relation` (`relation` of the property: the
  * uploaded files of `UploadedFileId` of bazis-uploadable, a file field), else the property as
  * it is. Its title is `label` (of the specs), else that of the field of the resource (in the
- * runtime schema of `resource`, else in the contract), else that of the property.
+ * runtime schema of `resource`, else in the contract), else that of the property. A to-many
+ * one has the `maxItems` of the property (the most files of `FilesField`).
  */
 export function relatedField(path: string, property: AttributeField, label?: string, resource?: Fields): FormField {
   const { name, required, readOnly, nullable } = property;
@@ -178,11 +179,13 @@ export function relatedField(path: string, property: AttributeField, label?: str
   const runtime = resource?.fields.get(name);
   const title =
     label ?? (resource && runtime ? resource.title(name) : own === undefined ? property.title : fieldTitle(path, name));
+  const { maxItems } = property.schema;
+  const limit = property.type === 'array' && typeof maxItems === 'number' ? { maxItems } : {};
   if (own?.relation !== undefined && property.type === (own.many === true ? 'array' : 'string')) {
-    return { kind: 'relation', name, title, required, readOnly, nullable, relation: own.relation, many: own.many === true };
+    return { kind: 'relation', name, title, required, readOnly, nullable, relation: own.relation, many: own.many === true, ...limit };
   }
   if (property.relation !== null) {
-    return { kind: 'relation', name, title, required, readOnly, nullable, relation: property.relation, many: property.type === 'array' };
+    return { kind: 'relation', name, title, required, readOnly, nullable, relation: property.relation, many: property.type === 'array', ...limit };
   }
   return { ...property, title, labels: runtime?.kind === 'attribute' ? runtime.labels : property.labels };
 }

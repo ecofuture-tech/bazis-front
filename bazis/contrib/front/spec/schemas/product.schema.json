@@ -441,7 +441,7 @@
           "additionalProperties": {"type": "string", "minLength": 1}
         },
         "upload": {
-          "description": "Upload a file (a path relative to e2e/fixtures/ of the frontend) into a file field (`type: file`) of the open form; waits until it is uploaded.",
+          "description": "Upload a file (a path relative to e2e/fixtures/ of the frontend) into a file field (`type: file`) of the open form, or into a property of the body of an action that takes uploaded files (`UploadedFileId`, `list[UploadedFileId]` of bazis-uploadable) in its dialog or its form; waits until it is uploaded.",
           "type": "object",
           "additionalProperties": false,
           "required": ["field", "file"],

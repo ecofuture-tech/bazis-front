@@ -322,12 +322,14 @@ scenarios:
       - open_item: {where: {title: Plan on the calendar}}
       - expect: {screen: task-card, status: draft}
   # the form of an action that answers a file: the CSV of all the tasks saved, then its name
+  # (a value that no next step takes: read from the result, declared by no constant)
   - id: manager-exports-the-tasks
     role: manager
     steps:
       - open: export-tasks
       - submit: {}
       - expect: {state: done}
+      - remember: {file: filename}
   # a guest, without a login: the public list of the tasks, and a task suggested with the
   # public custom action `suggest`, with a photo uploaded in its dialog (an anonymous upload)
   - id: visitor-suggests-a-task

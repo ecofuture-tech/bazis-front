@@ -20,7 +20,7 @@ import { RefreshCw, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 
 import { ApiError } from '@/bazis/client';
-import { useLanguage, type Translate } from '@/bazis/i18n';
+import { useLanguage, type LanguageContextValue, type Translate } from '@/bazis/i18n';
 import { useUpload, type Upload as UploadState } from '@/bazis/react/uploadable';
 import { FileValue, FileView, formatSize, isImage, routeOf } from '@/bazis/ui/resource';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,59 @@ const useAnyUpload = useUpload as unknown as (path: string) => UploadState<{ dat
 /** The message of a failed upload: that of the backend, else (the network) `upload.failed`. */
 function message(error: unknown, t: Translate): string {
   return error instanceof ApiError ? error.message : t('upload.failed');
+}
+
+/** The names of the media types that a user knows (those of the anonymous uploads among them). */
+const TYPE_NAMES: Readonly<Record<string, string>> = {
+  'application/pdf': 'PDF',
+  'image/gif': 'GIF',
+  'image/jpeg': 'JPEG',
+  'image/png': 'PNG',
+  'image/svg+xml': 'SVG',
+  'image/webp': 'WebP',
+  'text/csv': 'CSV',
+};
+
+/** The groups of the media types (`image/*`) that the dictionaries name, `upload.type.<group>`. */
+const TYPE_GROUPS: readonly string[] = ['audio', 'image', 'video'];
+
+/**
+ * The types of `accept` as a user reads them, in the language of the interface: `JPEG, PNG, or
+ * WebP` (the name of a known media type, an extension in capitals, `images` for `image/*`,
+ * another type as it is).
+ */
+function typeNames(accept: string, { language, t }: Pick<LanguageContextValue, 'language' | 't'>): string {
+  const names = accept
+    .split(',')
+    .map((it) => it.trim())
+    .filter(Boolean)
+    .map((it) => {
+      const type = it.toLowerCase();
+      if (type.startsWith('.')) return type.slice(1).toUpperCase();
+      const group = type.endsWith('/*') ? type.slice(0, -2) : null;
+      if (group !== null && TYPE_GROUPS.includes(group)) return t(`upload.type.${group}`);
+      return TYPE_NAMES[type] ?? it;
+    });
+  return new Intl.ListFormat(language, { type: 'disjunction' }).format([...new Set(names)]);
+}
+
+/**
+ * The limits of a field under its drop zone: the types, the size of a file and the most files
+ * (`maxItems`); null without any.
+ */
+function limits(
+  accept: string | undefined,
+  maxSize: number | null,
+  maxItems: number | undefined,
+  language: LanguageContextValue,
+): string | null {
+  const { t } = language;
+  const parts = [
+    accept && typeNames(accept, language),
+    maxSize !== null && t('upload.up_to', { size: formatSize(maxSize, language) }),
+    maxItems !== undefined && t('upload.up_to_files', { count: maxItems }),
+  ];
+  return parts.filter(Boolean).join(', ') || null;
 }
 
 /** The file just chosen: its thumbnail while it uploads and once it is the value. */
@@ -87,6 +140,7 @@ export default function UploadField({
   const { t } = language;
   const uploading = upload.status === 'uploading';
   const removable = field.nullable && !field.required;
+  const hint = limits(accept, maxSize, undefined, language);
   const { abort } = upload;
 
   // the thumbnail of the file chosen is dropped with it
@@ -107,7 +161,7 @@ export default function UploadField({
       return;
     }
     if (!accepts(file, accept)) {
-      onError(t('upload.wrong_type', { accept: accept ?? '' }));
+      onError(t('upload.wrong_type', { accept: typeNames(accept ?? '', language) }));
       return;
     }
     if (path === undefined) {
@@ -214,11 +268,7 @@ export default function UploadField({
             </>
           )}
         </p>
-        {!disabled && (maxSize !== null || accept) && (
-          <p className="text-xs text-muted-foreground">
-            {[accept, maxSize !== null && t('upload.up_to', { size: formatSize(maxSize, language) })].filter(Boolean).join(', ')}
-          </p>
-        )}
+        {!disabled && hint !== null && <p className="text-xs text-muted-foreground">{hint}</p>}
       </div>
     );
   }
@@ -291,6 +341,8 @@ export function UploadFiles({
   const [dragging, setDragging] = useState(false);
   const language = useLanguage();
   const { t } = language;
+  const { maxItems } = field;
+  const hint = limits(accept, maxSize, maxItems, language);
   // the files that wait for their upload, in their order, and whether the uploads run
   const queue = useRef<Listed[]>([]);
   const running = useRef(false);
@@ -361,11 +413,19 @@ export function UploadFiles({
         return false;
       }
       if (!accepts(file, accept)) {
-        refused ??= t('upload.wrong_type', { accept: accept ?? '' });
+        refused ??= t('upload.wrong_type', { accept: typeNames(accept ?? '', language) });
         return false;
       }
       return true;
     });
+    if (maxItems !== undefined) {
+      // the files over the most that the field takes are left out, never uploaded
+      const room = Math.max(0, maxItems - value.length - chosen.filter((it) => it.id === null).length);
+      if (accepted.length > room) {
+        refused ??= t('upload.too_many', { count: maxItems });
+        accepted.splice(room);
+      }
+    }
     onError(refused);
     if (!accepted.length) return;
     if (path === undefined) {
@@ -501,11 +561,7 @@ export function UploadFiles({
               {t('upload.choose_files')}
             </Button>
           </p>
-          {(maxSize !== null || accept) && (
-            <p className="text-xs text-muted-foreground">
-              {[accept, maxSize !== null && t('upload.up_to', { size: formatSize(maxSize, language) })].filter(Boolean).join(', ')}
-            </p>
-          )}
+          {hint !== null && <p className="text-xs text-muted-foreground">{hint}</p>}
         </div>
       )}
     </div>

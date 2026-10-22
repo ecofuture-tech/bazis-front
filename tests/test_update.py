@@ -264,6 +264,10 @@ def test_update_writes_the_conflicts_and_fails(product):
         call_command('bazis_front', 'update', stdout=out)
     assert f'  {CLIENT}: CONFLICT' in out.getvalue()
     new = upstream(CLIENT)
+    # the file of bazis-front, whole: its pristine copy of the new version
+    whole = f'.bazis/base/client@{__version__}/client.ts'
+    assert f'\n{CLIENT}: the file of bazis-front: {whole}\n' in out.getvalue()
+    assert (product / 'frontend' / whole).read_text(encoding='utf-8') == new
     theirs = new.splitlines(keepends=True)[late(new)]
     conflict = f'{MARKERS[0]}// mine\n{MARKERS[1]}{theirs}{MARKERS[2]}'
     assert path.read_text(encoding='utf-8') == change_line(new, late(new), conflict)
@@ -646,6 +650,61 @@ def test_update_merges_the_template(product):
     # the deleted file stays deleted, and nothing asks for npm install
     out = update('template')
     assert out.endswith(f'are those of bazis-front {__version__}.\n')
+
+
+def test_a_conflict_of_the_template_names_its_file_of_bazis_front(product):
+    """
+    A router that the product changed where the template changed it too conflicts; the lines
+    merged without markers stay (a constant of the product that the template now imports
+    beside them): `update` names the file of the template to take whole, once it wrote it;
+    `--check` writes nothing, and names none.
+    """
+    downgrade(product, 'template', lambda path, text: change_line(text, late(text), '// old\n') if path == ROUTER else text)
+    router = product / 'frontend' / ROUTER
+    router.write_text(change_line(router.read_text(encoding='utf-8'), late(upstream(ROUTER)), '// mine\n'), encoding='utf-8')
+    whole = f'.bazis/base/template@{__version__}/{ROUTER}'
+
+    out = StringIO()
+    with pytest.raises(CommandError, match='are not those of bazis-front'):
+        call_command('bazis_front', 'update', '--check', stdout=out)
+    assert f'  {ROUTER}: CONFLICT' in out.getvalue()
+    assert 'the file of bazis-front' not in out.getvalue()
+    assert not (product / 'frontend' / whole).exists()
+
+    out = StringIO()
+    with pytest.raises(CommandError, match=r'or take the file of bazis-front listed for one .* fails `tsc` \(TS2440\)'):
+        call_command('bazis_front', 'update', stdout=out)
+    assert f'\n{ROUTER}: the file of bazis-front: {whole}\n' in out.getvalue()
+    assert (product / 'frontend' / whole).read_text(encoding='utf-8') == upstream(ROUTER)
+
+
+def test_a_conflict_of_package_json_names_no_file_of_bazis_front(product):
+    """
+    The side of bazis-front of package.json is the template with the npm dependencies of the
+    assets, which its pristine copy has not: its conflict is resolved by its markers, never by
+    taking that copy.
+    """
+    old_map(product)
+    downgrade(
+        product, 'template',
+        lambda path, text: text.replace('"private": true,', '"private": false,') if path == PACKAGE_JSON else text,
+    )
+    package = product / 'frontend' / PACKAGE_JSON
+    package.write_text(
+        with_dependencies(package.read_text(encoding='utf-8'), OLD_MAP).replace('"private": false,', '"private": null,'),
+        encoding='utf-8',
+    )
+
+    out = StringIO()
+    with pytest.raises(CommandError, match=f'with conflicts in 1 files: {PACKAGE_JSON}'):
+        call_command('bazis_front', 'update', stdout=out)
+    assert (
+        f'\n{PACKAGE_JSON}: resolve its markers, keeping the npm dependencies on the side of bazis-front '
+        '(those of the assets, which no file of bazis-front has), then run `npm install`.\n'
+    ) in out.getvalue()
+    assert 'the file of bazis-front:' not in out.getvalue()
+    assert 'leaflet' not in (base_dir(product / 'frontend', 'template', __version__) / PACKAGE_JSON).read_text(encoding='utf-8')
+    assert '"leaflet": "' in package.read_text(encoding='utf-8')
 
 
 def test_update_asks_for_npm_install_only_for_a_new_package_json(product):

@@ -124,7 +124,7 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
                 hours: { anyOf: [{ type: 'number' }, { type: 'string' }], title: 'Hours' },
                 note: { type: 'string', title: 'Note' },
                 scan: { anyOf: [{ type: 'string', 'x-relation': 'test.file' }, { type: 'null' }], default: null, title: 'Scan' },
-                photos: { type: 'array', items: { type: 'string', 'x-relation': 'test.file' }, default: [], title: 'Photos' },
+                photos: { type: 'array', items: { type: 'string', 'x-relation': 'test.file' }, maxItems: 3, default: [], title: 'Photos' },
                 reviewer: { type: 'string', 'x-relation': 'test.owner', title: 'Reviewer' },
               },
               required: ['title'],
@@ -774,12 +774,13 @@ function fileControls() {
       </button>
     );
   }
-  function Many({ control, value, onChange, onBusy }: FilesControlProps) {
+  function Many({ field, control, value, onChange, onBusy }: FilesControlProps) {
     return (
       <button
         type="button"
         id={control.id}
         data-bz={control['data-bz']}
+        data-max-items={field.maxItems}
         onClick={() => {
           onBusy(true);
           uploads.push(() => {
@@ -817,6 +818,8 @@ describe('ActionForm', () => {
     // `x-relation` of the files: their controls; of another resource: the picker of its items
     expect(screen.getByTestId('field:scan').textContent).toBe('one file');
     expect(screen.getByTestId('field:photos').textContent).toBe('several files');
+    // at most the `maxItems` of the property
+    expect(screen.getByTestId('field:photos').dataset.maxItems).toBe('3');
     expect(screen.getByTestId('field:reviewer').textContent).not.toContain('file');
     expect(screen.getByTestId('field:reviewer').getAttribute('aria-haspopup')).toBeTruthy();
     expect(screen.getByLabelText('Photos')).toBe(screen.getByTestId('field:photos'));

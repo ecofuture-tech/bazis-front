@@ -67,6 +67,12 @@ export interface RelationField extends FieldBase {
   relation: string;
   /** A to-many relationship: its value in a form is the ids of the related items. */
   many: boolean;
+  /**
+   * The most ids of a to-many field, `maxItems` of the property of a body of an action
+   * (`relatedField` of the components: `list[UploadedFileId]` with a `max_length`, the most
+   * files of `FilesField`); none when it has no limit or is a relationship of a resource.
+   */
+  maxItems?: number;
 }
 
 export type FormField = AttributeField | RelationField;

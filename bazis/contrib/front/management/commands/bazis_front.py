@@ -428,16 +428,35 @@ class Command(BaseCommand):
             else 'Run `npx tsc --noEmit`, `npm run lint` and `npm test` in frontend/.'
         )
         if plan.conflicts:
+            self.write_conflicts(plan)
             raise CommandError(
                 f'Updated to bazis-front {plan.version} with conflicts in {len(plan.conflicts)} '
                 f'files: {", ".join(plan.conflicts)}. Resolve the conflict markers (<<<<<<< '
-                f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them. '
+                f'{update.LOCAL_NAME}, =======, >>>>>>> bazis-front {plan.version}) in them, or '
+                'take the file of bazis-front listed for one and apply the changes of the product '
+                'to it again: the lines changed away from the conflicts are merged without markers, '
+                'so a change of the product that the new version now makes itself (a declaration of '
+                'a name that it imports) stays beside it and fails `tsc` (TS2440). '
                 f'{install}{verify}'
             )
         self.stdout.write(
             f'Updated the copies to bazis-front {plan.version}. {install}{verify} Commit the '
             f'frontend with {frontend_lock.BASE_DIR}/ and the lock.'
         )
+
+    def write_conflicts(self, plan):
+        """The files of bazis-front of the conflicts, their pristine copies written by `apply`."""
+        for asset in plan.assets:
+            for it in asset.files:
+                if it.status != update.CONFLICT:
+                    continue
+                whole = update.upstream_copy(asset.asset, it.path, plan.version)
+                self.stdout.write(
+                    f'{it.path}: the file of bazis-front: {whole}' if whole is not None else
+                    f'{it.path}: resolve its markers, keeping the npm dependencies on the side of '
+                    'bazis-front (those of the assets, which no file of bazis-front has), then run '
+                    '`npm install`.'
+                )
 
     def write_plan(self, plan):
         for asset in plan.assets:

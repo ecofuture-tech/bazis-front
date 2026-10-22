@@ -1460,9 +1460,9 @@ CASES = [
     (
         'S053',
         # `{filename}` is that of an action that answers a file: one that answers no JSON nor a file
-        # has no parameter
+        # has no parameter, nor the name that a scenario remembers
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_export'].update(file=False)},
-        [('S053', f'{EXPORT}#/form/result/message')],
+        [('S053', f'{EXPORT}#/form/result/message'), ('P022', f'{PRODUCT}#/scenarios/18/steps/3/remember/file')],
     ),
     (
         'S032',
@@ -2268,6 +2268,19 @@ def test_a_text_in_one_language_is_told_its_key(root):
     hints = {it.location: it.hint for it in validate(root).issues if it.code == 'S027'}
     assert '(`product.name`)' in hints[f'{PRODUCT}#/product/name']
     assert '(`screens.task-list.actions.create.label`)' in hints[f'{LIST}#/actions/0/label']
+
+
+@pytest.mark.django_db
+def test_the_anonymous_uploads_are_turned_on_by_the_environment_of_the_project(contract):
+    # the settings of bazis-uploadable are read from the environment with the prefix of Bazis:
+    # a line of project.env without it is not applied
+    root = contract.parent.parent
+    edit(root, CONTRACT, lambda d: d['capabilities']['uploadable'].update(anonymous=False, anonymous_types=[]))
+    hints = [it.hint for it in validate(root).issues if it.code == 'S057']
+    assert hints
+    for hint in hints:
+        assert 'BS_BAZIS_FILE_UPLOAD_ANONYMOUS=true' in hint and 'BS_BAZIS_FILE_UPLOAD_MAX_SIZE' in hint
+        assert ' BAZIS_FILE_UPLOAD' not in hint
 
 
 @pytest.mark.django_db

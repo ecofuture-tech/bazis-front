@@ -546,8 +546,9 @@ or one of the route set in the toolbar of a list: P022 for one of `list.row_acti
 as a bulk action; one with `fields` opens its dialog, filled with `fill` and run with
 `submit`, P023 for a property it does not ask for; one with `confirm: true` is confirmed),
 `fill: {field: value}` and `upload: {field, file}` (in the open form, or on a card with
-`edit: true`; a `file` field is uploaded, a file of `e2e/fixtures/` of the frontend,
-never filled: P022; a to-many relationship, `many: true`, is filled with the list of the
+`edit: true`; a `file` field, and a property of the body of an action that takes uploaded
+files, `UploadedFileId` or `list[UploadedFileId]`, in its dialog or its form, is uploaded, a
+file of `e2e/fixtures/` of the frontend, never filled: P022; a to-many relationship, `many: true`, is filled with the list of the
 labels of its items, `fill: {interviewers: [Ann Lee, Bob Stone]}`, which replace those it
 had, `[]` for none: P022 for one value; a date or a date-time takes a day of the run too,
 `today`, `today+3`, `today-1 10:30`, in UTC, as `day`), `submit: {}`, `transit: <id>` or `{id, payload}` (on a card with
@@ -1193,7 +1194,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S053` | error | the `title` or the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON; an action that answers a file (`file`) answers `{filename}` only. Give the action a `response_model` with it and export the contract again, or show another property |
 | `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship or of uploaded files); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
 | `S055` | error | the id of the screen is the mark of the menu of the top bar, `more`: its links (`nav:more`) would be marked as the menu of the links that the top bar has no room for. Give the screen another id |
-| `S057` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the id of an uploaded file (`UploadedFileId` of bazis-uploadable, `x-relation` of its files), and the contract does not let the guests upload files (`anonymous` of `uploadable`): their upload is refused (401). Turn the anonymous uploads of bazis-uploadable 2.8 on (`BAZIS_FILE_UPLOAD_ANONYMOUS` with `BAZIS_FILE_UPLOAD_MAX_SIZE`) and export the contract again, or leave the property out of the public screen |
+| `S057` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the id of an uploaded file (`UploadedFileId` of bazis-uploadable, `x-relation` of its files), and the contract does not let the guests upload files (`anonymous` of `uploadable`): their upload is refused (401). Turn the anonymous uploads of bazis-uploadable 2.8 on in the environment of the project (`BS_BAZIS_FILE_UPLOAD_ANONYMOUS=true` with `BS_BAZIS_FILE_UPLOAD_MAX_SIZE`) and export the contract again, or leave the property out of the public screen |
 | `S058` | warning | a property of the body of a custom action (in its dialog or its form) has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.21): the form offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
@@ -2156,10 +2157,14 @@ remove (when the relationship is nullable); a file larger than `max_size` of the
 contract, or of a type that `accept` refuses, is not sent, and a refusal of the backend
 (413 `ERR_FILE_TOO_LARGE`, 422 of its type or its name, 429 of the rate) is the error of
 the field; the file chosen is shown from the browser (its name, its size, a thumbnail of
-an image), not read back. A many-to-many field to the files, or `list[UploadedFileId]` in
+an image), not read back. Under the drop zone a field names its types as a user reads them
+(`JPEG, PNG, or WebP`, `images`, in the language of the interface), its size limit and its
+most files. A many-to-many field to the files, or `list[UploadedFileId]` in
 the body of an action, is `FilesField`: several files chosen or dropped at once, uploaded one
 after the other, listed (`file:<i>`) with a cancel or a remove (`action:remove-file-<i>`)
-until the submit, the value the ids in their order; the specs have no to-many file field
+until the submit, the value the ids in their order, at most `maxItems` of the property of the
+body (`list[UploadedFileId]` with a `max_length`: the files over it are not sent, an error of
+the field); the specs have no to-many file field
 (`type: file` is a to-one relationship), so it is asked for in a body or in the code of a
 screen. `ResourceForm`, the form and the dialog of an action are not submitted while a file
 uploads. Without the provider the field is the picker of a relationship. The payloads of
@@ -2182,8 +2187,9 @@ import { FileFieldProvider } from '@/bazis/ui/file-field';
 ### Anonymous uploads
 
 **Anonymous uploads** (bazis-uploadable 2.8): a public form with files, the photos that a
-guest sends with a request. The backend turns them on with `BAZIS_FILE_UPLOAD_ANONYMOUS=true`
-and a size limit, `BAZIS_FILE_UPLOAD_MAX_SIZE`; the contract has them (`anonymous` and
+guest sends with a request. The backend turns them on in the environment of the project
+(`project.env`, the prefix `BS_` of the settings) with `BS_BAZIS_FILE_UPLOAD_ANONYMOUS=true`
+and a size limit, `BS_BAZIS_FILE_UPLOAD_MAX_SIZE`; the contract has them (`anonymous` and
 `anonymous_types` of `uploadable`), and a property of the body of a public action that takes
 uploaded files without them is S057 (the guest would get 401). The body takes
 `photos: list[UploadedFileId] = []`; the action attaches the files of a guest with
@@ -2194,8 +2200,8 @@ session (`FileFieldProvider guest`, which the generated providers set from the t
 fields take the types of `anonymous_types` (recognized by their content: JPEG, PNG, WebP),
 of at most `max_size`; a guest reads back a token as the id and never the file, which the
 form shows from the browser. The backend limits the uploads of a guest by the rate
-(`BAZIS_FILE_UPLOAD_ANONYMOUS_RATE`, a 429 is the error of the field) and deletes those that
-nothing references after `BAZIS_FILE_UPLOAD_ANONYMOUS_TTL` hours
+(`BS_BAZIS_FILE_UPLOAD_ANONYMOUS_RATE`, a 429 is the error of the field) and deletes those that
+nothing references after `BS_BAZIS_FILE_UPLOAD_ANONYMOUS_TTL` hours
 (`manage.py uploadable_clean_anonymous`, run on a schedule). Upload one in a scenario with
 `upload: {field: photos, file: <an image of e2e/fixtures/>}`.
 
@@ -2822,14 +2828,14 @@ methods below, and `page`, `screen()`, the current screen, `form()`, the open fo
   | the `role` | `loginAs(page, PRODUCT, role)`: logs in on `/login` (`LoginForm`) as the `test_user` of the role with the password of `E2E_PASSWORD`; no login without bazis-users, nor for an `anonymous` role (the next step opens its screen); the images of other origins than the frontend (the tiles of the maps) are answered with a blank image (`stubForeignImages(page)`): the tests never reach a server outside the product |
   | `as: <role>` | `const asRole = await sessionAs(app, role)` the first time (a new context of the browser of the test with its options, the role logged in as by `loginAs`; it shares the start of the test and the items it created, and is closed as the test ends: the test is `test` of `e2e/bazis/`), its variable again (`app` for the role of the scenario): the next steps call it |
   | `open: <screen>` | `open(screen)`: the route of the screen, then `expectScreen` |
-  | `open_item: {where, in}` | `openItem({where, in, created})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown, else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`), or with more items of the columns of a board (`action:more`); then `expectScreen` of `list.open`. `created: true` when the scenario created an item with these texts before (the walk of `check`: the values filled in a create form that saves, then in its edits, have the texts of `where`): only a row of an item that this test created, its id among those of the creates of its submits, never an item of a previous run with the same texts. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
+  | `open_item: {where, in}` | `openItem({where, in, created})`: the first `row:<id>` whose cells `cell:<name>` have exactly these texts, in the list of the screen (`list:<entity>`), else in the screen (the items of a board or a calendar), or in the last items `recent:<in>` of a dashboard: on the page shown (on a live page, `socket:<status>`, once it shows it within 2 s: the row of another session, `as`, that the socket brings), else searched with the search of the list (`field:$search`, each text of `where` in turn; it waits for the rows of the search, `data-search` and `aria-busy` of `list:<entity>`), else on the next pages (`action:next-page`), or with more items of the columns of a board (`action:more`); then `expectScreen` of `list.open`. `created: true` when the scenario created an item with these texts before (the walk of `check`: the values filled in a create form that saves, then in its edits, have the texts of `where`): only a row of an item that this test created, its id among those of the creates of its submits, never an item of a previous run with the same texts. The labels of the related items in the cells (`RelationLabel`) are read after the rows: every step waits until no `state:loading` is left on the page, theirs too. A list that the scenarios add to at every run is searched, not read on its first page only (give its route set `search_fields`) |
   | `select: {where}` | `select({where, created})`: the checkbox `select:<id>` of the row that `openItem` would open, checked; those selected before stay selected |
   | `bulk: <id>` | `bulk(id)`: `bulk:<id>` of the screen, then `action:confirm-bulk` of its confirmation; waits until it is no longer offered (the selection is cleared) or an error is shown (`error:bulk`) |
   | `move: {where, to}` | `move({where, to, created})`: the item that `openItem` would open, its menu `action:move`, then `move:<to>` (confirmed in its dialog when the workflow confirms the transit); waits until it is in `column:<to>`, fails as soon as the move is refused (`error:move`) with its error |
   | `action: <id>` | `action(id)`: `action:<id>` of the current screen; a destroy is confirmed in its dialog once the lock has `screens`, `confirm(id)` (`action:confirm-<id>`, waits until the dialog is closed; a generated screen must show it, and on a custom screen `confirm(id, { optional: true })` goes on when no dialog is shown within 2 s: a hand-written screen should delete with `useDestroyCardAction`, its dialog), and so is a custom action with `confirm: true`; one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
   | `fill`, `upload` | `fill(values)` (a select by the label of its option, the native one or that of Radix, a combobox whose popup is its listbox, null by its option `data-value=""`; the picker of a relationship by the label of the item, searched in its popup, the picker of a to-many relationship by the list of the labels of its items, which replace those it had (its popup, `aria-multiselectable`, cleared with the option `data-value=""`, then each item chosen, closed with Escape; `[]`: none), a checkbox (also the checkbox and the switch of Radix, `role="checkbox"`, `role="switch"`) by true or false, a date-time as `YYYY-MM-DDTHH:mm` in the time zone of the browser, UTC: `FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`; `today`, `today+3` or `today-1 10:30` is a day of the run in UTC, as `expectDay`), `upload(field, file)` (a file of `e2e/fixtures/` of the frontend into the input `field:<field>`; waits until `upload:<field>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file, or an error is shown) in the open form, the `<form>` with `action:submit`; on a card with `edit: true` whose edit is not open, `action('edit')` first |
   | `submit: {}` | `submit({saved: true})`: waits until the form is closed, and fails the test with the errors that the form shows when it stays open (the save failed); the items that it creates are those of the test (the answers 201 in JSON of the POSTs meanwhile, a create of the core, their item in `data.id`), which `created` finds; `submit()`, which only waits for the form to close or to show an error of this submit, when the next step expects a refusal (an `error`, or a `state` of a failure: `invalid`, `error`, `forbidden`, `not_found`); a submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result`, shown on its page: `expect: {state: done}`), a refused one by none (the form stays open on its screen) |
-  | `remember: {name: property}` | `const $name = await app.answer(property)`: the `data-value` of `answer:<property>` of the result shown (`ActionResult` renders each text and number of the answer hidden); `$name` is the constant in the values of the next steps |
+  | `remember: {name: property}` | `const $name = await app.answer(property)`: the `data-value` of `answer:<property>` of the result shown (`ActionResult` renders each text and number of the answer hidden); `$name` is the constant in the values of the next steps; a value that no next step takes is read without a constant, `await app.answer(property)` (the lint refuses a constant that nothing uses) |
   | `transit` | `transit(id, payload?)`: `transit:<id>`, the payload in its dialog (as `fill`: a relationship by the label of its item), or its confirmation (`action:confirm-<id>`) when the workflow confirms it; waits until it is no longer offered or an error is shown |
   | `expect` | `expectScreen` (the mark of the screen and its route, since a list may show next to its card), `expectStatus`, `expectState` (a visible one), `expectActionAbsent`, `expectFieldReadonly`, `expectFieldAbsent`, `expectValues` (the text of `field:<name>` of the screen contains the value), `expectRows`, `expectTile(id, value)` (`data-value` of `tile:<id>`, a count or an aggregate, once for each tile), `expectDay(day, count)` (`data-count` of `day:<date>`, `today±<n>` the date of the day of the run in UTC, the calendar moved to its period first, once for each day), `expectError` (a visible one), `expectNotification` (the bell opens the list of the notifications, which waits for one with the text that came since the test started, by its time `<time datetime>`: one of a previous run does not count), in this order |
 
@@ -3712,13 +3718,18 @@ the lines of bazis-front <version>
 Resolve every conflict in the listed files: keep the change of bazis-front (a fix of the
 protocol, a new prop) and apply the change of the product over it, delete the markers,
 then `npx tsc --noEmit`, `npm run lint` and `npm test` (the contract tests of the
-components) in `frontend/`. `tsc` reports a marker left in a `.ts`/`.tsx` file (`TS1185`),
-not in `package.json`, a config or `AGENTS.md`: the lock records the files of the conflicts
-(`conflicts`), and until none of them has a marker line left `update --check` and
-`front.W004` report them and `update` refuses to run. A file whose own content has such a
-line (a marker on purpose, in a test or a document) is released by removing its path from
-`conflicts` of the lock. Commit the frontend with
-`.bazis/` and the lock. The client, the hooks and the helpers are never edited, so they
+components) in `frontend/`. `update` names the file of bazis-front of each conflict
+(`.bazis/base/<asset>@<version>/…`) but `package.json`, whose side of bazis-front has the npm
+dependencies of the assets too: resolve its markers. The lines changed away from a conflict merge without
+markers: a change of the product that the new version now makes itself stays beside it (the
+own `GUEST_HOME` of a router of 0.8 next to its import of 0.9: `TS2440`); then copy that file
+over and apply the other changes of the product to it again. `tsc` reports a marker left in a
+`.ts`/`.tsx` file (`TS1185`), not in `package.json`, a config or `AGENTS.md`: the lock records
+the files of the conflicts (`conflicts`), and until none of them has a marker line left
+`update --check` and `front.W004` report them and `update` refuses to run. A file whose own
+content has such a line (a marker on purpose, in a test or a document) is released by
+removing its path from `conflicts` of the lock. Commit the frontend with `.bazis/` and the
+lock. The client, the hooks and the helpers are never edited, so they
 are replaced without conflicts; wrap them in the product code instead.
 
 ### Migrating the code of the product
@@ -4568,6 +4579,7 @@ Its props, `BazisProviderProps`:
 - `kind: 'relation'`
 - `relation: string`: The JSON:API type of the related resource.
 - `many: boolean`: A to-many relationship: its value in a form is the ids of the related items.
+- `maxItems?: number`: The most ids of a to-many field, `maxItems` of the property of a body of an action (`relatedField` of the components: `list[UploadedFileId]` with a `max_length`, the most files of `FilesField`); none when it has no limit or is a relationship of a resource.
 
 #### ResourceSchema
 
@@ -6823,7 +6835,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `screen(): Locator`: The current screen, `screen:<id>`.
 - `form(): Locator`: The open form.
 - `open(screen: ScreenId<P>): Promise<void>`: Opens a screen by its route (one without the id of an item) and waits for its state.
-- `openItem(options: { where: Values; in?: string; created?: boolean; }): Promise<void>`: Opens the first item of the current screen whose cells `cell:<name>` have exactly these texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page shown, else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search, or with more items of the columns of a board (`action:more`); fails when no page has it.
+- `openItem(options: { where: Values; in?: string; created?: boolean; }): Promise<void>`: Opens the first item of the current screen whose cells `cell:<name>` have exactly these texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page shown (on a live page, as soon as it has it within `LIVE_ROW_WAIT`: an item of another session that the socket brings), else searched with the search of the list (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search, or with more items of the columns of a board (`action:more`); fails when no page has it.
 - `select(options: { where: Values; created?: boolean; }): Promise<void>`: Selects the row of the list of the current screen that `openItem` would open, its checkbox `select:<id>`, for a bulk action; the rows selected before stay selected.
 - `bulk(id: string): Promise<void>`: Runs a bulk action of the list of the current screen on the selected rows, `bulk:<id>`, confirmed in its dialog (`action:confirm-bulk`), and waits until it is done (the action is no longer offered: the selection is cleared) or shows an error (`error:bulk`).
 - `move(options: { where: Values; to: string; created?: boolean; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), confirmed in its dialog when the specs confirm the transit, and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
@@ -6857,4 +6869,4 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `type FormValues = Readonly<Record<string, string | number | boolean | null | readonly string[]>>`: The values of the fields of a form by name: a scalar, or the labels of the related items of a to-many relationship (a list, `[]` for none).
 - `type State = 'loading' | 'empty' | 'loaded' | 'error' | 'forbidden' | 'not_found' | 'invalid' | 'done'`: The states that the screens render (`state:<state>`).
 - `LOGIN_ROUTE: "/login"`: The login screen of the template (`LoginForm`), where the router sends a user without a session.
-- `test: TestType<PlaywrightTestArgs & PlaywrightTestOptions & { sessions: undefined; }, PlaywrightWorkerArgs & PlaywrightWorkerOptions>`: `test` of Playwright that closes the sessions of `sessionAs` as the test ends, before the next one starts: the tests of several sessions take it from here.
+- `test: TestType<PlaywrightTestArgs & PlaywrightTestOptions & { sessions: undefined; }, PlaywrightWorkerArgs & PlaywrightWorkerOptions>`: `test` of Playwright that closes the sessions of `sessionAs` as the test ends, before the next one starts, also one whose context was being created when the test timed out: the tests of several sessions take it from here.

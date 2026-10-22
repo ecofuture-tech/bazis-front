@@ -48,3 +48,30 @@ test('the sessions of a failed test are closed too', async ({ page }) => {
   throw new Error('the test fails');
 });
 closedBefore('a failed test');
+
+/** The context that the browser creates after the test that asked for it ended. */
+let late: Promise<BrowserContext> | null = null;
+
+test('the session whose context is created after its test ended is closed too', ({ page }) => {
+  // a test that ends while its session opens: it failed, or timed out (`sessionAs` abandoned)
+  test.fail();
+  const browser = page.context().browser();
+  if (browser === null) throw new Error('The page has no browser.');
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = (options) => {
+    browser.newContext = newContext;
+    late = new Promise((resolve) => setTimeout(resolve, 500)).then(() => newContext(options));
+    return late;
+  };
+  // its page cannot be opened in the context closed meanwhile
+  void sessionAs(new App(page, PRODUCT), 'visitor').catch(() => null);
+  throw new Error('the test fails while its session opens');
+});
+
+test('the session of a test that ended while it opened is closed before the next test starts', async ({ page }) => {
+  expect(late).not.toBeNull();
+  // created by now
+  await late;
+  expect(page.context().browser()?.contexts()).toEqual([page.context()]);
+  late = null;
+});
