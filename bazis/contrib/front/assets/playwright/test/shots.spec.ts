@@ -403,6 +403,29 @@ test.describe('shoot', () => {
     expect(message('GET /api/v1/tasks/step/schema_list/')).toMatch(/^500 Internal Server Error: the proxy of the dev server did not reach the backend/);
   });
 
+  test('reports a failed connection of the socket only when the socket is not open again', async ({ page }, info) => {
+    const directory = info.outputPath('shots');
+    process.env.BAZIS_SHOTS_DIR = directory;
+    // the socket of the previous page closed before its handshake; the client connects again, or not
+    const tasks = (opens: boolean) => `<!doctype html><html><body>${screen}<span id="socket" data-bz="socket:connecting"></span><script>
+      console.error("WebSocket connection to 'ws://bazis.test/ws/' failed: WebSocket is closed before the connection is established.");
+      ${opens ? `setTimeout(() => { document.getElementById('socket').dataset.bz = 'socket:open'; }, 500);` : ''}
+    </script></body></html>`;
+    const shot = { screen: 'task-list', role: null, mode: 'light', via: null, creates: [], variant: null } as const;
+    const codes = () =>
+      (JSON.parse(readFileSync(path.join(directory, 'task-list-nobody-light-1280.json'), 'utf8')) as ShotResult).issues.map((it) => [it.code, it.selector]);
+    await serve(page, { '/tasks': tasks(true) });
+    await shoot(page, PRODUCT, shot, info);
+    expect(codes()).toEqual([['V004', '[data-bz="state:loaded"] h1']]);
+    await page.unrouteAll();
+    await serve(page, { '/tasks': tasks(false) });
+    await shoot(page, PRODUCT, shot, info);
+    expect(codes()).toEqual([
+      ['V004', '[data-bz="state:loaded"] h1'],
+      ['V012', 'console'],
+    ]);
+  });
+
   test('shoots a list searched for nothing and with its create form open', async ({ page }, info) => {
     const directory = info.outputPath('shots');
     process.env.BAZIS_SHOTS_DIR = directory;

@@ -37,7 +37,7 @@ export const CODES = {
   V009: ['warning', 'controls smaller than 44×44 px at the width of a phone, one issue for the screenshot with their number'],
   V010: ['warning', 'a text cut by an ellipsis without its whole text in a title or a tooltip'],
   V011: ['error', 'an error of the page that nothing caught (`pageerror`)'],
-  V012: ['warning', 'an error written to the console (`console.error`: a warning of React, a failure that the page handles)'],
+  V012: ['warning', 'an error written to the console (`console.error`: a warning of React, a failure that the page handles), also a failed connection of the socket of the page that is not open again within 2 s'],
   V013: ['error', 'a request of the page to the API failed or was answered with an error status, but the refusals that a screen shows as its state'],
   V014: ['error', 'the page scrolls sideways at the width of a desktop'],
   V015: ['error', 'the page scrolls sideways once the texts of its items are long: a text of 120 characters with a word of 40 put in their cells and fields (`data-text`, not a date, a number or the label of a choice) for the check, then taken out'],
@@ -154,7 +154,7 @@ export async function shoot<P extends Product>(page: Page, product: P, shot: Sho
   try {
     for (let retried = false; ; retried = true) {
       const before = unreached;
-      let heard: Listened = { issues: () => [], stop: () => undefined };
+      let heard: Listened = { issues: () => Promise.resolve([]), stop: () => undefined };
       let checked: JSHandle<Document> | null = null;
       try {
         app ??= await enter(page, product, shot);
@@ -175,7 +175,7 @@ export async function shoot<P extends Product>(page: Page, product: P, shot: Sho
         const blank: ShotIssue[] = reloaded
           ? [{ code: 'V019', severity: CODES.V019[0], selector: bz('screen', shot.screen), message: 'The page loaded again between its check and its screenshot, also when the screen was shot again.' }]
           : [];
-        write({ ...base, retried, file: `${name}.png`, issues: [...blank, ...issues, ...heard.issues()] });
+        write({ ...base, retried, file: `${name}.png`, issues: [...blank, ...issues, ...(await heard.issues())] });
         return;
       } catch (error) {
         if (unreached > before && !retried) continue;
@@ -184,7 +184,7 @@ export async function shoot<P extends Product>(page: Page, product: P, shot: Sho
         // not a failure of the run; a role that logs in and stays there failed its login (V001)
         const code = !logsIn(product, shot) && new URL(page.url()).pathname === LOGIN_ROUTE ? 'V020' : 'V001';
         const issue: ShotIssue = { code, severity: CODES[code][0], selector: bz('screen', shot.screen), message };
-        write({ ...base, retried, file: null, issues: [issue, ...heard.issues()] });
+        write({ ...base, retried, file: null, issues: [issue, ...(await heard.issues())] });
         throw error;
       } finally {
         heard.stop();
@@ -239,27 +239,50 @@ function unproxied(response: Response): boolean {
 
 /** What `listen` heard so far, and the end of the listening. */
 interface Listened {
-  readonly issues: () => ShotIssue[];
+  readonly issues: () => Promise<ShotIssue[]>;
   readonly stop: () => void;
 }
 
+/** The message of the browser about a connection of a socket that closed or failed before its handshake. */
+const SOCKET_FAILED = /^WebSocket connection to .* failed/;
+
+/**
+ * How long the issues of a shot wait for the socket of the page to be open (`socket:open` of
+ * `LiveQuery`) once the browser wrote that a connection of it failed, ms: the client of the
+ * socket connects again by itself.
+ */
+const SOCKET_WAIT = 2_000;
+
 /**
  * Listens to the page from now on: its errors that nothing caught (V011), the errors written
- * to its console (V012, but the failed loads of resources, which V013 reports), and its
- * requests to the API (`/api/`) that failed or were answered with an error status (V013, but
- * the refusals that a screen shows as its state and the requests that the page cancelled);
- * gives what it heard so far, at most `MAX_ISSUES` of each code, until it stops.
+ * to its console (V012, but the failed loads of resources, which V013 reports, and the failed
+ * connections of the socket when the socket of the page is open within `SOCKET_WAIT`: one
+ * closed by a page left, which the client of the socket connects again), and its requests to
+ * the API (`/api/`) that failed or were answered with an error status (V013, but the refusals
+ * that a screen shows as its state and the requests that the page cancelled); gives what it
+ * heard so far, at most `MAX_ISSUES` of each code, until it stops.
  */
 function listen(page: Page): Listened {
   const heard: Found[] = [];
+  const socket: Found[] = [];
   const onPageError = (error: Error) => {
     heard.push({ code: 'V011', selector: 'page', message: oneLine(error.message) });
   };
   const onConsole = (message: ConsoleMessage) => {
     if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) {
-      heard.push({ code: 'V012', selector: 'console', message: oneLine(message.text()) });
+      (SOCKET_FAILED.test(message.text()) ? socket : heard).push({ code: 'V012', selector: 'console', message: oneLine(message.text()) });
     }
   };
+  /** Whether the socket of the page is open, or opens within `SOCKET_WAIT`. */
+  const reconnected = () =>
+    page
+      .locator(bz('socket', 'open'))
+      .first()
+      .waitFor({ state: 'attached', timeout: SOCKET_WAIT })
+      .then(
+        () => true,
+        () => false,
+      );
   const onResponse = (answer: Response) => {
     if (!api(answer.url()) || answer.status() < 400 || expected(answer)) return;
     const { pathname } = new URL(answer.url());
@@ -279,7 +302,10 @@ function listen(page: Page): Listened {
   page.on('response', onResponse);
   page.on('requestfailed', onRequestFailed);
   return {
-    issues: () => capped(heard.map((it) => ({ ...it, severity: CODES[it.code][0] }))),
+    issues: async () => {
+      const failed = socket.length > 0 && !(await reconnected()) ? socket : [];
+      return capped([...heard, ...failed].map((it) => ({ ...it, severity: CODES[it.code][0] })));
+    },
     stop: () => {
       page.off('pageerror', onPageError);
       page.off('console', onConsole);

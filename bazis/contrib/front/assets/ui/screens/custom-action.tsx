@@ -27,13 +27,13 @@ import { useRef, useState, type ReactNode } from 'react';
 
 import type { CustomActionName } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { customActionAt, useAnyAction, useAnyItemAction, useListFields, useUploads } from '@/bazis/ui/resource';
+import { customActionAt, useAnyAction, useAnyItemAction, useListFields, useUploads, type FieldFilters } from '@/bazis/ui/resource';
 import type { BulkAction, RowAction } from '@/bazis/ui/resource-list';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-import { ActionFields, bodyDefaults, type ActionFieldsProps } from './action-fields.js';
+import { ActionFields, bodyDefaults, type ActionFieldsProps, type StartValues } from './action-fields.js';
 
 export interface CustomActionOptions {
   /** The id of the action in the specs: `action:<id>`, its confirmation `action:confirm-<id>`. */
@@ -56,6 +56,13 @@ export interface CustomActionOptions {
   fields?: readonly string[];
   /** The labels of its fields by property, before their titles (`ActionFields`). */
   labels?: Readonly<Record<string, string>>;
+  /** The items that the pickers of its relationships offer, by property (`filters` of the specs). */
+  filters?: FieldFilters;
+  /**
+   * The values that its fields start with by property, over the defaults of the body: a day
+   * of the browser (`today`, `month_start`, ...) for a date, computed when the dialog opens.
+   */
+  values?: StartValues;
   /** The title of its dialog: the label by default. */
   title?: ReactNode;
   /** What its dialog says. */
@@ -114,6 +121,8 @@ export function useCustomAction({
   item,
   fields = [],
   labels,
+  filters,
+  values: startValues,
   title,
   description,
   confirm = false,
@@ -165,7 +174,7 @@ export function useCustomAction({
       submit(on, {});
       return;
     }
-    setValues(bodyDefaults(body, fields));
+    setValues(bodyDefaults(body, fields, startValues));
     setOpen({ item: on });
   }
 
@@ -201,6 +210,7 @@ export function useCustomAction({
                 body={body}
                 names={fields}
                 labels={labels}
+                filters={filters}
                 values={values}
                 errors={mutation.errors}
                 disabled={mutation.isPending}

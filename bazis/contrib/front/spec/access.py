@@ -35,7 +35,7 @@ the role with the same operation whose selector is the same or `all` and, on a s
 model, whose status is the same or `all` (for a transit: its source status or `all`). Only
 what `access` grants is checked: a role may have more permissions (of other models, of
 fields, `check`), and the absence of an operation is checked by the scenarios
-(`expect: {action_absent: ...}`).
+(`expect`: `action_absent`, `transit_absent`, `field_readonly`).
 """
 
 from dataclasses import dataclass

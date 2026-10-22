@@ -44,6 +44,9 @@ REQUIRED_STATES = {
 
 #: the route of the home of the frontend
 HOME_ROUTE = '/'
+#: the primitives that query their items (`filters`, the fields that the user filters by, the
+#: filter, the sort); the `filters` of a form are those of its pickers (S061)
+QUERIED = ('list', 'board', 'calendar')
 #: the action of the edit of a card (`card.edit`), its button `action:edit`
 CARD_EDIT = 'edit'
 
@@ -193,10 +196,12 @@ def uploads(contract: dict) -> set[str]:
 
 def is_file(schema: dict, contract: dict) -> bool:
     """
-    Whether a field of the contract is a file of the specs (`type: file`): a to-one
-    relationship to a resource of the uploaded files of bazis-uploadable.
+    Whether a field of the contract is a file of the specs (`type: file`): a relationship to
+    a resource of the uploaded files of bazis-uploadable, to-one for a file, to-many for
+    several (`many: true`); never a polymorphic one (a list of resources).
     """
-    return schema.get('many') is False and schema.get('relation') in uploads(contract)
+    relation = schema.get('relation')
+    return isinstance(schema.get('many'), bool) and isinstance(relation, str) and relation in uploads(contract)
 
 
 def ids_of(schema: dict, root: dict) -> dict | None:
@@ -641,14 +646,17 @@ def _check_field(
             return
         expected = {'relation': target.data['resource'], 'many': item.get('many', False)}
     elif item['type'] == 'file':
-        if is_file(actual, contract):
+        many = item.get('many', False)
+        if is_file(actual, contract) and actual['many'] == many:
             return
         issues.add(
             doc, path, 'P013',
             f'The field `{item["id"]}` of `{name}` is {_describe(actual)} in the contract, the '
-            'spec declares a file: a relationship to the uploaded files of bazis-uploadable.',
-            'Make the field a foreign key to `uploadable.FileUpload` (bazis-uploadable, with a '
-            'route set of FileUploadRouteSet registered), or give the spec its type; then '
+            f'spec declares {"files: a to-many" if many else "a file: a to-one"} relationship to the uploaded files of '
+            'bazis-uploadable.',
+            'Make the field a ' + ('many-to-many field' if many else 'foreign key') + ' to `uploadable.FileUpload` '
+            '(bazis-uploadable, with a route set of FileUploadRouteSet registered), or give the spec its type '
+            f'({"`many: false` for a foreign key" if many else "`many: true` for a many-to-many field"}); then '
             f'{EXPORT_HINT}.',
         )
         return
@@ -663,7 +671,8 @@ def _check_field(
         f'The field `{item["id"]}` of `{name}` is {_describe(actual)} in the contract, '
         + (f'the spec declares {_describe(expected)}.' if expected else f'the spec declares the type `{item["type"]}`.'),
         'Make the spec follow the contract, or change the model.'
-        + (' A relationship to the uploaded files of bazis-uploadable is `type: file`.' if is_file(actual, contract) else '')
+        + (' A relationship to the uploaded files of bazis-uploadable is `type: file` (with `many: true` for a '
+           'to-many one).' if is_file(actual, contract) else '')
         + (' A DecimalField is a string in the API (its exact digits): declare it `type: string`, '
            'and show it with `formatDecimal` of `@/bazis/i18n`.' if decimal else ''),
     )
@@ -716,18 +725,21 @@ def _check_workflow(
                 f'The transition `{item["id"]}` goes from `{transit["src"]}` to `{transit["dst"]}` in the contract.',
                 'Make the spec follow the Transit of the backend, or change the Transit.',
             )
-        _check_payload(doc, (*item_path, 'payload'), item, transit, resource, product, issues)
+        _check_payload(doc, (*item_path, 'payload'), item, transit, resource, product, contract, issues)
 
 
 def _check_payload(
-    doc: Document, path: tuple, item: dict, transit: dict, resource: dict, product: Product, issues: Issues
+    doc: Document, path: tuple, item: dict, transit: dict, resource: dict, product: Product, contract: dict,
+    issues: Issues,
 ) -> None:
     """
     The fields of the payload of a transition are those of the payload of its transit: an
-    attribute of its type, or the id of an item (`relation`), which the dialog asks for with
-    the picker of the to-one relationship of the entity of the same name (`relatedField` of
-    the frontend), so the property is a text named as such a relationship to the resource of
-    the related entity.
+    attribute of its type, the id of an uploaded file (`type: file`, their list with `many`:
+    `UploadedFileId` of bazis-uploadable, which the dialog uploads), or the id of an item
+    (`relation`), which the dialog asks for with the picker of the to-one relationship of the
+    entity of the same name (`relatedField` of the frontend), so the property is a text named
+    as such a relationship to the resource of the related entity; the choices without labels
+    (P037) and the types that a field does not take (S054) are warnings.
     """
     payload = transit['payload']
     if (payload is None) != ('payload' not in item):
@@ -753,7 +765,12 @@ def _check_payload(
             continue
         schema = local_type(prop, payload['schema'])
         if 'relation' in item_field:
-            _check_payload_relation(doc, (*path, 'fields', i), item, item_field, schema, resource, product, issues)
+            _check_payload_relation(doc, (*path, 'fields', i), item, item_field, schema, resource, product, contract, issues)
+            continue
+        ids = ids_of(schema, payload['schema'])
+        files = ids if ids is not None and ids['relation'] in uploads(contract) else None
+        if item_field['type'] == 'file' or files is not None:
+            _check_payload_file(doc, (*path, 'fields', i), item, item_field, schema, files, issues)
             continue
         # a decimal is a number or its digits as a string: the spec declares either member; any
         # other union is typed by its first member
@@ -768,6 +785,14 @@ def _check_payload(
                 'a string) is `type: string`, as the field of the entity (P013), or `number`.'
                 if decimal else 'Make the spec follow the payload type of the transit.',
             )
+        elif 'enum' in schema and 'enumDict' not in schema:
+            issues.add(
+                doc, (*path, 'fields', i), 'P037',
+                f'The field `{item_field["id"]}` of the payload of `{item["id"]}` has choices without their labels: '
+                'the dialog of the transition offers them by their values.',
+                'Type it by the `TextChoices` of the model (bazis 2.22 gives the labels of Django choices in the '
+                f'payloads of the transits, `enumDict`), not by a `Literal`; then {EXPORT_HINT}.',
+            )
         elif (kind := unaskable(schema)) is not None:
             issues.add(
                 doc, (*path, 'fields', i), 'S054',
@@ -778,10 +803,40 @@ def _check_payload(
             )
 
 
+def _check_payload_file(
+    doc: Document, path: tuple, item: dict, item_field: dict, schema: dict, files: dict | None, issues: Issues,
+) -> None:
+    """
+    The id of an uploaded file of a payload (`UploadedFileId`, `files` its relationship), their
+    list with `many`, is a field `type: file`, which the dialog asks for with a file field.
+    """
+    many = item_field.get('many', False)
+    if item_field['type'] == 'file' and files is not None and files['many'] == many:
+        return
+    name = item_field['id']
+    if files is not None:
+        issues.add(
+            doc, (*path, 'type'), 'P017',
+            f'The field `{name}` of the payload of `{item["id"]}` is '
+            f'{"the ids of uploaded files" if files["many"] else "the id of an uploaded file"} in the contract: '
+            'the dialog asks for it with a file field.',
+            f'Declare it `type: file`{", many: true" if files["many"] else " without `many`"}.',
+        )
+        return
+    issues.add(
+        doc, (*path, 'type'), 'P017',
+        f'The field `{name}` of the payload of `{item["id"]}` is {_describe(schema)} in the contract, the '
+        f'spec declares {"the ids of uploaded files" if many else "the id of an uploaded file"}.',
+        'Type the property of the payload `' + ('list[UploadedFileId]' if many else 'UploadedFileId')
+        + f'` of bazis-uploadable, or declare its type; then {EXPORT_HINT}.',
+    )
+
+
 def _check_payload_relation(
     doc: Document, path: tuple, item: dict, item_field: dict, schema: dict, resource: dict, product: Product,
-    issues: Issues,
+    contract: dict, issues: Issues,
 ) -> None:
+    """The id of an item of a payload, and the filter of its picker (S061)."""
     target = product.entities.get(item_field['relation'])
     if target is None:
         return
@@ -789,6 +844,8 @@ def _check_payload_relation(
     own = resource['fields'].get(name, {})
     member = schema.get('anyOf', [schema])[0]
     if own.get('relation') == target.data['resource'] and not own.get('many', False) and member.get('type') == 'string':
+        if 'filter' in item_field:
+            _check_picker_filter(doc, (*path, 'filter'), item_field['filter'], own['relation'], contract, issues)
         return
     issues.add(
         doc, path, 'P017',
@@ -1057,9 +1114,11 @@ def _check_screen(
         return
     _check_fields(doc, entity, _screen_fields(data), issues)
     section = data[primitive]
+    # the query of the items of the screen: none of a card or a form
+    query = section if primitive in QUERIED else {}
     if 'open' in section:
         _check_opens(doc, (primitive, 'open'), section['open'], 'card', entity, screens, issues)
-    _check_point_filters(doc, (primitive,), section, entity, issues)
+    _check_point_filters(doc, (primitive,), query, entity, issues)
     checks = {'list': _check_list, 'card': _check_card, 'board': _check_board, 'calendar': _check_calendar}
     if primitive in checks:
         checks[primitive](doc, entity, issues)
@@ -1067,10 +1126,11 @@ def _check_screen(
     if resource is not None:
         if primitive == 'calendar' and 'add' in section:
             _check_calendar_add(doc, section, entity, resource, issues)
-        _check_queries(doc, (primitive,), section, entity, resource, issues)
+        _check_queries(doc, (primitive,), query, entity, resource, issues)
         if primitive in ('list', 'card', 'form'):
             _check_custom_actions(doc, entity, resource, product, contract, issues)
-        _check_filter_route(doc, primitive, section, entity, resource, product, issues)
+        _check_form_filters(doc, resource, contract, issues)
+        _check_filter_route(doc, primitive, query, entity, resource, product, issues)
         _check_search_contract(doc, entity, resource, contract, issues)
     _check_related_sections(doc, entity, product, screens, contract, issues)
 
@@ -1296,8 +1356,24 @@ def _check_value(doc: Document, path: tuple, value: dict, entity: Entity, resour
 
 def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
     """
-    The transits and the history of a card need the workflow of its entity (S011).
+    The transits and the history of a card need the workflow of its entity (S011); a section
+    shown by the status of the item (`when`), statuses of that workflow (S059).
     """
+    for i, section in enumerate(doc.data['card']['sections']):
+        statuses = section.get('when', {}).get('status', [])
+        if statuses and entity.workflow is None:
+            issues.add(
+                doc, ('card', 'sections', i, 'when'), 'S059', f'The entity `{entity.data["id"]}` has no workflow.',
+                'A section is shown by the status of an item of an entity with a workflow: remove `when`.',
+            )
+            continue
+        for j, status in enumerate(statuses):
+            if status not in entity.workflow['statuses']:
+                issues.add(
+                    doc, ('card', 'sections', i, 'when', 'status', j), 'S059',
+                    f'The status `{status}` is not a status of the workflow of `{entity.data["id"]}`.',
+                    f'Use the statuses of the workflow: {", ".join(entity.workflow["statuses"])}.',
+                )
     if entity.workflow is not None:
         return
     for key in ('transitions', 'history'):
@@ -1375,21 +1451,25 @@ def _check_custom_actions(
     # set (the toolbar of a list, a form)
     rows = set(data['list'].get('row_actions', [])) if data['primitive'] == 'list' else set()
     runs = [
-        (path, it['action'], it.get('fields', []), 'card' if data['primitive'] == 'card' else 'row' if it['id'] in rows else 'toolbar')
+        (path, it['action'], it.get('fields', []), it,
+         'card' if data['primitive'] == 'card' else 'row' if it['id'] in rows else 'toolbar')
         for path, it in screen_actions(data) if it['primitive'] == 'custom'
     ]
     if data['primitive'] == 'list':
-        runs += [(('list', 'bulk', i), it['action'], None, 'bulk') for i, it in enumerate(data['list'].get('bulk', [])) if 'action' in it]
+        runs += [
+            (('list', 'bulk', i), it['action'], None, {}, 'bulk')
+            for i, it in enumerate(data['list'].get('bulk', [])) if 'action' in it
+        ]
     form = action_form(data)
     if form is not None:
-        runs.append((('form',), form['action'], form['fields'], 'form'))
+        runs.append((('form',), form['action'], form['fields'], form, 'form'))
     if not runs:
         return
     public = is_public(data, product.roles)
     # by the name in the path and whether it is of an item: `/export/` and `/{item_id}/export/`
     declared = {(it['name'], it['item']): it for it in resource['custom_actions'].values()}
     posts = ', '.join(sorted({name for (name, _), it in declared.items() if it['method'] == 'post'})) or 'none'
-    for path, name, fields, where in runs:
+    for path, name, fields, spec, where in runs:
         of_item = where not in ('toolbar', 'form')
         action = declared.get((name, of_item))
         problem, hint = None, None
@@ -1428,7 +1508,9 @@ def _check_custom_actions(
                 f'Declare it with `public=True` (a throttle limits it: BAZIS_THROTTLE_PUBLIC) and {EXPORT_HINT}; '
                 'or remove the action from the public screen.',
             )
-        _check_body(doc, path, name, fields, action['body'] or {}, resource, public, product, contract, issues)
+        pickers = _check_body(doc, path, name, fields, action['body'] or {}, resource, public, product, contract, issues)
+        _check_values(doc, path, name, fields or [], spec.get('values', {}), action['body'] or {}, issues)
+        _check_picker_filters(doc, path, spec.get('filters', {}), pickers, contract, issues)
         if where == 'form' and 'result' in form:
             _check_result(doc, name, form['result'], action, issues)
 
@@ -1436,13 +1518,14 @@ def _check_custom_actions(
 def _check_body(
     doc: Document, path: tuple, name: str, fields: list | None, body: dict, resource: dict, public: bool,
     product: Product, contract: dict, issues: Issues,
-) -> None:
+) -> dict[str, str]:
     """
     The fields that the dialog or the form of a custom action asks for against its body: its
     properties (S032), the pickers of the relationships, of the entity by the name of the
     property or by its `x-relation` (S012, S017; S052 on a public screen), the uploaded files
     of a guest (S057), the choices without labels (S058), the types that a field takes (S054),
-    and the properties that the body requires (S032).
+    and the properties that the body requires (S032). The related resources of its pickers by
+    property.
     """
     properties = body.get('properties', {})
     # the relationships that the fields pick: of the entity by the name of the property, else
@@ -1501,6 +1584,61 @@ def _check_body(
             'Ask for it in `fields` of the action.' if fields is not None else
             'Run it on the card or on each row, whose dialog asks for it: a bulk action sends an empty body.',
         )
+    return {prop: ids['relation'] for prop, ids in related.items()}
+
+
+#: a day of the browser that a field of a date starts with (`values`): today, some days from
+#: it, the first or the last day of its month; a time after it for a date-time
+RELATIVE_DAY = re.compile(r'(today(?:[+-]\d+)?|month_start|month_end)( (?:[01]\d|2[0-3]):[0-5]\d)?')
+#: a date as the field of a date holds it
+ISO_DATE = re.compile(r'\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])')
+
+
+def _check_values(doc: Document, path: tuple, name: str, fields: list, values: dict, body: dict, issues: Issues) -> None:
+    """
+    The values that the fields of a custom action start with (`values`, S060): of its fields
+    (a property that its body does not have is S032), each of the type of its property, a day
+    of the browser (`RELATIVE_DAY`) only for a date (with a time for a date-time) or a date
+    as it is (`YYYY-MM-DD`) for a date, one of the choices of a property with choices.
+    """
+    properties = body.get('properties', {})
+    for prop, value in values.items():
+        where = (*path, 'values', prop)
+        if prop not in fields:
+            issues.add(
+                doc, where, 'S060', f'`{prop}` is not a field of the custom action `{name}`: no field starts with it.',
+                f'Give values to its fields: {", ".join(fields) or "none"}; or add `{prop}` to `fields`.',
+            )
+            continue
+        if prop not in properties:
+            continue
+        problem = _value_problem(value, local_type(properties[prop], body))
+        if problem:
+            issues.add(
+                doc, where, 'S060', f'The value of `{prop}` of the custom action `{name}` {problem}.',
+                'Give a value of the type of the property in the body; a date takes a day of the browser, `today`, '
+                '`today+<n>`, `today-<n>`, `month_start`, `month_end` (a date-time with ` HH:MM`), or `YYYY-MM-DD`.',
+            )
+
+
+def _value_problem(value, schema: dict) -> str | None:
+    """What is wrong with the value that the field of a property (`local_type`) starts with; None when it fits."""
+    fmt = schema.get('format')
+    day = RELATIVE_DAY.fullmatch(value) if isinstance(value, str) else None
+    if fmt in ('date', 'date-time'):
+        if day is not None:
+            return 'has a time, and the property is a date' if fmt == 'date' and day[2] else None
+        if fmt == 'date' and isinstance(value, str) and ISO_DATE.fullmatch(value):
+            return None
+        return f'is not a day of the browser{" or `YYYY-MM-DD`" if fmt == "date" else ""}, and the property is a {fmt}'
+    if day is not None:
+        return 'is a day of the browser, and the property is not a date'
+    if 'enum' in schema:
+        return None if value in schema['enum'] else f'is not one of its choices: {", ".join(map(str, schema["enum"]))}'
+    kinds = ('number', 'string') if is_decimal(schema) else (schema.get('type'),)
+    if not any(filter_value_fits(value, {'type': kind}) for kind in kinds if kind in ('boolean', 'integer', 'number', 'string')):
+        return f'is not of its type, {_describe(schema)}'
+    return None
 
 
 #: a parameter of a text of the specs: `{number}`, a property of the answer of an action
@@ -2274,6 +2412,94 @@ def _check_filter_route(
         )
 
 
+def _check_form_filters(doc: Document, resource: dict, contract: dict, issues: Issues) -> None:
+    """
+    The filters of the pickers of the forms of the entity (the form of a page, the form
+    actions) by field: its relationships among the fields of the form (S061), not a
+    polymorphic one (a list of resources), whose picker has no resource to list.
+    """
+    data = doc.data
+    forms = [(path, it) for path, it in screen_actions(data) if it['primitive'] == 'form']
+    if data['primitive'] == 'form' and action_form(data) is None:
+        forms.append((('form',), data['form']))
+    files = uploads(contract)
+    for path, form in forms:
+        names = form.get('fields', resource['fields'])
+        pickers = {
+            name: relation for name in names
+            if isinstance(relation := resource['fields'].get(name, {}).get('relation'), str) and relation not in files
+        }
+        _check_picker_filters(doc, path, form.get('filters', {}), pickers, contract, issues)
+
+
+def _check_picker_filters(
+    doc: Document, path: tuple, filters: dict, pickers: dict[str, str], contract: dict, issues: Issues
+) -> None:
+    """The filters of a form (`filters` at `path`) by field, of its pickers (the related resources by field), S061."""
+    for name, where in filters.items():
+        if name in pickers:
+            _check_picker_filter(doc, (*path, 'filters', name), where, pickers[name], contract, issues)
+            continue
+        issues.add(
+            doc, (*path, 'filters', name), 'S061',
+            f'The form asks for no picker of a relationship `{name}`: its filter filters nothing.',
+            'Filter a field of the form that is a relationship (of a custom action, a property named as a '
+            'relationship of the entity or with its `x-relation`), or remove the filter.',
+        )
+
+
+def _check_picker_filter(doc: Document, path: tuple, where: dict, relation: str, contract: dict, issues: Issues) -> None:
+    """
+    The filter of the picker of the items of `relation` at `path`: each key a field of the
+    related resource or a path through its relationships (`roles__slug`) that the contract
+    filters by, each value of the type of the last field (S061).
+    """
+    for key, value in where.items():
+        problem = _filter_problem(key, value, relation, contract['project']['resources'])
+        if problem is not None:
+            issues.add(doc, (*path, key), 'S061', *problem)
+
+
+def _filter_problem(key: str, value, relation: str, resources: dict) -> tuple[str, str] | None:
+    """What is wrong with a key of the filter of a picker of the items of `relation` and its value; None when it fits."""
+    names = key.split('__')
+    for i, name in enumerate(names):
+        resource = resources.get(relation)
+        if resource is None:
+            return (
+                f'The filter `{key}` reads the fields of `{relation}`, which has no route set in the contract: the '
+                'core filters through a relationship by the fields of the route of the related model.',
+                f'Register the router of the app of `{relation}` in the root router of the backend '
+                f'(`bazis.contrib.permit.router` for the roles of bazis-permit) and {EXPORT_HINT}; or filter by the '
+                'relationship itself, by the id of its item.',
+            )
+        field = resource['fields'].get(name)
+        if field is None or 'filter' not in field:
+            return (
+                f'The filter `{key}` filters `{relation}` by `{name}`, '
+                + ('which it does not have.' if field is None else 'which has no `filter` in the contract.'),
+                'Filter by a field of the resource that the contract can filter by, or make the field filtered by '
+                'in the route set of the backend.',
+            )
+        if i < len(names) - 1 and 'relation' not in field:
+            return (
+                f'The filter `{key}` goes on through `{name}` of `{relation}`, which is not a relationship.',
+                f'Filter by `{name}` itself, or through a relationship of `{relation}`.',
+            )
+        if i < len(names) - 1:
+            relation = field['relation']
+            # through a polymorphic relationship (a list of resources): its fields are not known
+            if not isinstance(relation, str):
+                return None
+        elif not filter_value_fits(value, field):
+            return (
+                f'The value {value!r} of `{key}` does not fit `{name}` of `{relation}` ({_describe(field)} in the '
+                'contract).',
+                'Give the filter a value of the type of the field: a boolean, a number, a text, the id of a related item.',
+            )
+    return None
+
+
 def filter_value_fits(value, field: dict) -> bool:
     """
     Whether a value of the filter of a list fits a field of the contract: a boolean for a
@@ -2299,7 +2525,7 @@ def _picker_fields(data: dict, entity: Entity):
     for the contract to say.
     """
     primitive = data['primitive']
-    for i, name in enumerate(data[primitive].get('filters', [])):
+    for i, name in enumerate(data[primitive].get('filters', []) if primitive in QUERIED else []):
         yield (primitive, 'filters', i), name
     if primitive == 'card' and data['card'].get('edit'):
         for i, section in enumerate(data['card']['sections']):

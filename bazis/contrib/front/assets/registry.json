@@ -523,6 +523,7 @@
       "files": [
         "file-field.contract.test.tsx",
         "file-field.tsx",
+        "fit-image.ts",
         "index.ts",
         "upload-field.tsx"
       ]
@@ -1051,6 +1052,7 @@
         "AGENTS.md",
         "components.json",
         "e2e/custom/README.md",
+        "e2e/fixtures/photo.png",
         "eslint.config.js",
         "index.html",
         "package.json",

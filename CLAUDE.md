@@ -621,7 +621,8 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
 - The frontend of a product, copied by `init` and merged by `update`: `package.json` with pinned versions
   (prettier among them, with the style of the template in its `prettier` key: `npm run format`
   formats the code of the product, `.prettierignore` leaves out the copies, the generated
-  files and the files that the end-to-end tests upload (`e2e/fixtures/`); the `frontend` job checks that the template is formatted, `prettier --check`)
+  files and the files that the end-to-end tests upload (`e2e/fixtures/`: `photo.png`, a small image for the
+  scenarios of a product, is the only binary file of the template, copied as it is and never merged); the `frontend` job checks that the template is formatted, `prettier --check`)
   and one vite for every package (`overrides`: `$vite`, without which `npm install` of npm 10
   fails on the optional peers of vitest; why, and the product's own `overrides` after
   `update`: the guide and `tests/test_assets.py`),

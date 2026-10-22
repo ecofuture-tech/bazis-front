@@ -29,6 +29,7 @@ import { useDestroy, type CreatePath, type DestroyPath, type UpdatePath } from '
 import { Allowed, type NavRequirement } from '@/bazis/ui/app-shell';
 import type { CardAction } from '@/bazis/ui/resource-card';
 import { FormSurface, ResourceForm, type SavedDocument } from '@/bazis/ui/resource-form';
+import type { FieldFilters } from '@/bazis/ui/resource';
 import { toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -52,6 +53,8 @@ export interface CreateFormActionProps {
   path: CreatePath;
   /** The fields of the form (`fields` of the action); every field of the create schema by default. */
   fields?: readonly string[];
+  /** The items that the pickers of its relationships offer, by field (`filters` of the action). */
+  filters?: FieldFilters | undefined;
   /** The values that the form starts with, which the user may change (`ResourceForm` `initial`). */
   initial?: Readonly<Record<string, unknown>> | undefined;
   title: ReactNode;
@@ -66,12 +69,13 @@ export interface CreateFormActionProps {
  * The create form of an action in `FormSurface` (a dialog or a page, as the theme composes the
  * forms), closed when it is saved or cancelled; its state is `CreateFormAction.use()`.
  */
-export function CreateFormAction({ open, onClose, path, fields, initial, title, description, onSaved, mode }: CreateFormActionProps) {
+export function CreateFormAction({ open, onClose, path, fields, filters, initial, title, description, onSaved, mode }: CreateFormActionProps) {
   return (
     <FormSurface open={open} title={title} description={description} onClose={onClose} mode={mode}>
       <ResourceForm
         path={path}
         fields={fields}
+        filters={filters}
         initial={initial}
         onSaved={(saved) => {
           onClose();
@@ -111,13 +115,14 @@ export interface UpdateFormActionProps extends Omit<CreateFormActionProps, 'path
  * The update form of an item in `FormSurface` (a dialog or a page, as the theme composes the
  * forms), closed when it is saved or cancelled; its state is `UpdateFormAction.use()`.
  */
-export function UpdateFormAction({ open, onClose, path, id, fields, title, description, onSaved, mode }: UpdateFormActionProps) {
+export function UpdateFormAction({ open, onClose, path, id, fields, filters, title, description, onSaved, mode }: UpdateFormActionProps) {
   return (
     <FormSurface open={open} title={title} description={description} onClose={onClose} mode={mode}>
       <ResourceForm
         path={path}
         id={id}
         fields={fields}
+        filters={filters}
         onSaved={(saved) => {
           onClose();
           onSaved?.(saved);

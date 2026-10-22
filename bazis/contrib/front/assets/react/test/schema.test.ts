@@ -277,6 +277,11 @@ describe('objectFields', () => {
         nullable: false, type: 'string', format: null, enum: null, labels: null, blank: false, relation: null,
         schema: { title: 'Report', type: 'string' },
       },
+      {
+        kind: 'attribute', name: 'photos', title: 'Photos', required: false, readOnly: false,
+        nullable: false, type: 'array', format: null, enum: null, labels: null, blank: false, relation: null,
+        schema: { default: [], items: { type: 'string' }, title: 'Photos', type: 'array' },
+      },
     ]);
     expect(objectFields({})).toEqual([]);
   });

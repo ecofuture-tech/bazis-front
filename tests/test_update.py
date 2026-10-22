@@ -61,8 +61,8 @@ def files(root):
 def downgrade(root, name, edit=lambda path, text: text):
     """
     Makes the copy of an asset that of the version OLD, unchanged in the frontend: `edit`
-    returns the text of a file in that version (with its stamp), None when the version did
-    not have it.
+    returns the text of a file in that version (with its stamp; the data of a binary file, an
+    image of the template), None when the version did not have it.
     """
     frontend = root / 'frontend'
     asset = registry.load()[name]
@@ -70,11 +70,16 @@ def downgrade(root, name, edit=lambda path, text: text):
     entry = {}
     for relative in asset.files:
         path = asset.target_path(relative)
-        text = edit(path, restamp((frontend / path).read_text(encoding='utf-8'), name, OLD))
-        if text is None:
+        data = (frontend / path).read_bytes()
+        try:
+            old = restamp(data.decode('utf-8'), name, OLD)
+        except UnicodeDecodeError:
+            old = data
+        old = edit(path, old)
+        if old is None:
             (frontend / path).unlink()
             continue
-        data = text.encode('utf-8')
+        data = old if isinstance(old, bytes) else old.encode('utf-8')
         (frontend / path).write_bytes(data)
         (base_dir(frontend, name, OLD) / relative).parent.mkdir(parents=True, exist_ok=True)
         (base_dir(frontend, name, OLD) / relative).write_bytes(data)
@@ -350,6 +355,34 @@ def test_update_removes_an_asset_no_longer_in_bazis_front(product):
     update()
     assert not (frontend / 'src/bazis/gone').exists()
     assert (frontend / 'src/bazis').is_dir()
+
+
+#: the photo of the template that the scenarios upload (`upload: {file: photo.png}`)
+PHOTO = 'e2e/fixtures/photo.png'
+
+
+def test_update_adds_the_photo_of_the_template(product):
+    """A frontend made before the photo gets it, as it is (a binary file)."""
+    downgrade(product, 'template', lambda path, data: None if path == PHOTO else data)
+    assert not (product / 'frontend' / PHOTO).exists()
+
+    assert f'  {PHOTO}: added\n' in update()
+    assert (product / 'frontend' / PHOTO).read_bytes() == registry.load()['template'].read(PHOTO)
+    assert_updated(product, 'template')
+
+
+def test_update_never_overwrites_the_photo_of_the_product(product):
+    """
+    A frontend made before the photo of the template, with a photo of its own at its path:
+    `update` writes nothing and names the file, which the product moves away.
+    """
+    downgrade(product, 'template', lambda path, data: None if path == PHOTO else data)
+    (product / 'frontend' / PHOTO).write_bytes(b'\x89PNG mine')
+    before = files(product)
+
+    with pytest.raises(CommandError, match=f'{PHOTO} exists and is not the copy of template'):
+        update()
+    assert files(product) == before
 
 
 def test_update_never_overwrites_a_file_of_the_product(product):
@@ -696,8 +729,10 @@ def test_a_conflict_of_package_json_names_no_file_of_bazis_front(product):
     )
 
     out = StringIO()
-    with pytest.raises(CommandError, match=f'with conflicts in 1 files: {PACKAGE_JSON}'):
+    with pytest.raises(CommandError, match=f'with conflicts in 1 files: {PACKAGE_JSON}') as error:
         call_command('bazis_front', 'update', stdout=out)
+    # nor does the error offer one
+    assert 'take the file of bazis-front' not in str(error.value)
     assert (
         f'\n{PACKAGE_JSON}: resolve its markers, keeping the npm dependencies on the side of bazis-front '
         '(those of the assets, which no file of bazis-front has), then run `npm install`.\n'

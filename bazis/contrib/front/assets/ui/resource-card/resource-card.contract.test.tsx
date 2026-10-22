@@ -257,6 +257,42 @@ describe('ResourceCard', () => {
     expect(term('count')).toBe('Count(read-only)');
   });
 
+  it('shows a section with `when` only while the item is in one of its statuses', async () => {
+    const card = (status: string | null) => {
+      const server = new Backend()
+        .on('GET', `${ITEM}schema_retrieve/`, schema)
+        .on('GET', ITEM, {
+          data: resource(ITEM_ID, { title: 'Report', count: 3 }, { status: status === null ? null : { type: 'statusy.status', id: status } }),
+          meta: { crud_actions: ['view'] },
+        });
+      return renderWithBazis(
+        <ResourceCard
+          path={ITEMS as never}
+          id={ITEM_ID}
+          sections={[
+            { id: 'main', title: 'Main', fields: ['title'] },
+            { id: 'result', title: 'Result', fields: ['count'], when: { status: ['done', 'archived'] } },
+          ]}
+        />,
+        server,
+      );
+    };
+    const done = card('done');
+    await screen.findByTestId('state:loaded');
+    expect(screen.getByRole('region', { name: 'Result' })).toBeTruthy();
+    expect(screen.getByTestId('field:count').textContent).toBe('3');
+    done.unmount();
+    // another status, or none: the section is left out, the others are shown
+    for (const status of ['draft', null]) {
+      const other = card(status);
+      await screen.findByTestId('state:loaded');
+      expect(screen.queryByRole('region', { name: 'Result' })).toBeNull();
+      expect(screen.queryByTestId('field:count')).toBeNull();
+      expect(screen.getByTestId('field:title').textContent).toBe('Report');
+      other.unmount();
+    }
+  });
+
   it('marks nothing read-only when the user may not change the item', async () => {
     const server = backend({ crud_actions: ['view'] });
     renderWithBazis(<ResourceCard path={ITEMS as never} id={ITEM_ID} sections={sections} edit />, server);

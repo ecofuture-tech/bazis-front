@@ -14,7 +14,8 @@
 
 // The controls of `FileField` and `FilesField` (file-field.tsx), a chunk of their own: loaded
 // with the first file field shown, so that the root of a product (`FileFieldProvider`) does not
-// carry the upload.
+// carry the upload. An image larger than the limit is reduced to it before it uploads
+// (`fitImage`), another file is refused.
 
 import { RefreshCw, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
@@ -27,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { accepts, MAX_SIZE, type FileFieldProps, type FilesFieldProps } from './file-field.js';
+import { fitImage, reducible } from './fit-image.js';
 
 /** `useUpload` over a plain path: the field is generic over the route sets of any product. */
 const useAnyUpload = useUpload as unknown as (path: string) => UploadState<{ data: { id: string | number } }>;
@@ -70,9 +72,18 @@ function typeNames(accept: string, { language, t }: Pick<LanguageContextValue, '
   return new Intl.ListFormat(language, { type: 'disjunction' }).format([...new Set(names)]);
 }
 
+/** Whether a field takes the images that are reduced to its limit (`fitImage`). */
+function reducesImages(accept: string | undefined): boolean {
+  return [
+    ['a.jpg', 'image/jpeg'],
+    ['a.png', 'image/png'],
+    ['a.webp', 'image/webp'],
+  ].some(([name = '', type]) => accepts(new File([], name, { type }), accept));
+}
+
 /**
- * The limits of a field under its drop zone: the types, the size of a file and the most files
- * (`maxItems`); null without any.
+ * The limits of a field under its drop zone: the types, the size of a file (that a larger image
+ * is reduced to) and the most files (`maxItems`); null without any.
  */
 function limits(
   accept: string | undefined,
@@ -83,7 +94,7 @@ function limits(
   const { t } = language;
   const parts = [
     accept && typeNames(accept, language),
-    maxSize !== null && t('upload.up_to', { size: formatSize(maxSize, language) }),
+    maxSize !== null && t(reducesImages(accept) ? 'upload.up_to_reduced' : 'upload.up_to', { size: formatSize(maxSize, language) }),
     maxItems !== undefined && t('upload.up_to_files', { count: maxItems }),
   ];
   return parts.filter(Boolean).join(', ') || null;
@@ -152,15 +163,24 @@ export default function UploadField({
   }, [chosen?.preview]);
   // a form closed while its file uploads drops the upload
   useEffect(() => abort, [abort]);
+  // the field is shown: an image reduced once it is not is not uploaded
+  const shown = useRef(true);
+  useEffect(() => {
+    shown.current = true;
+    return () => {
+      shown.current = false;
+    };
+  }, []);
 
-  async function take(file: File | undefined) {
+  async function take(chosenFile: File | undefined) {
     // one file at a time: another file waits until the upload ends or is cancelled
-    if (!file || disabled || running.current) return;
-    if (maxSize !== null && file.size > maxSize) {
-      onError(t('upload.too_large', { size: formatSize(maxSize, language) }));
+    if (!chosenFile || disabled || running.current) return;
+    const tooLarge = maxSize === null ? '' : t('upload.too_large', { size: formatSize(maxSize, language) });
+    if (maxSize !== null && chosenFile.size > maxSize && !reducible(chosenFile)) {
+      onError(tooLarge);
       return;
     }
-    if (!accepts(file, accept)) {
+    if (!accepts(chosenFile, accept)) {
       onError(t('upload.wrong_type', { accept: typeNames(accept ?? '', language) }));
       return;
     }
@@ -169,26 +189,36 @@ export default function UploadField({
       return;
     }
     onError(null);
-    setChosen({ file, preview: isImage(file.name) ? URL.createObjectURL(file) : null, id: null });
     running.current = true;
     onBusy(true);
-    // what this upload changes is for its own file only
-    const forget = () => {
-      setChosen((current) => (current?.file === file ? null : current));
-    };
     try {
-      const created = await upload.upload(file);
-      if (created === null) {
-        // cancelled: the field keeps its file
-        forget();
+      // an image larger than the limit is reduced to it first
+      const file = await fitImage(chosenFile, maxSize);
+      if (file === null) {
+        onError(tooLarge);
         return;
       }
-      const id = String(created.data.id);
-      setChosen((current) => (current?.file === file ? { ...current, id } : current));
-      onChange(id);
-    } catch (error) {
-      forget();
-      onError(message(error, t));
+      // the field closed meanwhile uploads nothing
+      if (!shown.current) return;
+      setChosen({ file, preview: isImage(file.name) ? URL.createObjectURL(file) : null, id: null });
+      // what this upload changes is for its own file only
+      const forget = () => {
+        setChosen((current) => (current?.file === file ? null : current));
+      };
+      try {
+        const created = await upload.upload(file);
+        if (created === null) {
+          // cancelled: the field keeps its file
+          forget();
+          return;
+        }
+        const id = String(created.data.id);
+        setChosen((current) => (current?.file === file ? { ...current, id } : current));
+        onChange(id);
+      } catch (error) {
+        forget();
+        onError(message(error, t));
+      }
     } finally {
       running.current = false;
       onBusy(false);
@@ -380,10 +410,21 @@ export function UploadFiles({
     running.current = true;
     onBusy(true);
     try {
-      for (let item = queue.current.shift(); item && shown.current; item = queue.current.shift()) {
-        const taken = item;
+      while (shown.current && queue.current.length) {
+        const [taken] = queue.current as [Listed];
+        // an image larger than the limit is reduced first, still waiting: a cancel leaves it out
+        const file = await fitImage(taken.file, maxSize);
+        if (queue.current[0] !== taken) continue;
+        queue.current.shift();
+        if (file === null) {
+          drop(taken);
+          onError(maxSize === null ? null : t('upload.too_large', { size: formatSize(maxSize, language) }));
+          continue;
+        }
+        // listed as it uploads: the reduced image
+        if (file !== taken.file) setChosen((list) => list.map((it) => (it.key === taken.key ? { ...it, file } : it)));
         try {
-          const created = await upload.upload(taken.file);
+          const created = await upload.upload(file);
           if (created === null) {
             // cancelled: the file is left out
             drop(taken);
@@ -408,7 +449,8 @@ export function UploadFiles({
     if (disabled || !files.length) return;
     let refused: string | null = null;
     const accepted = files.filter((file) => {
-      if (maxSize !== null && file.size > maxSize) {
+      // a larger image is reduced to the limit as it uploads
+      if (maxSize !== null && file.size > maxSize && !reducible(file)) {
         refused ??= t('upload.too_large', { size: formatSize(maxSize, language) });
         return false;
       }

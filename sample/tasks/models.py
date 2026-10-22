@@ -82,6 +82,9 @@ class Task(StatusyMixin, DtMixin, UuidMixin, JsonApiMixin):
     def before_finish(self, statusy_transit: StatusyTransit, payload: FinishPayload):
         self.report = payload.report
         self.save()
+        # the photos of the payload that the user uploaded, never the files of another one
+        ids = [it for it in payload.photos if it.isdigit()]
+        self.photos.add(*self.photos.model.objects.filter(pk__in=ids, author=statusy_transit.author))
         # a stored notification of bazis-notify (tasks/notifications.py), only to the assignee,
         # who may see the task, in the language of his profile; delivered live on his channel
         # of bazis-ws (`notification_created`), never published a second time by hand

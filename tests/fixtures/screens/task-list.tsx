@@ -4,6 +4,7 @@
 import { PlusIcon } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 
+import { Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { useItemsTransit } from '@/bazis/react/statusy';
 import { Screen } from '@/bazis/ui/app-shell';
@@ -96,6 +97,7 @@ export function TaskListScreen() {
         {...createForm}
         path={TASK.path}
         fields={['title', 'assignee', 'priority', 'watchers', 'hours']}
+        filters={{ assignee: Filter.where('is_active', true) }}
         title={t('screens.task-list.actions.create.label')}
         description={t('screens.task-list.actions.create.description')}
         onSaved={(saved) => void navigate(routeTo('task-card', saved.data.id))}

@@ -137,6 +137,11 @@ def reopen(data):
     return task(data)['workflow']['transitions'][2]['payload']['fields'][0]
 
 
+def finish_payload(data):
+    """The JSON Schema of the payload of `finish` in the contract, `report: str`."""
+    return data['capabilities']['statusy']['models']['tasks.task']['transits'][0]['payload']['schema']
+
+
 def reopen_payload(data):
     """The JSON Schema of the payload of `reopen` in the contract, `assignee: UUID`."""
     return data['capabilities']['statusy']['models']['tasks.task']['transits'][1]['payload']['schema']
@@ -245,7 +250,7 @@ CASES = [
         'P003',
         {PRODUCT: lambda d: [d['roles'].append({'id': 'viewer', 'permit': 'viewer'}),
                              task(d)['fields'].append({'id': 'status', 'type': 'string'})]},
-        [('P003', f'{PRODUCT}#/roles/3/id'), ('P003', f'{PRODUCT}#/entities/0/fields/10/id')],
+        [('P003', f'{PRODUCT}#/roles/3/id'), ('P003', f'{PRODUCT}#/entities/0/fields/11/id')],
     ),
     (
         'P004',
@@ -282,7 +287,7 @@ CASES = [
     (
         'P012',
         {PRODUCT: lambda d: task(d)['fields'].append({'id': 'due_date', 'type': 'date'})},
-        [('P012', f'{PRODUCT}#/entities/0/fields/10')],
+        [('P012', f'{PRODUCT}#/entities/0/fields/11')],
     ),
     (
         'P013',
@@ -312,6 +317,14 @@ CASES = [
             ('P022', f'{PRODUCT}#/scenarios/5/steps/5/upload/field'),
         ],
     ),
+    (
+        'P013',
+        # several files are a to-many relationship to the uploaded files, one file a to-one one
+        {PRODUCT: lambda d: [task(d)['fields'][10].pop('many'), task(d)['fields'][4].update(many=True)]},
+        [('P013', f'{PRODUCT}#/entities/0/fields/4'), ('P013', f'{PRODUCT}#/entities/0/fields/10')],
+    ),
+    # `many` is of a relationship or of files only
+    ('P002', {PRODUCT: lambda d: task(d)['fields'][0].update(many=True)}, [('P002', f'{PRODUCT}#/entities/0/fields/0/type')]),
     (
         'P014',
         {CONTRACT: remove_statusy_model},
@@ -357,9 +370,12 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/4/steps/13/transit'),
             ('P024', f'{PRODUCT}#/scenarios/6/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/report'),
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/photos'),
             ('P024', f'{PRODUCT}#/scenarios/9/steps/9/transit'),
-            # the board moves a task to in_progress, which only `start` leads to
+            # the board moves a task to in_progress, which only `start` leads to, and to done
+            # with the payload of `finish`, which now has none
             ('P024', f'{PRODUCT}#/scenarios/13/steps/6/move/to'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/10/move/payload'),
             ('P024', f'{PRODUCT}#/scenarios/22/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/22/steps/6/transit/payload/report'),
         ],
@@ -370,6 +386,28 @@ CASES = [
         'P017',
         {PRODUCT: lambda d: reopen(d).update(relation='step')},
         [('P017', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')],
+    ),
+    (
+        'P017',
+        # a file of a payload is the id of an uploaded file, several their list (`many`)
+        {PRODUCT: lambda d: [task(d)['workflow']['transitions'][1]['payload']['fields'][0].update(type='file'),
+                             task(d)['workflow']['transitions'][1]['payload']['fields'][1].pop('many')]},
+        [
+            ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/0/type'),
+            ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/1/type'),
+            # and the scenarios: a text of the photos, a list of them
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/photos'),
+        ],
+    ),
+    (
+        'P017',
+        # the ids of uploaded files of a payload are a file field, not a JSON one (no S054)
+        {PRODUCT: lambda d: task(d)['workflow']['transitions'][1]['payload']['fields'].__setitem__(
+            1, {'id': 'photos', 'type': 'json'})},
+        [
+            ('P017', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/1/type'),
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/photos'),
+        ],
     ),
     (
         'P017',
@@ -480,6 +518,57 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/0/steps/4/expect/status'),
             ('P024', f'{PRODUCT}#/scenarios/0/steps/5/transit'),
         ],
+    ),
+    (
+        'P024',
+        # the photos of a payload are a list of files; a text is one value; a file of a move
+        {PRODUCT: lambda d: [steps(d, 6)[6]['transit']['payload'].update(photos='photo.png'),
+                             steps(d, 22)[6]['transit']['payload'].update(report=['Done']),
+                             steps(d, 13)[10]['move']['payload'].update(photos=['photo.png'])]},
+        [
+            ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/photos'),
+            ('P024', f'{PRODUCT}#/scenarios/22/steps/6/transit/payload/report'),
+        ],
+    ),
+    (
+        'P024',
+        # a move to `done` without the payload of `finish`, then with a field that it does not
+        # have, to `draft`, which no transition leads to; the payload of a move to `in_progress`
+        # is that of `reopen` (`start` has none); a transit that is not of the workflow is absent
+        {PRODUCT: lambda d: [steps(d, 13)[10]['move'].pop('payload'),
+                             steps(d, 13).extend([
+                                 {'open': 'task-board'},
+                                 {'move': {'where': {'title': 'Move on the board'}, 'to': 'done',
+                                           'payload': {'summary': 'Done'}}},
+                                 {'move': {'where': {'title': 'Move on the board'}, 'to': 'draft'}},
+                             ]),
+                             steps(d, 13)[6]['move'].update(payload={'report': 'Started'}),
+                             steps(d, 1)[6]['expect'].update(transit_absent='cancel')]},
+        [
+            ('P024', f'{PRODUCT}#/scenarios/1/steps/6/expect/transit_absent'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/6/move/payload/report'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/10/move/to'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/14/move/payload/summary'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/15/move/to'),
+        ],
+    ),
+    (
+        'P022',
+        # the transits are on a card; the manager runs `reopen` of every task, and the task is
+        # done (moved there; the expectation of the status of the card is not needed)
+        {PRODUCT: lambda d: [steps(d, 1).extend([{'open': 'task-list'}, {'expect': {'transit_absent': 'start'}}]),
+                             steps(d, 13).__setitem__(12, {'expect': {'screen': 'task-card',
+                                                                      'transit_absent': 'reopen'}})]},
+        [
+            ('P022', f'{PRODUCT}#/scenarios/1/steps/8/expect/transit_absent'),
+            ('P022', f'{PRODUCT}#/scenarios/13/steps/12/expect/transit_absent'),
+        ],
+    ),
+    (
+        'P037',
+        # the report of `finish` typed by a `Literal`: its choices have no labels
+        {CONTRACT: lambda d: finish_payload(d)['properties']['report'].update(enum=['done', 'failed'])},
+        [('P037', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/0')],
     ),
     (
         'P025',
@@ -738,12 +827,46 @@ CASES = [
     ),
     ('S011', {'spec/screens/user-card.yaml': lambda d: user_card(d, transitions=True)}, [('S011', 'spec/screens/user-card.yaml#/card/transitions')]),
     (
+        'S059',
+        # a section shown in a status that is not of the workflow; a section of the card of an
+        # entity without a workflow
+        {CARD: lambda d: d['card']['sections'][1]['when']['status'].append('closed'),
+         'spec/screens/user-card.yaml': lambda d: (
+             card := user_card(d), card['card']['sections'][0].update(when={'status': ['done']}))[0]},
+        [('S059', f'{CARD}#/card/sections/1/when/status/1'), ('S059', 'spec/screens/user-card.yaml#/card/sections/0/when')],
+    ),
+    (
         'S012',
         # the users have no search: the pickers of the assignee (the filters of a list, of the
         # board and of the calendar, a form, the card) and of the watchers (a form, the card)
         {CONTRACT: lambda d: d['project']['resources']['users.user'].update(search=[])},
         [
             ('S012', f'{DRAFTS}#/list/filters/0'),
+            ('S012', f'{BOARD}#/board/filters/0'),
+            ('S012', f'{CALENDAR}#/calendar/filters/0'),
+            ('S012', f'{CARD}#/card/sections/0/fields/2'),
+            ('S012', f'{CARD}#/card/sections/0/fields/3'),
+            ('S012', f'{LIST}#/list/filters/1'),
+            ('S012', f'{LIST}#/actions/0/fields/1'),
+            ('S012', f'{LIST}#/actions/0/fields/3'),
+        ],
+    ),
+    (
+        'S012',
+        # the filters of the pickers of a form are not filters of the user with pickers of their
+        # own (a filter of the files, a relationship of the task, is S061 only): the users and the
+        # uploaded files without a search report the pickers alone
+        {CONTRACT: lambda d: [
+            d['project']['resources']['users.user'].update(search=[]),
+            d['project']['resources']['uploadable.file_upload'].update(search=[]),
+            d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body']['properties'].update(
+                reviewer={'type': 'string', 'x-relation': 'users.user'})],
+         SUGGEST: lambda d: [d['form']['fields'].append('reviewer'), d['form'].update(filters={
+            'reviewer': {'is_staff': False}, 'photos': {'is_active': True}})]},
+        [
+            ('S012', f'{DRAFTS}#/list/filters/0'),
+            ('S012', f'{SUGGEST}#/form/fields/2'),
+            ('S061', f'{SUGGEST}#/form/filters/photos'),
             ('S012', f'{BOARD}#/board/filters/0'),
             ('S012', f'{CALENDAR}#/calendar/filters/0'),
             ('S012', f'{CARD}#/card/sections/0/fields/2'),
@@ -822,6 +945,14 @@ CASES = [
                                   full_name={'title': 'Full name', 'type': 'string'}),
                               d['project']['resources']['users.user'].update(label=['full_name'], search=['username'])]},
         [],
+    ),
+    (
+        'P013',
+        # a file of the spec that is a polymorphic relationship (a list of resources) in the
+        # contract: not the uploaded files
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['fields']['attachment'].update(
+            relation=['uploadable.file_upload', 'users.user'])},
+        [('P013', f'{PRODUCT}#/entities/0/fields/4')],
     ),
     (
         'P013',
@@ -928,9 +1059,10 @@ CASES = [
         # a column of no status of the workflow, a badge by a text
         {BOARD: lambda d: [d['board'].update(columns=['draft', 'archived']),
                            d['board']['card'].update(badge='title')]},
-        # the scenario of the board moves a task to a status that is no longer a column
+        # the scenario of the board moves a task to statuses that are no longer columns
         [('S022', f'{BOARD}#/board/columns/1'), ('S022', f'{BOARD}#/board/card/badge'),
-         ('P022', f'{PRODUCT}#/scenarios/13/steps/6/move/to')],
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/6/move/to'),
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/10/move/to')],
     ),
     (
         'S022',
@@ -940,7 +1072,8 @@ CASES = [
         # the scenario of the board moves a step that it did not create, and opens a step that
         # opens nothing
         [('S022', f'{BOARD}#/board/by'), ('P033', f'{PRODUCT}#/scenarios/13/steps/6/move'),
-         ('P022', f'{PRODUCT}#/scenarios/13/steps/7/open_item')],
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/7/open_item'),
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/11/open_item')],
     ),
     (
         'S023',
@@ -1221,6 +1354,18 @@ CASES = [
         # a route set that narrows its actions without the fields of its filters: the filters of
         # the list and of the board, the filters and the report of the drafts
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields')]},
+        [('S040', f'{DRAFTS}#/list/filters'), ('S040', f'{DRAFTS}#/list/filter'),
+         ('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters')],
+    ),
+    (
+        'S040',
+        # the filters of the pickers of a form are not those of the user: the form reads no
+        # fields of the filters
+        {CONTRACT: lambda d: [
+            d['project']['resources']['tasks.task']['actions'].pop('get_route_filter_fields'),
+            d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body']['properties'].update(
+                reviewer={'type': 'string', 'x-relation': 'users.user'})],
+         SUGGEST: lambda d: [d['form']['fields'].append('reviewer'), d['form'].update(filters={'reviewer': {'is_staff': False}})]},
         [('S040', f'{DRAFTS}#/list/filters'), ('S040', f'{DRAFTS}#/list/filter'),
          ('S040', f'{BOARD}#/board/filters'), ('S040', f'{CALENDAR}#/calendar/filters'), ('S040', f'{LIST}#/list/filters')],
     ),
@@ -1528,6 +1673,97 @@ CASES = [
             'properties'].update(kind={'type': 'string', 'enum': ['bug', 'idea'], 'title': 'Kind'}),
          SUGGEST: lambda d: d['form']['fields'].append('kind')},
         [('S058', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'S060',
+        # the values that the fields start with: of no field; a day of the browser of a choice
+        # and of a text; a value out of the choices (in the dialog of the card); a time of a
+        # date; a date as it is and a day of a date fit
+        {EXPORT: lambda d: d['form']['values'].update(title='Plan', priority='today'),
+         SUGGEST: lambda d: d['form'].update(values={'title': 'today'}),
+         CARD: lambda d: d['actions'][1].update(values={'priority': 'urgent'})},
+        [('S060', f'{EXPORT}#/form/values/title'), ('S060', f'{EXPORT}#/form/values/priority'),
+         ('S060', f'{SUGGEST}#/form/values/title'), ('S060', f'{CARD}#/actions/1/values/priority')],
+    ),
+    (
+        'S060',
+        # a number of a text, a text of the ids of files
+        {EXPORT: lambda d: d['form']['values'].update(created_from='today 09:00', priority='high'),
+         SUGGEST: lambda d: d['form'].update(values={'title': 3, 'photos': 'photo.png'})},
+        [('S060', f'{EXPORT}#/form/values/created_from'), ('S060', f'{SUGGEST}#/form/values/title'),
+         ('S060', f'{SUGGEST}#/form/values/photos')],
+    ),
+    (
+        'S060',
+        {EXPORT: lambda d: d['form']['values'].update(created_from='2026-02-01'),
+         CARD: lambda d: d['actions'][1].update(values={'priority': 'high'})},
+        [],
+    ),
+    (
+        'S061',
+        # the roles of the users are filtered by their slug through the route set of the roles,
+        # which the sample does not register
+        {PRODUCT: lambda d: reopen(d).update(filter={'roles__slug': 'manager'})},
+        [('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/roles__slug')],
+    ),
+    (
+        'S061',
+        # with the route set of the roles: a slug is a text; a field that is not a relationship,
+        # one that the contract does not filter by, one that it does not have
+        {CONTRACT: lambda d: d['project']['resources'].update({'permit.role': {
+            **d['project']['resources']['users.user'], 'fields': {'slug': {'filter': 'slug', 'type': 'string'}}}}),
+         PRODUCT: lambda d: reopen(d).update(filter={
+            'roles__slug': 'manager', 'role_current__slug': 3, 'username__slug': 'a', 'raw_password': 'a',
+            'nickname': 'a'})},
+        [
+            ('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/role_current__slug'),
+            ('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/username__slug'),
+            ('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/raw_password'),
+            ('S061', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0/filter/nickname'),
+        ],
+    ),
+    (
+        'S061',
+        # the filters of a form: of its pickers only (not of a text, of a field it does not ask
+        # for, of the files of a custom action), each value of the type of its field
+        {LIST: lambda d: d['actions'][0].update(filters={
+            'assignee': {'is_active': 'yes'}, 'title': {'is_active': True}, 'attachment': {'is_active': True}}),
+         CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_suggest']['body'][
+            'properties'].update(reviewer={'type': 'string', 'x-relation': 'users.user'}),
+         SUGGEST: lambda d: [d['form']['fields'].append('reviewer'), d['form'].update(filters={
+            'reviewer': {'is_staff': False}, 'photos': {'is_active': True}})]},
+        [
+            ('S061', f'{SUGGEST}#/form/filters/photos'),
+            ('S061', f'{LIST}#/actions/0/filters/assignee/is_active'),
+            ('S061', f'{LIST}#/actions/0/filters/title'),
+            ('S061', f'{LIST}#/actions/0/filters/attachment'),
+        ],
+    ),
+    (
+        'S061',
+        # the filters of a form are not queries of its items: a point, a field that the contract
+        # does not filter by are filters of no picker (S061), not filters of the user (S016, S008)
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['report'].pop('filter')],
+         SUGGEST: lambda d: d['form'].update(filters={'location': {'is_active': True}, 'report': {'is_active': True}})},
+        [('S061', f'{SUGGEST}#/form/filters/location'), ('S061', f'{SUGGEST}#/form/filters/report')],
+    ),
+    (
+        'S061',
+        # a polymorphic relationship (a list of resources) of a form without `fields`: no picker,
+        # so its filter filters nothing
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['fields'].update(
+            subject={'title': 'Subject', 'relation': ['users.user', 'tasks.task'], 'many': False}),
+         LIST: lambda d: [d['actions'][0].pop('fields'), d['actions'][0].update(filters={'subject': {'is_active': True}})]},
+        [('S061', f'{LIST}#/actions/0/filters/subject')],
+    ),
+    (
+        'S061',
+        # a filter through a polymorphic relationship: the fields of its resources are not known,
+        # it is not checked
+        {CONTRACT: lambda d: d['project']['resources']['users.user']['fields'].update(
+            owner={'title': 'Owner', 'relation': ['tasks.task', 'users.user'], 'many': False, 'filter': 'owner'}),
+         PRODUCT: lambda d: reopen(d).update(filter={'owner__slug': 'manager'})},
+        [],
     ),
     (
         'P022',
@@ -2335,6 +2571,109 @@ def test_a_piece_of_a_text_after_a_comma_of_a_flow_mapping_is_told_to_be_quoted(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(('step', 'key', 'helper'), [
+    (lambda d: steps(d, 13)[6]['move'].update(created=True), 'created', '`openItem`, `select` and `move`'),
+    (lambda d: steps(d, 1)[2]['open_item'].update(created=True), 'created', '`openItem`, `select` and `move`'),
+    (lambda d: steps(d, 0)[3]['submit'].update(saved=True), 'saved', '`submit`'),
+])
+def test_a_parameter_of_a_helper_in_a_step_is_told_to_be_removed(contract, step, key, helper):
+    """
+    `created` and `saved` are parameters that the generator gives the helpers, not keys of the
+    steps: the hint of P002 says what the key is instead of the schema to follow.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, step)
+    (found,) = [it for it in validate(root).issues if it.code == 'P002']
+    assert found.hint.startswith(f'`{key}` is a parameter of the helper')
+    assert helper in found.hint and found.hint.endswith('Remove it.')
+
+
+@pytest.mark.django_db
+def test_the_hints_of_a_move_and_of_an_absent_action(contract):
+    """
+    A move to a status that only transitions with a payload lead to gives the payload of its
+    dialog; an absent action that the screen does not have names the other expectations of an
+    absence (a transit, a field that the role may not change).
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: [steps(d, 13)[10]['move'].pop('payload'),
+                                   steps(d, 1)[1]['expect'].update(action_absent='edit')])
+    found = {it.path: it for it in validate(root).issues}
+    assert set(found) == {'/scenarios/13/steps/10/move/to', '/scenarios/1/steps/1/expect/action_absent'}
+    move = found['/scenarios/13/steps/10/move/to']
+    assert (move.code, move.message) == ('P024', 'No transition without a payload leads to `done`.')
+    assert move.hint == 'Give the payload of its dialog: {where: ..., to: done, payload: {...}} with photos, report.'
+    absent = found['/scenarios/1/steps/1/expect/action_absent']
+    assert (absent.code, absent.message) == ('P022', 'The screen has no action `edit`: it is always absent.')
+    assert '`transit_absent: <id>`' in absent.hint and '`field_readonly`' in absent.hint
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('change', 'expected'), [
+    # created in `draft`, the initial status: `start` is offered
+    (lambda d: steps(d, 13).__setitem__(4, {'expect': {'screen': 'task-card', 'transit_absent': 'start'}}),
+     ['/scenarios/13/steps/4/expect/transit_absent']),
+    # the status of the expectation, read before the absence, is the status known from then
+    (lambda d: steps(d, 13)[4]['expect'].update(status='in_progress', transit_absent='start'), []),
+    # a transit led the task to done: `reopen` is offered, `finish` no longer
+    (lambda d: steps(d, 0).__setitem__(7, {'expect': {'transit_absent': 'reopen'}}), ['/scenarios/0/steps/7/expect/transit_absent']),
+    (lambda d: steps(d, 0).__setitem__(7, {'expect': {'transit_absent': 'finish'}}), []),
+    # the item of another card has no known status
+    (lambda d: steps(d, 13).extend([{'open': 'task-list'}, {'open_item': {'where': {'title': 'Review the plan'}}},
+                                    {'expect': {'screen': 'task-card', 'transit_absent': 'reopen'}}]), []),
+    # a transit granted on some items only (a selector) may be absent
+    (lambda d: [task(d)['access']['manager'].update(transit={'start': 'all', 'finish': 'all', 'reopen': 'owner'}),
+                steps(d, 0)[7]['expect'].update(transit_absent='reopen')], None),
+])
+def test_an_absent_transit_by_the_status_of_the_item(contract, change, expected):
+    """
+    A transit that `access` grants the role on every item is shown on the card of an item in
+    its source status: its absence cannot pass (P022). The walk knows the status of the item
+    that the scenario created (its initial status, then the status of its transits and moves,
+    or of an `expect`), not that of another item.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, change)
+    found = [it for it in validate(root).issues if it.code in ('P022', 'P024')]
+    if expected is None:
+        assert not any(it.path.endswith('/transit_absent') for it in found)
+        return
+    assert [it.path for it in found] == expected
+    for issue in found:
+        if issue.path.endswith('/transit_absent'):
+            assert issue.message.startswith('The role `manager` runs the transit')
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('change', 'expected'), [
+    # created in `draft`: the section of the report is shown once the task is done
+    (lambda d: steps(d, 0)[4]['expect'].update(values={'report': 'Done'}), ['/scenarios/0/steps/4/expect/values/report']),
+    # the status of the expectation is the status of its values
+    (lambda d: steps(d, 0)[7]['expect'].update(status='in_progress', values={'report': 'Done'}), ['/scenarios/0/steps/7/expect/values/report']),
+    # the item of another card has no known status
+    (lambda d: steps(d, 13).extend([{'open': 'task-list'}, {'open_item': {'where': {'title': 'Review the plan'}}},
+                                    {'expect': {'screen': 'task-card', 'values': {'report': 'Done'}}}]), []),
+    # every section without `when`
+    (lambda d: steps(d, 0)[4]['expect'].update(values={'report': 'Done'}), None),
+])
+def test_the_values_of_a_section_shown_by_the_status(contract, change, expected):
+    """
+    A card shows a section with `when` only while its item is in one of its statuses: the values
+    of its fields, expected in another known status, cannot pass (P022); its fields are absent
+    then (`field_absent`, the sample), and in an unknown status the walk does not judge.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, change)
+    if expected is None:
+        edit(root, CARD, lambda d: d['card']['sections'][1].pop('when'))
+        expected = []
+    found = [it for it in validate(root).issues if it.code == 'P022']
+    assert [it.path for it in found] == expected
+    for issue in found:
+        assert issue.message.endswith('its section is shown in other statuses (`when`).')
+
+
+@pytest.mark.django_db
 def test_a_role_that_cannot_add_changes_the_items_of_the_test_data(contract):
     """
     P033 asks a scenario to create the item it changes; a role whose `access` has no `add` for
@@ -2458,15 +2797,18 @@ def test_a_payload_field_of_a_relation(contract):
     """
     The id of an item in a payload (`relation`, the transit `reopen` of the sample), also
     nullable; `type: string` stays valid for it (its dialog has the picker of the relationship
-    of the same name anyway); a field has a `type` or a `relation`, never both; a to-many
-    relationship of the same name is not the id of one item.
+    of the same name anyway); a field has a `type` or a `relation`, never both, the filter of
+    its picker only with `relation`; a to-many relationship of the same name is not the id of
+    one item.
     """
     root = contract.parent.parent
-    assert reopen(read(root / PRODUCT)) == {'id': 'assignee', 'relation': 'user'}
+    assert reopen(read(root / PRODUCT)) == {'id': 'assignee', 'relation': 'user', 'filter': {'is_active': True}}
     edit(root, CONTRACT, lambda d: reopen_payload(d)['properties'].update(
         assignee={'anyOf': [{'type': 'string', 'format': 'uuid'}, {'type': 'null'}], 'title': 'Assignee'}))
     assert issues(root) == []
     edit(root, PRODUCT, lambda d: [reopen(d).pop('relation'), reopen(d).update(type='string')])
+    assert issues(root) == [('P002', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')]
+    edit(root, PRODUCT, lambda d: [reopen(d).pop('filter')])
     assert issues(root) == []
     edit(root, PRODUCT, lambda d: reopen(d).update(relation='user'))
     assert issues(root) == [('P002', f'{PRODUCT}#/entities/0/workflow/transitions/2/payload/fields/0')]
@@ -2486,9 +2828,12 @@ def test_a_payload_field_of_a_relation(contract):
     ('integer', {'anyOf': [{'type': 'integer'}, {'type': 'string'}]}, {}, ['S054']),
     ('number', {'anyOf': [{'type': 'string', 'format': 'uri'}, {'type': 'string', 'maxLength': 0}]}, {}, ['P017']),
     ('string', {'anyOf': [DECIMAL['anyOf'][1], {'type': 'null'}, DECIMAL['anyOf'][0]]}, {}, []),
-    # an enum is a `$ref` to a string with choices: `string`, not `json`
-    ('string', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}, []),
-    ('json', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}, ['P017']),
+    # an enum is a `$ref` to a string with choices: `string`, not `json`; with the labels of its
+    # choices (`TextChoices`), or offered by its values (P037: also a `Literal`, inline)
+    ('string', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'enumDict': {'a': 'A', 'b': 'B'}, 'type': 'string'}}, []),
+    ('json', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'enumDict': {'a': 'A', 'b': 'B'}, 'type': 'string'}}, ['P017']),
+    ('string', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}, ['P037']),
+    ('string', {'enum': ['a', 'b'], 'type': 'string'}, {}, ['P037']),
     # a model is an object: `json`, which the form asks for as JSON (S054)
     ('json', {'$ref': '#/$defs/Part'}, {'Part': {'type': 'object', 'properties': {'x': {'type': 'string'}}}}, ['S054']),
     ('string', {'$ref': '#/$defs/Part'}, {'Part': {'type': 'object', 'properties': {'x': {'type': 'string'}}}}, ['P017']),

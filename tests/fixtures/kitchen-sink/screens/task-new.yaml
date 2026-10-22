@@ -1,5 +1,6 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# A create form as a page, extended, then the card of the task.
+# A create form as a page, extended, its picker of the assignee among the active users who are not
+# staff (`filters`), then the card of the task.
 spec: bazis-screen/1
 id: task-new
 title: {en: New task, ru: Новая задача}
@@ -9,5 +10,5 @@ entity: task
 roles: [manager]
 primitive: form
 extend: true
-form: {mode: create, fields: [title, assignee, priority], then: task-card}
+form: {mode: create, fields: [title, assignee, priority], filters: {assignee: {is_active: true, is_staff: false}}, then: task-card}
 states: [loading, error, forbidden, invalid]

@@ -162,6 +162,23 @@ def test_a_notification_is_expected_after_the_other_keys():
     )
 
 
+def test_the_files_of_a_payload_are_uploaded_in_its_dialog():
+    """
+    The files of the payload of a transit or a move (`Step.files`, its fields `type: file`) are
+    uploaded in its dialog, the other values filled: an argument of `transit`, `files` of `move`.
+    """
+    text = rendered(REPOSITORY / 'sample')[NOTIFIED]
+    assert "    await app.transit('finish', { report: 'Done' }, { photos: ['photo.png'] });\n" in text
+    payload = {'payload': {'report': 'Done', 'photos': ['a.png', 'b.png']}}
+    assert e2e.calls(Step('move', {'where': {'title': 'A'}, 'to': 'done', **payload}, files=('photos',))) == [
+        "app.move({ where: { title: 'A' }, to: 'done', payload: { report: 'Done' }, files: { photos: ['a.png', 'b.png'] } })",
+    ]
+    # a payload of files only
+    assert e2e.calls(Step('transit', {'id': 'return', 'payload': {'photo': 'a.png'}}, files=('photo',))) == [
+        "app.transit('return', {}, { photo: 'a.png' })",
+    ]
+
+
 def test_the_steps_of_the_dashboard_the_board_the_calendar_and_the_bulk_actions():
     """The new steps are calls of their helpers; a count of a tile or of a day is a call each."""
     where = {'where': {'title': 'A'}}
@@ -196,6 +213,7 @@ def test_the_sessions_and_the_remembered_values_of_a_scenario():
         Step('open_item', {'where': {'number': '$number'}}, created=True),
         Step('expect', {'values': {'number': '$number'}, 'notification': '$number'}),
         Step('transit', {'id': 'assign', 'payload': {'master': '$name'}}),
+        Step('move', {'where': {'number': '$number'}, 'to': 'done', 'payload': {'master': '$name'}}, created=True),
         Step('as', 'site-client'),
     ], screens=False)
     # the test of the helpers, which closes the sessions as it ends (not that of Playwright)
@@ -214,6 +232,7 @@ def test_the_sessions_and_the_remembered_values_of_a_scenario():
     assert '    await app.openItem({ where: { number: $number }, created: true });\n' in text
     assert "    await app.expectValues({ number: $number });\n    await app.expectNotification('$number');\n" in text
     assert "    await app.transit('assign', { master: $name });\n" in text
+    assert "    await app.move({ where: { number: $number }, to: 'done', payload: { master: $name }, created: true });\n" in text
     assert text.endswith("  await test.step('as: site-client', () => asSiteClient.page.bringToFront());\n});\n")
     # without another role: `loginAs` only, as before
     alone = e2e.render_scenario(scenario, [Step('as', 'dispatcher')], screens=False)

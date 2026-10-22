@@ -30,4 +30,8 @@ test('viewer-only-reads', async ({ page }) => {
   await test.step('expect: {action_absent: escalate}', async () => {
     await app.expectActionAbsent('escalate');
   });
+  await test.step('expect: {action_absent: edit, transit_absent: start}', async () => {
+    await app.expectActionAbsent('edit');
+    await app.expectTransitAbsent('start');
+  });
 });

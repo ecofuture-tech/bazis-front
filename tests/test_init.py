@@ -137,6 +137,8 @@ def test_init_creates_the_frontend(product):
     assert (frontend / 'src' / 'components' / 'ui' / 'button.tsx').is_file()
     assert (frontend / 'e2e' / 'bazis' / 'index.ts').is_file()
     assert (frontend / 'e2e' / 'custom' / 'README.md').is_file()
+    # the photo that the scenarios upload, as it is
+    assert (frontend / 'e2e' / 'fixtures' / 'photo.png').read_bytes().startswith(b'\x89PNG\r\n\x1a\n')
     # the theme and the screens are generated: the contract needs the database
     assert sorted(it.name for it in (frontend / 'src' / 'bazis' / 'generated').iterdir()) == ['fonts.css', 'theme.css', 'theme.ts']
     assert 'Generated the theme' in out

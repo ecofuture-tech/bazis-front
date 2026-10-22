@@ -215,6 +215,7 @@ export const ru: Messages = {
   'upload.type.image': 'изображения',
   'upload.type.video': 'видео',
   'upload.up_to': 'до {size}',
+  'upload.up_to_reduced': 'до {size}, изображение больше уменьшится',
   'upload.up_to_files.one': 'до {count} файла',
   'upload.up_to_files.other': 'до {count} файлов',
   'upload.wrong_type': 'Тип файла не подходит: {accept}.',

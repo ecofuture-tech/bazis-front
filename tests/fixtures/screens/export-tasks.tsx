@@ -17,7 +17,9 @@ export function ExportTasksScreen() {
       <ActionForm
         path={TASK.path}
         action="export"
-        fields={['priority']}
+        fields={['priority', 'created_from']}
+        labels={{ created_from: t('screens.export-tasks.form.labels.created_from') }}
+        values={{ created_from: 'month_start' }}
         submitLabel={t('screens.export-tasks.form.submit')}
         result={{
           title: t('screens.export-tasks.form.result.title'),

@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # The form of a custom action that answers a file: the action `export` of the route set of the
 # tasks answers CSV (`file` of its custom action in the contract). The form saves the file,
-# then its result shows the name it is saved under, `{filename}`, its only parameter.
+# then its result shows the name it is saved under, `{filename}`, its only parameter. Its date
+# starts with the first day of the month of the browser (`values`).
 spec: bazis-screen/1
 id: export-tasks
 title: {en: Export the tasks, ru: Выгрузить задачи}
@@ -11,7 +12,9 @@ roles: [manager, viewer]
 primitive: form
 form:
   action: export
-  fields: [priority]
+  fields: [priority, created_from]
+  labels: {created_from: {en: Created from, ru: Созданные с}}
+  values: {created_from: month_start}
   submit: {en: Export, ru: Выгрузить}
   result:
     title: {en: Exported, ru: Выгружено}

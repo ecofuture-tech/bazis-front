@@ -330,6 +330,8 @@ class Screen:
             attrs.append(Attr('id', Raw('id')))
         if 'fields' in action:
             attrs.append(Attr('fields', Arr([Str(it) for it in action['fields']])))
+        if 'filters' in action:
+            attrs.append(Attr('filters', picker_filters(self.code, action['filters'])))
         attrs.append(Attr('title', label))
         if description is not None:
             attrs.append(Attr('description', description))
@@ -419,17 +421,22 @@ def screen_attrs(screen: Screen, parent: dict | None = None) -> list[Attr]:
     return attrs
 
 
-def filter_value(screen: Screen, where: dict) -> Call:
+def filter_value(code: Code, where: dict) -> Call:
     """A filter of the specs: each field equal to its value (`Filter.and` of several)."""
-    screen.code.use('@/bazis/client', 'Filter')
+    code.use('@/bazis/client', 'Filter')
     parts = [Call('Filter.where', [Str(key), _scalar(value)]) for key, value in where.items()]
     return parts[0] if len(parts) == 1 else Call('Filter.and', parts)
 
 
 def filter_expr(screen: Screen, where: dict) -> Raw:
     """The filter of a list (`list.filter`), a constant of the module."""
-    screen.consts['FILTER'] = printed(Const('FILTER', filter_value(screen, where)).doc())
+    screen.consts['FILTER'] = printed(Const('FILTER', filter_value(screen.code, where)).doc())
     return Raw('FILTER')
+
+
+def picker_filters(code: Code, filters: dict) -> Obj:
+    """The filters of the pickers of a form by field (`filters` of the specs)."""
+    return Obj([(name, filter_value(code, where)) for name, where in filters.items()])
 
 
 def _scalar(value) -> Str | Raw:
@@ -584,6 +591,10 @@ def custom_action(
         options.append(('fields', Arr([Str(it) for it in action['fields']])))
     if 'labels' in action:
         options.append(('labels', Obj([(name, screen.text(*path, 'labels', name)) for name in action['labels']])))
+    if 'filters' in action:
+        options.append(('filters', picker_filters(screen.code, action['filters'])))
+    if 'values' in action:
+        options.append(('values', start_values(action['values'])))
     for key in ('title', 'description'):
         if (value := screen.text(*path, key)) is not None:
             options.append((key, value))
@@ -595,6 +606,11 @@ def custom_action(
     if not bulk:
         screen.after.append(Raw(f'{name}.dialog'))
     return name
+
+
+def start_values(values: dict) -> Obj:
+    """The values that the fields of a custom action start with (`values`), a day of the browser as its text."""
+    return Obj([(name, _scalar(value)) for name, value in values.items()])
 
 
 def bulk_action(screen: Screen, const: Raw, index: int, bulk: dict) -> Obj | Raw:
@@ -682,6 +698,8 @@ def card_section(screen: Screen, index: int, section: dict) -> Obj:
     if (title := screen.text('card', 'sections', index, 'title')) is not None:
         props.append(('title', title))
     props.append(('fields', Arr([Str(it) for it in section['fields']])))
+    if 'when' in section:
+        props.append(('when', Obj([('status', Arr([Str(it) for it in section['when']['status']]))])))
     return Obj(props)
 
 
@@ -856,7 +874,7 @@ def tile(screen: Screen, index: int, spec: dict) -> Obj:
     const = screen.entity(spec['entity'])
     props = [('id', Str(spec['id'])), ('path', Raw(f'{const.code}.path'))]
     if 'filter' in spec:
-        props.append(('filter', filter_value(screen, spec['filter'])))
+        props.append(('filter', filter_value(screen.code, spec['filter'])))
     if 'value' in spec:
         props.append(('value', aggregate_value(spec['value'])))
         if has_display(screen.product, spec['entity']):
@@ -1045,6 +1063,8 @@ def resource_form(screen: Screen, const: Raw, spec: dict) -> Jsx:
         attrs.append(Attr('id', Raw('id')))
     if 'fields' in spec:
         attrs.append(Attr('fields', Arr([Str(it) for it in spec['fields']])))
+    if 'filters' in spec:
+        attrs.append(Attr('filters', picker_filters(screen.code, spec['filters'])))
     if 'then' in spec:
         attrs.append(Attr('onSaved', screen.on_saved(spec['then'])))
     return component(screen, 'ResourceForm', 'ResourceFormProps', '@/bazis/ui/resource-form', attrs)
@@ -1063,6 +1083,10 @@ def render_action_form(screen: Screen, const: Raw, spec: dict) -> Jsx:
     ]
     if 'labels' in spec:
         attrs.append(Attr('labels', Obj([(name, screen.text('form', 'labels', name)) for name in spec['labels']])))
+    if 'filters' in spec:
+        attrs.append(Attr('filters', picker_filters(screen.code, spec['filters'])))
+    if 'values' in spec:
+        attrs.append(Attr('values', start_values(spec['values'])))
     if (submit := screen.text('form', 'submit')) is not None:
         attrs.append(Attr('submitLabel', submit))
     then = spec.get('then')
@@ -1096,6 +1120,18 @@ RENDERERS = {
 }
 
 
+def declared_transit(code: Code, transition: dict) -> Obj:
+    """A transit of the workflow (`DeclaredTransit`): its id, its confirmation, the filters of the pickers of its payload."""
+    props = [('id', Str(transition['id']))]
+    if transition.get('confirm'):
+        props.append(('confirm', Raw('true')))
+    fields = transition.get('payload', {}).get('fields', [])
+    filters = {it['id']: it['filter'] for it in fields if 'filter' in it}
+    if filters:
+        props.append(('filters', picker_filters(code, filters)))
+    return Obj(props)
+
+
 def render_entities(product: Product) -> str:
     code = Code()
     entries = []
@@ -1112,9 +1148,7 @@ def render_entities(product: Product) -> str:
         if display:
             props.append(('display', Obj(display)))
         if steps := transitions(product, entity_id):
-            props.append(('transits', Arr([
-                Obj([('id', Str(it['id'])), *([('confirm', Raw('true'))] if it.get('confirm') else [])]) for it in steps
-            ])))
+            props.append(('transits', Arr([declared_transit(code, it) for it in steps])))
         if entity_id in product.icons:
             code.use('lucide-react', icon_name(product.icons[entity_id]))
             props.append(('Icon', Raw(icon_name(product.icons[entity_id]))))
@@ -1127,7 +1161,8 @@ def render_entities(product: Product) -> str:
             'The entities of the product by their id: the JSON:API type of the resource, its route set',
             '(`ROUTES` of the contract), the key of the name of the entity in the dictionaries (`t(title)`),',
             'the fields that label an item, how the values of fields are shown, the transits of its workflow',
-            'in their order (those confirmed before they run), and the icon of the entity.',
+            'in their order (those confirmed before they run, the filters of the pickers of their payloads),',
+            'and the icon of the entity.',
         ) + '\n' + printed(Const('ENTITIES', value, exported=True).doc()),
     )
 

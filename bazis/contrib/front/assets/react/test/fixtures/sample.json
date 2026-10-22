@@ -2751,6 +2751,14 @@
                     "report": {
                       "title": "Report",
                       "type": "string"
+                    },
+                    "photos": {
+                      "default": [],
+                      "items": {
+                        "type": "string"
+                      },
+                      "title": "Photos",
+                      "type": "array"
                     }
                   },
                   "required": [
