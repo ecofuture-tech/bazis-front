@@ -727,7 +727,8 @@ def _check_payload(
     attribute of its type, or the id of an item (`relation`), which the dialog asks for with
     the picker of the to-one relationship of the entity of the same name (`relatedField` of
     the frontend), so the property is a text named as such a relationship to the resource of
-    the related entity.
+    the related entity; the choices without labels (P037) and the types that a field does not
+    take (S054) are warnings.
     """
     payload = transit['payload']
     if (payload is None) != ('payload' not in item):
@@ -767,6 +768,14 @@ def _check_payload(
                 'Make the spec follow the payload type of the transit; a decimal (a number or its digits as '
                 'a string) is `type: string`, as the field of the entity (P013), or `number`.'
                 if decimal else 'Make the spec follow the payload type of the transit.',
+            )
+        elif 'enum' in schema and 'enumDict' not in schema:
+            issues.add(
+                doc, (*path, 'fields', i), 'P037',
+                f'The field `{item_field["id"]}` of the payload of `{item["id"]}` has choices without their labels: '
+                'the dialog of the transition offers them by their values.',
+                'Type it by the `TextChoices` of the model (bazis 2.22 gives the labels of Django choices in the '
+                f'payloads of the transits, `enumDict`), not by a `Literal`; then {EXPORT_HINT}.',
             )
         elif (kind := unaskable(schema)) is not None:
             issues.add(

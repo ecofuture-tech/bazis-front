@@ -233,12 +233,12 @@ export class App<P extends Product = Product> {
 
   /**
    * Moves the item of the board of the current screen that `openItem` would open to the
-   * column of a status, by its menu (`action:move`, then `move:<status>`), confirmed in its
-   * dialog when the specs confirm the transit, and waits until it is in the column
-   * `column:<status>`; fails as soon as the move is refused (`error:move`, or another error
-   * shown), with the error.
+   * column of a status, by its menu (`action:move`, then `move:<status>`), with the values of
+   * the payload of its transit in its dialog (as `transit`), or confirmed in its dialog when the
+   * specs confirm the transit, and waits until it is in the column `column:<status>`; fails as
+   * soon as the move is refused (`error:move`, or another error shown), with the error.
    */
-  async move({ where, to, created = false }: { where: Values; to: string; created?: boolean }): Promise<void> {
+  async move({ where, to, payload, created = false }: { where: Values; to: string; payload?: Values; created?: boolean }): Promise<void> {
     const row = await this.row(where, { created });
     const mark = (await row.getAttribute('data-bz')) ?? '';
     await this.seen(this.page.locator('body'));
@@ -246,7 +246,12 @@ export class App<P extends Product = Product> {
     await this.page.locator(bz('move', to)).click();
     const moved = this.screen().locator(`${bz('column', to)} [data-bz=${JSON.stringify(mark)}]`);
     const failed = this.page.locator(NEW_FAILED);
-    await this.confirmTransit(async () => (await moved.count()) > 0 || (await failed.count()) > 0);
+    if (payload !== undefined) {
+      await this.fill(payload);
+      await this.submit();
+    } else {
+      await this.confirmTransit(async () => (await moved.count()) > 0 || (await failed.count()) > 0);
+    }
     await expect
       .poll(async () => (await moved.count()) > 0 || (await failed.count()) > 0, { message: `the item is moved to ${to} or shows an error` })
       .toBe(true);
@@ -491,6 +496,12 @@ export class App<P extends Product = Product> {
   async expectActionAbsent(id: string): Promise<void> {
     await this.settled();
     await expect(this.screen().locator(bz('action', id))).toHaveCount(0);
+  }
+
+  /** The current screen, once loaded, does not offer this transit of its item, `transit:<id>`. */
+  async expectTransitAbsent(id: string): Promise<void> {
+    await this.settled();
+    await expect(this.screen().locator(bz('transit', id))).toHaveCount(0);
   }
 
   /**

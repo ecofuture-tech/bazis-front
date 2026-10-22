@@ -40,4 +40,19 @@ test('manager-moves-a-task-on-the-board', async ({ page }) => {
     await app.expectScreen('task-card');
     await app.expectStatus('in_progress');
   });
+  await test.step('open: task-board', async () => {
+    await app.open('task-board');
+  });
+  await test.step('move: {where: {title: Move on the board}, to: done, payload: {report: Finished on the board}}', async () => {
+    await app.move({ where: { title: 'Move on the board' }, to: 'done', payload: { report: 'Finished on the board' }, created: true });
+  });
+  await test.step('open_item: {where: {title: Move on the board}}', async () => {
+    await app.openItem({ where: { title: 'Move on the board' }, created: true });
+    await app.expectScreen('task-card');
+  });
+  await test.step('expect: {screen: task-card, status: done, values: {report: Finished on the board}}', async () => {
+    await app.expectScreen('task-card');
+    await app.expectStatus('done');
+    await app.expectValues({ report: 'Finished on the board' });
+  });
 });

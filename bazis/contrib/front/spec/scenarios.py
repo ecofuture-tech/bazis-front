@@ -28,6 +28,10 @@ not create (P033), or finds one by the texts of the items that a scenario create
 A scenario runs in the sessions of several roles (`as`): each has its screen, its form and its
 card; the items that the scenario creates and the values that it remembers from the answers of
 the actions (`remember`, used as `$<name>`) are of the whole scenario.
+
+The walk knows the status of the item of a card when the scenario set it: the initial status of
+an item that it created, the status that a transit or a move led it to, the one that an `expect`
+read; another item, or another screen, has none known until then.
 """
 
 import re
@@ -109,11 +113,13 @@ OTHER = 'other'
 class _Made:
     """
     An item that a scenario creates: its entity and the values filled in its forms (its create
-    form, then its edits), those it has at the end of the scenario.
+    form, then its edits), those it has at the end of the scenario, and its status when the walk
+    knows it.
     """
 
     entity: str | None
     values: dict
+    status: str | None = None
 
 
 def of_body(form: dict | None) -> bool:
@@ -225,11 +231,12 @@ class _Scenario:
 
     def __init__(self, doc, product, screens, contract, scenario, path, issues):
         self.doc, self.product, self.screens, self.contract = doc, product, screens, contract
-        # the role of the current session (`as`), and the state and the item of the current
-        # card of each session by its role (`state`, `item`)
+        # the role of the current session (`as`), and the state, the item of the current card
+        # and its status, when known, of each session by its role (`state`, `item`, `status`)
         self.role = scenario['role']
         self.states: dict[str, _State] = {self.role: _State(known=True)}
         self.items: dict[str, _Made | str | None] = {self.role: None}
+        self.statuses: dict[str, str | None] = {self.role: None}
         self.scenario, self.path, self.issues = scenario, path, issues
         # what the current step implies (`Step`), whether it is a refused submit, whether
         # the step before was one, whether its action is confirmed and whether it finds an
@@ -261,7 +268,20 @@ class _Scenario:
 
     @item.setter
     def item(self, item: '_Made | str | None') -> None:
+        """The item of the card: its status is the one known of an item that the scenario created."""
         self.items[self.role] = item
+        self.statuses[self.role] = item.status if isinstance(item, _Made) else None
+
+    @property
+    def status(self) -> str | None:
+        """The status of the item of the current card, None when the walk does not know it."""
+        return self.statuses[self.role]
+
+    def reached(self, status: str) -> None:
+        """The item of the current card is in the status (a transit, an `expect` of its status)."""
+        self.statuses[self.role] = status
+        if isinstance(self.item, _Made):
+            self.item.status = status
 
     def run(self) -> list[Step]:
         steps = []
@@ -318,6 +338,7 @@ class _Scenario:
         self.role = role
         self.states.setdefault(role, _State(known=True))
         self.items.setdefault(role, None)
+        self.statuses.setdefault(role, None)
 
     def step_remember(self, path, value):
         """
@@ -437,7 +458,9 @@ class _Scenario:
         self.go(path, screen_id)
         self.then = screen_id
 
-    def require(self, path, condition: bool, message: str) -> bool:
+    def require(
+        self, path, condition: bool, message: str, hint: str = 'Fix the step, or open the screen it acts on first.'
+    ) -> bool:
         """
         Whether the step can be checked on the current screen; reports it when it is not
         possible there.
@@ -449,7 +472,7 @@ class _Scenario:
             self.state.known = False
             return False
         if not condition:
-            self.add(path, 'P022', message, 'Fix the step, or open the screen it acts on first.')
+            self.add(path, 'P022', message, hint)
             return False
         return True
 
@@ -551,19 +574,26 @@ class _Scenario:
             self.state.selected = self.state.others = False
 
     def step_move(self, path, value):
-        screen = self.state.screen
+        """
+        Moves an item of a board to the column of a status: by a transition without a payload,
+        or with `payload`, which its dialog asks for, by one with a payload (P024 otherwise).
+        """
+        screen, payload = self.state.screen, value.get('payload')
         self.remembered((*path, 'where'), value['where'])
+        self.remembered((*path, 'payload'), payload or {})
         if not self.require(
             path, bool(screen) and screen['primitive'] == 'board' and screen['board'].get('move', False),
             'Items move on a board with `move: true`.',
         ):
             return
         self.fields(((*path, 'where', name), name) for name in value['where'])
-        self.changes(path, bool(self.find(path, screen.get('entity'), value['where'])), 'moves')
+        made = self.find(path, screen.get('entity'), value['where'])
+        self.changes(path, bool(made), 'moves')
         entity, to = self.entity, value['to']
         if entity is None or entity.workflow is None:
             return
         columns = screen['board'].get('columns', entity.workflow['statuses'])
+        leading = [it for it in entity.transitions.values() if it['to'] == to]
         if to not in entity.workflow['statuses']:
             self.add(
                 (*path, 'to'), 'P024', f'The entity `{entity.data["id"]}` has no status `{to}`.',
@@ -571,12 +601,48 @@ class _Scenario:
             )
         elif to not in columns:
             self.add((*path, 'to'), 'P022', f'The board has no column `{to}`.', 'Move the item to a column of the board.')
-        elif not any(it['to'] == to and 'payload' not in it for it in entity.transitions.values()):
+        elif not leading:
+            self.add(
+                (*path, 'to'), 'P024', f'No transition leads to `{to}`.',
+                'Move the item to a status that a transition leads to.',
+            )
+        elif payload is None and all('payload' in it for it in leading):
+            fields = sorted({field['id'] for it in leading for field in it['payload']['fields']})
             self.add(
                 (*path, 'to'), 'P024', f'No transition without a payload leads to `{to}`.',
-                'Move the item to a status that a transition without a payload leads to; run one '
-                'with a payload on the card (`transit`).',
+                f'Give the payload of its dialog: {{where: ..., to: {to}, payload: {{...}}}} with {", ".join(fields)}.',
             )
+        elif payload is not None and not any('payload' in it for it in leading):
+            self.add(
+                (*path, 'payload'), 'P024', f'No transition with a payload leads to `{to}`.',
+                'Move the item without a payload: the transition to the status asks for none.',
+            )
+        elif payload is not None:
+            asking = [it for it in leading if 'payload' in it]
+            self.payload_fields(
+                path, ' or '.join(f'`{it["id"]}`' for it in asking),
+                f'{{where: ..., to: {to}, payload: {{...}}}}',
+                {field['id'] for it in asking for field in it['payload']['fields']}, payload,
+            )
+        if made is not None and to in entity.workflow['statuses']:
+            made.status = to
+
+    def payload_fields(self, path, transit: str, example: str, declared: set[str], payload: dict | None) -> None:
+        """
+        The payload of a step that runs a transition (`transit`, `move`) against the fields of the
+        payload of the transition (P024): given when it has some, and of them only.
+        """
+        if declared and not payload:
+            self.add(
+                path, 'P024', f'The transition {transit} requires a payload.',
+                f'Give the payload: {example} with {", ".join(sorted(declared))}.',
+            )
+        for name in payload or {}:
+            if name not in declared:
+                self.add(
+                    (*path, 'payload', name), 'P024', f'The payload of {transit} has no field `{name}`.',
+                    'Use the fields of the payload of the transition.',
+                )
 
     def actions(self) -> dict[str, dict]:
         """
@@ -658,15 +724,18 @@ class _Scenario:
             return set(screen['calendar']['label']) if 'label' in screen['calendar'] else None
         return set()
 
+    def card_edit(self) -> bool:
+        """Whether the current screen is a card with `edit: true`: its edit, `action:edit`."""
+        screen = self.state.screen
+        return bool(screen) and screen['primitive'] == 'card' and screen['card'].get('edit', False)
+
     def editing(self, path) -> bool:
         """
         Whether a form is open for the step: one that is open, or the edit of a card with
         `edit: true`, which the step starts when it is not open yet.
         """
-        screen = self.state.screen
-        card = bool(screen) and screen['primitive'] == 'card' and screen['card'].get('edit', False)
         if not self.require(
-            path, self.state.form is not None or card,
+            path, self.state.form is not None or self.card_edit(),
             'No form is open: run a form action, or edit a card with `edit: true`.',
         ):
             return False
@@ -802,6 +871,8 @@ class _Scenario:
         values, custom = self.state.values, form is not None and form.get('primitive') == 'custom'
         if form is not None and not custom and form.get('mode', 'create') == 'create':
             made = _Made(form.get('entity', (self.state.screen or {}).get('entity')), dict(values))
+            workflow = getattr(self.product.entities.get(made.entity), 'workflow', None)
+            made.status = workflow['initial'] if workflow else None
             self.made.append(made)
             self.lost = self.lost or made.entity not in self.product.entities
             if 'fixed' in form:
@@ -825,26 +896,24 @@ class _Scenario:
         if entity is None or entity.workflow is None:
             return
         self.changes_item(path, 'runs a transit of')
+        transition = self.transition(path, entity, transit_id)
+        if transition is None:
+            return
+        self.payload_fields(
+            path, f'`{transit_id}`', f'{{id: {transit_id}, payload: {{...}}}}',
+            {it['id'] for it in transition.get('payload', {}).get('fields', [])}, payload,
+        )
+        self.reached(transition['to'])
+
+    def transition(self, path, entity: Entity, transit_id: str) -> dict | None:
+        """The transition of the workflow of the entity, or None: reported (P024)."""
         transition = entity.transitions.get(transit_id)
         if transition is None:
             self.add(
                 path, 'P024', f'The workflow of `{entity.data["id"]}` has no transition `{transit_id}`.',
                 'Use a transition of the workflow.',
             )
-            return
-        declared = {it['id'] for it in transition.get('payload', {}).get('fields', [])}
-        if declared and not payload:
-            self.add(
-                path, 'P024', f'The transition `{transit_id}` requires a payload.',
-                f'Give the payload: {{id: {transit_id}, payload: {{...}}}} with {", ".join(sorted(declared))}.',
-            )
-        for name in payload or {}:
-            if name not in declared:
-                self.add(
-                    (*path, 'payload', name), 'P024',
-                    f'The payload of `{transit_id}` has no field `{name}`.',
-                    'Use the fields of the payload of the transition.',
-                )
+        return transition
 
     def expect_items(self, path, value):
         """
@@ -888,10 +957,14 @@ class _Scenario:
         screen = self.state.screen
         self.expect_items(path, value)
         if 'action_absent' in value:
-            actions = self.actions()
+            action_id = value['action_absent']
             self.require(
-                (*path, 'action_absent'), value['action_absent'] in actions,
-                f'The screen has no action `{value["action_absent"]}`: it is always absent.',
+                (*path, 'action_absent'), action_id in self.actions() or (action_id == 'edit' and self.card_edit()),
+                f'The screen has no action `{action_id}`: it is always absent.',
+                'Expect the absence of an action of the screen (an action of its `actions`, the add of a related '
+                'section or of a calendar, `edit` of a card with `edit: true`); a transit of the item is '
+                '`transit_absent: <id>`; a change of a field that the role may not make is `field_readonly` on a '
+                'card with `edit`, or the refusal of the backend (403) in a test of pytest.',
             )
         if 'field_absent' in value:
             name = value['field_absent']
@@ -919,12 +992,49 @@ class _Scenario:
         )
         if 'values' in value:
             self.fields(((*path, 'values', name), name) for name in value['values'])
+        if 'status' in value:
+            self.expect_status((*path, 'status'), value['status'])
+        # after the status of the same expectation
+        if 'transit_absent' in value:
+            self.transit_absent((*path, 'transit_absent'), value['transit_absent'])
+
+    def expect_status(self, path, status) -> None:
+        """A status of the workflow of the entity (P024); on a card, the status of its item from now on."""
         entity = self.entity
-        if 'status' in value and entity is not None:
-            statuses = (entity.workflow or {}).get('statuses', [])
-            if value['status'] not in statuses:
-                self.add(
-                    (*path, 'status'), 'P024',
-                    f'The entity `{entity.data["id"]}` has no status `{value["status"]}`.',
-                    'Use a status of the workflow of the entity.',
-                )
+        if entity is None:
+            return
+        if status not in (entity.workflow or {}).get('statuses', []):
+            self.add(
+                path, 'P024',
+                f'The entity `{entity.data["id"]}` has no status `{status}`.',
+                'Use a status of the workflow of the entity.',
+            )
+        elif self.state.screen['primitive'] == 'card':
+            self.reached(status)
+
+    def transit_absent(self, path, transit_id) -> None:
+        """
+        A transit that the card of the item does not offer the role: one of the workflow of its
+        entity (P024), on a card with `transitions: true` (P022), and not one that `access`
+        grants the role on every item (`all`) when the item is in its source status (P022: its
+        button is shown).
+        """
+        screen = self.state.screen
+        if not self.require(
+            path, bool(screen) and screen['primitive'] == 'card' and screen['card'].get('transitions', False),
+            'Transits are shown on a card with `transitions: true`.',
+        ):
+            return
+        entity = self.entity
+        if entity is None or entity.workflow is None:
+            return
+        transition = self.transition(path, entity, transit_id)
+        grants = entity.data.get('access', {}).get(self.role, {}).get(access.TRANSIT, [])
+        granted = any(it == transit_id and selector == access.ALL for _, it, selector in access.transits(grants))
+        if transition is not None and granted and self.status == transition['from']:
+            self.add(
+                path, 'P022',
+                f'The role `{self.role}` runs the transit `{transit_id}` of every item in `{self.status}` (`access`): '
+                'the card shows it.',
+                'Expect it absent for a role that may not run it, or for an item in another status.',
+            )

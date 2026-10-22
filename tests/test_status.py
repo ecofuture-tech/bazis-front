@@ -107,3 +107,12 @@ def test_the_status_runs_every_check_of_bazis_front():
     registered = {it for it in registry.get_checks() if it.__module__ == checks.__name__}
     assert set(checks.STATUS) == registered
     assert len(checks.STATUS) == len(registered)
+
+
+def test_version_prints_the_version_of_bazis_front(capsys):
+    """`version` is that of bazis-front; `--version` of a management command is that of Django."""
+    out = StringIO()
+    call_command('bazis_front', 'version', stdout=out)
+    assert out.getvalue() == f'bazis-front {__version__}\n'
+    Command().run_from_argv(['manage.py', 'bazis_front', 'version'])
+    assert capsys.readouterr().out == f'bazis-front {__version__}\n'

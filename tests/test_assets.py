@@ -171,6 +171,14 @@ def test_the_labels_of_the_components_are_those_of_the_contract():
 UI_IMPORT = re.compile(r"""(?:from|import) ["']@/(?:bazis|components)/ui/([^/"']+)""")
 
 
+def text_of(asset, file):
+    """The text of a file of an asset, none of a binary file (an image of the template)."""
+    try:
+        return asset.read(file).decode('utf-8')
+    except UnicodeDecodeError:
+        return ''
+
+
 def test_the_components_require_the_components_they_import():
     """
     `requires.assets` of a component (and of the template) names the components and the
@@ -184,7 +192,7 @@ def test_the_components_require_the_components_they_import():
         imported = {
             name
             for file in asset.files
-            for name in UI_IMPORT.findall(asset.read(file).decode('utf-8'))
+            for name in UI_IMPORT.findall(text_of(asset, file))
             if name != asset.name
         }
         required = {name for name in asset.assets if assets[name].kind == registry.UI}

@@ -196,6 +196,7 @@ def test_the_sessions_and_the_remembered_values_of_a_scenario():
         Step('open_item', {'where': {'number': '$number'}}, created=True),
         Step('expect', {'values': {'number': '$number'}, 'notification': '$number'}),
         Step('transit', {'id': 'assign', 'payload': {'master': '$name'}}),
+        Step('move', {'where': {'number': '$number'}, 'to': 'done', 'payload': {'master': '$name'}}, created=True),
         Step('as', 'site-client'),
     ], screens=False)
     # the test of the helpers, which closes the sessions as it ends (not that of Playwright)
@@ -214,6 +215,7 @@ def test_the_sessions_and_the_remembered_values_of_a_scenario():
     assert '    await app.openItem({ where: { number: $number }, created: true });\n' in text
     assert "    await app.expectValues({ number: $number });\n    await app.expectNotification('$number');\n" in text
     assert "    await app.transit('assign', { master: $name });\n" in text
+    assert "    await app.move({ where: { number: $number }, to: 'done', payload: { master: $name }, created: true });\n" in text
     assert text.endswith("  await test.step('as: site-client', () => asSiteClient.page.bringToFront());\n});\n")
     # without another role: `loginAs` only, as before
     alone = e2e.render_scenario(scenario, [Step('as', 'dispatcher')], screens=False)

@@ -48,6 +48,7 @@ EXPECT = (
     ('status', 'expectStatus'),
     ('state', 'expectState'),
     ('action_absent', 'expectActionAbsent'),
+    ('transit_absent', 'expectTransitAbsent'),
     ('field_readonly', 'expectFieldReadonly'),
     ('field_absent', 'expectFieldAbsent'),
     ('values', 'expectValues'),
@@ -81,11 +82,11 @@ def literal(value, remembered: bool = False) -> str:
     the fields, whose names are identifiers) or a list of them (the labels of the items of a
     to-many relationship), on one line; with `remembered`, a value `$<name>` of the object is
     the constant of the value that `remember` took (`fill`, `values`, `payload`), as is one of
-    the object `where` of any object (`open_item`, `select`, `move`).
+    the objects `where` and `payload` of any object (`open_item`, `select`, `move`).
     """
     if isinstance(value, dict):
         return '{ ' + ', '.join(
-            f'{key}: {f"${variable(item)}" if remembered and variable(item) else literal(item, key == "where")}'
+            f'{key}: {f"${variable(item)}" if remembered and variable(item) else literal(item, key in ("where", "payload"))}'
             for key, item in value.items()
         ) + ' }'
     if isinstance(value, list):

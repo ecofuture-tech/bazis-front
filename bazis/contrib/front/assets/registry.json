@@ -1051,6 +1051,7 @@
         "AGENTS.md",
         "components.json",
         "e2e/custom/README.md",
+        "e2e/fixtures/photo.png",
         "eslint.config.js",
         "index.html",
         "package.json",

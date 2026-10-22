@@ -412,11 +412,11 @@
         },
         "bulk": {"description": "Run a bulk action of the list on the selected rows, confirmed.", "$ref": "#/$defs/id"},
         "move": {
-          "description": "On a board with `move`, move the item whose fields have these values to the column of a status, by its menu.",
+          "description": "On a board with `move`, move the item whose fields have these values to the column of a status, by its menu: by a transition without a payload, or with `payload`, filled in its dialog, by one with a payload.",
           "type": "object",
           "additionalProperties": false,
           "required": ["where", "to"],
-          "properties": {"where": {"$ref": "#/$defs/values"}, "to": {"$ref": "#/$defs/status_id"}}
+          "properties": {"where": {"$ref": "#/$defs/values"}, "to": {"$ref": "#/$defs/status_id"}, "payload": {"$ref": "#/$defs/values"}}
         },
         "action": {"description": "Run an action of the current screen.", "$ref": "#/$defs/id"},
         "fill": {"description": "Fill fields of the open form.", "$ref": "#/$defs/form_values"},
@@ -455,7 +455,8 @@
             "screen": {"description": "The current screen.", "$ref": "#/$defs/id"},
             "status": {"description": "The status of the current item.", "$ref": "#/$defs/status_id"},
             "state": {"description": "The state that the page shows: `done`, the result of the form of a custom action (`form.result`).", "enum": ["loading", "empty", "loaded", "error", "forbidden", "not_found", "invalid", "done"]},
-            "action_absent": {"description": "An action of the current screen that is not shown.", "$ref": "#/$defs/id"},
+            "action_absent": {"description": "An action of the current screen that is not shown: one of its actions, the add of a related section or of a calendar, `edit` of a card with `edit: true`.", "$ref": "#/$defs/id"},
+            "transit_absent": {"description": "A transit of the workflow that the current card (`transitions: true`) does not show.", "$ref": "#/$defs/status_id"},
             "field_readonly": {"description": "A field that the user may not change on the current screen.", "$ref": "#/$defs/field_id"},
             "field_absent": {"description": "A field of the current screen that the user may not see: not shown.", "$ref": "#/$defs/field_id"},
             "values": {"description": "Fields of the current card whose shown values contain these texts (a file: its name).", "$ref": "#/$defs/texts"},

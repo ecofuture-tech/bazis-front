@@ -137,6 +137,11 @@ def reopen(data):
     return task(data)['workflow']['transitions'][2]['payload']['fields'][0]
 
 
+def finish_payload(data):
+    """The JSON Schema of the payload of `finish` in the contract, `report: str`."""
+    return data['capabilities']['statusy']['models']['tasks.task']['transits'][0]['payload']['schema']
+
+
 def reopen_payload(data):
     """The JSON Schema of the payload of `reopen` in the contract, `assignee: UUID`."""
     return data['capabilities']['statusy']['models']['tasks.task']['transits'][1]['payload']['schema']
@@ -358,8 +363,10 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/6/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/6/steps/6/transit/payload/report'),
             ('P024', f'{PRODUCT}#/scenarios/9/steps/9/transit'),
-            # the board moves a task to in_progress, which only `start` leads to
+            # the board moves a task to in_progress, which only `start` leads to, and to done
+            # with the payload of `finish`, which now has none
             ('P024', f'{PRODUCT}#/scenarios/13/steps/6/move/to'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/10/move/payload'),
             ('P024', f'{PRODUCT}#/scenarios/22/steps/5/transit'),
             ('P024', f'{PRODUCT}#/scenarios/22/steps/6/transit/payload/report'),
         ],
@@ -480,6 +487,46 @@ CASES = [
             ('P024', f'{PRODUCT}#/scenarios/0/steps/4/expect/status'),
             ('P024', f'{PRODUCT}#/scenarios/0/steps/5/transit'),
         ],
+    ),
+    (
+        'P024',
+        # a move to `done` without the payload of `finish`, then with a field that it does not
+        # have, to `draft`, which no transition leads to; the payload of a move to `in_progress`
+        # is that of `reopen` (`start` has none); a transit that is not of the workflow is absent
+        {PRODUCT: lambda d: [steps(d, 13)[10]['move'].pop('payload'),
+                             steps(d, 13).extend([
+                                 {'open': 'task-board'},
+                                 {'move': {'where': {'title': 'Move on the board'}, 'to': 'done',
+                                           'payload': {'summary': 'Done'}}},
+                                 {'move': {'where': {'title': 'Move on the board'}, 'to': 'draft'}},
+                             ]),
+                             steps(d, 13)[6]['move'].update(payload={'report': 'Started'}),
+                             steps(d, 1)[6]['expect'].update(transit_absent='cancel')]},
+        [
+            ('P024', f'{PRODUCT}#/scenarios/1/steps/6/expect/transit_absent'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/6/move/payload/report'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/10/move/to'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/14/move/payload/summary'),
+            ('P024', f'{PRODUCT}#/scenarios/13/steps/15/move/to'),
+        ],
+    ),
+    (
+        'P022',
+        # the transits are on a card; the manager runs `reopen` of every task, and the task is
+        # done (moved there; the expectation of the status of the card is not needed)
+        {PRODUCT: lambda d: [steps(d, 1).extend([{'open': 'task-list'}, {'expect': {'transit_absent': 'start'}}]),
+                             steps(d, 13).__setitem__(12, {'expect': {'screen': 'task-card',
+                                                                      'transit_absent': 'reopen'}})]},
+        [
+            ('P022', f'{PRODUCT}#/scenarios/1/steps/8/expect/transit_absent'),
+            ('P022', f'{PRODUCT}#/scenarios/13/steps/12/expect/transit_absent'),
+        ],
+    ),
+    (
+        'P037',
+        # the report of `finish` typed by a `Literal`: its choices have no labels
+        {CONTRACT: lambda d: finish_payload(d)['properties']['report'].update(enum=['done', 'failed'])},
+        [('P037', f'{PRODUCT}#/entities/0/workflow/transitions/1/payload/fields/0')],
     ),
     (
         'P025',
@@ -928,9 +975,10 @@ CASES = [
         # a column of no status of the workflow, a badge by a text
         {BOARD: lambda d: [d['board'].update(columns=['draft', 'archived']),
                            d['board']['card'].update(badge='title')]},
-        # the scenario of the board moves a task to a status that is no longer a column
+        # the scenario of the board moves a task to statuses that are no longer columns
         [('S022', f'{BOARD}#/board/columns/1'), ('S022', f'{BOARD}#/board/card/badge'),
-         ('P022', f'{PRODUCT}#/scenarios/13/steps/6/move/to')],
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/6/move/to'),
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/10/move/to')],
     ),
     (
         'S022',
@@ -940,7 +988,8 @@ CASES = [
         # the scenario of the board moves a step that it did not create, and opens a step that
         # opens nothing
         [('S022', f'{BOARD}#/board/by'), ('P033', f'{PRODUCT}#/scenarios/13/steps/6/move'),
-         ('P022', f'{PRODUCT}#/scenarios/13/steps/7/open_item')],
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/7/open_item'),
+         ('P022', f'{PRODUCT}#/scenarios/13/steps/11/open_item')],
     ),
     (
         'S023',
@@ -2335,6 +2384,80 @@ def test_a_piece_of_a_text_after_a_comma_of_a_flow_mapping_is_told_to_be_quoted(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(('step', 'key', 'helper'), [
+    (lambda d: steps(d, 13)[6]['move'].update(created=True), 'created', '`openItem`, `select` and `move`'),
+    (lambda d: steps(d, 1)[2]['open_item'].update(created=True), 'created', '`openItem`, `select` and `move`'),
+    (lambda d: steps(d, 0)[3]['submit'].update(saved=True), 'saved', '`submit`'),
+])
+def test_a_parameter_of_a_helper_in_a_step_is_told_to_be_removed(contract, step, key, helper):
+    """
+    `created` and `saved` are parameters that the generator gives the helpers, not keys of the
+    steps: the hint of P002 says what the key is instead of the schema to follow.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, step)
+    (found,) = [it for it in validate(root).issues if it.code == 'P002']
+    assert found.hint.startswith(f'`{key}` is a parameter of the helper')
+    assert helper in found.hint and found.hint.endswith('Remove it.')
+
+
+@pytest.mark.django_db
+def test_the_hints_of_a_move_and_of_an_absent_action(contract):
+    """
+    A move to a status that only transitions with a payload lead to gives the payload of its
+    dialog; an absent action that the screen does not have names the other expectations of an
+    absence (a transit, a field that the role may not change).
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: [steps(d, 13)[10]['move'].pop('payload'),
+                                   steps(d, 1)[1]['expect'].update(action_absent='edit')])
+    found = {it.path: it for it in validate(root).issues}
+    assert set(found) == {'/scenarios/13/steps/10/move/to', '/scenarios/1/steps/1/expect/action_absent'}
+    move = found['/scenarios/13/steps/10/move/to']
+    assert (move.code, move.message) == ('P024', 'No transition without a payload leads to `done`.')
+    assert move.hint == 'Give the payload of its dialog: {where: ..., to: done, payload: {...}} with report.'
+    absent = found['/scenarios/1/steps/1/expect/action_absent']
+    assert (absent.code, absent.message) == ('P022', 'The screen has no action `edit`: it is always absent.')
+    assert '`transit_absent: <id>`' in absent.hint and '`field_readonly`' in absent.hint
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('change', 'expected'), [
+    # created in `draft`, the initial status: `start` is offered
+    (lambda d: steps(d, 13).__setitem__(4, {'expect': {'screen': 'task-card', 'transit_absent': 'start'}}),
+     ['/scenarios/13/steps/4/expect/transit_absent']),
+    # the status of the expectation, read before the absence, is the status known from then
+    (lambda d: steps(d, 13)[4]['expect'].update(status='in_progress', transit_absent='start'), []),
+    # a transit led the task to done: `reopen` is offered, `finish` no longer
+    (lambda d: steps(d, 0).__setitem__(7, {'expect': {'transit_absent': 'reopen'}}), ['/scenarios/0/steps/7/expect/transit_absent']),
+    (lambda d: steps(d, 0).__setitem__(7, {'expect': {'transit_absent': 'finish'}}), []),
+    # the item of another card has no known status
+    (lambda d: steps(d, 13).extend([{'open': 'task-list'}, {'open_item': {'where': {'title': 'Review the plan'}}},
+                                    {'expect': {'screen': 'task-card', 'transit_absent': 'reopen'}}]), []),
+    # a transit granted on some items only (a selector) may be absent
+    (lambda d: [task(d)['access']['manager'].update(transit={'start': 'all', 'finish': 'all', 'reopen': 'owner'}),
+                steps(d, 0)[7]['expect'].update(transit_absent='reopen')], None),
+])
+def test_an_absent_transit_by_the_status_of_the_item(contract, change, expected):
+    """
+    A transit that `access` grants the role on every item is shown on the card of an item in
+    its source status: its absence cannot pass (P022). The walk knows the status of the item
+    that the scenario created (its initial status, then the status of its transits and moves,
+    or of an `expect`), not that of another item.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, change)
+    found = [it for it in validate(root).issues if it.code in ('P022', 'P024')]
+    if expected is None:
+        assert not any(it.path.endswith('/transit_absent') for it in found)
+        return
+    assert [it.path for it in found] == expected
+    for issue in found:
+        if issue.path.endswith('/transit_absent'):
+            assert issue.message.startswith('The role `manager` runs the transit')
+
+
+@pytest.mark.django_db
 def test_a_role_that_cannot_add_changes_the_items_of_the_test_data(contract):
     """
     P033 asks a scenario to create the item it changes; a role whose `access` has no `add` for
@@ -2486,9 +2609,12 @@ def test_a_payload_field_of_a_relation(contract):
     ('integer', {'anyOf': [{'type': 'integer'}, {'type': 'string'}]}, {}, ['S054']),
     ('number', {'anyOf': [{'type': 'string', 'format': 'uri'}, {'type': 'string', 'maxLength': 0}]}, {}, ['P017']),
     ('string', {'anyOf': [DECIMAL['anyOf'][1], {'type': 'null'}, DECIMAL['anyOf'][0]]}, {}, []),
-    # an enum is a `$ref` to a string with choices: `string`, not `json`
-    ('string', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}, []),
-    ('json', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}, ['P017']),
+    # an enum is a `$ref` to a string with choices: `string`, not `json`; with the labels of its
+    # choices (`TextChoices`), or offered by its values (P037: also a `Literal`, inline)
+    ('string', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'enumDict': {'a': 'A', 'b': 'B'}, 'type': 'string'}}, []),
+    ('json', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'enumDict': {'a': 'A', 'b': 'B'}, 'type': 'string'}}, ['P017']),
+    ('string', {'$ref': '#/$defs/Kind'}, {'Kind': {'enum': ['a', 'b'], 'type': 'string'}}, ['P037']),
+    ('string', {'enum': ['a', 'b'], 'type': 'string'}, {}, ['P037']),
     # a model is an object: `json`, which the form asks for as JSON (S054)
     ('json', {'$ref': '#/$defs/Part'}, {'Part': {'type': 'object', 'properties': {'x': {'type': 'string'}}}}, ['S054']),
     ('string', {'$ref': '#/$defs/Part'}, {'Part': {'type': 'object', 'properties': {'x': {'type': 'string'}}}}, ['P017']),

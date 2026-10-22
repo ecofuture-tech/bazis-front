@@ -847,6 +847,34 @@ test('move moves an item by its menu and waits until it is in its column', async
   expect(await page.locator(`${bz('column', 'in_progress')} ${bz('row', '1')}`).count()).toBe(1);
 });
 
+test('move fills the payload of its transit in its dialog and waits until it is in its column', async ({ page }) => {
+  await show(page, '/board',
+    html(
+      `<section data-bz="screen:task-board"><div data-bz="state:loaded">
+        <div data-bz="column:in_progress"><div data-bz="row:1"><span data-bz="cell:title">A</span><button id="menu" data-bz="action:move">Move</button></div></div>
+        <div data-bz="column:done"></div></div></section>`,
+      `document.getElementById('menu').addEventListener('click', () => {
+         document.body.insertAdjacentHTML('beforeend', '<div role="menu"><button id="to" data-bz="move:done">Done</button></div>');
+         document.getElementById('to').addEventListener('click', () => {
+           document.querySelector('[role=menu]').remove();
+           document.body.insertAdjacentHTML('beforeend', '<div role="dialog"><form id="payload"><textarea data-bz="field:report"></textarea><button type="submit" data-bz="action:submit">Finish</button></form></div>');
+           document.getElementById('payload').addEventListener('submit', (event) => {
+             event.preventDefault();
+             document.body.dataset.report = event.target.querySelector('textarea').value;
+             setTimeout(() => { document.querySelector('[role=dialog]').remove(); }, 100);
+             setTimeout(() => { document.querySelector('[data-bz="column:done"]').append(document.querySelector('[data-bz="row:1"]')); }, 300);
+           });
+         });
+       });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-board');
+  await app.move({ where: { title: 'A' }, to: 'done', payload: { report: 'Done' } });
+  expect(await page.locator(`${bz('column', 'done')} ${bz('row', '1')}`).count()).toBe(1);
+  await expect(page.locator('body')).toHaveAttribute('data-report', 'Done');
+});
+
 test('openItem shows more items of a column of a board until it has the item', async ({ page }) => {
   // the first cards of each column, more of them by `action:more` (busy while they load)
   await show(page, '/board',
@@ -1115,6 +1143,42 @@ test.describe('expectActionAbsent', () => {
     await app.expectActionAbsent('create');
     await app.expectState('empty');
     await app.expectRows(0);
+  });
+});
+
+test.describe('expectTransitAbsent', () => {
+  /** A card whose transits load after it, as the transit bar reads them. */
+  const card = (transits: string) =>
+    html(
+      `<section data-bz="screen:task-card"><article data-bz="state:loaded"><span data-bz="status:draft">Draft</span>
+        <div id="transits" data-bz="state:loading">Loading…</div></article></section>`,
+      `setTimeout(() => { document.getElementById('transits').outerHTML = ${JSON.stringify(transits)}; }, 300);`,
+    );
+
+  test('waits for the transits of the card to load', async ({ page }) => {
+    await show(page, '/tasks/1', card('<div id="bar"><button data-bz="transit:finish">Finish</button></div>'));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-card');
+    // the transits are read again (the item changed), and then offer it
+    await page.evaluate(() => {
+      const bar = document.getElementById('bar');
+      if (bar === null) return;
+      bar.setAttribute('data-bz', 'state:loading');
+      bar.innerHTML = 'Loading…';
+      setTimeout(() => {
+        bar.removeAttribute('data-bz');
+        bar.innerHTML = '<button data-bz="transit:start">Start</button>';
+      }, 300);
+    });
+    await expect(app.expectTransitAbsent('start')).rejects.toThrow();
+  });
+
+  test('passes when the loaded card does not offer the transit', async ({ page }) => {
+    await show(page, '/tasks/1', card('<div><button data-bz="transit:finish">Finish</button></div>'));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-card');
+    await app.expectTransitAbsent('start');
+    expect(await page.locator(bz('transit', 'finish')).count()).toBe(1);
   });
 });
 

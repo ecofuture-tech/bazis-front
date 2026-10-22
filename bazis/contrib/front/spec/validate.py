@@ -152,6 +152,36 @@ def piece_of_text(error, data) -> str | None:
     return next((it for it in keys if isinstance(it, str) and (' ' in it or not it.isascii())), None)
 
 
+#: the parameters of the helpers of the end-to-end tests that the generator gives them, which a
+#: step of a scenario does not take: what each is
+HELPER_PARAMETERS = {
+    'created': (
+        'a parameter of the helpers `openItem`, `select` and `move`, not a key of the step: the generator sets it '
+        'when the scenario created an item with the texts of `where` before, so that its test finds the item it made'
+    ),
+    'saved': (
+        'a parameter of the helper `submit`, not a key of the step: every submit must save, but one that the next '
+        'step expects to be refused (an `error`, or a `state` of a failure)'
+    ),
+}
+
+
+def helper_parameter(error, data) -> str | None:
+    """
+    The parameter of a helper of the end-to-end tests that a step of a scenario has as a key
+    (`open_item: {where: ..., created: true}`, `submit: {saved: true}`): the step refuses a key
+    of its own (`additionalProperties`) or any key (`maxProperties`).
+    """
+    path = list(error.absolute_path)
+    if error.validator not in ('additionalProperties', 'maxProperties') or path[:1] != ['scenarios'] or 'steps' not in path:
+        return None
+    node = data
+    for step in path:
+        node = node[step]
+    allowed = error.schema.get('properties', {}) if error.validator == 'additionalProperties' else {}
+    return next((it for it in node if it not in allowed and it in HELPER_PARAMETERS), None) if isinstance(node, dict) else None
+
+
 class _Loader(yaml.SafeLoader):
     """
     YAML whose implicit types are those of YAML 1.2: `2026-10-07` stays a string (no
@@ -203,13 +233,16 @@ def load(
         # any of the given schemas"
         error = best_match(error.context) if error.context else error
         piece = piece_of_text(error, data)
-        issues.add(
-            doc, error.absolute_path, shape_code, error.message,
-            f'Follow {SPEC_DIR}/{SCHEMA_DIR}/{schema}.' if piece is None else (
+        if piece is not None:
+            hint = (
                 f'The key `{piece}` is a piece of a text: in a flow mapping `{{a: x, y}}` the text after `, ` is '
                 "read as another key. Quote the text that has the comma, `{entrance_info: '1 floor, 3 rooms'}`."
-            ),
-        )
+            )
+        elif (helper := helper_parameter(error, data)) is not None:
+            hint = f'`{helper}` is {HELPER_PARAMETERS[helper]}. Remove it.'
+        else:
+            hint = f'Follow {SPEC_DIR}/{SCHEMA_DIR}/{schema}.'
+        issues.add(doc, error.absolute_path, shape_code, error.message, hint)
     doc.valid = not errors
     return doc
 

@@ -105,6 +105,8 @@ scenarios:
       # nor does he escalate it: bazis-permit leaves the custom action out of his meta
       - expect: {action_absent: add-step}
       - expect: {action_absent: escalate}
+      # he neither edits it nor runs its transits (`access` grants him none)
+      - expect: {action_absent: edit, transit_absent: start}
   # the picker of the assignee searches the user by the label (his first and last name,
   # given by `manage.py e2e_data`); the list shows the label
   - id: manager-assigns-a-task
@@ -267,6 +269,11 @@ scenarios:
       - move: {where: {title: Move on the board}, to: in_progress}
       - open_item: {where: {title: Move on the board}}
       - expect: {screen: task-card, status: in_progress}
+      # `finish` asks for its report in its dialog
+      - open: task-board
+      - move: {where: {title: Move on the board}, to: done, payload: {report: Finished on the board}}
+      - open_item: {where: {title: Move on the board}}
+      - expect: {screen: task-card, status: done, values: {report: Finished on the board}}
   # a bulk action: the selected rows started at once
   - id: manager-starts-tasks-at-once
     role: manager
