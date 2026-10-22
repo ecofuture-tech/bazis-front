@@ -391,9 +391,11 @@ job of CI.
   lines made those of the new version first, `copy.restamp`), raising a `CopyError` before
   anything is written; `apply` writes the files (conflicts with git markers), copies the
   new requirements, replaces the pristine copies, refreshes `spec/schema/`
-  (`spec/create.schema_updates`) and writes the lock last; the command names the file of
-bazis-front of each conflict, its pristine copy of the new version (`upstream_copy`), to take
-whole when the lines merged without markers clash. The merge is `git merge-file`
+  (`spec/create.schema_updates`) and writes the lock last; after `apply` (never in `--check`)
+  the command names the file of bazis-front of each conflict, its pristine copy of the new
+  version (`upstream_copy`), to take whole when the lines merged without markers clash; none
+  for `package.json` of the template, whose upstream has the npm dependencies of the assets
+  (`with_dependencies`) that the pristine copy has not. The merge is `git merge-file`
   (`merge_file`: temporary files, the labels of the markers, without the configuration of
   the user; Git is looked for only when a file needs a merge, and its absence fails the
   plan). Do not write a merge of our own: a diff3 that aligns the base with each side

@@ -224,12 +224,15 @@ def is_stale(entry: dict, asset: Asset, version: str) -> bool:
     )
 
 
-def upstream_copy(asset: Asset, path: str, version: str) -> str:
+def upstream_copy(asset: Asset, path: str, version: str) -> str | None:
     """
     The file of bazis-front of a file of the frontend, its pristine copy of the version in
     `.bazis/base/<asset>@<version>/` (relative to the frontend): the side of bazis-front of a
-    conflict, whole.
+    conflict, whole. None for `package.json` of the template, whose side of bazis-front has the
+    npm dependencies of the assets too, which its pristine copy has not.
     """
+    if asset.kind == TEMPLATE and path == PACKAGE_JSON:
+        return None
     name = next(it for it in asset.files if asset.target_path(it) == path)
     return f'{frontend_lock.BASE_DIR}/{asset.name}@{version}/{name}'
 

@@ -3719,7 +3719,8 @@ Resolve every conflict in the listed files: keep the change of bazis-front (a fi
 protocol, a new prop) and apply the change of the product over it, delete the markers,
 then `npx tsc --noEmit`, `npm run lint` and `npm test` (the contract tests of the
 components) in `frontend/`. `update` names the file of bazis-front of each conflict
-(`.bazis/base/<asset>@<version>/…`). The lines changed away from a conflict merge without
+(`.bazis/base/<asset>@<version>/…`) but `package.json`, whose side of bazis-front has the npm
+dependencies of the assets too: resolve its markers. The lines changed away from a conflict merge without
 markers: a change of the product that the new version now makes itself stays beside it (the
 own `GUEST_HOME` of a router of 0.8 next to its import of 0.9: `TS2440`); then copy that file
 over and apply the other changes of the product to it again. `tsc` reports a marker left in a

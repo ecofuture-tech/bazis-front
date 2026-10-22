@@ -522,6 +522,29 @@ describe('FilesField', () => {
     expect(backend.calls.map((it) => it.body)).toEqual([{ file: 'a.png' }, { file: 'b.png' }, { file: 'd.png' }]);
   });
 
+  it('counts the files that upload or wait in maxItems', async () => {
+    objectUrls();
+    const backend = new Backend().hold('POST', FILES);
+    const field = listSpies();
+    renderWithBazis(<Files spies={field} field={{ ...PHOTOS, maxItems: 2 }} />, backend);
+    await screen.findByTestId('field:photos');
+
+    const png = (name: string) => new File(['png'], name, { type: 'image/png' });
+    chooseFiles(png('a.png'));
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeTruthy();
+    });
+    // a.png uploads: room for one more, which waits
+    chooseFiles(png('b.png'), png('c.png'));
+    expect(field.onError).toHaveBeenLastCalledWith('At most 2 files.');
+    expect(screen.getByTestId('file:1').textContent).toContain('b.png');
+    expect(screen.queryByTestId('file:2')).toBeNull();
+    // a.png uploads, b.png waits: no room
+    chooseFiles(png('d.png'));
+    expect(field.onError).toHaveBeenLastCalledWith('At most 2 files.');
+    expect(screen.queryByTestId('file:2')).toBeNull();
+  });
+
   it.each([
     ['the type that the content shows', 422, 'ERR_FILE_TYPE', 'The file is not an image of the allowed types'],
     ['the size limit', 413, 'ERR_FILE_TOO_LARGE', 'The file is larger than 6291456 bytes'],
