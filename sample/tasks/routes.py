@@ -14,6 +14,7 @@
 
 import csv
 import io
+from datetime import date
 
 from django.apps import apps
 from django.utils.http import content_disposition_header
@@ -85,9 +86,13 @@ class Suggested(BaseModel):
 
 
 class ExportRequest(BaseModel):
-    """The tasks to export: those of a priority, all without one."""
+    """
+    The tasks to export: those of a priority, all without one; those created on a day or after
+    it (`created_from`, in the time zone of the backend), all without one.
+    """
 
     priority: Task.Priority | None = None
+    created_from: date | None = None
 
 
 class CsvResponse(Response):
@@ -131,14 +136,16 @@ class TaskRouteSet(StatusyRouteSetBase):
     def action_export(self, data: ExportRequest, **kwargs):
         """
         A custom action that answers a file (`custom_actions[].file` of the contract): the
-        tasks that the user views, of a priority or all, as CSV named `tasks.csv`
-        (`Content-Disposition`), which the form of the specs (`export-tasks`) saves. It
-        requires the view of the tasks (`access_action`: 403 for a role without it) and
-        exports the rows that bazis-permit lets the user view.
+        tasks that the user views, of a priority or all, created from a day or all, as CSV
+        named `tasks.csv` (`Content-Disposition`), which the form of the specs (`export-tasks`)
+        saves. It requires the view of the tasks (`access_action`: 403 for a role without it)
+        and exports the rows that bazis-permit lets the user view.
         """
         tasks = self.restrict_queryset(Task.objects.order_by('dt_created'), CrudAccessAction.VIEW)
         if data.priority is not None:
             tasks = tasks.filter(priority=data.priority)
+        if data.created_from is not None:
+            tasks = tasks.filter(dt_created__date__gte=data.created_from)
         content = io.StringIO()
         writer = csv.writer(content)
         writer.writerow(['title', 'status', 'priority'])

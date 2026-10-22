@@ -752,8 +752,7 @@ when the row may be changed (or deleted) as its `access_action` requires: a list
 row only these (`for_change`, `for_delete`), so an action that requires another access of the
 item runs on its card (S032). On a public screen an action is one declared `public=True`,
 `public` of its `custom_actions` in the contract (S046). A click on a row while its action runs sends nothing; on
-another row it runs beside it. S032 checks it
-against the contract; an action declared with GET reads and belongs to an extension
+another row it runs beside it. An action declared with GET reads and belongs to an extension
 (`useActionQuery`), what the contract cannot say (its response in a dialog, a task followed) too:
 
 ```yaml
@@ -809,10 +808,8 @@ an edited file (`--force` drops the edits) and `front.W010` reports it.
 
 `check` reports a missing module or export (S028); once the frontend generates its screens, a
 `frontend/src/screens/<id>/index.tsx` of a screen that is not custom (S029: two
-implementations; the code of an extension is `extend.tsx`; `screens` refuses it also on its
-first run, before the lock has `screens`, and `--force` does not lift it; `check` tells it also
-before the lock has `screens`, once `src/app/router.tsx` imports `@/screens/generated`, and
-says nothing while the router is the product's own); a screen with `extend` without
+implementations; the code of an extension is `extend.tsx`; `screens` refuses it even on its
+first run, and `--force` does not lift it); a screen with `extend` without
 `export const extension` in `frontend/src/screens/<id>/extend.tsx`, or a custom screen with
 `extend` (S031: a custom screen extends itself in its own code).
 
@@ -867,6 +864,10 @@ of an item after a deletion or an action form. A generated card is headed by the
 out of the navigation generated without `navigation` of product.yaml.
 `card.related[].add.when` is when "add here" is shown: `changeable` (the default, while the
 user may change the item of the card) or `always`.
+A section shown by the status of its item has `when: {status: [...]}` of the workflow (S059):
+`{id: report, fields: [report], when: {status: [done]}}`. The edit of the card keeps its
+fields; a scenario expects them absent in the other statuses (`field_absent`), their `values`
+in one of these (P022).
 
 #### Tabs and bulk actions
 
@@ -1212,6 +1213,8 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S055` | error | the id of the screen is the mark of the menu of the top bar, `more`: its links (`nav:more`) would be marked as the menu of the links that the top bar has no room for. Give the screen another id |
 | `S057` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the id of an uploaded file (`UploadedFileId` of bazis-uploadable, `x-relation` of its files), and the contract does not let the guests upload files (`anonymous` of `uploadable`): their upload is refused (401). Turn the anonymous uploads of bazis-uploadable 2.8 on in the environment of the project (`BS_BAZIS_FILE_UPLOAD_ANONYMOUS=true` with `BS_BAZIS_FILE_UPLOAD_MAX_SIZE`) and export the contract again, or leave the property out of the public screen |
 | `S058` | warning | a property of the body of a custom action (in its dialog or its form) has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.21): the form offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
+| `S059` | error | a section of a card shown by the status of its item (`when`) names a status that is not of the workflow of the entity, or the entity has no workflow. Use the statuses of the workflow, or remove `when` |
+| `S060` | error | a value that a field of a custom action starts with (`values` of its dialog or its form) is not of its `fields`, or does not fit its property in the body: a value of another type or out of its choices, a day of the browser (`today`, `month_start`, ...) of a property that is not a date, a time of a date, a text of a date that is neither a day of the browser nor `YYYY-MM-DD` |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
@@ -2397,6 +2400,18 @@ without `access` is left to the backend), else a guest gets 403; the files are u
 the guest only when the contract lets the guests upload (`anonymous` of `uploadable`: S057).
 A scenario uploads a file of the body with `upload` (P022 for `fill`). The dialog and the
 form are not submitted while a file uploads, nor twice while their request runs.
+
+**The values that the fields start with**, `values` of a custom action (its dialog) or of
+`form` (S060), are given when the dialog or the form opens, and again on `action:again`, over
+the `default` of the body: a value of the type of the property (one of its choices), or for a
+date a day of the browser, `today`, `today+<n>`, `today-<n>`, `month_start`, `month_end`
+(then ` HH:MM` for a date-time: `today 09:00`), or `YYYY-MM-DD`. The day is that of the
+browser, not of the server, and the helpers of the tests count their days in UTC: a scenario
+that checks the rows of a day fills its date. A scenario submits the values without `fill`:
+
+```yaml
+form: {action: export, fields: [priority, created_from], values: {created_from: month_start}}
+```
 
 ### The form of a custom action
 
@@ -6267,6 +6282,7 @@ Its props, `ResourceCardProps`:
 - `id: string`
 - `title?: ReactNode`
 - `fields: readonly string[]`
+- `when?: { status: readonly string[]; }`: Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it.
 
 #### The types and the constants of `@/bazis/ui/resource-card`
 
@@ -6458,6 +6474,7 @@ Its props, `ActionFormProps`:
 - `action: string`: The name of the custom action of the route set in its path, as `custom_actions` of the contract has it.
 - `fields: readonly string[]`: The properties of its body that the form asks for, in this order.
 - `labels?: Readonly<Record<string, string>> | undefined`: The labels of the fields by property, before the titles of the contract.
+- `values?: StartValues | undefined`: The values that the fields start with by property, over the defaults of the body: a day of the browser (`today`, `month_start`, ...) for a date, computed when the form opens.
 - `submitLabel?: ReactNode`: The label of the submit button: `Send` by default.
 - `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action, or `{filename}` of the file it saved.
 - `then?: ActionThen | undefined`: The screen that the result links to.
@@ -6583,6 +6600,7 @@ Its props, `UpdateFormActionProps`:
 - `item?: string`: The item of a card, whose action it is; none on a list (a row or the selected rows give theirs).
 - `fields?: readonly string[]`: The properties of the body that its dialog asks for, in this order; none by default (an empty body).
 - `labels?: Readonly<Record<string, string>>`: The labels of its fields by property, before their titles (`ActionFields`).
+- `values?: StartValues`: The values that its fields start with by property, over the defaults of the body: a day of the browser (`today`, `month_start`, ...) for a date, computed when the dialog opens.
 - `title?: ReactNode`: The title of its dialog: the label by default.
 - `description?: ReactNode`: What its dialog says.
 - `confirm?: boolean`: Whether an action without fields is confirmed in a dialog first.
@@ -6605,6 +6623,7 @@ Its props, `UpdateFormActionProps`:
 #### The types and the constants of `@/bazis/ui/screens`
 
 - `ActionFieldsProps`: the props of `ActionFields`, listed with it
+- `type StartValues = Readonly<Record<string, string | number | boolean>>`: The values of the specs that the fields of an action start with (`values`), by property.
 - `ActionFormProps`: the props of `ActionForm`, listed with it
 - `ActionResultProps`: the props of `ActionResult`, listed with it
 - `CreateFormActionProps`: the props of `CreateFormAction`, listed with it

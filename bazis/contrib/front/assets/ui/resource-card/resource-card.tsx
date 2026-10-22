@@ -54,6 +54,14 @@ export interface CardSection {
   id: string;
   title?: ReactNode;
   fields: readonly string[];
+  /** Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it. */
+  when?: { status: readonly string[] };
+}
+
+/** Whether a section is shown for the item: always, or while the item is in a status of its `when`. */
+function sectionShown(section: CardSection, item: ResourceObject): boolean {
+  const status = fieldValue(item, 'status');
+  return section.when === undefined || (typeof status === 'string' && section.when.status.includes(status));
 }
 
 /** An action of the card, a button `action:<id>`, shown when the user may do it on the item. */
@@ -153,15 +161,15 @@ export function useHeadsScreen(): boolean {
 
 /**
  * The sections with the fields that the user may see in the item (`schema_retrieve/`); a
- * section without any is left out. With `editable`, the fields that the edit does not change
- * are marked read-only.
+ * section without any, or not shown in the status of the item (`when`), is left out. With
+ * `editable`, the fields that the edit does not change are marked read-only.
  */
 function Sections({ sections, item, fields, values, display, editable }: SectionsProps) {
   const { t } = useLanguage();
   const Title = useHeadsScreen() ? 'h2' : 'h3';
   return sections.map((section) => {
     const names = section.fields.filter((name) => fields.has(name));
-    if (!names.length) return null;
+    if (!names.length || !sectionShown(section, item)) return null;
     return (
       <section
         key={section.id}

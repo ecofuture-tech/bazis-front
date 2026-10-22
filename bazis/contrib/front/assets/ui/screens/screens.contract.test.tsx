@@ -63,7 +63,8 @@ import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resourc
 // `suggest` of the route set, its body a title, the owner and the watchers (their ids), the
 // hours (a decimal), a note, and the ids of uploaded files (`x-relation` of `UploadedFileId`
 // of bazis-uploadable: a scan and photos, of the files of the tests, `test.file`) and of a
-// reviewer (of the owners); `escalate` also takes the id of a file, its evidence
+// reviewer (of the owners); `escalate` also takes the id of a file, its evidence; `report`
+// answers a file, its body a year, a date and a date-time
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   const priority = { enum: ['low', 'high'], title: 'Priority', type: 'string' };
@@ -107,7 +108,14 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
             item: false,
             method: 'post',
             access_action: null,
-            body: { type: 'object', properties: { year: { type: 'integer', title: 'Year' } } },
+            body: {
+              type: 'object',
+              properties: {
+                year: { type: 'integer', title: 'Year' },
+                from: { anyOf: [{ type: 'string', format: 'date' }, { type: 'null' }], default: null, title: 'From' },
+                until: { type: 'string', format: 'date-time', title: 'Until' },
+              },
+            },
             file: true,
           },
           action_suggest: {
@@ -554,6 +562,19 @@ describe('useCustomAction', () => {
     });
   });
 
+  it('opens its dialog with the values of the specs over the defaults of the body', async () => {
+    const backend = cardBackend({ crud_actions: ['view'], custom_actions: ['action_escalate'] })
+      .on('GET', `${ITEMS}schema_list/`, listSchema)
+      .on('POST', `${ITEM}escalate/`, { priority: 'low' });
+    renderWithBazis(<EscalatingCard fields={['priority', 'price']} values={{ priority: 'low', price: '2.5' }} />, backend);
+    fireEvent.click(await screen.findByTestId('action:escalate'));
+    expect(screen.getByTestId<HTMLInputElement>('field:price').value).toBe('2.5');
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(backend.calls.filter((it) => it.method === 'POST').map((it) => it.body)).toEqual([{ priority: 'low', price: '2.5' }]);
+    });
+  });
+
   it('waits in its dialog for the file of a field to upload', async () => {
     const backend = cardBackend({ crud_actions: ['view'], custom_actions: ['action_escalate'] })
       .on('GET', `${ITEMS}schema_list/`, listSchema)
@@ -940,6 +961,59 @@ describe('ActionForm', () => {
     expect(saved).toHaveBeenCalledOnce();
     expect((saved.mock.contexts[0] as HTMLAnchorElement).download).toBe('report-2026.csv');
     saved.mockRestore();
+  });
+
+  it('starts with the values of the specs, the days of the browser computed when it opens and again', async () => {
+    // only the date is fake: the queries and the waits keep their timers
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 22, 15, 30));
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:report'), revokeObjectURL: vi.fn() });
+    const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const backend = new Backend().file(`${ITEMS}report/`, 'year', 'attachment; filename="report.csv"', 'POST');
+    renderWithBazis(
+      <ActionForm
+        path={ITEMS}
+        action="report"
+        fields={['year', 'from', 'until']}
+        values={{ year: 2026, from: 'month_start', until: 'today+10 09:30' }}
+        result={{ message: () => 'Saved' }}
+      />,
+      backend,
+    );
+    // over the default of the body; a day of the month after the end of this one
+    expect(screen.getByTestId<HTMLInputElement>('field:year').value).toBe('2026');
+    expect(screen.getByTestId<HTMLInputElement>('field:from').value).toBe('2026-10-01');
+    expect(screen.getByTestId<HTMLInputElement>('field:until').value).toBe('2026-11-01T09:30');
+    // the user changes one
+    fireEvent.change(screen.getByTestId('field:from'), { target: { value: '2026-10-15' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await screen.findByTestId('state:done');
+    expect(backend.calls.map((it) => it.body)).toEqual([
+      { year: 2026, from: '2026-10-15', until: new Date(2026, 10, 1, 9, 30).toISOString() },
+    ]);
+    // again, a month later: the days of then
+    vi.setSystemTime(new Date(2026, 10, 30, 8, 0));
+    fireEvent.click(screen.getByTestId('action:again'));
+    expect(screen.getByTestId<HTMLInputElement>('field:from').value).toBe('2026-11-01');
+    expect(screen.getByTestId<HTMLInputElement>('field:until').value).toBe('2026-12-10T09:30');
+    saved.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('starts a date with the last day of its month, a day before today, or a date as it is', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2028, 1, 10, 12, 0));
+    const { unmount } = renderWithBazis(
+      <ActionForm path={ITEMS} action="report" fields={['from', 'until']} values={{ from: 'month_end', until: 'today-10' }} />,
+      new Backend(),
+    );
+    // a leap year; a date-time without a time starts the day
+    expect(screen.getByTestId<HTMLInputElement>('field:from').value).toBe('2028-02-29');
+    expect(screen.getByTestId<HTMLInputElement>('field:until').value).toBe('2028-01-31T00:00');
+    unmount();
+    renderWithBazis(<ActionForm path={ITEMS} action="report" fields={['from']} values={{ from: '2027-03-04' }} />, new Backend());
+    expect(screen.getByTestId<HTMLInputElement>('field:from').value).toBe('2027-03-04');
+    vi.useRealTimers();
   });
 
   it('without a result, says that it is done and calls onDone', async () => {

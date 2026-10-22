@@ -8,7 +8,8 @@ primitive: card
 card:
   sections:
     - {id: main, fields: [title, status, assignee, watchers, attachment, priority, location, hours]}
-    - {id: report, title: {en: Report, ru: Отчёт}, fields: [report]}
+    # the report is written by the transit `finish`: its section is shown once the task is done
+    - {id: report, title: {en: Report, ru: Отчёт}, fields: [report], when: {status: [done]}}
   edit: true
   transitions: true
   history: true

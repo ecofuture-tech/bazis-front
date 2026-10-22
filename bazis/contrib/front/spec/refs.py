@@ -1305,8 +1305,24 @@ def _check_value(doc: Document, path: tuple, value: dict, entity: Entity, resour
 
 def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
     """
-    The transits and the history of a card need the workflow of its entity (S011).
+    The transits and the history of a card need the workflow of its entity (S011); a section
+    shown by the status of the item (`when`), statuses of that workflow (S059).
     """
+    for i, section in enumerate(doc.data['card']['sections']):
+        statuses = section.get('when', {}).get('status', [])
+        if statuses and entity.workflow is None:
+            issues.add(
+                doc, ('card', 'sections', i, 'when'), 'S059', f'The entity `{entity.data["id"]}` has no workflow.',
+                'A section is shown by the status of an item of an entity with a workflow: remove `when`.',
+            )
+            continue
+        for j, status in enumerate(statuses):
+            if status not in entity.workflow['statuses']:
+                issues.add(
+                    doc, ('card', 'sections', i, 'when', 'status', j), 'S059',
+                    f'The status `{status}` is not a status of the workflow of `{entity.data["id"]}`.',
+                    f'Use the statuses of the workflow: {", ".join(entity.workflow["statuses"])}.',
+                )
     if entity.workflow is not None:
         return
     for key in ('transitions', 'history'):
@@ -1384,21 +1400,25 @@ def _check_custom_actions(
     # set (the toolbar of a list, a form)
     rows = set(data['list'].get('row_actions', [])) if data['primitive'] == 'list' else set()
     runs = [
-        (path, it['action'], it.get('fields', []), 'card' if data['primitive'] == 'card' else 'row' if it['id'] in rows else 'toolbar')
+        (path, it['action'], it.get('fields', []), it.get('values', {}),
+         'card' if data['primitive'] == 'card' else 'row' if it['id'] in rows else 'toolbar')
         for path, it in screen_actions(data) if it['primitive'] == 'custom'
     ]
     if data['primitive'] == 'list':
-        runs += [(('list', 'bulk', i), it['action'], None, 'bulk') for i, it in enumerate(data['list'].get('bulk', [])) if 'action' in it]
+        runs += [
+            (('list', 'bulk', i), it['action'], None, {}, 'bulk')
+            for i, it in enumerate(data['list'].get('bulk', [])) if 'action' in it
+        ]
     form = action_form(data)
     if form is not None:
-        runs.append((('form',), form['action'], form['fields'], 'form'))
+        runs.append((('form',), form['action'], form['fields'], form.get('values', {}), 'form'))
     if not runs:
         return
     public = is_public(data, product.roles)
     # by the name in the path and whether it is of an item: `/export/` and `/{item_id}/export/`
     declared = {(it['name'], it['item']): it for it in resource['custom_actions'].values()}
     posts = ', '.join(sorted({name for (name, _), it in declared.items() if it['method'] == 'post'})) or 'none'
-    for path, name, fields, where in runs:
+    for path, name, fields, values, where in runs:
         of_item = where not in ('toolbar', 'form')
         action = declared.get((name, of_item))
         problem, hint = None, None
@@ -1438,6 +1458,7 @@ def _check_custom_actions(
                 'or remove the action from the public screen.',
             )
         _check_body(doc, path, name, fields, action['body'] or {}, resource, public, product, contract, issues)
+        _check_values(doc, path, name, fields or [], values, action['body'] or {}, issues)
         if where == 'form' and 'result' in form:
             _check_result(doc, name, form['result'], action, issues)
 
@@ -1510,6 +1531,60 @@ def _check_body(
             'Ask for it in `fields` of the action.' if fields is not None else
             'Run it on the card or on each row, whose dialog asks for it: a bulk action sends an empty body.',
         )
+
+
+#: a day of the browser that a field of a date starts with (`values`): today, some days from
+#: it, the first or the last day of its month; a time after it for a date-time
+RELATIVE_DAY = re.compile(r'(today(?:[+-]\d+)?|month_start|month_end)( (?:[01]\d|2[0-3]):[0-5]\d)?')
+#: a date as the field of a date holds it
+ISO_DATE = re.compile(r'\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])')
+
+
+def _check_values(doc: Document, path: tuple, name: str, fields: list, values: dict, body: dict, issues: Issues) -> None:
+    """
+    The values that the fields of a custom action start with (`values`, S060): of its fields
+    (a property that its body does not have is S032), each of the type of its property, a day
+    of the browser (`RELATIVE_DAY`) only for a date (with a time for a date-time) or a date
+    as it is (`YYYY-MM-DD`) for a date, one of the choices of a property with choices.
+    """
+    properties = body.get('properties', {})
+    for prop, value in values.items():
+        where = (*path, 'values', prop)
+        if prop not in fields:
+            issues.add(
+                doc, where, 'S060', f'`{prop}` is not a field of the custom action `{name}`: no field starts with it.',
+                f'Give values to its fields: {", ".join(fields) or "none"}; or add `{prop}` to `fields`.',
+            )
+            continue
+        if prop not in properties:
+            continue
+        problem = _value_problem(value, local_type(properties[prop], body))
+        if problem:
+            issues.add(
+                doc, where, 'S060', f'The value of `{prop}` of the custom action `{name}` {problem}.',
+                'Give a value of the type of the property in the body; a date takes a day of the browser, `today`, '
+                '`today+<n>`, `today-<n>`, `month_start`, `month_end` (a date-time with ` HH:MM`), or `YYYY-MM-DD`.',
+            )
+
+
+def _value_problem(value, schema: dict) -> str | None:
+    """What is wrong with the value that the field of a property (`local_type`) starts with; None when it fits."""
+    fmt = schema.get('format')
+    day = RELATIVE_DAY.fullmatch(value) if isinstance(value, str) else None
+    if fmt in ('date', 'date-time'):
+        if day is not None:
+            return 'has a time, and the property is a date' if fmt == 'date' and day[2] else None
+        if fmt == 'date' and isinstance(value, str) and ISO_DATE.fullmatch(value):
+            return None
+        return f'is not a day of the browser{" or `YYYY-MM-DD`" if fmt == "date" else ""}, and the property is a {fmt}'
+    if day is not None:
+        return 'is a day of the browser, and the property is not a date'
+    if 'enum' in schema:
+        return None if value in schema['enum'] else f'is not one of its choices: {", ".join(map(str, schema["enum"]))}'
+    kinds = ('number', 'string') if is_decimal(schema) else (schema.get('type'),)
+    if not any(filter_value_fits(value, {'type': kind}) for kind in kinds if kind in ('boolean', 'integer', 'number', 'string')):
+        return f'is not of its type, {_describe(schema)}'
+    return None
 
 
 #: a parameter of a text of the specs: `{number}`, a property of the answer of an action

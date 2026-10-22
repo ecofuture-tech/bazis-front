@@ -23,6 +23,7 @@ actions:
     primitive: custom
     action: count
     fields: [priority]
+    values: {priority: high}       # its dialog opens with a high priority
     label: {en: Count, ru: Посчитать}
     message: {en: The count is queued., ru: Подсчёт поставлен в очередь.}
 states: [loading, empty, error, forbidden]

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 export { ActionFields } from './action-fields.js';
-export type { ActionFieldsProps } from './action-fields.js';
+export type { ActionFieldsProps, StartValues } from './action-fields.js';
 export { ActionForm } from './action-form.js';
 export type { ActionFormProps } from './action-form.js';
 export { ActionResult } from './action-result.js';

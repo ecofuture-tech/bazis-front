@@ -785,6 +785,15 @@ CASES = [
     ),
     ('S011', {'spec/screens/user-card.yaml': lambda d: user_card(d, transitions=True)}, [('S011', 'spec/screens/user-card.yaml#/card/transitions')]),
     (
+        'S059',
+        # a section shown in a status that is not of the workflow; a section of the card of an
+        # entity without a workflow
+        {CARD: lambda d: d['card']['sections'][1]['when']['status'].append('closed'),
+         'spec/screens/user-card.yaml': lambda d: (
+             card := user_card(d), card['card']['sections'][0].update(when={'status': ['done']}))[0]},
+        [('S059', f'{CARD}#/card/sections/1/when/status/1'), ('S059', 'spec/screens/user-card.yaml#/card/sections/0/when')],
+    ),
+    (
         'S012',
         # the users have no search: the pickers of the assignee (the filters of a list, of the
         # board and of the calendar, a form, the card) and of the watchers (a form, the card)
@@ -1577,6 +1586,31 @@ CASES = [
             'properties'].update(kind={'type': 'string', 'enum': ['bug', 'idea'], 'title': 'Kind'}),
          SUGGEST: lambda d: d['form']['fields'].append('kind')},
         [('S058', f'{SUGGEST}#/form/fields/2')],
+    ),
+    (
+        'S060',
+        # the values that the fields start with: of no field; a day of the browser of a choice
+        # and of a text; a value out of the choices (in the dialog of the card); a time of a
+        # date; a date as it is and a day of a date fit
+        {EXPORT: lambda d: d['form']['values'].update(title='Plan', priority='today'),
+         SUGGEST: lambda d: d['form'].update(values={'title': 'today'}),
+         CARD: lambda d: d['actions'][1].update(values={'priority': 'urgent'})},
+        [('S060', f'{EXPORT}#/form/values/title'), ('S060', f'{EXPORT}#/form/values/priority'),
+         ('S060', f'{SUGGEST}#/form/values/title'), ('S060', f'{CARD}#/actions/1/values/priority')],
+    ),
+    (
+        'S060',
+        # a number of a text, a text of the ids of files
+        {EXPORT: lambda d: d['form']['values'].update(created_from='today 09:00', priority='high'),
+         SUGGEST: lambda d: d['form'].update(values={'title': 3, 'photos': 'photo.png'})},
+        [('S060', f'{EXPORT}#/form/values/created_from'), ('S060', f'{SUGGEST}#/form/values/title'),
+         ('S060', f'{SUGGEST}#/form/values/photos')],
+    ),
+    (
+        'S060',
+        {EXPORT: lambda d: d['form']['values'].update(created_from='2026-02-01'),
+         CARD: lambda d: d['actions'][1].update(values={'priority': 'high'})},
+        [],
     ),
     (
         'P022',
@@ -2455,6 +2489,35 @@ def test_an_absent_transit_by_the_status_of_the_item(contract, change, expected)
     for issue in found:
         if issue.path.endswith('/transit_absent'):
             assert issue.message.startswith('The role `manager` runs the transit')
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('change', 'expected'), [
+    # created in `draft`: the section of the report is shown once the task is done
+    (lambda d: steps(d, 0)[4]['expect'].update(values={'report': 'Done'}), ['/scenarios/0/steps/4/expect/values/report']),
+    # the status of the expectation is the status of its values
+    (lambda d: steps(d, 0)[7]['expect'].update(status='in_progress', values={'report': 'Done'}), ['/scenarios/0/steps/7/expect/values/report']),
+    # the item of another card has no known status
+    (lambda d: steps(d, 13).extend([{'open': 'task-list'}, {'open_item': {'where': {'title': 'Review the plan'}}},
+                                    {'expect': {'screen': 'task-card', 'values': {'report': 'Done'}}}]), []),
+    # every section without `when`
+    (lambda d: steps(d, 0)[4]['expect'].update(values={'report': 'Done'}), None),
+])
+def test_the_values_of_a_section_shown_by_the_status(contract, change, expected):
+    """
+    A card shows a section with `when` only while its item is in one of its statuses: the values
+    of its fields, expected in another known status, cannot pass (P022); its fields are absent
+    then (`field_absent`, the sample), and in an unknown status the walk does not judge.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, change)
+    if expected is None:
+        edit(root, CARD, lambda d: d['card']['sections'][1].pop('when'))
+        expected = []
+    found = [it for it in validate(root).issues if it.code == 'P022']
+    assert [it.path for it in found] == expected
+    for issue in found:
+        assert issue.message.endswith('its section is shown in other statuses (`when`).')
 
 
 @pytest.mark.django_db

@@ -259,8 +259,8 @@ def kitchen_sink(root: Path) -> None:
 
 def test_the_parts_that_the_sample_does_not_have(tmp_path):
     """
-    The kitchen sink: a list with its map, its create form, a custom action of the route set,
-    its bulk action and its status filter; a card without tabs (its transits under its
+    The kitchen sink: a list with its map, its create form, a custom action of the route set
+    (the values that its dialog starts with), its bulk action and its status filter; a card without tabs (its transits under its
     heading, its related list and its history under its sections) with a create form in its
     header, an update form, a delete that describes itself and a custom action; the tone of
     the rows; forms as pages; a board without drag and drop, with a badge and its own empty
@@ -292,7 +292,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "        filters={[{ field: 'status', options: statusOptions(TASK.type, language) }]}\n" in places
     assert "run: (item) => transit.mutateAsync({ id: item, transit: 'start' })," in places
     # a custom action of the route set in the toolbar, after the create form, its dialog after the list
-    assert "    action: 'count',\n    target: 'route',\n    fields: ['priority'],\n" in places
+    assert "    action: 'count',\n    target: 'route',\n    fields: ['priority'],\n    values: { priority: 'high' },\n" in places
     assert '          countAction.action,\n        ]}\n' in places and '      {countAction.dialog}\n' in places
     assert "rowTone={(row) => (fieldValue(row, 'urgent') === true ? 'warning' : undefined)}" in places
     assert (

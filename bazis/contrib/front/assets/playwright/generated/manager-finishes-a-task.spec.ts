@@ -22,9 +22,10 @@ test('manager-finishes-a-task', async ({ page }) => {
     await app.submit({ saved: true });
     await app.expectScreen('task-card');
   });
-  await test.step('expect: {screen: task-card, status: draft}', async () => {
+  await test.step('expect: {screen: task-card, status: draft, field_absent: report}', async () => {
     await app.expectScreen('task-card');
     await app.expectStatus('draft');
+    await app.expectFieldAbsent('report');
   });
   await test.step('transit: start', async () => {
     await app.transit('start');

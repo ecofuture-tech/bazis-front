@@ -136,6 +136,8 @@ CODES: dict[str, tuple[str, str]] = {
     'S055': (ERROR, 'the id of the screen is the mark of the menu of the top bar, `more`: the links of the screen (`nav:more`) would be marked as the menu of the links that the top bar has no room for'),
     'S057': (ERROR, 'a property of the body of a custom action on a public screen (the fields of its dialog or of the form of the action) is the id of an uploaded file (`x-relation` of `UploadedFileId` of bazis-uploadable), and the contract does not let the guests upload files (`anonymous` of the section `uploadable`): the upload of a guest is refused (401)'),
     'S058': (WARNING, 'a property of the body of a custom action (a field of its dialog or of the form of the action) has choices without their labels (`enum` without `enumDict`, a `Literal` or a core before 2.21): the form offers them by their values'),
+    'S059': (ERROR, 'a section of a card shown by the status of its item (`when`) names a status that is not of the workflow of the entity, or the entity has no workflow'),
+    'S060': (ERROR, 'a value that a field of a custom action starts with (`values` of its dialog or its form) is not of its fields, or not of the type of its property (a day of the browser for a property that is not a date, a time for a date, a value out of its choices)'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

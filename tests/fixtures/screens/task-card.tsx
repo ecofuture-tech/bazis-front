@@ -54,7 +54,12 @@ export function TaskCardScreen() {
             id: 'main',
             fields: ['title', 'status', 'assignee', 'watchers', 'attachment', 'priority', 'location', 'hours'],
           },
-          { id: 'report', title: t('screens.task-card.card.sections.report.title'), fields: ['report'] },
+          {
+            id: 'report',
+            title: t('screens.task-card.card.sections.report.title'),
+            fields: ['report'],
+            when: { status: ['done'] },
+          },
         ]}
         display={TASK.display}
         edit

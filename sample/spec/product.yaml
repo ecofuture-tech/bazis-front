@@ -90,7 +90,8 @@ scenarios:
       - action: create
       - fill: {title: Write the report}
       - submit: {}
-      - expect: {screen: task-card, status: draft}
+      # the section of the report is shown once the task is done (`when` of task-card)
+      - expect: {screen: task-card, status: draft, field_absent: report}
       - transit: start
       - transit: {id: finish, payload: {report: Done}}
       - expect: {status: done, field_readonly: title}
@@ -100,7 +101,8 @@ scenarios:
       - open: task-list
       - expect: {action_absent: create}
       - open_item: {where: {title: Review the plan}}   # created by `manage.py e2e_data`
-      # a field permission of the viewer (tasks/roles.py): the report is hidden; he adds no step
+      # a field permission of the viewer (tasks/roles.py): the report is hidden in every status
+      # (here, in `draft`, its section is not shown either); he adds no step
       - expect: {screen: task-card, action_absent: delete, field_absent: report}
       # nor does he escalate it: bazis-permit leaves the custom action out of his meta
       - expect: {action_absent: add-step}

@@ -584,6 +584,8 @@ def custom_action(
         options.append(('fields', Arr([Str(it) for it in action['fields']])))
     if 'labels' in action:
         options.append(('labels', Obj([(name, screen.text(*path, 'labels', name)) for name in action['labels']])))
+    if 'values' in action:
+        options.append(('values', start_values(action['values'])))
     for key in ('title', 'description'):
         if (value := screen.text(*path, key)) is not None:
             options.append((key, value))
@@ -595,6 +597,11 @@ def custom_action(
     if not bulk:
         screen.after.append(Raw(f'{name}.dialog'))
     return name
+
+
+def start_values(values: dict) -> Obj:
+    """The values that the fields of a custom action start with (`values`), a day of the browser as its text."""
+    return Obj([(name, _scalar(value)) for name, value in values.items()])
 
 
 def bulk_action(screen: Screen, const: Raw, index: int, bulk: dict) -> Obj | Raw:
@@ -682,6 +689,8 @@ def card_section(screen: Screen, index: int, section: dict) -> Obj:
     if (title := screen.text('card', 'sections', index, 'title')) is not None:
         props.append(('title', title))
     props.append(('fields', Arr([Str(it) for it in section['fields']])))
+    if 'when' in section:
+        props.append(('when', Obj([('status', Arr([Str(it) for it in section['when']['status']]))])))
     return Obj(props)
 
 
@@ -1063,6 +1072,8 @@ def render_action_form(screen: Screen, const: Raw, spec: dict) -> Jsx:
     ]
     if 'labels' in spec:
         attrs.append(Attr('labels', Obj([(name, screen.text('form', 'labels', name)) for name in spec['labels']])))
+    if 'values' in spec:
+        attrs.append(Attr('values', start_values(spec['values'])))
     if (submit := screen.text('form', 'submit')) is not None:
         attrs.append(Attr('submitLabel', submit))
     then = spec.get('then')

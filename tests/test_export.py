@@ -14,8 +14,8 @@
 
 """
 The custom action of the sample that answers a file, `export` of the tasks (the form
-`export-tasks` saves it): CSV of the tasks the user views, of a priority or all, for a role
-that views the tasks (`access_action`).
+`export-tasks` saves it): CSV of the tasks the user views, of a priority or all, created from
+a day or all, for a role that views the tasks (`access_action`).
 """
 
 import pytest
@@ -41,6 +41,11 @@ def test_the_viewer_exports_the_tasks_as_csv(sample_app):
     assert exported.text.splitlines() == ['title,status,priority', 'Plan,draft,high', 'Ship,draft,low']
     high = viewer.post(EXPORT, json_data={'priority': 'high'})
     assert high.text.splitlines() == ['title,status,priority', 'Plan,draft,high']
+    # created on the day or after it
+    Task.objects.filter(title='Ship').update(dt_created='2026-01-31T12:00:00Z')
+    since = viewer.post(EXPORT, json_data={'created_from': '2026-02-01'})
+    assert since.text.splitlines() == ['title,status,priority', 'Plan,draft,high']
+    assert viewer.post(EXPORT, json_data={'created_from': '2026-01-31'}).text.count('\n') == 3
 
 
 @pytest.mark.django_db(transaction=True)

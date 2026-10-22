@@ -143,7 +143,10 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert {key: export_[key] for key in ('name', 'item', 'method', 'access_action', 'response', 'file')} == {
         'name': 'export', 'item': False, 'method': 'post', 'access_action': 'view', 'response': None, 'file': True,
     }
-    assert export_['body']['properties'] == count['body']['properties']
+    assert export_['body']['properties'] == {
+        **count['body']['properties'],
+        'created_from': {'anyOf': [{'type': 'string', 'format': 'date'}, {'type': 'null'}], 'title': 'Created From'},
+    }
     # an action without a body (a GET) and without a JSON answer (a file)
     download = resources['bg.task']['custom_actions']['action_download']
     assert download == {

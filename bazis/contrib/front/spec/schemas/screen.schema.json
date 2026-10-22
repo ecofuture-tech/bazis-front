@@ -128,7 +128,14 @@
             "properties": {
               "id": {"$ref": "#/$defs/id"},
               "title": {"$ref": "#/$defs/text"},
-              "fields": {"$ref": "#/$defs/fields", "minItems": 1}
+              "fields": {"$ref": "#/$defs/fields", "minItems": 1},
+              "when": {
+                "description": "The section is shown only while the item is in one of these statuses of the workflow of the entity (S059); always without it. Its fields stay in the edit of the card.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["status"],
+                "properties": {"status": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"type": "string", "minLength": 1}}}
+              }
             }
           }
         },
@@ -211,6 +218,7 @@
             "action": {"description": "The custom action of the route set of the entity (a POST, not of an item): its name in its path (`apply` of `/repairs/repair/apply/`), as `custom_actions` of the contract has it (S032).", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
             "fields": {"description": "The properties of its JSON body that the form asks for, in this order; each that the body requires among them (S032). A property named as a to-one relationship of the entity in the contract is the picker of its related item (an array named as a to-many one, of its items), its title that of the field of the entity in the contract.", "$ref": "#/$defs/fields"},
             "labels": {"$ref": "#/$defs/labels"},
+            "values": {"$ref": "#/$defs/values"},
             "submit": {"description": "The label of its submit button: `Send` by default.", "$ref": "#/$defs/text"},
             "result": {
               "description": "What the page shows once the action is done (`state:done`), in place of the form: `message`, whose `{name}` are the properties of the JSON answer of the action in the contract, or `{filename}` of an action that answers a file, which the form saves first (S053), under `title` (the title of the screen by default), with the link of `then` and `action:again`, which shows the form again, empty.",
@@ -498,6 +506,13 @@
       "propertyNames": {"$ref": "#/$defs/field"},
       "additionalProperties": {"$ref": "#/$defs/text"}
     },
+    "values": {
+      "description": "The values that the fields of a custom action start with (its dialog or its form), by their properties among its `fields` (S060): a text, a number or a boolean of the type of the property, or for a date (`format: date` or `date-time`) a day of the browser when it opens: `today`, `today+<n>`, `today-<n>`, `month_start`, `month_end`, followed by ` HH:MM` for a date-time (`today 09:00`). Over the default of the property in the body.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/field"},
+      "additionalProperties": {"type": ["string", "number", "boolean"]}
+    },
     "action": {
       "description": "`form`: a form of the entity (create on a list or a card, update on a card); `destroy`: the deletion of the item of a card; `custom`: a custom action of the route set of the entity (`custom_actions` of its resource in the contract, a POST), of the item of a card, of each row of a list (an action of an item) or of the toolbar of a list (an action of the route set).",
       "type": "object",
@@ -509,6 +524,7 @@
         "mode": {"enum": ["create", "update"]},
         "fields": {"description": "The fields of a form; of a custom action, the properties of its JSON body that its dialog asks for (none: an empty body), as the form of an action (`form.action`) shows them.", "$ref": "#/$defs/fields"},
         "labels": {"$ref": "#/$defs/labels"},
+        "values": {"$ref": "#/$defs/values"},
         "action": {"description": "The custom action: its name in its path (`escalate` of `/tasks/task/{id}/escalate/`), as `custom_actions` of the contract has it.", "type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
         "confirm": {"description": "Whether a custom action without `fields` is confirmed in a dialog first (`action:confirm-<id>`).", "type": "boolean"},
         "message": {"description": "What the toast says once a custom action is done: `Done` by default.", "$ref": "#/$defs/text"},
@@ -529,7 +545,7 @@
         {
           "if": {"properties": {"primitive": {"const": "custom"}}},
           "then": {"required": ["action", "label"], "properties": {"mode": false, "then": false}},
-          "else": {"properties": {"action": false, "confirm": false, "message": false, "labels": false}}
+          "else": {"properties": {"action": false, "confirm": false, "message": false, "labels": false, "values": false}}
         }
       ]
     }

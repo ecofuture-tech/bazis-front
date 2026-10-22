@@ -28,7 +28,7 @@ import { customActionAt, useAnyAction, useAnyActionFile, useUploads } from '@/ba
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 
-import { ActionFields, bodyDefaults } from './action-fields.js';
+import { ActionFields, bodyDefaults, type StartValues } from './action-fields.js';
 import { ActionResult, type ActionThen } from './action-result.js';
 
 export interface ActionFormProps {
@@ -40,6 +40,11 @@ export interface ActionFormProps {
   fields: readonly string[];
   /** The labels of the fields by property, before the titles of the contract. */
   labels?: Readonly<Record<string, string>> | undefined;
+  /**
+   * The values that the fields start with by property, over the defaults of the body: a day
+   * of the browser (`today`, `month_start`, ...) for a date, computed when the form opens.
+   */
+  values?: StartValues | undefined;
   /** The label of the submit button: `Send` by default. */
   submitLabel?: ReactNode;
   /**
@@ -73,7 +78,7 @@ function answerOf(response: unknown): Params {
  * The form of a custom action of the route set of `path` (`POST <path><action>/`). The
  * contract must have it (the check of the specs, S032).
  */
-export function ActionForm({ path, action, fields, labels, submitLabel, result, then, onDone }: ActionFormProps) {
+export function ActionForm({ path, action, fields, labels, values: startValues, submitLabel, result, then, onDone }: ActionFormProps) {
   const { t } = useLanguage();
   const answersJson = useAnyAction(path, action);
   const answersFile = useAnyActionFile(path, action);
@@ -84,7 +89,7 @@ export function ActionForm({ path, action, fields, labels, submitLabel, result, 
   const savesFile = declared.file;
   const mutation: typeof answersJson = savesFile ? answersFile : answersJson;
   const body = declared.body ?? {};
-  const [values, setValues] = useState(() => bodyDefaults(body, fields));
+  const [values, setValues] = useState(() => bodyDefaults(body, fields, startValues));
   // the answer of the action once it is done, while the result is shown
   const [answer, setAnswer] = useState<Params | null>(null);
   // the fields whose files upload: the action waits for them
@@ -101,7 +106,7 @@ export function ActionForm({ path, action, fields, labels, submitLabel, result, 
         answer={answer}
         onAgain={() => {
           mutation.reset();
-          setValues(bodyDefaults(body, fields));
+          setValues(bodyDefaults(body, fields, startValues));
           setAnswer(null);
         }}
       />

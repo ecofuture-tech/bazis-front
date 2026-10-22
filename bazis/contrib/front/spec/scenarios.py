@@ -724,6 +724,32 @@ class _Scenario:
             return set(screen['calendar']['label']) if 'label' in screen['calendar'] else None
         return set()
 
+    def card_values(self, path, values: dict, status: str | None) -> None:
+        """
+        The values that the current card shows (P022): of the fields of its sections, of a
+        section shown by the status of the item (`when`) only in one of those statuses, when the
+        status is known (that of the expectation, else that of the walk).
+        """
+        declared = self.entity.fields if self.entity is not None else {}
+        sections = self.state.screen['card']['sections']
+        shown = {name for it in sections if status in it.get('when', {}).get('status', [status]) for name in it['fields']}
+        for name in values:
+            # an undeclared field is reported below (P023)
+            if name in declared and name not in self.shown():
+                self.add(
+                    (*path, 'values', name), 'P022',
+                    f'The card does not show the field `{name}`.',
+                    'Add the field to a section of the card, or expect another one.',
+                )
+            elif name in declared and status is not None and name not in shown:
+                self.add(
+                    (*path, 'values', name), 'P022',
+                    f'The card does not show the field `{name}` while the item is in `{status}`: its section is '
+                    'shown in other statuses (`when`).',
+                    'Expect the value once the item is in a status of the `when` of its section, or `field_absent` '
+                    'before.',
+                )
+
     def card_edit(self) -> bool:
         """Whether the current screen is a card with `edit: true`: its edit, `action:edit`."""
         screen = self.state.screen
@@ -975,15 +1001,7 @@ class _Scenario:
         if 'values' in value:
             card = bool(screen) and screen['primitive'] == 'card' and self.state.form is None
             if self.require((*path, 'values'), card, 'Only a card without an open form shows values.'):
-                declared = self.entity.fields if self.entity is not None else {}
-                for name in value['values']:
-                    # an undeclared field is reported below (P023)
-                    if name in declared and name not in self.shown():
-                        self.add(
-                            (*path, 'values', name), 'P022',
-                            f'The card does not show the field `{name}`.',
-                            'Add the field to a section of the card, or expect another one.',
-                        )
+                self.card_values(path, value['values'], value.get('status', self.status))
         if not self.state.known:
             return
         self.fields(
