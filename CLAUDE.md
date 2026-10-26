@@ -608,7 +608,8 @@ npm run lucide-icons      # spec/lucide-icons.json, after a change of the versio
   on the page `shell.html` there with the Tailwind of a product (its Vite plugin, a
   devDependency of this workspace): the links that the row has no room for in its menu
   `nav:more` (a group shared by the row and the menu, the header as wide as the window), the
-  page never wider than the window; `test/types.typecheck.ts` has the type
+  page never wider than the window, and the name of a file of `FileView` 44 px on a touch
+  screen (V009); `test/types.typecheck.ts` has the type
   tests.
 - `bazis/shots.ts` (copied with them) is `shoot`, the screenshot of a screen with the checks
   of what it renders (`check`, run in the page: the colors computed by the browser, converted

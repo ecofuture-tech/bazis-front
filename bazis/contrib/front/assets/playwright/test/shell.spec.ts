@@ -16,13 +16,16 @@
 // the components (`assets/ui/test/browser/shell.html`) served by Vite with the aliases of the
 // components and the Tailwind plugin, its backend the routes of the test. What jsdom does not
 // lay out: the links that the row has no room for go to its menu `nav:more`, and the page
-// never scrolls sideways, whatever the number of the links.
+// never scrolls sideways, whatever the number of the links; the name of a file on a touch
+// screen is as large as a finger (V009 of the screenshots).
 
 import { fileURLToPath } from 'node:url';
 
 import tailwindcss from '@tailwindcss/vite';
 import { expect, test, type Page } from '@playwright/test';
 import { createServer, type ViteDevServer } from 'vite';
+
+import { check } from '../bazis/shots';
 
 const UI = fileURLToPath(new URL('../../ui/', import.meta.url));
 
@@ -60,11 +63,12 @@ function expectedLinks(count: number): string[] {
 /**
  * Opens the page of the top bar at `width` with `links` links: the backend lets the user view
  * the items of the route set of the test (the link `report` of the group and `more` others),
- * not add one (`item-new`), and the page is laid out once it answered.
+ * not add one (`item-new`), and the page is laid out once it answered; `file`: the name of a
+ * file that the screen shows.
  */
 async function open(
   page: Page,
-  { width, links, group = false, more = 0, path = '/' }: { width: number; links: number; group?: boolean; more?: number; path?: string },
+  { width, links, group = false, more = 0, path = '/', file }: { width: number; links: number; group?: boolean; more?: number; path?: string; file?: string },
 ) {
   await page.setViewportSize({ width, height: 800 });
   await page.route('**/api/test/item/**', async (route) => {
@@ -74,7 +78,7 @@ async function open(
   });
   const answer = (pathname: string) => page.waitForResponse((response) => new URL(response.url()).pathname === pathname);
   const answered = group ? Promise.all([answer('/api/test/item/schema_list/'), answer('/api/test/item/')]) : null;
-  await page.goto(`${origin}/shell.html?links=${String(links)}&group=${String(group)}&more=${String(more)}&path=${encodeURIComponent(path)}`);
+  await page.goto(`${origin}/shell.html?links=${String(links)}&group=${String(group)}&more=${String(more)}&path=${encodeURIComponent(path)}${file === undefined ? '' : `&file=${encodeURIComponent(file)}`}`);
   await answered;
   await expect(page.getByTestId('path')).toHaveText(path);
 }
@@ -220,4 +224,20 @@ test('a phone has every link in the drawer, without the menu of the top bar', as
   expect(await scrollsSideways(page)).toBe(false);
   await page.getByRole('button', { name: 'Open the menu' }).click();
   await expect(page.getByRole('dialog').locator('[data-bz^="nav:"]')).toHaveCount(12);
+});
+
+test('the name of a file is as large as a finger on a touch screen, not for a mouse', async ({ page, browser }) => {
+  // a short name: narrower than a finger too
+  const name = 'a.pdf';
+  const phone = await browser.newPage({ isMobile: true, hasTouch: true });
+  await open(phone, { width: 390, links: 0, file: name });
+  const touched = await phone.getByRole('button', { name }).boundingBox();
+  expect(touched?.width).toBeGreaterThanOrEqual(44);
+  expect(touched?.height).toBeGreaterThanOrEqual(44);
+  expect((await check(phone, { phone: true, dark: false, creates: [], searched: false })).filter((it) => it.code === 'V009')).toEqual([]);
+  await phone.close();
+
+  await open(page, { width: 1280, links: 0, file: name });
+  const clicked = await page.getByRole('button', { name }).boundingBox();
+  expect(clicked?.height).toBeLessThan(44);
 });

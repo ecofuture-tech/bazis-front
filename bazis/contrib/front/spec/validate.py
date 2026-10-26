@@ -154,32 +154,55 @@ def piece_of_text(error, data) -> str | None:
 
 #: the parameters of the helpers of the end-to-end tests that the generator gives them, which a
 #: step of a scenario does not take: what each is
-HELPER_PARAMETERS = {
+_HELPER_PARAMETERS = {
     'created': (
-        'a parameter of the helpers `openItem`, `select` and `move`, not a key of the step: the generator sets it '
-        'when the scenario created an item with the texts of `where` before, so that its test finds the item it made'
+        '`created` is a parameter of the helpers `openItem`, `select` and `move`, not a key of the step: the '
+        'generator sets it when the scenario created an item with the texts of `where` before, so that its test '
+        'finds the item it made. Remove it.'
     ),
     'saved': (
-        'a parameter of the helper `submit`, not a key of the step: every submit must save, but one that the next '
-        'step expects to be refused (an `error`, or a `state` of a failure)'
+        '`saved` is a parameter of the helper `submit`, not a key of the step: every submit must save, but one '
+        'that the next step expects to be refused (an `error`, or a `state` of a failure). Remove it.'
+    ),
+}
+
+#: the hints of the shape errors by the schema and the path of the value that it refuses (`*`:
+#: any item or key; a key that the mapping may not have ends the path): what the value is
+#: instead of the schema to follow
+SHAPE_HINTS = {
+    (PRODUCT_SCHEMA, ('roles', '*', 'title')): (
+        'The `title` of a role is one text that names it for the readers of the specs (the frontend never '
+        'shows it): `title: Dispatcher`, not a map of the languages.'
+    ),
+    # a parameter in the body of a step, `submit: {saved: true}`, or next to it, `- submit: {}` and `saved: true`
+    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', '*', 'created')): _HELPER_PARAMETERS['created'],
+    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', 'created')): _HELPER_PARAMETERS['created'],
+    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', '*', 'saved')): _HELPER_PARAMETERS['saved'],
+    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', 'saved')): _HELPER_PARAMETERS['saved'],
+    (SCREEN_SCHEMA, ('dashboard', 'actions', '*', 'requires')): (
+        'The button of a create form is shown to the users whose role may add the entity: remove `requires`, '
+        'a key of a tile, a chart, the last items and a link of the navigation.'
     ),
 }
 
 
-def helper_parameter(error, data) -> str | None:
+def shape_hint(error, data, schema: str) -> str | None:
     """
-    The parameter of a helper of the end-to-end tests that a step of a scenario has as a key
-    (`open_item: {where: ..., created: true}`, `submit: {saved: true}`): the step refuses a key
-    of its own (`additionalProperties`) or any key (`maxProperties`).
+    The hint of `SHAPE_HINTS` for a shape error: at the path of the value, or of a key that the
+    mapping there may not have (`additionalProperties`; any key: `maxProperties`).
     """
-    path = list(error.absolute_path)
-    if error.validator not in ('additionalProperties', 'maxProperties') or path[:1] != ['scenarios'] or 'steps' not in path:
-        return None
-    node = data
-    for step in path:
-        node = node[step]
-    allowed = error.schema.get('properties', {}) if error.validator == 'additionalProperties' else {}
-    return next((it for it in node if it not in allowed and it in HELPER_PARAMETERS), None) if isinstance(node, dict) else None
+    path = tuple(error.absolute_path)
+    paths = [path]
+    if error.validator in ('additionalProperties', 'maxProperties'):
+        node = data
+        for step in path:
+            node = node[step]
+        allowed = error.schema.get('properties', {}) if error.validator == 'additionalProperties' else {}
+        paths = [(*path, key) for key in node if key not in allowed] if isinstance(node, dict) else []
+    for (name, mask), hint in SHAPE_HINTS.items():
+        if name == schema and any(len(it) == len(mask) and all(m in ('*', p) for m, p in zip(mask, it, strict=True)) for it in paths):
+            return hint
+    return None
 
 
 class _Loader(yaml.SafeLoader):
@@ -238,10 +261,8 @@ def load(
                 f'The key `{piece}` is a piece of a text: in a flow mapping `{{a: x, y}}` the text after `, ` is '
                 "read as another key. Quote the text that has the comma, `{entrance_info: '1 floor, 3 rooms'}`."
             )
-        elif (helper := helper_parameter(error, data)) is not None:
-            hint = f'`{helper}` is {HELPER_PARAMETERS[helper]}. Remove it.'
         else:
-            hint = f'Follow {SPEC_DIR}/{SCHEMA_DIR}/{schema}.'
+            hint = shape_hint(error, data, schema) or f'Follow {SPEC_DIR}/{SCHEMA_DIR}/{schema}.'
         issues.add(doc, error.absolute_path, shape_code, error.message, hint)
     doc.valid = not errors
     return doc

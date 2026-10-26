@@ -2571,21 +2571,62 @@ def test_a_piece_of_a_text_after_a_comma_of_a_flow_mapping_is_told_to_be_quoted(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('step', 'key', 'helper'), [
-    (lambda d: steps(d, 13)[6]['move'].update(created=True), 'created', '`openItem`, `select` and `move`'),
-    (lambda d: steps(d, 1)[2]['open_item'].update(created=True), 'created', '`openItem`, `select` and `move`'),
-    (lambda d: steps(d, 0)[3]['submit'].update(saved=True), 'saved', '`submit`'),
+@pytest.mark.parametrize(('step', 'key', 'helper', 'count'), [
+    (lambda d: steps(d, 13)[6]['move'].update(created=True), 'created', '`openItem`, `select` and `move`', 1),
+    (lambda d: steps(d, 1)[2]['open_item'].update(created=True), 'created', '`openItem`, `select` and `move`', 1),
+    (lambda d: steps(d, 0)[3]['submit'].update(saved=True), 'saved', '`submit`', 1),
+    # next to the step, `- open_item: {where: ...}` and `created: true` (the indent of YAML)
+    (lambda d: steps(d, 1)[2].update(created=True), 'created', '`openItem`, `select` and `move`', 2),
+    (lambda d: steps(d, 0)[3].update(saved=True), 'saved', '`submit`', 2),
 ])
-def test_a_parameter_of_a_helper_in_a_step_is_told_to_be_removed(contract, step, key, helper):
+def test_a_parameter_of_a_helper_in_a_step_is_told_to_be_removed(contract, step, key, helper, count):
     """
     `created` and `saved` are parameters that the generator gives the helpers, not keys of the
-    steps: the hint of P002 says what the key is instead of the schema to follow.
+    steps: the hint of P002 says what the key is instead of the schema to follow, in the body of
+    the step or next to it (where the step has too many keys too: two issues).
     """
     root = contract.parent.parent
     edit(root, PRODUCT, step)
-    (found,) = [it for it in validate(root).issues if it.code == 'P002']
-    assert found.hint.startswith(f'`{key}` is a parameter of the helper')
-    assert helper in found.hint and found.hint.endswith('Remove it.')
+    hints = [it.hint for it in validate(root).issues if it.code == 'P002']
+    assert len(hints) == count
+    for hint in hints:
+        assert hint.startswith(f'`{key}` is a parameter of the helper')
+        assert helper in hint and hint.endswith('Remove it.')
+
+
+@pytest.mark.django_db
+def test_the_hints_of_the_title_of_a_role_and_of_a_requires_of_a_create_form(contract):
+    """
+    The title of a role is one text, never shown, not a map of the languages; a create form of
+    a dashboard is shown to the users who may add (no `requires`); a tile opens a list. Another
+    key of the form, and a row of the last items that opens a list, keep their hints.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: d['roles'][0].update(title={'ru': 'Менеджер'}))
+    edit(root, HOME, lambda d: [d['dashboard']['actions'][0].update(requires={'can': 'add'}),
+                                d['dashboard']['tiles'][0].update(open='task-board'),
+                                d['dashboard']['recent'][0].update(open='task-list')])
+    hints = {it.location: it.hint for it in validate(root).issues}
+    assert set(hints) == {f'{PRODUCT}#/roles/0/title', f'{HOME}#/dashboard/actions/0'}
+    assert hints[f'{PRODUCT}#/roles/0/title'].startswith('The `title` of a role is one text')
+    assert hints[f'{HOME}#/dashboard/actions/0'].startswith('The button of a create form is shown to the users')
+
+    edit(root, PRODUCT, lambda d: d['roles'][0].update(title='Manager'))
+    edit(root, HOME, lambda d: [d['dashboard']['actions'][0].pop('requires')])
+    hints = {it.location: it.hint for it in validate(root).issues}
+    assert hints == {
+        f'{HOME}#/dashboard/tiles/0/open': (
+            'A tile opens a list screen of its entity, `primitive: list` with the `filter` of the tile, or nothing '
+            '(remove `open`); a board or a calendar is reached from the navigation.'
+        ),
+        f'{HOME}#/dashboard/recent/0/open': 'Use a card screen of the entity.',
+    }
+
+    edit(root, HOME, lambda d: [d['dashboard']['actions'][0].update(color='red'),
+                                d['dashboard']['tiles'][0].pop('open'), d['dashboard']['recent'][0].pop('open')])
+    assert {it.location: it.hint for it in validate(root).issues} == {
+        f'{HOME}#/dashboard/actions/0': 'Follow spec/schema/screen.schema.json.',
+    }
 
 
 @pytest.mark.django_db

@@ -20,4 +20,5 @@
 @source "../../app-shell";
 @source "../../shadcn/button.tsx";
 @source "../../shadcn/dropdown-menu.tsx";
+@source "../../resource/files.tsx";
 @source "./shell.tsx";

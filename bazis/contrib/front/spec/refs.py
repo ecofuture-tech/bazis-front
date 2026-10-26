@@ -2233,7 +2233,9 @@ def _check_targets(doc: Document, screens: dict, issues: Issues) -> None:
         elif kind and screens[target] is not None and screens[target]['primitive'] != kind:
             issues.add(
                 doc, path, 'S006', f'The screen `{target}` is not a {kind}.',
-                f'Use a {kind} screen of the entity.',
+                'A tile opens a list screen of its entity, `primitive: list` with the `filter` of the tile, or '
+                'nothing (remove `open`); a board or a calendar is reached from the navigation.'
+                if path[:2] == ('dashboard', 'tiles') else f'Use a {kind} screen of the entity.',
             )
         elif kind == 'card' and (card := screens[target]) is not None and card.get('custom') and ':id' not in card['route'].split('/'):
             # a generated card without `:id` is S038; a custom one finds its item itself, and
