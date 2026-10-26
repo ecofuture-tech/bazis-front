@@ -2589,6 +2589,41 @@ def test_a_parameter_of_a_helper_in_a_step_is_told_to_be_removed(contract, step,
 
 
 @pytest.mark.django_db
+def test_the_hints_of_the_title_of_a_role_and_of_a_requires_of_a_create_form(contract):
+    """
+    The title of a role is one text, never shown, not a map of the languages; a create form of
+    a dashboard is shown to the users who may add (no `requires`); a tile opens a list. Another
+    key of the form, and a row of the last items that opens a list, keep their hints.
+    """
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: d['roles'][0].update(title={'ru': 'Менеджер'}))
+    edit(root, HOME, lambda d: [d['dashboard']['actions'][0].update(requires={'can': 'add'}),
+                                d['dashboard']['tiles'][0].update(open='task-board'),
+                                d['dashboard']['recent'][0].update(open='task-list')])
+    hints = {it.location: it.hint for it in validate(root).issues}
+    assert set(hints) == {f'{PRODUCT}#/roles/0/title', f'{HOME}#/dashboard/actions/0'}
+    assert hints[f'{PRODUCT}#/roles/0/title'].startswith('The `title` of a role is one text')
+    assert hints[f'{HOME}#/dashboard/actions/0'].startswith('The button of a create form is shown to the users')
+
+    edit(root, PRODUCT, lambda d: d['roles'][0].update(title='Manager'))
+    edit(root, HOME, lambda d: [d['dashboard']['actions'][0].pop('requires')])
+    hints = {it.location: it.hint for it in validate(root).issues}
+    assert hints == {
+        f'{HOME}#/dashboard/tiles/0/open': (
+            'A tile opens a list screen of its entity, `primitive: list` with the `filter` of the tile, or nothing '
+            '(remove `open`); a board or a calendar is reached from the navigation.'
+        ),
+        f'{HOME}#/dashboard/recent/0/open': 'Use a card screen of the entity.',
+    }
+
+    edit(root, HOME, lambda d: [d['dashboard']['actions'][0].update(color='red'),
+                                d['dashboard']['tiles'][0].pop('open'), d['dashboard']['recent'][0].pop('open')])
+    assert {it.location: it.hint for it in validate(root).issues} == {
+        f'{HOME}#/dashboard/actions/0': 'Follow spec/schema/screen.schema.json.',
+    }
+
+
+@pytest.mark.django_db
 def test_the_hints_of_a_move_and_of_an_absent_action(contract):
     """
     A move to a status that only transitions with a payload lead to gives the payload of its

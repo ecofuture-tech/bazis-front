@@ -159,7 +159,7 @@
           "type": "string",
           "pattern": "^[-a-zA-Z0-9_]+$"
         },
-        "title": {"type": "string"},
+        "title": {"description": "The name of the role for the readers of the specs, one text: the frontend never shows it.", "type": "string"},
         "anonymous": {
           "description": "The users who do not log in (the guests of a public site): bazis-permit gives them the permissions of its roles `for_anonymous`; the end-to-end tests of the scenarios of the role log in as nobody.",
           "type": "boolean"

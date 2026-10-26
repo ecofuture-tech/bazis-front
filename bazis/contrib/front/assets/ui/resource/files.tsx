@@ -183,7 +183,8 @@ export function FileView({ file, preview, onDownload, downloading = false, faile
           disabled={downloading}
           aria-busy={downloading || undefined}
           title={file.name}
-          className="truncate font-medium text-primary underline-offset-4 hover:underline disabled:opacity-70"
+          // a target of a finger on a touch screen, 44 px at least
+          className="truncate font-medium text-primary underline-offset-4 hover:underline disabled:opacity-70 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
           // the button of a row downloads the file, it does not open the row
           onClick={(event) => {
             event.stopPropagation();

@@ -18,8 +18,9 @@
 // in its menu, what jsdom does not lay out. The query sets the number of the links `links`
 // (`s<n>`, at `/s<n>`), the group `reports` after the tenth link (`group=true`: `report`,
 // which requires to view the route set of the test, and `item-new`, to add to it), the number
-// of the other links of the group that the backend allows, `more` (`report-<n>`), and the
-// path shown first, `path`; the backend is the route of the test.
+// of the other links of the group that the backend allows, `more` (`report-<n>`), the
+// path shown first, `path`, and the name of a file that the screen shows, `file` (`FileView`
+// with its download, on a touch screen); the backend is the route of the test.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
@@ -30,11 +31,13 @@ import { LanguageProvider } from '@/bazis/i18n';
 import type { paths } from '@/bazis/generated/schema';
 import { BazisProvider } from '@/bazis/react';
 import { AppShell, Screen, type NavEntry } from '@/bazis/ui/app-shell';
+import { FileView } from '@/bazis/ui/resource';
 
 /** The route set that the test answers. */
 const ITEMS = '/api/test/item/';
 
 const query = new URLSearchParams(window.location.search);
+const file = query.get('file');
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 const api = createClient<paths>({ baseUrl: window.location.origin, language: 'en' });
 
@@ -76,6 +79,7 @@ if (root) {
             <AppShell title="Product" navigation="topbar" items={links} session={{ user: 'manager', onLogout: () => undefined }}>
               <Screen id="page" title="Page">
                 <Path />
+                {file !== null && <FileView file={{ name: file, size: null }} onDownload={() => undefined} />}
               </Screen>
             </AppShell>
           </MemoryRouter>

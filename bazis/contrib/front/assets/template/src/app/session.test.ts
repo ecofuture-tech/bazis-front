@@ -14,6 +14,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { t } from '@/app/language';
 import { getToken, login, loginInWindow, logout, onSessionChange, PASSWORD_LOGIN, signOut } from '@/app/session';
 import { ApiError, type AuthAction } from '@/bazis/client';
 import { CAPABILITIES, type Capabilities } from '@/bazis/generated/contract';
@@ -201,7 +202,7 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
       authInit,
       authWait: () => signedOut('another'),
     } as unknown as Api;
-    await expect(loginInWindow(expired, GOOGLE)).rejects.toThrow('The login has expired');
+    await expect(loginInWindow(expired, GOOGLE)).rejects.toThrow(t('login.expired'));
 
     openWindow();
     const failed = {
@@ -232,7 +233,7 @@ describe.skipIf(!CAPABILITIES.authing?.auth_url)('the login of bazis-authing in 
   it('needs its window', async () => {
     vi.spyOn(window, 'open').mockReturnValue(null);
     const auth = vi.fn();
-    await expect(loginInWindow({ auth } as unknown as Api, GOOGLE)).rejects.toThrow('blocked the window');
+    await expect(loginInWindow({ auth } as unknown as Api, GOOGLE)).rejects.toThrow(t('login.blocked'));
     expect(auth).not.toHaveBeenCalled();
   });
 });
