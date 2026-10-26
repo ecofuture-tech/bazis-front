@@ -2571,21 +2571,27 @@ def test_a_piece_of_a_text_after_a_comma_of_a_flow_mapping_is_told_to_be_quoted(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(('step', 'key', 'helper'), [
-    (lambda d: steps(d, 13)[6]['move'].update(created=True), 'created', '`openItem`, `select` and `move`'),
-    (lambda d: steps(d, 1)[2]['open_item'].update(created=True), 'created', '`openItem`, `select` and `move`'),
-    (lambda d: steps(d, 0)[3]['submit'].update(saved=True), 'saved', '`submit`'),
+@pytest.mark.parametrize(('step', 'key', 'helper', 'count'), [
+    (lambda d: steps(d, 13)[6]['move'].update(created=True), 'created', '`openItem`, `select` and `move`', 1),
+    (lambda d: steps(d, 1)[2]['open_item'].update(created=True), 'created', '`openItem`, `select` and `move`', 1),
+    (lambda d: steps(d, 0)[3]['submit'].update(saved=True), 'saved', '`submit`', 1),
+    # next to the step, `- open_item: {where: ...}` and `created: true` (the indent of YAML)
+    (lambda d: steps(d, 1)[2].update(created=True), 'created', '`openItem`, `select` and `move`', 2),
+    (lambda d: steps(d, 0)[3].update(saved=True), 'saved', '`submit`', 2),
 ])
-def test_a_parameter_of_a_helper_in_a_step_is_told_to_be_removed(contract, step, key, helper):
+def test_a_parameter_of_a_helper_in_a_step_is_told_to_be_removed(contract, step, key, helper, count):
     """
     `created` and `saved` are parameters that the generator gives the helpers, not keys of the
-    steps: the hint of P002 says what the key is instead of the schema to follow.
+    steps: the hint of P002 says what the key is instead of the schema to follow, in the body of
+    the step or next to it (where the step has too many keys too: two issues).
     """
     root = contract.parent.parent
     edit(root, PRODUCT, step)
-    (found,) = [it for it in validate(root).issues if it.code == 'P002']
-    assert found.hint.startswith(f'`{key}` is a parameter of the helper')
-    assert helper in found.hint and found.hint.endswith('Remove it.')
+    hints = [it.hint for it in validate(root).issues if it.code == 'P002']
+    assert len(hints) == count
+    for hint in hints:
+        assert hint.startswith(f'`{key}` is a parameter of the helper')
+        assert helper in hint and hint.endswith('Remove it.')
 
 
 @pytest.mark.django_db

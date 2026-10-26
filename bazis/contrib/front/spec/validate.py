@@ -152,6 +152,20 @@ def piece_of_text(error, data) -> str | None:
     return next((it for it in keys if isinstance(it, str) and (' ' in it or not it.isascii())), None)
 
 
+#: the parameters of the helpers of the end-to-end tests that the generator gives them, which a
+#: step of a scenario does not take: what each is
+_HELPER_PARAMETERS = {
+    'created': (
+        '`created` is a parameter of the helpers `openItem`, `select` and `move`, not a key of the step: the '
+        'generator sets it when the scenario created an item with the texts of `where` before, so that its test '
+        'finds the item it made. Remove it.'
+    ),
+    'saved': (
+        '`saved` is a parameter of the helper `submit`, not a key of the step: every submit must save, but one '
+        'that the next step expects to be refused (an `error`, or a `state` of a failure). Remove it.'
+    ),
+}
+
 #: the hints of the shape errors by the schema and the path of the value that it refuses (`*`:
 #: any item or key; a key that the mapping may not have ends the path): what the value is
 #: instead of the schema to follow
@@ -160,15 +174,11 @@ SHAPE_HINTS = {
         'The `title` of a role is one text that names it for the readers of the specs (the frontend never '
         'shows it): `title: Dispatcher`, not a map of the languages.'
     ),
-    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', '*', 'created')): (
-        '`created` is a parameter of the helpers `openItem`, `select` and `move`, not a key of the step: the '
-        'generator sets it when the scenario created an item with the texts of `where` before, so that its test '
-        'finds the item it made. Remove it.'
-    ),
-    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', '*', 'saved')): (
-        '`saved` is a parameter of the helper `submit`, not a key of the step: every submit must save, but one '
-        'that the next step expects to be refused (an `error`, or a `state` of a failure). Remove it.'
-    ),
+    # a parameter in the body of a step, `submit: {saved: true}`, or next to it, `- submit: {}` and `saved: true`
+    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', '*', 'created')): _HELPER_PARAMETERS['created'],
+    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', 'created')): _HELPER_PARAMETERS['created'],
+    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', '*', 'saved')): _HELPER_PARAMETERS['saved'],
+    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', 'saved')): _HELPER_PARAMETERS['saved'],
     (SCREEN_SCHEMA, ('dashboard', 'actions', '*', 'requires')): (
         'The button of a create form is shown to the users whose role may add the entity: remove `requires`, '
         'a key of a tile, a chart, the last items and a link of the navigation.'
