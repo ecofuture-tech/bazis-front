@@ -183,16 +183,24 @@ SHAPE_HINTS = {
         'The button of a create form is shown to the users whose role may add the entity: remove `requires`, '
         'a key of a tile, a chart, the last items and a link of the navigation.'
     ),
+    (SCREEN_SCHEMA, ('dashboard', 'actions', '*', 'filters')): (
+        'A create form of a dashboard has no `filters`: its pickers offer every item, and the backend validates '
+        'the value. Remove `filters`, or narrow the picker in a create form that takes them: an action of the list '
+        'screen of the entity (`actions`, `primitive: form`, `mode: create`) or a form screen.'
+    ),
 }
 
 
 def shape_hint(error, data, schema: str) -> str | None:
     """
     The hint of `SHAPE_HINTS` for a shape error: at the path of the value, or of a key that the
-    mapping there may not have (`additionalProperties`; any key: `maxProperties`).
+    mapping there may not have (`additionalProperties`; any key: `maxProperties`); else, for a
+    key that the mapping may not have, the keys that it may (but those of `patternProperties`,
+    and those of an alternative of a oneOf/anyOf: the closest one may be another than meant).
     """
     path = tuple(error.absolute_path)
     paths = [path]
+    allowed = {}
     if error.validator in ('additionalProperties', 'maxProperties'):
         node = data
         for step in path:
@@ -202,6 +210,9 @@ def shape_hint(error, data, schema: str) -> str | None:
     for (name, mask), hint in SHAPE_HINTS.items():
         if name == schema and any(len(it) == len(mask) and all(m in ('*', p) for m, p in zip(mask, it, strict=True)) for it in paths):
             return hint
+    if allowed and 'patternProperties' not in error.schema and error.parent is None:
+        keys = ', '.join(f'`{key}`' for key in allowed)
+        return f'The keys of this mapping are {keys}: remove the others ({SPEC_DIR}/{SCHEMA_DIR}/{schema} says what each is).'
     return None
 
 

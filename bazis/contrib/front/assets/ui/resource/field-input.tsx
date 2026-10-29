@@ -280,14 +280,17 @@ export function FieldInput({
   const file = isFile(field, files.resources) ? field : null;
   const FileControl = file && !file.many ? files.control : null;
   const FilesControl = file?.many ? files.listControl : null;
+  // a checkbox always has a value, unchecked is false (`startValue`): required, it would ask
+  // to be checked
+  const checkbox = field.kind === 'attribute' && field.type === 'boolean' && !field.enum;
+  const required = field.required && !checkbox;
   const control: ControlProps = {
     id,
-    required: field.required,
+    required,
     'aria-invalid': invalid || undefined,
     'aria-describedby': invalid ? errorId : undefined,
     'data-bz': `field:${field.name}`,
   };
-  const checkbox = field.kind === 'attribute' && field.type === 'boolean' && !field.enum;
   return (
     // the wrapper of a select of shadcn/ui fits its content: the field is as wide as the form
     <div
@@ -298,7 +301,7 @@ export function FieldInput({
     >
       <Label htmlFor={id} className={cn(checkbox && 'order-2')}>
         {field.title}
-        {field.required && <span aria-hidden="true">*</span>}
+        {required && <span aria-hidden="true">*</span>}
       </Label>
       {file && FileControl ? (
         <FileControl

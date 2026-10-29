@@ -221,6 +221,24 @@ describe('TransitBar', () => {
     });
   });
 
+  it('sends a required boolean of the payload left unchecked as false, its checkbox not required', async () => {
+    // `is_intact: bool` of Pydantic: required, without a default
+    const payload = { type: 'object', required: ['is_intact'], properties: { is_intact: { type: 'boolean', title: 'Intact' } } };
+    const server = new Backend()
+      .on('GET', ITEM, { data: resource(ITEM_ID), meta: { state_actions: [action('finish', payload)] } })
+      .on('POST', `${ITEM}transit/`, { data: resource(ITEM_ID) });
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
+    fireEvent.click(await screen.findByTestId('transit:finish'));
+    const intact = await screen.findByTestId<HTMLInputElement>('field:is_intact');
+    expect([intact.type, intact.checked, intact.required]).toEqual(['checkbox', false, false]);
+    // no asterisk of a required field: false is an answer
+    expect(intact.labels?.[0]?.textContent).toBe('Intact');
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(server.calls.find((call) => call.method === 'POST')?.body).toEqual({ transit: 'finish', payload: { is_intact: false } });
+    });
+  });
+
   it('labels a field of the payload with the title of its property, else its name', async () => {
     // the runtime schema of the payload (`state_actions`), in the language of the request
     const payload = { type: 'object', properties: { report: { type: 'string', title: 'Report' }, note: { type: 'string' } } };

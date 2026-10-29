@@ -64,8 +64,9 @@ import { Backend, errors, ITEM_ID, ITEMS, listDocument, renderWithBazis, resourc
 // `suggest` of the route set, its body a title, the owner and the watchers (their ids), the
 // hours (a decimal), a note, and the ids of uploaded files (`x-relation` of `UploadedFileId`
 // of bazis-uploadable: a scan and photos, of the files of the tests, `test.file`) and of a
-// reviewer (of the owners); `escalate` also takes the id of a file, its evidence; `report`
-// answers a file, its body a year, a date and a date-time
+// reviewer (of the owners), and whether it is urgent (a required boolean); `escalate` also
+// takes the id of a file, its evidence; `report` answers a file, its body a year, a date and a
+// date-time
 vi.mock('@/bazis/generated/contract', async (importOriginal) => {
   const contract = await importOriginal<typeof Contract>();
   const priority = { enum: ['low', 'high'], title: 'Priority', type: 'string' };
@@ -135,8 +136,9 @@ vi.mock('@/bazis/generated/contract', async (importOriginal) => {
                 scan: { anyOf: [{ type: 'string', 'x-relation': 'test.file' }, { type: 'null' }], default: null, title: 'Scan' },
                 photos: { type: 'array', items: { type: 'string', 'x-relation': 'test.file' }, maxItems: 3, default: [], title: 'Photos' },
                 reviewer: { type: 'string', 'x-relation': 'test.owner', title: 'Reviewer' },
+                urgent: { type: 'boolean', title: 'Urgent' },
               },
-              required: ['title'],
+              required: ['title', 'urgent'],
             },
           },
         },
@@ -895,6 +897,17 @@ describe('ActionForm', () => {
     expect(backend.calls.map((it) => [it.method, it.url, it.body])).toEqual([
       ['POST', SUGGESTED, { title: 'Fix the tap', scan: '1', photos: ['token-1', 'token-2'] }],
     ]);
+  });
+
+  it('sends a required boolean of the body left unchecked as false, its checkbox not required', async () => {
+    const backend = new Backend().on('POST', SUGGESTED, { task: 't-1' });
+    renderWithBazis(<Suggesting fields={['title', 'urgent']} result={{ message: () => 'Done' }} />, backend);
+    const urgent = screen.getByTestId<HTMLInputElement>('field:urgent');
+    expect([urgent.type, urgent.checked, urgent.required, urgent.labels?.[0]?.textContent]).toEqual(['checkbox', false, false, 'Urgent']);
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'Fix the tap' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await screen.findByTestId('state:done');
+    expect(backend.calls.map((it) => it.body)).toEqual([{ title: 'Fix the tap', urgent: false }]);
   });
 
   it('asks for the properties of the body from the contract, without a runtime schema, and shows the result', async () => {

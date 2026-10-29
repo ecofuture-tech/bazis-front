@@ -218,6 +218,16 @@ export function choiceLabel(field: FormField | undefined, value: unknown): strin
   return field.labels[String(value)] ?? null;
 }
 
+/**
+ * The value of an attribute before the user enters one: the default of its schema; false for a
+ * boolean without choices and without a default, whose checkbox shows false unchecked (the
+ * form sends what it shows, never no value); none (undefined) for another attribute.
+ */
+export function startValue(field: AttributeField): unknown {
+  if ('default' in field.schema) return field.schema.default;
+  return field.type === 'boolean' && field.enum === null ? false : undefined;
+}
+
 function relation(name: string, property: Node, root: JsonSchema, required: string[]): RelationField {
   const outer = withoutNull(property, root);
   const data = withoutNull(properties(outer.node, root).props.data, root);

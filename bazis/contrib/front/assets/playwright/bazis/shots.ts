@@ -46,6 +46,7 @@ export const CODES = {
   V018: ['warning', 'a part of the page that scrolls sideways (a table) grows wider than it is once the texts of its items are long (the texts of V015): a column whose texts do not wrap'],
   V019: ['error', 'the page loaded again between its check and its screenshot, also when the screen was shot again: the screenshot (a blank page, a page that loads) is not of the screen checked'],
   V020: ['error', 'the screen was not shot: the router sent a role without a login (nobody, an anonymous role) to the login, the route of the screen needs a session that the role does not have (a screen without an anonymous role in its `roles` shot as one, or a router of the frontend that is not the one of the template)'],
+  V021: ['warning', 'the table of a list scrolls sideways at the width of a desktop: its last columns are out of sight'],
 } as const;
 
 /** A code of the checks of a screenshot. */
@@ -511,15 +512,23 @@ function audit(options: CheckOptions): Found[] {
     }
   }
 
-  // V003: a part that scrolls sideways at the width of a phone
-  if (options.phone) {
-    for (const element of document.body.querySelectorAll('*')) {
-      // a board scrolls its columns
-      if (element.closest('[data-bz^="board:"]')) continue;
-      const overflow = getComputedStyle(element).overflowX;
-      if ((overflow === 'auto' || overflow === 'scroll') && shown(element) && element.scrollWidth > element.clientWidth + 1) {
-        add('V003', element, `It is ${String(element.scrollWidth)} px wide in ${String(element.clientWidth)} px.`);
+  // V003: a part that scrolls sideways at the width of a phone; V021: the table of a list at
+  // the width of a desktop, with the columns of its first row beyond its right edge
+  const parts = options.phone ? '*' : '[data-bz^="list:"], [data-bz^="list:"] *';
+  for (const element of document.body.querySelectorAll(parts)) {
+    // a board scrolls its columns
+    if (element.closest('[data-bz^="board:"]')) continue;
+    const overflow = getComputedStyle(element).overflowX;
+    if ((overflow === 'auto' || overflow === 'scroll') && shown(element) && element.scrollWidth > element.clientWidth + 1) {
+      const size = `It is ${String(element.scrollWidth)} px wide in ${String(element.clientWidth)} px`;
+      if (options.phone) {
+        add('V003', element, `${size}.`);
+        continue;
       }
+      const edge = element.getBoundingClientRect().right + 1;
+      const cells = element.querySelector('[data-bz^="row:"]')?.querySelectorAll(':scope > [data-bz^="cell:"]') ?? [];
+      const hidden = [...cells].filter((it) => shown(it) && it.getBoundingClientRect().right > edge).map((it) => it.getAttribute('data-bz')?.slice(5));
+      add('V021', element, hidden.length ? `${size}; out of sight: ${hidden.join(', ')}.` : `${size}.`);
     }
   }
 

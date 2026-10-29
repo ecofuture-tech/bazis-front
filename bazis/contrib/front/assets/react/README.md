@@ -209,16 +209,18 @@ that permissions disable and marks `readOnly` those the user may see but not cha
 - a relationship: `kind: 'relation'`, `relation` (the JSON:API type of the related
   resource, as `relation` of the field in the contract), `many`.
 
-`values` start from the defaults of the schema (a create) or from the item (an update): an
-attribute's value, the id of the related item of a to-one relationship (null for none), the
+`values` start from the defaults of the schema (a create; false for a boolean without choices
+and without a default, `startValue`) or from the item (an update): an attribute's value, the
+id of the related item of a to-one relationship (null for none), the
 ids of the related items of a to-many one (`[]` for none); `undefined` is no value. `fixed` (`useResourceForm(path, {fixed: {request: id}})`) are values
 that the screen sets, such as the parent of an item added from its card: they are the values
 of their fields whatever `setValue` sets, and are sent as changes when they differ from the
 initial values (a read-only field is never sent). `setValue(name, value)` changes one; `dirty` are the fields that
-differ from the initial values. `submit()` sends one JSON:API document with the dirty
+differ from the defaults of the schema or from the item (the `fixed` values and false of such a
+boolean on a create among them). `submit()` sends one JSON:API document with the dirty
 attributes and relationships (never the read-only ones; a to-many one with all its items,
 `{data: [{type, id}, …]}`, which the backend sets it to) and resolves to the saved
-item: the changes are dropped, so a create form is back at the defaults of the schema and
+item: the changes are dropped, so a create form is back at the values that it started with and
 an update form shows the item as saved. When it fails, it resolves to null and keeps the
 changes: `errors` has the messages of a 422 by field (`ApiError.fieldErrors()`),
 `submitError` the error. `useRelationship` (the relationship endpoint) changes one item of a
