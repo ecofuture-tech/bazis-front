@@ -2625,8 +2625,56 @@ def test_the_hints_of_the_title_of_a_role_and_of_a_requires_of_a_create_form(con
     edit(root, HOME, lambda d: [d['dashboard']['actions'][0].update(color='red'),
                                 d['dashboard']['tiles'][0].pop('open'), d['dashboard']['recent'][0].pop('open')])
     assert {it.location: it.hint for it in validate(root).issues} == {
-        f'{HOME}#/dashboard/actions/0': 'Follow spec/schema/screen.schema.json.',
+        f'{HOME}#/dashboard/actions/0': DASHBOARD_ACTION_KEYS,
     }
+
+
+#: the hint of a key that a create form of a dashboard does not take, which has no hint of its own
+DASHBOARD_ACTION_KEYS = (
+    'The keys of this mapping are `id`, `primitive`, `entity`, `mode`, `fields`, `then`, `label`, `description`: '
+    'remove the others (spec/schema/screen.schema.json says what each is).'
+)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('key', 'value', 'hint'), [
+    ('filters', {'assignee': {'is_active': True}}, 'A create form of a dashboard has no `filters`: its pickers offer'),
+    ('requires', {'can': 'add'}, 'The button of a create form is shown to the users whose role may add the entity'),
+    ('open', 'task-card', DASHBOARD_ACTION_KEYS),
+])
+def test_the_hint_of_a_key_that_a_create_form_of_a_dashboard_does_not_take(contract, key, value, hint):
+    """
+    A key of a create form of a dashboard that it does not take (S002): `filters` and
+    `requires` say where they belong; another key is told the keys that the form takes.
+    """
+    root = contract.parent.parent
+    edit(root, HOME, lambda d: d['dashboard']['actions'][0].update({key: value}))
+    (found,) = validate(root).issues
+    assert (found.code, found.location) == ('S002', f'{HOME}#/dashboard/actions/0')
+    assert found.message == f"Additional properties are not allowed ('{key}' was unexpected)"
+    assert found.hint.startswith(hint)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(('name', 'change', 'location', 'hint'), [
+    # the value of a key that the mapping takes
+    (HOME, lambda d: d['dashboard']['actions'][0].update(fields=5), f'{HOME}#/dashboard/actions/0/fields',
+     'Follow spec/schema/screen.schema.json.'),
+    # a mapping whose other keys are those of a pattern (the groups of the tokens)
+    (TOKENS, lambda d: d.update({'$name': 'Library'}), TOKENS, 'Follow spec/schema/tokens.schema.json.'),
+    # a key of another mapping
+    (CARD, lambda d: d['card'].update(color='red'), f'{CARD}#/card', 'The keys of this mapping are `sections`, `edit`, '),
+])
+def test_the_keys_of_a_mapping_are_the_hint_of_an_unexpected_key_only(contract, name, change, location, hint):
+    """
+    The keys that a mapping takes are the hint of a key that it does not take; another shape
+    error, and a key of a mapping that takes the keys of a pattern, keep the schema to follow.
+    """
+    root = contract.parent.parent
+    edit(root, name, change)
+    (found,) = validate(root).issues
+    assert found.location == location
+    assert found.hint.startswith(hint)
 
 
 @pytest.mark.django_db

@@ -1006,7 +1006,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.13.0, bazis-uploadable 2.7.0, bazis-bg 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
 | `C005` | warning | the Google login of the contract is that of bazis-authing 2.7 or older (`GET`), which the login screen does not offer: upgrade bazis-authing to 2.8.0 (it requires bazis 2.19) and export the contract again; the password login works with 2.6 |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
-| `P002` | error | spec/product.yaml does not follow product.schema.json (a key with a space or a letter beyond ASCII is the text after the comma of a flow mapping, `{a: x, y}`: quote the text) |
+| `P002` | error | spec/product.yaml does not follow product.schema.json (a key with a space or a letter beyond ASCII is the text after the comma of a flow mapping, `{a: x, y}`: quote the text; another key that a mapping does not take: the hint names the keys that it takes) |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
 | `P004` | error | an unknown role (in access, in a scenario or in its step `as`) |
 | `P005` | error | a relation (of a field or of a payload) references an unknown entity |
@@ -1040,7 +1040,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P036` | warning | `packages` has `users`, the contract has no route of the user resource, and a field relates to it (the author of a status, an assignee): the screens label the users by the start of their id. Register the user route set of the project, see "The users that the pickers offer" |
 | `P037` | warning | a field of the payload of a transition has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.22): the dialog of the transit offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
 | `S001` | error | a screen file is not valid YAML |
-| `S002` | error | a screen does not follow screen.schema.json (a key that is a piece of a text: as P002) |
+| `S002` | error | a screen does not follow screen.schema.json (a key that is a piece of a text: as P002; a key that a mapping does not take: the hint names the keys that it takes) |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
 | `S004` | error | a screen references an unknown entity |
 | `S005` | error | a screen references an unknown role |
@@ -2839,12 +2839,12 @@ python manage.py bazis_front shots --check   # shots.ts is that of the specs (CI
 - A screen is shot once again, the user still logged in, when the proxy of the dev server did
   not reach the backend (from the login on) or the page loaded again between its check and its
   screenshot (a blank screenshot); `retried` of the report, the result is that of the second
-  time (V013, V019), and the summary of the command counts the screens shot again.
+  time (V013, V019), counted in the summary of the command.
 - It runs as `npm run e2e` does (its `playwright.config.ts`, which the config of the shots
   extends): the backend running, migrated and with the data of `manage.py e2e_data` (a screen
   with no item, an empty list before its card, cannot be shot), `E2E_PASSWORD` set, a dev
-  server of its own on `E2E_PORT` (without it a free port, not 5173, which a dev server of the
-  developer may have) or a running frontend at `E2E_BASE_URL`, and Chromium (`npx playwright
+  server of its own on `E2E_PORT` (else a free port, not the 5173 of a dev server) or a running
+  frontend at `E2E_BASE_URL`, and Chromium (`npx playwright
   install chromium` in `frontend/`).
 - It empties `frontend/.scratch/shots/`, then writes
   `<screen>[.<variant>]-<role>-<mode>-<width>.png` and `report.json` there. `.scratch/` is in
@@ -2887,14 +2887,15 @@ one issue for the screenshot, with the number of the small controls and the firs
 | `V010` | warning | a text cut by an ellipsis without its whole text in a title or a tooltip: give it `title`, or let it wrap |
 | `V011` | error | an error of the page that nothing caught (`pageerror`): fix the code of the screen that throws it (the message says which) |
 | `V012` | warning | an error written to the console (`console.error`: a warning of React, a failure that the page handles), also a failed connection of the socket of the page that is not open again within 2 s (`socket:open`; not that of a page left): fix what React warns of (a key, a nested form), handle the failure without writing it, and route the socket where the contract has it |
-| `V013` | error | a request of the page to the API failed or was answered with an error status (but a 403 or a 404 of a `GET`, a state of the screen): a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 404 of `route_filter_fields/` or a 405 of an action it does not route (its `actions`, S040); a 500 of the proxy of the dev server that did not reach the backend (a `text/plain` without a body, twice: the screen was shot again) says so: restart the dev server or the backend (its output says why) and take the screenshots again |
+| `V013` | error | a request of the page to the API failed or was answered with an error status (but a 403 or a 404 of a `GET`, a state of the screen): a 500 of the backend (its log), a 400 of a filter or a sort the route set does not have, a 404 of `route_filter_fields/` or a 405 of an action it does not route (its `actions`, S040); a 500 of the proxy of the dev server that did not reach the backend (a `text/plain` without a body, twice: the screen was shot again) says so: restart the dev server or the backend (its output says why) and shoot again |
 | `V014` | error | the page scrolls sideways at the width of a desktop: a fixed width, a grid whose implicit column grows to a long word; give the grid its column (`grid-cols-[minmax(0,1fr)]`), let the texts wrap |
-| `V015` | error | the page scrolls sideways once the texts of its items are long: for the check only, the texts of the items in their cells and fields (`data-text` of `FieldValue` in `cell:<name>`, `field:<name>`, not in a form: a string without a choice or a format, the label of a related item; not a date, a number, a choice, nor a cell of the product) are made 120 characters long with a word of 40, then given back: the data of the users are longer than those of `e2e_data`. Bound the column of the grid that holds them and let them wrap (`wrap-anywhere`) or cut them with their text in a title (`truncate`) |
+| `V015` | error | the page scrolls sideways once the texts of its items are long: for the check only, the texts of the items (`data-text` of `FieldValue` in `cell:<name>`, `field:<name>` outside a form: a string without a choice or a format, the label of a related item) are made 120 characters long with a word of 40: the data of the users are longer than those of `e2e_data`. Bound the column of the grid that holds them and let them wrap (`wrap-anywhere`) or cut them with their text in a title (`truncate`) |
 | `V016` | warning | a list, a board, a calendar (no row nor day with items) or the last items of a dashboard show no item (but the list searched for nothing): give `e2e_data` items for them, their dates relative to the day of the run (a calendar opens on the month of today) |
 | `V017` | warning | a text cut by an ellipsis to a few characters, its box narrower than 4 em: the item of a narrow day of a calendar, a narrow column; give it the width of a line of its own or let it wrap |
 | `V018` | warning | a part of the page that scrolls sideways (a table) grows wider once the texts of its items are long (those of V015): a column whose texts do not wrap; let them wrap (`whitespace-normal wrap-anywhere` with a `min-w-*` and the same `max-w-*`, so that a long text does not narrow the columns of short words either) |
 | `V019` | error | the page loaded again between its check and its screenshot, also when shot again: the screenshot is not of the screen checked; the dev server reloads the pages (a dependency optimized late by a frontend of `E2E_BASE_URL`, a file of the frontend changed during the run): take the screenshots again |
 | `V020` | error | the screen was not shot: the router sent a role without a login (nobody, an anonymous role) to the login: the route needs a session. An anonymous role shoots only public screens; a frontend with its own `src/app/router.tsx` (from before 0.4.0) routes no public screen: take the router of the template. A role whose login fails is V001 |
+| `V021` | warning | the table of a list scrolls sideways on a desktop, its last columns out of sight (named in the message): give the list fewer `columns`, the others are in its card |
 
 ### The checklist of the screenshots
 
@@ -2906,7 +2907,7 @@ Open the screenshots (the PNG files) and look at what no check measures:
 - an empty state says what is missing and offers to create it;
 - on a phone: the list as cards, the actions within reach, no text cut or overlapping;
 - in the dark mode: no light surface, the same hierarchy as in the light one;
-- the icon of every entity, the tones of the statuses by their meaning, no raw name or id.
+- the icon of every entity, the tones of the statuses by their meaning.
 
 ### When the screens are done
 
@@ -3079,7 +3080,9 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
 - `resourceSchema(schema)` reads the fields of a runtime schema (of a create, an update, a
   retrieve or a list), with the labels of the choices by value (`enumDict`:
   `choiceLabel(field, value)`); `objectFields(schema)` those of the JSON Schema of an
-  object, such as the payload of a transit; the components render them.
+  object, such as the payload of a transit; the components render them. `startValue(field)`
+  is the value of an attribute before the user enters one: its default, false for a boolean
+  without one (its checkbox, never required: unchecked is false, sent as such), else none.
 
 ### The forms
 
@@ -3090,7 +3093,8 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
   its items, its value the list of their ids); a 422 gives `errors` by field, and `submit`
   resolves to the saved document, null when it failed. `fixed` values (the
   parent of an item added from its card, `{request: id}`) are those of their fields whatever
-  `setValue` sets, and are sent when they differ from the initial ones. A form of your own
+  `setValue` sets, and are sent when they differ from the initial ones; so is false of a
+  boolean without a default on a create (`startValue`). A form of your own
   renders each field with `FieldInput` of `@/bazis/ui/resource` (the control by the type,
   the choices by their labels, the picker of a relationship or of the items of a to-many
   one, its errors), as `ResourceForm` does. A DecimalField (`format: decimal` of the
@@ -4348,6 +4352,10 @@ Its props, `BazisProviderProps`:
 #### resourceSchema
 
 `resourceSchema(schema: JsonSchema): ResourceSchema`: The resource of a runtime schema: of a create or an update (the fields the user may set), of a retrieve or of a list (the fields the user may see, with their titles).
+
+#### startValue
+
+`startValue(field: AttributeField): unknown`: The value of an attribute before the user enters one: the default of its schema; false for a boolean without choices and without a default, whose checkbox shows false unchecked (the form sends what it shows, never no value); none (undefined) for another attribute.
 
 #### useRelatedItem
 

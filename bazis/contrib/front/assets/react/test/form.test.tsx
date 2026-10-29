@@ -216,6 +216,32 @@ describe('useResourceForm with initial values', () => {
   });
 });
 
+describe('useResourceForm with a boolean without a default', () => {
+  it('starts a create with false, shown unchecked, and sends it unless the user checks it', async () => {
+    // `BooleanField()` of a model without a default
+    const schema = parentSchema('create');
+    delete (schema.$defs.Attributes.properties.is_active as { default?: boolean }).default;
+    const backend = new Backend()
+      .on('GET', `${PARENT}schema_create/`, schema)
+      .on('POST', PARENT, { data: { ...item('Bike', null).data, id: '8' } }, 201);
+    const { result } = render(() => useResourceForm(PARENT), backend);
+    await ready(result);
+    expect(result.current.values.is_active).toBe(false);
+    expect(result.current.dirty).toEqual(['is_active']);
+    act(() => {
+      result.current.setValue('name', 'Bike');
+    });
+    await act(async () => {
+      await result.current.submit();
+    });
+    expect(backend.calls.find((it) => it.method === 'POST')?.body).toEqual({
+      data: { type: 'entity.parent_entity', attributes: { is_active: false, name: 'Bike' }, relationships: {} },
+    });
+    // saved: the form starts again with false
+    expect(result.current.values.is_active).toBe(false);
+  });
+});
+
 describe('useResourceForm with an id: an update', () => {
   function backend() {
     return new Backend()

@@ -18,7 +18,7 @@
 // related items (`relatedField`), one of the ids of the uploaded files (`x-relation`) a file
 // field; another is the attribute of the body (a decimal typed as such).
 
-import { objectFields, type JsonSchema } from '@/bazis/react';
+import { objectFields, startValue, type JsonSchema } from '@/bazis/react';
 import { FieldInput, relatedField, type FieldFilters, type Fields } from '@/bazis/ui/resource';
 
 /** The values of the specs that the fields of an action start with (`values`), by property. */
@@ -46,8 +46,8 @@ function dayOf(text: string, format: string | null, now: Date): string | null {
 
 /**
  * The values that the fields start with when the form or the dialog opens: those of the
- * specs (`values`, a day of the browser of a date computed now), else the defaults of the
- * properties of the body that they ask for.
+ * specs (`values`, a day of the browser of a date computed now), else the `startValue` of the
+ * properties of the body that they ask for (their defaults, false of a checkbox).
  */
 export function bodyDefaults(
   body: JsonSchema | null,
@@ -58,9 +58,10 @@ export function bodyDefaults(
   const now = new Date();
   for (const field of objectFields(body ?? {})) {
     if (!names.includes(field.name)) continue;
-    const value = start[field.name];
-    if (value !== undefined) values[field.name] = typeof value === 'string' ? (dayOf(value, field.format, now) ?? value) : value;
-    else if ('default' in field.schema) values[field.name] = field.schema.default;
+    const given = start[field.name];
+    const value =
+      given === undefined ? startValue(field) : typeof given === 'string' ? (dayOf(given, field.format, now) ?? given) : given;
+    if (value !== undefined) values[field.name] = value;
   }
   return values;
 }

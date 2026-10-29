@@ -20,7 +20,7 @@ import { ApiError } from '@/bazis/client';
 import { useBazis } from './context.js';
 import { invalidateResource } from './mutations.js';
 import { retrieveQuery, schemaQuery } from './queries.js';
-import { resourceSchema, type FormField } from './schema.js';
+import { resourceSchema, startValue, type FormField } from './schema.js';
 import {
   loose,
   type CreatePath,
@@ -41,7 +41,8 @@ export interface ResourceForm<Saved> {
   /**
    * The value of every field: the value of an attribute, the id of the related item of a
    * to-one relationship (null for none), the ids of the related items of a to-many one (an
-   * array). `undefined` is no value: on a create, a field without a default.
+   * array). `undefined` is no value: on a create, a field without a default (but a boolean
+   * without choices, false: `startValue`).
    */
   values: Readonly<Record<string, unknown>>;
   setValue(name: string, value: unknown): void;
@@ -100,6 +101,21 @@ function originalValues(fields: readonly FormField[], item: Item | undefined): R
 }
 
 /**
+ * The values that a create starts with that are not defaults of the schema (false of a boolean
+ * without choices: `startValue`): the backend would not set them, so they are sent like the
+ * changes of the user.
+ */
+function startChanges(fields: readonly FormField[]): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (field.kind !== 'attribute' || 'default' in field.schema) continue;
+    const value = startValue(field);
+    if (value !== undefined) values[field.name] = value;
+  }
+  return values;
+}
+
+/**
  * The JSON:API document of the changed fields: the attributes and the relationships (a
  * to-many one with every related item: the backend sets it to these).
  */
@@ -148,7 +164,8 @@ const NO_FIXED: FixedValues = {};
  * differ from the original values (the backend still decides: a read-only field is never
  * sent). `initial` values (a create only: the day of a calendar) are those that the form
  * starts with in place of the defaults of the schema, changed by the user and sent like his
- * changes.
+ * changes; so is false of a boolean without choices and without a default on a create (its
+ * unchecked checkbox, `startValue`).
  */
 export function useResourceForm<P extends CreatePath>(
   path: P,
@@ -192,17 +209,19 @@ export function useResourceForm(
     () => originalValues(fields, id === undefined ? undefined : item.data),
     [fields, id, item.data],
   );
+  const started = useMemo(() => (id === undefined ? startChanges(fields) : NO_CHANGES), [fields, id]);
   // the initial and the fixed values by their content: a screen may pass a new object at
   // every render; the initial ones are changes that the user did not make
   const initialKey = JSON.stringify(initial);
   const fixedKey = JSON.stringify(fixed);
   const changed = useMemo(
     () => ({
+      ...started,
       ...(JSON.parse(initialKey) as Record<string, unknown>),
       ...edits,
       ...(JSON.parse(fixedKey) as Record<string, unknown>),
     }),
-    [initialKey, edits, fixedKey],
+    [started, initialKey, edits, fixedKey],
   );
   const values = useMemo(() => ({ ...original, ...changed }), [original, changed]);
   const dirty = useMemo(

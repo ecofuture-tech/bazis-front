@@ -28,7 +28,7 @@ import { useState, type ReactNode } from 'react';
 
 import { ApiError, errorText, type ErrorObject } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { objectFields, useErrorMessage } from '@/bazis/react';
+import { objectFields, startValue, useErrorMessage } from '@/bazis/react';
 import { useItemsTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
 import { FieldInput, ITEM_META, relatedField, statusyModel, useUploads, type FieldFilters } from '@/bazis/ui/resource';
 import { statusName, transitName, transitTarget } from '@/bazis/ui/status-badge';
@@ -65,10 +65,12 @@ export function payloadErrors(
   return { fields, others };
 }
 
+/** The values of the payload before the user enters any: their `startValue`. */
 function defaults(transit: Transit): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const field of objectFields(transit.payload ?? {})) {
-    if ('default' in field.schema) values[field.name] = field.schema.default;
+    const value = startValue(field);
+    if (value !== undefined) values[field.name] = value;
   }
   return values;
 }

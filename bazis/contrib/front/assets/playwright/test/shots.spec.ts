@@ -124,6 +124,29 @@ test('what scrolls sideways at the width of a phone', async ({ page, browser }) 
   expect(await found(page, PHONE)).toEqual([]);
 });
 
+test('the table of a list that scrolls sideways at the width of a desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const cell = (name: string, width: number) => `<td data-bz="cell:${name}" style="width: ${String(width)}px">${name}</td>`;
+  const list = (width: number) =>
+    `<div data-bz="list:booking"><div style="overflow-x: auto"><table style="width: ${String(width)}px; table-layout: fixed">` +
+    `<tr data-bz="row:1">${cell('customer', 600)}${cell('total', 500)}${cell('status', width - 1100)}</tr></table></div></div>`;
+  await show(page, list(1400));
+  const [issue, ...others] = await check(page, LIGHT);
+  expect(others).toEqual([]);
+  expect(issue).toMatchObject({ code: 'V021', severity: 'warning', selector: '[data-bz="list:booking"] div' });
+  // the cells of the first row beyond its right edge
+  expect(issue?.message).toMatch(/^It is \d+ px wide in 1264 px; out of sight: status\.$/);
+  // a table that fits, and a part that scrolls outside a list
+  await show(page, list(1200));
+  expect(await found(page, LIGHT)).toEqual([]);
+  await show(page, '<div style="overflow-x: auto; width: 300px"><table style="width: 800px"><tr><td>Tasks</td></tr></table></div>');
+  expect(await found(page, LIGHT)).toEqual([]);
+  // at the width of a phone, V003
+  await page.setViewportSize({ width: 390, height: 844 });
+  await show(page, list(1400));
+  expect(await found(page, PHONE)).toEqual([['V003', '[data-bz="list:booking"] div']]);
+});
+
 test('what scrolls sideways once the texts of the items are long', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   // a grid whose implicit column grows to its longest word, and one whose column does not

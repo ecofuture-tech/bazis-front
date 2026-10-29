@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { choiceLabel, objectFields, resourceSchema } from '../src/schema.js';
+import { choiceLabel, objectFields, resourceSchema, startValue } from '../src/schema.js';
 import { transits } from '../src/statusy/transits.js';
 import { parentSchema } from './fixtures/parent.js';
 // the runtime schemas of `tasks.task` of the sample of bazis-front, as the backend returns them
@@ -309,5 +309,21 @@ describe('objectFields', () => {
       ['tags', 'array', null, false],
       ['note', 'string', null, false],
     ]);
+  });
+});
+
+describe('startValue', () => {
+  it('is the default, false for a boolean without choices and without one, else none', () => {
+    const [flag, intact, open, kind, note] = objectFields({
+      properties: {
+        flag: { type: 'boolean', default: true },
+        intact: { type: 'boolean' },
+        open: { anyOf: [{ type: 'boolean' }, { type: 'null' }] },
+        kind: { type: 'boolean', enum: [true] },
+        note: { type: 'string' },
+      },
+      required: ['intact'],
+    });
+    expect([flag, intact, open, kind, note].map((it) => it && startValue(it))).toEqual([true, false, false, undefined, undefined]);
   });
 });

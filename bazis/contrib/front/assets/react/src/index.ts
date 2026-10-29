@@ -35,7 +35,7 @@ export { useCan, useFilterFields, useItem, useList, useLists, useSchema } from '
 export type { Can } from './queries.js';
 export { useResourceForm } from './form.js';
 export type { FixedValues, ResourceForm } from './form.js';
-export { choiceLabel, objectFields, resourceSchema } from './schema.js';
+export { choiceLabel, objectFields, resourceSchema, startValue } from './schema.js';
 export { RELATED_BATCH, useRelatedItem } from './related.js';
 export type { ListItem } from './related.js';
 export type { AttributeField, FormField, RelationField, ResourceSchema } from './schema.js';
