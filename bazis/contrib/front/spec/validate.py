@@ -195,7 +195,8 @@ def shape_hint(error, data, schema: str) -> str | None:
     """
     The hint of `SHAPE_HINTS` for a shape error: at the path of the value, or of a key that the
     mapping there may not have (`additionalProperties`; any key: `maxProperties`); else, for a
-    key that the mapping may not have, the keys that it may (but those of `patternProperties`).
+    key that the mapping may not have, the keys that it may (but those of `patternProperties`,
+    and those of an alternative of a oneOf/anyOf: the closest one may be another than meant).
     """
     path = tuple(error.absolute_path)
     paths = [path]
@@ -209,7 +210,7 @@ def shape_hint(error, data, schema: str) -> str | None:
     for (name, mask), hint in SHAPE_HINTS.items():
         if name == schema and any(len(it) == len(mask) and all(m in ('*', p) for m, p in zip(mask, it, strict=True)) for it in paths):
             return hint
-    if allowed and 'patternProperties' not in error.schema:
+    if allowed and 'patternProperties' not in error.schema and error.parent is None:
         keys = ', '.join(f'`{key}`' for key in allowed)
         return f'The keys of this mapping are {keys}: remove the others ({SPEC_DIR}/{SCHEMA_DIR}/{schema} says what each is).'
     return None

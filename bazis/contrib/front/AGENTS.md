@@ -1006,7 +1006,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `C004` | error | the installed package of a capability of the contract is older than the version whose protocol the frontend follows (bazis-ws 2.5.0, bazis-authing 2.6.0, bazis-permit 2.7.0, bazis-statusy 2.13.0, bazis-uploadable 2.7.0, bazis-bg 2.6.0); the system check `front.W006` (a warning) reports it instead of `front.W002`; it stops `bazis_front e2e` and `front.W003` as any error |
 | `C005` | warning | the Google login of the contract is that of bazis-authing 2.7 or older (`GET`), which the login screen does not offer: upgrade bazis-authing to 2.8.0 (it requires bazis 2.19) and export the contract again; the password login works with 2.6 |
 | `P001` | error | spec/product.yaml is missing or is not valid YAML |
-| `P002` | error | spec/product.yaml does not follow product.schema.json (a key with a space or a letter beyond ASCII is the text after the comma of a flow mapping, `{a: x, y}`: quote the text; another key that a mapping does not take: the hint names the keys that it takes) |
+| `P002` | error | spec/product.yaml does not follow product.schema.json (a key with a space or a letter beyond ASCII is the text after the comma of a flow mapping, `{a: x, y}`: quote the text; another key that a mapping does not take: the hint names the keys that it takes, but of a mapping of alternatives, `oneOf`) |
 | `P003` | error | an id is declared twice (role, entity, field, transition, scenario) |
 | `P004` | error | an unknown role (in access, in a scenario or in its step `as`) |
 | `P005` | error | a relation (of a field or of a payload) references an unknown entity |
@@ -1040,7 +1040,7 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `P036` | warning | `packages` has `users`, the contract has no route of the user resource, and a field relates to it (the author of a status, an assignee): the screens label the users by the start of their id. Register the user route set of the project, see "The users that the pickers offer" |
 | `P037` | warning | a field of the payload of a transition has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.22): the dialog of the transit offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
 | `S001` | error | a screen file is not valid YAML |
-| `S002` | error | a screen does not follow screen.schema.json (a key that is a piece of a text: as P002; a key that a mapping does not take: the hint names the keys that it takes) |
+| `S002` | error | a screen does not follow screen.schema.json (a key that is a piece of a text, a key that a mapping does not take: as P002) |
 | `S003` | error | the id of a screen differs from its file name, or its route is taken |
 | `S004` | error | a screen references an unknown entity |
 | `S005` | error | a screen references an unknown role |
@@ -1099,8 +1099,8 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S060` | error | a value that a field of a custom action starts with (`values` of its dialog or its form) is not of its `fields`, or does not fit its property in the body: a value of another type or out of its choices, a day of the browser (`today`, `month_start`, ...) of a property that is not a date, a time of a date, a text of a date that is neither a day of the browser nor `YYYY-MM-DD` |
 | `S061` | error | the filter of the picker of a relationship (`filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register its router), or its value does not fit the field. See "The items that a picker offers" |
 | `D001` | error | a design file is not valid YAML or JSON |
-| `D002` | error | spec/design/theme.yaml does not follow design.schema.json |
-| `D003` | error | spec/design/tokens.json does not follow tokens.schema.json |
+| `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |
+| `D003` | error | spec/design/tokens.json does not follow tokens.schema.json (a key that a mapping does not take: as P002) |
 | `D004` | error | a token references an undefined token, or references itself through other tokens |
 | `D005` | error | a token required by the preset is undefined or of another type |
 | `D006` | error | a token references a token of another type |
@@ -3094,7 +3094,8 @@ const result = useAsyncTask(CAPABILITIES.async_background.result_path, taskId);
   resolves to the saved document, null when it failed. `fixed` values (the
   parent of an item added from its card, `{request: id}`) are those of their fields whatever
   `setValue` sets, and are sent when they differ from the initial ones; so is false of a
-  boolean without a default on a create (`startValue`). A form of your own
+  boolean without a default on a create (`startValue`), of every one of the schema, also one
+  that the form does not show (give such a field a default). A form of your own
   renders each field with `FieldInput` of `@/bazis/ui/resource` (the control by the type,
   the choices by their labels, the picker of a relationship or of the items of a to-many
   one, its errors), as `ResourceForm` does. A DecimalField (`format: decimal` of the

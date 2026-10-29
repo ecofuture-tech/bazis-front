@@ -2662,13 +2662,27 @@ def test_the_hint_of_a_key_that_a_create_form_of_a_dashboard_does_not_take(contr
      'Follow spec/schema/screen.schema.json.'),
     # a mapping whose other keys are those of a pattern (the groups of the tokens)
     (TOKENS, lambda d: d.update({'$name': 'Library'}), TOKENS, 'Follow spec/schema/tokens.schema.json.'),
+    # a key of an alternative of a oneOf: the closest one may be another (a link, a create form)
+    (PRODUCT, lambda d: d['navigation'][1].update(colour='red'), f'{PRODUCT}#/navigation/1',
+     'Follow spec/schema/product.schema.json.'),
+    (SUGGEST, lambda d: d['form'].update(colour='red'), f'{SUGGEST}#/form', 'Follow spec/schema/screen.schema.json.'),
     # a key of another mapping
     (CARD, lambda d: d['card'].update(color='red'), f'{CARD}#/card', 'The keys of this mapping are `sections`, `edit`, '),
+    (LIST, lambda d: d.update(color='red'), LIST, 'The keys of this mapping are `spec`, `id`, '),
+    (LIST, lambda d: d['list'].update(color='red'), f'{LIST}#/list', 'The keys of this mapping are `columns`, '),
+    (LIST, lambda d: d['list']['bulk'][0].update(color='red'), f'{LIST}#/list/bulk/0',
+     'The keys of this mapping are `id`, `transit`, '),
+    (PRODUCT, lambda d: task(d)['fields'][0].update(color='red'), f'{PRODUCT}#/entities/0/fields/0',
+     'The keys of this mapping are `id`, `type`, '),
+    (PRODUCT, lambda d: d['roles'][0].update(color='red'), f'{PRODUCT}#/roles/0', 'The keys of this mapping are `id`, '),
+    (PRODUCT, lambda d: steps(d, 0).__setitem__(0, {'opne': 'task-list'}), f'{PRODUCT}#/scenarios/0/steps/0',
+     'The keys of this mapping are `open`, `open_item`, '),
 ])
 def test_the_keys_of_a_mapping_are_the_hint_of_an_unexpected_key_only(contract, name, change, location, hint):
     """
     The keys that a mapping takes are the hint of a key that it does not take; another shape
-    error, and a key of a mapping that takes the keys of a pattern, keep the schema to follow.
+    error, a key of a mapping that takes the keys of a pattern, and a key of an alternative of a
+    oneOf (the closest one is not always the meant one) keep the schema to follow.
     """
     root = contract.parent.parent
     edit(root, name, change)
