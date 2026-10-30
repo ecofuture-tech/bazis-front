@@ -18,7 +18,8 @@
 // the errors of the fields at them and the state of the refusal (`state:invalid` of a 422);
 // done, its `result` from the JSON answer of the action (`state:done`), or a toast and
 // `onDone`. An action that answers a file (`file` of the contract) saves it first: its result
-// is given the name of the file, `{filename}`.
+// is given the texts and the numbers of the meta of the file (the header `X-Bazis-Meta`,
+// `file_meta` of the contract) and its name, `{filename}`.
 
 import { LoaderCircle } from 'lucide-react';
 import { useRef, useState, type ReactNode, type SubmitEvent } from 'react';
@@ -53,7 +54,8 @@ export interface ActionFormProps {
   /**
    * What the page shows once the action is done, in place of the form: its title (`Done` by
    * default) and its message, the title too when it is a function, given the texts and the
-   * numbers of the JSON answer of the action, or `{filename}` of the file it saved.
+   * numbers of the JSON answer of the action, or those of the meta of the file it saved
+   * (`X-Bazis-Meta`) with its name, `{filename}`.
    */
   result?:
     | {

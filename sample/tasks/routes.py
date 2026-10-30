@@ -109,7 +109,8 @@ class ExportMeta(BaseModel):
 
 
 #: the header of the meta of a file (`FILE_META_HEADER` of bazis 2.25), declared in the answer
-#: of the action as the guide of bazis-front says without the core 2.25 (`file_meta=`)
+#: of the action and sent as the core 2.25 does it (`file_meta=`, `file_answer`): the schema of
+#: the model as it is sent (`mode='serialization'`), the model by alias, ASCII
 FILE_META = 'X-Bazis-Meta'
 
 
@@ -146,7 +147,7 @@ class TaskRouteSet(StatusyRouteSetBase):
 
     @http_post(
         '/export/', kind=RouteKind.OTHER, response_class=CsvResponse, access_action=CrudAccessAction.VIEW,
-        responses={200: {'headers': {FILE_META: {'schema': ExportMeta.model_json_schema()}}}},
+        responses={200: {'headers': {FILE_META: {'schema': ExportMeta.model_json_schema(mode='serialization')}}}},
     )
     def action_export(self, data: ExportRequest, **kwargs):
         """
@@ -173,7 +174,7 @@ class TaskRouteSet(StatusyRouteSetBase):
             content.getvalue(),
             headers={
                 'Content-Disposition': content_disposition_header(True, 'tasks.csv'),
-                FILE_META: json.dumps(meta.model_dump(mode='json'), separators=(',', ':')),
+                FILE_META: json.dumps(meta.model_dump(mode='json', by_alias=True), ensure_ascii=True, separators=(',', ':')),
             },
         )
 

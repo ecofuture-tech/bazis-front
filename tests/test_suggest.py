@@ -83,9 +83,12 @@ def test_a_guest_attaches_the_photos_he_uploaded(sample_app):
     token = photo.json()['data']['id']
     assert photo.json()['data']['attributes'] == {'name': 'photo.png', 'extension': 'png', 'size': len(PNG)}
     assert not token.isdigit()
-    # a guest never reads back his upload: bazis-uploadable 2.8 requires a user (401); 2.9 serves the
-    # guests the files of the objects they are shown, and this one of none (404)
-    assert guest.get(f'{FILES}{token}/').status_code in (401, 404)
+    # a guest never reads back his upload: bazis-uploadable 2.8 requires a user (401); 2.9
+    # (`anonymous_files`) serves the guests the files of the objects they are shown, and this
+    # one of none (404)
+    from bazis.contrib.uploadable import routes
+
+    assert guest.get(f'{FILES}{token}/').status_code == (404 if hasattr(routes, 'anonymous_files') else 401)
     text = guest.post(FILES, files={'file': ('a.txt', b'a', 'text/plain')})
     assert (text.status_code, text.json()['errors'][0]['code']) == (422, 'ERR_FILE_TYPE')
 

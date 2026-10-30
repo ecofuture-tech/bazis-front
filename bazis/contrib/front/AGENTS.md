@@ -2371,7 +2371,10 @@ them), declared in the OpenAPI of the answer of the status of the route (200, or
 `file_meta=ExportMeta` of `http_post` and
 `file_answer(content, filename, media_type, ExportMeta(count=...))`, which sends the keys of
 the schema (by alias); before it, the header in `responses=` of the route and set on the
-answer as the core does it (the sample, `action_export` of `tasks/routes.py`). The contract
+answer as the core does it: the schema of the model as it is sent
+(`model_json_schema(mode='serialization')`), the model by alias
+(`model_dump(mode='json', by_alias=True)`), so that the keys of the meta are the properties of
+the schema (the sample, `action_export` of `tasks/routes.py`). The contract
 has its schema (`custom_actions[].file_meta`), and the result of the form shows its properties next to
 `{filename}`: `message: {en: 'Saved {filename}: {count} tasks.'}`. `useActionFile` resolves
 to `{name, meta}` (`meta`: null without the header, or with one that is not JSON). A client
@@ -6354,7 +6357,7 @@ Its props, `ActionFormProps`:
 - `filters?: FieldFilters | undefined`: The items that the pickers of its relationships offer, by property (`filters` of the specs).
 - `values?: StartValues | undefined`: The values that the fields start with by property, over the defaults of the body: a day of the browser (`today`, `month_start`, ...) for a date, computed when the form opens.
 - `submitLabel?: ReactNode`: The label of the submit button: `Send` by default.
-- `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action, or `{filename}` of the file it saved.
+- `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action, or those of the meta of the file it saved (`X-Bazis-Meta`) with its name, `{filename}`.
 - `then?: ActionThen | undefined`: The screen that the result links to.
 - `onDone?: (() => void) | undefined`: Called once the action is done, without a `result` (after a toast): the screen after it.
 
