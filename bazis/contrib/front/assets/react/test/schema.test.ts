@@ -339,6 +339,10 @@ describe('relativeDay', () => {
     ['today+366', '2029-03-01'],
     ['month_start', '2028-02-01'],
     ['month_end', '2028-02-29'],
+    // some days from the first or the last day of the month, across the month
+    ['month_end+1', '2028-03-01'],
+    ['month_start-1', '2028-01-31'],
+    ['month_start+14', '2028-02-15'],
   ])('%s is a date', (text, day) => {
     expect(relativeDay(text, 'date', now)).toBe(day);
   });
@@ -349,6 +353,9 @@ describe('relativeDay', () => {
     // the end of December is in the next year
     expect(relativeDay('today+1 09:30', 'date-time', new Date(2027, 11, 31, 12))).toBe(new Date(2028, 0, 1, 9, 30).toISOString());
     expect(relativeDay('month_end', 'date', new Date(2027, 11, 15))).toBe('2027-12-31');
+    expect(relativeDay('month_end+1', 'date', new Date(2027, 11, 15))).toBe('2028-01-01');
+    // the day after the month, as `__lt` of the date-times of the month: its local midnight
+    expect(relativeDay('month_end+1', 'date-time', now)).toBe(new Date(2028, 2, 1).toISOString());
   });
 
   it('leaves another text, or a field that is not a date, as it is', () => {

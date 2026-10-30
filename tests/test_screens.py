@@ -331,7 +331,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert (
         '              filter: Filter.and(\n'
         "                Filter.where('due__gte', relativeDay('month_start', 'date-time')),\n"
-        "                Filter.where('due__lte', relativeDay('month_end 23:59', 'date-time')),\n"
+        "                Filter.where('due__lt', relativeDay('month_end+1', 'date-time')),\n"
         '              ),\n'
     ) in overview
 

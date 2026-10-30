@@ -1682,9 +1682,12 @@ def _check_body(
     return {prop: ids['relation'] for prop, ids in related.items()}
 
 
-#: a day of the browser that a field of a date starts with (`values`): today, some days from
-#: it, the first or the last day of its month; a time after it for a date-time
-RELATIVE_DAY = re.compile(r'(today(?:[+-]\d+)?|month_start|month_end)( (?:[01]\d|2[0-3]):[0-5]\d)?')
+#: a day of the browser that a field of a date starts with (`values`) or a filter compares:
+#: today, the first or the last day of its month, some days from it (`month_end+1` is the
+#: first day of the next month); a time after it for a date-time
+RELATIVE_DAY = re.compile(
+    r'(?P<day>today|month_start|month_end)(?P<offset>[+-]\d+)?(?P<time> (?:[01]\d|2[0-3]):[0-5]\d)?'
+)
 #: a date as the field of a date holds it
 ISO_DATE = re.compile(r'\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])')
 
@@ -1711,8 +1714,8 @@ def _check_values(doc: Document, path: tuple, name: str, fields: list, values: d
         if problem:
             issues.add(
                 doc, where, 'S060', f'The value of `{prop}` of the custom action `{name}` {problem}.',
-                'Give a value of the type of the property in the body; a date takes a day of the browser, `today`, '
-                '`today+<n>`, `today-<n>`, `month_start`, `month_end` (a date-time with ` HH:MM`), or `YYYY-MM-DD`.',
+                'Give a value of the type of the property in the body; a date takes a day of the browser, `today±<n>`, '
+                '`month_start±<n>`, `month_end±<n>` (a date-time with ` HH:MM`), or `YYYY-MM-DD`.',
             )
 
 
@@ -1722,7 +1725,7 @@ def _value_problem(value, schema: dict) -> str | None:
     day = RELATIVE_DAY.fullmatch(value) if isinstance(value, str) else None
     if fmt in ('date', 'date-time'):
         if day is not None:
-            return 'has a time, and the property is a date' if fmt == 'date' and day[2] else None
+            return 'has a time, and the property is a date' if fmt == 'date' and day['time'] else None
         if fmt == 'date' and isinstance(value, str) and ISO_DATE.fullmatch(value):
             return None
         return f'is not a day of the browser{" or `YYYY-MM-DD`" if fmt == "date" else ""}, and the property is a {fmt}'
@@ -2497,9 +2500,10 @@ def _filter_value_problem(value, lookup: str | None, field: dict) -> tuple[str, 
     """
     What is wrong with a value of the filter of a list or a tile, compared by the lookup with a
     field of the contract (S014), and its hint; None when it fits. A date or a date-time is a
-    day of the browser (`RELATIVE_DAY`, with a time for a date-time) or a date as it is; equal
-    to a day only a date (a date-time is in a day between `__gte` of it and `__lt` of the next);
-    a lookup compares a date, a date-time or a number.
+    day of the browser (`RELATIVE_DAY`, with a time for a date-time) or a date as it is; a day
+    without a time is the midnight of a date-time, compared only by `__gte` and `__lt` (a
+    date-time is in a day between `__gte` of it and `__lt` of the next); a lookup compares a
+    date, a date-time or a number.
     """
     fmt = 'decimal' if field.get('format') == DECIMAL else field.get('format')
     dates = fmt in ('date', 'date-time')
@@ -2507,7 +2511,7 @@ def _filter_value_problem(value, lookup: str | None, field: dict) -> tuple[str, 
     day = RELATIVE_DAY.fullmatch(value) if isinstance(value, str) else None
     any_value = (
         'Give the filter a value of the type of the field: a boolean, a number, a text, the id of a related item; '
-        'a date or a date-time a day of the browser (`today`, `today+<n>`, `today-<n>`, `month_start`, `month_end`) '
+        'a date or a date-time a day of the browser (`today±<n>`, `month_start±<n>`, `month_end±<n>`) '
         'or `YYYY-MM-DD`.'
     )
     if lookup is not None and 'relation' not in field and not (dates or numeric):
@@ -2524,14 +2528,17 @@ def _filter_value_problem(value, lookup: str | None, field: dict) -> tuple[str, 
         if day is not None:
             return 'a day of the browser is the value of a date or a date-time.', any_value
         return None if filter_value_fits(value, field) else ('it is not of its type.', any_value)
-    if day is not None and fmt == 'date' and day[2]:
+    if day is not None and fmt == 'date' and day['time']:
         return 'a date has no time.', 'Give the day without ` HH:MM`.'
-    if day is not None and fmt == 'date-time' and lookup is None:
+    if fmt == 'date-time' and lookup not in ('gte', 'lt') and (
+        day is not None and not day['time'] or isinstance(value, str) and ISO_DATE.fullmatch(value)
+    ):
         return (
-            'a date-time is never equal to a day.',
-            'Filter the date-times of a day by two keys, `<field>__gte: today` and `<field>__lt: today+1` (the '
-            'days of the browser at 00:00), and those of the month by `<field>__gte: month_start` and '
-            "`<field>__lte: 'month_end 23:59'`.",
+            'a date-time is compared with an instant, and a day without a time is its midnight: the equality, '
+            '`__lte` and `__gt` lose or add a day.',
+            'Filter the date-times of a day by `<field>__gte: today` and `<field>__lt: today+1`, those of the '
+            'month by `<field>__gte: month_start` and `<field>__lt: month_end+1`; or give the day its time, '
+            '` HH:MM`.',
         )
     if day is not None or isinstance(value, str) and ISO_DATE.match(value) and (fmt == 'date-time' or ISO_DATE.fullmatch(value)):
         return None

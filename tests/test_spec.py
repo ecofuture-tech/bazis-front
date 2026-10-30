@@ -891,7 +891,7 @@ CASES = [
     (
         'S008',
         # the filter of the screen by a field that the contract cannot filter by
-        {LIST: lambda d: d['list'].update(filter={'dt_created': '2026-01-01'}),
+        {LIST: lambda d: d['list'].update(filter={'dt_created': '2026-01-01T09:00:00Z'}),
          CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['dt_created'].pop('filter')],
          CALENDAR: lambda d: d['calendar'].update(field='dt_created')},
         # and the filter of the user by it, the charts of the home by week and by month and the
@@ -1872,11 +1872,21 @@ CASES = [
         # a lookup compares a date, a date-time or a number (not a text, not a relationship); a day of
         # the browser is the value of a date or a date-time, and a date-time is never equal to a day
         {LIST: lambda d: d['list'].update(filter={
-            'dt_created__gte': 'month_start', 'dt_created__lte': 'month_end 23:59', 'due__lt': 'today+1',
-            'title__gte': 'a', 'assignee__lt': 'x', 'priority': 'today', 'due': 'today'}),
+            'dt_created__gte': 'month_start', 'dt_created__lte': 'month_end 23:59', 'dt_created__lt': 'month_end+1',
+            'due__lt': 'today+1', 'title__gte': 'a', 'assignee__lt': 'x', 'priority': 'today', 'due': 'today'}),
          HOME: lambda d: d['dashboard']['tiles'][3].update(filter={'dt_created__gte': 'today-7', 'status': 'draft'})},
         [('S014', f'{LIST}#/list/filter/title__gte'), ('S014', f'{LIST}#/list/filter/assignee__lt'),
          ('S014', f'{LIST}#/list/filter/priority'), ('S014', f'{LIST}#/list/filter/due')],
+    ),
+    (
+        'S014',
+        # a day without a time is the midnight of a date-time: compared by `__gte` and `__lt` only,
+        # a day of the browser or a date as it is; with its time by any lookup
+        {LIST: lambda d: d['list'].update(filter={
+            'dt_created__lte': 'month_end', 'dt_created__gt': 'today', 'due__lte': '2026-10-31',
+            'dt_created__gte': 'month_start-1', 'due__gt': 'today 18:00', 'due': '2026-10-31T10:00:00Z'})},
+        [('S014', f'{LIST}#/list/filter/dt_created__lte'), ('S014', f'{LIST}#/list/filter/dt_created__gt'),
+         ('S014', f'{LIST}#/list/filter/due__lte')],
     ),
     (
         'S014',
@@ -1884,7 +1894,8 @@ CASES = [
         {CONTRACT: lambda d: d['project']['resources']['tasks.task']['fields']['dt_created'].update(format='date'),
          PRODUCT: lambda d: field(task(d), 'dt_created').update(type='date'),
          LIST: lambda d: d['list'].update(filter={
-            'dt_created': 'today', 'dt_created__lt': 'today 10:00', 'dt_created__gt': '2026-01-01', 'due__gte': '01.01.2026'})},
+            'dt_created': 'today', 'dt_created__lt': 'today 10:00', 'dt_created__gt': '2026-01-01',
+            'dt_created__lte': 'month_end+1', 'due__gte': '01.01.2026'})},
         [('S014', f'{LIST}#/list/filter/dt_created__lt'), ('S014', f'{LIST}#/list/filter/due__gte')],
     ),
     (

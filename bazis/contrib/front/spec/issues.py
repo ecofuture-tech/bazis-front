@@ -93,7 +93,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S011': (ERROR, 'transitions or history on a card whose entity has no workflow'),
     'S012': (WARNING, 'a screen edits or filters a relationship with a picker, and the related resource has no search fields in the contract: its picker lists the items without a search'),
     'S013': (ERROR, 'a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER`'),
-    'S014': (ERROR, 'a value of the filter of a list or a tile does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a date-time equal to a day, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number), or the highlight of a list is not by a boolean field or has no label'),
+    'S014': (ERROR, 'a value of the filter of a list or a tile does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number), or the highlight of a list is not by a boolean field or has no label'),
     'S015': (ERROR, 'the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card'),
     'S016': (ERROR, 'the map of a list is not by a point field of its entity, or a point field is a filter of a list'),
     'S017': (WARNING, 'a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items: a search by the label shown finds nothing'),

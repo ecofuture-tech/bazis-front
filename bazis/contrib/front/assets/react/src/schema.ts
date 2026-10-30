@@ -231,20 +231,22 @@ export function startValue(field: AttributeField): unknown {
 const pad = (value: number) => String(value).padStart(2, '0');
 
 /**
- * A day of the browser of the specs (`today`, `today+<n>`, `today-<n>`, `month_start`,
- * `month_end`, then ` HH:MM` for a date-time) as the value of a date (`YYYY-MM-DD`) or of a
- * date-time (ISO, UTC, the time in the time zone of the browser) at the time `now`: the values
- * that the fields of an action start with, the filters of a list or a tile by a date. Another
- * text, or a format that is neither, is the text itself.
+ * A day of the browser of the specs (`today`, `month_start`, `month_end`, each with `+<n>` or
+ * `-<n>` days from it, then ` HH:MM` for a date-time: `month_end+1` is the first day of the
+ * next month, `month_start-1` the last day of the previous one) as the value of a date
+ * (`YYYY-MM-DD`) or of a date-time (ISO, UTC, the time in the time zone of the browser) at the
+ * time `now`: the values that the fields of an action start with, the filters of a list or a
+ * tile by a date. Another text, or a format that is neither, is the text itself.
  */
 export function relativeDay(text: string, format: string | null, now: Date = new Date()): string {
-  const match = /^(today(?:([+-])(\d+))?|month_start|month_end)(?: (\d{2}):(\d{2}))?$/.exec(text);
+  const match = /^(today|month_start|month_end)(?:([+-])(\d+))?(?: (\d{2}):(\d{2}))?$/.exec(text);
   if (!match || (format !== 'date' && format !== 'date-time')) return text;
   const [, day, sign, count, hours = '0', minutes = '0'] = match;
   const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if (day === 'month_start') date.setDate(1);
   else if (day === 'month_end') date.setMonth(date.getMonth() + 1, 0);
-  else if (count) date.setDate(date.getDate() + (sign === '-' ? -1 : 1) * Number(count));
+  // after the day it counts from: `setDate` moves across the months and the years
+  if (count) date.setDate(date.getDate() + (sign === '-' ? -1 : 1) * Number(count));
   if (format === 'date') return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   date.setHours(Number(hours), Number(minutes));
   return date.toISOString();

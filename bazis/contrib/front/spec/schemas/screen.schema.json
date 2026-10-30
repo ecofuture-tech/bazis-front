@@ -476,7 +476,7 @@
       "items": {"type": "string", "pattern": "^-?[A-Za-z_][A-Za-z0-9_]*$"}
     },
     "filter": {
-      "description": "Each field (that the contract can filter by, S008) equal to its value, or compared with it by a lookup of the core: `<field>__gte`, `__gt`, `__lte`, `__lt` of a date, a date-time or a number (S014). The value of a date or a date-time is `YYYY-MM-DD` or a day of the browser, computed when the screen opens: `today`, `today+<n>`, `today-<n>`, `month_start`, `month_end` (a date-time with ` HH:MM`); a date-time is compared, never equal to a day: `{due__gte: today, due__lt: today+1}`.",
+      "description": "Each field (that the contract can filter by, S008) equal to its value, or compared with it by a lookup of the core: `<field>__gte`, `__gt`, `__lte`, `__lt` of a date, a date-time or a number (S014). The value of a date or a date-time is `YYYY-MM-DD` or a day of the browser, computed when the screen opens: `today`, `month_start`, `month_end`, each with `+<n>` or `-<n>` days (`month_end+1`: the first day of the next month), a date-time with ` HH:MM`; a day without a time is the midnight of a date-time, compared by `__gte` and `__lt` only: the day `{due__gte: today, due__lt: today+1}`, the month `{due__gte: month_start, due__lt: month_end+1}`.",
       "type": "object",
       "minProperties": 1,
       "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
@@ -521,7 +521,7 @@
       "additionalProperties": {"$ref": "#/$defs/text"}
     },
     "values": {
-      "description": "The values that the fields of a custom action start with (its dialog or its form), by their properties among its `fields` (S060): a text, a number or a boolean of the type of the property, or for a date (`format: date` or `date-time`) a day of the browser when it opens: `today`, `today+<n>`, `today-<n>`, `month_start`, `month_end`, followed by ` HH:MM` for a date-time (`today 09:00`). Over the default of the property in the body.",
+      "description": "The values that the fields of a custom action start with (its dialog or its form), by their properties among its `fields` (S060): a text, a number or a boolean of the type of the property, or for a date (`format: date` or `date-time`) a day of the browser when it opens: `today`, `month_start`, `month_end`, each with `+<n>` or `-<n>` days (`month_end+1`: the first day of the next month), followed by ` HH:MM` for a date-time (`today 09:00`). Over the default of the property in the body.",
       "type": "object",
       "minProperties": 1,
       "propertyNames": {"$ref": "#/$defs/field"},

@@ -1058,7 +1058,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
-| `S014` | error | a value of the filter of a list or a tile does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a date-time equal to a day: filter it by `__gte` and `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
+| `S014` | error | a value of the filter of a list or a tile does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
@@ -1875,19 +1875,22 @@ product, and `rowToneLabel(row)` says it in words (its `label`, `t(label)`): the
 is a field equal to its value, or a field of a date, a date-time or a number compared with
 it by a lookup of the core, `<field>__gt`, `__gte`, `__lt`, `__lte` (S014 of another field;
 the field is one that the contract filters by, S008). The value of a date or a date-time is
-`YYYY-MM-DD` (with its time for a date-time) or a day of the browser: `today`, `today+<n>`,
-`today-<n>`, `month_start`, `month_end`, with ` HH:MM` for a date-time
-(`'month_end 23:59'`), computed by `relativeDay` of `@/bazis/react` when the screen is
-shown (the filter of a list once per screen, `useMemo`). A date is equal to a day; a
-date-time is never equal to one: the date-times of a day are `<field>__gte: today` and
-`<field>__lt: today+1`, those of the month `<field>__gte: month_start` and
-`<field>__lte: 'month_end 23:59'` (S014). So a tile counts the bookings that start today
-without a calculated boolean field in the backend:
+`YYYY-MM-DD` (with its time for a date-time) or a day of the browser: `today`,
+`month_start`, `month_end`, each with `+<n>` or `-<n>` days (`month_end+1` is the first day of
+the next month, `month_start-1` the last one of the previous), with ` HH:MM` for a date-time
+(`'today 18:00'`), computed by `relativeDay` of `@/bazis/react` when the screen is shown (the
+filter of a list once per screen, `useMemo`). A date is equal to a day or compared with it by
+any lookup; a day without a time is the midnight of a date-time, compared only by `__gte` and
+`__lt` (the equality, `__lte` and `__gt` lose or add a day: S014): the date-times of a day are
+`<field>__gte: today` and `<field>__lt: today+1`, those of the month
+`<field>__gte: month_start` and `<field>__lt: month_end+1`; with its time, a day takes any
+lookup. So a tile counts the bookings that start today without a calculated boolean field in
+the backend:
 
 ```yaml
 tiles:
   - {id: today, entity: booking, filter: {date_from: today}, label: {en: Today, ru: Сегодня}}
-  - {id: month, entity: booking, filter: {date_from__gte: month_start, date_from__lte: month_end, status: closed}, label: {en: Closed this month, ru: Закрыто за месяц}}
+  - {id: month, entity: booking, filter: {date_from__gte: month_start, date_from__lt: month_end+1, status: closed}, label: {en: Closed this month, ru: Закрыто за месяц}}
 ```
 
 The day is that of the browser, in its time zone: a date-time is sent as its instant (ISO,
@@ -2294,8 +2297,8 @@ form are not submitted while a file uploads, nor twice while their request runs.
 **The values that the fields start with**, `values` of a custom action (its dialog) or of
 `form` (S060), are given when the dialog or the form opens, and again on `action:again`, over
 the `default` of the body: a value of the type of the property (one of its choices), or for a
-date a day of the browser, `today`, `today+<n>`, `today-<n>`, `month_start`, `month_end`
-(then ` HH:MM` for a date-time: `today 09:00`), or `YYYY-MM-DD`. The day is that of the
+date a day of the browser, `today`, `month_start`, `month_end`, each with `+<n>` or `-<n>`
+days (then ` HH:MM` for a date-time: `today 09:00`), or `YYYY-MM-DD`. The day is that of the
 browser, not of the server, and the helpers of the tests count their days in UTC: a scenario
 that checks the rows of a day fills its date. A scenario submits the values without `fill`:
 
@@ -4444,7 +4447,7 @@ Its props, `BazisProviderProps`:
 
 #### relativeDay
 
-`relativeDay(text: string, format: string | null, now?: Date): string`: A day of the browser of the specs (`today`, `today+<n>`, `today-<n>`, `month_start`, `month_end`, then ` HH:MM` for a date-time) as the value of a date (`YYYY-MM-DD`) or of a date-time (ISO, UTC, the time in the time zone of the browser) at the time `now`: the values that the fields of an action start with, the filters of a list or a tile by a date.
+`relativeDay(text: string, format: string | null, now?: Date): string`: A day of the browser of the specs (`today`, `month_start`, `month_end`, each with `+<n>` or `-<n>` days from it, then ` HH:MM` for a date-time: `month_end+1` is the first day of the next month, `month_start-1` the last day of the previous one) as the value of a date (`YYYY-MM-DD`) or of a date-time (ISO, UTC, the time in the time zone of the browser) at the time `now`: the values that the fields of an action start with, the filters of a list or a tile by a date.
 
 #### resourceSchema
 
