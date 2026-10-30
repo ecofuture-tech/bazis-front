@@ -29,7 +29,7 @@ export const ROUTES = {
 /** The JSON:API type of a resource. */
 export type ResourceType = keyof typeof ROUTES;
 
-/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search), the fields that its create takes and its custom actions with the JSON Schemas of their body and of their answer. */
+/** The resources: model, route set, path, actions, fields (title, type, relation, filter and order labels), the attributes that label an item (none: its id), the search fields (none: no search), the fields that its create takes and those it requires, and its custom actions with the JSON Schemas of their body, of their answer and of the meta of the file they answer. */
 export const RESOURCES = {
   "bg.task": {
     actions: {
@@ -38,11 +38,13 @@ export const RESOURCES = {
       action_retrieve: "item",
     },
     create: [],
+    create_required: [],
     custom_actions: {
       action_download: {
         access_action: null,
         body: null,
         file: true,
+        file_meta: null,
         item: true,
         method: "get",
         name: "download",
@@ -235,11 +237,13 @@ export const RESOURCES = {
       get_route_filter_fields: "schema",
     },
     create: [],
+    create_required: [],
     custom_actions: {
       action_clear: {
         access_action: null,
         body: null,
         file: false,
+        file_meta: null,
         item: false,
         method: "post",
         name: "clear",
@@ -262,6 +266,7 @@ export const RESOURCES = {
         access_action: null,
         body: null,
         file: false,
+        file_meta: null,
         item: false,
         method: "post",
         name: "read_all",
@@ -284,6 +289,7 @@ export const RESOURCES = {
         access_action: null,
         body: null,
         file: false,
+        file_meta: null,
         item: false,
         method: "get",
         name: "unread_count",
@@ -395,6 +401,10 @@ export const RESOURCES = {
       "task",
       "title",
     ],
+    create_required: [
+      "task",
+      "title",
+    ],
     custom_actions: {},
     fields: {
       dt_created: {
@@ -472,6 +482,9 @@ export const RESOURCES = {
       "title",
       "watchers",
     ],
+    create_required: [
+      "title",
+    ],
     custom_actions: {
       action_count: {
         access_action: null,
@@ -509,6 +522,7 @@ export const RESOURCES = {
           type: "object",
         },
         file: false,
+        file_meta: null,
         item: false,
         method: "post",
         name: "count",
@@ -558,6 +572,7 @@ export const RESOURCES = {
           type: "object",
         },
         file: false,
+        file_meta: null,
         item: true,
         method: "post",
         name: "escalate",
@@ -611,8 +626,20 @@ export const RESOURCES = {
               type: "string",
             },
           },
-          description: "The tasks to export: those of a priority, all without one.",
+          description: "The tasks to export: those of a priority, all without one; those created on a day or after\nit (`created_from`, in the time zone of the backend), all without one.",
           properties: {
+            created_from: {
+              anyOf: [
+                {
+                  format: "date",
+                  type: "string",
+                },
+                {
+                  type: "null",
+                },
+              ],
+              title: "Created From",
+            },
             priority: {
               anyOf: [
                 {
@@ -628,6 +655,20 @@ export const RESOURCES = {
           type: "object",
         },
         file: true,
+        file_meta: {
+          description: "The meta of the exported file, the header `X-Bazis-Meta` of its answer: the number of its tasks.",
+          properties: {
+            count: {
+              title: "Tasks",
+              type: "integer",
+            },
+          },
+          required: [
+            "count",
+          ],
+          title: "ExportMeta",
+          type: "object",
+        },
         item: false,
         method: "post",
         name: "export",
@@ -662,6 +703,7 @@ export const RESOURCES = {
           type: "object",
         },
         file: false,
+        file_meta: null,
         item: false,
         method: "post",
         name: "suggest",
@@ -815,15 +857,17 @@ export const RESOURCES = {
       get_route_filter_fields: "schema",
     },
     create: [],
+    create_required: [],
     custom_actions: {
       action_download: {
         access_action: null,
         body: null,
         file: true,
+        file_meta: null,
         item: true,
         method: "get",
         name: "download",
-        public: false,
+        public: true,
         response: null,
       },
     },
@@ -893,6 +937,9 @@ export const RESOURCES = {
       "raw_password",
       "role_current",
       "roles",
+      "username",
+    ],
+    create_required: [
       "username",
     ],
     custom_actions: {},
@@ -1095,6 +1142,15 @@ export const TRANSITS = {
           required: true,
           schema: {
             properties: {
+              photos: {
+                default: [],
+                items: {
+                  type: "string",
+                  "x-relation": "uploadable.file_upload",
+                },
+                title: "Photos",
+                type: "array",
+              },
               report: {
                 title: "Report",
                 type: "string",
@@ -1156,7 +1212,7 @@ export interface Capabilities {
   readonly notify: { readonly resource: string | null } | null;
   readonly permit: { readonly roles: typeof ROLES; readonly selectors: { readonly [resource: string]: { readonly [selector: string]: string } } } | null;
   readonly statusy: { readonly models: typeof TRANSITS } | null;
-  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[]; readonly anonymous: boolean; readonly anonymous_types: readonly string[] } | null;
+  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[]; readonly anonymous: boolean; readonly anonymous_types: readonly string[]; readonly anonymous_files: boolean } | null;
   readonly users: { readonly token_url: string; readonly user_resource: string; readonly profile_language: boolean } | null;
   readonly ws: { readonly path: string | null } | null;
 }
@@ -1202,6 +1258,7 @@ export const CAPABILITIES: Capabilities = {
   },
   uploadable: {
     anonymous: true,
+    anonymous_files: true,
     anonymous_types: [
       "image/jpeg",
       "image/png",

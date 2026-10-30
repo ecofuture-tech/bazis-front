@@ -25,7 +25,7 @@ import { useState, type ComponentType, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
 import { useRefreshItem, type ItemPath, type ListPath } from '@/bazis/react';
-import type { SavedDocument } from '@/bazis/ui/resource';
+import type { FieldFilters, SavedDocument } from '@/bazis/ui/resource';
 import { FormSurface, ResourceFormBody } from '@/bazis/ui/resource-form';
 import { ResourceList, type ResourceListProps } from '@/bazis/ui/resource-list';
 
@@ -38,6 +38,8 @@ export interface RelatedAdd {
   label: ReactNode;
   /** The fields of the form (the relationship to the item is fixed and left out). */
   fields?: readonly string[];
+  /** The items that the pickers of its relationships offer, by field (`filter` of the fields of the entity of the specs). */
+  filters?: FieldFilters;
   /** The title of the form; the label by default. */
   title?: ReactNode;
   icon?: ComponentType<{ className?: string }>;
@@ -119,6 +121,7 @@ export function RelatedList({ path, entity, relation, item, itemPath, title, add
           <ResourceFormBody
             path={path}
             {...(add.fields === undefined ? {} : { fields: add.fields })}
+            filters={add.filters}
             fixed={{ [relation]: item }}
             onSaved={(saved) => {
               close();

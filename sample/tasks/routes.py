@@ -14,6 +14,7 @@
 
 import csv
 import io
+import json
 from datetime import date
 
 from django.apps import apps
@@ -101,6 +102,17 @@ class CsvResponse(Response):
     media_type = 'text/csv'
 
 
+class ExportMeta(BaseModel):
+    """The meta of the exported file, the header `X-Bazis-Meta` of its answer: the number of its tasks."""
+
+    count: int = Field(title=_('Tasks'))
+
+
+#: the header of the meta of a file (`FILE_META_HEADER` of bazis 2.25), declared in the answer
+#: of the action as the guide of bazis-front says without the core 2.25 (`file_meta=`)
+FILE_META = 'X-Bazis-Meta'
+
+
 class TaskRouteSet(StatusyRouteSetBase):
     """
     The tasks. The files are routed by bazis-uploadable itself
@@ -132,14 +144,19 @@ class TaskRouteSet(StatusyRouteSetBase):
         task = CountTasks.delay(priority=data.priority, author=self.inject.user)
         return CountStarted(task=str(task.pk))
 
-    @http_post('/export/', kind=RouteKind.OTHER, response_class=CsvResponse, access_action=CrudAccessAction.VIEW)
+    @http_post(
+        '/export/', kind=RouteKind.OTHER, response_class=CsvResponse, access_action=CrudAccessAction.VIEW,
+        responses={200: {'headers': {FILE_META: {'schema': ExportMeta.model_json_schema()}}}},
+    )
     def action_export(self, data: ExportRequest, **kwargs):
         """
         A custom action that answers a file (`custom_actions[].file` of the contract): the
         tasks that the user views, of a priority or all, created from a day or all, as CSV
         named `tasks.csv` (`Content-Disposition`), which the form of the specs (`export-tasks`)
-        saves. It requires the view of the tasks (`access_action`: 403 for a role without it)
-        and exports the rows that bazis-permit lets the user view.
+        saves, with the number of the tasks in the meta of the file (`X-Bazis-Meta`,
+        `custom_actions[].file_meta`), which its result shows. It requires the view of the
+        tasks (`access_action`: 403 for a role without it) and exports the rows that
+        bazis-permit lets the user view.
         """
         tasks = self.restrict_queryset(Task.objects.order_by('dt_created'), CrudAccessAction.VIEW)
         if data.priority is not None:
@@ -149,9 +166,15 @@ class TaskRouteSet(StatusyRouteSetBase):
         content = io.StringIO()
         writer = csv.writer(content)
         writer.writerow(['title', 'status', 'priority'])
-        writer.writerows(tasks.values_list('title', 'status', 'priority'))
+        rows = list(tasks.values_list('title', 'status', 'priority'))
+        writer.writerows(rows)
+        meta = ExportMeta(count=len(rows))
         return CsvResponse(
-            content.getvalue(), headers={'Content-Disposition': content_disposition_header(True, 'tasks.csv')}
+            content.getvalue(),
+            headers={
+                'Content-Disposition': content_disposition_header(True, 'tasks.csv'),
+                FILE_META: json.dumps(meta.model_dump(mode='json'), separators=(',', ':')),
+            },
         )
 
     @http_post('/suggest/', response_model=Suggested, kind=RouteKind.OTHER, public=True)

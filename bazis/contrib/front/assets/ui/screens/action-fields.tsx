@@ -18,31 +18,11 @@
 // related items (`relatedField`), one of the ids of the uploaded files (`x-relation`) a file
 // field; another is the attribute of the body (a decimal typed as such).
 
-import { objectFields, startValue, type JsonSchema } from '@/bazis/react';
+import { objectFields, relativeDay, startValue, type JsonSchema } from '@/bazis/react';
 import { FieldInput, relatedField, type FieldFilters, type Fields } from '@/bazis/ui/resource';
 
 /** The values of the specs that the fields of an action start with (`values`), by property. */
 export type StartValues = Readonly<Record<string, string | number | boolean>>;
-
-const pad = (value: number) => String(value).padStart(2, '0');
-
-/**
- * A day of the browser of `values` (`today`, `today+<n>`, `today-<n>`, `month_start`,
- * `month_end`, then ` HH:MM`) as the value of a field of a date (`YYYY-MM-DD`) or of a
- * date-time (ISO, UTC) at the time `now`; null for another text or field.
- */
-function dayOf(text: string, format: string | null, now: Date): string | null {
-  const match = /^(today(?:([+-])(\d+))?|month_start|month_end)(?: (\d{2}):(\d{2}))?$/.exec(text);
-  if (!match || (format !== 'date' && format !== 'date-time')) return null;
-  const [, day, sign, count, hours = '0', minutes = '0'] = match;
-  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (day === 'month_start') date.setDate(1);
-  else if (day === 'month_end') date.setMonth(date.getMonth() + 1, 0);
-  else if (count) date.setDate(date.getDate() + (sign === '-' ? -1 : 1) * Number(count));
-  if (format === 'date') return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  date.setHours(Number(hours), Number(minutes));
-  return date.toISOString();
-}
 
 /**
  * The values that the fields start with when the form or the dialog opens: those of the
@@ -60,7 +40,7 @@ export function bodyDefaults(
     if (!names.includes(field.name)) continue;
     const given = start[field.name];
     const value =
-      given === undefined ? startValue(field) : typeof given === 'string' ? (dayOf(given, field.format, now) ?? given) : given;
+      given === undefined ? startValue(field) : typeof given === 'string' ? relativeDay(given, field.format, now) : given;
     if (value !== undefined) values[field.name] = value;
   }
   return values;

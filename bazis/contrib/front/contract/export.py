@@ -43,8 +43,12 @@ from .resources import resources
 #: a custom action, `custom_actions[].response`; 10: `token_param` of the section `authing`
 #: removed (bazis-authing 2.8 puts the store token in no URL); 11: whether a custom action
 #: answers a file, `custom_actions[].file`, and whether guests upload files,
-#: `anonymous` and `anonymous_types` of the section `uploadable`
-CONTRACT_FORMAT = 11
+#: `anonymous` and `anonymous_types` of the section `uploadable`; 12: the JSON Schema of the
+#: meta of a file that a custom action answers (the header `X-Bazis-Meta`),
+#: `custom_actions[].file_meta`, whether guests read some files, `anonymous_files` of the
+#: section `uploadable`, and the fields that the create route of a resource requires,
+#: `create_required`
+CONTRACT_FORMAT = 12
 
 #: the directory of the contract in the product root
 CONTRACT_DIR = 'contract'

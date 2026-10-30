@@ -179,9 +179,15 @@ job of CI.
   anonymous users, which S046 reads; 8: the format `decimal` of the attributes of a
   `DecimalField`, read from the model, which S049 reads; 9: `places` of those attributes,
   the `decimal_places` of the model, with which `StatCard` rounds an average, and `response`
-  of the custom actions, the standalone JSON Schema of their JSON answer 200, which S053
+  of the custom actions, the standalone JSON Schema of their JSON answer (that of their first 2xx status, `resources.success`), which S053
   reads; 10: `token_param` of the section `authing` removed, the store token of
-  bazis-authing 2.8 being in no URL).
+  bazis-authing 2.8 being in no URL; 11: `file` of the custom actions, an answer that is a
+  file, and `anonymous`/`anonymous_types` of the section `uploadable`; 12: `file_meta` of
+  the custom actions, the standalone JSON Schema of the header `X-Bazis-Meta` of the file
+  they answer (case-insensitive in `responses`), which S053 reads, `anonymous_files` of the
+  section `uploadable` (`anonymous_files()` of bazis-uploadable 2.9, false before), which
+  S062 reads, and `create_required` of the resources, the `required` of the request of the
+  create route, which S063 reads).
 - `capabilities/__init__.py` lists the capabilities with their distribution and app; a
   module `capabilities/<name>.py` returns its section (`section()`) and is imported only
   when the package is installed and its app is in `INSTALLED_APPS` (`app=False`: the
@@ -227,9 +233,11 @@ job of CI.
   the home `screens/home.yaml`, a dashboard without tiles, which S026 leaves alone until
   `product.yaml` declares entities and `init` generates, and the design of the preset). The
   `packages` enum of the product schema is `capabilities.CAPABILITIES` (tested).
-- `spec/validate.py` loads the files (YAML with the implicit types of YAML 1.2: no
-  timestamps, only true/false booleans; JSON), checks their
-  shape, then calls `refs.py` (the references, the comparison with contract.json),
+- `spec/lint.py` loads a file (YAML with the implicit types of YAML 1.2: no timestamps,
+  only true/false booleans; JSON) and checks its shape against its JSON Schema with the
+  hints of the shape errors; it imports neither Django nor the core (a test imports it in a
+  fresh interpreter), and `python -m bazis.contrib.front.spec.lint <file>` runs it alone.
+  `spec/validate.py` loads every file with it, then calls `refs.py` (the references, the comparison with contract.json),
   `scenarios.py` (the scenarios followed screen by screen), `access.py` (`access` compiled to the permissions
   of bazis-permit; the grammar is in its docstring, from bazis-permit and bazis-statusy)
   and `design.py` (the tokens of the presets and their defaults, the layers of the tokens:

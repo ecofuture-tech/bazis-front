@@ -25,6 +25,7 @@ gives every geometry as the same GeoJSON object.
 
 import os
 import pydoc
+import re
 
 from django.apps import apps
 from django.contrib.gis.db.models import PointField
@@ -52,8 +53,8 @@ LABEL_FIELDS = (
 
 def resources(openapi: dict) -> dict:
     """
-    `{type: {model, route_set, path, actions, fields, label, search, create, custom_actions[,
-    other_routes]}}`. A resource is described by the route set the core uses as the default
+    `{type: {model, route_set, path, actions, fields, label, search, create, create_required,
+    custom_actions[, other_routes]}}`. A resource is described by the route set the core uses as the default
     route of its model (the last one declared); other route sets of the same model are listed
     in `other_routes`.
     """
@@ -73,6 +74,7 @@ def resources(openapi: dict) -> dict:
         main_cls = default_cls if main['route_set'] == default else pydoc.locate(main['route_set'])
         scope = _scope(main_cls)
         fields = _fields(openapi, main['operations'], scope, models.get(resource))
+        create_parts = _create_parts(openapi, main['operations'])
         entry = {
             'model': models.get(resource),
             'route_set': main['route_set'],
@@ -84,7 +86,8 @@ def resources(openapi: dict) -> dict:
             # reports the others), else the text fields of the schema (bazis 2.20): those
             # the core searches; none, a `search` is 400
             'search': route_search_fields(main_cls) if scope is not None else [],
-            'create': _create_fields(openapi, main['operations']),
+            'create': sorted(name for part in create_parts for name in part.get('properties', {})),
+            'create_required': sorted(name for part in create_parts for name in part.get('required', [])),
             'custom_actions': _custom_actions(openapi, main['path'], main['operations']),
         }
         if others:
@@ -272,11 +275,12 @@ def _response_resource(openapi: dict, operation: dict) -> dict | None:
     return None
 
 
-def _create_fields(openapi: dict, operations: list[dict]) -> list[str]:
+def _create_parts(openapi: dict, operations: list[dict]) -> list[dict]:
     """
-    The fields that the create route of the resource takes, the attributes and the
-    relationships of the item of its request: those the backend sets itself (a date of
-    creation, `auto_now_add`) are not among them; none without a create route.
+    The schemas of the attributes and of the relationships of the item of the request of the
+    create route of the resource, none without one: their properties are the fields that it
+    takes (`create`; those the backend sets itself, a date of creation, `auto_now_add`, are not
+    among them), their `required` those that it requires, without a default (`create_required`).
     """
     operation = next((op for op in operations if op['x-bazis']['kind'] == 'create'), None)
     if operation is None:
@@ -285,10 +289,7 @@ def _create_fields(openapi: dict, operations: list[dict]) -> list[str]:
     content = next(iter(operation.get('requestBody', {}).get('content', {}).values()), {})
     document = _resolve(openapi, content.get('schema', {}))
     props = _not_null(openapi, document.get('properties', {}).get('data', {})).get('properties', {})
-    return sorted(
-        name for part in ('attributes', 'relationships')
-        for name in _resolve(openapi, props.get(part, {})).get('properties', {})
-    )
+    return [_resolve(openapi, props.get(part, {})) for part in ('attributes', 'relationships')]
 
 
 #: the prefix of the path of a route of an item, relative to the path of the collection
@@ -300,6 +301,10 @@ ITEM_PREFIX = '{item_id}/'
 #: the transits of an item (`/{item_id}/status_history/`, bazis-statusy 2.15), which no
 #: button of the specs runs
 NOT_CUSTOM = frozenset({'action_list_id', 'action_transit', 'action_status_history'})
+
+#: the header of the answer of a custom action that answers a file with the JSON of its meta
+#: (`FILE_META_HEADER` of bazis 2.25), in lower case: the names of headers are not
+FILE_META_HEADER = 'x-bazis-meta'
 
 
 def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> dict:
@@ -313,11 +318,14 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
     without one); `public`, whether anonymous users may call it (`public=True`, S046);
     `body`, the JSON Schema of its JSON body, standalone (the components it references in its
     `$defs`), null without one: what the buttons of the specs need (S032); `response`, the
-    JSON Schema of its JSON answer (200) as standalone, null without one: the properties that
-    the result of a form of the specs may show (S053); `file`, whether its answer (200) is a
-    file, content of another type than JSON (`is_json`; a `response_class` with a
+    JSON Schema of its JSON answer (`success`: that of its status, 200 or another 2xx) as
+    standalone, null without one: the properties that the result of a form of the specs may
+    show (S053); `file`, whether that answer is a file, content of another type than JSON (`is_json`; a `response_class` with a
     `media_type`, such as `text/csv`, also `text/html`): a form of the specs saves it, its
-    result shows `{filename}` (S053).
+    result shows `{filename}` (S053); `file_meta`, the JSON Schema of the meta of that file,
+    the header `X-Bazis-Meta` of its answer (`file_meta` of the decorators of bazis 2.25, or
+    declared in `responses`) as standalone, null without one: the properties that the result
+    shows next to `{filename}` (S053).
     """
     result = {}
     for path, item in openapi.get('paths', {}).items():
@@ -330,8 +338,12 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 continue
             relative = path.removeprefix(collection)
             body = _json_schema(operation.get('requestBody', {}))
-            answer = operation.get('responses', {}).get('200', {})
+            answer = success(operation)
             response = _json_schema(answer)
+            file_meta = next(
+                (it.get('schema') for name, it in answer.get('headers', {}).items() if name.lower() == FILE_META_HEADER),
+                None,
+            )
             result[meta['action']] = {
                 'name': relative.removeprefix(ITEM_PREFIX).rstrip('/'),
                 'item': relative.startswith(ITEM_PREFIX),
@@ -341,8 +353,19 @@ def _custom_actions(openapi: dict, collection: str, operations: list[dict]) -> d
                 'body': _standalone(openapi, body) if body is not None else None,
                 'response': _standalone(openapi, response) if response is not None else None,
                 'file': bool(answer.get('content')) and not any(map(is_json, answer['content'])),
+                'file_meta': _standalone(openapi, file_meta) if file_meta is not None else None,
             }
     return result
+
+
+def success(operation: dict) -> dict:
+    """
+    The answer of an operation of the OpenAPI that a client reads: that of its first 2xx status
+    (the `status_code` of the route, 200 by default, which `file_meta` of bazis 2.25 declares
+    too), `{}` without one.
+    """
+    codes = sorted(it for it in operation.get('responses', {}) if re.fullmatch(r'2\d\d', str(it)))
+    return operation['responses'][codes[0]] if codes else {}
 
 
 def is_json(media_type: str) -> bool:

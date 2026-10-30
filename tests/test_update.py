@@ -33,7 +33,7 @@ import pytest
 
 from bazis.contrib.front import __version__, checks
 from bazis.contrib.front.spec import screens, validate
-from bazis.contrib.front.spec.validate import schema_files
+from bazis.contrib.front.spec.lint import schema_files
 from bazis.contrib.front.vendor import registry
 from bazis.contrib.front.vendor import update as vendor_update
 from bazis.contrib.front.vendor.copy import base_dir, copied, lock_entry, restamp

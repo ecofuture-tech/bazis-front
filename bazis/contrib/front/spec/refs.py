@@ -74,6 +74,7 @@ DISPLAY_TYPES = {
     'unit': ('integer', 'number', 'string'),
     'bar': ('integer', 'number'),
     'phone': ('string',),
+    'image': ('file',),
 }
 
 
@@ -398,7 +399,7 @@ def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> No
     """
     The `display` of a field fits its type: a number is `plain`, a `bar` (of an integer or
     a number), a sum in a `currency` or a quantity in a `unit` (also of a DecimalField, a
-    `string`); a `phone` is a string; a relationship has none.
+    `string`); a `phone` is a string; an `image` is a file; a relationship has none.
     """
     display = item['display']
     kind = display if isinstance(display, str) else next(iter(display))
@@ -643,6 +644,9 @@ def _check_field(
         related = actual.get('relation')
         related = related if isinstance(related, list) else [related]
         if target.data['resource'] in related and actual.get('many') == item.get('many', False):
+            # the filter of its picker in every form (S061)
+            if 'filter' in item:
+                _check_picker_filter(doc, (*path, 'filter'), item['filter'], target.data['resource'], contract, issues)
             return
         expected = {'relation': target.data['resource'], 'many': item.get('many', False)}
     elif item['type'] == 'file':
@@ -1106,6 +1110,9 @@ def _check_screen(
     if public:
         _check_public_writes(doc, issues)
     _check_layers(doc, public, product, screens, issues)
+    if contract is not None:
+        _check_create_booleans(doc, product, contract, issues)
+        _check_public_files(doc, public, product, contract, issues)
     if primitive == 'dashboard':
         _check_dashboard(doc, product, screens, contract, issues)
         return
@@ -1203,6 +1210,94 @@ def _check_layers(doc: Document, public: bool, product: Product, screens: dict, 
             doc, ('roles',), 'S045',
             f'The public card links back to `{back["id"]}`, the list that opens it, which is not public.',
             'Open the card from a public list too, or list an anonymous role in `roles` of the list.',
+        )
+
+
+def create_forms(data: dict) -> list[tuple[tuple, dict, str]]:
+    """
+    The create forms of a screen with their paths and the ids of their entities: its create
+    actions (on a dashboard, each of its own entity), the add of a calendar, a create form
+    screen, and "add here" of a related section.
+    """
+    forms = [
+        (path, it, it.get('entity', data.get('entity')))
+        for path, it in screen_actions(data) if it['primitive'] == 'form' and it.get('mode') == 'create'
+    ]
+    if data['primitive'] == 'calendar' and 'add' in data['calendar']:
+        forms.append((('calendar', 'add'), data['calendar']['add'], data['entity']))
+    if data['primitive'] == 'form' and action_form(data) is None and data['form'].get('mode') == 'create':
+        forms.append((('form',), data['form'], data['entity']))
+    forms += [(('card', 'related', i, 'add'), it['add'], it['entity']) for i, it in enumerate(related_sections(data)) if 'add' in it]
+    return forms
+
+
+def _check_create_booleans(doc: Document, product: Product, contract: dict, issues: Issues) -> None:
+    """
+    A create form that lists its `fields` shows every boolean that the create route requires
+    (`create_required` of the contract: a boolean without a default), S063: a create form sends
+    false for each boolean of the schema without a default (0.10.2), also for one that it does
+    not show, and the user never chooses it.
+    """
+    resources = contract['project']['resources']
+    for path, form, entity_id in create_forms(doc.data):
+        entity = product.entities.get(entity_id)
+        resource = resources.get(entity.data['resource']) if entity else None
+        if resource is None or 'fields' not in form:
+            continue
+        for name in resource['create_required']:
+            if resource['fields'].get(name, {}).get('type') == 'boolean' and name not in form['fields']:
+                issues.add(
+                    doc, (*path, 'fields'), 'S063',
+                    f'The form creates `{entity.data["resource"]}` without the boolean `{name}`, which the create '
+                    'requires (it has no default): the form sends `false` for it, and the user never chooses it.',
+                    f'Add `{name}` to `fields`, or give the field a default in the model and {EXPORT_HINT}.',
+                )
+
+
+def _shown_fields(data: dict):
+    """
+    The fields whose values a screen shows, with their paths and the ids of their entities:
+    the columns of a list, of the last items of a dashboard and of a related section, the
+    sections of a card, the card of a board, the label of a calendar.
+    """
+    primitive = data['primitive']
+    shown = {
+        'list': (('columns',),), 'card': (('sections', '*', 'fields'),),
+        'board': (('card', 'title'), ('card', 'fields')), 'calendar': (('label',),),
+    }
+    for keys in shown.get(primitive, ()):
+        for path, name in _references(data[primitive], (primitive,), keys):
+            yield path, data['entity'], name
+    parts = [(('dashboard', 'recent', i), it) for i, it in enumerate(data['dashboard'].get('recent', []))] if (
+        primitive == 'dashboard'
+    ) else []
+    parts += [(('card', 'related', i), it) for i, it in enumerate(related_sections(data))]
+    for path, part in parts:
+        for i, name in enumerate(part['columns']):
+            yield (*path, 'columns', i), part['entity'], name
+
+
+def _check_public_files(doc: Document, public: bool, product: Product, contract: dict, issues: Issues) -> None:
+    """
+    A public screen (`public`) shows a file (S062) only when the guests read some files
+    (`anonymous_files` of the section `uploadable`, bazis-uploadable 2.9): else the guest sees
+    `file:unavailable`. Which files are public the contract does not tell: the check is of
+    whether any is.
+    """
+    uploadable = contract['capabilities'].get('uploadable')
+    if not public or not uploadable or uploadable['anonymous_files']:
+        return
+    for path, entity_id, name in _shown_fields(doc.data):
+        entity = product.entities.get(entity_id)
+        if entity is None or entity.fields.get(name, {}).get('type') != 'file':
+            continue
+        issues.add(
+            doc, path, 'S062',
+            f'The public screen shows the file `{name}` of `{entity_id}`, and the guests read no file in the contract '
+            '(`anonymous_files` of the section `uploadable`): the guest sees `file:unavailable`.',
+            f'The route set of `{entity.data["resource"]}` must serve guests and declare `files_visible = '
+            f"('{name}',)` (bazis-uploadable 2.9: a guest reads the files of the objects that it shows him), then "
+            f'{EXPORT_HINT}; never link the `/media` URL of the file.',
         )
 
 
@@ -1659,14 +1754,19 @@ def answer(action: dict) -> dict[str, bool]:
     The properties of the answer of a custom action that the result of its form shows (S053),
     each with whether a scenario remembers it (a text or a number, which a step types or
     finds; not a boolean, an object or a list): those of its JSON answer in the contract, or
-    `filename` of an action that answers a file, the name the form saves it under.
+    of an action that answers a file `filename`, the name the form saves it under, and the
+    properties of the meta of the file (`file_meta`, the header `X-Bazis-Meta`).
     """
     if action['file']:
-        return {'filename': True}
-    response = action['response'] or {}
+        return {'filename': True, **_properties(action['file_meta'] or {})}
+    return _properties(action['response'] or {})
+
+
+def _properties(schema: dict) -> dict[str, bool]:
+    """The properties of the JSON Schema of an object, each with whether it is a text or a number (`answer`)."""
     return {
-        name: (kind := local_type(schema, response)).get('type') in ('string', 'number', 'integer') or is_decimal(kind)
-        for name, schema in response.get('properties', {}).items()
+        name: (kind := local_type(prop, schema)).get('type') in ('string', 'number', 'integer') or is_decimal(kind)
+        for name, prop in schema.get('properties', {}).items()
     }
 
 
@@ -1697,8 +1797,15 @@ def _check_result(doc: Document, name: str, result: dict, action: dict, issues: 
             continue
         named = ', '.join(f'`{{{it}}}`' for it in unknown)
         if action['file']:
-            problem = f'The {part} of the result shows {named}, and the custom action `{name}` answers a file.'
-            hint = f'A file answers `{{filename}}` only, the name it is saved under: remove the others from the {part}.'
+            problem = (
+                f'The {part} of the result shows {named}, and the custom action `{name}` answers a file '
+                + ('whose meta has no such property.' if action['file_meta'] else 'without a meta.')
+            )
+            hint = (
+                f'A file answers `{{filename}}`, the name it is saved under, and the properties of its meta: declare the '
+                'meta of the file (`file_meta` of `http_post`, bazis 2.25; or the header `X-Bazis-Meta` in `responses`) '
+                f'and {EXPORT_HINT}; or remove the others from the {part}.'
+            )
         elif response is None:
             problem = f'The {part} of the result shows {named}, and the custom action `{name}` answers no JSON in the contract.'
             hint = (
@@ -2142,7 +2249,7 @@ def _references(value, path: tuple, keys: tuple):
             yield (*path, i), name.removeprefix('-')
     else:
         for name in value:
-            yield (*path, name), name
+            yield (*path, name), filter_field(name)[0]
 
 
 def _screen_fields(data: dict):
@@ -2328,7 +2435,7 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
     the highlight of a list (S014).
     """
     checks = [((*path, 'filters', i), name, 'filter') for i, name in enumerate(section.get('filters', []))]
-    checks += [((*path, 'filter', name), name, 'filter') for name in section.get('filter', {})]
+    checks += [((*path, 'filter', key), filter_field(key)[0], 'filter') for key in section.get('filter', {})]
     checks += [((*path, key), section[key], 'filter') for key in LISTED_BY if key in section]
     checks += [((*path, 'sort', i), name.removeprefix('-'), 'order') for i, name in enumerate(section.get('sort', []))]
     for field_path, name, label in checks:
@@ -2352,15 +2459,16 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
                 f'Keep `{name}` once, ascending or `-{name}` descending (the user sorts a list by '
                 'the headers of its columns himself).',
             )
-    for name, value in section.get('filter', {}).items():
+    for key, value in section.get('filter', {}).items():
+        name, lookup = filter_field(key)
         actual = resource['fields'].get(name)
-        if actual is not None and not filter_value_fits(value, actual):
+        problem = _filter_value_problem(value, lookup, actual) if actual is not None else None
+        if problem is not None:
             issues.add(
-                doc, (*path, 'filter', name), 'S014',
-                f'The value {value!r} does not fit the field `{name}` of '
-                f'`{entity.data["resource"]}` ({_describe(actual)} in the contract).',
-                'Give the filter a value of the type of the field: a boolean, a number, a '
-                'text, the id of a related item.',
+                doc, (*path, 'filter', key), 'S014',
+                f'The value {value!r} of `{key}` does not fit the field `{name}` of `{entity.data["resource"]}` '
+                f'({_describe(actual)} in the contract): {problem[0]}',
+                problem[1],
             )
     highlight = section.get('highlight')
     actual = resource['fields'].get(highlight['field']) if highlight else None
@@ -2372,6 +2480,62 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
             'Highlight by a boolean field of the resource (a calculated field of the route set '
             'of the backend, such as `is_overdue`).',
         )
+
+
+#: the lookups of a key of the filter of a list or a tile (`date_from__gte`): those of the core
+#: that compare a date, a date-time or a number
+LOOKUPS = ('gt', 'gte', 'lt', 'lte')
+
+
+def filter_field(key: str) -> tuple[str, str | None]:
+    """The field and the lookup of a key of the filter of a list or a tile: `date_from__gte` is `date_from`, `gte`."""
+    name, _, lookup = key.rpartition('__')
+    return (name, lookup) if name and lookup in LOOKUPS else (key, None)
+
+
+def _filter_value_problem(value, lookup: str | None, field: dict) -> tuple[str, str] | None:
+    """
+    What is wrong with a value of the filter of a list or a tile, compared by the lookup with a
+    field of the contract (S014), and its hint; None when it fits. A date or a date-time is a
+    day of the browser (`RELATIVE_DAY`, with a time for a date-time) or a date as it is; equal
+    to a day only a date (a date-time is in a day between `__gte` of it and `__lt` of the next);
+    a lookup compares a date, a date-time or a number.
+    """
+    fmt = 'decimal' if field.get('format') == DECIMAL else field.get('format')
+    dates = fmt in ('date', 'date-time')
+    numeric = field.get('type') in NUMBERS or fmt == 'decimal'
+    day = RELATIVE_DAY.fullmatch(value) if isinstance(value, str) else None
+    any_value = (
+        'Give the filter a value of the type of the field: a boolean, a number, a text, the id of a related item; '
+        'a date or a date-time a day of the browser (`today`, `today+<n>`, `today-<n>`, `month_start`, `month_end`) '
+        'or `YYYY-MM-DD`.'
+    )
+    if lookup is not None and 'relation' not in field and not (dates or numeric):
+        return (
+            f'`__{lookup}` compares a date, a date-time or a number.',
+            'Filter by the field equal to a value (`{field: value}`), or compare a date, a date-time or a number.',
+        )
+    if lookup is not None and 'relation' in field:
+        return (
+            f'`__{lookup}` compares a date, a date-time or a number, not a relationship.',
+            'Filter by the relationship equal to the id of a related item.',
+        )
+    if not dates:
+        if day is not None:
+            return 'a day of the browser is the value of a date or a date-time.', any_value
+        return None if filter_value_fits(value, field) else ('it is not of its type.', any_value)
+    if day is not None and fmt == 'date' and day[2]:
+        return 'a date has no time.', 'Give the day without ` HH:MM`.'
+    if day is not None and fmt == 'date-time' and lookup is None:
+        return (
+            'a date-time is never equal to a day.',
+            'Filter the date-times of a day by two keys, `<field>__gte: today` and `<field>__lt: today+1` (the '
+            'days of the browser at 00:00), and those of the month by `<field>__gte: month_start` and '
+            "`<field>__lte: 'month_end 23:59'`.",
+        )
+    if day is not None or isinstance(value, str) and ISO_DATE.match(value) and (fmt == 'date-time' or ISO_DATE.fullmatch(value)):
+        return None
+    return f'it is not a day of the browser or `YYYY-MM-DD`{"" if fmt == "date" else " (with its time)"}.', any_value
 
 
 #: the action of the core that gives the fields that a user may filter a list by

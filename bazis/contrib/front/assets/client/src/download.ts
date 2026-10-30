@@ -16,11 +16,32 @@
 // `<tasks>/{id}/download/`): read with the token of the session, not from the URL of the
 // media host, which serves a file to anyone who has its link.
 
-/** A file read from a download route: its content and the name the backend gives it. */
+/** A file read from a download route: its content, the name the backend gives it and its meta. */
 export interface DownloadedFile {
   blob: Blob;
   /** The file name of `Content-Disposition`; null without one. */
   name: string | null;
+  /**
+   * What the backend answers next to the file (the number of rows of an export): the JSON
+   * object of the header `X-Bazis-Meta` (`file_meta` of bazis 2.25); null without it.
+   */
+  meta: Readonly<Record<string, unknown>> | null;
+}
+
+/**
+ * The meta of a file, the JSON object of the header `X-Bazis-Meta`: null without it, and null
+ * with a warning when it is not a JSON object (the file is saved all the same).
+ */
+export function fileMeta(header: string | null): Readonly<Record<string, unknown>> | null {
+  if (header === null) return null;
+  try {
+    const meta: unknown = JSON.parse(header);
+    if (typeof meta === 'object' && meta !== null && !Array.isArray(meta)) return meta as Record<string, unknown>;
+  } catch {
+    // not JSON: warned below
+  }
+  console.warn(`The header X-Bazis-Meta of the file is not a JSON object: ${header}`);
+  return null;
 }
 
 /**
@@ -46,7 +67,7 @@ export function dispositionName(header: string | null): string | null {
 const REVOKE_AFTER = 40_000;
 
 /** Saves a downloaded file in the browser under its name (`fallback` without one). */
-export function saveFile({ blob, name }: DownloadedFile, fallback = 'download'): void {
+export function saveFile({ blob, name }: Pick<DownloadedFile, 'blob' | 'name'>, fallback = 'download'): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

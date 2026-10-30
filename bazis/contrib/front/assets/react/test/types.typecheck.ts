@@ -136,7 +136,9 @@ export function useTypedActions(): void {
   csv.mutate({ priority: 'low' });
   // @ts-expect-error a body of another shape
   csv.mutate({ priority: 'urgent' });
-  const name: string | undefined = csv.data;
+  const name: string | undefined = csv.data?.name;
+  const meta: Readonly<Record<string, unknown>> | null | undefined = csv.data?.meta;
+  seen.push(meta);
   // @ts-expect-error summary is an action of an item, read with GET
   seen.push(name, useActionFile(PARENT, 'summary'));
   const summary = useItemAction(PARENT, 'summary', { method: 'get' });

@@ -1006,6 +1006,29 @@ describe('ActionForm', () => {
     saved.mockRestore();
   });
 
+  it('shows the texts and the numbers of the meta of the file next to its name', async () => {
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:report'), revokeObjectURL: vi.fn() });
+    const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    // a flag and a list of the meta are not parameters of a text; its `filename` is not the name of the file
+    const meta = JSON.stringify({ count: 12, total: '4.50', partial: false, tags: ['a'], filename: 'other.csv' });
+    const backend = new Backend().file(`${ITEMS}report/`, 'year', 'attachment; filename="report.csv"', 'POST', { 'X-Bazis-Meta': meta });
+    renderWithBazis(
+      <ActionForm
+        path={ITEMS}
+        action="report"
+        fields={['year']}
+        result={{ message: (response) => `${String(response.filename)}: ${String(response.count)}, ${String(response.total)}` }}
+      />,
+      backend,
+    );
+    fireEvent.click(screen.getByTestId('action:submit'));
+    expect((await screen.findByTestId('state:done')).textContent).toContain('report.csv: 12, 4.50');
+    expect(screen.getByTestId('answer:count').dataset.value).toBe('12');
+    expect(screen.queryByTestId('answer:partial')).toBeNull();
+    expect(screen.queryByTestId('answer:tags')).toBeNull();
+    saved.mockRestore();
+  });
+
   it('starts with the values of the specs, the days of the browser computed when it opens and again', async () => {
     // only the date is fake: the queries and the waits keep their timers
     vi.useFakeTimers({ toFake: ['Date'] });

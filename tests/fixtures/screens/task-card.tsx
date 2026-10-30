@@ -3,6 +3,7 @@
 
 import { useNavigate, useParams } from 'react-router';
 
+import { Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
@@ -52,7 +53,17 @@ export function TaskCardScreen() {
         sections={[
           {
             id: 'main',
-            fields: ['title', 'status', 'assignee', 'watchers', 'attachment', 'priority', 'location', 'hours'],
+            fields: [
+              'title',
+              'status',
+              'assignee',
+              'watchers',
+              'attachment',
+              'photos',
+              'priority',
+              'location',
+              'hours',
+            ],
           },
           {
             id: 'report',
@@ -63,6 +74,7 @@ export function TaskCardScreen() {
         ]}
         display={TASK.display}
         edit
+        filters={{ assignee: Filter.where('is_active', true) }}
         badge={(item) => <StatusBadge resource={item} />}
         tabs={[
           { id: 'details', title: t('screens.task-card.card.tabs.details.title'), sections: ['main', 'report'] },

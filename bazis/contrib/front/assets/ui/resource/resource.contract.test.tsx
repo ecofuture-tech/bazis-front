@@ -362,6 +362,63 @@ describe('file fields', () => {
     expect(screen.getByTestId('field:none').textContent).toBe('—');
   });
 
+  it('shows a file as its thumbnail only (display image): small in a list, large in a card', async () => {
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:photo'), revokeObjectURL: vi.fn() });
+    const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const item = (id: string, name: string) => resource(id, { file: `/media/${name}`, name, size: 11 }, {}, 'test.file');
+    const backend = new Backend()
+      .on('GET', `${FILES}1/`, { data: item('1', 'photo.png') })
+      .on('GET', `${FILES}2/`, { data: item('2', 'brief.pdf') })
+      .file(`${FILES}1/download/`, 'png', 'attachment; filename="photo.png"');
+    const photos = { ...file, name: 'photos', relation: 'test.file', many: true };
+    const onRow = vi.fn();
+    renderWithBazis(
+      <div onClick={onRow}>
+        <FilesProvider control={null} resources={['test.file']}>
+          <span data-bz="cell:photos">
+            <FileValue relation="test.file" id="1" path={FILES} thumbnail="small" />
+            <FileValue relation="test.file" id="2" path={FILES} thumbnail="small" />
+          </span>
+          <span data-bz="field:photo">
+            <FileValue relation="test.file" id="1" path={FILES} thumbnail="large" />
+          </span>
+          {/* a field of several files of a resource without a route here: their ids, as without the display */}
+          <span data-bz="field:photos">
+            <FieldValue field={photos} value={['3']} display="image" large />
+          </span>
+        </FilesProvider>
+      </div>,
+      backend,
+    );
+    const cell = screen.getByTestId('cell:photos');
+    await waitFor(() => {
+      expect(within(cell).getAllByRole('button')).toHaveLength(2);
+    });
+    const [image, other] = within(cell).getAllByRole('button');
+    // the thumbnail only, named by the file: no name, no size in the text
+    expect(image?.getAttribute('aria-label')).toBe('photo.png');
+    expect(other?.getAttribute('aria-label')).toBe('brief.pdf');
+    expect(cell.textContent).toBe('');
+    await waitFor(() => {
+      expect(cell.querySelector('img')?.getAttribute('src')).toBe('blob:photo');
+    });
+    // a file that is not an image: an icon in its place
+    expect(other?.querySelector('img')).toBeNull();
+    expect(other?.querySelector('svg')).toBeTruthy();
+    // 56 px in a list, 160 px in a card: a target of a finger
+    expect(image?.className).toContain('size-14');
+    expect(within(screen.getByTestId('field:photo')).getByRole('button').className).toContain('size-40');
+    expect(screen.getByTestId('field:photos').textContent).toBe('3');
+    // the thumbnail downloads the file, it does not open the row
+    fireEvent.click(image as HTMLElement);
+    await waitFor(() => {
+      expect(saved).toHaveBeenCalledOnce();
+    });
+    expect((saved.mock.contexts[0] as HTMLAnchorElement).download).toBe('photo.png');
+    expect(onRow).not.toHaveBeenCalled();
+    saved.mockRestore();
+  });
+
   it('downloads a file with the token, and says when it fails', async () => {
     Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:brief'), revokeObjectURL: vi.fn() });
     const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);

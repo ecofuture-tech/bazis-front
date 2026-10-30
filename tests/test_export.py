@@ -39,8 +39,11 @@ def test_the_viewer_exports_the_tasks_as_csv(sample_app):
     assert exported.headers['content-type'].startswith('text/csv')
     assert exported.headers['content-disposition'] == 'attachment; filename="tasks.csv"'
     assert exported.text.splitlines() == ['title,status,priority', 'Plan,draft,high', 'Ship,draft,low']
+    # the meta of the file: the number of the tasks
+    assert exported.headers['x-bazis-meta'] == '{"count":2}'
     high = viewer.post(EXPORT, json_data={'priority': 'high'})
     assert high.text.splitlines() == ['title,status,priority', 'Plan,draft,high']
+    assert high.headers['x-bazis-meta'] == '{"count":1}'
     # created on the day or after it
     Task.objects.filter(title='Ship').update(dt_created='2026-01-31T12:00:00Z')
     since = viewer.post(EXPORT, json_data={'created_from': '2026-02-01'})

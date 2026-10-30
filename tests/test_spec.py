@@ -30,7 +30,8 @@ from bazis.contrib.front.contract.export import CONTRACT_FORMAT, render
 from bazis.contrib.front.spec import color, design
 from bazis.contrib.front.spec.access import Grant
 from bazis.contrib.front.spec.issues import CODES
-from bazis.contrib.front.spec.validate import schema_files, validate
+from bazis.contrib.front.spec.lint import schema_files
+from bazis.contrib.front.spec.validate import validate
 
 from .support import SAMPLE_SPEC, copy_screen_code, labels_of_choices, sample_contract
 
@@ -791,7 +792,7 @@ CASES = [
     (
         'S007',
         {CARD: lambda d: d['card']['sections'][0]['fields'].append('rank')},
-        [('S007', f'{CARD}#/card/sections/0/fields/8')],
+        [('S007', f'{CARD}#/card/sections/0/fields/9')],
     ),
     (
         'S008',
@@ -1010,6 +1011,12 @@ CASES = [
                              task(d)['fields'][3].update(display='plain')]},
         [('S020', f'{PRODUCT}#/entities/0/fields/0/display'), ('S020', f'{PRODUCT}#/entities/0/fields/1/display'),
          ('S020', f'{PRODUCT}#/entities/0/fields/3/display')],
+    ),
+    (
+        'S020',
+        # an image is a file, not a text
+        {PRODUCT: lambda d: [task(d)['fields'][0].update(display='image'), field(task(d), 'photos').update(display='image')]},
+        [('S020', f'{PRODUCT}#/entities/0/fields/0/display')],
     ),
     (
         'S020',
@@ -1598,8 +1605,15 @@ CASES = [
     ),
     (
         'S053',
-        # the result of an action that answers a file shows `{filename}` only
-        {EXPORT: lambda d: d['form']['result'].update(message={'en': '{count} tasks in {filename}', 'ru': '{filename}'})},
+        # the result of an action that answers a file shows `{filename}` and the properties of its meta only
+        {EXPORT: lambda d: d['form']['result'].update(message={'en': '{total} tasks in {filename}', 'ru': '{filename}'})},
+        [('S053', f'{EXPORT}#/form/result/message')],
+    ),
+    (
+        'S053',
+        # a file without a meta (no `file_meta` in the contract) answers `{filename}` only
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['custom_actions']['action_export'].update(
+            file_meta=None)},
         [('S053', f'{EXPORT}#/form/result/message')],
     ),
     (
@@ -1758,6 +1772,24 @@ CASES = [
     ),
     (
         'S061',
+        # the filter of a field of the entity narrows its picker in every form: of the related resource
+        {PRODUCT: lambda d: field(task(d), 'assignee').update(filter={'is_active': 'yes', 'nickname': 'a'})},
+        [('S061', f'{PRODUCT}#/entities/0/fields/3/filter/is_active'),
+         ('S061', f'{PRODUCT}#/entities/0/fields/3/filter/nickname')],
+    ),
+    (
+        'S061',
+        {PRODUCT: lambda d: field(task(d), 'assignee').update(filter={'is_active': True})},
+        [],
+    ),
+    (
+        'P002',
+        # the filter of a field of the entity is that of its picker: of a relationship, not of a file
+        {PRODUCT: lambda d: field(task(d), 'attachment').update(filter={'is_active': True})},
+        [('P002', f'{PRODUCT}#/entities/0/fields/4')],
+    ),
+    (
+        'S061',
         # a filter through a polymorphic relationship: the fields of its resources are not known,
         # it is not checked
         {CONTRACT: lambda d: d['project']['resources']['users.user']['fields'].update(
@@ -1834,6 +1866,88 @@ CASES = [
         # the filter of a tile by a value of another type
         {HOME: lambda d: d['dashboard']['tiles'][3].update(filter={'title': True})},
         [('S014', f'{HOME}#/dashboard/tiles/3/filter/title')],
+    ),
+    (
+        'S014',
+        # a lookup compares a date, a date-time or a number (not a text, not a relationship); a day of
+        # the browser is the value of a date or a date-time, and a date-time is never equal to a day
+        {LIST: lambda d: d['list'].update(filter={
+            'dt_created__gte': 'month_start', 'dt_created__lte': 'month_end 23:59', 'due__lt': 'today+1',
+            'title__gte': 'a', 'assignee__lt': 'x', 'priority': 'today', 'due': 'today'}),
+         HOME: lambda d: d['dashboard']['tiles'][3].update(filter={'dt_created__gte': 'today-7', 'status': 'draft'})},
+        [('S014', f'{LIST}#/list/filter/title__gte'), ('S014', f'{LIST}#/list/filter/assignee__lt'),
+         ('S014', f'{LIST}#/list/filter/priority'), ('S014', f'{LIST}#/list/filter/due')],
+    ),
+    (
+        'S014',
+        # a date is equal to a day of the browser, without a time; a date as it is, `YYYY-MM-DD`
+        {CONTRACT: lambda d: d['project']['resources']['tasks.task']['fields']['dt_created'].update(format='date'),
+         PRODUCT: lambda d: field(task(d), 'dt_created').update(type='date'),
+         LIST: lambda d: d['list'].update(filter={
+            'dt_created': 'today', 'dt_created__lt': 'today 10:00', 'dt_created__gt': '2026-01-01', 'due__gte': '01.01.2026'})},
+        [('S014', f'{LIST}#/list/filter/dt_created__lt'), ('S014', f'{LIST}#/list/filter/due__gte')],
+    ),
+    (
+        'S008',
+        # the field of a key with a lookup is filtered by
+        {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['due'].pop('filter', None)],
+         LIST: lambda d: d['list'].update(filter={'due__gte': 'today'})},
+        # and the days of the calendar by it
+        [('S008', f'{CALENDAR}#/calendar/field'), ('S008', f'{LIST}#/list/filter/due__gte')],
+    ),
+    (
+        'S007',
+        # the field of a key with a lookup is one of the entity
+        {LIST: lambda d: d['list'].update(filter={'deadline__gte': 'today'})},
+        [('S007', f'{LIST}#/list/filter/deadline__gte')],
+    ),
+    (
+        'S062',
+        # a public screen shows a file that the guests do not read (bazis-uploadable before 2.9, or a
+        # route set that does not show them its files)
+        {CONTRACT: lambda d: d['capabilities']['uploadable'].update(anonymous_files=False),
+         PUBLIC: lambda d: d['list']['columns'].append('photos')},
+        [('S062', f'{PUBLIC}#/list/columns/4')],
+    ),
+    (
+        'S062',
+        # the guests read the files of the objects that the route set shows them
+        {CONTRACT: lambda d: d['capabilities']['uploadable'].update(anonymous_files=True),
+         PUBLIC: lambda d: d['list']['columns'].append('photos')},
+        [],
+    ),
+    (
+        'S062',
+        # a screen that is not public shows its files
+        {CONTRACT: lambda d: d['capabilities']['uploadable'].update(anonymous_files=False),
+         LIST: lambda d: d['list']['columns'].append('photos')},
+        [],
+    ),
+    (
+        'S063',
+        # a create form with `fields` without a boolean that the create requires (no default): the form
+        # sends false; a form without `fields` asks for every field
+        {CONTRACT: lambda d: [
+            d['project']['resources']['tasks.task']['fields'].update(urgent={'title': 'Urgent', 'type': 'boolean'}),
+            d['project']['resources']['tasks.task']['create'].append('urgent'),
+            d['project']['resources']['tasks.task']['create_required'].append('urgent')]},
+        [('S063', f'{HOME}#/dashboard/actions/0/fields'), ('S063', f'{CALENDAR}#/calendar/add/fields'),
+         ('S063', f'{LIST}#/actions/0/fields')],
+    ),
+    (
+        'S063',
+        # "add here" of a related section creates a step without it; a form that shows it is right
+        {CONTRACT: lambda d: [
+            d['project']['resources']['tasks.step']['fields'].update(done={'title': 'Done', 'type': 'boolean'}),
+            d['project']['resources']['tasks.step']['create'].append('done'),
+            d['project']['resources']['tasks.step']['create_required'].append('done'),
+            d['project']['resources']['tasks.task']['fields'].update(urgent={'title': 'Urgent', 'type': 'boolean'}),
+            d['project']['resources']['tasks.task']['create_required'].append('urgent')],
+         PRODUCT: lambda d: task(d)['fields'].append({'id': 'urgent', 'type': 'boolean'}),
+         HOME: lambda d: d['dashboard']['actions'][0]['fields'].append('urgent'),
+         CALENDAR: lambda d: d['calendar']['add']['fields'].append('urgent'),
+         LIST: lambda d: d['actions'][0]['fields'].append('urgent')},
+        [('S063', f'{CARD}#/card/related/0/add/fields')],
     ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),
@@ -2418,7 +2532,8 @@ def test_the_system_check(root, tmp_path):
     (root / 'contract' / 'contract.json').write_text(
         json.dumps({'format': CONTRACT_FORMAT, 'capabilities': {'permit': {'roles': []}, 'statusy': {'models': {}}},
                     'project': {'resources': {'users.user': {
-                        'actions': {}, 'fields': {}, 'label': [], 'create': [], 'custom_actions': {},
+                        'actions': {}, 'fields': {}, 'label': [], 'create': [], 'create_required': [],
+                        'custom_actions': {},
                     }}}}),
         encoding='utf-8',
     )
@@ -2638,14 +2753,15 @@ DASHBOARD_ACTION_KEYS = (
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(('key', 'value', 'hint'), [
-    ('filters', {'assignee': {'is_active': True}}, 'A create form of a dashboard has no `filters`: its pickers offer'),
+    ('filters', {'assignee': {'is_active': True}}, 'This form has no `filters`. Declare `filter` on the field `assignee` of the entity'),
     ('requires', {'can': 'add'}, 'The button of a create form is shown to the users whose role may add the entity'),
     ('open', 'task-card', DASHBOARD_ACTION_KEYS),
 ])
 def test_the_hint_of_a_key_that_a_create_form_of_a_dashboard_does_not_take(contract, key, value, hint):
     """
     A key of a create form of a dashboard that it does not take (S002): `filters` and
-    `requires` say where they belong; another key is told the keys that the form takes.
+    `requires` say where they belong (`filters`: the filter of the field of the entity); another
+    key is told the keys that the form takes.
     """
     root = contract.parent.parent
     edit(root, HOME, lambda d: d['dashboard']['actions'][0].update({key: value}))

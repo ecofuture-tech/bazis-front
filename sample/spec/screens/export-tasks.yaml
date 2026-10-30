@@ -18,6 +18,7 @@ form:
   submit: {en: Export, ru: Выгрузить}
   result:
     title: {en: Exported, ru: Выгружено}
-    message: {en: 'The tasks are saved to {filename}.', ru: 'Задачи сохранены в файл {filename}.'}
+    # `{count}`: the meta of the file (`X-Bazis-Meta`, `file_meta` of the action in the contract)
+    message: {en: 'The tasks are saved to {filename}: {count}.', ru: 'Задачи сохранены в файл {filename}: {count}.'}
   then: task-list
 states: [loading, error, forbidden, invalid, done]

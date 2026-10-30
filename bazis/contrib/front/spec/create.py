@@ -28,7 +28,7 @@ from pathlib import Path
 from django.conf import settings
 
 from . import design
-from .validate import SCHEMA_DIR, SPEC_DIR, schema_files
+from .lint import SCHEMA_DIR, SPEC_DIR, schema_files
 
 
 #: the starters, by their path in spec/; those of the design are of a preset

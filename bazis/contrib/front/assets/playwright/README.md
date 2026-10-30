@@ -45,7 +45,7 @@ marks of the states, never for a fixed time:
 | `upload(field, file)` | `upload` | sets a file of `e2e/fixtures/` (`photo.png` of the template, or one of the product) in the input `field:<name>` of a file field of the open form, and waits until its field `upload:<name>` is no longer busy (`aria-busy`) and shows the name of the file, or an error of this upload is shown |
 | `submit({saved?})` | `submit` | clicks `action:submit` of the open form and waits until it is closed or shows an error of this submit (`state:<error>`, `error:<name>`; those of a previous submit do not count); with `saved: true` (a submit that the next step does not expect to fail) it fails with the errors shown when the form stays open |
 | `transit(id, payload?)` | `transit` | clicks `transit:<id>`, fills and submits the dialog of its payload, and waits until the transit is no longer offered or an error is shown |
-| `answer(property)` | `remember` | the `data-value` of `answer:<property>` of the result shown (`state:done`): a text or a number of the JSON answer of the action, `filename` of a file it saved |
+| `answer(property)` | `remember` | the `data-value` of `answer:<property>` of the result shown (`state:done`): a text or a number of the JSON answer of the action, `filename` of a file it saved and the texts and the numbers of its meta (`X-Bazis-Meta`) |
 | `expectScreen(id)` | `expect: {screen}`, and after a step that leads to another screen | `screen:<id>` is shown with a state rendered and nothing loading (`state:loading`); it is the current screen from then on |
 | `expectStatus(id)` | `expect: {status}` | `status:<id>` in the current screen |
 | `expectState(state)` | `expect: {state}` | `state:<state>` on the page |

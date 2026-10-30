@@ -42,14 +42,16 @@ entities:
       - {id: title, type: string}
       - {id: report, type: text}
       - {id: dt_created, type: datetime}
-      - {id: assignee, relation: user}
+      # its picker offers the active users in every form of the task (`filter` of the field)
+      - {id: assignee, relation: user, filter: {is_active: true}}
       - {id: attachment, type: file}     # bazis-uploadable: a file uploaded with the task
       - {id: priority, type: string}     # choices: shown, filled and filtered by their labels
       - {id: location, type: point}      # a PointField: on the map of the list, its coordinates on the card
       - {id: watchers, relation: user, many: true}   # a to-many relationship: chosen in the forms
       - {id: due, type: datetime}        # the calendar of the tasks, whose add takes its time
       - {id: hours, type: string, display: {unit: h}}   # a decimal: summed by the tile and the chart of the home
-      - {id: photos, type: file, many: true}   # several files: a many-to-many field to the uploaded files
+      # several files: a many-to-many field to the uploaded files, shown as their thumbnails
+      - {id: photos, type: file, many: true, display: image}
     workflow:
       initial: draft
       statuses: [draft, in_progress, done]

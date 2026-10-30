@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# A list without an extension: its map of the items of its filter, its create form (then the
-# list of all the tasks), a custom action of the route set in its toolbar, its bulk action and
-# its status filter.
+# A list without an extension: its map of the items of its filter (the drafts due from today,
+# a day of the browser), its create form (then the list of all the tasks), a custom action of
+# the route set in its toolbar, its bulk action and its status filter.
 spec: bazis-screen/1
 id: task-places
 title: {en: Places, ru: Места}
@@ -12,7 +12,7 @@ primitive: list
 list:
   columns: [title, status, priority]
   filters: [status]
-  filter: {status: draft}
+  filter: {status: draft, due__gte: today}
   open: task-card
   map: {field: location}
   bulk:

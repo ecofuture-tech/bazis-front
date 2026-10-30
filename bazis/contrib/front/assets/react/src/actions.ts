@@ -105,6 +105,12 @@ export type ActionMutation<Response, Variables> = UseMutationResult<Response, Er
   errors: Readonly<Record<string, readonly string[]>>;
 };
 
+/** A file that a custom action answered, saved (`useActionFile`): its name and its meta (`X-Bazis-Meta`; null without it). */
+export interface SavedFile {
+  name: string;
+  meta: Readonly<Record<string, unknown>> | null;
+}
+
 function withErrors<Response, Variables>(
   mutation: UseMutationResult<Response, Error, Variables>,
   message: (error: ErrorObject) => string,
@@ -137,13 +143,14 @@ export function useAction<P extends ActionPath, N extends ActionName<paths, P, M
  * A custom action of a route set that answers a file (`custom_actions[].file` of the
  * contract), `POST <path><name>/`: `mutate(body)` calls it (`client.actionFile`), saves the
  * file in the browser under the name the backend gives it (`Content-Disposition`; the name of
- * the action without one) and resolves to that name, not the content; the queries of its
- * resource are refetched after it, as after `useAction`.
+ * the action without one) and resolves to that name and the meta of the file (`X-Bazis-Meta`,
+ * null without it), not the content; the queries of its resource are refetched after it, as
+ * after `useAction`.
  */
 export function useActionFile<P extends ActionPath, N extends ActionName<paths, P, 'post'>>(
   path: P,
   name: N,
-): ActionMutation<string, ActionVariables<ActionBody<P, N, 'post'>>> {
+): ActionMutation<SavedFile, ActionVariables<ActionBody<P, N, 'post'>>> {
   const { api, errorMessage } = useBazis();
   const queryClient = useQueryClient();
   return withErrors(
@@ -151,7 +158,7 @@ export function useActionFile<P extends ActionPath, N extends ActionName<paths, 
       mutationFn: async (body) => {
         const file = await loose(api).actionFile(path, name, body);
         saveFile(file, name);
-        return file.name ?? name;
+        return { name: file.name ?? name, meta: file.meta };
       },
       onSuccess: () => invalidateResource(queryClient, path),
     }),

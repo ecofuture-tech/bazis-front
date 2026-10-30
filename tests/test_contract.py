@@ -46,7 +46,7 @@ def test_export_writes_the_openapi_and_the_contract(sample_app, tmp_path):
     openapi = (out / 'openapi.json').read_text(encoding='utf-8')
     assert openapi == dumps(sample_app.openapi())
     assert openapi.endswith('}\n')
-    assert data['format'] == 11
+    assert data['format'] == 12
     # the languages of the project, in the order of LANGUAGES, and the code of LANGUAGES
     # that LANGUAGE_CODE names
     assert data['project']['language'] == 'en'
@@ -98,6 +98,8 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
         'assignee', 'attachment', 'due', 'hours', 'location', 'photos', 'priority', 'report', 'status', 'title',
         'watchers',
     ]
+    # those that it requires, without a default (S063 of a boolean that a form leaves out)
+    assert task['create_required'] == ['title']
     # the custom actions with the standalone schema of their body, what the buttons of the specs
     # need: of the collection and of an item (which requires the change of the item); not the
     # ids of the list of the core or the transits of bazis-statusy and their history
@@ -112,8 +114,8 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
         # the labels of a type of Django choices (bazis 2.21), which the form shows
         priority['enumDict'] = {'low': 'Low', 'normal': 'Normal', 'high': 'High'}
     count = custom['action_count']
-    assert set(count) == {'name', 'item', 'method', 'access_action', 'public', 'body', 'response', 'file'}
-    assert count['file'] is False
+    assert set(count) == {'name', 'item', 'method', 'access_action', 'public', 'body', 'response', 'file', 'file_meta'}
+    assert count['file'] is False and count['file_meta'] is None
     assert {key: count[key] for key in ('name', 'item', 'method', 'access_action', 'public')} == {
         'name': 'count', 'item': False, 'method': 'post', 'access_action': None, 'public': False,
     }
@@ -143,6 +145,13 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     assert {key: export_[key] for key in ('name', 'item', 'method', 'access_action', 'response', 'file')} == {
         'name': 'export', 'item': False, 'method': 'post', 'access_action': 'view', 'response': None, 'file': True,
     }
+    # the meta of its file, the header `X-Bazis-Meta` that its answer declares (the result of
+    # its form shows `{count}`)
+    assert export_['file_meta'] == {
+        'description': 'The meta of the exported file, the header `X-Bazis-Meta` of its answer: the number of its tasks.',
+        'properties': {'count': {'title': 'Tasks', 'type': 'integer'}}, 'required': ['count'], 'title': 'ExportMeta',
+        'type': 'object',
+    }
     assert export_['body']['properties'] == {
         **count['body']['properties'],
         'created_from': {'anyOf': [{'type': 'string', 'format': 'date'}, {'type': 'null'}], 'title': 'Created From'},
@@ -151,7 +160,7 @@ def test_resources_come_from_x_bazis(sample_app, tmp_path):
     download = resources['bg.task']['custom_actions']['action_download']
     assert download == {
         'name': 'download', 'item': True, 'method': 'get', 'access_action': None, 'public': False, 'body': None,
-        'response': None, 'file': True,
+        'response': None, 'file': True, 'file_meta': None,
     }
 
     fields = task['fields']
@@ -247,7 +256,7 @@ def test_the_routes_of_every_statusy_route_set_are_not_custom_actions():
     assert _custom_actions({'paths': paths}, '/t/', operations) == {
         'action_report': {
             'name': 'report', 'item': True, 'method': 'get', 'access_action': None, 'public': False, 'body': None,
-            'response': None, 'file': False,
+            'response': None, 'file': False, 'file_meta': None,
         },
     }
 
@@ -370,6 +379,7 @@ def test_a_resource_is_described_by_the_default_route_of_its_model(sample_app):
             'search': ['title'],
             # no create route: no field to create
             'create': [],
+            'create_required': [],
             'custom_actions': {},
             'other_routes': [{'path': '/api/v1/archive/task/', 'route_set': 'archive.TaskRouteSet'}],
         },
@@ -451,10 +461,15 @@ def test_capabilities_are_read_from_the_database(sample_app, tmp_path):
     }
     # the resources of the route sets of FileUploadRouteSet; the size limit and the anonymous
     # uploads of the project (`project.env`: the guests attach photos to a suggested task), the
-    # types of the guests those of bazis-uploadable by default
+    # types of the guests those of bazis-uploadable by default; the guests read the photos of
+    # the tasks with bazis-uploadable 2.9 (`files_visible` of the route set of the tasks, which
+    # serves them the tasks of the anonymous role `viewer`), none before
+    from bazis.contrib.uploadable import routes
+
     assert sections['uploadable'] == {
         'max_size': 5242880, 'resources': ['uploadable.file_upload'], 'anonymous': True,
         'anonymous_types': ['image/jpeg', 'image/png', 'image/webp'],
+        'anonymous_files': hasattr(routes, 'anonymous_files'),
     }
     # the effective permissions of a role: the union of those of its groups, sorted
     # the names in every language of the project (translated fields)
@@ -747,6 +762,68 @@ def test_the_guests_upload_files_with_bazis_uploadable_2_8(sample_app, settings,
     assert guests() == (True, ['image/png', 'image/webp'])
     monkeypatch.setattr(routes, 'anonymous_uploads', lambda: False)
     assert guests() == (False, [])
+
+
+@pytest.mark.django_db
+def test_the_guests_read_files_with_bazis_uploadable_2_9(sample_app, monkeypatch):
+    """
+    `anonymous_files` of the section `uploadable`: `anonymous_files()` of bazis-uploadable 2.9
+    (a route set that serves the guests declares `files_visible`); never with an older version,
+    whose files require a user.
+    """
+    from bazis.contrib.front.capabilities import uploadable
+    from bazis.contrib.uploadable import routes
+
+    monkeypatch.delattr(routes, 'anonymous_files', raising=False)
+    assert uploadable.section()['anonymous_files'] is False
+    monkeypatch.setattr(routes, 'anonymous_files', lambda: True, raising=False)
+    assert uploadable.section()['anonymous_files'] is True
+    monkeypatch.setattr(routes, 'anonymous_files', lambda: False)
+    assert uploadable.section()['anonymous_files'] is False
+
+
+def test_the_meta_of_a_file_is_the_header_of_its_answer():
+    """
+    `file_meta` of a custom action: the JSON Schema of the header `X-Bazis-Meta` of its answer
+    (that of its status, 200 or another 2xx: `file_meta=` of bazis 2.25 declares it on the
+    `status_code` of the route), whatever the case of its name (or `responses` declared by
+    hand), standalone; null without it.
+    """
+    from bazis.contrib.front.contract.resources import _custom_actions
+
+    def route(name, headers, status='200'):
+        meta = {'kind': 'other', 'action': f'action_{name}', 'public': False, 'access_action': None}
+        answer = {'description': 'OK', 'content': {'text/csv': {}}, **({'headers': headers} if headers else {})}
+        # the errors of the route come first in the OpenAPI of FastAPI
+        return {'post': {'x-bazis': meta, 'responses': {'422': {'description': 'Invalid'}, status: answer}}}
+
+    schema = {'$ref': '#/components/schemas/Meta'}
+    openapi = {
+        'paths': {
+            '/t/sugar/': route('sugar', {'X-Bazis-Meta': {'description': 'The meta', 'schema': schema}}),
+            '/t/hand/': route('hand', {'x-bazis-meta': {'schema': {'type': 'object', 'properties': {'n': {'type': 'integer'}}}}}),
+            '/t/other/': route('other', {'X-Total': {'schema': {'type': 'integer'}}}),
+            '/t/none/': route('none', None),
+            '/t/created/': route('created', {'X-Bazis-Meta': {'schema': {'type': 'object', 'properties': {'n': {'type': 'integer'}}}}}, '201'),
+        },
+        'components': {'schemas': {
+            'Meta': {'type': 'object', 'properties': {'kind': {'$ref': '#/components/schemas/Kind'}}},
+            'Kind': {'enum': ['a', 'b']},
+        }},
+    }
+    operations = [it for item in openapi['paths'].values() for it in item.values()]
+    actions = _custom_actions(openapi, '/t/', operations)
+    assert all(it['file'] for it in actions.values())
+    found = {name: it['file_meta'] for name, it in actions.items()}
+    assert found == {
+        'action_sugar': {
+            'type': 'object', 'properties': {'kind': {'$ref': '#/$defs/Kind'}}, '$defs': {'Kind': {'enum': ['a', 'b']}},
+        },
+        'action_hand': {'type': 'object', 'properties': {'n': {'type': 'integer'}}},
+        'action_other': None,
+        'action_none': None,
+        'action_created': {'type': 'object', 'properties': {'n': {'type': 'integer'}}},
+    }
 
 
 @pytest.mark.django_db
