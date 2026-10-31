@@ -16,7 +16,8 @@
 // resource of the uploaded files (`resources` of the capability `uploadable` of the contract),
 // whose item has the attributes `file` (its URL in the storage), `name`, `extension` and
 // `size`; the body of an action takes their ids (`UploadedFileId`, `x-relation`). `FileValue`
-// shows one (its name downloads it, an image has a thumbnail), both read from the download
+// shows one (its name downloads it, an image has a thumbnail; or its thumbnail only, which
+// downloads it), both read from the download
 // route of its route set with the token: never from the URL of the media host, which serves a
 // file to anyone who has its link; `FieldInput` edits a file field with the controls that
 // `FilesProvider` gives it (`FileField` and `FilesField` of the component file-field, which
@@ -30,6 +31,7 @@ import { CAPABILITIES } from '@/bazis/generated/contract';
 import { ENGLISH, formatNumber, useLanguage, type LanguageContextValue } from '@/bazis/i18n';
 import type { FormField, RelationField } from '@/bazis/react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 import { routeOf, type ResourceObject } from './fields.js';
 import { useAnyDownload, useAnyDownloadUrl, useAnyItem } from './hooks.js';
@@ -164,12 +166,59 @@ export interface FileViewProps {
   downloading?: boolean | undefined;
   /** The download failed: said next to the name. */
   failed?: boolean | undefined;
+  /**
+   * The file as its thumbnail only (`display: 'image'`), a button that downloads it: 56 px
+   * (`small`, a table or a list) or 160 px (`large`, a card); an icon in place of a file that
+   * is not an image.
+   */
+  thumbnail?: Thumbnail | undefined;
 }
 
-/** A file: a thumbnail of an image (`preview`) or an icon, its name (a button that downloads it), its size. */
-export function FileView({ file, preview, onDownload, downloading = false, failed = false }: FileViewProps) {
+/** The size of the thumbnail of a file shown as its thumbnail only: `small` 56 px, `large` 160 px. */
+export type Thumbnail = 'small' | 'large';
+
+const THUMBNAILS: Record<Thumbnail, string> = { small: 'size-14', large: 'size-40' };
+
+/**
+ * A file: a thumbnail of an image (`preview`) or an icon, its name (a button that downloads it),
+ * its size; with `thumbnail`, its thumbnail only.
+ */
+export function FileView({ file, preview, onDownload, downloading = false, failed = false, thumbnail }: FileViewProps) {
   const language = useLanguage();
   const image = isImage(file.name) ? preview : null;
+  if (thumbnail) {
+    const content = image ? (
+      <img src={image} alt="" className="size-full object-cover" />
+    ) : (
+      <FileText className="size-1/3 text-muted-foreground" aria-hidden="true" />
+    );
+    const box = cn(
+      'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted align-middle',
+      THUMBNAILS[thumbnail],
+      failed && 'border-destructive',
+    );
+    // the name of the file is that of its thumbnail (a 56 px target is one of a finger)
+    return onDownload ? (
+      <button
+        type="button"
+        title={file.name}
+        aria-label={file.name}
+        disabled={downloading}
+        aria-busy={downloading || undefined}
+        className={cn(box, 'hover:ring-2 hover:ring-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70')}
+        onClick={(event) => {
+          event.stopPropagation();
+          onDownload();
+        }}
+      >
+        {content}
+      </button>
+    ) : (
+      <span role="img" title={file.name} aria-label={file.name} className={box}>
+        {content}
+      </span>
+    );
+  }
   return (
     <span className="inline-flex max-w-full min-w-0 items-center gap-2 align-middle">
       {image ? (
@@ -221,37 +270,53 @@ export function FileValue({
   id,
   path = routeOf(relation),
   preview,
+  thumbnail,
 }: {
   relation: string;
   id: string;
   path?: string | undefined;
   /** The URL of a local copy of an image (just uploaded), for its thumbnail. */
   preview?: string | null | undefined;
+  /** The file as its thumbnail only (`FileView`). */
+  thumbnail?: Thumbnail | undefined;
 }) {
-  return path ? <StoredFile path={path} id={id} preview={preview} /> : <>{id}</>;
+  return path ? <StoredFile path={path} id={id} preview={preview} thumbnail={thumbnail} /> : <>{id}</>;
 }
 
-function StoredFile({ path, id, preview }: { path: string; id: string; preview: string | null | undefined }) {
+function StoredFile({
+  path,
+  id,
+  preview,
+  thumbnail,
+}: {
+  path: string;
+  id: string;
+  preview: string | null | undefined;
+  thumbnail: Thumbnail | undefined;
+}) {
   const item = useAnyItem(path, id);
   const download = useAnyDownload(path);
   const file = item.data ? uploadedFile(item.data.data) : null;
   // the thumbnail of a stored image: its content, read with the token
-  const thumbnail = useAnyDownloadUrl(path, file && !preview && isImage(file.name) ? id : null);
+  const stored = useAnyDownloadUrl(path, file && !preview && isImage(file.name) ? id : null);
   const { t } = useLanguage();
   if (file) {
     return (
       <FileView
         file={file}
-        preview={preview ?? thumbnail}
+        preview={preview ?? stored}
         onDownload={() => {
           download.mutate(id);
         }}
         downloading={download.isPending}
         failed={download.isError}
+        thumbnail={thumbnail}
       />
     );
   }
-  if (item.isPending) return <Skeleton className="inline-block h-4 w-28 align-middle" />;
+  if (item.isPending) {
+    return <Skeleton className={cn('inline-block align-middle', thumbnail ? THUMBNAILS[thumbnail] : 'h-4 w-28')} />;
+  }
   // bazis-uploadable gives a user only his own files: the file of another user (the
   // attachment of a shared item) is a 404, as a deleted one
   const hidden = item.error instanceof ApiError && (item.error.status === 404 || item.error.status === 403);

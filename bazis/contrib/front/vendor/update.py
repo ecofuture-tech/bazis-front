@@ -72,7 +72,7 @@ from pathlib import Path
 
 from .. import __version__
 from ..spec.create import schema_updates
-from ..spec.validate import SCHEMA_DIR, SPEC_DIR
+from ..spec.lint import SCHEMA_DIR, SPEC_DIR
 from . import lock as frontend_lock
 from .copy import (
     CopyError,

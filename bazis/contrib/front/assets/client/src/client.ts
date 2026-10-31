@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { dispositionName, type DownloadedFile } from './download.js';
+import { dispositionName, fileMeta, type DownloadedFile } from './download.js';
 import { ApiError, errorFromResponse } from './errors.js';
 import type { Filter } from './filter.js';
 import type {
@@ -536,10 +536,14 @@ export function createClient<Paths>(options: ClientOptions = {}): BazisClient<Pa
     return typeof id === 'string' ? id : null;
   }
 
-  /** The file of a response: its content and the name of `Content-Disposition`. */
+  /** The file of a response: its content, the name of `Content-Disposition` and the meta of `X-Bazis-Meta`. */
   async function fileOf(response: Response): Promise<DownloadedFile> {
     if (!response.ok) throw errorFromResponse(response.status, response.statusText, await response.text());
-    return { blob: await response.blob(), name: dispositionName(response.headers.get('Content-Disposition')) };
+    return {
+      blob: await response.blob(),
+      name: dispositionName(response.headers.get('Content-Disposition')),
+      meta: fileMeta(response.headers.get('X-Bazis-Meta')),
+    };
   }
 
   const item = (path: string, id: string): string => `${path}${encodeURIComponent(id)}/`;

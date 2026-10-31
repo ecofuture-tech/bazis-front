@@ -26,7 +26,7 @@ from bazis.contrib.front import __version__, capabilities
 from bazis.contrib.front.spec import create as spec_create
 from bazis.contrib.front.spec import screens as spec_screens
 from bazis.contrib.front.spec import theme
-from bazis.contrib.front.spec.validate import schema_files
+from bazis.contrib.front.spec.lint import schema_files
 from bazis.contrib.front.vendor import copy, registry
 from bazis.contrib.front.vendor.lock import digest
 

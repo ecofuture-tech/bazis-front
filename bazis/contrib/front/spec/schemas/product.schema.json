@@ -186,16 +186,21 @@
         "type": {"$ref": "#/$defs/type"},
         "relation": {"$ref": "#/$defs/id"},
         "many": {"type": "boolean"},
-        "display": {"$ref": "#/$defs/display"}
+        "display": {"$ref": "#/$defs/display"},
+        "filter": {
+          "description": "The items that the picker of the relationship offers in every form of the entity (the create and update forms, the edit of a card, \"add here\", the add of a calendar, a field of a custom action or of a payload named as it): those of the related resource whose fields equal these values, each a field or a path through its relationships (`roles__slug: receptionist`) that the contract can filter by (S061). The filter of a form (`filters`, `filter` of a field of a payload) replaces it for its field.",
+          "$ref": "#/$defs/picker_filter"
+        }
       },
+      "dependentRequired": {"filter": ["relation"]},
       "if": {"required": ["relation"]},
       "then": {"not": {"required": ["type"]}},
       "else": {"required": ["type"], "if": {"required": ["many"]}, "then": {"properties": {"type": {"const": "file"}}}}
     },
     "display": {
-      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a code of five digits or more; a number below 10,000, such as a year, has none without it); `{currency: <ISO 4217 code>}`, a sum in the currency; `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`.",
+      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a code of five digits or more; a number below 10,000, such as a year, has none without it); `{currency: <ISO 4217 code>}`, a sum in the currency; `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call; `image`, a file as its picture only (a thumbnail in a table, larger in a card; an icon for a file that is not an image), which downloads it. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`, an image a `file`.",
       "oneOf": [
-        {"enum": ["plain", "phone"]},
+        {"enum": ["plain", "phone", "image"]},
         {
           "type": "object", "additionalProperties": false, "required": ["currency"],
           "properties": {"currency": {"type": "string", "pattern": "^[A-Z]{3}$"}}
@@ -210,6 +215,12 @@
         }
       ]
     },
+    "picker_filter": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
+      "additionalProperties": {"type": ["string", "number", "boolean"]}
+    },
     "payload_field": {
       "description": "A property of the payload: an attribute (`type`), the id of an uploaded file (`type: file`, `UploadedFileId` of bazis-uploadable; their list with `many: true`), which its dialog uploads, or the id of an item of an entity (`relation`), which the dialog of the transit asks for with its picker: the property is named as a to-one relationship of the entity to it.",
       "type": "object",
@@ -221,11 +232,8 @@
         "many": {"type": "boolean"},
         "relation": {"$ref": "#/$defs/id"},
         "filter": {
-          "description": "The items that the picker of the relationship offers: those of the related resource whose fields equal these values, each a field or a path through its relationships (`roles__slug: master`) that the contract can filter by (S061).",
-          "type": "object",
-          "minProperties": 1,
-          "propertyNames": {"pattern": "^[A-Za-z_][A-Za-z0-9_]*$"},
-          "additionalProperties": {"type": ["string", "number", "boolean"]}
+          "description": "The items that the picker of the relationship offers: those of the related resource whose fields equal these values, each a field or a path through its relationships (`roles__slug: master`) that the contract can filter by (S061). It replaces the `filter` of the field of the entity of the same name.",
+          "$ref": "#/$defs/picker_filter"
         }
       },
       "oneOf": [{"required": ["type"]}, {"required": ["relation"]}],

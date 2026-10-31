@@ -35,13 +35,8 @@ import yaml
 from bazis.contrib.front.checks import check_design
 from bazis.contrib.front.spec import design, theme
 from bazis.contrib.front.spec.issues import Document, Issues
-from bazis.contrib.front.spec.validate import (
-    DESIGN_SCHEMA,
-    TOKENS_SCHEMA,
-    Specs,
-    validate,
-    validator,
-)
+from bazis.contrib.front.spec.lint import DESIGN_SCHEMA, TOKENS_SCHEMA, validator
+from bazis.contrib.front.spec.validate import Specs, validate
 from bazis.contrib.front.vendor.lock import digest
 
 from .support import SAMPLE_SPEC, read_lock, write_lock

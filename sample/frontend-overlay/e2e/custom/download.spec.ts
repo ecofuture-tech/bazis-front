@@ -59,6 +59,9 @@ test('the manager exports the tasks to the file the action names', async ({ page
   const download = await downloaded;
   // the name of `Content-Disposition`, which the result shows
   expect(download.suggestedFilename()).toBe('tasks.csv');
-  expect((await readFile(await download.path(), 'utf8')).split('\n')[0]).toBe('title,status,priority\r');
+  const lines = (await readFile(await download.path(), 'utf8')).split('\r\n').filter(Boolean);
+  expect(lines[0]).toBe('title,status,priority');
   expect(await app.answer('filename')).toBe('tasks.csv');
+  // the meta of the file (`X-Bazis-Meta`): the number of its tasks, next to its name
+  expect(await app.answer('count')).toBe(String(lines.length - 1));
 });

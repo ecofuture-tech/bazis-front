@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # A dashboard of two entities, extended: a tile of two conditions labelled by a key of the
 # dictionaries of the components, a tile with an icon of its own, a tile of the latest date of
-# a field, a chart by a date and one of the average of a decimal by week, the last items
+# a field, a tile of the tasks due this month (days of the browser), a chart by a date and one
+# of the average of a decimal by week, the last items
 # without an order (shown to those who may add a step), the create forms of both entities in its header (one shows the card of
 # the saved task, the other the home).
 spec: bazis-screen/1
@@ -16,6 +17,7 @@ dashboard:
     - {id: started-reviews, entity: task, filter: {status: in_progress, title: Review the plan}, label: async.processing, open: task-list}
     - {id: steps, entity: step, icon: footprints, label: {en: Steps, ru: Шаги}}
     - {id: last-due, entity: task, value: {max: due}, label: {en: Last due date, ru: Последний срок}}
+    - {id: due-this-month, entity: task, filter: {due__gte: month_start, due__lt: month_end+1}, label: {en: Due this month, ru: Срок в этом месяце}}
   charts:
     - {id: steps-by-day, entity: step, by: dt_created, kind: line, label: {en: Steps by day, ru: Шаги по дням}}
     - {id: hours-by-week, entity: task, by: due, bucket: week, kind: bar, value: {avg: hours}, label: {en: Average hours by week, ru: Средние часы по неделям}}

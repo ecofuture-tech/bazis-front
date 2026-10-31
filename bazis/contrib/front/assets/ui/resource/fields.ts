@@ -465,9 +465,10 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
  * `plain`, a number without the separators of its thousands (a code of five digits or more:
  * a number below 10,000 has none anyway, a year as it is written); `phone`, a
  * phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity
- * followed by its unit; `{bar}`, a number with a bar of its share of the maximum.
+ * followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a
+ * file as its thumbnail only (`FileValue`).
  */
-export type FieldDisplay = 'plain' | 'phone' | { currency: string } | { unit: string } | { bar: number };
+export type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string } | { unit: string } | { bar: number };
 
 /**
  * A phone number written without separators (`+79161234567`, 7 to 15 digits) in groups

@@ -506,7 +506,8 @@ export class App<P extends Product = Product> {
   /**
    * The value of a property of the answer of the action whose result the page shows,
    * `answer:<property>` in `state:done` (its `data-value`): a text or a number of its JSON
-   * answer, `filename` of a file it saved; the step `remember` of the scenarios.
+   * answer, `filename` of a file it saved and the texts and the numbers of its meta
+   * (`X-Bazis-Meta`); the step `remember` of the scenarios.
    */
   async answer(property: string): Promise<string> {
     const answer = this.page.locator(bz('state', 'done')).filter({ visible: true }).locator(bz('answer', property));

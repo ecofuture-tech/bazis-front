@@ -15,8 +15,8 @@
 """
 bazis-uploadable: the resources whose files are uploaded with multipart form data (a route
 set of the application that is `FileUploadRouteSet` or a subclass of it, with its create),
-the size limit of an upload, and whether guests upload files, with the types they may
-(bazis-uploadable 2.8). A model references an uploaded file with a foreign key to such a
+the size limit of an upload, whether guests upload files, with the types they may
+(bazis-uploadable 2.8), and whether they read some files (bazis-uploadable 2.9). A model references an uploaded file with a foreign key to such a
 model: its relationship to the resource is a file field.
 """
 
@@ -39,6 +39,19 @@ def anonymous() -> bool:
     return anonymous_uploads()
 
 
+def anonymous_files() -> bool:
+    """
+    Whether guests read some uploaded files: `anonymous_files()` of bazis-uploadable 2.9 (a
+    route set that serves them declares `files_visible`; which files, the contract does not
+    tell). Never with an older version, whose files require a user.
+    """
+    try:
+        from bazis.contrib.uploadable.routes import anonymous_files as reads
+    except ImportError:
+        return False
+    return reads()
+
+
 def section() -> dict:
     from bazis.contrib.uploadable.routes import FileUploadRouteSet
     from bazis.core.app import app
@@ -57,4 +70,5 @@ def section() -> dict:
         'anonymous': guests,
         # the media types of the files of the guests, recognized by their content
         'anonymous_types': list(settings.BAZIS_FILE_UPLOAD_ANONYMOUS_TYPES) if guests else [],
+        'anonymous_files': anonymous_files(),
     }

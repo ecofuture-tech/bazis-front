@@ -27,6 +27,7 @@ export type {
   ActionQueryOptions,
   ActionResponse,
   ActionVariables,
+  SavedFile,
 } from './actions.js';
 export { useCreate, useDestroy, useRefreshItem, useRelationship, useUpdate } from './mutations.js';
 export type { DestroyOptions } from './mutations.js';
@@ -35,7 +36,7 @@ export { useCan, useFilterFields, useItem, useList, useLists, useSchema } from '
 export type { Can } from './queries.js';
 export { useResourceForm } from './form.js';
 export type { FixedValues, ResourceForm } from './form.js';
-export { choiceLabel, objectFields, resourceSchema, startValue } from './schema.js';
+export { choiceLabel, objectFields, relativeDay, resourceSchema, startValue } from './schema.js';
 export { RELATED_BATCH, useRelatedItem } from './related.js';
 export type { ListItem } from './related.js';
 export type { AttributeField, FormField, RelationField, ResourceSchema } from './schema.js';

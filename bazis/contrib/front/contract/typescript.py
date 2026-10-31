@@ -52,7 +52,8 @@ SECTION_TYPES = {
     'statusy': '{ readonly models: typeof TRANSITS }',
     'uploadable': (
         '{ readonly max_size: number | null; readonly resources: readonly string[]; '
-        'readonly anonymous: boolean; readonly anonymous_types: readonly string[] }'
+        'readonly anonymous: boolean; readonly anonymous_types: readonly string[]; '
+        'readonly anonymous_files: boolean }'
     ),
     'users': (
         '{ readonly token_url: string; readonly user_resource: string; '
@@ -140,8 +141,9 @@ def render(contract: dict) -> str:
         constant(
             'The resources: model, route set, path, actions, fields (title, type, relation, '
             'filter and order labels), the attributes that label an item (none: its id), the '
-            'search fields (none: no search), the fields that its create takes and its custom '
-            'actions with the JSON Schemas of their body and of their answer.',
+            'search fields (none: no search), the fields that its create takes and those it '
+            'requires, and its custom actions with the JSON Schemas of their body, of their answer '
+            'and of the meta of the file they answer.',
             'RESOURCES',
             resources,
         ),

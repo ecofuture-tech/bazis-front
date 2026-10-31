@@ -18,12 +18,14 @@
 // the errors of the fields at them and the state of the refusal (`state:invalid` of a 422);
 // done, its `result` from the JSON answer of the action (`state:done`), or a toast and
 // `onDone`. An action that answers a file (`file` of the contract) saves it first: its result
-// is given the name of the file, `{filename}`.
+// is given the texts and the numbers of the meta of the file (the header `X-Bazis-Meta`,
+// `file_meta` of the contract) and its name, `{filename}`.
 
 import { LoaderCircle } from 'lucide-react';
 import { useRef, useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { useLanguage, type Params } from '@/bazis/i18n';
+import type { SavedFile } from '@/bazis/react';
 import { customActionAt, useAnyAction, useAnyActionFile, useUploads, type FieldFilters } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -52,7 +54,8 @@ export interface ActionFormProps {
   /**
    * What the page shows once the action is done, in place of the form: its title (`Done` by
    * default) and its message, the title too when it is a function, given the texts and the
-   * numbers of the JSON answer of the action, or `{filename}` of the file it saved.
+   * numbers of the JSON answer of the action, or those of the meta of the file it saved
+   * (`X-Bazis-Meta`) with its name, `{filename}`.
    */
   result?:
     | {
@@ -129,8 +132,8 @@ export function ActionForm({ path, action, fields, labels, filters, values: star
       },
       onSuccess: (response) => {
         if (result) {
-          // the name of the file saved, or the JSON answer
-          setAnswer(savesFile ? { filename: response as string } : answerOf(response));
+          // the name of the file saved with the texts and the numbers of its meta, or the JSON answer
+          setAnswer(savesFile ? { ...answerOf((response as SavedFile).meta), filename: (response as SavedFile).name } : answerOf(response));
           return;
         }
         toast({ title: t('action.done') });

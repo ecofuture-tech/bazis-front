@@ -126,8 +126,9 @@ def test_contract_ts_is_rendered_from_the_contract():
         '',
         '/** The resources: model, route set, path, actions, fields (title, type, relation, '
         'filter and order labels), the attributes that label an item (none: its id), the '
-        'search fields (none: no search), the fields that its create takes and its custom '
-        'actions with the JSON Schemas of their body and of their answer. */',
+        'search fields (none: no search), the fields that its create takes and those it '
+        'requires, and its custom actions with the JSON Schemas of their body, of their answer '
+        'and of the meta of the file they answer. */',
         'export const RESOURCES = {',
         '  "shop.item": {',
         '    fields: {},',
@@ -177,7 +178,7 @@ def test_contract_ts_is_rendered_from_the_contract():
         '{ readonly [resource: string]: { readonly [selector: string]: string } } } | null;',
         '  readonly statusy: { readonly models: typeof TRANSITS } | null;',
         '  readonly uploadable: { readonly max_size: number | null; readonly resources: readonly string[]; '
-        'readonly anonymous: boolean; readonly anonymous_types: readonly string[] } | null;',
+        'readonly anonymous: boolean; readonly anonymous_types: readonly string[]; readonly anonymous_files: boolean } | null;',
         '  readonly users: { readonly token_url: string; readonly user_resource: string; '
         'readonly profile_language: boolean } | null;',
         '  readonly ws: { readonly path: string | null } | null;',

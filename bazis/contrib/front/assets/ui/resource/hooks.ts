@@ -40,6 +40,7 @@ import {
   type JsonSchema,
   type QueryOptions,
   type ResourceForm,
+  type SavedFile,
 } from '@/bazis/react';
 
 import type { ResourceObject } from './fields.js';
@@ -121,11 +122,11 @@ export const useAnyAction = useAction as unknown as (
   name: string,
 ) => ActionMutation<unknown, Readonly<Record<string, unknown>>>;
 
-/** `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name. */
+/** `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name and its meta. */
 export const useAnyActionFile = useActionFile as unknown as (
   path: string,
   name: string,
-) => ActionMutation<string, Readonly<Record<string, unknown>>>;
+) => ActionMutation<SavedFile, Readonly<Record<string, unknown>>>;
 
 /** `useItemAction(path, name)`: a custom action of an item (POST), `mutateAsync({id, body})`. */
 export const useAnyItemAction = useItemAction as unknown as (

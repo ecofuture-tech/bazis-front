@@ -37,7 +37,16 @@ from typing import NamedTuple
 from ..vendor import lock as frontend_lock
 from ..vendor.registry import load as load_registry
 from .names import camel, component_name, constant_name, pascal
-from .refs import action_form, host, is_public, parameters, parent, screen_actions
+from .refs import (
+    RELATIVE_DAY,
+    action_form,
+    filter_field,
+    host,
+    is_public,
+    parameters,
+    parent,
+    screen_actions,
+)
 from .tsx import (
     SPREAD,
     Arr,
@@ -306,12 +315,21 @@ class Screen:
         for path, action in screen_actions(self.data):
             if action['primitive'] != 'form' or action.get('mode') != 'create':
                 continue
-            entity = self.entity(action.get('entity', self.data.get('entity')))
+            entity_id = action.get('entity', self.data.get('entity'))
             state = self.form_state('CreateFormAction', action['id'])
             label = self.text(*path, 'label') or self.package_text('form.create')
-            self.form_action('CreateFormAction', state, entity, action, label, self.text(*path, 'description'))
-            forms.append(Form(action, state, label, entity))
+            self.form_action('CreateFormAction', state, entity_id, action, label, self.text(*path, 'description'))
+            forms.append(Form(action, state, label, self.entity(entity_id)))
         return forms
+
+    def pickers(self, entity_id: str, names, own: dict | None = None) -> Obj | None:
+        """
+        The filters of the pickers of a form of an entity by field (`picker_filters`): those of
+        its fields among `names` (`entity_filters`), each replaced by that of the form
+        (`own`, its `filters`); None without any.
+        """
+        merged = {**entity_filters(self.product, entity_id, names), **(own or {})}
+        return picker_filters(self.code, merged) if merged else None
 
     def form_state(self, component: str, action_id: str) -> Raw:
         """The state of the form of an action, `<action>Form` (`CreateFormAction.use()`)."""
@@ -319,19 +337,20 @@ class Screen:
         self.hook(state, f'const {state} = {component}.use();', '@/bazis/ui/screens', component)
         return Raw(state)
 
-    def form_action(self, component: str, state: Raw, entity: Raw, action: dict, label, description=None) -> None:
+    def form_action(self, component: str, state: Raw, entity_id: str, action: dict, label, description=None) -> None:
         """
-        The form of an action, written after the component: its fields, its title and its
-        description, then the screen `then` of the action (that of the saved item for a screen
-        of an item).
+        The form of an action of an entity, written after the component: its fields, the
+        filters of its pickers, its title and its description, then the screen `then` of the
+        action (that of the saved item for a screen of an item).
         """
+        entity = self.entity(entity_id)
         attrs = [Attr(SPREAD, state), Attr('path', Raw(f'{entity.code}.path'))]
         if component == 'UpdateFormAction':
             attrs.append(Attr('id', Raw('id')))
         if 'fields' in action:
             attrs.append(Attr('fields', Arr([Str(it) for it in action['fields']])))
-        if 'filters' in action:
-            attrs.append(Attr('filters', picker_filters(self.code, action['filters'])))
+        if (filters := self.pickers(entity_id, action.get('fields'), action.get('filters'))) is not None:
+            attrs.append(Attr('filters', filters))
         attrs.append(Attr('title', label))
         if description is not None:
             attrs.append(Attr('description', description))
@@ -421,22 +440,65 @@ def screen_attrs(screen: Screen, parent: dict | None = None) -> list[Attr]:
     return attrs
 
 
-def filter_value(code: Code, where: dict) -> Call:
-    """A filter of the specs: each field equal to its value (`Filter.and` of several)."""
+#: the format of the day of the browser (`relativeDay`) of a field of a date by its type
+DAY_FORMATS = {'date': 'date', 'datetime': 'date-time'}
+
+
+def filter_value(code: Code, where: dict, fields: dict | None = None) -> Call:
+    """
+    A filter of the specs: each field equal to its value, or compared with it by the lookup
+    of its key (`date_from__gte`), `Filter.and` of several; a day of the browser of a date or a
+    date-time (`fields`: those of the entity by id) is computed when the code runs
+    (`relativeDay`).
+    """
     code.use('@/bazis/client', 'Filter')
-    parts = [Call('Filter.where', [Str(key), _scalar(value)]) for key, value in where.items()]
+    parts = [
+        Call('Filter.where', [Str(key), _filter_scalar(code, value, day_format(fields, key))])
+        for key, value in where.items()
+    ]
     return parts[0] if len(parts) == 1 else Call('Filter.and', parts)
 
 
+def day_format(fields: dict | None, key: str) -> str | None:
+    """The format of the day of the browser of the field of a key of a filter, None for a field that is not a date."""
+    return DAY_FORMATS.get((fields or {}).get(filter_field(key)[0], {}).get('type'))
+
+
+def _filter_scalar(code: Code, value, day: str | None) -> Expr:
+    if day is not None and isinstance(value, str) and RELATIVE_DAY.fullmatch(value):
+        code.use('@/bazis/react', 'relativeDay')
+        return Call('relativeDay', [Str(value), Str(day)])
+    return _scalar(value)
+
+
 def filter_expr(screen: Screen, where: dict) -> Raw:
-    """The filter of a list (`list.filter`), a constant of the module."""
-    screen.consts['FILTER'] = printed(Const('FILTER', filter_value(screen.code, where)).doc())
-    return Raw('FILTER')
+    """
+    The filter of a list (`list.filter`): a constant of the module, or, with a day of the
+    browser, computed once the screen is shown (`useMemo`), the day of the browser then.
+    """
+    fields = {it['id']: it for it in screen.product.entities[screen.data['entity']]['fields']}
+    value = filter_value(screen.code, where, fields)
+    if not any(day_format(fields, key) and isinstance(it, str) and RELATIVE_DAY.fullmatch(it) for key, it in where.items()):
+        screen.consts['FILTER'] = printed(Const('FILTER', value).doc())
+        return Raw('FILTER')
+    screen.hook('filter', Const('filter', Call('useMemo', [Arrow([], value), Arr([])])), 'react', 'useMemo')
+    return Raw('filter')
 
 
 def picker_filters(code: Code, filters: dict) -> Obj:
     """The filters of the pickers of a form by field (`filters` of the specs)."""
     return Obj([(name, filter_value(code, where)) for name, where in filters.items()])
+
+
+def entity_filters(product: Product, entity_id: str, names=None) -> dict:
+    """
+    The filters of the pickers of the fields of an entity (`filter` of its fields in
+    product.yaml) by field, of those among `names` (every field when None).
+    """
+    return {
+        it['id']: it['filter'] for it in product.entities[entity_id]['fields']
+        if 'filter' in it and (names is None or it['id'] in names)
+    }
 
 
 def _scalar(value) -> Str | Raw:
@@ -457,8 +519,9 @@ def render_list(product: Product, data: dict) -> str:
     attrs.append(Attr('columns', Arr([Str(it) for it in spec['columns']])))
     if 'filters' in spec:
         attrs.append(Attr('filters', Arr([list_filter(screen, entity, const, it) for it in spec['filters']])))
-    if 'filter' in spec:
-        attrs.append(Attr('filter', filter_expr(screen, spec['filter'])))
+    filter_ref = filter_expr(screen, spec['filter']) if 'filter' in spec else None
+    if filter_ref is not None:
+        attrs.append(Attr('filter', filter_ref))
     if 'sort' in spec:
         attrs.append(Attr('sort', Arr([Str(it) for it in spec['sort']])))
     if spec.get('search'):
@@ -480,7 +543,7 @@ def render_list(product: Product, data: dict) -> str:
         attrs.append(Attr('emptyMessage', empty))
     body = [component(screen, 'ResourceList', 'ResourceListProps', '@/bazis/ui/resource-list', attrs)]
     if 'map' in spec:
-        body.insert(0, list_map(screen, const, spec, opened))
+        body.insert(0, list_map(screen, const, spec, filter_ref, opened))
     return screen.write(screen_element(screen, body))
 
 
@@ -507,15 +570,15 @@ def list_actions(screen: Screen, const: Raw) -> list[Attr]:
     return attrs
 
 
-def list_map(screen: Screen, const: Raw, spec: dict, opened: list[Attr]) -> Jsx:
+def list_map(screen: Screen, const: Raw, spec: dict, filter_ref: Raw | None, opened: list[Attr]) -> Jsx:
     """
     The map of the items of a list beside it (`list.map`): those of the filter of the screen,
     the open one selected, a marker opening its card as a row does.
     """
     attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('entity', screen.data['entity'])]
     attrs.append(Attr('field', spec['map']['field']))
-    if 'filter' in spec:
-        attrs.append(Attr('filter', Raw('FILTER')))
+    if filter_ref is not None:
+        attrs.append(Attr('filter', filter_ref))
     return component(screen, 'ResourceMap', 'ResourceMapProps', '@/bazis/ui/map', attrs + opened, part='map')
 
 
@@ -591,8 +654,9 @@ def custom_action(
         options.append(('fields', Arr([Str(it) for it in action['fields']])))
     if 'labels' in action:
         options.append(('labels', Obj([(name, screen.text(*path, 'labels', name)) for name in action['labels']])))
-    if 'filters' in action:
-        options.append(('filters', picker_filters(screen.code, action['filters'])))
+    # the entity narrows the pickers of the properties that the dialog names as its fields
+    if (filters := screen.pickers(screen.data['entity'], action.get('fields', ()), action.get('filters'))) is not None:
+        options.append(('filters', filters))
     if 'values' in action:
         options.append(('values', start_values(action['values'])))
     for key in ('title', 'description'):
@@ -650,6 +714,9 @@ def render_card(product: Product, data: dict) -> str:
     attrs += entity_attrs(product, entity_id, const, label=True)
     if spec.get('edit'):
         attrs.append(Attr('edit'))
+        names = [name for section in spec['sections'] for name in section['fields']]
+        if (filters := screen.pickers(entity_id, names)) is not None:
+            attrs.append(Attr('filters', filters))
     if 'workflow' in product.entities[entity_id]:
         screen.code.use('@/bazis/ui/status-badge', 'StatusBadge')
         attrs.append(Attr('badge', Arrow(['item'], Jsx('StatusBadge', [Attr('resource', Raw('item'))]))))
@@ -751,7 +818,9 @@ def update_action(screen: Screen, const: Raw, index: int, action: dict) -> Obj:
     """The update form of the item of a card (`UpdateFormAction`), opened by an action of the card that the user may change."""
     state = screen.form_state('UpdateFormAction', action['id'])
     label = screen.text('actions', index, 'label') or screen.package_text('card.edit')
-    screen.form_action('UpdateFormAction', state, const, action, label, screen.text('actions', index, 'description'))
+    screen.form_action(
+        'UpdateFormAction', state, screen.data['entity'], action, label, screen.text('actions', index, 'description')
+    )
     return Obj([
         ('id', Str(action['id'])), ('label', label), ('permission', Str('change')),
         ('onClick', Raw(f'{state.code}.onOpen')),
@@ -828,6 +897,10 @@ def related_list(screen: Screen, index: int, related: dict) -> Jsx:
         ]
         if 'fields' in add:
             props.append(('fields', Arr([Str(it) for it in add['fields']])))
+        names = add.get('fields', [it['id'] for it in screen.product.entities[related['entity']]['fields']])
+        names = [it for it in names if it != related['relation']]
+        if (filters := screen.pickers(related['entity'], names)) is not None:
+            props.append(('filters', filters))
         if add.get('when', 'changeable') == 'changeable':
             screen.code.use('@/bazis/ui/resource', 'permitted')
             attrs.append(Attr('add', Cond(Raw("permitted(meta, 'change')"), Obj(props), Raw('undefined'))))
@@ -874,7 +947,8 @@ def tile(screen: Screen, index: int, spec: dict) -> Obj:
     const = screen.entity(spec['entity'])
     props = [('id', Str(spec['id'])), ('path', Raw(f'{const.code}.path'))]
     if 'filter' in spec:
-        props.append(('filter', filter_value(screen.code, spec['filter'])))
+        fields = {it['id']: it for it in screen.product.entities[spec['entity']]['fields']}
+        props.append(('filter', filter_value(screen.code, spec['filter'], fields)))
     if 'value' in spec:
         props.append(('value', aggregate_value(spec['value'])))
         if has_display(screen.product, spec['entity']):
@@ -1031,7 +1105,7 @@ def calendar_add(screen: Screen, const: Raw, spec: dict) -> Obj:
     add = spec['add']
     state = screen.form_state('CreateFormAction', add['id'])
     label = screen.text('calendar', 'add', 'label') or screen.package_text('form.create')
-    screen.form_action('CreateFormAction', state, const, add, label)
+    screen.form_action('CreateFormAction', state, screen.data['entity'], add, label)
     screen.code.use('lucide-react', icon_name(CREATE_ICON))
     props = [('id', Str(add['id'])), ('label', label), ('icon', Raw(icon_name(CREATE_ICON)))]
     if 'time' in add:
@@ -1063,8 +1137,8 @@ def resource_form(screen: Screen, const: Raw, spec: dict) -> Jsx:
         attrs.append(Attr('id', Raw('id')))
     if 'fields' in spec:
         attrs.append(Attr('fields', Arr([Str(it) for it in spec['fields']])))
-    if 'filters' in spec:
-        attrs.append(Attr('filters', picker_filters(screen.code, spec['filters'])))
+    if (filters := screen.pickers(screen.data['entity'], spec.get('fields'), spec.get('filters'))) is not None:
+        attrs.append(Attr('filters', filters))
     if 'then' in spec:
         attrs.append(Attr('onSaved', screen.on_saved(spec['then'])))
     return component(screen, 'ResourceForm', 'ResourceFormProps', '@/bazis/ui/resource-form', attrs)
@@ -1083,8 +1157,8 @@ def render_action_form(screen: Screen, const: Raw, spec: dict) -> Jsx:
     ]
     if 'labels' in spec:
         attrs.append(Attr('labels', Obj([(name, screen.text('form', 'labels', name)) for name in spec['labels']])))
-    if 'filters' in spec:
-        attrs.append(Attr('filters', picker_filters(screen.code, spec['filters'])))
+    if (filters := screen.pickers(screen.data['entity'], spec['fields'], spec.get('filters'))) is not None:
+        attrs.append(Attr('filters', filters))
     if 'values' in spec:
         attrs.append(Attr('values', start_values(spec['values'])))
     if (submit := screen.text('form', 'submit')) is not None:
@@ -1120,13 +1194,22 @@ RENDERERS = {
 }
 
 
-def declared_transit(code: Code, transition: dict) -> Obj:
-    """A transit of the workflow (`DeclaredTransit`): its id, its confirmation, the filters of the pickers of its payload."""
+def declared_transit(code: Code, transition: dict, entity: dict) -> Obj:
+    """
+    A transit of the workflow of an entity (`DeclaredTransit`): its id, its confirmation, the
+    filters of the pickers of its payload, each that of the field of the payload, else that of
+    the field of the entity of the same name and relation.
+    """
     props = [('id', Str(transition['id']))]
     if transition.get('confirm'):
         props.append(('confirm', Raw('true')))
     fields = transition.get('payload', {}).get('fields', [])
-    filters = {it['id']: it['filter'] for it in fields if 'filter' in it}
+    own = {it['id']: it for it in entity['fields'] if 'filter' in it}
+    filters = {
+        it['id']: it['filter'] if 'filter' in it else own[it['id']]['filter']
+        for it in fields
+        if 'relation' in it and ('filter' in it or own.get(it['id'], {}).get('relation') == it['relation'])
+    }
     if filters:
         props.append(('filters', picker_filters(code, filters)))
     return Obj(props)
@@ -1148,7 +1231,7 @@ def render_entities(product: Product) -> str:
         if display:
             props.append(('display', Obj(display)))
         if steps := transitions(product, entity_id):
-            props.append(('transits', Arr([declared_transit(code, it) for it in steps])))
+            props.append(('transits', Arr([declared_transit(code, it, entity) for it in steps])))
         if entity_id in product.icons:
             code.use('lucide-react', icon_name(product.icons[entity_id]))
             props.append(('Icon', Raw(icon_name(product.icons[entity_id]))))
@@ -1352,7 +1435,9 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
         elif link.get('requires', {}).get('can') == 'add':
             requires.append(('can', Str('add')))
         if data['primitive'] == 'list' and 'filter' in data['list']:
-            requires.append(('filters', Arr([Str(it) for it in data['list']['filter']])))
+            # the fields of its keys (`date_from` of `date_from__gte`), once each
+            names = dict.fromkeys(filter_field(it)[0] for it in data['list']['filter'])
+            requires.append(('filters', Arr([Str(it) for it in names])))
         props.append(('requires', Obj(requires)))
     if product.public(data):
         props.append(('public', Raw('true')))

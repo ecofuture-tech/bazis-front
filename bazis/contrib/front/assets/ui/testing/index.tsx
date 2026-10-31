@@ -149,9 +149,12 @@ export class Backend {
     return this;
   }
 
-  /** A file of a download route (`GET`), or the answer of an action (`POST`): its content and its `Content-Disposition`. */
-  file(url: string, content: string, disposition: string, method = 'GET'): this {
-    this.replies.set(`${method} ${url}`, { status: 200, body: content, headers: { 'Content-Disposition': disposition } });
+  /**
+   * A file of a download route (`GET`), or the answer of an action (`POST`): its content, its
+   * `Content-Disposition` and other headers (the meta of the file, `X-Bazis-Meta`).
+   */
+  file(url: string, content: string, disposition: string, method = 'GET', headers: Readonly<Record<string, string>> = {}): this {
+    this.replies.set(`${method} ${url}`, { status: 200, body: content, headers: { 'Content-Disposition': disposition, ...headers } });
     return this;
   }
 

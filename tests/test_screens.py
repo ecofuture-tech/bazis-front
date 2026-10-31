@@ -310,13 +310,30 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
         "          fieldValue(row, 'urgent') === true ? t('screens.task-places.list.highlight.label') : undefined\n"
         '        }\n'
     ) in places
-    # the map beside the list, of the items of its filter, a marker opening the card
+    # the map beside the list, of the items of its filter, a marker opening the card; a day of the
+    # browser in the filter: computed once the screen is shown
+    assert (
+        '  const filter = useMemo(\n'
+        "    () => Filter.and(Filter.where('status', 'draft'), Filter.where('due__gte', relativeDay('today', 'date-time'))),\n"
+        '    [],\n  );\n'
+    ) in places
+    assert "import { useMemo } from 'react';" in places and 'FILTER' not in places
     assert (
         '      <ResourceMap\n        path={TASK.path}\n        entity="task"\n        field="location"\n'
-        '        filter={FILTER}\n'
+        '        filter={filter}\n'
     ) in places
+    assert '        filter={filter}\n        display={TASK.display}\n' in places
     # after its form, the list of all the tasks: the code takes no saved item
     assert "onSaved={() => void navigate(routeTo('task-list'))}" in places
+
+    # a tile of the days of the browser of a date-time
+    overview = files[f'{screens.GENERATED_DIR}/overview.tsx']
+    assert (
+        '              filter: Filter.and(\n'
+        "                Filter.where('due__gte', relativeDay('month_start', 'date-time')),\n"
+        "                Filter.where('due__lt', relativeDay('month_end+1', 'date-time')),\n"
+        '              ),\n'
+    ) in overview
 
     summary = files[f'{screens.GENERATED_DIR}/task-summary.tsx']
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
@@ -403,6 +420,47 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert 'useNavigate' not in user and 'useLanguage' not in user
     assert '    <Screen id="user-card">\n' in user
     assert '        after={() => (\n          <RelatedList\n' in user
+
+
+def test_the_filter_of_a_field_of_the_entity_narrows_its_pickers(tmp_path):
+    """
+    The `filter` of a field of an entity (the assignee of a task: the active users) is that of
+    its picker in every form of the entity that asks for it: a create form of a dashboard and
+    of a calendar, "add here" of a related section, the edit of a card, a form screen without
+    `fields`, a custom action that names it, the payload of a transit with a field of the same
+    id and relation; the filter of the form replaces it.
+    """
+    kitchen_sink(tmp_path)
+
+    def product(data):
+        task, step = data['entities'][0], data['entities'][2]
+        step['fields'].append({'id': 'owner', 'relation': 'user', 'filter': {'is_staff': False}})
+        # the payload of `reopen` without a filter of its own
+        task['workflow']['transitions'][2]['payload']['fields'][0].pop('filter')
+
+    edit_product(tmp_path, product)
+    edit_screen(tmp_path, 'overview', lambda data: data['dashboard']['actions'][0]['fields'].append('assignee'))
+    edit_screen(tmp_path, 'task-calendar', lambda data: data['calendar']['add']['fields'].append('assignee'))
+    edit_screen(tmp_path, 'task-card', lambda data: data['card']['related'][0]['add']['fields'].append('owner'))
+    edit_screen(tmp_path, 'task-summary', lambda data: data['actions'][-1].update(fields=['priority', 'assignee']))
+    files = rendered(tmp_path)
+    active = "filters={{ assignee: Filter.where('is_active', true) }}"
+    assert f'        fields={{["title", "assignee"]}}\n        {active}\n'.replace('"', "'") in files[
+        f'{screens.GENERATED_DIR}/overview.tsx']
+    calendar = files[f'{screens.GENERATED_DIR}/task-calendar.tsx']
+    assert f"fields={{['title', 'due', 'assignee']}}\n        {active}\n" in calendar
+    card = files[f'{screens.GENERATED_DIR}/task-card.tsx']
+    assert f'        edit\n        {active}\n' in card
+    # "add here": the fields of the step but its relation to the task, which the form fixes
+    assert "fields: ['title', 'owner'],\n" in card and "filters: { owner: Filter.where('is_staff', false) },\n" in card
+    assert f'      {active}\n' in files[f'{screens.GENERATED_DIR}/task-edit.tsx']
+    # the filter of the form replaces that of the entity
+    new = files[f'{screens.GENERATED_DIR}/task-new.tsx']
+    assert "assignee: Filter.and(Filter.where('is_active', true), Filter.where('is_staff', false))" in new
+    summary = files[f'{screens.GENERATED_DIR}/task-summary.tsx']
+    assert "    fields: ['priority', 'assignee'],\n    filters: { assignee: Filter.where('is_active', true) },\n" in summary
+    assert "{ id: 'reopen', filters: { assignee: Filter.where('is_active', true) } }" in files[
+        f'{screens.GENERATED_DIR}/entities.ts']
 
 
 #: an extended screen of each primitive: the list of the sample, the screens of the kitchen sink

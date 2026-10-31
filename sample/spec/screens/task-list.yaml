@@ -23,8 +23,7 @@ actions:
   - id: create
     primitive: form
     mode: create
-    fields: [title, assignee, priority, watchers, hours]
-    filters: {assignee: {is_active: true}}   # its picker offers the active users
+    fields: [title, assignee, priority, watchers, hours]   # the picker of the assignee: the active users (the entity)
     then: task-card
     label: {en: New task, ru: Новая задача}
     description: {en: The task is created as a draft., ru: Задача создаётся черновиком.}

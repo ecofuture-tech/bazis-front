@@ -89,8 +89,8 @@ Every operation takes the path of a route set and, for an item, its id:
 | `itemAction(path, id, name, body?, {method, query})` | `POST path{id}/{name}/`, as `action` |
 | `login({username, password}, {path})` | `POST /api/openapi-token/` (bazis-users), a form |
 | `upload(path, file, {name, onProgress})` | `POST path`, `multipart/form-data` with `file` (and `name`), with XMLHttpRequest (bazis-uploadable); the created item |
-| `actionFile(path, name, body?)` | `POST path{name}/` of a custom action that answers a file (`custom_actions[].file` of the contract, a `response_class` with a `media_type`), `application/json`; `{blob, name}` as `download` |
-| `download(path, id)` | `GET path{id}/download/` with the token (bazis-uploadable 2.7, bazis-bg 2.6); `{blob, name}`, the name of `Content-Disposition` (`dispositionName`); `saveFile(file, fallback?)` saves it in the browser |
+| `actionFile(path, name, body?)` | `POST path{name}/` of a custom action that answers a file (`custom_actions[].file` of the contract, a `response_class` with a `media_type`), `application/json`; `{blob, name, meta}` as `download`, `meta` the JSON object of the header `X-Bazis-Meta` (`fileMeta`: null without it, or with a warning when it is not an object) |
+| `download(path, id)` | `GET path{id}/download/` with the token (bazis-uploadable 2.7, bazis-bg 2.6); `{blob, name, meta}`, the name of `Content-Disposition` (`dispositionName`); `saveFile(file, fallback?)` saves it in the browser |
 | `auth(path, {store})` | `GET path` (bazis-authing), the store token as the bearer token, without cookies; the state of the store |
 | `authLogin(path, store, body)` | `POST path` of a login action, `application/json` in the store, its redirect to the auth endpoint followed; the state of the store |
 | `authInit(path, store)` | `POST path` of the login action of a service in a window (Google, bazis-authing 2.8), the store token as the bearer token, with the cookies of the browser; `{ticket, url}`, the URL of the window |

@@ -28,6 +28,8 @@ export interface FieldValueProps {
   type?: string;
   /** How the value is shown (`display` of the field of the entity of the specs). */
   display?: FieldDisplay | undefined;
+  /** The value is that of a card: the thumbnail of an image (`display: 'image'`) is large. */
+  large?: boolean | undefined;
 }
 
 /** A number with a bar of its share of `max` (`display: {bar}`), a `meter`. */
@@ -55,21 +57,22 @@ function Bar({ value, max, text, label }: { value: number; max: number; text: st
  * The value of a field for reading: an attribute formatted by its type, its format and
  * `display` (a phone as a link to call it, a share as a bar), the labels of the related items
  * of a relationship (the status of an item of bazis-statusy by its name), the uploaded files
- * (`FileValue`). A text of the item, of any length (a string without a choice or a format, the
+ * (`FileValue`; their thumbnails only with `display: 'image'`, large in a card). A text of the item, of any length (a string without a choice or a format, the
  * label of a related item), is in an element `data-text`, which the screenshots make long to
  * check the layout (V015), unlike a date, a number or the label of a choice.
  */
-export function FieldValue({ field, value, type, display }: FieldValueProps) {
+export function FieldValue({ field, value, type, display, large = false }: FieldValueProps) {
   const { resources } = useFiles();
   const language = useLanguage();
   if (isFile(field, resources) && value !== null && value !== undefined) {
-    if (!Array.isArray(value)) return <FileValue relation={field.relation} id={text(value)} />;
+    const thumbnail = display === 'image' ? (large ? 'large' : 'small') : undefined;
+    if (!Array.isArray(value)) return <FileValue relation={field.relation} id={text(value)} thumbnail={thumbnail} />;
     const ids = (value as unknown[]).map(text);
     if (!ids.length) return <>—</>;
     return (
-      <span className="inline-flex flex-wrap gap-x-3 gap-y-1">
+      <span className={thumbnail ? 'inline-flex flex-wrap gap-2' : 'inline-flex flex-wrap gap-x-3 gap-y-1'}>
         {ids.map((id) => (
-          <FileValue key={id} relation={field.relation} id={id} />
+          <FileValue key={id} relation={field.relation} id={id} thumbnail={thumbnail} />
         ))}
       </span>
     );

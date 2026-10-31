@@ -14,8 +14,8 @@
 
 """
 The validation of the specs of a product: each file is loaded and checked against its JSON
-Schema (Draft 2020-12), then the valid ones are checked against each other and, when the
-product has one, against `contract/contract.json`. `bazis_front check` and the system
+Schema (Draft 2020-12, `lint.load`), then the valid ones are checked against each other and,
+when the product has one, against `contract/contract.json`. `bazis_front check` and the system
 checks run `validate`; the result is a list of issues with stable codes (`issues.CODES`).
 """
 
@@ -23,13 +23,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from functools import cache
-from importlib.resources import files
-from importlib.resources.abc import Traversable
 from pathlib import Path
-
-import yaml
-from jsonschema import Draft202012Validator
-from jsonschema.exceptions import best_match
 
 from ..capabilities import outdated
 from ..contract.export import CONTRACT_DIR, CONTRACT_FORMAT
@@ -37,31 +31,27 @@ from ..vendor import lock as frontend_lock
 from ..vendor import registry
 from . import design, refs, scenarios
 from .issues import CONTRACT, ERROR, WARNING, Document, Issue, Issues
+from .lint import (
+    PRODUCT,
+    PRODUCT_FILE,
+    PRODUCT_SCHEMA,
+    SCREEN,
+    SCREEN_SCHEMA,
+    SPEC_DIR,
+    THEME,
+    THEME_FILE,
+    TOKENS,
+    TOKENS_FILE,
+    load,
+    validator,
+)
 from .names import TEXT_KEY, component_name
 from .scenarios import Step
 
 
-SPEC_DIR = 'spec'
-
-#: the files of the specs, by their path in the product root (the screens are
-#: `screen_files`)
-PRODUCT_FILE = f'{SPEC_DIR}/product.yaml'
-THEME_FILE = f'{SPEC_DIR}/design/theme.yaml'
-TOKENS_FILE = f'{SPEC_DIR}/design/tokens.json'
-
-#: the copies of the JSON Schemas in the specs of a product, for the editors
-SCHEMA_DIR = 'schema'
-
 LAYERS = ('product', 'screens', 'design')
 
 CONTRACT_FILE = f'{CONTRACT_DIR}/contract.json'
-
-#: the JSON Schema of each kind of file
-PRODUCT_SCHEMA = 'product.schema.json'
-SCREEN_SCHEMA = 'screen.schema.json'
-DESIGN_SCHEMA = 'design.schema.json'
-TOKENS_SCHEMA = 'tokens.schema.json'
-SCHEMAS = (PRODUCT_SCHEMA, SCREEN_SCHEMA, DESIGN_SCHEMA, TOKENS_SCHEMA)
 
 
 @dataclass(frozen=True)
@@ -104,179 +94,6 @@ class Result:
             'warnings': len(self.warnings),
             'issues': [it.as_dict() for it in self.issues],
         }
-
-
-def schema_files() -> dict[str, Traversable]:
-    """
-    The JSON Schemas of the specs shipped with the package, by file name.
-    """
-    directory = files(__package__) / 'schemas'
-    return {name: directory / name for name in SCHEMAS}
-
-
-@cache
-def validator(name: str) -> Draft202012Validator:
-    schema = json.loads(schema_files()[name].read_text(encoding='utf-8'))
-    Draft202012Validator.check_schema(schema)
-    return Draft202012Validator(schema)
-
-
-#: the hint by the `problem` of PyYAML: a text with `: ` in a block or in a flow mapping is read as a mapping
-_QUOTE = (
-    "Quote the text: a text with `: ` or a special first character (`'`, `#`, `[`, `{`) goes in quotes, "
-    "`title: 'Workshop \"Spitsa\": sign up'`."
-)
-_SYNTAX = 'Fix its syntax; a text with `: ` or special characters goes in quotes.'
-YAML_HINTS = {
-    'mapping values are not allowed here': _QUOTE,
-    "expected ',' or '}', but got ':'": _QUOTE,
-}
-
-
-def piece_of_text(error, data) -> str | None:
-    """
-    The key that a mapping of the data (at the path of a shape error) cannot have and that is a
-    piece of a text, not an id (it has a space or a letter beyond ASCII): the text after the
-    comma of a flow mapping, `{entrance_info: 1 floor, 3 rooms}`, which YAML reads as a key of
-    its own. The error is that of an extra key, or of a key that is not an id (`error.instance`).
-    """
-    node = data
-    for step in error.absolute_path:
-        node = node[step]
-    if not isinstance(node, dict):
-        return None
-    if error.validator == 'additionalProperties':
-        keys = [it for it in node if it not in error.schema.get('properties', {})]
-    else:
-        keys = [error.instance] if isinstance(error.instance, str) and error.instance in node else []
-    return next((it for it in keys if isinstance(it, str) and (' ' in it or not it.isascii())), None)
-
-
-#: the parameters of the helpers of the end-to-end tests that the generator gives them, which a
-#: step of a scenario does not take: what each is
-_HELPER_PARAMETERS = {
-    'created': (
-        '`created` is a parameter of the helpers `openItem`, `select` and `move`, not a key of the step: the '
-        'generator sets it when the scenario created an item with the texts of `where` before, so that its test '
-        'finds the item it made. Remove it.'
-    ),
-    'saved': (
-        '`saved` is a parameter of the helper `submit`, not a key of the step: every submit must save, but one '
-        'that the next step expects to be refused (an `error`, or a `state` of a failure). Remove it.'
-    ),
-}
-
-#: the hints of the shape errors by the schema and the path of the value that it refuses (`*`:
-#: any item or key; a key that the mapping may not have ends the path): what the value is
-#: instead of the schema to follow
-SHAPE_HINTS = {
-    (PRODUCT_SCHEMA, ('roles', '*', 'title')): (
-        'The `title` of a role is one text that names it for the readers of the specs (the frontend never '
-        'shows it): `title: Dispatcher`, not a map of the languages.'
-    ),
-    # a parameter in the body of a step, `submit: {saved: true}`, or next to it, `- submit: {}` and `saved: true`
-    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', '*', 'created')): _HELPER_PARAMETERS['created'],
-    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', 'created')): _HELPER_PARAMETERS['created'],
-    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', '*', 'saved')): _HELPER_PARAMETERS['saved'],
-    (PRODUCT_SCHEMA, ('scenarios', '*', 'steps', '*', 'saved')): _HELPER_PARAMETERS['saved'],
-    (SCREEN_SCHEMA, ('dashboard', 'actions', '*', 'requires')): (
-        'The button of a create form is shown to the users whose role may add the entity: remove `requires`, '
-        'a key of a tile, a chart, the last items and a link of the navigation.'
-    ),
-    (SCREEN_SCHEMA, ('dashboard', 'actions', '*', 'filters')): (
-        'A create form of a dashboard has no `filters`: its pickers offer every item, and the backend validates '
-        'the value. Remove `filters`, or narrow the picker in a create form that takes them: an action of the list '
-        'screen of the entity (`actions`, `primitive: form`, `mode: create`) or a form screen.'
-    ),
-}
-
-
-def shape_hint(error, data, schema: str) -> str | None:
-    """
-    The hint of `SHAPE_HINTS` for a shape error: at the path of the value, or of a key that the
-    mapping there may not have (`additionalProperties`; any key: `maxProperties`); else, for a
-    key that the mapping may not have, the keys that it may (but those of `patternProperties`,
-    and those of an alternative of a oneOf/anyOf: the closest one may be another than meant).
-    """
-    path = tuple(error.absolute_path)
-    paths = [path]
-    allowed = {}
-    if error.validator in ('additionalProperties', 'maxProperties'):
-        node = data
-        for step in path:
-            node = node[step]
-        allowed = error.schema.get('properties', {}) if error.validator == 'additionalProperties' else {}
-        paths = [(*path, key) for key in node if key not in allowed] if isinstance(node, dict) else []
-    for (name, mask), hint in SHAPE_HINTS.items():
-        if name == schema and any(len(it) == len(mask) and all(m in ('*', p) for m, p in zip(mask, it, strict=True)) for it in paths):
-            return hint
-    if allowed and 'patternProperties' not in error.schema and error.parent is None:
-        keys = ', '.join(f'`{key}`' for key in allowed)
-        return f'The keys of this mapping are {keys}: remove the others ({SPEC_DIR}/{SCHEMA_DIR}/{schema} says what each is).'
-    return None
-
-
-class _Loader(yaml.SafeLoader):
-    """
-    YAML whose implicit types are those of YAML 1.2: `2026-10-07` stays a string (no
-    timestamps), and only true and false are booleans (`yes`, `No`, `on`, `Off` are
-    strings, as the specs mean them).
-    """
-
-
-_Loader.yaml_implicit_resolvers = {
-    key: [
-        it for it in resolvers
-        if it[0] not in ('tag:yaml.org,2002:timestamp', 'tag:yaml.org,2002:bool')
-    ]
-    for key, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
-}
-_Loader.add_implicit_resolver(
-    'tag:yaml.org,2002:bool', re.compile(r'^(?:true|True|TRUE|false|False|FALSE)$'), list('tTfF')
-)
-
-
-def load(
-    root: Path, path: Path, layer: str, schema: str, codes: tuple[str, str], issues: Issues
-) -> Document:
-    """
-    A file of the specs, loaded (YAML, or JSON for `.json`) and checked against its JSON
-    Schema; `codes` are those of a file that cannot be read and of a shape error.
-    """
-    read_code, shape_code = codes
-    doc = Document(layer, path.relative_to(root).as_posix())
-    try:
-        text = path.read_text(encoding='utf-8')
-        data = json.loads(text) if path.suffix == '.json' else yaml.load(text, Loader=_Loader)
-    except FileNotFoundError:
-        issues.add(
-            doc, (), read_code, f'{doc.file} is missing.',
-            'Create it; `manage.py bazis_front init` writes a starter of spec/ when it '
-            'creates the frontend.',
-        )
-        return doc
-    except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError) as err:
-        hint = YAML_HINTS.get(getattr(err, 'problem', None), _SYNTAX)
-        issues.add(doc, (), read_code, f'{doc.file} cannot be read: {err}', hint)
-        return doc
-
-    doc.data = data
-    errors = sorted(validator(schema).iter_errors(data), key=lambda it: it.json_path)
-    for error in errors:
-        # the alternative of a oneOf/anyOf that came closest, rather than "not valid under
-        # any of the given schemas"
-        error = best_match(error.context) if error.context else error
-        piece = piece_of_text(error, data)
-        if piece is not None:
-            hint = (
-                f'The key `{piece}` is a piece of a text: in a flow mapping `{{a: x, y}}` the text after `, ` is '
-                "read as another key. Quote the text that has the comma, `{entrance_info: '1 floor, 3 rooms'}`."
-            )
-        else:
-            hint = shape_hint(error, data, schema) or f'Follow {SPEC_DIR}/{SCHEMA_DIR}/{schema}.'
-        issues.add(doc, error.absolute_path, shape_code, error.message, hint)
-    doc.valid = not errors
-    return doc
 
 
 #: what `update` says of a contract of another format (C002), exported by an older version
@@ -743,20 +560,11 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = Fa
         check_packages(contract, issues)
         check_logins(contract, issues)
 
-    product_doc = load(root, root / PRODUCT_FILE, 'product', PRODUCT_SCHEMA, ('P001', 'P002'), issues)
-    screen_docs = [
-        load(root, root / path, 'screens', SCREEN_SCHEMA, ('S001', 'S002'), issues)
-        for path in screen_files(root)
-    ]
+    product_doc = load(root, root / PRODUCT_FILE, *PRODUCT, issues)
+    screen_docs = [load(root, root / path, *SCREEN, issues) for path in screen_files(root)]
     theme_path, tokens_path = root / THEME_FILE, root / TOKENS_FILE
-    theme_doc = (
-        load(root, theme_path, 'design', DESIGN_SCHEMA, ('D001', 'D002'), issues)
-        if theme_path.exists() else None
-    )
-    tokens_doc = (
-        load(root, tokens_path, 'design', TOKENS_SCHEMA, ('D001', 'D003'), issues)
-        if tokens_path.exists() else None
-    )
+    theme_doc = load(root, theme_path, *THEME, issues) if theme_path.exists() else None
+    tokens_doc = load(root, tokens_path, *TOKENS, issues) if tokens_path.exists() else None
 
     product = refs.check_product(product_doc, contract, issues)
     screens = refs.check_screens(screen_docs, product, contract, issues)

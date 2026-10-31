@@ -15,7 +15,9 @@
 """
 The specs of a product, `spec/` in its root: `product.yaml` (roles, entities, access,
 scenarios), `screens/<id>.yaml` and `design/` (`theme.yaml`, `tokens.json`). Their JSON
-Schemas are in `schemas/`; `validate.validate` checks them against each other and against
-`contract/contract.json`. Bazis imports this package while it configures the settings:
-nothing here imports a model, the database or the core at the module level.
+Schemas are in `schemas/`; `lint` checks the shape of a file (it imports neither Django nor
+the core: `python -m bazis.contrib.front.spec.lint <file>` lints a file as it is written), and
+`validate.validate` checks them against each other and against `contract/contract.json`.
+Bazis imports this package while it configures the settings: nothing here imports a model,
+the database or the core at the module level.
 """

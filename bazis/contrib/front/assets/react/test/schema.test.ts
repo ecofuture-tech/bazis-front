@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { choiceLabel, objectFields, resourceSchema, startValue } from '../src/schema.js';
+import { choiceLabel, objectFields, relativeDay, resourceSchema, startValue } from '../src/schema.js';
 import { transits } from '../src/statusy/transits.js';
 import { parentSchema } from './fixtures/parent.js';
 // the runtime schemas of `tasks.task` of the sample of bazis-front, as the backend returns them
@@ -325,5 +325,42 @@ describe('startValue', () => {
       required: ['intact'],
     });
     expect([flag, intact, open, kind, note].map((it) => it && startValue(it))).toEqual([true, false, false, undefined, undefined]);
+  });
+});
+
+describe('relativeDay', () => {
+  // the last day of a leap February, in the time zone of the browser
+  const now = new Date(2028, 1, 29, 23, 59);
+
+  it.each([
+    ['today', '2028-02-29'],
+    ['today+1', '2028-03-01'],
+    ['today-29', '2028-01-31'],
+    ['today+366', '2029-03-01'],
+    ['month_start', '2028-02-01'],
+    ['month_end', '2028-02-29'],
+    // some days from the first or the last day of the month, across the month
+    ['month_end+1', '2028-03-01'],
+    ['month_start-1', '2028-01-31'],
+    ['month_start+14', '2028-02-15'],
+  ])('%s is a date', (text, day) => {
+    expect(relativeDay(text, 'date', now)).toBe(day);
+  });
+
+  it('is the instant of a date-time: midnight of the browser, or its time', () => {
+    expect(relativeDay('today', 'date-time', now)).toBe(new Date(2028, 1, 29).toISOString());
+    expect(relativeDay('month_end 23:59', 'date-time', now)).toBe(new Date(2028, 1, 29, 23, 59).toISOString());
+    // the end of December is in the next year
+    expect(relativeDay('today+1 09:30', 'date-time', new Date(2027, 11, 31, 12))).toBe(new Date(2028, 0, 1, 9, 30).toISOString());
+    expect(relativeDay('month_end', 'date', new Date(2027, 11, 15))).toBe('2027-12-31');
+    expect(relativeDay('month_end+1', 'date', new Date(2027, 11, 15))).toBe('2028-01-01');
+    // the day after the month, as `__lt` of the date-times of the month: its local midnight
+    expect(relativeDay('month_end+1', 'date-time', now)).toBe(new Date(2028, 2, 1).toISOString());
+  });
+
+  it('leaves another text, or a field that is not a date, as it is', () => {
+    expect(relativeDay('2028-02-01', 'date', now)).toBe('2028-02-01');
+    expect(relativeDay('tomorrow', 'date', now)).toBe('tomorrow');
+    expect(relativeDay('today', null, now)).toBe('today');
   });
 });

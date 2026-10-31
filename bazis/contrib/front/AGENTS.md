@@ -426,13 +426,13 @@ labels of the fields").
 
 #### Display
 
-**Display** (optional) of an attribute says how the screens show its value (`display` of the
+**Display** of an attribute says how the screens show its value (`display` of the
 schema, S020), the only place where the spec speaks of it. The screen gives it to the
 components as it gives them the columns: `display={{code: 'plain', price: {currency: 'RUB'}}}`
 of `ResourceList` and `ResourceCard` (`display` of `FieldValue` for a value of its own). The
 components group a number by thousands from five digits (`formatNumber` of `@/bazis/i18n`),
 so a year needs no `display`; a phone is a link to call it, shown in groups
-(`+7 916 123-45-67`), a bar a `meter` next to the number.
+(`+7 916 123-45-67`), a bar a `meter` next to the number, an `image` its thumbnail.
 
 #### Label
 
@@ -998,6 +998,12 @@ x14, …)`: every management command prints the system checks); `bazis_front che
 the warnings with their places and fixes. The system checks run before every management
 command, so an error of the specs is a warning there, never blocking `migrate` or `contract`.
 
+Lint a file of the specs as it is written, before `check`: `python -m
+bazis.contrib.front.spec.lint spec/screens/<id>.yaml` (`--json`: the output of `check --json`)
+reports its YAML (`P001`, `S001`, `D001`) and its shape (`P002`, `S002`, `D002`, `D003`) with the
+hints of `check`, and exits 1 on an error; it runs without Django, the settings or the
+database, in a fraction of a second. The references and the contract are the job of `check`.
+
 | Code | Severity | Meaning |
 |---|---|---|
 | `C001` | error | contract/contract.json cannot be read |
@@ -1046,19 +1052,19 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S005` | error | a screen references an unknown role |
 | `S006` | error | a screen references an unknown screen, or one of another primitive, or opens an item in a card without `:id` in its route (a custom card that finds its item itself); a form or an action leads to a screen of an item (`:id` in its route) that is not a card of the saved item, or a deletion or the form of a custom action, which save none, to one |
 | `S007` | error | a screen references a field that its entity does not declare |
-| `S008` | error | a filter or a sort field cannot be filtered or sorted by in the contract |
+| `S008` | error | a filter or a sort field cannot be filtered or sorted by in the contract (the field of a key with a lookup, `date_from` of `date_from__gte`, too) |
 | `S009` | error | a state required by the primitive is missing |
 | `S010` | error | an action is not valid: a duplicate id (`edit` on a card with `edit: true`, which is its edit), or not possible on the primitive (a custom action is one of a list or a card), or a row action (`list.row_actions`) is not a custom action of the screen |
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
-| `S014` | error | a value of the filter of a list or a tile does not fit the type of its field in the contract, or the highlight of a list is not by a boolean field or has no label |
+| `S014` | error | a value of the filter of a list or a tile does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
 | `S018` | warning | the title of a field of an entity in the contract is its name (`is_overdue`) or the default `verbose_name` of Django (`status author`): the backend gives the field no label (a calculated field without a title), or one that reads as its name; give it one in the backend (see "The labels of the fields"), never in the dictionaries of the frontend |
 | `S019` | warning | the resource of an entity has no attribute that labels its items in the contract (`label`: a `name`, a `title`, the names of a person…), and the entity has no `label`: the frontend shows an item by its id |
-| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, none of a relationship |
+| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, `image` of a `file`, none of a relationship |
 | `S021` | error | a chart of a dashboard is neither by the `status` of an entity with a workflow nor by a `date` or `datetime` field, or has a `bucket` or `last` without a date |
 | `S022` | error | a board is of an entity without a workflow, has a column that is not a status of its workflow, or a `badge` that is not a boolean field |
 | `S023` | error | a calendar is not by a `date` or `datetime` field (`field`, `end`), or its `tone` is not by a boolean field |
@@ -1090,14 +1096,16 @@ command, so an error of the specs is a warning there, never blocking `migrate` o
 | `S049` | error | The `value` of a tile or a chart aggregates a field of a type that its function does not take: `sum` and `avg` take a number (`integer`, `number`, a DecimalField: a `string` of the format `decimal` in the contract), `min` and `max` (a tile) also a date. Aggregate a number or a date, or count the items without `value` |
 | `S050` | error | The `value` of a tile or a chart aggregates a field that the route set of the entity does not filter by (no `filter` in the contract): the core aggregates the fields that the filter of the list reaches for the user (400 `ERR_AGGREGATE`). Make the field filtered by in the route set, or show another one |
 | `S052` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the picker of a relationship whose entity an anonymous role of the screen does not view (`access` of the entity in product.yaml, `view` of the role): the picker of a guest is refused (403). Let the role view the related items (`access` and the permit role of the anonymous users), or leave the property out |
-| `S053` | error | the `title` or the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON; an action that answers a file (`file`) answers `{filename}` only. Give the action a `response_model` with it and export the contract again, or show another property |
+| `S053` | error | the `title` or the `message` of the `result` of the form of a custom action shows a `{name}` that is not a property of the JSON answer of the action in the contract (`response` of its custom action), or the action answers no JSON; an action that answers a file (`file`) answers `{filename}` and the properties of the meta of the file (`file_meta`, the header `X-Bazis-Meta`). Give the action a `response_model` with it (for a file, declare its meta: see "The answer next to the file") and export the contract again, or show another property |
 | `S054` | warning | a property of the body of a custom action (in its dialog or its form) or a field of the payload of a transition has a type that the form cannot ask for: a union (other than a decimal, a number or a text, and a text that may be empty), an object, an array (other than the ids of a to-many relationship or of uploaded files); the user types it as JSON. Give it a type that a field takes, or fill it in the code of the screen |
 | `S055` | error | the id of the screen is the mark of the menu of the top bar, `more`: its links (`nav:more`) would be marked as the menu of the links that the top bar has no room for. Give the screen another id |
 | `S057` | error | a property of the body of a custom action on a public screen (in its dialog or its form) is the id of an uploaded file (`UploadedFileId` of bazis-uploadable, `x-relation` of its files), and the contract does not let the guests upload files (`anonymous` of `uploadable`): their upload is refused (401). Turn the anonymous uploads of bazis-uploadable 2.8 on in the environment of the project (`BS_BAZIS_FILE_UPLOAD_ANONYMOUS=true` with `BS_BAZIS_FILE_UPLOAD_MAX_SIZE`) and export the contract again, or leave the property out of the public screen |
 | `S058` | warning | a property of the body of a custom action (in its dialog or its form) has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.21): the form offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
 | `S059` | error | a section of a card shown by the status of its item (`when`) names a status that is not of the workflow of the entity, or the entity has no workflow. Use the statuses of the workflow, or remove `when` |
 | `S060` | error | a value that a field of a custom action starts with (`values` of its dialog or its form) is not of its `fields`, or does not fit its property in the body: a value of another type or out of its choices, a day of the browser (`today`, `month_start`, ...) of a property that is not a date, a time of a date, a text of a date that is neither a day of the browser nor `YYYY-MM-DD` |
-| `S061` | error | the filter of the picker of a relationship (`filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register its router), or its value does not fit the field. See "The items that a picker offers" |
+| `S061` | error | the filter of the picker of a relationship (`filter` of a field of an entity, `filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register its router), or its value does not fit the field. See "The items that a picker offers" |
+| `S062` | error | a public screen (an anonymous role in its `roles`) shows a file field (a column, a section of a card, the card of a board, the label of a calendar), and the guests read no file in the contract (`anonymous_files` of the section `uploadable`): the guest sees `file:unavailable`. The route set of the resource must serve guests and declare `files_visible = ('<field>',)` (bazis-uploadable 2.9), then export the contract again; never link the `/media` URL of a file |
+| `S063` | warning | a create form that lists its `fields` leaves out a boolean that the create route requires (`create_required` of the contract: a boolean without a default): the form sends `false` for it and the user never chooses it. Add it to `fields`, or give the field a default in the model |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json (a key that a mapping does not take: as P002) |
@@ -1863,6 +1871,34 @@ fieldValue(row, '<field>') === true ? '<tone>' : undefined`), never with classes
 product, and `rowToneLabel(row)` says it in words (its `label`, `t(label)`): the
 `aria-description` of the row, never the color alone.
 
+**Days of the browser and lookups in a filter** (`list.filter`, `filter` of a tile): a key
+is a field equal to its value, or a field of a date, a date-time or a number compared with
+it by a lookup of the core, `<field>__gt`, `__gte`, `__lt`, `__lte` (S014 of another field;
+the field is one that the contract filters by, S008). The value of a date or a date-time is
+`YYYY-MM-DD` (with its time for a date-time) or a day of the browser: `today`,
+`month_start`, `month_end`, each with `+<n>` or `-<n>` days (`month_end+1` is the first day of
+the next month, `month_start-1` the last one of the previous), with ` HH:MM` for a date-time
+(`'today 18:00'`), computed by `relativeDay` of `@/bazis/react` when the screen is shown (the
+filter of a list once per screen, `useMemo`). A date is equal to a day or compared with it by
+any lookup; a day without a time is the midnight of a date-time, compared only by `__gte` and
+`__lt` (the equality, `__lte` and `__gt` lose or add a day: S014): the date-times of a day are
+`<field>__gte: today` and `<field>__lt: today+1`, those of the month
+`<field>__gte: month_start` and `<field>__lt: month_end+1`; with its time, a day takes any
+lookup. So a tile counts the bookings that start today without a calculated boolean field in
+the backend:
+
+```yaml
+tiles:
+  - {id: today, entity: booking, filter: {date_from: today}, label: {en: Today, ru: Сегодня}}
+  - {id: month, entity: booking, filter: {date_from__gte: month_start, date_from__lt: month_end+1, status: closed}, label: {en: Closed this month, ru: Закрыто за месяц}}
+```
+
+The day is that of the browser, in its time zone: a date-time is sent as its instant (ISO,
+UTC), the midnight of the browser for `today`; a date is the date of the browser, which near
+midnight is another date than that of the backend (`TIME_ZONE`) for a user in another time
+zone. `requires.filters` of the link of such a list names the fields
+(`date_from`), not the keys.
+
 ### The navigation follows the backend
 
 **The navigation follows the backend**: a link with `requires` is shown once the backend
@@ -1974,10 +2010,18 @@ than `collection` and `item`, `self.route_ctx.kind`); the sample of bazis-front 
 does not let link. `useRelationship` changes one item outside a form (see
 [Composing beyond the specs](#composing-beyond-the-specs)).
 
-**The items that a picker offers** are all those of the related list; a form narrows them
-by a filter of its picker: `filters: {assignee: {is_active: true}}` of the form of a page, of
-a form action or of a custom action (by property), `filter: {is_active: true}` of a field of
-a payload with `relation`. Each key is a field of the related resource that the contract
+**The items that a picker offers** are all those of the related list; the entity narrows
+them in every form by the `filter` of its field with `relation` in product.yaml:
+`{id: responsible, relation: user, filter: {roles__slug: receptionist}}` narrows the picker
+of `responsible` in the create and update forms of the entity (of a list, a dashboard, a
+calendar, a form screen, the edit of a card, "add here" of a related section), in a custom
+action whose `fields` name it, and in the payload of a transit with a field of the same id and
+relation without a filter of its own (a field without `relation` or a file has no picker:
+P002). A form narrows them by a filter of its own, which replaces that of the entity for its
+field: `filters: {assignee: {is_active: true}}` of the form of a page, of a form action or of
+a custom action (by property), `filter: {is_active: true}` of a field of a payload with
+`relation`; a form that takes no `filters` (the add of a calendar, "add here", a create form
+of a dashboard) has the filters of the entity. Each key is a field of the related resource that the contract
 filters by, or a path through its relationships, `roles__slug: master` (the users of a role),
 equal to its value (S061). A path reads the route set of the related model: the roles of
 bazis-permit need `bazis.contrib.permit.router` in the root router, which makes them a public
@@ -1994,7 +2038,9 @@ choice only: the backend validates the value.
 (a resource of `resources` of the capability `uploadable`), `type: file` in the specs.
 `FieldValue` shows it (`FileValue`: its name, a button that downloads it, its size, a
 thumbnail of an image, read with the retrieve of the route set) in the cards and the
-lists. The content (the download, the thumbnail) is read with the token from
+lists. With `display: image` (a photo, a logo) it is its thumbnail only, a button that
+downloads it: 56 px in a list, a board or a dashboard, 160 px in a card, a row of them for
+several files; a file that is not an image is an icon in its place. The content (the download, the thumbnail) is read with the token from
 `<files>/{id}/download/` (`useDownload`, `useDownloadUrl`), never from the `file` URL of
 the media host, which serves it to anyone who has the link; the file of
 another user, which bazis-uploadable does not give (a 404), is `file:unavailable`
@@ -2085,6 +2131,16 @@ bazis-permit or bazis-statusy): on a route without a user even his own file is r
 A product that shares the attachments of shared items widens `restrict_queryset` of a
 subclass of `FileUploadRouteSet` with `default_route = True` (the guide of
 bazis-uploadable). The section `uploadable` lists only the route sets with their create.
+
+### The files of a public screen
+
+**The files of a public screen** (bazis-uploadable 2.9): a guest reads the files of the
+objects that a route set shows him (a photo of a public listing). The route set of the
+resource must serve guests (bazis-permit: a role `for_anonymous` that views it) and declare
+`files_visible = ('<field>',)`; the contract then has `anonymous_files: true` in the section
+`uploadable`, and `FileValue` downloads them without a session. A public screen that shows a
+file field while the guests read no file is S062 (the guest sees `file:unavailable`); never
+link the `/media` URL of a file instead, which serves it to anyone who has the link.
 
 ### Points and maps
 
@@ -2241,8 +2297,8 @@ form are not submitted while a file uploads, nor twice while their request runs.
 **The values that the fields start with**, `values` of a custom action (its dialog) or of
 `form` (S060), are given when the dialog or the form opens, and again on `action:again`, over
 the `default` of the body: a value of the type of the property (one of its choices), or for a
-date a day of the browser, `today`, `today+<n>`, `today-<n>`, `month_start`, `month_end`
-(then ` HH:MM` for a date-time: `today 09:00`), or `YYYY-MM-DD`. The day is that of the
+date a day of the browser, `today`, `month_start`, `month_end`, each with `+<n>` or `-<n>`
+days (then ` HH:MM` for a date-time: `today 09:00`), or `YYYY-MM-DD`. The day is that of the
 browser, not of the server, and the helpers of the tests count their days in UTC: a scenario
 that checks the rows of a day fills its date. A scenario submits the values without `fill`:
 
@@ -2295,8 +2351,8 @@ states: [loading, error, forbidden, invalid, done]
 class of its answer with its media type and names the file; the contract marks it `file`
 (`custom_actions[].file`, an answer of another type than JSON, `application/json` or a
 `+json` type such as `application/vnd.api+json`: an HTML answer is a file too), and its form
-saves the file (`useActionFile`) before its result, whose only parameter is `{filename}`
-(S053). Only a form runs it: a dialog does not save it (S032). A long export stays a task of bazis-bg
+saves the file (`useActionFile`) before its result, whose parameters are `{filename}` and the
+properties of the meta of the file (S053, see "The answer next to the file"). Only a form runs it: a dialog does not save it (S032). A long export stays a task of bazis-bg
 (`TaskProgress`, "Background work"):
 
 ```python
@@ -2309,6 +2365,33 @@ def action_export(self, data: ExportRequest, **kwargs):
     # get_queryset_for_list(), whose search and filter a custom action does not have)
     return CsvResponse(text, headers={'Content-Disposition': content_disposition_header(True, 'tasks.csv')})
 # the screen: form: {action: export, fields: [priority], result: {message: {en: 'Saved {filename}.'}}}
+```
+
+**The answer next to the file** (its meta: the number of rows, a total) is the header
+`X-Bazis-Meta` of the answer, the JSON of a flat object (scalars, dates, lists and maps of
+them), declared in the OpenAPI of the answer of the status of the route (200, or the
+`status_code` of the route: the contract reads the first 2xx answer): with bazis 2.25,
+`file_meta=ExportMeta` of `http_post` and
+`file_answer(content, filename, media_type, ExportMeta(count=...))`, which sends the keys of
+the schema (by alias); before it, the header in `responses=` of the route and set on the
+answer as the core does it: the schema of the model as it is sent
+(`model_json_schema(mode='serialization')`), the model by alias
+(`model_dump(mode='json', by_alias=True)`), so that the keys of the meta are the properties of
+the schema (the sample, `action_export` of `tasks/routes.py`). The contract
+has its schema (`custom_actions[].file_meta`), and the result of the form shows its properties next to
+`{filename}`: `message: {en: 'Saved {filename}: {count} tasks.'}`. `useActionFile` resolves
+to `{name, meta}` (`meta`: null without the header, or with one that is not JSON). A client
+of another origin reads the header only when CORS exposes it (bazis 2.25 does; a reverse
+proxy must pass it):
+
+```python
+class ExportMeta(BaseModel):
+    count: int = Field(title=_('Tasks'))
+
+@http_post('/export/', kind=RouteKind.OTHER, response_class=CsvResponse, file_meta=ExportMeta)
+def action_export(self, data: ExportRequest, **kwargs):
+    rows = ...
+    return file_answer(text, 'tasks.csv', CsvResponse.media_type, ExportMeta(count=len(rows)))
 ```
 
 ### Background work
@@ -3923,16 +4006,21 @@ The exports of the protocol client, `frontend/src/bazis/client/` (see "The clien
 
 `dispositionName(header: string | null): string | null`: The file name of a `Content-Disposition` header (Django `content_disposition_header`): `filename*=utf-8''<percent-encoded>` (a name that is not ASCII), else `filename="<name>"`.
 
+#### fileMeta
+
+`fileMeta(header: string | null): Readonly<Record<string, unknown>> | null`: The meta of a file, the JSON object of the header `X-Bazis-Meta`: null without it, and null with a warning when it is not a JSON object (the file is saved all the same).
+
 #### saveFile
 
-`saveFile(options: DownloadedFile, fallback?: string): void`: Saves a downloaded file in the browser under its name (`fallback` without one).
+`saveFile(options: Pick<DownloadedFile, 'blob' | 'name'>, fallback?: string): void`: Saves a downloaded file in the browser under its name (`fallback` without one).
 
 #### DownloadedFile
 
-`interface DownloadedFile`: A file read from a download route: its content and the name the backend gives it.
+`interface DownloadedFile`: A file read from a download route: its content, the name the backend gives it and its meta.
 
 - `blob: Blob`
 - `name: string | null`: The file name of `Content-Disposition`; null without one.
+- `meta: Readonly<Record<string, unknown>> | null`: What the backend answers next to the file (the number of rows of an export): the JSON object of the header `X-Bazis-Meta` (`file_meta` of bazis 2.25); null without it.
 
 #### ApiError
 
@@ -4207,7 +4295,7 @@ Its props, `BazisProviderProps`:
 
 #### useActionFile
 
-`useActionFile<P extends ActionPath, N extends ActionName<paths, P, 'post'>>(path: P, name: N): ActionMutation<string, ActionVariables<ActionBody<P, N, 'post'>>>`: A custom action of a route set that answers a file (`custom_actions[].file` of the contract), `POST <path><name>/`: `mutate(body)` calls it (`client.actionFile`), saves the file in the browser under the name the backend gives it (`Content-Disposition`; the name of the action without one) and resolves to that name, not the content; the queries of its resource are refetched after it, as after `useAction`.
+`useActionFile<P extends ActionPath, N extends ActionName<paths, P, 'post'>>(path: P, name: N): ActionMutation<SavedFile, ActionVariables<ActionBody<P, N, 'post'>>>`: A custom action of a route set that answers a file (`custom_actions[].file` of the contract), `POST <path><name>/`: `mutate(body)` calls it (`client.actionFile`), saves the file in the browser under the name the backend gives it (`Content-Disposition`; the name of the action without one) and resolves to that name and the meta of the file (`X-Bazis-Meta`, null without it), not the content; the queries of its resource are refetched after it, as after `useAction`.
 
 #### useActionQuery
 
@@ -4248,6 +4336,13 @@ Its props, `BazisProviderProps`:
 `interface ActionQueryOptions<Query>`
 
 - `query?: Query | null`: The query parameters of the action (`?<name>=<value>`), typed by its OpenAPI and in the key of the query: other parameters are another query.
+
+#### SavedFile
+
+`interface SavedFile`: A file that a custom action answered, saved (`useActionFile`): its name and its meta (`X-Bazis-Meta`; null without it).
+
+- `name: string`
+- `meta: Readonly<Record<string, unknown>> | null`
 
 #### useCreate
 
@@ -4349,6 +4444,10 @@ Its props, `BazisProviderProps`:
 #### objectFields
 
 `objectFields(schema: JsonSchema): AttributeField[]`: The properties of the JSON Schema of an object as attributes, such as the payload of a transit (`Transit.payload` of `@/bazis/react/statusy`).
+
+#### relativeDay
+
+`relativeDay(text: string, format: string | null, now?: Date): string`: A day of the browser of the specs (`today`, `month_start`, `month_end`, each with `+<n>` or `-<n>` days from it, then ` HH:MM` for a date-time: `month_end+1` is the first day of the next month, `month_start-1` the last day of the previous one) as the value of a date (`YYYY-MM-DD`) or of a date-time (ISO, UTC, the time in the time zone of the browser) at the time `now`: the values that the fields of an action start with, the filters of a list or a tile by a date.
 
 #### resourceSchema
 
@@ -5501,7 +5600,7 @@ Its props, `FieldInputProps`:
 
 #### FieldValue
 
-`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`).
+`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`; their thumbnails only with `display: 'image'`, large in a card).
 
 
 Its props, `FieldValueProps`:
@@ -5510,6 +5609,7 @@ Its props, `FieldValueProps`:
 - `value: unknown`
 - `type?: string`: The JSON:API type of the item: the `status` of an item of a statusy model is named by the contract.
 - `display?: FieldDisplay | undefined`: How the value is shown (`display` of the field of the entity of the specs).
+- `large?: boolean | undefined`: The value is that of a card: the thumbnail of an image (`display: 'image'`) is large.
 
 #### ItemValue
 
@@ -5664,11 +5764,11 @@ Its props, `ItemValueProps`:
 
 #### FileValue
 
-`FileValue(props: { relation: string; id: string; path?: string | undefined; preview?: string | null | undefined; }): Element`: An uploaded file by its id, read with the retrieve of its route set.
+`FileValue(props: { relation: string; id: string; path?: string | undefined; preview?: string | null | undefined; thumbnail?: Thumbnail | undefined; }): Element`: An uploaded file by its id, read with the retrieve of its route set.
 
 #### FileView
 
-`FileView(props: FileViewProps): Element`: A file: a thumbnail of an image (`preview`) or an icon, its name (a button that downloads it), its size.
+`FileView(props: FileViewProps): Element`: A file: a thumbnail of an image (`preview`) or an icon, its name (a button that downloads it), its size; with `thumbnail`, its thumbnail only.
 
 
 Its props, `FileViewProps`:
@@ -5678,6 +5778,7 @@ Its props, `FileViewProps`:
 - `onDownload?: (() => void) | null | undefined`: Downloads the file: its name is a button; without it, a text.
 - `downloading?: boolean | undefined`: The download runs.
 - `failed?: boolean | undefined`: The download failed: said next to the name.
+- `thumbnail?: Thumbnail | undefined`: The file as its thumbnail only (`display: 'image'`), a button that downloads it: 56 px (`small`, a table or a list) or 160 px (`large`, a card); an icon in place of a file that is not an image.
 
 #### formatSize
 
@@ -5870,13 +5971,13 @@ Its props, `RelationPickerProps`:
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
 - `ItemValueProps`: the props of `ItemValue`, listed with it
-- `type FieldDisplay = 'plain' | 'phone' | { currency: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum.
+- `type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
 - `ITEM_META: readonly string[]`: The meta of the retrieve of an item that its card reads (`ResourceCard`) and the transits of the card (`TransitBar`): one request for both.
 - `useAnyAction: (path: string, name: string) => ActionMutation<unknown, Readonly<Record<string, unknown>>>`: `useAction(path, name)`: a custom action of the route set (POST), `mutateAsync(body)`.
-- `useAnyActionFile: (path: string, name: string) => ActionMutation<string, Readonly<Record<string, unknown>>>`: `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name.
+- `useAnyActionFile: (path: string, name: string) => ActionMutation<SavedFile, Readonly<Record<string, unknown>>>`: `useActionFile(path, name)`: a custom action of the route set that answers a file, saved; resolves to its name and its meta.
 - `useAnyFilterFields: (path: string) => UseQueryResult<FilterFieldsDocument>`: `useFilterFields(path)`.
 - `useAnyItem: (path: string, id: string, query?: Pick<QueryOptions, "include" | "fields" | "meta"> | undefined) => UseQueryResult<ItemDocument>`: `useItem(path, id, query)`.
 - `useAnyItemAction: (path: string, name: string) => ActionMutation<unknown, { id: string; body: Readonly<Record<string, unknown>>; }>`: `useItemAction(path, name)`: a custom action of an item (POST), `mutateAsync({id, body})`.
@@ -6008,6 +6109,7 @@ Its props, `RelatedListProps`:
 - `id: string`: The button `action:<id>` that opens the form.
 - `label: ReactNode`
 - `fields?: readonly string[]`: The fields of the form (the relationship to the item is fixed and left out).
+- `filters?: FieldFilters`: The items that the pickers of its relationships offer, by field (`filter` of the fields of the entity of the specs).
 - `title?: ReactNode`: The title of the form; the label by default.
 - `icon?: ComponentType<{ className?: string; }>`
 - `onSaved?: (saved: SavedDocument) => void`: Called with the saved item, once the form is closed.
@@ -6026,6 +6128,7 @@ Its props, `ResourceCardProps`:
 - `label?: readonly string[]`: The fields whose values head an item without a name (`label` of the entity of the specs: a loan by its book and its reader); the first two fields of the sections by default, or when it is empty.
 - `badge?: (item: ResourceObject) => ReactNode`: Next to the heading: the status of the item (`StatusBadge` of status-badge).
 - `edit?: boolean`: An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the sections.
+- `filters?: FieldFilters`: The items that the pickers of the relationships of the edit offer, by field (`filter` of the fields of the entity of the specs).
 - `actions?: readonly CardAction[]`
 - `values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>`: The values of fields, instead of the formatted value.
 - `display?: Readonly<Record<string, FieldDisplay>>`: How the values of fields are shown (`display` of the fields of the entity of the specs).
@@ -6257,7 +6360,7 @@ Its props, `ActionFormProps`:
 - `filters?: FieldFilters | undefined`: The items that the pickers of its relationships offer, by property (`filters` of the specs).
 - `values?: StartValues | undefined`: The values that the fields start with by property, over the defaults of the body: a day of the browser (`today`, `month_start`, ...) for a date, computed when the form opens.
 - `submitLabel?: ReactNode`: The label of the submit button: `Send` by default.
-- `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action, or `{filename}` of the file it saved.
+- `result?: { title?: ReactNode | ((response: Params) => ReactNode); message: (response: Params) => ReactNode; } | undefined`: What the page shows once the action is done, in place of the form: its title (`Done` by default) and its message, the title too when it is a function, given the texts and the numbers of the JSON answer of the action, or those of the meta of the file it saved (`X-Bazis-Meta`) with its name, `{filename}`.
 - `then?: ActionThen | undefined`: The screen that the result links to.
 - `onDone?: (() => void) | undefined`: Called once the action is done, without a `result` (after a toast): the screen after it.
 
@@ -6667,7 +6770,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `transit(id: string, payload?: Values, files?: Files): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog and the files that it uploads into its file fields (a file of `e2e/fixtures/`, a list of them for several, as `upload`), or confirmed in its dialog when the specs confirm it, and waits until it is done (the transit is no longer offered) or shows an error.
 - `expectScreen(screen: ScreenId<P>): Promise<void>`: The current screen is this one: at its route (another screen may show next to it, such as a list next to its card), with its state rendered.
 - `expectStatus(status: string): Promise<void>`: The item of the current screen has this status, `status:<id>`.
-- `answer(property: string): Promise<string>`: The value of a property of the answer of the action whose result the page shows, `answer:<property>` in `state:done` (its `data-value`): a text or a number of its JSON answer, `filename` of a file it saved; the step `remember` of the scenarios.
+- `answer(property: string): Promise<string>`: The value of a property of the answer of the action whose result the page shows, `answer:<property>` in `state:done` (its `data-value`): a text or a number of its JSON answer, `filename` of a file it saved and the texts and the numbers of its meta (`X-Bazis-Meta`); the step `remember` of the scenarios.
 - `expectState(state: State): Promise<void>`: The page shows this state, `state:<state>` (a screen kept hidden next to it does not count).
 - `expectActionAbsent(id: string): Promise<void>`: The current screen, once loaded, does not offer this action.
 - `expectTransitAbsent(id: string): Promise<void>`: The current screen, once loaded, does not offer this transit of its item, `transit:<id>`.

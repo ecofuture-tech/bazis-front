@@ -38,6 +38,7 @@ import {
   useAnyItem,
   useItemFields,
   type FieldDisplay,
+  type FieldFilters,
   type Fields,
   type ResourceObject,
 } from '@/bazis/ui/resource';
@@ -94,6 +95,8 @@ export interface ResourceCardProps {
   badge?: (item: ResourceObject) => ReactNode;
   /** An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the sections. */
   edit?: boolean;
+  /** The items that the pickers of the relationships of the edit offer, by field (`filter` of the fields of the entity of the specs). */
+  filters?: FieldFilters;
   actions?: readonly CardAction[];
   /** The values of fields, instead of the formatted value. */
   values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>;
@@ -199,7 +202,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
                   className={cn('wrap-anywhere', isLongText(field) && 'whitespace-pre-line', isNumeric(field) && 'tabular-nums')}
                 >
                   {values[name]?.(item) ?? (
-                    <FieldValue field={field} value={fieldValue(item, name)} type={item.type} display={display[name]} />
+                    <FieldValue field={field} value={fieldValue(item, name)} type={item.type} display={display[name]} large />
                   )}
                 </dd>
               </div>
@@ -256,6 +259,7 @@ export function ResourceCard({
   label,
   badge,
   edit = false,
+  filters,
   actions = [],
   values = {},
   display = {},
@@ -360,6 +364,7 @@ export function ResourceCard({
             path={path}
             id={id}
             fields={sections.flatMap((section) => section.fields)}
+            filters={filters}
             onSaved={() => {
               setEditing(false);
             }}

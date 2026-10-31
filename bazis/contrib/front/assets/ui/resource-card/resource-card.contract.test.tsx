@@ -23,8 +23,10 @@
 // content. Keep it passing when the component is changed.
 
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
+import type * as Contract from '@/bazis/generated/contract';
 import { Screen } from '@/bazis/ui/app-shell';
 import { permitted } from '@/bazis/ui/resource';
 import { RelatedList, ResourceCard } from '@/bazis/ui/resource-card';
@@ -41,6 +43,26 @@ import {
 } from '@/bazis/ui/testing';
 
 const ITEM = `${ITEMS}${ITEM_ID}/`;
+
+// the resource of the users that the pickers of the forms offer (`owner`)
+vi.mock('@/bazis/generated/contract', async (importOriginal) => {
+  const contract = await importOriginal<typeof Contract>();
+  return { ...contract, ROUTES: { ...contract.ROUTES, 'test.owner': '/api/test/owner/' } };
+});
+
+// the popover of a picker is positioned with ResizeObserver and scrolls its active option into
+// view, which jsdom does not have
+beforeAll(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  Element.prototype.scrollIntoView = vi.fn();
+});
 const schema = runtimeSchema({
   title: { attribute: { type: 'string', maxLength: 100, title: 'Title' } },
   count: { attribute: { type: 'integer', title: 'Count' } },
@@ -337,6 +359,35 @@ describe('ResourceCard', () => {
     });
   }
 
+  it('offers the items of its filters in the pickers of the edit', async () => {
+    const owned = runtimeSchema({
+      title: { attribute: { type: 'string', maxLength: 100, title: 'Title' } },
+      owner: { relation: 'test.owner', nullable: true, title: 'Owner' },
+    });
+    const server = new Backend()
+      .on('GET', `${ITEM}schema_retrieve/`, owned)
+      .on('GET', `${ITEM}schema_update/`, owned)
+      .on('GET', ITEM, { data: resource(ITEM_ID, { title: 'Report' }), meta: { crud_actions: ['view', 'change'] } });
+    renderWithBazis(
+      <ResourceCard
+        path={ITEMS as never}
+        id={ITEM_ID}
+        sections={[{ id: 'main', fields: ['title', 'owner'] }]}
+        edit
+        forms="dialog"
+        filters={{ owner: Filter.where('is_active', true) }}
+      />,
+      server,
+    );
+    fireEvent.click(await screen.findByTestId('action:edit'));
+    await screen.findByTestId('action:submit');
+    fireEvent.click(within(form()).getByTestId('field:owner'));
+    await screen.findByRole('listbox');
+    await waitFor(() => {
+      expect(server.requests('GET')).toContain('GET /api/test/owner/?filter=is_active%3Dtrue&page%5Blimit%5D=20');
+    });
+  });
+
   it('heads a screen without a title, its h1, and is under the title of another', async () => {
     const server = backend({ crud_actions: ['view'] });
     const { unmount } = renderWithBazis(
@@ -432,6 +483,33 @@ describe('RelatedList', () => {
     });
     // the form is closed
     expect(screen.queryByTestId('action:submit')).toBeNull();
+  });
+
+  it('offers the items of the filters of its add in the pickers of the form', async () => {
+    const owned = runtimeSchema(
+      { item: { relation: 'test.item', nullable: false }, owner: { relation: 'test.owner', nullable: true, title: 'Owner' } },
+      { type: 'test.part' },
+    );
+    const server = parts({ for_create: true }).on('GET', `${PARTS}schema_create/`, owned);
+    renderWithBazis(
+      <RelatedList
+        path={PARTS as never}
+        entity="part"
+        relation="item"
+        item={ITEM_ID}
+        itemPath={ITEMS as never}
+        columns={['name']}
+        forms="dialog"
+        add={{ id: 'add-part', label: 'Add a part', filters: { owner: Filter.where('is_active', true) } }}
+      />,
+      server,
+    );
+    fireEvent.click(await screen.findByTestId('action:add-part'));
+    fireEvent.click(await screen.findByTestId('field:owner'));
+    await screen.findByRole('listbox');
+    await waitFor(() => {
+      expect(server.requests('GET')).toContain('GET /api/test/owner/?filter=is_active%3Dtrue&page%5Blimit%5D=20');
+    });
   });
 
   it('adds nothing when the backend does not allow the create, or without add', async () => {

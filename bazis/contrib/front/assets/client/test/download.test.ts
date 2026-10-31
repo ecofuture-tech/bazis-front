@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { ApiError, createClient, dispositionName } from '../src/index.js';
+import { ApiError, createClient, dispositionName, fileMeta, type DownloadedFile } from '../src/index.js';
 import { BASE, recordingFetch } from './support.js';
 
 const FILES = '/api/v1/uploadable/file_upload/';
@@ -23,8 +23,8 @@ function setup(response: Response, token?: string) {
   const { fetch, calls } = recordingFetch([response]);
   // the route sets of the fixture have no download route: the paths are plain strings here
   const api = createClient({ baseUrl: BASE, fetch, token, language: 'ru' }) as unknown as {
-    download: (path: string, id: string, options?: { signal?: AbortSignal }) => Promise<{ blob: Blob; name: string | null }>;
-    actionFile: (path: string, name: string, body?: unknown) => Promise<{ blob: Blob; name: string | null }>;
+    download: (path: string, id: string, options?: { signal?: AbortSignal }) => Promise<DownloadedFile>;
+    actionFile: (path: string, name: string, body?: unknown) => Promise<DownloadedFile>;
   };
   return { api, calls };
 }
@@ -37,6 +37,7 @@ describe('download', () => {
     const { api, calls } = setup(response, 'jwt');
     const file = await api.download(FILES, 'a/1');
     expect(file.name).toBe('бейдж.pdf');
+    expect(file.meta).toBeNull();
     expect(await file.blob.text()).toBe('PDF');
     // no Accept of JSON:API: the response is the file; the language as on every request
     expect(calls).toEqual([
@@ -76,12 +77,35 @@ describe('actionFile', () => {
     ]);
   });
 
+  it('reads the meta of the file, the JSON object of X-Bazis-Meta', async () => {
+    const response = new Response('title\r\nPlan\r\n', {
+      headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="tasks.csv"', 'X-Bazis-Meta': '{"count":1,"total":"4.50"}' },
+    });
+    const { api } = setup(response);
+    const file = await api.actionFile(TASKS, 'export', {});
+    expect(file).toMatchObject({ name: 'tasks.csv', meta: { count: 1, total: '4.50' } });
+  });
+
   it('rejects with the ApiError of the backend, the errors of the body at its fields', async () => {
     const errors = [{ status: 422, code: 'ERR_VALIDATE', detail: 'Input should be high or low', source: { pointer: '/priority' } }];
     const { api } = setup(new Response(JSON.stringify({ errors }), { status: 422 }));
     const error = await api.actionFile(TASKS, 'export', { priority: 'urgent' }).catch((reason: unknown) => reason);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).bodyErrors()).toEqual({ priority: ['Input should be high or low'] });
+  });
+});
+
+describe('fileMeta', () => {
+  it('reads the JSON object of the header, null without it', () => {
+    expect(fileMeta('{"count":2}')).toEqual({ count: 2 });
+    expect(fileMeta(null)).toBeNull();
+  });
+
+  it.each(['count=2', '[1]', '2', 'null'])('warns of %j, which is not a JSON object', (header) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(fileMeta(header)).toBeNull();
+    expect(warn).toHaveBeenCalledWith(`The header X-Bazis-Meta of the file is not a JSON object: ${header}`);
+    warn.mockRestore();
   });
 });
 
