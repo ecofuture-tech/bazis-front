@@ -2939,6 +2939,47 @@ def test_an_item_found_by_a_remembered_value_is_the_scenario_s_own(contract):
     assert issues(root) == [('P033', f'{PRODUCT}#/scenarios/21/steps/8/transit')]
 
 
+def test_a_text_of_the_run_is_given_before_it_is_found(contract):
+    """
+    A text with `{run}` (a unique name that each run gives its own item) is given by a `fill` or
+    a payload, then found by a `where` and expected by `values`: the item found is the one the
+    scenario created (`created`). Found or expected before any is given, no item has it (P022).
+    """
+    root = contract.parent.parent
+
+    def run_title(d):
+        steps(d, 2)[2]['fill'].update(title='Assign the review {run}')
+        steps(d, 2)[6]['open_item']['where'].update(title='Assign the review {run}')
+        steps(d, 2)[7]['expect'].update(values={'title': 'Assign the review {run}'})
+
+    edit(root, PRODUCT, run_title)
+    result = validate(root)
+    assert result.issues == []
+    assert result.specs.scenarios['manager-assigns-a-task'][6].created
+    # the payload of a transit gives it too
+    edit(root, PRODUCT, lambda d: [
+        steps(d, 0)[6]['transit']['payload'].update(report='Done {run}'),
+        steps(d, 0)[7]['expect'].update(values={'report': 'Done {run}'}),
+    ])
+    assert validate(root).issues == []
+
+    edit(root, PRODUCT, lambda d: [
+        steps(d, 1)[2]['open_item']['where'].update(title='Review the plan {run}'),
+        steps(d, 2)[4]['expect'].update(values={'title': 'Assign the review {run}'}),
+        steps(d, 2)[2]['fill'].update(title='Assign the review'),
+    ])
+    found = validate(root).issues
+    assert [(it.code, it.path) for it in found] == [
+        ('P022', '/scenarios/1/steps/2/open_item/where/title'),
+        ('P022', '/scenarios/2/steps/4/expect/values/title'),
+        ('P022', '/scenarios/2/steps/6/open_item/where/title'),
+        ('P022', '/scenarios/2/steps/7/expect/values/title'),
+    ]
+    assert {it.message for it in found} == {
+        'No `fill` or payload before this step gives a text with `{run}`: no item has the text of this run.'
+    }
+
+
 @pytest.mark.django_db
 def test_the_choices_of_the_bodies_of_the_sample_are_labeled_by_bazis_2_21(root, sample_app):
     """

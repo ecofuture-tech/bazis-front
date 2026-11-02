@@ -31,7 +31,9 @@ test('a manager finishes a task', async ({ page }) => {
 
 They act only through the `data-bz` marks of the screens (the components set them, and
 their contract tests keep them), and wait with the auto-waiting of Playwright and on the
-marks of the states, never for a fixed time:
+marks of the states, never for a fixed time. `{run}` in a text of `fill`, of a payload, of a
+`where` or of `expectValues` is the text of the run of the test (the start of the test in base
+36, the same in all its sessions): the unique text of an item that each run creates.
 
 | Helper | Step of a scenario | What it does |
 |---|---|---|
@@ -53,7 +55,7 @@ marks of the states, never for a fixed time:
 | `expectTransitAbsent(id)` | `expect: {transit_absent}` | once the screen and the transits of its item are loaded, it has no `transit:<id>` |
 | `expectFieldReadonly(name)` | `expect: {field_readonly}` | the open form has `field:<name>` read-only or disabled (or not at all); on a card, it has no `action:edit`, or its edit has the field read-only (the edit is opened and cancelled) |
 | `expectFieldAbsent(name)` | `expect: {field_absent}` | once the screen is loaded, it has no `field:<name>` and no `cell:<name>`, nor the open form `field:<name>` (a field the user may not see) |
-| `expectValues(values)` | `expect: {values}` | once the screen is loaded, the text of each `field:<name>` of the current screen (a card) contains its value (a file: its name) |
+| `expectValues(values)` | `expect: {values}` | once the screen is loaded, the text of each `field:<name>` of the current screen (a card) contains its value (a file: its name), a run of spaces of either as one space (the no-break spaces of a number formatted by `Intl` too) |
 | `expectRows(count)` | `expect: {rows}` | the number of `row:<id>` of the current screen |
 | `expectError(name)` | `expect: {error}` | `error:<name>` on the page |
 | `expectNotification(text)` | `expect: {notification}` | the visible bell `action:notifications` opens `list:notifications`, which shows a `notification:<key>` with the text (it waits for it to come over the socket); the list is closed with Escape |

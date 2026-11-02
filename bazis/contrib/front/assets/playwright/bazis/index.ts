@@ -21,7 +21,8 @@
 // which a hand-written screen may not have (`CONFIRMATION_WAIT`), and for a row that a live
 // list may still receive (`LIVE_ROW_WAIT`). The tests run again on a database that keeps what
 // the previous runs created: a test finds the items it created by their ids (`created`), and
-// the notifications that came since it started.
+// the notifications that came since it started; the texts of its items that must be unique
+// (a name) are of its run (`{run}`, `RUN`).
 
 import path from 'node:path';
 
@@ -124,6 +125,14 @@ function dateOfRun(value: string): string {
   return time === undefined ? dayOfRun(day) : `${dayOfRun(day)}T${time}`;
 }
 
+/**
+ * The mark of the text of the run of a test in a text of its steps (`fill`, the `where` of
+ * `openItem`, `select` and `move`, a payload, `expectValues`): the start of the test in base 36,
+ * the same in all its sessions and another at every run, so that an item that each run creates
+ * has a unique text (`name: 'Tent {run}'`), which the steps after find and expect.
+ */
+const RUN = '{run}';
+
 /** The languages that `language` goes through before it gives up. */
 const MAX_LANGUAGES = 20;
 
@@ -158,7 +167,7 @@ export class App<P extends Product = Product> {
   /** The ids of the items that the submits of this test created (`submit`), in all its sessions. */
   private readonly created: Set<string>;
 
-  /** When this test started: `expectNotification` takes the notifications since. */
+  /** When this test started: `expectNotification` takes the notifications since; the text of its run (`RUN`). */
   private readonly started: number;
 
   /**
@@ -199,8 +208,9 @@ export class App<P extends Product = Product> {
 
   /**
    * Opens the first item of the current screen whose cells `cell:<name>` have exactly these
-   * texts: a row of its list (`list:<entity>`; without one, an item `row:<id>` of the screen,
-   * of a board or a calendar), or of its last items `recent:<in>` (a dashboard): on the page
+   * texts (`{run}`: the text of the run of the test): a row of its list (`list:<entity>`;
+   * without one, an item `row:<id>` of the screen, of a board or a calendar), or of its last
+   * items `recent:<in>` (a dashboard): on the page
    * shown (on a live page, as soon as it has it within `LIVE_ROW_WAIT`: an item of another
    * session that the socket brings), else searched with the search of the list
    * (`field:$search`), each text of `where` in turn, else on the next pages (`action:next-page`) of the list without a search, or with
@@ -317,11 +327,12 @@ export class App<P extends Product = Product> {
    * picker of a to-many relationship by the list of the labels of its items, which replace
    * those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by
    * true or false; an input of a date or a date-time also by a day of the run (`today`,
-   * `today+1 10:30`: `dateOfRun`).
+   * `today+1 10:30`: `dateOfRun`); `{run}` in a text or a label is the text of the run of the
+   * test.
    */
   async fill(values: FormValues): Promise<void> {
     const form = this.form();
-    for (const [name, value] of Object.entries(values)) {
+    for (const [name, value] of Object.entries(this.ofRun(values))) {
       const control = form.locator(bz('field', name));
       await this.reveal(control);
       const kind = await control.evaluate((element) => {
@@ -571,11 +582,13 @@ export class App<P extends Product = Product> {
 
   /**
    * The fields of the current card show these texts: the text of each `field:<name>` contains
-   * its text (a file: its name).
+   * its text (a file: its name), a run of spaces of either as one space (the no-break spaces
+   * between the groups of the digits of a number formatted by `Intl` too); `{run}` is the text
+   * of the run of the test.
    */
   async expectValues(values: Readonly<Record<string, string>>): Promise<void> {
     await this.settled();
-    for (const [name, value] of Object.entries(values)) {
+    for (const [name, value] of Object.entries(this.ofRun(values))) {
       const field = this.screen().locator(bz('field', name)).first();
       await this.reveal(field);
       await expect(field).toContainText(value);
@@ -673,9 +686,10 @@ export class App<P extends Product = Product> {
     if ((await control.count()) > 0) await expect(control).not.toBeEditable();
   }
 
-  /** The item that `openItem` opens. */
-  private async row(where: Values, { recent, created }: { recent?: string | undefined; created: boolean }): Promise<Locator> {
+  /** The item that `openItem` opens, its texts with the text of the run of the test (`{run}`). */
+  private async row(texts: Values, { recent, created }: { recent?: string | undefined; created: boolean }): Promise<Locator> {
     if (created && this.created.size === 0) throw new Error('This test created no item: no submit of it answered with a create.');
+    const where = this.ofRun(texts);
     await this.settled();
     const lists = this.screen().locator('[data-bz^="list:"]');
     const list =
@@ -850,6 +864,18 @@ export class App<P extends Product = Product> {
       const { data } = (await answer.json()) as { data?: { id?: string | number } };
       if (data?.id !== undefined) this.created.add(String(data.id));
     }
+  }
+
+  /** The values with the text of the run of the test in place of `RUN`, in a text and in the labels of a list. */
+  private ofRun<V extends FormValues>(values: V): V {
+    const run = this.started.toString(36);
+    const text = (it: string) => it.replaceAll(RUN, run);
+    return Object.fromEntries(
+      Object.entries(values).map(([name, value]) => [
+        name,
+        typeof value === 'string' ? text(value) : typeof value === 'object' && value !== null ? value.map(text) : value,
+      ]),
+    ) as V;
   }
 
   /** Waits until `gone` is no longer on the page or `failed` is. */

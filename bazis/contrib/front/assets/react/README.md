@@ -81,7 +81,7 @@ they make.
 | `useNotifications` (ws) | | the notifications received in the session |
 | `useInbox` (notify) | `GET path?page[limit]=50`, `GET path unread_count/`; `PATCH path{id}/` (`read_at`), `POST path read_all/`, `POST path clear/` | the stored notifications (`inboxNotification`), refetched after a change; `deleteAll` deletes them for good |
 | `useDownload` | `GET path{id}/download/` (`client.download`) | `mutate(id)`: the file saved under its name (`saveFile`), resolves to the name |
-| `useDownloadUrl` | `GET path{id}/download/`, once (`keys.download`, outside `['bazis']`: never invalidated, not on focus) | the content as an object URL (revoked with the component), null while `id` is null |
+| `useDownloadUrl` | `GET path{id}/download/`, once (`keys.download`, outside `['bazis']`: never invalidated, not on focus) | the content as an object URL while a mounted component shows it (one for the components that show the same content, revoked when none does), null while `id` is null |
 | `useBgTask` (bg) | `GET path{id}/` every `BG_POLL_INTERVAL` (2 s) until `done` | `BgTask` (`bgTask(document)`) |
 | `useAsyncRequest` (async) | `method path` with `X-Async-Background` | queued with the id of the task, or done with the response |
 | `useAsyncTask` (async) | `GET <result path>?full_response=true` every `ASYNC_POLL_INTERVAL` (2 s) until `completed` or `failed` | the task; `replayedResponse(response)` |

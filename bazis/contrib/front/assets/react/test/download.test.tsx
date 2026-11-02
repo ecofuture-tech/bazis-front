@@ -13,18 +13,19 @@
 // limitations under the License.
 
 import { focusManager } from '@tanstack/react-query';
-import { act, waitFor } from '@testing-library/react';
+import { act, configure, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError, saveFile } from '@/bazis/client';
 
 import { useActionFile, useDownload, useDownloadUrl, useList, type SavedFile } from '../src/index.js';
-import { Backend, PARENT, render } from './support.js';
+import { Backend, createQueryClient, PARENT, render } from './support.js';
 
 const DOWNLOAD = `${PARENT}7/download/`;
 
 // jsdom has no object URLs
-const createObjectURL = vi.fn((blob: Blob) => `blob:${String(blob.size)}`);
+const objectUrl = (blob: Blob) => `blob:${String(blob.size)}`;
+const createObjectURL = vi.fn(objectUrl);
 const revokeObjectURL = vi.fn();
 const clicked: { href: string; download: string; attached: boolean }[] = [];
 
@@ -171,5 +172,74 @@ describe('useDownloadUrl', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:3');
     unmount();
     expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+  });
+
+  describe('of a content already read', () => {
+    // the URLs made and not revoked yet
+    const live = new Set<string>();
+    let made = 0;
+
+    beforeEach(() => {
+      live.clear();
+      made = 0;
+      createObjectURL.mockImplementation(() => {
+        made += 1;
+        const url = `blob:made-${String(made)}`;
+        live.add(url);
+        return url;
+      });
+      revokeObjectURL.mockImplementation((url: string) => live.delete(url));
+    });
+
+    afterEach(() => {
+      createObjectURL.mockImplementation(objectUrl);
+      revokeObjectURL.mockImplementation(() => undefined);
+    });
+
+    /** A query client whose cache has the content of the item 7: its thumbnail in a list read it. */
+    function read(): ReturnType<typeof createQueryClient> {
+      const queryClient = createQueryClient();
+      queryClient.setQueryData(['bazis-files', PARENT, '7', 's1'], new Blob(['png']));
+      return queryClient;
+    }
+
+    it('gives a URL that is not revoked when StrictMode mounts the component again', async () => {
+      configure({ reactStrictMode: true });
+      try {
+        const backend = new Backend();
+        const { result, unmount } = render(() => useDownloadUrl(PARENT, '7'), backend, read());
+        await waitFor(() => {
+          expect(result.current).not.toBeNull();
+        });
+        // StrictMode mounted it twice: the URL of the first mount is revoked, not the one shown
+        expect(createObjectURL).toHaveBeenCalledTimes(2);
+        expect([...live]).toEqual([result.current]);
+        expect(backend.requests()).toEqual([]);
+        unmount();
+        expect(live.size).toBe(0);
+      } finally {
+        configure({ reactStrictMode: false });
+      }
+    });
+
+    it('keeps the URL of the content while a component still shows it', async () => {
+      const both: { list: string | null } = { list: '7' };
+      const { result, rerender, unmount } = render(
+        ({ list }) => [useDownloadUrl(PARENT, list), useDownloadUrl(PARENT, '7')],
+        new Backend(),
+        read(),
+        both,
+      );
+      await waitFor(() => {
+        expect(result.current[1]).not.toBeNull();
+      });
+      const [url] = result.current;
+      expect(result.current).toEqual([url, url]);
+      rerender({ list: null });
+      expect(result.current).toEqual([null, url]);
+      expect([...live]).toEqual([url]);
+      unmount();
+      expect(live.size).toBe(0);
+    });
   });
 });

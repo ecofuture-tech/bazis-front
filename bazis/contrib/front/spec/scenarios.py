@@ -23,7 +23,9 @@ The scenarios run again and again on a database that keeps what the previous run
 (`e2e_data` only adds): the walk follows the items that a scenario creates (the values filled
 in a create form that saves), so that a step that finds one of them by its texts finds the
 item of its own run (`Step.created`), and it reports a scenario that changes an item it did
-not create (P033), or finds one by the texts of the items that a scenario creates (P034).
+not create (P033), or finds one by the texts of the items that a scenario creates (P034). A
+text with `{run}` (`RUN`) is of the run of its test: a unique text (a name) that every run gives
+its own item.
 
 A scenario runs in the sessions of several roles (`as`): each has its screen, its form and its
 card; the items that the scenario creates and the values that it remembers from the answers of
@@ -60,6 +62,12 @@ NOTIFY_PACKAGES = ('notify', 'ws')
 
 #: a value `$<name>` of `fill`, `where`, `values` or `payload`: the value that `remember` took
 VARIABLE = re.compile(r'\$([a-z][a-z0-9_]*)')
+
+
+#: the mark of the text of the run of the test in a text of a step (`RUN` of the helpers): a
+#: unique text that each run gives its own item (`fill`, a payload), then finds (`where`) and
+#: expects (`values`)
+RUN = '{run}'
 
 
 def variable(value) -> str | None:
@@ -256,6 +264,8 @@ class _Scenario:
         # the names of the values remembered (`remember`), and those that a step takes (`$<name>`)
         self.variables: set[str] = set()
         self.taken: set[str] = set()
+        # whether a `fill` or a payload gave a text of the run (`RUN`)
+        self.run_given = False
 
     @property
     def state(self) -> _State:
@@ -331,6 +341,24 @@ class _Scenario:
                 self.add(
                     (*path, name), 'P022', f'No `remember` before this step takes `${taken}`.',
                     f'Remember it after the result of the form of an action: `remember: {{{taken}: <a property of its answer>}}`.',
+                )
+
+    def of_run(self, path, values: dict, gives: bool = False) -> None:
+        """
+        Takes the texts of the run of the test (`RUN`) that a `fill` or a payload gives (`gives`),
+        and reports one that a `where` or `values` finds before any was given (P022): no item has it.
+        """
+        for name, value in values.items():
+            if not isinstance(value, str) or RUN not in value:
+                continue
+            if gives:
+                self.run_given = True
+            elif not self.run_given:
+                self.add(
+                    (*path, name), 'P022',
+                    f'No `fill` or payload before this step gives a text with `{RUN}`: no item has the text of this run.',
+                    f'Give the text with `{RUN}` to the item that the scenario creates, in its form before, or find '
+                    f'an item of the test data by texts without `{RUN}`.',
                 )
 
     def step_as(self, path, role):
@@ -549,6 +577,7 @@ class _Scenario:
                 'items `in` of a dashboard, open an item.'
             )
         self.remembered((*path, 'where'), value['where'])
+        self.of_run((*path, 'where'), value['where'])
         if not self.require(path, bool(screen) and possible, message):
             self.state.known = False
             return
@@ -560,6 +589,7 @@ class _Scenario:
     def step_select(self, path, value):
         screen = self.state.screen
         self.remembered((*path, 'where'), value['where'])
+        self.of_run((*path, 'where'), value['where'])
         if self.require(
             path, bool(screen) and screen['primitive'] == 'list' and 'bulk' in screen['list'],
             'Only a list with bulk actions (`list.bulk`) selects rows.',
@@ -585,6 +615,8 @@ class _Scenario:
         screen, payload = self.state.screen, value.get('payload')
         self.remembered((*path, 'where'), value['where'])
         self.remembered((*path, 'payload'), payload or {})
+        self.of_run((*path, 'where'), value['where'])
+        self.of_run((*path, 'payload'), payload or {}, gives=True)
         if not self.require(
             path, bool(screen) and screen['primitive'] == 'board' and screen['board'].get('move', False),
             'Items move on a board with `move: true`.',
@@ -802,6 +834,7 @@ class _Scenario:
 
     def step_fill(self, path, values):
         self.remembered(path, values)
+        self.of_run(path, values, gives=True)
         if self.editing(path):
             self.fields([((*path, name), name) for name in values], self.state.form)
             self.state.values.update(values)
@@ -931,6 +964,7 @@ class _Scenario:
     def step_transit(self, path, value):
         transit_id, payload = (value, None) if isinstance(value, str) else (value['id'], value.get('payload'))
         self.remembered((*path, 'payload'), payload or {})
+        self.of_run((*path, 'payload'), payload or {}, gives=True)
         screen = self.state.screen
         if not self.require(
             path, bool(screen) and screen['primitive'] == 'card' and screen['card'].get('transitions', False),
@@ -977,6 +1011,7 @@ class _Scenario:
 
     def step_expect(self, path, value):
         self.remembered((*path, 'values'), value.get('values', {}))
+        self.of_run((*path, 'values'), value.get('values', {}))
         packages = self.doc.data.get('packages', [])
         if 'notification' in value and not any(it in packages for it in NOTIFY_PACKAGES):
             self.add(

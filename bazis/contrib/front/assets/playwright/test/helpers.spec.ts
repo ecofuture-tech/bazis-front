@@ -562,6 +562,41 @@ test.describe('the items that a test created', () => {
   });
 });
 
+test('the texts of a test take the text of its run in place of {run}, the same in all its sessions', async ({ page }) => {
+  // the rows of the previous runs: one of another run, one with the mark itself
+  const row = (id: string, title: string) =>
+    `<tr data-bz="row:${id}" onclick="document.body.dataset.opened = '${id}'"><td data-bz="cell:title">${title}</td></tr>`;
+  await show(page, '/tasks',
+    html(
+      `<section data-bz="screen:task-list"><div data-bz="list:task"><div data-bz="state:loaded">
+         <table><tbody id="rows">${row('old', 'Tent 0abc1234') + row('mark', 'Tent {run}')}</tbody></table>
+         <p data-bz="field:title" id="shown"></p></div></div></section>
+       <form id="form"><input data-bz="field:title"><button type="submit" data-bz="action:submit">Save</button></form>`,
+      `document.getElementById('form').addEventListener('submit', (event) => {
+         event.preventDefault();
+         const title = event.target.querySelector('input').value;
+         document.getElementById('rows').insertAdjacentHTML('beforeend', ${JSON.stringify(row('new', '__TITLE__'))}.replace('__TITLE__', title));
+         document.getElementById('shown').textContent = title;
+         event.target.remove();
+       });`,
+    ),
+  );
+  const app = new App(page, PRODUCT);
+  await app.expectScreen('task-list');
+  await app.fill({ title: 'Tent {run}' });
+  await expect(app.form().locator(bz('field', 'title'))).toHaveValue(/^Tent [0-9a-z]{8,}$/);
+  await app.submit();
+  await app.expectValues({ title: 'Tent {run}' });
+  await app.openItem({ where: { title: 'Tent {run}' } });
+  await expect(page.locator('body')).toHaveAttribute('data-opened', 'new');
+  // another session of the test (`sessionAs`)
+  const other = new App(page, PRODUCT, app);
+  await other.expectScreen('task-list');
+  await page.locator('body').evaluate((body) => delete body.dataset.opened);
+  await other.openItem({ where: { title: 'Tent {run}' } });
+  await expect(page.locator('body')).toHaveAttribute('data-opened', 'new');
+});
+
 /** A card with an open form and its file field, whose upload ends after a delay with `onUpload`. */
 function uploadPage(onUpload: string): string {
   return html(
@@ -632,6 +667,37 @@ test.describe('expectValues', () => {
     const app = new App(page, PRODUCT);
     await app.expectScreen('task-card');
     await expect(app.expectValues({ attachment: 'report.pdf' })).rejects.toThrow();
+  });
+
+  test.describe('of a sum formatted by Intl', () => {
+    // the groups of the digits and the currency sign apart by a no-break space (U+00A0) or a
+    // narrow one (U+202F), as `Intl.NumberFormat('ru')` and `('fr')` write them (the pages of
+    // these tests are ASCII: the other characters are entities)
+    const sums = `<article data-bz="state:loaded"><dl>
+      <dd data-bz="field:fine">1&nbsp;500,00&nbsp;&#8381;</dd>
+      <dd data-bz="field:total">12&#8239;300,50&nbsp;&#8364;</dd>
+    </dl></article>`;
+
+    test('takes any space of the page and of the specs for a space', async ({ page }) => {
+      await show(page, '/tasks/1', html(`<section data-bz="screen:task-card">${sums}</section>`));
+      const app = new App(page, PRODUCT);
+      await app.expectScreen('task-card');
+      await app.expectValues({ fine: '1 500,00 ₽', total: '12 300,50 €' });
+      await app.expectValues({ fine: '1 500', total: '12 300' });
+    });
+
+    for (const [name, value] of [
+      ['another number', '1 600'],
+      ['the digits without their groups', '1500'],
+      ['another currency', '1 500,00 $'],
+    ] as const) {
+      test(`fails on ${name}`, async ({ page }) => {
+        await show(page, '/tasks/1', html(`<section data-bz="screen:task-card">${sums}</section>`));
+        const app = new App(page, PRODUCT);
+        await app.expectScreen('task-card');
+        await expect(app.expectValues({ fine: value })).rejects.toThrow();
+      });
+    }
   });
 });
 
