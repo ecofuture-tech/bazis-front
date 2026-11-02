@@ -2642,9 +2642,9 @@ def _filter_problem(key: str, value, relation: str, resources: dict) -> tuple[st
             return (
                 f'The filter `{key}` reads the fields of `{relation}`, which has no route set in the contract: the '
                 'core filters through a relationship by the fields of the route of the related model.',
-                f'Register the router of the app of `{relation}` in the root router of the backend '
-                f'(`bazis.contrib.permit.router` for the roles of bazis-permit) and {EXPORT_HINT}; or filter by the '
-                'relationship itself, by the id of its item.',
+                f'Register a route set of `{relation}` in the router of an app of the backend (the roles of '
+                'bazis-permit: that of the signed-in users of the guide "The users that the pickers offer") and '
+                f'{EXPORT_HINT}.',
             )
         field = resource['fields'].get(name)
         if field is None or 'filter' not in field:

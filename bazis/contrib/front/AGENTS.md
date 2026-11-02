@@ -2023,11 +2023,15 @@ a custom action (by property), `filter: {is_active: true}` of a field of a paylo
 `relation`; a form that takes no `filters` (the add of a calendar, "add here", a create form
 of a dashboard) has the filters of the entity. Each key is a field of the related resource that the contract
 filters by, or a path through its relationships, `roles__slug: master` (the users of a role),
-equal to its value (S061). A path reads the route set of the related model: the roles of
-bazis-permit need `bazis.contrib.permit.router` in the root router, which makes them a public
-catalog (guests read their slugs and names); else filter by the id of the role (`roles`, not
-portable between databases) or narrow the list in `get_queryset`. The filter narrows the
-choice only: the backend validates the value.
+equal to its value (S061). A path needs the route set of the related model in the contract:
+the roles of bazis-permit are read by the route set of the app `users/` for the signed-in
+users only, `class RoleRouteSet(UserRequiredRouteBase, RoleRoute)`
+(`bazis.contrib.users.routes_abstract`, `bazis.contrib.permit.routes`) registered in
+`users/router.py` (401 for a guest; the resource stays `permit.role`), then the contract
+exported again. Never `bazis.contrib.permit.router`: its roles are public, a guest reads their
+slugs and names. Never the id of a role either (not portable between databases), nor a
+`get_queryset` of the users (it narrows every list and picker of the users, not the field).
+The filter narrows the choice only: the backend validates the value.
 
 ## Files, points and maps
 
