@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:bazis-front:spec:tokens:1",
   "title": "spec/design/tokens.json: design tokens (a subset of the DTCG format)",
-  "description": "Groups of tokens; a token has `$value` and `$type` (color, dimension, fontFamily, fontWeight, number, duration, shadow, cubicBezier). A value may reference another token as `{group.token}`. The type of a token is not inherited from its group. A fontFamily token may give the CSS import of its font: `$extensions: {bazis: {import: <an npm package of the font, or the https URL of a stylesheet>}}`.",
+  "description": "Groups of tokens; a token has `$value` and `$type` (color, dimension, fontFamily, fontWeight, number, duration, shadow, cubicBezier). A value may reference another token as `{group.token}`. The type of a token is not inherited from its group. A fontFamily token may give the CSS import of its font, `$extensions: {bazis: {import: <an npm package of the font, or the https URL of a stylesheet>}}`, or the font that the frontend serves itself, `$extensions: {bazis: {font: {starter: <a font of the package>}}}` or `{font: {package: <a package of @fontsource-variable installed in the frontend>}}`: `bazis_front design` copies its files into frontend/public/fonts/ and writes their faces, named as the first family of its stack.",
   "type": "object",
   "properties": {
     "$schema": {"type": "string"},
@@ -25,6 +25,46 @@
       "additionalProperties": false
     },
     "alias": {"type": "string", "pattern": "^\\{[^{}.$][^{}$]*\\}$"},
+    "font": {
+      "description": "The font that the frontend serves itself (its stack, `$value`, a list: its first family is the name of its faces, and `<that family> Fallback` after it names its fallback face). `subsets`: `auto` (the default: those of the languages and of the currency signs of spec/product.yaml) or the subsets to serve. `preload`: whether index.html preloads the file of the text of the first language (true by default for `font.body` only).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["starter"],
+          "properties": {
+            "starter": {"description": "A font shipped with the package: golos-text (sans-serif, the axis wght), literata (serif, the axes opsz and wght).", "enum": ["golos-text", "literata"]},
+            "subsets": {"anyOf": [{"const": "auto"}, {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]}}]},
+            "preload": {"type": "boolean"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["package"],
+          "properties": {
+            "package": {"description": "A package of @fontsource-variable that the frontend installs (`npm install`).", "type": "string", "pattern": "^@fontsource-variable/[a-z0-9][a-z0-9-]*$"},
+            "axes": {"description": "The axes of its files: [wght] (the default), or one more axis with it ([opsz, wght]).", "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z]{4}$"}, "contains": {"const": "wght"}},
+            "subsets": {"anyOf": [{"const": "auto"}, {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z]+(-[a-z]+)*$"}}]},
+            "fallback": {
+              "description": "The fallback face: local fonts with the metrics that give them the size and the lines of the font (those of fontaine or next/font).",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["local", "size_adjust", "ascent_override", "descent_override", "line_gap_override"],
+              "properties": {
+                "local": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}]},
+                "size_adjust": {"$ref": "#/$defs/percent"},
+                "ascent_override": {"$ref": "#/$defs/percent"},
+                "descent_override": {"$ref": "#/$defs/percent"},
+                "line_gap_override": {"$ref": "#/$defs/percent"}
+              }
+            },
+            "preload": {"type": "boolean"}
+          }
+        }
+      ]
+    },
+    "percent": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?%$"},
     "token": {
       "type": "object",
       "additionalProperties": false,
@@ -40,13 +80,19 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "import": {"type": "string", "pattern": "^(https://[^'\"()\\s]+|@?[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)*)$"}
-              }
+                "import": {"type": "string", "pattern": "^(https://[^'\"()\\s]+|@?[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)*)$"},
+                "font": {"$ref": "#/$defs/font"}
+              },
+              "not": {"required": ["import", "font"]}
             }
           }
         }
       },
       "allOf": [
+        {
+          "if": {"required": ["$extensions"], "properties": {"$extensions": {"required": ["bazis"], "properties": {"bazis": {"required": ["font"]}}}}},
+          "then": {"properties": {"$type": {"const": "fontFamily"}, "$value": {"type": "array"}}}
+        },
         {
           "if": {"properties": {"$type": {"const": "color"}}},
           "then": {"properties": {"$value": {"type": "string", "minLength": 1}}}

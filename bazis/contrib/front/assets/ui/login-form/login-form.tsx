@@ -143,7 +143,7 @@ export function LoginForm({
     <Card className="w-full max-w-sm gap-6 shadow-lg">
       <CardHeader className="gap-1.5">
         <CardTitle>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">{title ?? t('login.title')}</h1>
+          <h1 className="font-heading text-2xl">{title ?? t('login.title')}</h1>
         </CardTitle>
         <CardDescription>{description ?? t(onLogin ? 'login.description' : 'login.choose')}</CardDescription>
       </CardHeader>

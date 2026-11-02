@@ -1994,23 +1994,24 @@ CASES = [
     (
         'D007',
         # a token of the dark mode of no token, and one of another type
-        {TOKENS: lambda d: [d['dark']['color'].update(brand={'$type': 'color', '$value': 'red'}),
+        {TOKENS: lambda d: [d['dark']['color'].update(highlight={'$type': 'color', '$value': 'red'}),
                             d['dark'].update(radius={'$type': 'number', '$value': 1})]},
-        [('D007', f'{TOKENS}#/dark/color/brand'), ('D007', f'{TOKENS}#/dark/radius')],
+        [('D007', f'{TOKENS}#/dark/color/highlight'), ('D007', f'{TOKENS}#/dark/radius')],
     ),
     ('D008', {THEME: lambda d: d['statuses'].update(archived='neutral')}, [('D008', f'{THEME}#/statuses/archived')]),
     (
         'D009',
-        # a muted text too light: on the backgrounds, and the neutral badges mixed from it
+        # a muted text too light: on the backgrounds, in the sidebar (its muted text by default),
+        # and the neutral badges mixed from it
         {TOKENS: lambda d: d['color']['muted-foreground'].update({'$value': 'oklch(0.8 0 0)'})},
-        [('D009', f'{TOKENS}#/color/muted-foreground')] * 4,
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 5,
     ),
     (
         'D009',
         # over a palette, at the token of tokens.json that loses the contrast
         {THEME: lambda d: d.update(palette='forest', fonts='inter', shape='soft'),
          TOKENS: lambda d: {'color': {'muted-foreground': {'$type': 'color', '$value': 'oklch(0.8 0 0)'}}}},
-        [('D009', f'{TOKENS}#/color/muted-foreground')] * 4,
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 5,
     ),
     (
         'D010',
@@ -2041,12 +2042,53 @@ CASES = [
         {THEME: lambda d: d.update(palette='forest', fonts='inter', shape='soft', surface='flat')},
         [('D012', f'{THEME}#/palette'), ('D012', f'{THEME}#/fonts'), ('D012', f'{THEME}#/shape')],
     ),
+    # the mark of the brand: an icon that lucide-react does not have, an image that frontend/public/ does not have
+    ('D013', {THEME: lambda d: d.update(brand={'icon': 'mountain-tick'})}, [('D013', f'{THEME}#/brand/icon')]),
+    ('D017', {THEME: lambda d: d.update(brand={'image': 'brand/mark.svg'})}, [('D017', f'{THEME}#/brand/image')]),
+    (
+        'D014',
+        # the heading font of the default import of a family with optical sizes, and of a
+        # package without its axis; with the axis, nothing
+        {TOKENS: lambda d: d['font'].update(
+            heading={'$type': 'fontFamily', '$value': ['Source Serif 4 Variable', 'serif'],
+                     '$extensions': {'bazis': {'import': '@fontsource-variable/source-serif-4'}}})},
+        [('D014', f'{TOKENS}#/font/heading/$extensions/bazis')],
+    ),
+    (
+        'D014',
+        {TOKENS: lambda d: d['font'].update(
+            heading={'$type': 'fontFamily', '$value': ['Literata', 'serif'],
+                     '$extensions': {'bazis': {'font': {'package': '@fontsource-variable/literata'}}}},
+            mono={'$type': 'fontFamily', '$value': ['Literata', 'serif'],
+                  '$extensions': {'bazis': {'font': {'package': '@fontsource-variable/literata', 'axes': ['opsz', 'wght']}}}})},
+        [('D014', f'{TOKENS}#/font/heading/$extensions/bazis')],
+    ),
+    (
+        'D015',
+        # the subsets of a product in English and Russian: no Cyrillic for the text, nothing
+        # left out for the headings
+        {TOKENS: lambda d: d['font'].update(
+            body={'$type': 'fontFamily', '$value': ['Golos Text', 'sans-serif'],
+                  '$extensions': {'bazis': {'font': {'starter': 'golos-text', 'subsets': ['latin', 'latin-ext']}}}},
+            heading={'$type': 'fontFamily', '$value': ['Literata', 'serif'],
+                     '$extensions': {'bazis': {'font': {'starter': 'literata', 'subsets': ['cyrillic', 'latin']}}}})},
+        [('D015', f'{TOKENS}#/font/body/$extensions/bazis/font/subsets')],
+    ),
+    (
+        'D016',
+        # a fallback face without the metrics, and one of another family than the first
+        {TOKENS: lambda d: d['font'].update(
+            body={'$type': 'fontFamily', '$value': ['Brand Sans', 'Brand Sans Fallback', 'sans-serif']},
+            heading={'$type': 'fontFamily', '$value': ['Literata', 'Golos Text Fallback', 'Literata Fallback', 'serif'],
+                     '$extensions': {'bazis': {'font': {'starter': 'literata'}}}})},
+        [('D016', f'{TOKENS}#/font/body/$value'), ('D016', f'{TOKENS}#/font/heading/$value')],
+    ),
 ]
 
 
 #: the codes of 0.12 reserved before their checks: the change that implements a code adds its
 #: case and takes it out of here; the set goes with its last code, before 0.12 is released
-RESERVED = {'S064', 'S065', 'S066', 'D014', 'D015', 'D016', 'D017'}
+RESERVED = {'S064', 'S065', 'S066'}
 
 
 def test_the_cases_cover_every_code():
