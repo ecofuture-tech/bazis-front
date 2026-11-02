@@ -127,6 +127,7 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | The frontend | you create the frontend (`init`), need the files of `frontend/` and who changes them, the npm commands, the lock, `status` |
 | The specs | you write `spec/product.yaml`: the roles, entities, fields, workflows, access (with the permissions it requires), scenarios and their steps |
 | The specs of the screens and the design | you write `spec/screens/<id>.yaml` (list, card, form, dashboard, board, calendar, `card.related`, `card.tabs`, `list.filter`, `list.map`, `list.bulk`, the custom actions), which primitive a part of the product takes, the `data-bz` marks, `spec/design/theme.yaml` |
+| The cards of a list and the summary of a card | a list is a grid of cards (`list.layout`, `list.card`: the cover, the rubric, the title, the figure, the muted values), a card heads its item with a summary (`card.summary`: a range of days, a figure) |
 | The issues of check | `bazis_front check` reports a code (`C…`, `P…`, `S…`, `D…`) |
 | The backend of a product | you build the backend the frontend relies on: the declared roles and workflows, the test data, the changes and the notifications, the invariants, the labels |
 | The contract | you export the contract or read `contract.json` and `contract.ts` (`ROUTES`, `CAPABILITIES`, the sections of the capabilities) |
@@ -987,6 +988,61 @@ preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$va
 `{group.token}` to a token of the same type. `bazis_front design` compiles them into the
 theme of the frontend (see [The design](#the-design)); `check` reports them with the codes
 D004–D017 (the contrast, the statuses of the contract, the icons of lucide, the fonts, the brand).
+
+## The cards of a list and the summary of a card
+
+### Cards
+
+A list is a table or a grid of cards: `layout` on a wide screen, `layout_phone` on a phone
+(`composition.list` and `composition.list_phone` of the theme by default). `card` composes a
+card of the grid, each role a column (S064), here the shop window of a catalog:
+
+```yaml
+list:
+  columns: [photo, category, name, price_per_day, deposit]
+  layout: cards
+  layout_phone: cards
+  card:
+    media: photo           # the cover, the whole width at 4:3: a file with `display: image` (the first one by default)
+    eyebrow: category      # the rubric above the title, in `color.brand`
+    title: name            # the first column without a role by default
+    figure: price_per_day  # the main value, in the heading font
+    meta: [deposit]        # muted values under the figure
+```
+
+A value of a role is shown without its label (the readers of the screen hear it); the other
+columns stay pairs of a label and a value. The cover is not a button, the card opens its item;
+an item without an image shows the icon of the entity in its place. A field has one role, and
+a list with `card` shows cards somewhere: `layout: cards`, or a phone that is not
+`layout_phone: table` (S064). The marks stay `row:<id>` and `cell:<column>` (the cover
+`data-slot="card-media"`), so `open_item` finds a card by its values as it finds a row. Without
+`card` the first column is the title, as before. A grid suits the items that are recognized by
+their picture (a catalog, a shop window); a table those that are compared by their values (the
+bookings, the tasks of the staff).
+
+### The summary of a card
+
+`card.summary` heads a card with what its item is about, under its heading and above its
+transits and sections (`data-slot="card-summary"`):
+
+```yaml
+card:
+  summary:
+    range: [date_from, date_to]   # two date or date-time fields: one range of the language, `2–4 ноября`, `2 дн.`
+    figure: total_amount          # a number, a decimal or a date, large, by its `display`
+    meta: [items_summary]         # values in the line under the range
+  sections:
+    - {id: client, fields: [client_name, client_phone, source]}
+  edit: true
+```
+
+The fields of the summary need no section: one in a section too is shown twice (S066). The edit
+of the card has them, before the fields of the sections. `range` is two date or date-time
+fields and `figure` a number, a decimal or a date (S065). A range shows its year when it is not
+this one, and the number of its days by `card.range_days` of the dictionaries of the components
+(`{count} days`, `{count} дн.`), which `src/i18n/` of the product may change. Each value is
+`field:<name>`, as in a section, so `expect: {values}` of a scenario reads it; both fields of a
+range show the whole range (`2–4 ноября`), so expect the value of a date in a section.
 
 ## The issues of check
 
@@ -5697,7 +5753,7 @@ Its props, `FieldInputProps`:
 
 #### FieldValue
 
-`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`; their thumbnails only with `display: 'image'`, large in a card).
+`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`; their thumbnails only with `display: 'image'`, large in a card, the cover of a card of a grid as `media`).
 
 
 Its props, `FieldValueProps`:
@@ -5707,6 +5763,7 @@ Its props, `FieldValueProps`:
 - `type?: string`: The JSON:API type of the item: the `status` of an item of a statusy model is named by the contract.
 - `display?: FieldDisplay | undefined`: How the value is shown (`display` of the field of the entity of the specs).
 - `large?: boolean | undefined`: The value is that of a card: the thumbnail of an image (`display: 'image'`) is large.
+- `media?: boolean | undefined`: The image (`display: 'image'`) is the cover of a card of a grid: its whole width, the first of several files.
 
 #### ItemValue
 
@@ -5719,6 +5776,7 @@ Its props, `ItemValueProps`:
 - `name: string`: The name of the field.
 - `fields: Fields`: The fields of the item's route set (`useListFields`, `useItemFields`).
 - `display?: FieldDisplay | undefined`
+- `media?: boolean | undefined`: The image is the cover of a card of a grid (`FieldValue` `media`).
 
 #### titleFromText
 
@@ -5875,7 +5933,7 @@ Its props, `FileViewProps`:
 - `onDownload?: (() => void) | null | undefined`: Downloads the file: its name is a button; without it, a text.
 - `downloading?: boolean | undefined`: The download runs.
 - `failed?: boolean | undefined`: The download failed: said next to the name.
-- `thumbnail?: Thumbnail | undefined`: The file as its thumbnail only (`display: 'image'`), a button that downloads it: 56 px (`small`, a table or a list) or 160 px (`large`, a card); an icon in place of a file that is not an image.
+- `thumbnail?: Thumbnail | undefined`: The file as its thumbnail only (`display: 'image'`), a button that downloads it: 56 px (`small`, a table or a list) or 160 px (`large`, a card), or the cover of a card of a grid (`cover`), which is not a button; an icon in place of a file that is not an image.
 
 #### formatSize
 
@@ -6221,10 +6279,11 @@ Its props, `ResourceCardProps`:
 - `path: ItemPath`: The route set (`ROUTES` of the contract); for `edit`, one with the update.
 - `id: string`
 - `sections: readonly CardSection[]`
+- `summary?: CardSummary | undefined`: The summary of the item under its heading (`card.summary` of the spec): its range of days, its figure, its muted values.
 - `title?: (item: ResourceObject) => ReactNode`: The heading; by default the name of the item (`itemName`: its name, title...), else the values of its `label` fields (its id only when none has a value).
 - `label?: readonly string[]`: The fields whose values head an item without a name (`label` of the entity of the specs: a loan by its book and its reader); the first two fields of the sections by default, or when it is empty.
 - `badge?: (item: ResourceObject) => ReactNode`: Next to the heading: the status of the item (`StatusBadge` of status-badge).
-- `edit?: boolean`: An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the sections.
+- `edit?: boolean`: An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the summary and of the sections.
 - `filters?: FieldFilters`: The items that the pickers of the relationships of the edit offer, by field (`filter` of the fields of the entity of the specs).
 - `actions?: readonly CardAction[]`
 - `values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>`: The values of fields, instead of the formatted value.
@@ -6261,6 +6320,14 @@ Its props, `ResourceCardProps`:
 - `title?: ReactNode`
 - `fields: readonly string[]`
 - `when?: { status: readonly string[]; }`: Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it.
+
+#### CardSummary
+
+`interface CardSummary`: The summary of a card: fields of the item, which need no section.
+
+- `range?: readonly [ string, string ]`: The first and the last day (date or date-time fields), shown as one range with the number of its days.
+- `figure?: string`: The main value (a number, a sum, a date), shown large in the heading font.
+- `meta?: readonly string[]`: Values in a muted line under the range, each without its label.
 
 #### The types and the constants of `@/bazis/ui/resource-card`
 
@@ -6384,9 +6451,10 @@ Its props, `ResourceListProps`:
 - `rowTone?: (row: ResourceObject) => Tone | undefined`: The tone of the theme that highlights a row (`list.highlight` of the spec), undefined for none: its soft color and a bar of the tone, marked `data-tone`.
 - `rowToneLabel?: (row: ResourceObject) => string | undefined`: What the tone of a highlighted row means, in words (`label` of `list.highlight`): its `aria-description`, so that the highlight is not told by its color alone.
 - `emptyMessage?: ReactNode`: The message of the empty list.
-- `icon?: ComponentType<{ className?: string; }>`: The icon of the entity (such as an icon of lucide-react), in the empty state.
+- `icon?: ComponentType<{ className?: string; }>`: The icon of the entity (such as an icon of lucide-react): in the empty state, and the cover of a card without its image.
 - `layout?: 'table' | 'cards'`: A table or a grid of cards; `composition.list` of the theme by default.
 - `phoneLayout?: 'table' | 'cards'`: The list on a phone, below the breakpoint `md` (cards, where a table would scroll sideways); `composition.list_phone` of the theme by default.
+- `card?: CardLayout | undefined`: The composition of a card of the grid (`list.card` of the spec): its cover, its rubric, its title, its figure and its muted values; without it, the first column is the title.
 - `density?: Theme['density']`: The density of the rows of the table, which the user may change; that of the theme by default.
 - `selection?: readonly string[]`: The ids of the selected rows (`selection` of `onSelectionChange`).
 - `onSelectionChange?: (ids: readonly string[]) => void`: Makes the rows selectable, a checkbox each (`select:<id>`, and `select:all` for the rows of the page): called with the ids selected, also those of other pages.
@@ -6411,6 +6479,16 @@ Its props, `ResourceListProps`:
 - `label: ReactNode`
 - `onClick: (id: string) => void`
 - `permission?: 'change' | 'delete'`
+
+#### CardLayout
+
+`interface CardLayout`: The composition of a card of a grid (`list.card` of the spec), each role a column (a role whose column is not shown is left out), each value without its label; the other columns are pairs of a label and a value.
+
+- `media?: string`: The cover, the whole width of the card: a column of an image (`display: 'image'`); the first one by default.
+- `eyebrow?: string`: A rubric above the title.
+- `title?: string`: The title; the first column without a role by default.
+- `figure?: string`: The main value, in the heading font.
+- `meta?: readonly string[]`: Values in a muted line.
 
 #### The types and the constants of `@/bazis/ui/resource-list`
 

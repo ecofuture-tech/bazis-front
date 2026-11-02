@@ -1138,6 +1138,7 @@ def _check_screen(
     if primitive in checks:
         checks[primitive](doc, entity, issues)
     resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
+    _check_summary(doc, entity, resource, issues)
     if resource is not None:
         if primitive == 'calendar' and 'add' in section:
             _check_calendar_add(doc, section, entity, resource, issues)
@@ -1270,7 +1271,7 @@ def _shown_fields(data: dict):
     """
     primitive = data['primitive']
     shown = {
-        'list': (('columns',),), 'card': (('sections', '*', 'fields'),),
+        'list': (('columns',),), 'card': CARD_FIELDS,
         'board': (('card', 'title'), ('card', 'fields')), 'calendar': (('label',),),
     }
     for keys in shown.get(primitive, ()):
@@ -1530,6 +1531,96 @@ def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
         seen.add(action['id'])
         if 'transit' in action:
             _check_bulk_transit(doc, ('list', 'bulk', i, 'transit'), action['transit'], entity, issues)
+    if 'card' in lst:
+        _check_list_card(doc, lst, entity, issues)
+
+
+#: the roles of the fields of a card of a list (`list.card`), in the order of the card
+CARD_ROLES = ('media', 'eyebrow', 'title', 'figure', 'meta')
+
+
+def _check_list_card(doc: Document, lst: dict, entity: Entity, issues: Issues) -> None:
+    """
+    The cards of a list (S064): each field of a role is a column (an unknown column is S007),
+    in one role only, the media a file field shown as an image, and the list shows cards on
+    a wide screen or on a phone.
+    """
+    roles: dict[str, str] = {}
+    for role in CARD_ROLES:
+        for path, name in _references(lst['card'], ('list', 'card'), (role,)):
+            field = entity.fields.get(name)
+            if name not in lst['columns']:
+                issues.add(
+                    doc, path, 'S064', f'The `{role}` of the cards, `{name}`, is not a column of the list.',
+                    'Add the field to `columns`, or give the role one of the columns.',
+                )
+            elif name in roles:
+                issues.add(
+                    doc, path, 'S064', f'`{name}` is both the `{roles[name]}` and the `{role}` of the cards.',
+                    'Give each role a column of its own.',
+                )
+            elif role == 'media' and field is not None and (field.get('type'), field.get('display')) != ('file', 'image'):
+                issues.add(
+                    doc, path, 'S064', f'The media of the cards, `{name}`, is not a file field with `display: image`.',
+                    'Give the media a file field shown as an image (`type: file`, `display: image`), or remove it.',
+                )
+            roles.setdefault(name, role)
+    if lst.get('layout_phone') == 'table' and lst.get('layout') != 'cards':
+        issues.add(
+            doc, ('list', 'card'), 'S064',
+            'The list never shows its cards: it is a table on a phone (`layout_phone: table`), and `layout` is not `cards`.',
+            'Set `layout: cards`, or remove `card`.',
+        )
+
+
+def _check_summary(doc: Document, entity: Entity, resource: dict | None, issues: Issues) -> None:
+    """
+    The summary of a card (S065): its range is two date or date-time fields, its figure a
+    number, a DecimalField (a `string` of the format `decimal` in the contract, not checked
+    without it) or a date (an unknown field is S007); a field of the summary in a section too
+    is shown twice (S066). Nothing for another screen.
+    """
+    card = doc.data.get('card', {})
+    summary = card.get('summary')
+    if summary is None:
+        return
+    path = ('card', 'summary')
+
+    def declared(field: dict) -> str:
+        return f'of the type `{field["type"]}`' if 'type' in field else 'a relationship'
+
+    span = summary.get('range', [])
+    if 'range' in summary and len(span) != 2:
+        issues.add(
+            doc, (*path, 'range'), 'S065', f'The range of the summary has {len(span)} field(s): it is from a day to a day.',
+            'Name two date or date-time fields: its start, then its end.',
+        )
+    for i, name in enumerate(span):
+        field = entity.fields.get(name)
+        if field is not None and field.get('type') not in DATES:
+            issues.add(
+                doc, (*path, 'range', i), 'S065', f'The range of the summary is of days, and `{name}` is {declared(field)}.',
+                'Name two fields with `type: date` or `type: datetime`.',
+            )
+    name = summary.get('figure')
+    field = entity.fields.get(name) if name else None
+    actual = resource['fields'].get(name) if resource and name else None
+    decimal = field is not None and field.get('type') == 'string' and (actual is None or actual.get('format') == DECIMAL)
+    if field is not None and field.get('type') not in NUMBERS + DATES and not decimal:
+        issues.add(
+            doc, (*path, 'figure'), 'S065', f'The figure of the summary, `{name}`, is {declared(field)}.',
+            'Show as the figure a number (`type: integer` or `number`, a DecimalField `type: string`) or a date; '
+            'other values go to `meta`.',
+        )
+    shown = set(card_fields({'sections': [], 'summary': summary}))
+    for i, section in enumerate(card['sections']):
+        for j, name in enumerate(section['fields']):
+            if name in shown:
+                issues.add(
+                    doc, ('card', 'sections', i, 'fields', j), 'S066',
+                    f'`{name}` is in the summary of the card and in its section `{section["id"]}`: the card shows it twice.',
+                    'Remove it from the section: the edit of the card has the fields of the summary too.',
+                )
 
 
 def _check_custom_actions(
@@ -2230,9 +2321,11 @@ def _check_related(
 
 #: where the section of each primitive names fields of its entity: the keys of a name, of a
 #: list of names or of a filter (`*`: each item of a list)
+#: where a card names the fields that it shows and that its edit has: its summary, then its sections
+CARD_FIELDS = (('summary', 'range'), ('summary', 'figure'), ('summary', 'meta'), ('sections', '*', 'fields'))
 FIELD_REFERENCES = {
     'list': (('columns',), ('filters',), ('sort',), ('filter',), ('highlight', 'field'), ('map', 'field')),
-    'card': (('sections', '*', 'fields'),),
+    'card': CARD_FIELDS,
     'form': (('fields',),),
     'board': (('card', 'title'), ('card', 'fields'), ('card', 'badge'), ('filters',)),
     'calendar': (('field',), ('end',), ('label',), ('tone', 'field'), ('filters',), ('add', 'fields')),
@@ -2261,6 +2354,11 @@ def _references(value, path: tuple, keys: tuple):
     else:
         for name in value:
             yield (*path, name), filter_field(name)[0]
+
+
+def card_fields(card: dict) -> list[str]:
+    """The fields that a card shows and that its edit has, each once: those of its summary, then of its sections."""
+    return list(dict.fromkeys(name for keys in CARD_FIELDS for _, name in _references(card, (), keys)))
 
 
 def _screen_fields(data: dict):
@@ -2725,16 +2823,15 @@ def _picker_fields(data: dict, entity: Entity):
     The fields that a screen edits or filters with the picker of a related item, with their
     paths: the filters of a list or a board, the fields of a form (of the form primitive, of
     a form action, of the form of "add" of a calendar; every field of the entity when it
-    lists none) and of the sections of a card with `edit`. Which of them are relationships is
-    for the contract to say.
+    lists none) and of the summary and the sections of a card with `edit`. Which of them are
+    relationships is for the contract to say.
     """
     primitive = data['primitive']
     for i, name in enumerate(data[primitive].get('filters', []) if primitive in QUERIED else []):
         yield (primitive, 'filters', i), name
     if primitive == 'card' and data['card'].get('edit'):
-        for i, section in enumerate(data['card']['sections']):
-            for j, name in enumerate(section['fields']):
-                yield ('card', 'sections', i, 'fields', j), name
+        for keys in CARD_FIELDS:
+            yield from _references(data['card'], ('card',), keys)
     # those of the form of an action are the properties of its body (`_check_custom_actions`)
     forms = [(('form',), data['form'])] if primitive == 'form' and action_form(data) is None else []
     if primitive == 'calendar' and 'add' in data['calendar']:

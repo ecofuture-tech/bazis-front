@@ -296,7 +296,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     item; the form of a custom action without a result, then a list, linked once the backend
     lists its action; a plain card, whose code uses no navigation, no translation and no item (the lint of
     the frontend job refuses them unused); the filters of the pickers of a form as a page, of a custom
-    action and of the form of one.
+    action and of the form of one; a grid of cards composed by `card` everywhere, and the summary of a card.
     """
     kitchen_sink(tmp_path)
 
@@ -328,6 +328,11 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "    action: 'count',\n    target: 'route',\n    fields: ['priority'],\n    values: { priority: 'high' },\n" in places
     assert '          countAction.action,\n        ]}\n' in places and '      {countAction.dialog}\n' in places
     assert "rowTone={(row) => (fieldValue(row, 'urgent') === true ? 'warning' : undefined)}" in places
+    # the cards of the list: the keys of the spec as they are, the cover by default
+    assert (
+        '        icon={TASK.Icon}\n        layout="cards"\n        phoneLayout="cards"\n'
+        "        card={{ eyebrow: 'priority', figure: 'due', meta: ['status'] }}\n"
+    ) in places
     assert (
         '        rowToneLabel={(row) =>\n'
         "          fieldValue(row, 'urgent') === true ? t('screens.task-places.list.highlight.label') : undefined\n"
@@ -359,6 +364,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     ) in overview
 
     summary = files[f'{screens.GENERATED_DIR}/task-summary.tsx']
+    assert "            summary: { range: ['dt_created', 'due'], figure: 'hours', meta: ['priority'] },\n" in summary
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
     assert '      {deleteAction.confirm}\n' in summary
     # a custom action of the item, among the actions of the card
@@ -462,7 +468,7 @@ def test_the_filter_of_a_field_of_the_entity_narrows_its_pickers(tmp_path):
     """
     The `filter` of a field of an entity (the assignee of a task: the active users) is that of
     its picker in every form of the entity that asks for it: a create form of a dashboard and
-    of a calendar, "add here" of a related section, the edit of a card, a form screen without
+    of a calendar, "add here" of a related section, the edit of a card (a field of its summary), a form screen without
     `fields`, a custom action that names it, the payload of a transit with a field of the same
     id and relation; the filter of the form replaces it.
     """
@@ -477,7 +483,11 @@ def test_the_filter_of_a_field_of_the_entity_narrows_its_pickers(tmp_path):
     edit_product(tmp_path, product)
     edit_screen(tmp_path, 'overview', lambda data: data['dashboard']['actions'][0]['fields'].append('assignee'))
     edit_screen(tmp_path, 'task-calendar', lambda data: data['calendar']['add']['fields'].append('assignee'))
-    edit_screen(tmp_path, 'task-card', lambda data: data['card']['related'][0]['add']['fields'].append('owner'))
+    edit_screen(tmp_path, 'task-card', lambda data: (
+        data['card']['related'][0]['add']['fields'].append('owner'),
+        data['card']['sections'][0]['fields'].remove('assignee'),
+        data['card'].update(summary={'meta': ['assignee']}),
+    ))
     edit_screen(tmp_path, 'task-summary', lambda data: data['actions'][-1].update(fields=['priority', 'assignee']))
     files = rendered(tmp_path)
     active = "filters={{ assignee: Filter.where('is_active', true) }}"

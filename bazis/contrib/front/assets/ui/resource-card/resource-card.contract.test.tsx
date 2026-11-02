@@ -359,6 +359,60 @@ describe('ResourceCard', () => {
     });
   }
 
+  it('shows its summary under its heading, and edits its fields before those of the sections', async () => {
+    const year = new Date().getFullYear();
+    const summarySchema = runtimeSchema({
+      title: { attribute: { type: 'string', title: 'Title' } },
+      date_from: { attribute: { type: 'string', format: 'date', title: 'From' } },
+      date_to: { attribute: { type: 'string', format: 'date', title: 'To' } },
+      total: { attribute: { type: 'number', title: 'Total' } },
+      note: { attribute: { type: 'string', title: 'Note' } },
+    });
+    const item = (from: string) =>
+      resource(ITEM_ID, { title: 'Booking', date_from: from, date_to: `${String(year)}-03-04`, total: 3600, note: 'Two tents' });
+    const server = (from: string) =>
+      new Backend()
+        .on('GET', `${ITEM}schema_retrieve/`, summarySchema)
+        .on('GET', `${ITEM}schema_update/`, summarySchema)
+        .on('GET', ITEM, { data: item(from), meta: { crud_actions: ['view', 'change'] } });
+    const card = (
+      <ResourceCard
+        path={ITEMS as never}
+        id={ITEM_ID}
+        sections={[{ id: 'main', title: 'Main', fields: ['title'] }]}
+        summary={{ range: ['date_from', 'date_to'], figure: 'total', meta: ['note'] }}
+        display={{ total: { currency: 'RUB' } }}
+        edit
+      />
+    );
+    const { unmount } = renderWithBazis(card, server(`${String(year)}-03-02`), { language: testLanguages('ru') });
+    await screen.findByTestId('state:loaded');
+    const summary = document.querySelector<HTMLElement>('[data-slot="card-summary"]');
+    if (summary === null) throw new Error('No summary');
+    // under the heading, before the sections; its values marked as those of a section
+    expect(document.querySelector('header')?.compareDocumentPosition(summary)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(summary.compareDocumentPosition(screen.getByTestId('field:title'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    // the days as one range of the language, without the year of this one, and their number
+    expect(within(summary).getByTestId('field:date_from').textContent).toBe('2–4 марта');
+    expect(within(summary).getByTestId('field:date_to').textContent).toBe('2–4 марта');
+    expect(summary.textContent).toContain('Даты');
+    expect(summary.textContent).toContain('2 дн. · Note: Two tents');
+    // the figure by its display, with its label
+    expect(within(summary).getByTestId('field:total').textContent.replace(/\s/g, '')).toBe('3600₽');
+    expect(summary.textContent).toContain('Total');
+    fireEvent.click(screen.getByTestId('action:edit'));
+    await screen.findByTestId('action:submit');
+    const edited = within(form())
+      .getAllByTestId(/^field:/)
+      .map((it) => it.getAttribute('data-bz'));
+    expect(edited).toEqual(['field:date_from', 'field:date_to', 'field:total', 'field:note', 'field:title']);
+    unmount();
+    // a range of another year shows its year
+    renderWithBazis(card, server(`${String(year - 1)}-12-30`), { language: testLanguages('en') });
+    await screen.findByTestId('state:loaded');
+    expect(screen.getAllByTestId('field:date_from')[0]?.textContent).toContain(String(year - 1));
+  });
+
   it('offers the items of its filters in the pickers of the edit', async () => {
     const owned = runtimeSchema({
       title: { attribute: { type: 'string', maxLength: 100, title: 'Title' } },

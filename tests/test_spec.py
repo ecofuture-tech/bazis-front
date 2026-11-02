@@ -2007,6 +2007,45 @@ CASES = [
          LIST: lambda d: d['actions'][0]['fields'].append('urgent')},
         [('S063', f'{CARD}#/card/related/0/add/fields')],
     ),
+    (
+        'S064',
+        # the cards of a list: a media that is not an image, a rubric that is not a column, a field
+        # in two roles, and a list that is a table everywhere; the photos as the cover are right
+        {LIST: lambda d: d['list'].update(
+            card={'media': 'priority', 'eyebrow': 'report', 'title': 'title', 'figure': 'title'}, layout_phone='table')},
+        [('S064', f'{LIST}#/list/card/media'), ('S064', f'{LIST}#/list/card/eyebrow'), ('S064', f'{LIST}#/list/card/figure'),
+         ('S064', f'{LIST}#/list/card')],
+    ),
+    (
+        'S064',
+        # an unknown field of a card is not a column (S007 for an unknown column); a grid of cards
+        # with its cover by default and the cards of a phone are right
+        {LIST: lambda d: [d['list']['columns'].insert(0, 'photos'), d['list'].update(
+            card={'title': 'name', 'meta': ['priority']}, layout='cards', layout_phone='table')]},
+        [('S064', f'{LIST}#/list/card/title')],
+    ),
+    (
+        'S065',
+        # a range of three fields, one of them not a date, and a text as the figure (both also in
+        # the section: S066)
+        {CARD: lambda d: d['card'].update(summary={'range': ['dt_created', 'priority', 'due'], 'figure': 'title'})},
+        [('S065', f'{CARD}#/card/summary/range'), ('S065', f'{CARD}#/card/summary/range/1'),
+         ('S065', f'{CARD}#/card/summary/figure'), ('S066', f'{CARD}#/card/sections/0/fields/0'),
+         ('S066', f'{CARD}#/card/sections/0/fields/6')],
+    ),
+    (
+        'S065',
+        # a range of one field; an unknown field of the summary is S007
+        {CARD: lambda d: d['card'].update(summary={'range': ['due'], 'meta': ['due_date']})},
+        [('S007', f'{CARD}#/card/summary/meta/0'), ('S065', f'{CARD}#/card/summary/range')],
+    ),
+    (
+        'S066',
+        # the title and the hours both in the summary and in the section; the range of two date-times
+        # and a DecimalField as the figure are right
+        {CARD: lambda d: d['card'].update(summary={'range': ['dt_created', 'due'], 'figure': 'hours', 'meta': ['title']})},
+        [('S066', f'{CARD}#/card/sections/0/fields/0'), ('S066', f'{CARD}#/card/sections/0/fields/8')],
+    ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),
     (
@@ -2133,14 +2172,8 @@ CASES = [
 ]
 
 
-#: the codes of 0.12 reserved before their checks: the change that implements a code adds its
-#: case and takes it out of here; the set goes with its last code, before 0.12 is released
-RESERVED = {'S064', 'S065', 'S066'}
-
-
 def test_the_cases_cover_every_code():
-    assert RESERVED <= set(CODES)
-    assert sorted({code for code, _, _ in CASES}) == sorted(set(CODES) - RESERVED)
+    assert sorted({code for code, _, _ in CASES}) == sorted(CODES)
 
 
 @pytest.mark.django_db
@@ -2448,6 +2481,16 @@ def test_without_a_contract_only_the_specs_are_checked(root):
         call_command('bazis_front', 'check', stdout=out)
     assert 'not checked against the backend' in out.getvalue()
     assert f'{LIST}#/list/filters/5: S007 error: ' in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_the_summary_of_a_card_shows_its_fields(contract):
+    """The fields of the summary of a card need no section: the card shows their values to the scenarios (P022)."""
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: steps(d, 5)[4]['expect'].update(values={'dt_created': 'today'}))
+    assert issues(root) == [('P022', f'{PRODUCT}#/scenarios/5/steps/4/expect/values/dt_created')]
+    edit(root, CARD, lambda d: d['card'].update(summary={'range': ['dt_created', 'due']}))
+    assert issues(root) == []
 
 
 @pytest.mark.django_db

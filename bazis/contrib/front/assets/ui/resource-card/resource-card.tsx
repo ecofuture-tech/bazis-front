@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The card of an item over `useItem`: its sections of fields with the titles and the types of
-// the retrieve schema, the actions the backend allows (`crud_actions`), a slot for its status
+// The card of an item over `useItem`: its summary and its sections of fields with the titles and
+// the types of the retrieve schema, the actions the backend allows (`crud_actions`), a slot for its status
 // and its transits, and the edit through `ResourceForm` in a dialog or in place of the
 // screen (`FormSurface`, as the theme composes the forms). Its states are marked
 // `state:<state>` (the loading one is the skeleton of the card), its values `field:<name>`.
@@ -49,6 +49,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 import { CardTabs, type CardTab } from './card-tabs.js';
+import { Summary, summaryFields, type CardSummary } from './summary.js';
 
 /** A section of the card: its fields in this order. */
 export interface CardSection {
@@ -80,6 +81,8 @@ export interface ResourceCardProps {
   path: ItemPath;
   id: string;
   sections: readonly CardSection[];
+  /** The summary of the item under its heading (`card.summary` of the spec): its range of days, its figure, its muted values. */
+  summary?: CardSummary | undefined;
   /**
    * The heading; by default the name of the item (`itemName`: its name, title...), else the
    * values of its `label` fields (its id only when none has a value).
@@ -93,7 +96,7 @@ export interface ResourceCardProps {
   label?: readonly string[];
   /** Next to the heading: the status of the item (`StatusBadge` of status-badge). */
   badge?: (item: ResourceObject) => ReactNode;
-  /** An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the sections. */
+  /** An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the summary and of the sections. */
   edit?: boolean;
   /** The items that the pickers of the relationships of the edit offer, by field (`filter` of the fields of the entity of the specs). */
   filters?: FieldFilters;
@@ -255,6 +258,7 @@ export function ResourceCard({
   path,
   id,
   sections,
+  summary,
   title,
   label,
   badge,
@@ -348,6 +352,7 @@ export function ResourceCard({
             ))}
         </div>
       </header>
+      {summary && <Summary summary={summary} item={data} fields={fields} values={values} display={display} />}
       {typeof children === 'function' ? children(data, meta) : children}
       {tabs.length ? <CardTabs tabs={tabs} sections={sections} item={data} meta={meta} render={body} /> : body(sections)}
       {typeof after === 'function' ? after(data, meta) : after}
@@ -363,7 +368,7 @@ export function ResourceCard({
           <ResourceFormBody
             path={path}
             id={id}
-            fields={sections.flatMap((section) => section.fields)}
+            fields={[...new Set([...summaryFields(summary), ...sections.flatMap((section) => section.fields)])]}
             filters={filters}
             onSaved={() => {
               setEditing(false);

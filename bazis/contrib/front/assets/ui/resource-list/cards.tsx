@@ -13,15 +13,16 @@
 // limitations under the License.
 
 // The rows of a list as a grid of cards: the list of `composition.list: cards`, and that of a
-// phone (`composition.list_phone`), where a table would scroll sideways.
+// phone (`composition.list_phone`), where a table would scroll sideways; composed by `card` (its
+// cover, its rubric, its title, its figure and its muted values), else by its first column.
 
 import type { Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
-import { isNumeric, titleFromText } from '@/bazis/ui/resource';
+import { fieldValue, isNumeric, titleFromText, type ResourceObject } from '@/bazis/ui/resource';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps } from './rows.js';
+import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
 
 /** The colors of a highlighted card, by its tone. */
 const CARD_TONES: Readonly<Record<Tone, string>> = {
@@ -39,14 +40,61 @@ const CARD_TONES: Readonly<Record<Tone, string>> = {
  */
 const GRID = 'grid grid-cols-[minmax(0,1fr)] gap-4 @xl:grid-cols-2 @4xl:grid-cols-3';
 
+/** The roles of the columns in a card: those of `card` among the columns, else the first column as the title. */
+interface Roles {
+  media?: string | undefined;
+  eyebrow?: string | undefined;
+  title?: string | undefined;
+  figure?: string | undefined;
+  meta: readonly string[];
+  /** The other columns, pairs of a label and a value. */
+  rest: readonly string[];
+}
+
+/** The column of each role of a card, by `card`; its defaults: the first column of an image is the cover, the first other one the title. */
+export function cardRoles(
+  columns: readonly string[],
+  display: BodyProps['display'],
+  card: CardLayout | undefined,
+): Roles {
+  if (card === undefined) {
+    const [title, ...rest] = columns;
+    return { title, meta: [], rest };
+  }
+  const shown = (name: string | undefined) => (name !== undefined && columns.includes(name) ? name : undefined);
+  const media = card.media === undefined ? columns.find((name) => display[name] === 'image') : shown(card.media);
+  const meta = (card.meta ?? []).filter((name) => columns.includes(name));
+  const taken = new Set([media, card.eyebrow, card.figure, ...meta]);
+  const title = card.title === undefined ? columns.find((name) => !taken.has(name)) : shown(card.title);
+  const roles = new Set([...taken, title]);
+  return {
+    media,
+    eyebrow: shown(card.eyebrow),
+    title,
+    figure: shown(card.figure),
+    meta,
+    rest: columns.filter((name) => !roles.has(name)),
+  };
+}
+
+/** Whether a field of an item has no value: no cover then, but the icon of the entity. */
+function empty(row: ResourceObject, name: string): boolean {
+  const value = fieldValue(row, name);
+  return value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length);
+}
+
 /**
- * The rows as a grid of cards: the first column is the title, the others pairs of a label and
- * a value; above them, when the rows are selectable, the checkbox of the page.
+ * The rows as a grid of cards: the cover (`card-media`), the rubric (`card-eyebrow`), the title,
+ * the figure (`card-figure`) and the muted values (`card-meta`) of `card`, each without its label
+ * but for the readers of the screen, then the other columns as pairs of a label and a value;
+ * above them, when the rows are selectable, the checkbox of the page.
  */
 export function CardsView(props: BodyProps) {
-  const { rows, columns, fields, onOpen, selected, hidden, selection } = props;
+  const { rows, columns, fields, onOpen, selected, hidden, selection, icon: Icon } = props;
   const { t } = useLanguage();
-  const [first, ...rest] = columns;
+  const { media, eyebrow, title, figure, meta, rest } = cardRoles(columns, props.display, props.card);
+  // a value without its label, which the readers of the screen hear before it
+  const label = (name: string) => <span className="sr-only">{fields.title(name)}: </span>;
   return (
     <div className="@container grid grid-cols-[minmax(0,1fr)] gap-3">
       {selection && (
@@ -66,24 +114,82 @@ export function CardsView(props: BodyProps) {
                 data-tone={tone}
                 aria-description={tone && props.rowToneLabel(row)}
                 className={cn(
-                  'flex w-full flex-col gap-4 rounded-2xl border bg-card p-(--space-card) text-card-foreground shadow-xs transition-[box-shadow,border-color]',
+                  'group flex w-full flex-col gap-4 rounded-2xl border bg-card p-(--space-card) text-card-foreground shadow-xs transition-[box-shadow,border-color]',
                   tone && CARD_TONES[tone],
                   'data-[state=selected]:border-primary',
                   onOpen && cn('cursor-pointer hover:border-primary/40 hover:shadow-md', FOCUS, 'focus-visible:ring-offset-0'),
                 )}
                 {...opener(row.id, onOpen)}
               >
-                {(first !== undefined || selection) && (
-                  <div className="flex items-start gap-3">
-                    {first !== undefined && (
-                      <h3 data-bz={`cell:${first}`} className="min-w-0 flex-1 font-display text-lg leading-snug font-semibold wrap-anywhere">
-                        {cell(props, row, first)}
-                      </h3>
+                {media !== undefined && (
+                  <div
+                    data-slot="card-media"
+                    data-bz={`cell:${media}`}
+                    className={cn(
+                      '-mx-(--space-card) -mt-(--space-card) overflow-hidden rounded-t-[inherit] border-b bg-muted',
+                      // the cover comes closer under the pointer, a gesture of a shop window
+                      '[&_img]:transition-transform [&_img]:duration-(--motion-slow) group-hover:[&_img]:scale-[1.03]',
+                      hidden(media) && 'hidden',
                     )}
+                  >
+                    {empty(row, media) && !props.cells[media] ? (
+                      <div className="flex aspect-[4/3] w-full items-center justify-center text-muted-foreground">
+                        {Icon && <Icon className="size-10" aria-hidden="true" />}
+                      </div>
+                    ) : (
+                      cell(props, row, media, true)
+                    )}
+                  </div>
+                )}
+                {(title !== undefined || eyebrow !== undefined || selection) && (
+                  <div className="flex items-start gap-3">
+                    <div className="grid min-w-0 flex-1 gap-1">
+                      {eyebrow !== undefined && (
+                        <p
+                          data-slot="card-eyebrow"
+                          className={cn(
+                            'text-[0.6875rem] font-semibold tracking-[0.08em] text-brand uppercase',
+                            hidden(eyebrow) && 'hidden',
+                          )}
+                        >
+                          {label(eyebrow)}
+                          <span data-bz={`cell:${eyebrow}`}>{cell(props, row, eyebrow)}</span>
+                        </p>
+                      )}
+                      {title !== undefined && (
+                        <h3 data-bz={`cell:${title}`} className="font-display text-lg leading-snug font-semibold wrap-anywhere">
+                          {cell(props, row, title)}
+                        </h3>
+                      )}
+                    </div>
                     {selection && (
                       <span className="ml-auto flex h-7 items-center">
                         <RowCheckbox id={row.id} selection={selection} onSelect={props.onSelect} />
                       </span>
+                    )}
+                  </div>
+                )}
+                {(figure !== undefined || meta.length > 0) && (
+                  <div className="grid gap-0.5">
+                    {figure !== undefined && (
+                      <p
+                        data-slot="card-figure"
+                        className={cn('font-display text-xl font-semibold tracking-tight', hidden(figure) && 'hidden')}
+                      >
+                        {label(figure)}
+                        <span data-bz={`cell:${figure}`}>{cell(props, row, figure)}</span>
+                      </p>
+                    )}
+                    {meta.length > 0 && (
+                      <p data-slot="card-meta" className="text-sm text-muted-foreground">
+                        {meta.map((name, index) => (
+                          <span key={name} className={cn(hidden(name) && 'hidden')}>
+                            {index > 0 && ' · '}
+                            {label(name)}
+                            <span data-bz={`cell:${name}`}>{cell(props, row, name)}</span>
+                          </span>
+                        ))}
+                      </p>
                     )}
                   </div>
                 )}
@@ -113,13 +219,14 @@ export function CardsView(props: BodyProps) {
   );
 }
 
-/** The skeleton of the cards while the list loads. */
-export function CardsSkeleton() {
+/** The skeleton of the cards while the list loads, with their covers (`media`). */
+export function CardsSkeleton({ media = false }: { media?: boolean }) {
   return (
     <div className="@container" aria-hidden="true">
       <div className={GRID}>
         {[0, 1, 2].map((it) => (
-          <div key={it} className="grid gap-4 rounded-2xl border bg-card p-(--space-card)">
+          <div key={it} className="grid gap-4 overflow-hidden rounded-2xl border bg-card p-(--space-card)">
+            {media && <Skeleton className="-mx-(--space-card) -mt-(--space-card) aspect-[4/3] rounded-none" />}
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-2/3" />

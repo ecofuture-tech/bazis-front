@@ -58,6 +58,21 @@
         "search": {"description": "A full-text search field (`search`).", "type": "boolean"},
         "open": {"description": "The card screen that a row opens.", "$ref": "#/$defs/id"},
         "empty": {"description": "The text of the list without items (`emptyMessage`); that of the component by default.", "$ref": "#/$defs/text"},
+        "layout": {"description": "The list as a table or a grid of cards on a wide screen (`layout`); `composition.list` of the theme by default.", "enum": ["table", "cards"]},
+        "layout_phone": {"description": "The list on a phone (`phoneLayout`); `composition.list_phone` of the theme by default.", "enum": ["table", "cards"]},
+        "card": {
+          "description": "The composition of a card of the grid (`card`), each role a field of `columns` (S064): `media`, the cover over the whole width of the card (a file field with `display: image`; the first such column by default), `eyebrow`, a rubric above the title, `title` (the first column without a role by default), `figure`, the main value in the heading font, and `meta`, values in a muted line; each without its label. The other columns stay pairs of a label and a value.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "media": {"$ref": "#/$defs/field"},
+            "eyebrow": {"$ref": "#/$defs/field"},
+            "title": {"$ref": "#/$defs/field"},
+            "figure": {"$ref": "#/$defs/field"},
+            "meta": {"$ref": "#/$defs/fields", "minItems": 1}
+          }
+        },
         "filter": {
           "description": "The filter of the screen itself, a report of some of the items: each field (that the contract can filter by) equal to its value or compared with it (`__gte`...), combined (AND) with the filters and the search of the user (`ResourceList` `filter`).",
           "$ref": "#/$defs/filter"
@@ -139,7 +154,18 @@
             }
           }
         },
-        "edit": {"description": "The item is edited on the card, by the update form of its runtime schema.", "type": "boolean"},
+        "edit": {"description": "The item is edited on the card, by the update form of its runtime schema: the fields of its summary and of its sections.", "type": "boolean"},
+        "summary": {
+          "description": "The summary of the item under the heading of the card (`summary`, `data-slot=\"card-summary\"`): `range`, two date or date-time fields shown as one range of the language with its number of days (S065), `figure`, a number, a decimal or a date shown large (S065), and `meta`, values in a line under the range. Its fields need no section (S066 when one is in a section too); the edit of the card (`edit`) has them, before those of the sections.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "range": {"$ref": "#/$defs/fields", "minItems": 1},
+            "figure": {"$ref": "#/$defs/field"},
+            "meta": {"$ref": "#/$defs/fields", "minItems": 1}
+          }
+        },
         "transitions": {"description": "The transits of the item (its workflow).", "type": "boolean"},
         "history": {"description": "The status history of the item (its workflow).", "type": "boolean"},
         "related": {

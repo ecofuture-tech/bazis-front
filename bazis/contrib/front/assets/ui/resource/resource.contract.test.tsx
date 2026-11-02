@@ -419,6 +419,34 @@ describe('file fields', () => {
     saved.mockRestore();
   });
 
+  it('shows an image as the cover of a card of a grid: its whole width, not a download, the first of several', async () => {
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:photo'), revokeObjectURL: vi.fn() });
+    const backend = new Backend()
+      .on('GET', `${FILES}1/`, { data: resource('1', { file: '/media/photo.png', name: 'photo.png', size: 11 }, {}, 'test.file') })
+      .file(`${FILES}1/download/`, 'png', 'inline; filename="photo.png"');
+    const photos = { ...file, name: 'photos', relation: 'test.file', many: true };
+    renderWithBazis(
+      <FilesProvider control={null} resources={['test.file']}>
+        <span data-bz="cell:photo">
+          <FileValue relation="test.file" id="1" path={FILES} thumbnail="cover" />
+        </span>
+        {/* several files of a resource without a route here: the id of the first one */}
+        <span data-bz="cell:photos">
+          <FieldValue field={photos} value={['3', '4']} display="image" media />
+        </span>
+      </FilesProvider>,
+      backend,
+    );
+    const cover = await within(screen.getByTestId('cell:photo')).findByRole('img', { name: 'photo.png' });
+    await waitFor(() => {
+      expect(cover.querySelector('img')?.getAttribute('src')).toBe('blob:photo');
+    });
+    expect(cover.className).toContain('aspect-[4/3]');
+    expect(cover.className).toContain('w-full');
+    expect(within(screen.getByTestId('cell:photo')).queryByRole('button')).toBeNull();
+    expect(screen.getByTestId('cell:photos').textContent).toBe('3');
+  });
+
   it('downloads a file with the token, and says when it fails', async () => {
     Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:brief'), revokeObjectURL: vi.fn() });
     const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);

@@ -40,6 +40,7 @@ from .names import camel, component_name, constant_name, pascal
 from .refs import (
     RELATIVE_DAY,
     action_form,
+    card_fields,
     filter_field,
     filter_scalars,
     host,
@@ -538,6 +539,12 @@ def render_list(product: Product, data: dict) -> str:
     if spec.get('search'):
         attrs.append(Attr('search'))
     attrs += entity_attrs(product, entity_id, const, label=False)
+    if 'layout' in spec:
+        attrs.append(Attr('layout', spec['layout']))
+    if 'layout_phone' in spec:
+        attrs.append(Attr('phoneLayout', spec['layout_phone']))
+    if 'card' in spec:
+        attrs.append(Attr('card', fields_object(spec['card'])))
     opened = []
     if any(it['primitive'] == 'card' and product.host(it) is data for it in product.screens.values()):
         screen.hook('id', 'const { id } = useParams();', 'react-router', 'useParams')
@@ -556,6 +563,11 @@ def render_list(product: Product, data: dict) -> str:
     if 'map' in spec:
         body.insert(0, list_map(screen, const, spec, filter_ref, opened))
     return screen.write(screen_element(screen, body))
+
+
+def fields_object(spec: dict) -> Obj:
+    """The roles of fields as the spec gives them (the cards of a list, the summary of a card): a name, or a list of them."""
+    return Obj([(key, Arr([Str(it) for it in value]) if isinstance(value, list) else Str(value)) for key, value in spec.items()])
 
 
 def list_actions(screen: Screen, const: Raw) -> list[Attr]:
@@ -722,11 +734,12 @@ def render_card(product: Product, data: dict) -> str:
     screen.hook('id', "const { id = '' } = useParams();", 'react-router', 'useParams')
     attrs = [Attr('path', Raw(f'{const.code}.path')), Attr('id', Raw('id'))]
     attrs.append(Attr('sections', Arr([card_section(screen, i, it) for i, it in enumerate(spec['sections'])])))
+    if 'summary' in spec:
+        attrs.append(Attr('summary', fields_object(spec['summary'])))
     attrs += entity_attrs(product, entity_id, const, label=True)
     if spec.get('edit'):
         attrs.append(Attr('edit'))
-        names = [name for section in spec['sections'] for name in section['fields']]
-        if (filters := screen.pickers(entity_id, names)) is not None:
+        if (filters := screen.pickers(entity_id, card_fields(spec))) is not None:
             attrs.append(Attr('filters', filters))
     if 'workflow' in product.entities[entity_id]:
         screen.code.use('@/bazis/ui/status-badge', 'StatusBadge')

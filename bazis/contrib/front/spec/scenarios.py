@@ -45,6 +45,7 @@ from .refs import (
     Entity,
     Product,
     body_files,
+    card_fields,
     form_answer,
     is_public,
     related_fields,
@@ -756,8 +757,8 @@ class _Scenario:
     def shown(self) -> set[str] | None:
         """
         The fields that the current screen shows: those of its open form (None for every
-        field of the entity), else the columns of a list, the fields of the sections of a card
-        (the edit of a card has them too), of the items of a board or of a calendar (its label,
+        field of the entity), else the columns of a list, the fields of the summary and of the
+        sections of a card (the edit of a card has them too), of the items of a board or of a calendar (its label,
         None for the label of the entity); none on a dashboard.
         """
         form, screen = self.state.form, self.state.screen
@@ -767,7 +768,7 @@ class _Scenario:
         if primitive == 'list':
             return set(screen['list']['columns'])
         if primitive == 'card':
-            return {name for section in screen['card']['sections'] for name in section['fields']}
+            return set(card_fields(screen['card']))
         if primitive == 'board':
             card = screen['board']['card']
             return {card['title'], *card.get('fields', []), *([card['badge']] if 'badge' in card else [])}
@@ -777,20 +778,21 @@ class _Scenario:
 
     def card_values(self, path, values: dict, status: str | None) -> None:
         """
-        The values that the current card shows (P022): of the fields of its sections, of a
-        section shown by the status of the item (`when`) only in one of those statuses, when the
-        status is known (that of the expectation, else that of the walk).
+        The values that the current card shows (P022): of the fields of its summary and of its
+        sections, of a section shown by the status of the item (`when`) only in one of those
+        statuses, when the status is known (that of the expectation, else that of the walk).
         """
         declared = self.entity.fields if self.entity is not None else {}
-        sections = self.state.screen['card']['sections']
-        shown = {name for it in sections if status in it.get('when', {}).get('status', [status]) for name in it['fields']}
+        card = self.state.screen['card']
+        sections = [it for it in card['sections'] if status in it.get('when', {}).get('status', [status])]
+        shown = set(card_fields({**card, 'sections': sections}))
         for name in values:
             # an undeclared field is reported below (P023)
             if name in declared and name not in self.shown():
                 self.add(
                     (*path, 'values', name), 'P022',
                     f'The card does not show the field `{name}`.',
-                    'Add the field to a section of the card, or expect another one.',
+                    'Add the field to a section or to the summary of the card, or expect another one.',
                 )
             elif name in declared and status is not None and name not in shown:
                 self.add(
