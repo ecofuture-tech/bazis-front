@@ -326,9 +326,10 @@ export class App<P extends Product = Product> {
    * label of the item, searched in its popup, null by its option that clears the value; the
    * picker of a to-many relationship by the list of the labels of its items, which replace
    * those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by
-   * true or false; an input of a date or a date-time also by a day of the run (`today`,
-   * `today+1 10:30`: `dateOfRun`); `{run}` in a text or a label is the text of the run of the
-   * test.
+   * true or false; an input of a date (`<input type="date">`, or that of `DatePicker` in the
+   * format of the language, `data-input="date"`: both take `YYYY-MM-DD`) or a date-time also by a
+   * day of the run (`today`, `today+1 10:30`: `dateOfRun`); `{run}` in a text or a label is the
+   * text of the run of the test.
    */
   async fill(values: FormValues): Promise<void> {
     const form = this.form();
@@ -339,7 +340,9 @@ export class App<P extends Product = Product> {
         const role = element.getAttribute('role');
         if (role === 'combobox') return 'combobox';
         if (role === 'checkbox' || role === 'switch') return 'checkbox';
-        return element instanceof HTMLInputElement ? element.type : element.tagName.toLowerCase();
+        // the input of a date of `DatePicker` is a text in the format of the language (`data-input`)
+        if (element instanceof HTMLInputElement) return element.dataset.input ?? element.type;
+        return element.tagName.toLowerCase();
       });
       if (typeof value === 'object' && value !== null) {
         if (kind !== 'combobox') throw new Error(`The field ${name} is not the picker of a to-many relationship.`);

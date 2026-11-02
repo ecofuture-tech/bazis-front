@@ -293,6 +293,21 @@ test.describe('fill of a date-time', () => {
     await app.fill({ dt_start: 'today-2 08:05' });
     await expect(page.locator(bz('field', 'dt_start'))).toHaveValue(`${day(-2)}T08:05`);
   });
+
+  test('fills the input of a date in the format of the language with a date of the backend', async ({ page }) => {
+    // `DatePicker`: a text marked `data-input="date"`, which takes `YYYY-MM-DD` too
+    const form = `<form><input type="text" inputmode="numeric" data-input="date" data-bz="field:day">
+      <button type="submit" data-bz="action:submit">Save</button></form>`;
+    await show(page, '/tasks', html(`<section data-bz="screen:task-list"><div data-bz="state:loaded">${form}</div></section>`));
+    const app = new App(page, PRODUCT);
+    await app.expectScreen('task-list');
+    const tomorrow = new Date();
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    await app.fill({ day: 'today+1' });
+    await expect(page.locator(bz('field', 'day'))).toHaveValue(tomorrow.toISOString().slice(0, 10));
+    await app.fill({ day: '2030-03-04' });
+    await expect(page.locator(bz('field', 'day'))).toHaveValue('2030-03-04');
+  });
 });
 
 test('fill chooses the item of a combobox by its label, null by the option that clears it', async ({ page }) => {

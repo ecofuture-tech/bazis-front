@@ -66,6 +66,9 @@ PRESETS = {
     },
 }
 
+#: the controls of the forms by default, whatever the preset (`controls` of theme.yaml)
+CONTROLS = {'date': 'localized'}
+
 #: the spacing of each density: the padding of the page, the gap between the sections of a
 #: screen, the padding of the cards, of the cells of the tables, the gap between the fields
 DENSITY = {
@@ -141,6 +144,10 @@ export interface Theme {
     /** Forms in a dialog, or in place of the content of the screen. */
     readonly forms: 'dialog' | 'page';
   };
+  readonly controls: {
+    /** localized: a text as the language of the product writes a date, with a calendar; native: `<input type="date">`. */
+    readonly date: 'localized' | 'native';
+  };
   /** The tone of the badge of a status by its id; neutral for another. */
   readonly statuses: Readonly<Record<string, Tone>>;
   /** The name of the lucide icon of each entity, by the id of the entity. */
@@ -163,6 +170,7 @@ def options(theme: dict | None) -> dict:
         'navigation': theme.get('navigation', defaults['navigation']),
         'density': theme.get('density', defaults['density']),
         'composition': {**defaults['composition'], **theme.get('composition', {})},
+        'controls': {**CONTROLS, **theme.get('controls', {})},
         'statuses': dict(theme.get('statuses', {})),
         'icons': dict(theme.get('icons', {})),
     }
