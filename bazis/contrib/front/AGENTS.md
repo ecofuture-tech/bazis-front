@@ -1176,7 +1176,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `D006` | error | a token references a token of another type |
 | `D007` | error | a token of the dark mode (the group `dark`) overrides no token of the same name and type |
 | `D008` | warning | a status of `statuses` in theme.yaml is not a status of the contract |
-| `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode |
+| `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode; also `--sidebar-muted-foreground` on `--sidebar`, `--sidebar-primary-foreground` on `--sidebar-primary`, `--brand-foreground` on `--brand` and `--brand` on `--card`: the brand is a text accent (a rubric), so it must read on a card |
 | `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 | `D012` | warning | spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows; the issue names the tokens |
@@ -2846,7 +2846,8 @@ phone) gives the variables of the content those of the sidebar: `--foreground`,
 `--muted-foreground`, `--border`, `--accent`, `--primary`, `--ring` are `--sidebar-…` inside
 it, so a component in it keeps the classes of the theme (`text-muted-foreground`) and a
 palette with a dark sidebar (`pine`) stays legible. Define `color.sidebar-muted-foreground`
-and `color.sidebar-primary` with a dark `color.sidebar`.
+and `color.sidebar-primary` with a dark `color.sidebar`: the first is the muted foreground of
+the content by default, which D009 reports on a dark sidebar.
 
 **The headings.** `font-heading` is the family, the weight and the tracking of a heading
 (the title of a screen, a card, a figure of a dashboard) and `font-subheading` those of the
