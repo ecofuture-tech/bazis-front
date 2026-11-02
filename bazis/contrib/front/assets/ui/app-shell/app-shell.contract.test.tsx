@@ -28,7 +28,7 @@ import { Route, Routes, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { THEME } from '@/bazis/generated/theme';
-import { AppShell, ListCardLayout, Screen, setColorMode, useNavItems } from '@/bazis/ui/app-shell';
+import { AppShell, Brand, ListCardLayout, Screen, setColorMode, useNavItems } from '@/bazis/ui/app-shell';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 const items = [
@@ -451,6 +451,15 @@ describe('AppShell', () => {
     expect(marks({ icon: Mark })).toEqual({ icon: true, image: undefined, text: '' });
     expect(marks({ image: '/brand/mark.svg' })).toEqual({ icon: false, image: '/brand/mark.svg', text: '' });
     expect(marks(null)).toEqual({ icon: false, image: undefined, text: 'P' });
+  });
+
+  it('gives the login screen the mark of the shell, larger', () => {
+    const { container } = renderWithBazis(<Brand title="Acme" mark={null} large />, new Backend());
+    const mark = container.querySelector('[data-slot="brand-mark"]');
+    expect(mark?.classList).toContain('bg-brand');
+    expect(mark?.classList).toContain('size-10');
+    expect(mark?.textContent).toBe('A');
+    expect(screen.getByTitle('Acme').textContent).toBe('Acme');
   });
 
   it('gives the sidebar and the drawer of a phone the colors of the sidebar', () => {

@@ -205,25 +205,47 @@ export function useNavItems(): readonly NavItem[] {
   return useContext(ItemsContext);
 }
 
+export interface BrandProps {
+  /** The name of the product. */
+  title: ReactNode;
+  /** Its mark, `brand` of the theme by default; null: the first letter of the name. */
+  mark?: BrandMark | null | undefined;
+  /** Larger, as on the login screen. */
+  large?: boolean | undefined;
+}
+
 /**
  * The mark of the product on the color of its brand (its icon or its image, else the first
- * letter of its name) and its name in two lines at most.
+ * letter of its name, `data-slot="brand-mark"`) and its name in two lines at most: that of the
+ * shell, and of the login screen (`large`).
  */
-function Brand({ title, mark }: { title: ReactNode; mark: BrandMark | null }) {
+export function Brand({ title, mark = THEME.brand, large = false }: BrandProps) {
   const letter = typeof title === 'string' ? title.trim().charAt(0).toUpperCase() : null;
   const Icon = mark !== null && 'icon' in mark ? mark.icon : null;
   return (
-    <span className="flex min-w-0 items-center gap-2.5">
+    <span className={cn('flex min-w-0 items-center', large ? 'gap-3' : 'gap-2.5')}>
       {(mark !== null || letter) && (
         <span
           aria-hidden="true"
           data-slot="brand-mark"
-          className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand text-sm font-semibold text-brand-foreground shadow-sm"
+          className={cn(
+            'flex shrink-0 items-center justify-center overflow-hidden bg-brand font-semibold text-brand-foreground shadow-sm',
+            large ? 'size-10 rounded-xl text-lg' : 'size-8 rounded-lg text-sm',
+          )}
         >
-          {Icon ? <Icon className="size-4.5" /> : mark !== null && 'image' in mark ? <img src={mark.image} alt="" className="size-full object-cover" /> : letter}
+          {Icon ? (
+            <Icon className={large ? 'size-5' : 'size-4.5'} />
+          ) : mark !== null && 'image' in mark ? (
+            <img src={mark.image} alt="" className="size-full object-cover" />
+          ) : (
+            letter
+          )}
         </span>
       )}
-      <span title={typeof title === 'string' ? title : undefined} className="line-clamp-2 font-heading text-base leading-tight">
+      <span
+        title={typeof title === 'string' ? title : undefined}
+        className={cn('line-clamp-2 font-heading leading-tight', large ? 'text-xl' : 'text-base')}
+      >
         {title}
       </span>
     </span>

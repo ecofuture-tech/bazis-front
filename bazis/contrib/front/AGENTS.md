@@ -2834,7 +2834,8 @@ its contrast (D009). A token of `tokens.json` replaces that of the layers: a `to
 that defines every color (of an older version) hides the palette, so remove the colors it
 should take from the palette (D012). Set `density` for the spacing.
 
-**The mark of the brand** next to the name of the product in the shell is `brand` of
+**The mark of the brand** next to the name of the product in the shell and on the login
+screen (`Brand` of `@/bazis/ui/app-shell`) is `brand` of
 `theme.yaml`: `{icon: tent}` (a lucide icon, D013) or `{image: brand/mark.svg}` (a file of
 `frontend/public/`, D017); without it, the first letter of the name. It sits on
 `color.brand` with `color.brand-foreground` (the primary by default; `check` keeps both
@@ -5150,6 +5151,17 @@ Its props, `AppShellProps`:
 - `tools?: ReactNode`: The tools of the product next to the color mode, such as the notifications (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at the foot of the sidebar (a row that wraps, above the session) or, on a phone, in its header.
 - `children: ReactNode`
 
+#### Brand
+
+`Brand(props: BrandProps): Element`: The mark of the product on the color of its brand (its icon or its image, else the first letter of its name, `data-slot="brand-mark"`) and its name in two lines at most: that of the shell, and of the login screen (`large`).
+
+
+Its props, `BrandProps`:
+
+- `title: ReactNode`: The name of the product.
+- `mark?: BrandMark | null | undefined`: Its mark, `brand` of the theme by default; null: the first letter of the name.
+- `large?: boolean | undefined`: Larger, as on the login screen.
+
 #### Screen
 
 `Screen(props: ScreenProps): Element`: A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title and the actions; in a working application it stays at the top while the screen scrolls, `--sticky-top` high), its description and its content.
@@ -5264,6 +5276,7 @@ Its props, `ListCardLayoutProps`:
 #### The types and the constants of `@/bazis/ui/app-shell`
 
 - `AppShellProps`: the props of `AppShell`, listed with it
+- `BrandProps`: the props of `Brand`, listed with it
 - `type Navigation = 'sidebar' | 'topbar'`
 - `type NavEntry = NavItem | NavGroup`: An entry of the navigation: a link, or a group of links.
 - `ScreenProps`: the props of `Screen`, listed with it
