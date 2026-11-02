@@ -53,6 +53,7 @@ SAMPLE = 'Брони по неделям: Алексей Кравцов, 2 но�
 COVERAGE = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯąćęłńóśźżĄĆĘŁŃÓŚŹŻ₽'
 
 
+# the same naming as `axis_file` of bazis/contrib/front/spec/fonts.py, which reads the packages of a product
 def axis_file(axes: list[str]) -> str:
     """The axes of a file of @fontsource-variable: `wght`, or another axis with the weight."""
     others = [it for it in axes if it != 'wght']

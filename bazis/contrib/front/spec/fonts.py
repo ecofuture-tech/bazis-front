@@ -146,6 +146,7 @@ def starter(name: str) -> Family:
     )
 
 
+# the same naming as `axis_file` of scripts/gen_font_starter.py, the tool that is not shipped
 def axis_file(axes: list[str]) -> str:
     """The axes in the name of a file of @fontsource-variable: `wght`, or another with the weight."""
     others = sorted(set(axes) - {'wght'})
