@@ -649,15 +649,28 @@ describe('FieldValue', () => {
 
   it('shows a sum in its currency (`display: {currency}`), a quantity with its unit (`{unit}`)', () => {
     const price = attribute('price', 'string');
-    // a DecimalField: its exact digits
+    // a DecimalField: its exact digits; a whole sum without its zero cents, unless always shown
     expect(formatValue(price, '45000.10', undefined, { currency: 'EUR' })).toBe('€45,000.10');
-    expect(formatValue(attribute('total', 'number'), 12, undefined, { currency: 'EUR' })).toBe('€12.00');
+    expect(formatValue(price, '3600.00', undefined, { currency: 'EUR' })).toBe('€3600');
+    expect(formatValue(price, '3600.00', undefined, { currency: 'EUR', fraction: 'always' })).toBe('€3600.00');
+    expect(formatValue(attribute('total', 'number'), 12, undefined, { currency: 'EUR' })).toBe('€12');
+    expect(formatValue(attribute('total', 'number'), 12, undefined, { currency: 'EUR', fraction: 'always' })).toBe('€12.00');
+    expect(formatValue(attribute('total', 'number'), 12.5, undefined, { currency: 'EUR' })).toBe('€12.50');
+    // what the sum is for, a text of the dictionaries after it
+    const russian = { language: 'ru', t: (key: string) => (key === 'entities.tool.fields.price.display.per' ? 'сутки' : key) };
+    expect(formatValue(price, '3600.00', russian, { currency: 'RUB', per: 'entities.tool.fields.price.display.per' })).toMatch(
+      /^3600\s₽ \/ сутки$/,
+    );
+    expect(formatValue(price, '250.50', russian, { currency: 'RUB', per: 'entities.tool.fields.price.display.per' })).toMatch(
+      /^250,50\s₽ \/ сутки$/,
+    );
     expect(formatValue(attribute('copies', 'integer'), 12000, undefined, { unit: 'pcs' })).toBe('12,000 pcs');
     expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1200 pcs');
     expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50 kg');
     expect(formatValue(price, null, undefined, { unit: 'kg' })).toBe('—');
     // a code that is not of ISO 4217: after the number, as a unit, never an error of the render
     expect(formatValue(price, '45000.10', undefined, { currency: 'euro' })).toBe('45,000.10 euro');
+    expect(formatValue(price, '45000.00', undefined, { currency: 'euro' })).toBe('45,000 euro');
     render(<FieldValue field={price} value="12.5" display={{ currency: 'euro' }} />);
     expect(screen.getByText('12.5 euro')).toBeTruthy();
   });

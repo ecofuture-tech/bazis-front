@@ -41,6 +41,7 @@ from .refs import (
     RELATIVE_DAY,
     action_form,
     filter_field,
+    filter_scalars,
     host,
     is_public,
     parameters,
@@ -447,16 +448,23 @@ DAY_FORMATS = {'date': 'date', 'datetime': 'date-time'}
 def filter_value(code: Code, where: dict, fields: dict | None = None) -> Call:
     """
     A filter of the specs: each field equal to its value, or compared with it by the lookup
-    of its key (`date_from__gte`), `Filter.and` of several; a day of the browser of a date or a
-    date-time (`fields`: those of the entity by id) is computed when the code runs
-    (`relativeDay`).
+    of its key (`date_from__gte`), `Filter.and` of several; a list of values is `Filter.or` of
+    them, `{not: …}` `Filter.not` of its value; a day of the browser of a date or a date-time
+    (`fields`: those of the entity by id) is computed when the code runs (`relativeDay`).
     """
     code.use('@/bazis/client', 'Filter')
-    parts = [
-        Call('Filter.where', [Str(key), _filter_scalar(code, value, day_format(fields, key))])
-        for key, value in where.items()
-    ]
+    parts = [_filter_condition(code, key, value, day_format(fields, key)) for key, value in where.items()]
     return parts[0] if len(parts) == 1 else Call('Filter.and', parts)
+
+
+def _filter_condition(code: Code, key: str, value, day: str | None) -> Call:
+    """The condition of a key of a filter: equal to its value, to any of a list, to none of `{not: …}`."""
+    if isinstance(value, dict):
+        return Call('Filter.not', [_filter_condition(code, key, value['not'], day)])
+    if isinstance(value, list):
+        parts = [Call('Filter.where', [Str(key), _filter_scalar(code, it, day)]) for it in value]
+        return parts[0] if len(parts) == 1 else Call('Filter.or', parts)
+    return Call('Filter.where', [Str(key), _filter_scalar(code, value, day)])
 
 
 def day_format(fields: dict | None, key: str) -> str | None:
@@ -478,7 +486,10 @@ def filter_expr(screen: Screen, where: dict) -> Raw:
     """
     fields = {it['id']: it for it in screen.product.entities[screen.data['entity']]['fields']}
     value = filter_value(screen.code, where, fields)
-    if not any(day_format(fields, key) and isinstance(it, str) and RELATIVE_DAY.fullmatch(it) for key, it in where.items()):
+    if not any(
+        day_format(fields, key) and isinstance(it, str) and RELATIVE_DAY.fullmatch(it)
+        for key, value in where.items() for it in filter_scalars(value)
+    ):
         screen.consts['FILTER'] = printed(Const('FILTER', value).doc())
         return Raw('FILTER')
     screen.hook('filter', Const('filter', Call('useMemo', [Arrow([], value), Arr([])])), 'react', 'useMemo')
@@ -913,8 +924,9 @@ def related_list(screen: Screen, index: int, related: dict) -> Jsx:
 
 def render_dashboard(product: Product, data: dict) -> str:
     """
-    A dashboard: the create forms of its actions in its header, its tiles, its charts and its
-    last items, each of its own entity (`Dashboard` is the screen: its forms are its children).
+    A dashboard: the create forms of its actions in its header, the day of today, its tiles, its
+    charts and its last items, each of its own entity, without the links of the navigation with
+    `links: false` (`Dashboard` is the screen: its forms are its children).
     """
     screen = Screen(product, data)
     spec = data['dashboard']
@@ -922,6 +934,10 @@ def render_dashboard(product: Product, data: dict) -> str:
     if (actions := extension_actions(screen, header_actions(screen))) is not None:
         attrs.append(Attr('actions', actions))
     parts = []
+    if spec.get('today'):
+        parts.append(Attr('today'))
+    if spec.get('links') is False:
+        parts.append(Attr('links', Arr([])))
     if spec.get('tiles'):
         parts.append(Attr('tiles', Arr([tile(screen, i, it) for i, it in enumerate(spec['tiles'])])))
     if spec.get('charts'):
@@ -1009,7 +1025,7 @@ def aggregate_value(value: dict) -> Obj:
 
 
 def recent_list(screen: Screen, index: int, spec: dict) -> Obj:
-    """The last items of an entity, each opening its card."""
+    """The last items of an entity (of its filter), each opening its card."""
     const = screen.entity(spec['entity'])
     props = [
         ('id', Str(spec['id'])), ('path', Raw(f'{const.code}.path')),
@@ -1020,6 +1036,9 @@ def recent_list(screen: Screen, index: int, spec: dict) -> Obj:
         props.append(('sort', Arr([Str(it) for it in spec['sort']])))
     if 'limit' in spec:
         props.append(('limit', Raw(str(spec['limit']))))
+    if 'filter' in spec:
+        fields = {it['id']: it for it in screen.product.entities[spec['entity']]['fields']}
+        props.append(('filter', filter_value(screen.code, spec['filter'], fields)))
     if has_display(screen.product, spec['entity']):
         props.append(('display', Raw(f'{const.code}.display')))
     if 'open' in spec:
@@ -1227,7 +1246,10 @@ def render_entities(product: Product) -> str:
             props.append(('title', message_key(entity['title'], key)))
         if 'label' in entity:
             props.append(('label', Arr([Str(it) for it in entity['label']])))
-        display = [(it['id'], display_literal(it['display'])) for it in entity['fields'] if 'display' in it]
+        display = [
+            (it['id'], display_literal(it['display'], product.specs.product, ('entities', index, 'fields', number, 'display')))
+            for number, it in enumerate(entity['fields']) if 'display' in it
+        ]
         if display:
             props.append(('display', Obj(display)))
         if steps := transitions(product, entity_id):
@@ -1250,11 +1272,15 @@ def render_entities(product: Product) -> str:
     )
 
 
-def display_literal(display) -> object:
+def display_literal(display, spec: dict, at: tuple) -> object:
+    """The `display` of a field (at `at` of product.yaml) as the components take it; `per`, a text, by its key."""
     if isinstance(display, str):
         return Str(display)
-    (key, value), = display.items()
-    return Obj([(key, Str(value) if isinstance(value, str) else Raw(repr(value)))])
+    return Obj([
+        (key, message_key(value, text_key('', spec, (*at, key))) if key == 'per'
+         else Str(value) if isinstance(value, str) else Raw(repr(value)))
+        for key, value in display.items()
+    ])
 
 
 def render_screens(product: Product) -> str:

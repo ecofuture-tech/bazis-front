@@ -22,6 +22,10 @@ export interface Theme {
     /** Forms in a dialog, or in place of the content of the screen. */
     readonly forms: 'dialog' | 'page';
   };
+  readonly controls: {
+    /** localized: a text as the language of the product writes a date, with a calendar; native: `<input type="date">`. */
+    readonly date: 'localized' | 'native';
+  };
   /** The tone of the badge of a status by its id; neutral for another. */
   readonly statuses: Readonly<Record<string, Tone>>;
   /** The name of the lucide icon of each entity, by the id of the entity. */
@@ -43,6 +47,9 @@ export const THEME: Theme = {
     list: "table",
     list_card: "split",
     list_phone: "cards",
+  },
+  controls: {
+    date: "localized",
   },
   dark: true,
   density: "comfortable",

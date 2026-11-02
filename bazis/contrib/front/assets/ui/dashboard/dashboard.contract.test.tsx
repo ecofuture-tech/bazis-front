@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The contract of the dashboard: `screen:<id>` with its title as a header or a hero, the tiles
+// The contract of the dashboard: `screen:<id>` with its title as a header or a hero, the day of
+// today `today` in the language of the product, the tiles
 // `tile:<id>`, the links to the other screens `link:<screen>` (those of the navigation of
-// `AppShell` by default, once the backend allows what they require), the charts it is given, the last
-// items `recent:<id>` (a row `row:<id>` with a cell `cell:<field>` each, sorted and limited,
-// opened by a click, with the states of its list), the tiles and the last items of a route set
+// `AppShell` by default, once the backend allows what they require; none with `links={[]}`), the charts it is given, the last
+// items `recent:<id>` (a row `row:<id>` with a cell `cell:<field>` each, sorted, limited and
+// filtered, opened by a click, with the states of its list), the tiles and the last items of a route set
 // that the backend does not let the user view not shown (`Viewable`), a state of its own (`state:loaded`, a
 // dashboard of links only), what it is given before its parts, and its children in its screen
 // (where a form page takes the place of its parts). Keep it passing when the component is changed.
@@ -24,9 +25,10 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
 import { AppShell, useScreenPage } from '@/bazis/ui/app-shell';
 import { Dashboard, RecentList, Viewable } from '@/bazis/ui/dashboard';
-import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
+import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema, testLanguages } from '@/bazis/ui/testing';
 
 function Icon({ className }: { className?: string }) {
   return <svg data-bz="icon:items" className={className} />;
@@ -144,6 +146,43 @@ describe('Dashboard', () => {
     const home = screen.getByTestId('screen:home');
     expect(within(home).getByTestId('link:about').getAttribute('href')).toBe('/about');
     expect(within(home).queryByTestId('link:home')).toBeNull();
+  });
+
+  it('shows no links with an empty list of them, those of the layout notwithstanding', () => {
+    const items = [
+      { screen: 'home', label: 'Home', to: '/', end: true },
+      { screen: 'about', label: 'About', to: '/about' },
+    ];
+    renderWithBazis(
+      <AppShell title="Product" items={items}>
+        <Dashboard hero={false} links={[]} />
+      </AppShell>,
+      new Backend(),
+    );
+    const home = screen.getByTestId('screen:home');
+    expect(within(home).queryByTestId('link:about')).toBeNull();
+    expect(within(home).queryByRole('navigation')).toBeNull();
+  });
+
+  it('shows the day of today in the language of the product, before what it is given and its parts', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 2, 10, 0), toFake: ['Date'] });
+    try {
+      const { unmount } = renderWithBazis(<Dashboard hero={false} title="Home" />, new Backend());
+      expect(screen.queryByTestId('today')).toBeNull();
+      unmount();
+      renderWithBazis(
+        <Dashboard hero={false} title="Home" today before={<p data-bz="before">Before</p>} tiles={[{ id: 'all', path: ITEMS as never, label: 'All' }]} />,
+        new Backend(),
+        { language: testLanguages('ru') },
+      );
+      const today = screen.getByTestId('today');
+      expect(today.textContent).toBe(new Date(2026, 10, 2).toLocaleDateString('ru', { weekday: 'long', day: 'numeric', month: 'long' }));
+      expect(today.textContent).toContain('2 ноября');
+      expect(today.compareDocumentPosition(screen.getByTestId('before'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(today.compareDocumentPosition(await screen.findByTestId('tile:all'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows its children in its screen, where a form composed as a page takes its place', () => {
@@ -286,6 +325,25 @@ describe('RecentList', () => {
     expect(request).toContain('page[limit]=3');
     fireEvent.click(within(row).getByRole('button'));
     expect(onOpen).toHaveBeenCalledWith('a');
+  });
+
+  it('shows the items of its filter', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 3 })]));
+    renderWithBazis(
+      <RecentList
+        id="open"
+        path={ITEMS as never}
+        label="Open"
+        columns={['title']}
+        filter={Filter.not(Filter.or(Filter.where('count', 0), Filter.where('count', 1)))}
+      />,
+      server,
+    );
+    expect(await within(screen.getByTestId('recent:open')).findByTestId('row:a')).toBeTruthy();
+    const [request] = server.requests('GET').filter((it) => !it.includes('schema_')).map((it) => decodeURIComponent(it));
+    expect(request).toContain('filter=~(count=0|count=1)');
   });
 
   it('shows the rows without a button when it opens nothing, and marks an empty list and an error', async () => {

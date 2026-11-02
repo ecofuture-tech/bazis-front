@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The contract of the date picker: the input of a date stays `<input type="date">` with the
-// marks of the input it replaces (`field:<name>`, filled with `2026-10-07`), and its button
-// opens the month of the date, whose days give the date picked: every input of a date below
-// `DatePickerProvider` (the forms, the filters of the lists). Keep it passing when the
-// component is changed.
+// The contract of the date picker: the input of a date shows it in the numeric format of the
+// language of the product (`02.11.2026` in Russian), takes it typed so with any separator or as
+// `2026-10-07` (the scenarios fill it so), with the marks of the input it replaces
+// (`field:<name>`, `data-input="date"`), and stays `<input type="date">` with `mode: native`
+// (`controls.date` of the theme); its button opens the month of the date, whose days give the
+// date picked: every input of a date below `DatePickerProvider` (the forms, the filters of the
+// lists). Keep it passing when the component is changed.
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
@@ -38,11 +40,61 @@ function day(date: Date): string {
 }
 
 describe('DatePicker', () => {
-  it('is the input of a date, marked as the one it replaces', () => {
+  it('shows the date in the numeric format of the language, marked as the input it replaces', () => {
     const onChange = vi.fn();
-    render(<DatePicker data-bz="field:due" value="2030-03-04" onChange={onChange} />);
+    const { unmount } = render(
+      <LanguageProvider store={testLanguages('ru')}>
+        <DatePicker data-bz="field:due" value="2030-03-04" onChange={onChange} />
+      </LanguageProvider>,
+    );
     const input = screen.getByTestId<HTMLInputElement>('field:due');
-    expect([input.tagName, input.type, input.value]).toEqual(['INPUT', 'date', '2030-03-04']);
+    expect([input.tagName, input.type, input.inputMode, input.dataset.input]).toEqual(['INPUT', 'text', 'numeric', 'date']);
+    expect(input.value).toBe('04.03.2030');
+    expect(input.placeholder).toBe('дд.мм.гггг');
+    unmount();
+    render(
+      <LanguageProvider store={testLanguages('en')}>
+        <DatePicker data-bz="field:due" value="" onChange={onChange} />
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId<HTMLInputElement>('field:due').value).toBe('');
+    expect(screen.getByTestId<HTMLInputElement>('field:due').placeholder).toBe('mm/dd/yyyy');
+  });
+
+  it('takes a date typed in the order of the language with any separator, or as the backend writes it', () => {
+    const onChange = vi.fn();
+    render(
+      <LanguageProvider store={testLanguages('ru')}>
+        <DatePicker data-bz="field:due" value="2030-03-04" onChange={onChange} />
+      </LanguageProvider>,
+    );
+    const input = screen.getByTestId<HTMLInputElement>('field:due');
+    fireEvent.change(input, { target: { value: '5/3/2030' } });
+    expect(onChange).toHaveBeenLastCalledWith('2030-03-05');
+    fireEvent.change(input, { target: { value: '2030-12-01' } });
+    expect(onChange).toHaveBeenLastCalledWith('2030-12-01');
+    // what is being typed stays as it is
+    expect(input.value).toBe('2030-12-01');
+    // a text that is not a date yet, or never one, changes nothing
+    onChange.mockClear();
+    for (const text of ['01.12', '31.02.2030', '01.12.30', '2030-02-30']) {
+      fireEvent.change(input, { target: { value: text } });
+    }
+    expect(onChange).not.toHaveBeenCalled();
+    // an empty input is no date
+    fireEvent.change(input, { target: { value: ' ' } });
+    expect(onChange).toHaveBeenLastCalledWith('');
+    // left, it shows the date of the field
+    fireEvent.change(input, { target: { value: '01.12' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('04.03.2030');
+  });
+
+  it('is the input of the browser with `mode: native`', () => {
+    const onChange = vi.fn();
+    render(<DatePicker data-bz="field:due" mode="native" value="2030-03-04" onChange={onChange} />);
+    const input = screen.getByTestId<HTMLInputElement>('field:due');
+    expect([input.tagName, input.type, input.value, input.dataset.input]).toEqual(['INPUT', 'date', '2030-03-04', 'date']);
     fireEvent.change(input, { target: { value: '2030-03-05' } });
     expect(onChange).toHaveBeenLastCalledWith('2030-03-05');
   });
@@ -63,7 +115,7 @@ describe('DatePicker', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Choose a date' }));
     fireEvent.click(await screen.findByRole('button', { name: day(new Date(2030, 2, 9)) }));
-    expect(screen.getByTestId<HTMLInputElement>('field:due').value).toBe('2030-03-09');
+    expect(screen.getByTestId<HTMLInputElement>('field:due').value).toBe('03/09/2030');
     // closed once picked
     expect(screen.queryByRole('button', { name: day(new Date(2030, 2, 10)) })).toBeNull();
   });

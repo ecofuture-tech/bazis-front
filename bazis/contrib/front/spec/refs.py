@@ -399,10 +399,18 @@ def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> No
     """
     The `display` of a field fits its type: a number is `plain`, a `bar` (of an integer or
     a number), a sum in a `currency` or a quantity in a `unit` (also of a DecimalField, a
-    `string`); a `phone` is a string; an `image` is a file; a relationship has none.
+    `string`); a `phone` is a string; an `image` is a file; a relationship has none; the
+    cents of a sum and what it is for (`fraction`, `per`) are of a currency.
     """
     display = item['display']
-    kind = display if isinstance(display, str) else next(iter(display))
+    kind = display if isinstance(display, str) else next(it for it in display if it in DISPLAY_TYPES)
+    for key in ('fraction', 'per'):
+        if kind == 'unit' and key in display:
+            issues.add(
+                doc, (*path, key), 'S020',
+                f'`{key}` of the field `{item["id"]}` is of a sum in a currency, not of a quantity in a unit.',
+                f'Remove `{key}`, or show the field as a sum: `{{currency: <ISO 4217 code>, {key}: …}}`.',
+            )
     if item.get('type') in DISPLAY_TYPES[kind]:
         return
     declared = f'the type `{item["type"]}`' if 'type' in item else 'a relationship'
@@ -2465,7 +2473,18 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
     for key, value in section.get('filter', {}).items():
         name, lookup = filter_field(key)
         actual = resource['fields'].get(name)
-        problem = _filter_value_problem(value, lookup, actual) if actual is not None else None
+        if actual is None:
+            continue
+        if lookup is not None and not is_filter_scalar(value):
+            issues.add(
+                doc, (*path, 'filter', key), 'S014',
+                f'`{key}` compares the field `{name}` with one value, not with {value!r}.',
+                f'Give `{key}` one value; a list `[a, b]` (any of them) and `{{not: …}}` (none of them) are of a '
+                f'key without a lookup, `{name}`.',
+            )
+            continue
+        problems = (_filter_value_problem(it, lookup, actual) for it in filter_scalars(value))
+        problem = next((it for it in problems if it is not None), None)
         if problem is not None:
             issues.add(
                 doc, (*path, 'filter', key), 'S014',
@@ -2494,6 +2513,18 @@ def filter_field(key: str) -> tuple[str, str | None]:
     """The field and the lookup of a key of the filter of a list or a tile: `date_from__gte` is `date_from`, `gte`."""
     name, _, lookup = key.rpartition('__')
     return (name, lookup) if name and lookup in LOOKUPS else (key, None)
+
+
+def is_filter_scalar(value) -> bool:
+    """Whether a value of a filter is one value, not a list of them (any) or `{not: …}` (none)."""
+    return not isinstance(value, list | dict)
+
+
+def filter_scalars(value) -> list:
+    """The values of a value of a filter: one, those of a list, those of `{not: …}`."""
+    if isinstance(value, dict):
+        value = value['not']
+    return value if isinstance(value, list) else [value]
 
 
 def _filter_value_problem(value, lookup: str | None, field: dict) -> tuple[str, str] | None:

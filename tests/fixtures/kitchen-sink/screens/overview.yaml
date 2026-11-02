@@ -1,9 +1,10 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# A dashboard of two entities, extended: a tile of two conditions labelled by a key of the
-# dictionaries of the components, a tile with an icon of its own, a tile of the latest date of
-# a field, a tile of the tasks due this month (days of the browser), a chart by a date and one
-# of the average of a decimal by week, the last items
-# without an order (shown to those who may add a step), the create forms of both entities in its header (one shows the card of
+# A dashboard of two entities, extended: the day of today and no links of the navigation, a
+# tile of two conditions labelled by a key of the dictionaries of the components, a tile with an
+# icon of its own, a tile of the latest date of a field, a tile of the tasks due this month
+# (days of the browser), a tile of a set of statuses and one of a negation, a chart by a date
+# and one of the average of a decimal by week, the last items
+# without an order (shown to those who may add a step) and those of a filter, the create forms of both entities in its header (one shows the card of
 # the saved task, the other the home).
 spec: bazis-screen/1
 id: overview
@@ -13,16 +14,21 @@ roles: [manager, viewer]
 primitive: dashboard
 extend: true
 dashboard:
+  today: true
+  links: false
   tiles:
     - {id: started-reviews, entity: task, filter: {status: in_progress, title: Review the plan}, label: async.processing, open: task-list}
     - {id: steps, entity: step, icon: footprints, label: {en: Steps, ru: Шаги}}
     - {id: last-due, entity: task, value: {max: due}, label: {en: Last due date, ru: Последний срок}}
     - {id: due-this-month, entity: task, filter: {due__gte: month_start, due__lt: month_end+1}, label: {en: Due this month, ru: Срок в этом месяце}}
+    - {id: open, entity: task, filter: {status: [draft, in_progress]}, label: {en: Open, ru: Открыты}}
+    - {id: not-done-this-month, entity: task, filter: {status: {not: done}, due__lt: month_end+1}, label: {en: Not done by the end of the month, ru: Не готовы к концу месяца}}
   charts:
     - {id: steps-by-day, entity: step, by: dt_created, kind: line, label: {en: Steps by day, ru: Шаги по дням}}
     - {id: hours-by-week, entity: task, by: due, bucket: week, kind: bar, value: {avg: hours}, label: {en: Average hours by week, ru: Средние часы по неделям}}
   recent:
     - {id: steps, entity: step, columns: [title], requires: {can: add}, label: {en: Steps, ru: Шаги}}
+    - {id: unfinished, entity: task, columns: [title, status], filter: {status: {not: [done, in_progress]}}, label: {en: Not started, ru: Не начаты}}
   actions:
     - {id: create-task, primitive: form, entity: task, mode: create, fields: [title], then: task-card, label: {en: New task, ru: Новая задача}}
     - {id: create-step, primitive: form, entity: step, mode: create, then: home, label: {en: New step, ru: Новый шаг}}

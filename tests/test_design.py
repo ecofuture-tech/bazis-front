@@ -170,6 +170,25 @@ def test_the_defaults_of_a_preset_without_a_design():
     assert root_block(css, ':root')['--space-cell-y'] == theme.DENSITY['compact']['--space-cell-y']
 
 
+def test_the_input_of_a_date():
+    # localized by default, whatever the preset; native when the design says so
+    for preset in theme.PRESETS:
+        text = theme.render(Specs(theme={'spec': 'bazis-design/1', 'preset': preset}))[theme.THEME_TS]
+        assert '  controls: {\n    date: "localized",\n  },\n' in text
+    data = {'spec': 'bazis-design/1', 'preset': 'workspace', 'controls': {'date': 'native'}}
+    assert '    date: "native",\n' in theme.render(Specs(theme=data))[theme.THEME_TS]
+    assert "readonly date: 'localized' | 'native';" in theme.TS_TYPES
+
+
+@pytest.mark.django_db
+def test_an_input_of_a_date_that_the_design_does_not_have(root):
+    edit_theme(root, lambda data: data.update(controls={'date': 'wheel'}))
+    out = StringIO()
+    with pytest.raises(CommandError, match='The design has 1 errors'):
+        call_command('bazis_front', 'design', stdout=out)
+    assert 'D002' in out.getvalue()
+
+
 def test_the_density_that_the_user_chooses():
     # the rows of a table marked with a density (`data-density`, the view of a list) have its
     # spacing, whatever the density of the theme

@@ -49,6 +49,13 @@
         "forms": {"description": "Forms in a dialog (workspace) or in place of the content of the screen (portal).", "enum": ["dialog", "page"]}
       }
     },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "date": {"description": "The input of a date: localized (the default), a text as the language of the product writes a date (`02.11.2026`) with a calendar; native, `<input type=\"date\">` of the browser, its own picker on a phone, in the language of the browser. Either takes `YYYY-MM-DD` from the end-to-end tests.", "enum": ["localized", "native"]}
+      }
+    },
     "statuses": {
       "description": "The tone of the badge of each status of bazis-statusy, by the id of the status; a status that is not here is neutral.",
       "type": "object",

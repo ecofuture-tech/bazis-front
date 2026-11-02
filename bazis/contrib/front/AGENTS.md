@@ -1548,9 +1548,9 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects, or the aggregate of their field of `value` (`{sum}`, `{avg}`, `{min}`, `{max}`, formatted by `display`), from the aggregates of the core (a list of one item with `meta.aggregates`), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded, a date of `min` or `max` as its ISO text), `state:<loading\|loaded\|error\|forbidden>` | |
-| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, and add an item too with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
+| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default; `today`: the day of today before the parts; `links={[]}`: no links), `RecentList` (the last items: `columns`, `sort`, `limit`, `filter`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, and add an item too with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `today`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
 | `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), both the count of the items or the `{sum}` or `{avg}` of a field of `value`, from the groups of the aggregates of the core, `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
-| `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
+| `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are typed as the language of the product writes them (`02.11.2026`, `YYYY-MM-DD` too) or picked in a calendar (`DatePicker`, a button opens the month; `controls.date: native` of the theme: the input of the browser) | the input of the field (`field:<name>`, `data-input="date"`) | npm `react-day-picker` |
 | `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, the transits of `meta.for_transit` of the lists of the columns (bazis-statusy 2.13), `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (the transits of `for_transit` of its list; an item without one has no `action:move` and cannot be dragged) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
 | `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status; the screen readers are told the drag in the language of the interface, by the name of the item and of the status, never an id | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
 | `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `filters`: those of a list, `onOpen`, `add`: `{id, label, time, duration, fields, onAdd(initial)}`, the values the form starts with: `field` on the selected day (the day of a date, of a date-time the moment of `time` in the time zone of the browser), `end` `duration` minutes later, the related item or the choice of a filter of the user by a field of `fields`); an item shows its time to its `end` on the same day (`10:00–11:30`), in a day of a month its start with the range in its title | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
@@ -1906,6 +1906,21 @@ UTC), the midnight of the browser for `today`; a date is the date of the browser
 midnight is another date than that of the backend (`TIME_ZONE`) for a user in another time
 zone. `requires.filters` of the link of such a list names the fields
 (`date_from`), not the keys.
+
+**A set of values and a negation in a filter** (`list.filter`, `filter` of a tile and of the
+last items `recent`): a list of values is any of them, `Filter.or` (`(status=issued|status=returned)`
+of the core), `{not: <value or list>}` none of them, `Filter.not` (`~status=cancelled`); each
+value fits the field (S014), and a lookup takes one value (`date_from__gte: [..]` is S014). So
+the tiles of a rental count without a calculated boolean field in the backend:
+
+```yaml
+tiles:
+  - {id: pickups, entity: booking, filter: {date_from: today, status: {not: cancelled}}, label: {en: Pickups today, ru: Выдачи сегодня}}
+  - {id: revenue, entity: booking, filter: {status: [issued, returned, closed], date_from__gte: month_start, date_from__lt: month_end+1}, value: {sum: total_amount}, label: {en: Revenue this month, ru: Выручка за месяц}}
+```
+
+A list `[a, b]` is never `Filter.where(key, [a, b])`: the comma of a value is the list of an
+array field, a range or a point, not a set of values of a field.
 
 ### The navigation follows the backend
 
@@ -2818,7 +2833,7 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   | `select: {where}`, `bulk: <id>` | `select({where})`, `bulk(id)` |
   | `move: {where, to, payload}` | `move({where, to, payload, files})`, its payload as `transit`; fails as soon as the move is refused (`error:move`) with its error |
   | `action: <id>` | `action(id)`; a destroy (once the lock has `screens`) and a custom action with `confirm: true` are confirmed by `confirm(id)` (a generated screen shows the dialog; on a custom screen `confirm(id, { optional: true })`: delete with `useDestroyCardAction`, its dialog); one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)`, `upload(field, file)` in the open form (on a card with `edit: true` whose edit is not open, `action('edit')` first): a to-many picker by the list of the labels that replace its items (`[]`: none); a date-time as `YYYY-MM-DDTHH:mm` in UTC, the time zone of the browser (`FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`); `today`, `today+3`, `today-1 10:30` a day of the run in UTC, as `expectDay`; a file of `e2e/fixtures/` of the frontend (`photo.png` of the template or one of the product) |
+  | `fill`, `upload` | `fill(values)`, `upload(field, file)` in the open form (on a card with `edit: true` whose edit is not open, `action('edit')` first): a to-many picker by the list of the labels that replace its items (`[]`: none); a date as `YYYY-MM-DD`, whatever its input shows (`02.11.2026`); a date-time as `YYYY-MM-DDTHH:mm` in UTC, the time zone of the browser (`FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`); `today`, `today+3`, `today-1 10:30` a day of the run in UTC, as `expectDay`; a file of `e2e/fixtures/` of the frontend (`photo.png` of the template or one of the product) |
   | `submit: {}` | `submit({saved: true})` (`saved` from the generator, never a key of the step: P002) fails with the errors that the form shows when it stays open; the items it creates (the answers 201 in JSON of the POSTs meanwhile, their item in `data.id`) are those that `created` finds. `submit()` when the next step expects a refusal (an `error`, or a `state` `invalid`, `error`, `forbidden`, `not_found`). A submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result` on its page: `expect: {state: done}`), a refused one by none |
   | `remember: {name: property}` | `const $name = await app.answer(property)` (`ActionResult` renders each text and number of the answer hidden), `$name` in the values of the next steps; a value that no next step takes is read without a constant (the lint refuses an unused one) |
   | `transit` | `transit(id, payload?, files?)`: the files of the payload uploaded in its dialog (as `upload`, one after the other), its other values filled (as `fill`), or its confirmation when the workflow confirms it |
@@ -2831,7 +2846,8 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   edit has the field read-only (it opens the edit and cancels it). `expectValues` takes the
   texts as the card shows them in the language of the tests, a run of spaces of either as one
   space (the no-break spaces of the groups of digits of `Intl` too): a decimal with
-  `display: {currency: RUB}` is `1 500,00 ₽` (`1 500` matches it, `1500` does not), one
+  `display: {currency: RUB}` is `1 500 ₽`, `1 500,50 ₽` (`1 500` matches it, `1500` does not;
+  `fraction: always`: `1 500,00 ₽`), one
   without `display` its digits, `1500.00`. On a card in tabs,
   `action`, `fill`, `expectValues` and `expectFieldReadonly` first show the tab of the mark
   they act on (the tab whose `aria-controls` is the hidden panel that has it).
@@ -3407,7 +3423,10 @@ the user (below), else the choice kept in the browser (localStorage), else the l
 of the browser (`navigator.languages`, also by their base code: `ru-RU` is `ru`), else
 `LANGUAGE`. `AppShell` shows `LanguageToggle` next to the color mode when there is more
 than one language (`action:language`, the code in `data-value`); the `lang` of the page
-follows it, and so does its title, the name of the product (`product.name`).
+follows it, and so does its title, the name of the product (`product.name`). The dates are
+typed and shown as it writes them (`DatePicker`: `02.11.2026` in Russian, `11/02/2026` in
+English), whatever the language of the browser; `controls.date: native` of the theme gives
+the input of the browser instead (its own picker on a phone, in the language of the browser).
 
 ### The backend answers in it
 
@@ -5297,7 +5316,7 @@ Its props, `TimeChartProps`:
 
 #### Dashboard
 
-`Dashboard(props: DashboardProps): Element`: The home of a product: its numbers, its links, its charts and its last items, in this order.
+`Dashboard(props: DashboardProps): Element`: The home of a product: the day, its numbers, its links, its charts and its last items, in this order.
 
 
 Its props, `DashboardProps`:
@@ -5307,9 +5326,10 @@ Its props, `DashboardProps`:
 - `description?: ReactNode`: What the product is for (`summary` of the product, under the title of a hero).
 - `actions?: ReactNode`: The actions of the screen, such as the forms that create an item (`action:<id>`).
 - `hero?: boolean`: The title, the description and the actions as a hero: a portal (`preset` of the theme) by default.
-- `before?: ReactNode`: What the screen shows before its parts (after the hero), such as the extension of a generated screen.
+- `today?: boolean`: The day of today before its parts (after the hero, `today`): `Monday, 2 November`.
+- `before?: ReactNode`: What the screen shows before its parts (after the hero and the day), such as the extension of a generated screen.
 - `tiles?: readonly (StatCardProps & DashboardPart)[]`
-- `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`.
+- `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`; none with `[]`.
 - `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`.
 - `recent?: readonly (RecentListProps & DashboardPart)[]`
 - `children?: ReactNode`: What the screen shows after its parts, such as the create forms of its actions: in the screen, so that a form composed as a page takes its place.
@@ -5351,19 +5371,21 @@ Its props, `RecentListProps`:
 
 #### DatePicker
 
-`DatePicker(props: DateInputProps): Element`: The input of a date and its calendar: the button of the calendar in the input (the picker of the browser hidden where it can be), none when the input is read-only.
+`DatePicker(props: DatePickerProps): Element`: The input of a date and its calendar: a text in the numeric format of the language of the product (`02.11.2026`, whatever the language of the browser), typed in that order with any separator or as `YYYY-MM-DD`, or `<input type="date">` of the browser (`mode: native`); the button of the calendar in the input, none when the input is read-only.
 
 
-Its props, `DateInputProps`:
+Its props, `DatePickerProps`:
 
-- and the members of `Omit<ComponentProps<'input'>, 'type' | 'value' | 'onChange'>`
-- `value: string`: `2026-10-07`, or the empty string for none.
-- `onChange: (value: string) => void`
-- `'data-bz'?: string | undefined`
+- and the members of `DateInputProps`
+- `mode?: Theme['controls']['date']`: localized: a text in the numeric format of the language; native: `<input type="date">`.
 
 #### DatePickerProvider
 
 `DatePickerProvider(props: { children: ReactNode; }): Element`: The dates of the forms and of the filters below it are picked in a calendar (`DatePicker`).
+
+#### The types and the constants of `@/bazis/ui/date-picker`
+
+- `DatePickerProps`: the props of `DatePicker`, listed with it
 
 ### `@/bazis/ui/empty-state`
 
@@ -6046,7 +6068,7 @@ Its props, `RelationPickerProps`:
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
 - `ItemValueProps`: the props of `ItemValue`, listed with it
-- `type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
+- `type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per` (`3 600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
@@ -6839,7 +6861,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `move(options: { where: Values; to: string; payload?: Values; files?: Files; created?: boolean; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), with the values of the payload of its transit in its dialog and its files (as `transit`), or confirmed in its dialog when the specs confirm the transit, and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
 - `confirm(id: string, options?: { optional?: boolean; }): Promise<void>`: Confirms the action `<id>` of the current screen in its dialog, `action:confirm-<id>` (the deletion of the item of a card), and waits until the dialog is closed; the dialog must be shown, but with `optional` (a hand-written screen may run the action without a confirmation), where nothing is done when none is shown within 2 s.
-- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false; an input of a date or a date-time also by a day of the run (`today`, `today+1 10:30`: `dateOfRun`); `{run}` in a text or a label is the text of the run of the test.
+- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false; an input of a date (`<input type="date">`, or that of `DatePicker` in the format of the language, `data-input="date"`: both take `YYYY-MM-DD`) or a date-time also by a day of the run (`today`, `today+1 10:30`: `dateOfRun`); `{run}` in a text or a label is the text of the run of the test.
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).
 - `transit(id: string, payload?: Values, files?: Files): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog and the files that it uploads into its file fields (a file of `e2e/fixtures/`, a list of them for several, as `upload`), or confirmed in its dialog when the specs confirm it, and waits until it is done (the transit is no longer offered) or shows an error.
