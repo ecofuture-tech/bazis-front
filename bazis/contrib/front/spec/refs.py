@@ -399,10 +399,18 @@ def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> No
     """
     The `display` of a field fits its type: a number is `plain`, a `bar` (of an integer or
     a number), a sum in a `currency` or a quantity in a `unit` (also of a DecimalField, a
-    `string`); a `phone` is a string; an `image` is a file; a relationship has none.
+    `string`); a `phone` is a string; an `image` is a file; a relationship has none; the
+    cents of a sum and what it is for (`fraction`, `per`) are of a currency.
     """
     display = item['display']
-    kind = display if isinstance(display, str) else next(iter(display))
+    kind = display if isinstance(display, str) else next(it for it in display if it in DISPLAY_TYPES)
+    for key in ('fraction', 'per'):
+        if kind == 'unit' and key in display:
+            issues.add(
+                doc, (*path, key), 'S020',
+                f'`{key}` of the field `{item["id"]}` is of a sum in a currency, not of a quantity in a unit.',
+                f'Remove `{key}`, or show the field as a sum: `{{currency: <ISO 4217 code>, {key}: …}}`.',
+            )
     if item.get('type') in DISPLAY_TYPES[kind]:
         return
     declared = f'the type `{item["type"]}`' if 'type' in item else 'a relationship'

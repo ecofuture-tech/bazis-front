@@ -198,16 +198,24 @@
       "else": {"required": ["type"], "if": {"required": ["many"]}, "then": {"properties": {"type": {"const": "file"}}}}
     },
     "display": {
-      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a code of five digits or more; a number below 10,000, such as a year, has none without it); `{currency: <ISO 4217 code>}`, a sum in the currency; `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call; `image`, a file as its picture only (a thumbnail in a table, larger in a card; an icon for a file that is not an image), which downloads it. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`, an image a `file`.",
+      "description": "How the screens show the value of an attribute (the components take it, `display`): `plain`, a number without the separators of its thousands (a code of five digits or more; a number below 10,000, such as a year, has none without it); `{currency: <ISO 4217 code>}`, a sum in the currency (`fraction: auto`, the default: a whole sum without its zero cents, `3 600 ₽`, `250,50 ₽`; `always`: `3 600,00 ₽`), followed by ` / ` and the text `per` (`{currency: RUB, per: {en: day, ru: сутки}}`: `3 600 ₽ / сутки`); `{unit: <text>}`, a quantity followed by its unit; `{bar: <maximum>}`, a number as a bar of its share of the maximum; `phone`, a phone number to call; `image`, a file as its picture only (a thumbnail in a table, larger in a card; an icon for a file that is not an image), which downloads it. `bazis_front check` checks it against the type of the field (S020): a number is `integer` or `number` (a sum or a quantity also a `string`, a DecimalField), a phone a `string`, an image a `file`.",
       "oneOf": [
         {"enum": ["plain", "phone", "image"]},
         {
           "type": "object", "additionalProperties": false, "required": ["currency"],
-          "properties": {"currency": {"type": "string", "pattern": "^[A-Z]{3}$"}}
+          "properties": {
+            "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+            "fraction": {"$ref": "#/$defs/fraction"},
+            "per": {"$ref": "#/$defs/per"}
+          }
         },
         {
           "type": "object", "additionalProperties": false, "required": ["unit"],
-          "properties": {"unit": {"type": "string", "minLength": 1}}
+          "properties": {
+            "unit": {"type": "string", "minLength": 1},
+            "fraction": {"$ref": "#/$defs/fraction"},
+            "per": {"$ref": "#/$defs/per"}
+          }
         },
         {
           "type": "object", "additionalProperties": false, "required": ["bar"],
@@ -215,6 +223,8 @@
         }
       ]
     },
+    "fraction": {"description": "The cents of a sum (S020: of a `currency` only): `auto`, none for a whole sum (the default); `always`.", "enum": ["auto", "always"]},
+    "per": {"description": "What a sum is for, after it and ` / ` (S020: of a `currency` only): `day` in `3 600 ₽ / day`.", "$ref": "#/$defs/text"},
     "picker_filter": {
       "type": "object",
       "minProperties": 1,

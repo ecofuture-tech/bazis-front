@@ -1026,6 +1026,26 @@ CASES = [
         [],
     ),
     (
+        'S020',
+        # the cents and what a sum is for are of a currency, not of a unit (whose first key is
+        # not the kind)
+        {PRODUCT: lambda d: [field(task(d), 'hours').update(display={'fraction': 'always', 'unit': 'h', 'per': {'en': 'day', 'ru': 'день'}}),
+                             d['entities'][1]['fields'][0].update(display={'fraction': 'auto', 'currency': 'RUB', 'per': {'en': 'day', 'ru': 'сутки'}})]},
+        [('S020', f'{PRODUCT}#/entities/0/fields/9/display/fraction'), ('S020', f'{PRODUCT}#/entities/0/fields/9/display/per')],
+    ),
+    (
+        'S027',
+        # what a sum is for is a text of the interface, in each language
+        {PRODUCT: lambda d: d['entities'][1]['fields'][0].update(display={'currency': 'RUB', 'per': 'day'})},
+        [('S027', f'{PRODUCT}#/entities/1/fields/0/display/per')],
+    ),
+    (
+        'P002',
+        # the cents of a sum are `auto` or `always`
+        {PRODUCT: lambda d: d['entities'][1]['fields'][0].update(display={'currency': 'RUB', 'fraction': 'never'})},
+        [('P002', f'{PRODUCT}#/entities/1/fields/0/display')],
+    ),
+    (
         'S021',
         # a chart by a text, a week of the statuses, and the statuses of an entity without a workflow
         {HOME: lambda d: [d['dashboard']['charts'][0].update(by='title'),

@@ -1246,7 +1246,10 @@ def render_entities(product: Product) -> str:
             props.append(('title', message_key(entity['title'], key)))
         if 'label' in entity:
             props.append(('label', Arr([Str(it) for it in entity['label']])))
-        display = [(it['id'], display_literal(it['display'])) for it in entity['fields'] if 'display' in it]
+        display = [
+            (it['id'], display_literal(it['display'], product.specs.product, ('entities', index, 'fields', number, 'display')))
+            for number, it in enumerate(entity['fields']) if 'display' in it
+        ]
         if display:
             props.append(('display', Obj(display)))
         if steps := transitions(product, entity_id):
@@ -1269,11 +1272,15 @@ def render_entities(product: Product) -> str:
     )
 
 
-def display_literal(display) -> object:
+def display_literal(display, spec: dict, at: tuple) -> object:
+    """The `display` of a field (at `at` of product.yaml) as the components take it; `per`, a text, by its key."""
     if isinstance(display, str):
         return Str(display)
-    (key, value), = display.items()
-    return Obj([(key, Str(value) if isinstance(value, str) else Raw(repr(value)))])
+    return Obj([
+        (key, message_key(value, text_key('', spec, (*at, key))) if key == 'per'
+         else Str(value) if isinstance(value, str) else Raw(repr(value)))
+        for key, value in display.items()
+    ])
 
 
 def render_screens(product: Product) -> str:

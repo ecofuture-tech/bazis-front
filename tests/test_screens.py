@@ -165,6 +165,29 @@ def test_the_title_of_an_entity_is_a_text_of_the_specs(tmp_path):
     assert "    'entities.step.title': 'Step',\n" in messages.split('  ru: {')[0]
 
 
+def test_the_display_of_a_sum_gives_its_cents_and_the_key_of_what_it_is_for(tmp_path):
+    """
+    `fraction` of a sum is given as it is (`auto` by default: the components leave it out),
+    `per` by the key of its text, a message under the key of its place or a key of the
+    dictionaries that it is.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    edit_product(tmp_path, lambda data: [
+        data['entities'][1]['fields'][0].update(display={'currency': 'RUB', 'fraction': 'always', 'per': {'en': 'day', 'ru': 'сутки'}}),
+        data['entities'][1]['fields'][1].update(type='number', display={'currency': 'EUR', 'per': 'prices.per_night'}),
+    ])
+    files = rendered(tmp_path)
+    entities = files[f'{screens.GENERATED_DIR}/entities.ts']
+    messages = files[f'{screens.GENERATED_DIR}/messages.ts']
+    assert (
+        "      username: { currency: 'RUB', fraction: 'always', per: 'entities.user.fields.username.display.per' },\n"
+    ) in entities
+    assert "      dt_first_login: { currency: 'EUR', per: 'prices.per_night' },\n" in entities
+    assert "    'entities.user.fields.username.display.per': 'day',\n" in messages.split('  ru: {')[0]
+    assert "    'entities.user.fields.username.display.per': 'сутки',\n" in messages
+    assert 'prices.per_night' not in messages
+
+
 def test_a_link_of_the_navigation_is_labelled_by_its_label_else_by_the_title_of_its_screen(tmp_path):
     """
     A link with a `label` (shorter than the title of its screen) is labelled by it, a text of
