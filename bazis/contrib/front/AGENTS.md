@@ -985,7 +985,7 @@ preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$va
 `duration` in `ms`, `shadow`, `cubicBezier`) on every token, and references
 `{group.token}` to a token of the same type. `bazis_front design` compiles them into the
 theme of the frontend (see [The design](#the-design)); `check` reports them with the codes
-D004–D013 (the contrast of WCAG AA, the statuses of the contract, the icons of lucide).
+D004–D017 (the contrast, the statuses of the contract, the icons of lucide, the fonts, the brand).
 
 ## The issues of check
 
@@ -1058,13 +1058,13 @@ database, in a fraction of a second. The references and the contract are the job
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
-| `S014` | error | a value of the filter of a list or a tile does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
+| `S014` | error | a value of the filter of a list, a tile or the last items of a dashboard (each of a list `[a, b]` and of `{not: …}`) does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number, or with a list or `{not: …}`: a lookup takes one value), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
 | `S018` | warning | the title of a field of an entity in the contract is its name (`is_overdue`) or the default `verbose_name` of Django (`status author`): the backend gives the field no label (a calculated field without a title), or one that reads as its name; give it one in the backend (see "The labels of the fields"), never in the dictionaries of the frontend |
 | `S019` | warning | the resource of an entity has no attribute that labels its items in the contract (`label`: a `name`, a `title`, the names of a person…), and the entity has no `label`: the frontend shows an item by its id |
-| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, `image` of a `file`, none of a relationship |
+| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, `image` of a `file`, none of a relationship; `fraction` and `per` only with `currency` |
 | `S021` | error | a chart of a dashboard is neither by the `status` of an entity with a workflow nor by a `date` or `datetime` field, or has a `bucket` or `last` without a date |
 | `S022` | error | a board is of an entity without a workflow, has a column that is not a status of its workflow, or a `badge` that is not a boolean field |
 | `S023` | error | a calendar is not by a `date` or `datetime` field (`field`, `end`), or its `tone` is not by a boolean field |
@@ -1106,6 +1106,9 @@ database, in a fraction of a second. The references and the contract are the job
 | `S061` | error | the filter of the picker of a relationship (`filter` of a field of an entity, `filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register a route set of it, the roles that of the signed-in users of "The users that the pickers offer"), or its value does not fit the field. See "The items that a picker offers" |
 | `S062` | error | a public screen (an anonymous role in its `roles`) shows a file field (a column, a section of a card, the card of a board, the label of a calendar), and the guests read no file in the contract (`anonymous_files` of the section `uploadable`): the guest sees `file:unavailable`. The route set of the resource must serve guests and declare `files_visible = ('<field>',)` (bazis-uploadable 2.9), then export the contract again; never link the `/media` URL of a file |
 | `S063` | warning | a create form that lists its `fields` leaves out a boolean that the create route requires (`create_required` of the contract: a boolean without a default): the form sends `false` for it and the user never chooses it. Add it to `fields`, or give the field a default in the model |
+| `S064` | error | the cards of a list (`list.card`) name a field that is not in `columns`, a `media` that is not a file field with `display: image`, or one field in two roles; or the list never shows cards (`layout` is not `cards`, `layout_phone` is `table`) |
+| `S065` | error | the summary of a card (`card.summary`): `range` is not two date or date-time fields, or `figure` is not a number, a decimal or a date (a field that the entity does not declare is S007) |
+| `S066` | warning | a field of the summary of a card is also in a section of it: the card shows it twice. Leave it in the summary only: the edit of the card asks for it too |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json (a key that a mapping does not take: as P002) |
@@ -1119,6 +1122,10 @@ database, in a fraction of a second. The references and the contract are the job
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 | `D012` | warning | spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows; the issue names the tokens |
 | `D013` | warning | an icon of the specs (`icons` of theme.yaml, `icon` of the navigation or of a tile of a dashboard) is not an icon of the lucide-react of the template |
+| `D014` | warning | the heading font (`font.heading`) is loaded without the `opsz` axis that its family has (the `axes` of its `font` leave it out, or its `import` loads the weights only): its large headings look heavy. Load it with `axes: [opsz, wght]` |
+| `D015` | warning | the `subsets` listed for a font leave out a language of the product or the sign of a currency of `display.currency`: those letters are drawn in another font. Leave `subsets` out (`auto`), or add the subset |
+| `D016` | warning | the stack of a font names `<Family> Fallback`, which the generator does not make (its `font` has no `fallback` metrics): fix the name, or give the metrics |
+| `D017` | warning | `brand.image` of theme.yaml is not a file in frontend/public/ |
 
 ## The backend of a product
 

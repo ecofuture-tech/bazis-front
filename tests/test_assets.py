@@ -199,6 +199,36 @@ def test_the_components_require_the_components_they_import():
         assert imported == required, asset.name
 
 
+#: the opening tag of a heading of the components (`<h1>`–`<h6>`, or the `Title` and the
+#: `Heading` that stand for one)
+HEADING = re.compile(r'<(?:h[1-6]|Title|Heading)\b[^>]*>')
+#: a weight or a tracking of its own, in place of those of the tokens (the small labels in
+#: `font-medium` are not set in the heading font)
+OWN_WEIGHT = re.compile(r'\bfont-(?:semibold|bold)\b')
+OWN_TRACKING = re.compile(r'\btracking-tight\b')
+
+
+@pytest.mark.xfail(reason='the components move to font-heading and font-subheading later in 0.12', strict=True)
+def test_the_headings_of_the_components_follow_the_tokens():
+    """
+    The headings and the figures of the components take their weight and tracking from the
+    tokens (`font.weight-heading`, `font.weight-subheading`, `font.tracking-heading`) through
+    the utilities `font-heading` and `font-subheading` of the theme: no heading has a weight
+    of its own, no component a tracking of its own (the figure of a tile is not a heading).
+    """
+    found = []
+    for asset in registry.load().values():
+        if asset.kind != registry.UI or asset.source == 'ui/shadcn':
+            continue
+        for name in asset.files:
+            if not name.endswith('.tsx') or name.endswith('.test.tsx'):
+                continue
+            text = asset.read(name).decode('utf-8')
+            own = [*OWN_TRACKING.finditer(text), *(it for it in HEADING.finditer(text) if OWN_WEIGHT.search(it.group()))]
+            found += [f'{asset.source}/{name}:{text.count(chr(10), 0, it.start()) + 1}' for it in own]
+    assert found == []
+
+
 #: a bare import of the components: `from 'leaflet'`, `import 'leaflet/dist/leaflet.css'`
 IMPORT = re.compile(r"""(?:from|import) '((?:@[^/'.][^/']*/)?[^/'.@][^/']*)[^']*'""")
 

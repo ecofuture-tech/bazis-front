@@ -2044,8 +2044,14 @@ CASES = [
 ]
 
 
+#: the codes of 0.12 reserved before their checks: the change that implements a code adds its
+#: case and takes it out of here; the set goes with its last code, before 0.12 is released
+RESERVED = {'S064', 'S065', 'S066', 'D014', 'D015', 'D016', 'D017'}
+
+
 def test_the_cases_cover_every_code():
-    assert sorted({code for code, _, _ in CASES}) == sorted(CODES)
+    assert RESERVED <= set(CODES)
+    assert sorted({code for code, _, _ in CASES}) == sorted(set(CODES) - RESERVED)
 
 
 @pytest.mark.django_db
