@@ -5006,6 +5006,7 @@ Its props, `AppShellProps`:
 
 - `title: ReactNode`: The name of the product.
 - `navigation?: Navigation`: `navigation` of the theme by default.
+- `brand?: BrandMark | null`: The mark of the brand next to the name, `brand` of the theme by default; null: the first letter of the name.
 - `items: readonly NavEntry[]`: The links of the navigation and their groups.
 - `session?: ShellSession | null`
 - `signIn?: (() => void) | undefined`: The sign-in of a user without a session (`action:sign-in`), shown in the place of the session while it is null: it opens the login.

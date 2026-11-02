@@ -32,6 +32,7 @@ import json
 import re
 from functools import cache
 from importlib.resources import files
+from pathlib import Path
 from typing import NamedTuple
 
 from . import color
@@ -84,6 +85,13 @@ DEFAULTS = {
     'color.sidebar-accent-foreground': ('color', 'var(--sidebar-foreground)', None),
     'color.sidebar-border': ('color', 'var(--border)', None),
     'color.sidebar-ring': ('color', 'var(--ring)', None),
+    # the muted text inside the sidebar, which takes the variables of the sidebar
+    # (`[data-slot='sidebar']` of the theme): that of the content until a palette darkens the
+    # sidebar
+    'color.sidebar-muted-foreground': ('color', 'var(--muted-foreground)', None),
+    # the accent of the brand: its mark, the eyebrow of a card; never a button or a badge
+    'color.brand': ('color', 'var(--primary)', None),
+    'color.brand-foreground': ('color', 'var(--primary-foreground)', None),
     # the series of the charts of shadcn/ui (`npx shadcn add chart`)
     'color.chart-1': ('color', 'var(--primary)', None),
     'color.chart-2': ('color', 'var(--info)', None),
@@ -92,8 +100,12 @@ DEFAULTS = {
     'color.chart-5': ('color', 'var(--destructive)', None),
     'color.chart-6': ('color', 'var(--muted-foreground)', None),
     'font.heading': ('fontFamily', 'var(--font-body)', None),
+    # the weight and the tracking of the headings, the figures and the titles of the components
+    # (`font-heading`), and of the headings of their sections (`font-subheading`): those of the
+    # components before the tokens, `font-semibold tracking-tight`
     'font.weight-heading': ('fontWeight', '600', None),
-    'font.tracking-heading': ('dimension', '0em', None),
+    'font.weight-subheading': ('fontWeight', '600', None),
+    'font.tracking-heading': ('dimension', '-0.025em', None),
     # the monospace fonts, the shadows and the transitions of Tailwind, which a design without
     # the layers keeps
     'font.mono': (
@@ -158,6 +170,10 @@ CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     ('--sidebar-foreground', '--sidebar'),
     ('--sidebar-foreground', '--sidebar', 0.8),
     ('--sidebar-accent-foreground', '--sidebar-accent'),
+    ('--sidebar-muted-foreground', '--sidebar'),
+    ('--sidebar-primary-foreground', '--sidebar-primary'),
+    ('--brand-foreground', '--brand'),
+    ('--brand', '--card'),
     ('--destructive', '--card'),
     *((f'--{tone}-ink', f'--{tone}-soft') for tone in TONES),
 ]
@@ -487,6 +503,27 @@ def check_icons(theme: Document, entities: set[str], issues: Issues) -> None:
         )
 
 
+#: the files that the frontend serves at its root (`brand.image` of theme.yaml)
+PUBLIC_DIR = 'frontend/public'
+
+
+def check_brand(theme: Document, root: Path | None, issues: Issues) -> None:
+    """
+    The mark of the brand is an icon of lucide-react, or an image that the frontend serves
+    (a file of `frontend/public/`: D017, a warning, the shell showing a broken image).
+    """
+    brand = theme.data.get('brand', {})
+    if 'icon' in brand:
+        check_icon(theme, ('brand', 'icon'), brand['icon'], issues)
+    if 'image' in brand and root is not None and not (root / PUBLIC_DIR / brand['image']).is_file():
+        issues.add(
+            theme, ('brand', 'image'), 'D017',
+            f'{PUBLIC_DIR}/{brand["image"]} is missing: the shell shows the mark of the brand from there.',
+            f'Put the image of the mark at {PUBLIC_DIR}/{brand["image"]}, or name a lucide icon in '
+            '`brand: {icon: …}`.',
+        )
+
+
 def check_hidden_layers(theme: Document, tokens: Document | None, issues: Issues) -> None:
     """
     tokens.json replaces no more than half of the tokens of a layer that theme.yaml names (a
@@ -563,13 +600,14 @@ def check_contrast(
 
 
 def check(
-    theme: Document | None, tokens: Document | None, entities: set[str], contract: dict | None, issues: Issues
+    theme: Document | None, tokens: Document | None, entities: set[str], contract: dict | None, issues: Issues,
+    root: Path | None = None,
 ) -> None:
     """
     The design: the tokens of its layers (checked only when its files follow their schemas),
     the tokens that its preset requires, its mode, the layers that tokens.json hides, the
-    statuses of theme.yaml and the icons of the entities of the product that have a screen
-    (`entities`).
+    statuses of theme.yaml, the icons of the entities of the product that have a screen
+    (`entities`) and the mark of the brand (its image in the product root, `root`).
     """
     usable = (theme is None or theme.valid) and (tokens is None or tokens.valid) and (theme or tokens) is not None
     defined = effective_tokens(theme and theme.data, tokens and tokens.data) if usable else {}
@@ -581,6 +619,7 @@ def check(
         return
     check_statuses(theme, contract, issues)
     check_icons(theme, entities, issues)
+    check_brand(theme, root, issues)
     if not usable:
         return
     check_hidden_layers(theme, tokens, issues)

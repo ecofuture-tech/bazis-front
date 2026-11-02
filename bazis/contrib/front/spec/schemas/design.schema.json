@@ -13,8 +13,8 @@
       "enum": ["workspace", "portal"]
     },
     "palette": {
-      "description": "The colors of both modes, a starter of the package: indigo, forest (green on warm paper), ember (warm orange), slate (quiet blue-grey), ocean (teal), plum.",
-      "enum": ["indigo", "forest", "ember", "slate", "ocean", "plum"]
+      "description": "The colors of both modes, a starter of the package: indigo, forest (green on warm paper), ember (warm orange), slate (quiet blue-grey), ocean (teal), plum, pine (dark spruce on linen with a clay brand, a dark sidebar).",
+      "enum": ["indigo", "forest", "ember", "slate", "ocean", "plum", "pine"]
     },
     "fonts": {
       "description": "The fonts of the text and of the headings, a pair of the package shipped with the frontend (system: the fonts of the system), or a family of Google Fonts loaded from its stylesheet: {google: \"Inter:wght@400..700\"}.",
@@ -54,6 +54,17 @@
       "type": "object",
       "propertyNames": {"minLength": 1},
       "additionalProperties": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]}
+    },
+    "brand": {
+      "description": "The mark of the brand next to the name of the product in the shell, on `color.brand`: a lucide icon (lucide.dev, in kebab-case), or an image of frontend/public/ by its path there (`brand/mark.svg`). Without it, the first letter of the name.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "icon": {"type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"},
+        "image": {"type": "string", "pattern": "^(?!.*\\.\\.)[A-Za-z0-9_-][A-Za-z0-9._/-]*\\.(svg|png|webp|avif|jpg|jpeg)$"}
+      }
     },
     "icons": {
       "description": "The icon of each entity, by the id of the entity: the name of a lucide icon (lucide.dev), in kebab-case.",

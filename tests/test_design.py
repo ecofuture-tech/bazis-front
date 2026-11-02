@@ -210,13 +210,19 @@ def test_without_a_dark_mode():
 
 def test_a_design_without_layers_keeps_its_look():
     # the design of the sample names no layer, as that of an older version: the new tokens
-    # are the shadows and the transitions of Tailwind, the headings as before
+    # are the shadows and the transitions of Tailwind, the headings as before: the weight and
+    # the tracking of the headings of the components (`font-semibold tracking-tight` before the
+    # tokens), the brand and the muted text of the sidebar those of the primary and the content
     files = rendered(REPOSITORY / 'sample')
     css = files[theme.THEME_CSS]
     light = root_block(css, ':root')
     for name, value in TAILWIND.items():
         assert light[name] == value
-    assert light['--font-tracking-heading'] == '0em'
+    assert (light['--font-weight-heading'], light['--font-weight-subheading'], light['--font-tracking-heading']) == (
+        '600', '600', '-0.025em',
+    )
+    assert (light['--brand'], light['--brand-foreground']) == ('var(--primary)', 'var(--primary-foreground)')
+    assert light['--sidebar-muted-foreground'] == 'var(--muted-foreground)'
     assert '--shadow-md' not in root_block(css, '.dark')
     assert '@import' not in files[theme.FONTS_CSS]
     mapping = root_block(css, '@theme inline')
@@ -419,6 +425,92 @@ def test_the_charts_of_shadcn():
     css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
     assert root_block(css, ':root')['--chart-1'] == 'var(--primary)'
     assert root_block(css, '@theme inline')['--color-chart-5'] == 'var(--chart-5)'
+
+
+def test_the_utilities_of_the_headings():
+    # the headings and the figures of the components take the weight and the tracking of the
+    # tokens, the figures in proportional lining digits; the headings of their sections the
+    # weight of a subheading
+    css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
+    assert root_block(css, '@utility font-heading') == {
+        'font-family': 'var(--font-heading)',
+        'font-weight': 'var(--font-weight-heading)',
+        'letter-spacing': 'var(--font-tracking-heading)',
+        'font-variant-numeric': 'lining-nums proportional-nums',
+    }
+    assert root_block(css, '@utility font-subheading') == {
+        'font-family': 'var(--font-heading)',
+        'font-weight': 'var(--font-weight-subheading)',
+        'letter-spacing': 'var(--font-tracking-heading)',
+    }
+    # the utilities are top-level rules of Tailwind, after its theme
+    assert css.index('\n@utility font-heading {') > css.index('\n@theme inline {')
+
+
+def test_the_sidebar_reads_its_own_colors():
+    # inside the sidebar (and its drawer) the components read the variables of the sidebar
+    css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
+    base = css.split('\n@layer base {\n', 1)[1]
+    scope = base.split("  [data-slot='sidebar'] {\n", 1)[1].split('\n  }', 1)[0]
+    assert dict(line.strip().rstrip(';').split(': ', 1) for line in scope.splitlines()) == {
+        '--foreground': 'var(--sidebar-foreground)',
+        '--muted-foreground': 'var(--sidebar-muted-foreground)',
+        '--border': 'var(--sidebar-border)',
+        '--input': 'var(--sidebar-border)',
+        '--accent': 'var(--sidebar-accent)',
+        '--accent-foreground': 'var(--sidebar-accent-foreground)',
+        '--primary': 'var(--sidebar-primary)',
+        '--primary-foreground': 'var(--sidebar-primary-foreground)',
+        '--ring': 'var(--sidebar-ring)',
+    }
+
+
+def test_the_mark_of_the_brand():
+    data = {'spec': 'bazis-design/1', 'preset': 'workspace', 'palette': 'forest', 'fonts': 'inter'}
+    assert 'brand: null,' in theme.render(Specs(theme=data))[theme.THEME_TS]
+    # a lucide icon, imported by the theme as the screens import theirs
+    text = theme.render(Specs(theme={**data, 'brand': {'icon': 'mountain-snow'}}))[theme.THEME_TS]
+    assert "\nimport { MountainSnowIcon } from 'lucide-react';\n" in text
+    assert 'brand: {\n    icon: MountainSnowIcon,\n  },' in text
+    # an image of frontend/public/, served at the root
+    text = theme.render(Specs(theme={**data, 'brand': {'image': 'brand/mark.svg'}}))[theme.THEME_TS]
+    assert 'lucide-react' not in text
+    assert 'brand: {\n    image: "/brand/mark.svg",\n  },' in text
+    # one of them, a file of the frontend and not a path out of it
+    for brand in ({}, {'icon': 'tent', 'image': 'mark.svg'}, {'image': '../mark.svg'}, {'image': '/mark.svg'},
+                  {'image': 'mark.txt'}, {'icon': 'Tent'}):
+        assert not validator(DESIGN_SCHEMA).is_valid({**data, 'brand': brand}), brand
+
+
+def test_the_colors_of_the_brand_keep_their_contrast():
+    # the mark on the brand, and the brand as a text on a card (the eyebrow of a card)
+    theme_doc = Document('design', 'spec/design/theme.yaml', {'spec': 'bazis-design/1', 'preset': 'workspace',
+                                                                'palette': 'forest', 'fonts': 'inter', 'shape': 'soft'}, True)
+    tokens = {'color': {
+        'brand': {'$type': 'color', '$value': 'oklch(0.8 0.1 45)'},
+        'sidebar-muted-foreground': {'$type': 'color', '$value': 'oklch(0.9 0.01 95)'},
+    }}
+    tokens_doc = Document('design', 'spec/design/tokens.json', tokens, True)
+    issues = Issues()
+    design.check(theme_doc, tokens_doc, set(), None, issues)
+    found = sorted({(it.code, it.path, it.message.split(' has ')[0]) for it in issues.items})
+    assert found == [
+        ('D009', '/color/brand', 'The text color --brand on --card'),
+        ('D009', '/color/sidebar-muted-foreground', 'The text color --sidebar-muted-foreground on --sidebar'),
+        # the mark in the primary foreground of the palette (the default of brand-foreground)
+        ('D009', '/palette', 'The text color --brand-foreground on --brand'),
+    ]
+
+
+@pytest.mark.django_db
+def test_the_image_of_the_brand_is_a_file_of_the_frontend(root):
+    edit_theme(root, lambda data: data.update(brand={'image': 'brand/mark.svg'}))
+    [issue] = [it for it in validate(root).issues if it.layer == 'design']
+    assert (issue.code, issue.severity, issue.path) == ('D017', 'warning', '/brand/image')
+    mark = root / 'frontend' / 'public' / 'brand' / 'mark.svg'
+    mark.parent.mkdir(parents=True)
+    mark.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>', encoding='utf-8')
+    assert [it for it in validate(root).issues if it.layer == 'design'] == []
 
 
 @pytest.mark.django_db

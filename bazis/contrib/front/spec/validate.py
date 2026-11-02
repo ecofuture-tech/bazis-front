@@ -583,7 +583,7 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = Fa
         data['entity'] for data in screens.values()
         if data is not None and product is not None and data.get('entity') in product.entities
     }
-    design.check(theme_doc, tokens_doc, screened, contract, issues)
+    design.check(theme_doc, tokens_doc, screened, contract, issues, root)
 
     return Result(
         [it for it in issues.items if it.layer in layers or it.layer == CONTRACT],

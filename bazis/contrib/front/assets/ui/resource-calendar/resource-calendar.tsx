@@ -482,7 +482,7 @@ export function ResourceCalendar({
             {t('calendar.today')}
           </Button>
         </div>
-        <h2 aria-live="polite" className="min-w-0 flex-1 text-lg font-semibold first-letter:uppercase max-sm:order-first max-sm:basis-full">
+        <h2 aria-live="polite" className="min-w-0 flex-1 text-lg font-subheading first-letter:uppercase max-sm:order-first max-sm:basis-full">
           {title}
         </h2>
         {views.length > 1 && (

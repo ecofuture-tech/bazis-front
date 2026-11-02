@@ -123,7 +123,7 @@ export function StatCard({
       )}
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
-        <span id={labelId} className="min-w-0 text-sm font-medium wrap-anywhere text-muted-foreground">
+        <span id={labelId} className="min-w-0 text-sm font-medium wrap-break-word hyphens-auto text-muted-foreground">
           {label}
         </span>
         {Icon && (
@@ -133,7 +133,7 @@ export function StatCard({
         )}
       </div>
       <StatePanel inline state={queryState(list)} error={list.error} skeleton={<Skeleton className="h-8 w-16" />}>
-        <span className="text-3xl font-semibold tracking-tight tabular-nums">
+        <span className="font-heading text-3xl">
           {formatTile(
             result,
             func === 'avg' && field !== undefined ? contractFormat(path, field) : null,
