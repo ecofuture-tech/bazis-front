@@ -158,7 +158,10 @@ export function CardsView(props: BodyProps) {
                         </p>
                       )}
                       {title !== undefined && (
-                        <h3 data-bz={`cell:${title}`} className="font-heading text-lg leading-snug wrap-anywhere">
+                        <h3
+                          data-bz={`cell:${title}`}
+                          className={cn('font-heading text-lg leading-snug wrap-anywhere', hidden(title) && 'hidden')}
+                        >
                           {cell(props, row, title)}
                         </h3>
                       )}

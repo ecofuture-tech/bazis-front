@@ -827,6 +827,23 @@ describe('ResourceList', () => {
     expect(cell.classList.contains('hidden')).toBe(false);
   });
 
+  it('hides the title of a card with its column, as the other roles', async () => {
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['count', 'title']} layout="cards" card={{ title: 'title', figure: 'count' }} />,
+      backend(listDocument(rows)),
+    );
+    await screen.findByTestId('state:loaded');
+    open(screen.getByTestId('action:view'));
+    const toggle = within(await screen.findByTestId('menu:view')).getByTestId('toggle:title');
+    const title = within(screen.getByTestId('row:a')).getByTestId('cell:title');
+    expect(title.tagName).toBe('H3');
+    fireEvent.click(toggle);
+    // its cell stays, for the scenarios that look a card up by it
+    expect(title.classList.contains('hidden')).toBe(true);
+    fireEvent.click(toggle);
+    expect(title.classList.contains('hidden')).toBe(false);
+  });
+
   it('has the density of the theme or of the prop, which the user changes', async () => {
     renderWithBazis(
       <ResourceList path={ITEMS as never} entity="item" columns={['title']} layout="table" density="comfortable" />,
