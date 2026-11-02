@@ -2164,6 +2164,14 @@ CASES = [
         [('D014', f'{TOKENS}#/font/heading/$extensions/bazis')],
     ),
     (
+        'D014',
+        # a starter is served with all its axes: its optical sizes too
+        {TOKENS: lambda d: d['font'].update(
+            heading={'$type': 'fontFamily', '$value': ['Literata', 'Literata Fallback', 'serif'],
+                     '$extensions': {'bazis': {'font': {'starter': 'literata'}}}})},
+        [],
+    ),
+    (
         'D015',
         # the subsets of a product in English and Russian: no Cyrillic for the text, nothing
         # left out for the headings

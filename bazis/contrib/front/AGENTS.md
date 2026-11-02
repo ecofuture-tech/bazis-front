@@ -2817,7 +2817,9 @@ currency). `preload` (true for `font.body`) puts the file of the letters of the 
 language in a `<link rel="preload">` of `index.html`. `fallback` (a starter has its own)
 makes the face `<Family> Fallback`, a local font with the metrics of the web font, so the swap
 moves no line: name it second in `$value` (D016 for a name it does not make). A heading font
-with optical sizes is loaded with `axes: [opsz, wght]` (D014). A font of another package is
+with optical sizes is loaded with `axes: [opsz, wght]`: D014 knows `source-serif-4`,
+`literata`, `fraunces` and `newsreader` of @fontsource-variable (a starter has all its axes);
+give another family with `opsz` its `axes` yourself. A font of another package is
 imported as before: `"$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}`
 (an npm package that the product installs, or the `https://` URL of a stylesheet).
 
