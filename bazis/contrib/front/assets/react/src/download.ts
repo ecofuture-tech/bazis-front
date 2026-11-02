@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useMutation, useQuery, type UseMutationResult } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 import { saveFile, type RouteSetWith } from '@/bazis/client';
 import type { paths } from '@/bazis/generated/schema';
@@ -44,11 +44,33 @@ export function useDownload(path: DownloadPath): UseMutationResult<string | null
 }
 
 /**
+ * The object URLs of the contents that mounted components show (`useDownloadUrl`), by content:
+ * made when the first of them mounts, revoked when the last unmounts or shows another content.
+ */
+const objectUrls = new Map<Blob, { url: string; shown: number }>();
+
+/** Shows the content until the function it returns is called: its object URL is kept meanwhile. */
+function show(blob: Blob): () => void {
+  const object = objectUrls.get(blob) ?? { url: URL.createObjectURL(blob), shown: 0 };
+  objectUrls.set(blob, object);
+  object.shown += 1;
+  return () => {
+    object.shown -= 1;
+    if (object.shown > 0) return;
+    URL.revokeObjectURL(object.url);
+    objectUrls.delete(blob);
+  };
+}
+
+/**
  * The content of the file of an item as an object URL (the thumbnail of an image), read from
  * its download route while `id` is not null; null until it is read (or when it fails). Read
  * once: a file of an item does not change, so neither a refetch of the hooks nor the focus of
- * the window reads it again (`keys.download`, outside `keys.all`). The URL is revoked when the
- * content or the component changes.
+ * the window reads it again (`keys.download`, outside `keys.all`). The URL is made as the
+ * component mounts and kept while a mounted component shows the content
+ * (`useSyncExternalStore`), revoked when none does: a content already read (the thumbnail of a
+ * list, then of its card) gets a new URL when `StrictMode` mounts the component again, never
+ * the one that its first unmount revoked.
  */
 export function useDownloadUrl(path: DownloadPath, id: string | null): string | null {
   const { api, scope } = useBazis();
@@ -60,12 +82,8 @@ export function useDownloadUrl(path: DownloadPath, id: string | null): string | 
     refetchOnWindowFocus: false,
   });
   const blob = id === null ? undefined : content.data;
-  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
-  useEffect(
-    () => () => {
-      if (url !== null) URL.revokeObjectURL(url);
-    },
-    [url],
-  );
-  return url;
+  // React reads the URL again once it has subscribed: the one that the mount made
+  const subscribe = useCallback(() => (blob ? show(blob) : () => undefined), [blob]);
+  const url = useCallback(() => (blob ? (objectUrls.get(blob)?.url ?? null) : null), [blob]);
+  return useSyncExternalStore(subscribe, url);
 }
