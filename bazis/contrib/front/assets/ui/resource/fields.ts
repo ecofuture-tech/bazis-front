@@ -474,7 +474,7 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
  * a number below 10,000 has none anyway, a year as it is written); `phone`, a
  * phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without
  * its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per`
- * (`3 600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of
+ * (`3600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of
  * its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
  */
 export type FieldDisplay =
@@ -521,7 +521,7 @@ export function formatValue(
   // a sum or a quantity: a number, or a DecimalField (its exact digits)
   if (typeof display === 'object' && !('bar' in display) && (typeof value === 'number' || typeof value === 'string')) {
     if (!('currency' in display)) return `${formatDecimal(value, language)} ${display.unit}`;
-    // a whole sum without its zero cents (`3 600 ₽`), unless they are always shown
+    // a whole sum without its zero cents (`3600 ₽`, `15 000 ₽`), unless they are always shown
     const whole = display.fraction !== 'always' && /^-?\d+(\.0*)?$/.test(String(value).trim());
     const digits = whole ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {};
     let sum: string;

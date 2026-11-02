@@ -1013,7 +1013,7 @@ list:
 A value of a role but `meta` is shown without its label (the readers of the screen hear it); the
 other columns stay pairs of a label and a value. The cover is not a button, the card opens its item;
 an item without an image shows the icon of the entity in its place. The `per` of the `display`
-of a sum follows it smaller and muted (`3 600 ₽ / сутки`) wherever the field is shown, a table
+of a sum follows it smaller and muted (`3600 ₽ / сутки`) wherever the field is shown, a table
 of the staff too: a display is of the field of the entity, not of a screen. A field has one role, and
 a list with `card` shows cards somewhere, on a wide screen or on a phone (S064: its `layout`
 and `layout_phone`, else those of the composition of the theme). The marks stay `row:<id>` and `cell:<column>` (the cover
@@ -2913,8 +2913,8 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   edit has the field read-only (it opens the edit and cancels it). `expectValues` takes the
   texts as the card shows them in the language of the tests, a run of spaces of either as one
   space (the no-break spaces of the groups of digits of `Intl` too): a decimal with
-  `display: {currency: RUB}` is `1 500 ₽`, `1 500,50 ₽` (`1 500` matches it, `1500` does not;
-  `fraction: always`: `1 500,00 ₽`), one
+  `display: {currency: RUB}` is `1500 ₽` (four digits are not grouped), `15 000 ₽`,
+  `15 000,50 ₽` (`15 000` matches it, `15000` does not; `fraction: always`: `15 000,00 ₽`), one
   without `display` its digits, `1500.00`. On a card in tabs,
   `action`, `fill`, `expectValues` and `expectFieldReadonly` first show the tab of the mark
   they act on (the tab whose `aria-controls` is the hidden panel that has it).
@@ -6141,7 +6141,7 @@ Its props, `RelationPickerProps`:
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
 - `ItemValueProps`: the props of `ItemValue`, listed with it
-- `type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per` (`3 600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
+- `type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per` (`3600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
