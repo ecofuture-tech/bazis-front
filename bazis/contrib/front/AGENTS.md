@@ -137,7 +137,8 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | Files, points and maps | the files of bazis-uploadable, the points and the maps, what is near |
 | Custom actions and background work | an action of the backend that is no CRUD (an export, a report), its permission, a task of bazis-bg, a background request |
 | The socket | bazis-ws: the live updates, the notifications and the bell, the protocol of the socket |
-| The design | the presets, the top bar, the tokens, the brand, the dark mode, the tones of the statuses, the classes of the theme |
+| The design | the presets, the top bar, the tokens and their layers, the icons, the dark mode, the tones of the statuses, the classes of the theme |
+| The fonts and the brand | the fonts (shipped, served by the frontend, their subsets and fallbacks), the brand and its mark, the sidebar, the classes of the headings |
 | The end-to-end tests | `bazis_front e2e`, the steps and their helpers, `e2e_data`, `npm run e2e` and its ports, the tests of your own |
 | The visual check | `bazis_front shots`: the screenshots, their report and its codes (`V…`), the checklist of the screenshots, when the screens are done |
 | The client | a request that the hooks do not cover, the filters, the errors of a form, the permission meta, the uploads |
@@ -952,8 +953,8 @@ cells `cell:<field>`, without a `list:<entity>`; of the packages `socket:<status
 # theme.yaml
 spec: bazis-design/1
 preset: workspace          # workspace (a working application) | portal (a public shell)
-palette: forest            # indigo | forest | ember | slate | ocean | plum
-fonts: inter               # system | inter | manrope | ibm-plex | geist | source-serif-display,
+palette: forest            # indigo | forest | ember | slate | ocean | plum | pine
+fonts: inter               # system | inter | manrope | ibm-plex | geist | source-serif-display | literata-golos,
                            # or a family of Google Fonts: {google: "Inter:wght@400..700"}
 shape: soft                # sharp | soft | round
 surface: elevated          # flat | bordered | elevated
@@ -2548,7 +2549,7 @@ function Notifications() {
 ## The design
 
 ```bash
-python manage.py bazis_front design           # frontend/src/bazis/generated/fonts.css, theme.css and theme.ts from spec/design/
+python manage.py bazis_front design           # src/bazis/generated/fonts.*, theme.* and public/fonts/ from spec/design/
 python manage.py bazis_front design --check   # write nothing; exit 1 if the theme differs from the design
 ```
 
@@ -2565,7 +2566,8 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 
 - `src/bazis/generated/fonts.css`, imported first by `src/index.css` of the template: the
   imports of the fonts of its pair only (an `@import` after a rule is dropped, so a
-  stylesheet of Google Fonts goes before Tailwind).
+  stylesheet of Google Fonts goes before Tailwind) and the faces of the fonts that the
+  frontend serves; `fonts.ts`: the files that `vite.config.ts` preloads.
 - `src/bazis/generated/theme.css`, imported by `src/index.css` after Tailwind: every token
   as a CSS variable of `:root` (`color.<name>` is `--<name>`, another token its dotted name
   with dashes, `font.body` `--font-body`), those of the dark mode, the spacing of the density
@@ -2574,11 +2576,12 @@ The generated files are never edited. The design must have no errors (`bazis_fro
   list), the Tailwind theme over them (a color utility for every color token, `bg-<token>`;
   the soft colors of the tones, `bg-success-soft text-success-ink`; `font-sans`,
   `font-display`, `font-mono`; `rounded-sm` … `rounded-2xl` from `radius`; `shadow-xs` …
-  `shadow-lg`; `ease-standard` and every `transition` from `motion.*`) and the base styles of
-  the preset (`h1`–`h3` in `font.heading`).
+  `shadow-lg`; `ease-standard` and every `transition` from `motion.*`), the utilities
+  `font-heading` and `font-subheading` and the base styles of the preset (`h1`–`h3` in
+  `font.heading`, the variables of the sidebar).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
-  `density`, `composition`, `statuses`, `icons`, and `dark`: whether the user switches to a
-  dark mode).
+  `density`, `composition`, `statuses`, `icons`, `brand`, and `dark`: whether the user
+  switches to a dark mode).
 
 | Token (its CSS variable `--<name>`) | When no layer defines it |
 |---|---|
@@ -2588,10 +2591,11 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 | `font.heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
 | `color.card`, `color.card-foreground`, `color.popover`, `color.popover-foreground`, `color.secondary`, `color.secondary-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS` of `spec/design.py`) |
 | `color.success`, `color.warning`, `color.info` (the tones of the statuses) | a green, an amber and a blue of both modes |
-| `color.sidebar-primary`, `color.sidebar-accent`, … (the sidebar of shadcn/ui) | from the primary and the sidebar |
+| `color.sidebar-primary`, `color.sidebar-accent`, `color.sidebar-muted-foreground`, … (the sidebar) | from the primary, the sidebar and the muted foreground |
+| `color.brand`, `color.brand-foreground` (the mark of the brand) | the primary |
 | `color.chart-1` … `color.chart-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
 | `font.mono` (`font-mono`) | the monospace fonts of Tailwind |
-| `font.weight-heading`, `font.tracking-heading` (`h1`–`h3`) | 600; `0em` (`-0.02em` for `portal`) |
+| `font.weight-heading`, `font.weight-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
 | `shadow.xs` (the cards, the tables, the fields), `shadow.sm`, `shadow.md` (the popovers), `shadow.lg` (the dialogs) | the shadows of Tailwind |
 | `motion.fast`, `motion.base`, `motion.slow`, `motion.ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
 
@@ -2636,30 +2640,8 @@ product, one decision for the whole product:
 | library, education, publishing, culture | `forest`, `plum` | `source-serif-display`, `ibm-plex` | `soft`, `round` |
 | health, travel, logistics, the sea | `ocean` | `manrope`, `inter` | `round` |
 | retail, food, hospitality, events | `ember` | `manrope` | `round` |
+| retail, travel, hospitality, outdoor | `pine` | `literata-golos` | `soft`, `round` |
 | developer tools, analytics | `slate`, `indigo` | `geist` | `sharp` |
-
-### Fonts
-
-**Fonts.** The pairs (`inter`; `manrope`, bold headings; `ibm-plex`, IBM Plex Sans with
-headings in IBM Plex Serif; `geist`; `source-serif-display`, Source Sans 3 with headings in
-Source Serif 4; `system`, nothing to load) are shipped with the frontend: the template
-declares their `@fontsource` packages (OFL), and `fonts.css` imports only those of its pair,
-so the frontend works offline. `fonts: {google: …}` loads a family of Google Fonts instead
-(online only). A font of the product is a token of `tokens.json` with its import:
-`"body": {"$type": "fontFamily", "$value": ["Brand Sans", "ui-sans-serif", "sans-serif"],
-"$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}}` (an npm package
-that the product installs, or the `https://` URL of a stylesheet).
-
-### Brand
-
-**Brand.** The brand of a customer goes over the palette, in `tokens.json`: change
-`color.primary` and `color.primary-foreground` (and `dark.color.primary`): the focus rings,
-the current link, the selected row and the soft tints derive from the primary
-(`color-mix`). The palettes are OKLCH (`oklch(L C H)`): keep the lightness
-and the chroma of the palette and change the hue; `check` reports a text color that loses
-its contrast (D009). A token of `tokens.json` replaces that of the layers: a `tokens.json`
-that defines every color (of an older version) hides the palette, so remove the colors it
-should take from the palette (D012). Set `density` for the spacing.
 
 ### Icons
 
@@ -2724,6 +2706,75 @@ after a change that succeeded, `toast()` of `@/bazis/ui/state-panel` (the forms 
 transits already do); the errors stay where they happened.
 
 - Check every screen in both modes and at the width of a phone.
+
+## The fonts and the brand
+
+### Fonts
+
+**Fonts.** The pairs (`inter`; `manrope`, bold headings; `ibm-plex`, IBM Plex Sans with
+headings in IBM Plex Serif; `geist`; `source-serif-display`, Source Sans 3 with headings in
+Source Serif 4; `system`, nothing to load) are shipped with the frontend: the template
+declares their `@fontsource` packages (OFL), and `fonts.css` imports only those of its pair,
+so the frontend works offline. `literata-golos` (Golos Text with headings in Literata, the
+optical sizes of `opsz`) is served by the frontend itself. `fonts: {google: …}` loads a
+family of Google Fonts instead (online only).
+
+**A font served by the frontend** is a `fontFamily` token whose `$extensions.bazis.font`
+names a starter of the package (`{"starter": "literata"}`, `golos-text`) or an installed
+package of @fontsource-variable:
+
+```json
+"heading": {"$type": "fontFamily", "$value": ["Fraunces", "Fraunces Fallback", "serif"],
+  "$extensions": {"bazis": {"font": {"package": "@fontsource-variable/fraunces", "axes": ["opsz", "wght"],
+    "fallback": {"local": ["Georgia"], "size_adjust": "104%", "ascent_override": "95%",
+      "descent_override": "25%", "line_gap_override": "0%"}}}}}
+```
+
+`bazis_front design` copies the files of its subsets with the license into
+`frontend/public/fonts/<id>-<version>/` (commit them; the lock keeps their hashes, and
+`--check` and `front.W005` report them stale) and writes their `@font-face`: each subset with
+its unicode-range, so a page downloads only those it draws. `subsets` is `auto` (those of the
+`languages` of `product.yaml` and of the signs of `display.currency`: `ru` takes the Cyrillic
+and the Latin with their extensions) or a list (D015 when it leaves out a language or a
+currency). `preload` (true for `font.body`) puts the file of the letters of the first
+language in a `<link rel="preload">` of `index.html`. `fallback` (a starter has its own)
+makes the face `<Family> Fallback`, a local font with the metrics of the web font, so the swap
+moves no line: name it second in `$value` (D016 for a name it does not make). A heading font
+with optical sizes is loaded with `axes: [opsz, wght]` (D014). A font of another package is
+imported as before: `"$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}`
+(an npm package that the product installs, or the `https://` URL of a stylesheet).
+
+### Brand
+
+**Brand.** The brand of a customer goes over the palette, in `tokens.json`: change
+`color.primary` and `color.primary-foreground` (and `dark.color.primary`): the focus rings,
+the current link, the selected row and the soft tints derive from the primary
+(`color-mix`). The palettes are OKLCH (`oklch(L C H)`): keep the lightness
+and the chroma of the palette and change the hue; `check` reports a text color that loses
+its contrast (D009). A token of `tokens.json` replaces that of the layers: a `tokens.json`
+that defines every color (of an older version) hides the palette, so remove the colors it
+should take from the palette (D012). Set `density` for the spacing.
+
+**The mark of the brand** next to the name of the product in the shell is `brand` of
+`theme.yaml`: `{icon: tent}` (a lucide icon, D013) or `{image: brand/mark.svg}` (a file of
+`frontend/public/`, D017); without it, the first letter of the name. It sits on
+`color.brand` with `color.brand-foreground` (the primary by default; `check` keeps both
+legible and the brand legible on a card): an accent of the brand (`bg-brand`,
+`text-brand`), never a button or a badge, which stay on the primary.
+
+### The sidebar and the headings
+
+**The sidebar** (`[data-slot='sidebar']`: the sidebar of `workspace` and the drawer of a
+phone) gives the variables of the content those of the sidebar: `--foreground`,
+`--muted-foreground`, `--border`, `--accent`, `--primary`, `--ring` are `--sidebar-…` inside
+it, so a component in it keeps the classes of the theme (`text-muted-foreground`) and a
+palette with a dark sidebar (`pine`) stays legible. Define `color.sidebar-muted-foreground`
+and `color.sidebar-primary` with a dark `color.sidebar`.
+
+**The headings.** `font-heading` is the family, the weight and the tracking of a heading
+(the title of a screen, a card, a figure of a dashboard) and `font-subheading` those of the
+heading of a section (`font.weight-subheading`): use them for headings of your own rather than
+`font-semibold tracking-tight`.
 
 ## The end-to-end tests
 
