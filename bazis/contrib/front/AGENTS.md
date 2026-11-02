@@ -1007,12 +1007,14 @@ list:
     eyebrow: category      # the rubric above the title, in `color.brand`
     title: name            # the first column without a role by default
     figure: price_per_day  # the main value, in the heading font
-    meta: [deposit]        # muted values under the figure
+    meta: [deposit]        # muted values under the figure, each after its label: `Залог 10 000 ₽`
 ```
 
-A value of a role is shown without its label (the readers of the screen hear it); the other
-columns stay pairs of a label and a value. The cover is not a button, the card opens its item;
-an item without an image shows the icon of the entity in its place. A field has one role, and
+A value of a role but `meta` is shown without its label (the readers of the screen hear it); the
+other columns stay pairs of a label and a value. The cover is not a button, the card opens its item;
+an item without an image shows the icon of the entity in its place. The `per` of the `display`
+of a sum follows it smaller and muted (`3 600 ₽ / сутки`) wherever the field is shown, a table
+of the staff too: a display is of the field of the entity, not of a screen. A field has one role, and
 a list with `card` shows cards somewhere: `layout: cards`, or a phone that is not
 `layout_phone: table` (S064). The marks stay `row:<id>` and `cell:<column>` (the cover
 `data-slot="card-media"`), so `open_item` finds a card by its values as it finds a row. Without
@@ -2845,7 +2847,9 @@ and `color.sidebar-primary` with a dark `color.sidebar`.
 **The headings.** `font-heading` is the family, the weight and the tracking of a heading
 (the title of a screen, a card, a figure of a dashboard) and `font-subheading` those of the
 heading of a section (`font.weight-subheading`): use them for headings of your own rather than
-`font-semibold tracking-tight`.
+`font-semibold tracking-tight`. The digits of a number, a decimal or a date have one width in
+the cells, the values of a card and the inputs (`alignsDigits` of `@/bazis/ui/resource`); those
+of a heading and of a figure stay proportional.
 
 ## The end-to-end tests
 
@@ -5753,7 +5757,7 @@ Its props, `FieldInputProps`:
 
 #### FieldValue
 
-`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`; their thumbnails only with `display: 'image'`, large in a card, the cover of a card of a grid as `media`).
+`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar, `per` muted after a sum), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`; their thumbnails only with `display: 'image'`, large in a card, the cover of a card of a grid as `media`).
 
 
 Its props, `FieldValueProps`:
@@ -5781,6 +5785,10 @@ Its props, `ItemValueProps`:
 #### titleFromText
 
 `titleFromText(element: HTMLElement | null): (() => void) | undefined`: A ref that gives an element its text as its title, kept as the text changes (the label of a related item read later): the whole text of a value that `truncate` may cut.
+
+#### alignsDigits
+
+`alignsDigits(field: FormField | undefined): boolean`: Whether the figures of a field have the same width (`tabular-nums`): a number, a decimal, a date.
 
 #### choiceOptions
 
@@ -5824,7 +5832,7 @@ Its props, `ItemValueProps`:
 
 #### isNumeric
 
-`isNumeric(field: FormField | undefined): boolean`: Whether a field is a number: aligned to the right, with figures of the same width.
+`isNumeric(field: FormField | undefined): boolean`: Whether a field is a number: aligned to the right.
 
 #### isReverse
 
@@ -6482,13 +6490,13 @@ Its props, `ResourceListProps`:
 
 #### CardLayout
 
-`interface CardLayout`: The composition of a card of a grid (`list.card` of the spec), each role a column (a role whose column is not shown is left out), each value without its label; the other columns are pairs of a label and a value.
+`interface CardLayout`: The composition of a card of a grid (`list.card` of the spec), each role a column (a role whose column is not shown is left out), each value without its label but those of `meta`; the other columns are pairs of a label and a value.
 
 - `media?: string`: The cover, the whole width of the card: a column of an image (`display: 'image'`); the first one by default.
 - `eyebrow?: string`: A rubric above the title.
 - `title?: string`: The title; the first column without a role by default.
 - `figure?: string`: The main value, in the heading font.
-- `meta?: readonly string[]`: Values in a muted line.
+- `meta?: readonly string[]`: Values in a muted line, each after its label (`Deposit 10,000 ₽`).
 
 #### The types and the constants of `@/bazis/ui/resource-list`
 

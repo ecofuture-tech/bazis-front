@@ -27,10 +27,10 @@ import { useLanguage } from '@/bazis/i18n';
 import type { ItemPath } from '@/bazis/react';
 import { useScreenPage } from '@/bazis/ui/app-shell';
 import {
+  alignsDigits,
   FieldValue,
   fieldValue,
   isLongText,
-  isNumeric,
   ITEM_META,
   itemLabel,
   itemName,
@@ -183,7 +183,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
         className="rounded-xl border bg-card text-card-foreground shadow-xs"
       >
         {section.title !== undefined && (
-          <Title className="border-b px-(--space-card) py-3 text-sm font-semibold">{section.title}</Title>
+          <Title className="border-b px-(--space-card) py-3 text-sm font-subheading">{section.title}</Title>
         )}
         <dl className="grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-5 p-(--space-card) sm:grid-cols-2">
           {names.map((name) => {
@@ -202,7 +202,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
                 </dt>
                 <dd
                   data-bz={`field:${name}`}
-                  className={cn('wrap-anywhere', isLongText(field) && 'whitespace-pre-line', isNumeric(field) && 'tabular-nums')}
+                  className={cn('wrap-anywhere', isLongText(field) && 'whitespace-pre-line', alignsDigits(field) && 'tabular-nums')}
                 >
                   {values[name]?.(item) ?? (
                     <FieldValue field={field} value={fieldValue(item, name)} type={item.type} display={display[name]} large />
@@ -315,7 +315,7 @@ export function ResourceCard({
           {/* the item is the subject of its screen: above the title of the screen */}
           <Heading
             className={cn(
-              'font-display font-semibold tracking-tight wrap-anywhere',
+              'font-heading wrap-anywhere',
               THEME.preset === 'portal' ? 'text-3xl md:text-4xl' : 'text-2xl',
             )}
           >

@@ -49,8 +49,8 @@ export interface BodyProps {
 
 /**
  * The composition of a card of a grid (`list.card` of the spec), each role a column (a role whose
- * column is not shown is left out), each value without its label; the other columns are pairs of
- * a label and a value.
+ * column is not shown is left out), each value without its label but those of `meta`; the other
+ * columns are pairs of a label and a value.
  */
 export interface CardLayout {
   /** The cover, the whole width of the card: a column of an image (`display: 'image'`); the first one by default. */
@@ -61,7 +61,7 @@ export interface CardLayout {
   title?: string;
   /** The main value, in the heading font. */
   figure?: string;
-  /** Values in a muted line. */
+  /** Values in a muted line, each after its label (`Deposit 10,000 ₽`). */
   meta?: readonly string[];
 }
 

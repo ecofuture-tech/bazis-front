@@ -18,7 +18,7 @@
 
 import type { Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
-import { fieldValue, isNumeric, titleFromText, type ResourceObject } from '@/bazis/ui/resource';
+import { alignsDigits, fieldValue, titleFromText, type ResourceObject } from '@/bazis/ui/resource';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -84,9 +84,10 @@ function empty(row: ResourceObject, name: string): boolean {
 }
 
 /**
- * The rows as a grid of cards: the cover (`card-media`), the rubric (`card-eyebrow`), the title,
- * the figure (`card-figure`) and the muted values (`card-meta`) of `card`, each without its label
- * but for the readers of the screen, then the other columns as pairs of a label and a value;
+ * The rows as a grid of cards: the cover (`card-media`), the rubric (`card-eyebrow`), the title and
+ * the figure (`card-figure`) of `card`, each without its label but for the readers of the screen,
+ * its muted values (`card-meta`), each after its label, then the other columns as pairs of a label
+ * and a value;
  * above them, when the rows are selectable, the checkbox of the page.
  */
 export function CardsView(props: BodyProps) {
@@ -157,7 +158,7 @@ export function CardsView(props: BodyProps) {
                         </p>
                       )}
                       {title !== undefined && (
-                        <h3 data-bz={`cell:${title}`} className="font-display text-lg leading-snug font-semibold wrap-anywhere">
+                        <h3 data-bz={`cell:${title}`} className="font-heading text-lg leading-snug wrap-anywhere">
                           {cell(props, row, title)}
                         </h3>
                       )}
@@ -174,7 +175,7 @@ export function CardsView(props: BodyProps) {
                     {figure !== undefined && (
                       <p
                         data-slot="card-figure"
-                        className={cn('font-display text-xl font-semibold tracking-tight', hidden(figure) && 'hidden')}
+                        className={cn('font-heading text-xl', hidden(figure) && 'hidden')}
                       >
                         {label(figure)}
                         <span data-bz={`cell:${figure}`}>{cell(props, row, figure)}</span>
@@ -185,7 +186,7 @@ export function CardsView(props: BodyProps) {
                         {meta.map((name, index) => (
                           <span key={name} className={cn(hidden(name) && 'hidden')}>
                             {index > 0 && ' · '}
-                            {label(name)}
+                            <span className="inline-block first-letter:uppercase">{fields.title(name)}</span>{' '}
                             <span data-bz={`cell:${name}`}>{cell(props, row, name)}</span>
                           </span>
                         ))}
@@ -201,7 +202,7 @@ export function CardsView(props: BodyProps) {
                         <dd
                           ref={titleFromText}
                           data-bz={`cell:${name}`}
-                          className={cn('min-w-0 truncate text-right', isNumeric(fields.fields.get(name)) && 'tabular-nums')}
+                          className={cn('min-w-0 truncate text-right', alignsDigits(fields.fields.get(name)) && 'tabular-nums')}
                         >
                           {cell(props, row, name)}
                         </dd>

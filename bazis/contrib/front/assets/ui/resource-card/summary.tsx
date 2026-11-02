@@ -98,7 +98,7 @@ export function Summary({ summary, item, fields, values, display }: SummaryProps
               <span className={LABEL}>{t('card.range')}</span>
               {/* the range shows both of its fields */}
               <span data-bz={`field:${range[0]}`}>
-                <span data-bz={`field:${range[1]}`} className="font-display text-2xl font-semibold tracking-tight">
+                <span data-bz={`field:${range[1]}`} className="font-heading text-2xl">
                   {days?.text ?? '—'}
                 </span>
               </span>
@@ -121,7 +121,7 @@ export function Summary({ summary, item, fields, values, display }: SummaryProps
       {figure !== undefined && (
         <div className="grid content-start gap-1 bg-card p-(--space-card)">
           <span className={LABEL}>{fields.title(figure)}</span>
-          <span data-bz={`field:${figure}`} className="font-display text-3xl font-semibold tracking-tight">
+          <span data-bz={`field:${figure}`} className="font-heading text-3xl">
             {value(figure)}
           </span>
         </div>

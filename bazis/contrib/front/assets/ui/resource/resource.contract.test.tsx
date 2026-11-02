@@ -26,6 +26,7 @@ import { RESOURCES, TRANSITS } from '@/bazis/generated/contract';
 import { THEME } from '@/bazis/generated/theme';
 import type { FormField } from '@/bazis/react';
 import {
+  alignsDigits,
   choiceOptions,
   DatesProvider,
   FieldInput,
@@ -701,6 +702,34 @@ describe('FieldValue', () => {
     expect(formatValue(price, '45000.00', undefined, { currency: 'euro' })).toBe('45,000 euro');
     render(<FieldValue field={price} value="12.5" display={{ currency: 'euro' }} />);
     expect(screen.getByText('12.5 euro')).toBeTruthy();
+  });
+
+  it('aligns the digits of a number, a decimal and a date, not those of a text or a time', () => {
+    const aligned = [
+      attribute('count', 'integer'),
+      attribute('share', 'number'),
+      attribute('price', 'string', { format: 'decimal' }),
+      attribute('day', 'string', { format: 'date' }),
+      attribute('due', 'string', { format: 'date-time' }),
+      attribute('title', 'string'),
+      attribute('at', 'string', { format: 'time' }),
+    ].map(alignsDigits);
+    expect(aligned).toEqual([true, true, true, true, true, false, false]);
+    render(<FieldInput field={attribute('price', 'string', { format: 'decimal' })} value="2.5" onChange={vi.fn()} />);
+    expect(screen.getByTestId('field:price').classList).toContain('tabular-nums');
+  });
+
+  it('shows what a sum is for (`per`) after it, apart from the sum, and nothing for no sum', () => {
+    const price = attribute('price', 'string');
+    const display = { currency: 'EUR', per: 'day' } as const;
+    const { container, unmount } = render(<FieldValue field={price} value="3600.00" display={display} />);
+    // the same text as `formatValue`, what the sum is for in an element of its own
+    expect(container.textContent).toBe(formatValue(price, '3600.00', undefined, display));
+    expect(container.querySelector('[data-slot="per"]')?.textContent).toBe(' / day');
+    unmount();
+    render(<FieldValue field={price} value={null} display={display} />);
+    expect(screen.getByText('—')).toBeTruthy();
+    expect(document.querySelector('[data-slot="per"]')).toBeNull();
   });
 
   it('shows a number with a bar of its share of the maximum (`display: {bar}`)', () => {

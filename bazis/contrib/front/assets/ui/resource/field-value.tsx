@@ -57,7 +57,7 @@ function Bar({ value, max, text, label }: { value: number; max: number; text: st
 
 /**
  * The value of a field for reading: an attribute formatted by its type, its format and
- * `display` (a phone as a link to call it, a share as a bar), the labels of the related items
+ * `display` (a phone as a link to call it, a share as a bar, `per` muted after a sum), the labels of the related items
  * of a relationship (the status of an item of bazis-statusy by its name), the uploaded files
  * (`FileValue`; their thumbnails only with `display: 'image'`, large in a card, the cover of a
  * card of a grid as `media`). A text of the item, of any length (a string without a choice or a format, the
@@ -95,6 +95,18 @@ export function FieldValue({ field, value, type, display, large = false, media =
             <RelationLabel relation={field.relation} id={id} />
           </span>
         ))}
+      </>
+    );
+  }
+  if (typeof display === 'object' && 'currency' in display && display.per !== undefined && (typeof value === 'number' || (typeof value === 'string' && value !== ''))) {
+    // what the sum is for (`/ сутки`), smaller and muted after it, in the font of the text
+    const { per, ...sum } = display;
+    return (
+      <>
+        {formatValue(field, value, language, sum)}
+        <span data-slot="per" className="font-sans text-[0.8125rem] font-medium tracking-normal text-muted-foreground">
+          {` / ${language.t(per)}`}
+        </span>
       </>
     );
   }

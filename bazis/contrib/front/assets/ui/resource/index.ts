@@ -19,6 +19,7 @@ export type { FieldFilters, FieldInputProps } from './field-input.js';
 export { FieldValue, ItemValue, titleFromText } from './field-value.js';
 export type { FieldValueProps, ItemValueProps } from './field-value.js';
 export {
+  alignsDigits,
   choiceOptions,
   contractFormat,
   customActionAt,

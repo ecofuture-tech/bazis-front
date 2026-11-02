@@ -500,7 +500,8 @@ describe('ResourceList', () => {
     expect(card.firstElementChild).toBe(part('card-media'));
     expect(part('card-media')?.getAttribute('data-bz')).toBe('cell:photo');
     expect(within(card).getByTestId('cell:photo').textContent).toBe('tent.png');
-    // each role once, in the order that it is shown, without its label but for the readers of the screen
+    // each role once, in the order that it is shown, without its label but for the readers of the
+    // screen, the muted values after theirs
     const order = [part('card-eyebrow'), within(card).getByTestId('cell:title'), part('card-figure'), part('card-meta')];
     for (const [index, element] of order.slice(1).entries()) {
       expect(order[index]?.compareDocumentPosition(element as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
@@ -509,7 +510,9 @@ describe('ResourceList', () => {
     expect(part('card-eyebrow')?.textContent).toBe('Kind: Camping');
     expect(part('card-eyebrow')?.querySelector('.sr-only')?.textContent).toBe('Kind: ');
     expect(within(part('card-figure') as HTMLElement).getByTestId('cell:count').textContent).toBe('3');
-    expect(within(part('card-meta') as HTMLElement).getByTestId('cell:done')).toBeTruthy();
+    expect(within(part('card-meta') as HTMLElement).getByTestId('cell:done').textContent).toBe('Yes');
+    expect(part('card-meta')?.textContent).toBe('Done Yes');
+    expect(part('card-meta')?.querySelector('.sr-only')).toBeNull();
     // the other columns: pairs of a label and a value
     expect([...card.querySelectorAll('dt')].map((it) => it.textContent)).toEqual(['Note']);
     // an item without its image: the icon of the entity in place of the cover

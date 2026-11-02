@@ -44,7 +44,7 @@ export function LoginScreen() {
         >
           {name.charAt(0).toUpperCase()}
         </span>
-        <span className="font-display text-xl font-semibold tracking-tight">{name}</span>
+        <span className="font-heading text-xl">{name}</span>
       </div>
       <LoginForm
         onLogin={PASSWORD_LOGIN ? (credentials) => login(api, credentials) : undefined}
