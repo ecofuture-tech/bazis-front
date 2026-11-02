@@ -31,6 +31,7 @@ from bazis.contrib.front.spec import screens as spec_screens
 from bazis.contrib.front.spec import shots as spec_shots
 from bazis.contrib.front.spec import theme as design_theme
 from bazis.contrib.front.spec import validate as spec_validate
+from bazis.contrib.front.spec.fonts import FontError
 from bazis.contrib.front.spec.issues import Issues
 from bazis.contrib.front.vendor import copy, update
 from bazis.contrib.front.vendor import lock as frontend_lock
@@ -717,8 +718,8 @@ class Command(BaseCommand):
         frontend = frontend_lock.frontend_dir()
         lock = require_lock(frontend)
         if check:
-            rendered = self.render_theme()
-            if problems := design_theme.stale(Path(settings.BASE_DIR), frontend, lock, rendered):
+            rendered, sources = self.render_theme(frontend)
+            if problems := design_theme.stale(Path(settings.BASE_DIR), frontend, lock, rendered, sources):
                 raise CommandError(
                     '\n'.join(problems)
                     + '\nGenerate it with `manage.py bazis_front design`; never edit it.'
@@ -727,9 +728,10 @@ class Command(BaseCommand):
             return
         self.generate_theme(frontend, lock)
 
-    def render_theme(self) -> dict[str, str]:
+    def render_theme(self, frontend: Path) -> tuple[dict[str, str], dict]:
         """
-        The theme of the design of the specs; fails with the issues of a design with errors.
+        The theme of the design of the specs and the sources of its font files; fails with the
+        issues of a design with errors, or with a font package that the frontend lacks.
         """
         result = spec_validate.validate(Path(settings.BASE_DIR), ('design',))
         if errors := [it for it in result.errors if it.layer == 'design']:
@@ -738,12 +740,16 @@ class Command(BaseCommand):
                 f'The design has {len(errors)} errors: the theme is generated from a design '
                 'that `bazis_front check` accepts.'
             )
-        return design_theme.render(result.specs)
+        try:
+            return design_theme.render(result.specs, frontend), design_theme.font_files(result.specs, frontend)
+        except FontError as err:
+            raise CommandError(str(err)) from err
 
     def generate_theme(self, frontend: Path, lock: dict) -> None:
-        rendered = self.render_theme()
-        design_theme.write(Path(settings.BASE_DIR), frontend, lock, rendered)
-        self.stdout.write(f'Generated the theme of {frontend}: {", ".join(rendered)}.')
+        rendered, sources = self.render_theme(frontend)
+        design_theme.write(Path(settings.BASE_DIR), frontend, lock, rendered, sources)
+        fonts = f' Copied the fonts: {", ".join(sorted({it.rsplit("/", 1)[0] for it in sources}))}.' if sources else ''
+        self.stdout.write(f'Generated the theme of {frontend}: {", ".join(rendered)}.{fonts}')
 
     def handle_version(self, **options):
         self.stdout.write(f'bazis-front {__version__}')

@@ -635,7 +635,7 @@ def test_update_merges_the_template(product):
     """
     frontend = product / 'frontend'
     cache = re.compile(r'    // the cache of the optimized dependencies:.*\n.*\n    cacheDir: .*\n')
-    plugins = ('plugins: [react(), tailwindcss()],', 'plugins: [react(), tailwindcss(), mine()],')
+    plugins = ('plugins: [react(), tailwindcss(), bazisFonts()],', 'plugins: [react(), tailwindcss(), bazisFonts(), mine()],')
 
     def old(path, text):
         if path == PLAYWRIGHT_CONFIG:

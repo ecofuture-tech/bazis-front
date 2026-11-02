@@ -17,9 +17,9 @@
       "enum": ["indigo", "forest", "ember", "slate", "ocean", "plum", "pine"]
     },
     "fonts": {
-      "description": "The fonts of the text and of the headings, a pair of the package shipped with the frontend (system: the fonts of the system), or a family of Google Fonts loaded from its stylesheet: {google: \"Inter:wght@400..700\"}.",
+      "description": "The fonts of the text and of the headings, a pair of the package shipped with the frontend (system: the fonts of the system; literata-golos: Golos Text with headings in Literata, served by the frontend itself), or a family of Google Fonts loaded from its stylesheet: {google: \"Inter:wght@400..700\"}.",
       "oneOf": [
-        {"enum": ["system", "inter", "manrope", "ibm-plex", "geist", "source-serif-display"]},
+        {"enum": ["system", "inter", "manrope", "ibm-plex", "geist", "source-serif-display", "literata-golos"]},
         {
           "type": "object",
           "additionalProperties": false,

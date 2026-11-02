@@ -17,7 +17,11 @@ The theme of the frontend (`bazis_front design`): spec/design/theme.yaml and tok
 compiled into `frontend/src/bazis/generated/`:
 
 - `fonts.css`, imported first by `src/index.css`: the imports of the fonts of the tokens
-  (an @import after a rule is dropped, the stylesheet of Google Fonts among them);
+  (an @import after a rule is dropped, the stylesheet of Google Fonts among them), then the
+  `@font-face` of the fonts that the frontend serves itself (`fonts.py`: their files copied
+  into `frontend/public/fonts/`, recorded in the lock with their hashes);
+- `fonts.ts`, `FONT_PRELOAD`: the font files that the plugin of `vite.config.ts` preloads in
+  index.html;
 - `theme.css`, imported by `src/index.css` after Tailwind: the
   tokens as CSS variables of `:root` and of the dark mode (the class `dark` of `<html>`, or
   the system's unless it has the class `light`; with `mode: light` or `dark` the one mode
@@ -31,27 +35,31 @@ compiled into `frontend/src/bazis/generated/`:
 
 Without spec/design/ the theme is that of the starter of the preset `workspace` before the
 layers (`design.WITHOUT_THEME`). The text
-depends on the specs only: `--check` and `front.W005` render it again and compare it byte
-for byte, without Node and the database; the lock records the hashes of the specs and of
-the files (`design`).
+depends on the specs only (the subsets of the fonts and the file to preload on the languages
+and the currencies of product.yaml): `--check` and `front.W005` render it again and compare
+it byte for byte, and the font files with their sources, without Node and the database; the
+lock records the hashes of the specs and of the files (`design`).
 """
 
+from importlib.resources.abc import Traversable
 from pathlib import Path
 
 from ..contract.generated import GENERATED_DIR
 from ..contract.typescript import Constant, literal
 from ..vendor import lock as frontend_lock
-from . import design
+from . import design, fonts
 from .screens import icon_name
-from .validate import THEME_FILE, TOKENS_FILE, Specs
+from .validate import PRODUCT_FILE, THEME_FILE, TOKENS_FILE, Specs
 
 
 FONTS_CSS = f'{GENERATED_DIR}/fonts.css'
+FONTS_TS = f'{GENERATED_DIR}/fonts.ts'
 THEME_CSS = f'{GENERATED_DIR}/theme.css'
 THEME_TS = f'{GENERATED_DIR}/theme.ts'
 
-#: the files of the design in the product root
-DESIGN_FILES = (THEME_FILE, TOKENS_FILE)
+#: the files of the design in the product root (product.yaml: the languages and the currencies
+#: of the subsets of the fonts)
+DESIGN_FILES = (THEME_FILE, TOKENS_FILE, PRODUCT_FILE)
 
 #: the options of each preset, when theme.yaml does not give them
 PRESETS = {
@@ -242,14 +250,27 @@ def theme_mapping(defined: dict) -> dict[str, str]:
     return mapping
 
 
-def render_fonts(defined: dict) -> str:
+def render_fonts(defined: dict, faces: list[fonts.Face]) -> str:
     """
     The imports of the fonts: the stylesheets of other origins first, then the npm packages
-    (whose rules Tailwind inlines in their place).
+    (whose rules Tailwind inlines in their place); then the faces of the fonts that the
+    frontend serves.
     """
     sources = sorted(design.imports(defined), key=lambda it: not it.startswith('https://'))
     lines = [f"@import url('{it}');" if it.startswith('https://') else f"@import '{it}';" for it in sources]
-    return '\n'.join([FONTS_HEADER, *(lines or ['/* No fonts to import. */'])]) + '\n'
+    rules = fonts.render_faces(faces)
+    if not lines and not rules:
+        lines = ['/* No fonts to import. */']
+    return '\n'.join([FONTS_HEADER, *lines, *(['', *rules] if lines and rules else rules)]) + '\n'
+
+
+def render_preload(faces: list[fonts.Face]) -> str:
+    return '\n'.join([
+        TS_HEADER,
+        '/** The font files that index.html preloads (`bazisFonts` of vite.config.ts): the text in the language of the product. */',
+        f'export const FONT_PRELOAD: readonly string[] = {literal(fonts.preloads(faces))};',
+        '',
+    ])
 
 
 def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
@@ -337,28 +358,55 @@ def render_ts(settings: dict, dark: bool) -> str:
     ])
 
 
-def render(specs: Specs) -> dict[str, str]:
+def faces(specs: Specs, frontend: Path | None) -> list[fonts.Face]:
     """
-    The generated files by their path in the frontend, from specs whose design has no errors.
+    The fonts that the frontend serves; a `fonts.FontError` when a package of the frontend
+    cannot be read.
+    """
+    return fonts.faces(design.effective_tokens(specs.theme, specs.tokens), specs.product, frontend)
+
+
+def render(specs: Specs, frontend: Path | None = None) -> dict[str, str]:
+    """
+    The generated files by their path in the frontend, from specs whose design has no errors
+    (the packages of its fonts read from the frontend).
     """
     settings = options(specs.theme)
     defined = design.effective_tokens(specs.theme, specs.tokens)
+    served = faces(specs, frontend)
     return {
-        FONTS_CSS: render_fonts(defined),
+        FONTS_CSS: render_fonts(defined, served),
+        FONTS_TS: render_preload(served),
         THEME_CSS: render_css(settings, specs.theme, defined),
         THEME_TS: render_ts(settings, len(design.modes(specs.theme, defined)) == 2),
     }
 
 
-def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> list[str]:
+def font_files(specs: Specs, frontend: Path | None = None) -> dict[str, Traversable]:
+    """The font files that the frontend serves, by their path in the frontend, from their sources."""
+    return fonts.font_files(faces(specs, frontend))
+
+
+def stale_fonts(frontend: Path, sources: dict[str, Traversable]) -> list[str]:
+    """The font files that are missing in the frontend or differ from their sources."""
+    return [
+        path for path, source in sources.items()
+        if not (target := frontend / path).is_file() or target.read_bytes() != source.read_bytes()
+    ]
+
+
+def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str], sources: dict[str, Traversable]) -> list[str]:
     """
     Why the theme of the frontend differs from that of the specs, one message for each;
     empty when it is current. The files are compared byte for byte.
     """
     names = frontend_lock.stale_files(frontend, rendered)
-    if not names:
+    copies = stale_fonts(frontend, sources)
+    if not names and not copies:
         return []
-    problems = [f'The theme of {frontend} is stale: {", ".join(names)}.']
+    problems = [f'The theme of {frontend} is stale: {", ".join(names)}.'] if names else []
+    if copies:
+        problems.append(f'The fonts of the theme are stale: {", ".join(copies)}.')
     changed, edited = frontend_lock.generation_changes(
         lock.get('design', {}), frontend_lock.file_hashes(root, DESIGN_FILES), frontend, names
     )
@@ -369,10 +417,18 @@ def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> l
     return problems
 
 
-def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> None:
+def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str], sources: dict[str, Traversable]) -> None:
     """
-    Writes the theme and records the hashes of the design and of the files in the lock.
+    Writes the theme and copies the font files that are missing or differ from their sources
+    (those of the other versions of a family are kept: the product may serve them), and records
+    the hashes of the design, of the files and of the fonts in the lock.
     """
     frontend_lock.write_files(frontend, rendered)
+    for path in stale_fonts(frontend, sources):
+        target = frontend / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(sources[path].read_bytes())
     lock['design'] = frontend_lock.generation(frontend_lock.file_hashes(root, DESIGN_FILES), rendered)
+    if sources:
+        lock['design']['fonts'] = {path: frontend_lock.digest(source.read_bytes()) for path, source in sources.items()}
     frontend_lock.write(frontend, lock)

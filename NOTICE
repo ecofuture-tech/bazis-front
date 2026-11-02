@@ -6,3 +6,9 @@ This product is part of the Bazis framework (https://github.com/ecofuture-tech/b
 This product includes components of shadcn/ui (https://ui.shadcn.com),
 Copyright (c) 2023 shadcn, under the MIT License; the notice is in the header of each of
 them (bazis/contrib/front/assets/ui/shadcn/).
+
+This product includes the fonts Literata, Copyright 2017 The Literata Project Authors
+(https://github.com/googlefonts/literata), and Golos Text, Copyright 2019 The Golos Text
+Project Authors (https://github.com/googlefonts/golos-text), the files of the npm packages of
+Fontsource 5.3.0, unchanged, under the SIL Open Font License 1.1; the license is next to their
+files (bazis/contrib/front/assets/fonts/<font>/OFL.txt) and is copied with them into a product.

@@ -35,7 +35,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import NamedTuple
 
-from . import color
+from . import color, fonts
 from .issues import Document, Issues
 
 
@@ -601,13 +601,15 @@ def check_contrast(
 
 def check(
     theme: Document | None, tokens: Document | None, entities: set[str], contract: dict | None, issues: Issues,
-    root: Path | None = None,
+    root: Path | None = None, product: dict | None = None,
 ) -> None:
     """
     The design: the tokens of its layers (checked only when its files follow their schemas),
-    the tokens that its preset requires, its mode, the layers that tokens.json hides, the
-    statuses of theme.yaml, the icons of the entities of the product that have a screen
-    (`entities`) and the mark of the brand (its image in the product root, `root`).
+    the tokens that its preset requires, its mode, its fonts against the languages and the
+    currencies of the product (`product`, the data of a valid product.yaml), the layers that
+    tokens.json hides, the statuses of theme.yaml, the icons of the entities of the product
+    that have a screen (`entities`) and the mark of the brand (its image in the product root,
+    `root`).
     """
     usable = (theme is None or theme.valid) and (tokens is None or tokens.valid) and (theme or tokens) is not None
     defined = effective_tokens(theme and theme.data, tokens and tokens.data) if usable else {}
@@ -615,6 +617,7 @@ def check(
         check_aliases(theme, tokens, defined, issues)
         check_dark(theme, tokens, defined, issues)
         check_contrast(theme, tokens, defined, issues)
+        fonts.check(tokens, theme, defined, product, place, issues)
     if theme is None or not theme.valid:
         return
     check_statuses(theme, contract, issues)
