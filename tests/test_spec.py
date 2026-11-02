@@ -2637,7 +2637,10 @@ def test_the_roles_of_a_picker_of_the_users_of_a_role_are_not_a_public_catalog(c
     guide = ' '.join(guide.split())
     assert 'class RoleRouteSet(UserRequiredRouteBase, RoleRoute)' in section
     assert 'registered in `users/router.py`' in section
+    assert 'Never `bazis.contrib.permit.router`' in section
     assert all(it.startswith('Never') for it in re.split(r'\.\s', guide) if 'permit.router' in it)
+    [row] = re.findall(r'^\| `S061` \|.*$', AGENTS_MD.read_text(encoding='utf-8'), re.M)
+    assert 'register its router' not in row and '"The users that the pickers offer"' in row
 
 
 def test_a_text_in_one_language_is_told_its_key(root):
