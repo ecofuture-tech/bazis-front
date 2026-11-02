@@ -188,7 +188,10 @@ def test_init_creates_the_specs(product):
 
 
 def test_init_with_the_preset_portal(product):
-    init('--no-node', '--preset', 'portal')
+    out, _ = init('--no-node', '--preset', 'portal')
+    # its pair of fonts, served by the frontend, loads the optical sizes of its headings
+    assert 'D014' not in out
+    assert sorted(it.name.split('-')[0] for it in (product / 'frontend' / 'public' / 'fonts').iterdir()) == ['golos', 'literata']
 
     spec = product / 'spec'
     starters = spec_create.files(spec_create.__package__) / 'starters' / 'design' / 'portal'

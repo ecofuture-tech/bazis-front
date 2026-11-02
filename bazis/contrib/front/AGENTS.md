@@ -2700,7 +2700,7 @@ by their routes, never through the menu.
 **The layers.** Choose the look in `theme.yaml`, never by writing colors: each option names a
 starter of tokens of the package (described in `design.schema.json`;
 `init` names those of the preset: `indigo`, `inter`, `soft`, `elevated` for `workspace`;
-`ocean`, `source-serif-display`, `round`, `elevated` for `portal`), and `tokens.json` defines
+`ocean`, `literata-golos`, `round`, `elevated` for `portal`), and `tokens.json` defines
 only what the product adds over them. Every palette has both modes and reaches the contrast
 of WCAG AA with every pair of fonts, shape and surface. Choose them for the domain of the
 product, one decision for the whole product:
