@@ -2622,6 +2622,27 @@ def test_a_missing_permission_through_an_undescribed_relation_is_not_copied(cont
     assert 'tasks.task.item.delete.steps__task__assignee' not in hint
 
 
+@pytest.mark.django_db
+def test_the_roles_of_a_picker_of_the_users_of_a_role_are_not_a_public_catalog(contract):
+    # a path through the roles without their route set: the hint of S061 sends to the guide,
+    # whose route set of the roles is that of the signed-in users; the router of bazis-permit
+    # makes the roles public (a guest reads them), so neither advises it
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: reopen(d).update(filter={'roles__slug': 'manager'}))
+    [hint] = [it.hint for it in validate(root).issues if it.code == 'S061']
+    assert 'the guide "The users that the pickers offer"' in hint
+    assert 'permit.router' not in hint
+    guide = AGENTS_MD.read_text(encoding='utf-8')
+    section = ' '.join(re.search(r'^### The users that the pickers offer$(.*?)^#', guide, re.M | re.S)[1].split())
+    guide = ' '.join(guide.split())
+    assert 'class RoleRouteSet(UserRequiredRouteBase, RoleRoute)' in section
+    assert 'registered in `users/router.py`' in section
+    assert 'Never `bazis.contrib.permit.router`' in section
+    assert all(it.startswith('Never') for it in re.split(r'\.\s', guide) if 'permit.router' in it)
+    [row] = re.findall(r'^\| `S061` \|.*$', AGENTS_MD.read_text(encoding='utf-8'), re.M)
+    assert 'register its router' not in row and '"The users that the pickers offer"' in row
+
+
 def test_a_text_in_one_language_is_told_its_key(root):
     # the hint of S027 names the key of the text that it is about, which the dictionaries of
     # the frontend may give instead

@@ -1103,7 +1103,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S058` | warning | a property of the body of a custom action (in its dialog or its form) has choices without their labels (`enum` without `enumDict`: a `Literal`, or a core before 2.21): the form offers them by their values. Type it by the `TextChoices` of the model and export the contract again |
 | `S059` | error | a section of a card shown by the status of its item (`when`) names a status that is not of the workflow of the entity, or the entity has no workflow. Use the statuses of the workflow, or remove `when` |
 | `S060` | error | a value that a field of a custom action starts with (`values` of its dialog or its form) is not of its `fields`, or does not fit its property in the body: a value of another type or out of its choices, a day of the browser (`today`, `month_start`, ...) of a property that is not a date, a time of a date, a text of a date that is neither a day of the browser nor `YYYY-MM-DD` |
-| `S061` | error | the filter of the picker of a relationship (`filter` of a field of an entity, `filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register its router), or its value does not fit the field. See "The items that a picker offers" |
+| `S061` | error | the filter of the picker of a relationship (`filter` of a field of an entity, `filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register a route set of it, the roles that of the signed-in users of "The users that the pickers offer"), or its value does not fit the field. See "The items that a picker offers" |
 | `S062` | error | a public screen (an anonymous role in its `roles`) shows a file field (a column, a section of a card, the card of a board, the label of a calendar), and the guests read no file in the contract (`anonymous_files` of the section `uploadable`): the guest sees `file:unavailable`. The route set of the resource must serve guests and declare `files_visible = ('<field>',)` (bazis-uploadable 2.9), then export the contract again; never link the `/media` URL of a file |
 | `S063` | warning | a create form that lists its `fields` leaves out a boolean that the create route requires (`create_required` of the contract: a boolean without a default): the form sends `false` for it and the user never chooses it. Add it to `fields`, or give the field a default in the model |
 | `D001` | error | a design file is not valid YAML or JSON |
@@ -2023,11 +2023,15 @@ a custom action (by property), `filter: {is_active: true}` of a field of a paylo
 `relation`; a form that takes no `filters` (the add of a calendar, "add here", a create form
 of a dashboard) has the filters of the entity. Each key is a field of the related resource that the contract
 filters by, or a path through its relationships, `roles__slug: master` (the users of a role),
-equal to its value (S061). A path reads the route set of the related model: the roles of
-bazis-permit need `bazis.contrib.permit.router` in the root router, which makes them a public
-catalog (guests read their slugs and names); else filter by the id of the role (`roles`, not
-portable between databases) or narrow the list in `get_queryset`. The filter narrows the
-choice only: the backend validates the value.
+equal to its value (S061). A path needs the route set of the related model in the contract:
+the roles of bazis-permit are read by the route set of the app `users/` for the signed-in
+users only, `class RoleRouteSet(UserRequiredRouteBase, RoleRoute)`
+(`bazis.contrib.users.routes_abstract`, `bazis.contrib.permit.routes`) registered in
+`users/router.py` (401 for a guest; the resource stays `permit.role`), then the contract
+exported again. Never `bazis.contrib.permit.router`: its roles are public, a guest reads their
+slugs and names. Never the id of a role either (not portable between databases), nor a
+`get_queryset` of the users (it narrows every list and picker of the users, not the field).
+The filter narrows the choice only: the backend validates the value.
 
 ## Files, points and maps
 
