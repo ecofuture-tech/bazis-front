@@ -874,11 +874,12 @@ def _check_payload_relation(
 
 
 def check_screens(
-    docs: list[Document], product: Product | None, contract: dict | None, issues: Issues
+    docs: list[Document], product: Product | None, contract: dict | None, composition: dict, issues: Issues
 ) -> dict[str, dict | None]:
     """
     The screens by id (their file name), checked; None for those that do not follow their
-    schema.
+    schema. `composition`: that of the theme (`list`, `list_phone`), the layouts of a list
+    that does not give its own.
     """
     screens = {Path(doc.file).stem: doc.data if doc.valid else None for doc in docs}
     routes = {}
@@ -913,7 +914,7 @@ def check_screens(
             )
         routes.setdefault(data['route'], stem)
         _check_item_route(doc, issues)
-        _check_screen(doc, product, screens, contract, issues)
+        _check_screen(doc, product, screens, contract, composition, issues)
     if product and product.entities:
         _check_home(docs, routes, issues)
     return screens
@@ -1089,7 +1090,7 @@ def _check_home(docs: list[Document], routes: dict[str, str], issues: Issues) ->
 
 
 def _check_screen(
-    doc: Document, product: Product | None, screens: dict, contract: dict | None, issues: Issues
+    doc: Document, product: Product | None, screens: dict, contract: dict | None, composition: dict, issues: Issues
 ) -> None:
     data = doc.data
     primitive = data['primitive']
@@ -1134,7 +1135,10 @@ def _check_screen(
     if 'open' in section:
         _check_opens(doc, (primitive, 'open'), section['open'], 'card', entity, screens, issues)
     _check_point_filters(doc, (primitive,), query, entity, issues)
-    checks = {'list': _check_list, 'card': _check_card, 'board': _check_board, 'calendar': _check_calendar}
+    checks = {
+        'list': lambda *args: _check_list(*args, composition=composition),
+        'card': _check_card, 'board': _check_board, 'calendar': _check_calendar,
+    }
     if primitive in checks:
         checks[primitive](doc, entity, issues)
     resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
@@ -1488,7 +1492,7 @@ def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
             )
 
 
-def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
+def _check_list(doc: Document, entity: Entity, issues: Issues, composition: dict) -> None:
     """
     A list without the contract: its highlight has a label; its map is by a point field of
     the entity; its bulk actions run transitions of the workflow without a payload (S025),
@@ -1532,18 +1536,18 @@ def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
         if 'transit' in action:
             _check_bulk_transit(doc, ('list', 'bulk', i, 'transit'), action['transit'], entity, issues)
     if 'card' in lst:
-        _check_list_card(doc, lst, entity, issues)
+        _check_list_card(doc, lst, entity, issues, composition)
 
 
 #: the roles of the fields of a card of a list (`list.card`), in the order of the card
 CARD_ROLES = ('media', 'eyebrow', 'title', 'figure', 'meta')
 
 
-def _check_list_card(doc: Document, lst: dict, entity: Entity, issues: Issues) -> None:
+def _check_list_card(doc: Document, lst: dict, entity: Entity, issues: Issues, composition: dict) -> None:
     """
     The cards of a list (S064): each field of a role is a column (an unknown column is S007),
     in one role only, the media a file field shown as an image, and the list shows cards on
-    a wide screen or on a phone.
+    a wide screen or on a phone, by its layouts or else those of the composition of the theme.
     """
     roles: dict[str, str] = {}
     for role in CARD_ROLES:
@@ -1565,11 +1569,16 @@ def _check_list_card(doc: Document, lst: dict, entity: Entity, issues: Issues) -
                     'Give the media a file field shown as an image (`type: file`, `display: image`), or remove it.',
                 )
             roles.setdefault(name, role)
-    if lst.get('layout_phone') == 'table' and lst.get('layout') != 'cards':
+    # the layout on a wide screen and on a phone, and where each comes from
+    wide, phone = (
+        (f'`{key}: {lst[key]}`', lst[key]) if key in lst else (f'`composition.{default}: {composition[default]}` of the theme', composition[default])
+        for key, default in (('layout', 'list'), ('layout_phone', 'list_phone'))
+    )
+    if wide[1] == 'table' and phone[1] == 'table':
         issues.add(
             doc, ('list', 'card'), 'S064',
-            'The list never shows its cards: it is a table on a phone (`layout_phone: table`), and `layout` is not `cards`.',
-            'Set `layout: cards`, or remove `card`.',
+            f'The list never shows its cards: it is a table on a phone ({phone[0]}) and on a wide screen ({wide[0]}).',
+            'Set `layout: cards` (or `layout_phone: cards`), or remove `card`.',
         )
 
 

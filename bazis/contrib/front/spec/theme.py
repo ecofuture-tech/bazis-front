@@ -61,22 +61,6 @@ THEME_TS = f'{GENERATED_DIR}/theme.ts'
 #: of the subsets of the fonts)
 DESIGN_FILES = (THEME_FILE, TOKENS_FILE, PRODUCT_FILE)
 
-#: the options of each preset, when theme.yaml does not give them
-PRESETS = {
-    'workspace': {
-        'navigation': 'sidebar',
-        'density': 'comfortable',
-        'composition': {'list': 'table', 'list_phone': 'cards', 'list_card': 'split', 'forms': 'dialog'},
-    },
-    'portal': {
-        'navigation': 'topbar',
-        'density': 'comfortable',
-        'composition': {'list': 'cards', 'list_phone': 'cards', 'list_card': 'pages', 'forms': 'page'},
-    },
-}
-
-#: the controls of the forms by default, whatever the preset (`controls` of theme.yaml)
-CONTROLS = {'date': 'localized'}
 
 #: the spacing of each density: the padding of the page, the gap between the sections of a
 #: screen, the padding of the cards, of the cells of the tables, the gap between the fields
@@ -198,25 +182,6 @@ export interface Theme {
 /** The mark of the brand (`brand` of spec/design/theme.yaml): a lucide icon, or the URL of an image of frontend/public/. */
 export type BrandMark = { readonly icon: ComponentType<{ className?: string }> } | { readonly image: string };
 """
-
-
-def options(theme: dict | None) -> dict:
-    """
-    The options of theme.yaml with the defaults of its preset (`workspace` without one).
-    """
-    theme = theme or {'preset': 'workspace'}
-    preset = theme['preset']
-    defaults = PRESETS[preset]
-    return {
-        'preset': preset,
-        'navigation': theme.get('navigation', defaults['navigation']),
-        'density': theme.get('density', defaults['density']),
-        'composition': {**defaults['composition'], **theme.get('composition', {})},
-        'controls': {**CONTROLS, **theme.get('controls', {})},
-        'statuses': dict(theme.get('statuses', {})),
-        'icons': dict(theme.get('icons', {})),
-        'brand': theme.get('brand'),
-    }
 
 
 def block(selector: str, values: dict[str, str], indent: str = '') -> str:
@@ -379,7 +344,7 @@ def render(specs: Specs, frontend: Path | None = None) -> dict[str, str]:
     The generated files by their path in the frontend, from specs whose design has no errors
     (the packages of its fonts read from the frontend).
     """
-    settings = options(specs.theme)
+    settings = design.options(specs.theme)
     defined = design.effective_tokens(specs.theme, specs.tokens)
     served = faces(specs, frontend)
     return {

@@ -172,7 +172,7 @@ def test_the_defaults_of_a_preset_without_a_design():
 
 def test_the_input_of_a_date():
     # localized by default, whatever the preset; native when the design says so
-    for preset in theme.PRESETS:
+    for preset in design.PRESETS:
         text = theme.render(Specs(theme={'spec': 'bazis-design/1', 'preset': preset}))[theme.THEME_TS]
         assert '  controls: {\n    date: "localized",\n  },\n' in text
     data = {'spec': 'bazis-design/1', 'preset': 'workspace', 'controls': {'date': 'native'}}

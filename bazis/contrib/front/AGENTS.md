@@ -1015,8 +1015,8 @@ other columns stay pairs of a label and a value. The cover is not a button, the 
 an item without an image shows the icon of the entity in its place. The `per` of the `display`
 of a sum follows it smaller and muted (`3 600 ₽ / сутки`) wherever the field is shown, a table
 of the staff too: a display is of the field of the entity, not of a screen. A field has one role, and
-a list with `card` shows cards somewhere: `layout: cards`, or a phone that is not
-`layout_phone: table` (S064). The marks stay `row:<id>` and `cell:<column>` (the cover
+a list with `card` shows cards somewhere, on a wide screen or on a phone (S064: its `layout`
+and `layout_phone`, else those of the composition of the theme). The marks stay `row:<id>` and `cell:<column>` (the cover
 `data-slot="card-media"`), so `open_item` finds a card by its values as it finds a row. Without
 `card` the first column is the title, as before. A grid suits the items that are recognized by
 their picture (a catalog, a shop window); a table those that are compared by their values (the
@@ -1165,7 +1165,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S061` | error | the filter of the picker of a relationship (`filter` of a field of an entity, `filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register a route set of it, the roles that of the signed-in users of "The users that the pickers offer"), or its value does not fit the field. See "The items that a picker offers" |
 | `S062` | error | a public screen (an anonymous role in its `roles`) shows a file field (a column, a section of a card, the card of a board, the label of a calendar), and the guests read no file in the contract (`anonymous_files` of the section `uploadable`): the guest sees `file:unavailable`. The route set of the resource must serve guests and declare `files_visible = ('<field>',)` (bazis-uploadable 2.9), then export the contract again; never link the `/media` URL of a file |
 | `S063` | warning | a create form that lists its `fields` leaves out a boolean that the create route requires (`create_required` of the contract: a boolean without a default): the form sends `false` for it and the user never chooses it. Add it to `fields`, or give the field a default in the model |
-| `S064` | error | the cards of a list (`list.card`) name a field that is not in `columns`, a `media` that is not a file field with `display: image`, or one field in two roles; or the list never shows cards (`layout` is not `cards`, `layout_phone` is `table`) |
+| `S064` | error | the cards of a list (`list.card`) name a field that is not in `columns`, a `media` that is not a file field with `display: image`, or one field in two roles; or the list never shows cards (a table on both: `layout` and `layout_phone`, by default `composition.list` and `composition.list_phone` of the theme) |
 | `S065` | error | the summary of a card (`card.summary`): `range` is not two date or date-time fields, or `figure` is not a number, a decimal or a date (a field that the entity does not declare is S007) |
 | `S066` | warning | a field of the summary of a card is also in a section of it: the card shows it twice. Leave it in the summary only: the edit of the card asks for it too |
 | `D001` | error | a design file is not valid YAML or JSON |

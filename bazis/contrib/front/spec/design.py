@@ -61,6 +61,43 @@ PRESET_TOKENS = {
     'portal': {**BASE_TOKENS, 'color.accent': 'color', 'font.heading': 'fontFamily'},
 }
 
+#: the options of each preset, when theme.yaml does not give them
+PRESETS = {
+    'workspace': {
+        'navigation': 'sidebar',
+        'density': 'comfortable',
+        'composition': {'list': 'table', 'list_phone': 'cards', 'list_card': 'split', 'forms': 'dialog'},
+    },
+    'portal': {
+        'navigation': 'topbar',
+        'density': 'comfortable',
+        'composition': {'list': 'cards', 'list_phone': 'cards', 'list_card': 'pages', 'forms': 'page'},
+    },
+}
+
+#: the controls of the forms by default, whatever the preset (`controls` of theme.yaml)
+CONTROLS = {'date': 'localized'}
+
+
+def options(theme: dict | None) -> dict:
+    """
+    The options of theme.yaml with the defaults of its preset (`workspace` without one).
+    """
+    theme = theme or {'preset': 'workspace'}
+    preset = theme['preset']
+    defaults = PRESETS[preset]
+    return {
+        'preset': preset,
+        'navigation': theme.get('navigation', defaults['navigation']),
+        'density': theme.get('density', defaults['density']),
+        'composition': {**defaults['composition'], **theme.get('composition', {})},
+        'controls': {**CONTROLS, **theme.get('controls', {})},
+        'statuses': dict(theme.get('statuses', {})),
+        'icons': dict(theme.get('icons', {})),
+        'brand': theme.get('brand'),
+    }
+
+
 #: the other tokens that the components use, with the value of each when no layer defines
 #: it: {name: (type, the value, the value of the dark mode or None for the same)}
 DEFAULTS = {

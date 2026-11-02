@@ -567,7 +567,9 @@ def validate(root: Path, layers: tuple[str, ...] = LAYERS, generating: bool = Fa
     tokens_doc = load(root, tokens_path, *TOKENS, issues) if tokens_path.exists() else None
 
     product = refs.check_product(product_doc, contract, issues)
-    screens = refs.check_screens(screen_docs, product, contract, issues)
+    # the composition of the lists of the theme: the layouts of a list that does not give its own
+    composition = design.options(theme_doc.data if theme_doc is not None and theme_doc.valid else None)['composition']
+    screens = refs.check_screens(screen_docs, product, contract, composition, issues)
     refs.check_navigation(product_doc, screens, product, contract, issues)
     refs.check_anonymous_roles(product_doc, screens, product, issues)
     check_screen_code(root, screen_docs, issues, generating)

@@ -2025,6 +2025,20 @@ CASES = [
         [('S064', f'{LIST}#/list/card/title')],
     ),
     (
+        'S064',
+        # a list without its layout on a wide screen shows the cards of the composition of the theme
+        {THEME: lambda d: d['composition'].update(list='cards'),
+         LIST: lambda d: d['list'].update(card={'title': 'title'}, layout_phone='table')},
+        [],
+    ),
+    (
+        'S064',
+        # nor on a phone, where the theme makes it a table too
+        {THEME: lambda d: d['composition'].update(list_phone='table'),
+         LIST: lambda d: d['list'].update(card={'title': 'title'})},
+        [('S064', f'{LIST}#/list/card')],
+    ),
+    (
         'S065',
         # a range of three fields, one of them not a date, and a text as the figure (both also in
         # the section: S066)
