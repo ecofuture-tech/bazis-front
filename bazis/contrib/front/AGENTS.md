@@ -2632,8 +2632,12 @@ surface, starters of the package named in `theme.yaml`), the tokens of a brand o
 and a few options, compiled into the frontend. `init` generates the theme; generate it again
 after every change of `spec/design/` (and after `bazis_front update`). The text depends on
 the design only: `--check` and the system check `front.W005` (when the lock has `design`;
-without Node and the database) render it again and compare it byte for byte; `front.W005`
-also reports a frontend with components and no theme (an `init` whose design had errors).
+without Node and the database) render it again and compare it byte for byte, the font files
+by their hashes; `front.W005` also reports a frontend with components and no theme (an `init`
+whose design had errors). A font package (`font.package`) is read from `node_modules`: `design`
+needs it installed; without it (a CI without `npm install`) both compare the theme and the
+fonts with the hashes of the lock and report a design changed since, but not a new version of
+bazis-front or of the package: `design --check` with the package installed shows it.
 The generated files are never edited. The design must have no errors (`bazis_front check
 --layer design`).
 

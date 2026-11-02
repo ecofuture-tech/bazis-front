@@ -84,6 +84,13 @@ class FontError(Exception):
     """
 
 
+class FontNotInstalledError(FontError):
+    """
+    The package of a font is not installed in the frontend (no `npm install`): `design` cannot
+    copy its files, while its checks compare the theme by the hashes of the lock.
+    """
+
+
 @dataclass(frozen=True)
 class Family:
     """
@@ -155,7 +162,7 @@ def package(frontend: Path, name: str, axes: list[str], fallback: dict | None) -
         metadata = json.loads((directory / 'metadata.json').read_text(encoding='utf-8'))
         ranges = json.loads((directory / 'unicode.json').read_text(encoding='utf-8'))
     except (OSError, ValueError, KeyError) as err:
-        raise FontError(
+        raise FontNotInstalledError(
             f'The font package {name} is not installed in {frontend}/node_modules: run `npm install {name}` '
             'in the frontend, then generate the theme again.'
         ) from err
@@ -178,7 +185,7 @@ def family_of(font: dict, frontend: Path | None) -> Family:
     if 'starter' in font:
         return starter(font['starter'])
     if frontend is None:
-        raise FontError(f'The font package {font["package"]} is read from the frontend, which there is none of.')
+        raise FontNotInstalledError(f'The font package {font["package"]} is read from the frontend, which there is none of.')
     return package(frontend, font['package'], font.get('axes', ['wght']), font.get('fallback'))
 
 

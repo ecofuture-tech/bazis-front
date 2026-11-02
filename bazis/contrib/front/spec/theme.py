@@ -360,29 +360,40 @@ def font_files(specs: Specs, frontend: Path | None = None) -> dict[str, Traversa
     return fonts.font_files(faces(specs, frontend))
 
 
-def stale_fonts(frontend: Path, sources: dict[str, Traversable]) -> list[str]:
-    """The font files that are missing in the frontend or differ from their sources."""
-    return [
-        path for path, source in sources.items()
-        if not (target := frontend / path).is_file() or target.read_bytes() != source.read_bytes()
-    ]
+def font_hashes(sources: dict[str, Traversable]) -> dict[str, str]:
+    """The hashes of the font files that the frontend serves, by their path in the frontend."""
+    return {path: frontend_lock.digest(source.read_bytes()) for path, source in sources.items()}
 
 
-def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str], sources: dict[str, Traversable]) -> list[str]:
+def stale(root: Path, frontend: Path, lock: dict, specs: Specs) -> list[str]:
     """
     Why the theme of the frontend differs from that of the specs, one message for each;
-    empty when it is current. The files are compared byte for byte.
+    empty when it is current. The generated files are compared byte for byte, the font files by
+    the hashes of their sources. Without a font package in the frontend (a check without
+    `npm install`) both are compared by the hashes of the lock, and a change of the design since
+    it was generated is stale; an update of the generator or of the package is not seen then.
     """
-    names = frontend_lock.stale_files(frontend, rendered)
-    copies = stale_fonts(frontend, sources)
-    if not names and not copies:
+    recorded = lock.get('design', {})
+    try:
+        rendered: dict[str, str] | None = render(specs, frontend)
+        expected = font_hashes(font_files(specs, frontend))
+    except fonts.FontNotInstalledError:
+        rendered, expected = None, recorded.get('fonts', {})
+    except fonts.FontError as err:
+        return [str(err)]
+    names = (
+        frontend_lock.stale_hashes(frontend, recorded.get('generated', {})) if rendered is None
+        else frontend_lock.stale_files(frontend, rendered)
+    )
+    copies = frontend_lock.stale_hashes(frontend, expected)
+    changed, edited = frontend_lock.generation_changes(
+        recorded, frontend_lock.file_hashes(root, DESIGN_FILES), frontend, names
+    )
+    if not names and not copies and (rendered is not None or not changed):
         return []
     problems = [f'The theme of {frontend} is stale: {", ".join(names)}.'] if names else []
     if copies:
         problems.append(f'The fonts of the theme are stale: {", ".join(copies)}.')
-    changed, edited = frontend_lock.generation_changes(
-        lock.get('design', {}), frontend_lock.file_hashes(root, DESIGN_FILES), frontend, names
-    )
     if changed:
         problems.append(f'The design changed since it was generated: {", ".join(changed)}.')
     if edited:
@@ -397,11 +408,12 @@ def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str], sour
     the hashes of the design, of the files and of the fonts in the lock.
     """
     frontend_lock.write_files(frontend, rendered)
-    for path in stale_fonts(frontend, sources):
+    hashes = font_hashes(sources)
+    for path in frontend_lock.stale_hashes(frontend, hashes):
         target = frontend / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(sources[path].read_bytes())
     lock['design'] = frontend_lock.generation(frontend_lock.file_hashes(root, DESIGN_FILES), rendered)
-    if sources:
-        lock['design']['fonts'] = {path: frontend_lock.digest(source.read_bytes()) for path, source in sources.items()}
+    if hashes:
+        lock['design']['fonts'] = hashes
     frontend_lock.write(frontend, lock)

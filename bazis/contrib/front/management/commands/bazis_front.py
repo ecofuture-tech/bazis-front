@@ -718,8 +718,7 @@ class Command(BaseCommand):
         frontend = frontend_lock.frontend_dir()
         lock = require_lock(frontend)
         if check:
-            rendered, sources = self.render_theme(frontend)
-            if problems := design_theme.stale(Path(settings.BASE_DIR), frontend, lock, rendered, sources):
+            if problems := design_theme.stale(Path(settings.BASE_DIR), frontend, lock, self.design_specs()):
                 raise CommandError(
                     '\n'.join(problems)
                     + '\nGenerate it with `manage.py bazis_front design`; never edit it.'
@@ -728,11 +727,8 @@ class Command(BaseCommand):
             return
         self.generate_theme(frontend, lock)
 
-    def render_theme(self, frontend: Path) -> tuple[dict[str, str], dict]:
-        """
-        The theme of the design of the specs and the sources of its font files; fails with the
-        issues of a design with errors, or with a font package that the frontend lacks.
-        """
+    def design_specs(self) -> spec_validate.Specs:
+        """The specs of a design that `check` accepts; fails with the issues of one with errors."""
         result = spec_validate.validate(Path(settings.BASE_DIR), ('design',))
         if errors := [it for it in result.errors if it.layer == 'design']:
             self.write_issue_lines(errors)
@@ -740,13 +736,15 @@ class Command(BaseCommand):
                 f'The design has {len(errors)} errors: the theme is generated from a design '
                 'that `bazis_front check` accepts.'
             )
-        try:
-            return design_theme.render(result.specs, frontend), design_theme.font_files(result.specs, frontend)
-        except FontError as err:
-            raise CommandError(str(err)) from err
+        return result.specs
 
     def generate_theme(self, frontend: Path, lock: dict) -> None:
-        rendered, sources = self.render_theme(frontend)
+        """The theme of the design of the specs; fails with a font package that the frontend lacks."""
+        specs = self.design_specs()
+        try:
+            rendered, sources = design_theme.render(specs, frontend), design_theme.font_files(specs, frontend)
+        except FontError as err:
+            raise CommandError(str(err)) from err
         design_theme.write(Path(settings.BASE_DIR), frontend, lock, rendered, sources)
         fonts = f' Copied the fonts: {", ".join(sorted({it.rsplit("/", 1)[0] for it in sources}))}.' if sources else ''
         self.stdout.write(f'Generated the theme of {frontend}: {", ".join(rendered)}.{fonts}')

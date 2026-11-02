@@ -702,9 +702,10 @@ def test_a_font_package_of_the_frontend(root):
                                            'fallback': {'local': ['Arial'], 'size_adjust': '101%', 'ascent_override': '90%',
                                                         'descent_override': '22%', 'line_gap_override': '0%'}}}},
     }
-    tokens_path.write_text(json.dumps(tokens), encoding='utf-8')
+    generated = json.dumps(tokens)
+    tokens_path.write_text(generated, encoding='utf-8')
     assert [it for it in validate(root).issues if it.layer == 'design'] == []
-    # not installed: the command tells to install it, and so does the system check
+    # not installed: the command tells to install it
     with pytest.raises(CommandError, match='npm install @fontsource-variable/brand-sans'):
         generate()
     write_package(frontend, {'wght': {'min': '300', 'max': '800'}})
@@ -727,9 +728,32 @@ def test_a_font_package_of_the_frontend(root):
     tokens_path.write_text(json.dumps(tokens), encoding='utf-8')
     with pytest.raises(CommandError, match='has no subset greek'):
         generate()
+    # not installed (a check without `npm install`): the theme and the fonts by the hashes of the lock
+    tokens_path.write_text(generated, encoding='utf-8')
     shutil.rmtree(frontend / 'node_modules')
+    assert check_design(None) == []
+    assert 'up to date' in generate('--check')
+    served = frontend / 'public' / 'fonts' / 'brand-sans-5.1.0' / 'brand-sans-latin-wght-normal.woff2'
+    served.write_bytes(b'edited')
     [warning] = check_design(None)
-    assert warning.id == 'front.W005' and 'is not installed' in warning.msg
+    assert warning.id == 'front.W005'
+    assert warning.msg == 'The fonts of the theme are stale: public/fonts/brand-sans-5.1.0/brand-sans-latin-wght-normal.woff2.'
+    served.write_bytes(b'latin')
+    css_path = frontend / theme.FONTS_CSS
+    css_path.write_text(css + '\n', encoding='utf-8')
+    [warning] = check_design(None)
+    assert warning.msg == (f'The theme of {frontend} is stale: {theme.FONTS_CSS}. '
+                           f'Edited after it was generated: {theme.FONTS_CSS}.')
+    css_path.write_text(css, encoding='utf-8')
+    assert check_design(None) == []
+    tokens['font']['body']['$extensions']['bazis']['font'].update(subsets=['latin'])
+    tokens_path.write_text(json.dumps(tokens), encoding='utf-8')
+    [warning] = check_design(None)
+    assert warning.msg == 'The design changed since it was generated: spec/design/tokens.json.'
+    with pytest.raises(CommandError, match='The design changed since it was generated'):
+        generate('--check')
+    with pytest.raises(CommandError, match='npm install @fontsource-variable/brand-sans'):
+        generate()
 
 
 @pytest.mark.django_db

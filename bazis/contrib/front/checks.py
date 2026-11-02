@@ -267,15 +267,14 @@ def check_design(app_configs, **kwargs):
     The theme generated in the frontend (when its lock records it: `bazis_front init` and
     `bazis_front design` write it) is that of the design of the specs: the comparison of
     `bazis_front design --check`, without Node and without the database, with the font files
-    that it serves. A design with errors is not compared: `front.W002` reports its issues. A
-    frontend with components and no theme in its lock (made by an `init` whose design had
-    errors) is reported too: its components import the theme; and a font package that the
-    frontend lacks.
+    that it serves (by the hashes of the lock without a font package in the frontend). A design
+    with errors is not compared: `front.W002` reports its issues. A frontend with components and
+    no theme in its lock (made by an `init` whose design had errors) is reported too: its
+    components import the theme.
     """
     from django.conf import settings
 
     from .spec import theme, validate
-    from .spec.fonts import FontError
     from .vendor import lock as frontend_lock
     from .vendor import registry
 
@@ -300,13 +299,7 @@ def check_design(app_configs, **kwargs):
     result = validate.validate(root, ('design',))
     if any(it.layer == 'design' for it in result.errors):
         return []
-    try:
-        problems = theme.stale(
-            root, frontend, lock, theme.render(result.specs, frontend), theme.font_files(result.specs, frontend)
-        )
-    except FontError as err:
-        problems = [str(err)]
-    if problems:
+    if problems := theme.stale(root, frontend, lock, result.specs):
         return [
             Warning(
                 ' '.join(problems),
