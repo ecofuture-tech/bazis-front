@@ -47,7 +47,7 @@ The components look as the design of the product says (`spec/design/`, compiled 
 `manage.py bazis_front design` into `src/bazis/generated/theme.css` and `theme.ts`):
 
 - colors, radii and fonts only through the Tailwind classes of the tokens (`bg-primary`,
-  `text-muted-foreground`, `bg-success-soft text-success-ink`, `rounded-lg`, `font-display`),
+  `text-muted-foreground`, `bg-success-soft text-success-ink`, `rounded-lg`, `font-heading`),
   never literal colors (the shadcn/ui files keep theirs), so that a brand and the dark mode
   apply everywhere; the spacing of the density through its variables (`p-(--space-card)`,
   `py-(--space-cell-y)`);

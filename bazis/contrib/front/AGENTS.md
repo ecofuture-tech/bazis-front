@@ -2658,8 +2658,8 @@ The generated files are never edited. The design must have no errors (`bazis_fro
   `font-heading` and `font-subheading` and the base styles of the preset (`h1`–`h3` in
   `font.heading`, the variables of the sidebar).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
-  `density`, `composition`, `statuses`, `icons`, `brand`, and `dark`: whether the user
-  switches to a dark mode).
+  `density`, `composition`, `controls`, `statuses`, `icons`, `brand`, and `dark`: whether the
+  user switches to a dark mode).
 
 | Token (its CSS variable `--<name>`) | When no layer defines it |
 |---|---|
@@ -2767,7 +2767,8 @@ read their defaults from `THEME`; pass a prop (`layout`, `mode`, `forms`,
 **Colors, radii and fonts only through the tokens.** Use the Tailwind classes of the
 theme: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border`,
 `bg-primary text-primary-foreground`, `bg-primary-soft text-primary-ink` (and `success`,
-`warning`, `info`, `danger`, `neutral`), `rounded-lg`, `font-display`. Never a color of the
+`warning`, `info`, `danger`, `neutral`), `rounded-lg`, a heading in `font-heading` or
+`font-subheading` (not `font-display`, the family alone). Never a color of the
 Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)`) or
 `style={{ color }}`: they break the brand and the dark mode. A color the product needs is a token
 (`color.highlight` in `tokens.json` is `bg-highlight`).
