@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# The home: the tasks by status and by week, their hours by month, the last ones, and a task
+# The home: the tasks by status and by week, their hours by month, the last open ones, and a task
 # created from here; the drafts and the hours are shown to those who may add a task.
 spec: bazis-screen/1
 id: home
@@ -22,7 +22,8 @@ dashboard:
     - {id: created-by-week, entity: task, by: dt_created, bucket: week, last: 12, kind: bar, label: {en: Created by week, ru: Созданы по неделям}}
     - {id: hours-by-month, entity: task, by: dt_created, bucket: month, last: 6, kind: line, value: {sum: hours}, requires: {can: add}, label: {en: Hours by month, ru: Часы по месяцам}}
   recent:
-    - {id: last-tasks, entity: task, columns: [title, status, dt_created], sort: [-dt_created], limit: 5, open: task-card, label: {en: The last tasks, ru: Последние задачи}}
+    # those not done yet (a negation of the filter: `~status=done` of the core)
+    - {id: last-tasks, entity: task, columns: [title, status, dt_created], sort: [-dt_created], limit: 5, filter: {status: {not: done}}, open: task-card, label: {en: The last open tasks, ru: Последние открытые задачи}}
   actions:
     - id: create
       primitive: form

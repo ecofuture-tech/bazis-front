@@ -798,12 +798,12 @@ CASES = [
         'S008',
         {CONTRACT: remove_labels},
         # the filter of the drafts (a report) is by the status too, and so are the tiles of the
-        # home, its chart by status and the columns of the board; its last tasks are sorted, as
-        # the public list
+        # home, its chart by status, its last tasks and the columns of the board; its last tasks
+        # are sorted, as the public list
         [('S008', f'{DRAFTS}#/list/filter/status'), ('S008', f'{DRAFTS}#/list/sort/0'),
          ('S008', f'{HOME}#/dashboard/tiles/0/filter/status'), ('S008', f'{HOME}#/dashboard/tiles/1/filter/status'),
          ('S008', f'{HOME}#/dashboard/tiles/2/filter/status'), ('S008', f'{HOME}#/dashboard/charts/0/by'),
-         ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{PUBLIC}#/list/sort/0'), ('S008', f'{BOARD}#/board/by'),
+         ('S008', f'{HOME}#/dashboard/recent/0/filter/status'), ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{PUBLIC}#/list/sort/0'), ('S008', f'{BOARD}#/board/by'),
          ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0')],
     ),
     ('S009', {LIST: lambda d: d['states'].remove('empty')}, [('S009', f'{LIST}#/states')]),
@@ -1897,6 +1897,33 @@ CASES = [
             'dt_created': 'today', 'dt_created__lt': 'today 10:00', 'dt_created__gt': '2026-01-01',
             'dt_created__lte': 'month_end+1', 'due__gte': '01.01.2026'})},
         [('S014', f'{LIST}#/list/filter/dt_created__lt'), ('S014', f'{LIST}#/list/filter/due__gte')],
+    ),
+    (
+        'S014',
+        # a set of values and a negation: each value of the type of the field; a lookup takes one
+        # value; the filter of the last items of a dashboard too
+        {LIST: lambda d: d['list'].update(filter={
+            'status': ['draft', 'done'], 'priority': {'not': ['low', 'today']}, 'title': {'not': 'Review'},
+            'due__gte': ['today', 'today+1'], 'dt_created__lt': {'not': 'today'}, 'assignee': [True]}),
+         HOME: lambda d: d['dashboard']['recent'][0].update(filter={'title': {'not': [1]}, 'status': {'not': 'done'}})},
+        [('S014', f'{HOME}#/dashboard/recent/0/filter/title'),
+         ('S014', f'{LIST}#/list/filter/priority'), ('S014', f'{LIST}#/list/filter/due__gte'),
+         ('S014', f'{LIST}#/list/filter/dt_created__lt'), ('S014', f'{LIST}#/list/filter/assignee')],
+    ),
+    (
+        'S007',
+        # the filter of the last items names fields of their entity
+        {HOME: lambda d: d['dashboard']['recent'][0].update(filter={'rank': ['a', 'b']})},
+        [('S007', f'{HOME}#/dashboard/recent/0/filter/rank')],
+    ),
+    (
+        'S002',
+        # no empty set of values, no negation of a negation, no other key than `not`
+        {LIST: lambda d: d['list'].update(filter={'status': []}),
+         HOME: lambda d: [d['dashboard']['tiles'][0].update(filter={'status': {'not': {'not': 'done'}}}),
+                          d['dashboard']['tiles'][1].update(filter={'status': {'none': 'done'}})]},
+        [('S002', f'{HOME}#/dashboard/tiles/0/filter/status'), ('S002', f'{HOME}#/dashboard/tiles/1/filter/status'),
+         ('S002', f'{LIST}#/list/filter/status')],
     ),
     (
         'S008',

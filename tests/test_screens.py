@@ -399,11 +399,24 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "            tone: { field: 'urgent', tone: 'danger' },\n" in schedule
     assert '      <CreateFormAction\n        {...addForm}\n' in schedule
 
-    # a dashboard of two entities: a tile of two conditions, a tile with its own icon, a tile of
-    # the latest date of a field, a chart by a date, one of an average, the forms of both, one
-    # then the home
+    # a dashboard of two entities: the day of today and no links (props that the extension may
+    # override), a tile of two conditions, a tile of a set of statuses and one of a negation, a
+    # tile with its own icon, a tile of the latest date of a field, a chart by a date, one of an
+    # average, the last items of a filter, the forms of both, one then the home
     overview = files[f'{screens.GENERATED_DIR}/overview.tsx']
+    assert '        {\n          today: true,\n          links: [],\n          tiles: [\n' in overview
     assert "filter: Filter.and(Filter.where('status', 'in_progress'), Filter.where('title', 'Review the plan'))," in overview
+    assert "filter: Filter.or(Filter.where('status', 'draft'), Filter.where('status', 'in_progress'))," in overview
+    assert (
+        '              filter: Filter.and(\n'
+        "                Filter.not(Filter.where('status', 'done')),\n"
+        "                Filter.where('due__lt', relativeDay('month_end+1', 'date-time')),\n"
+        '              ),\n'
+    ) in overview
+    assert (
+        "              columns: ['title', 'status'],\n"
+        "              filter: Filter.not(Filter.or(Filter.where('status', 'done'), Filter.where('status', 'in_progress'))),\n"
+    ) in overview
     assert "label: t('async.processing')," in overview
     assert "import { FootprintsIcon, PlusIcon } from 'lucide-react';\n" in overview
     assert '              icon: FootprintsIcon,\n' in overview

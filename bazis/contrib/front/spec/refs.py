@@ -2465,7 +2465,18 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
     for key, value in section.get('filter', {}).items():
         name, lookup = filter_field(key)
         actual = resource['fields'].get(name)
-        problem = _filter_value_problem(value, lookup, actual) if actual is not None else None
+        if actual is None:
+            continue
+        if lookup is not None and not is_filter_scalar(value):
+            issues.add(
+                doc, (*path, 'filter', key), 'S014',
+                f'`{key}` compares the field `{name}` with one value, not with {value!r}.',
+                f'Give `{key}` one value; a list `[a, b]` (any of them) and `{{not: …}}` (none of them) are of a '
+                f'key without a lookup, `{name}`.',
+            )
+            continue
+        problems = (_filter_value_problem(it, lookup, actual) for it in filter_scalars(value))
+        problem = next((it for it in problems if it is not None), None)
         if problem is not None:
             issues.add(
                 doc, (*path, 'filter', key), 'S014',
@@ -2494,6 +2505,18 @@ def filter_field(key: str) -> tuple[str, str | None]:
     """The field and the lookup of a key of the filter of a list or a tile: `date_from__gte` is `date_from`, `gte`."""
     name, _, lookup = key.rpartition('__')
     return (name, lookup) if name and lookup in LOOKUPS else (key, None)
+
+
+def is_filter_scalar(value) -> bool:
+    """Whether a value of a filter is one value, not a list of them (any) or `{not: …}` (none)."""
+    return not isinstance(value, list | dict)
+
+
+def filter_scalars(value) -> list:
+    """The values of a value of a filter: one, those of a list, those of `{not: …}`."""
+    if isinstance(value, dict):
+        value = value['not']
+    return value if isinstance(value, list) else [value]
 
 
 def _filter_value_problem(value, lookup: str | None, field: dict) -> tuple[str, str] | None:
