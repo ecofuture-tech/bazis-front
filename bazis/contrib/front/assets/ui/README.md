@@ -239,11 +239,14 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   list for the screen readers under bars and a line).
 - **`date-picker`**: under `DatePickerProvider`, the date fields of the forms and the ranges
   of the date filters (`DateInput` of `resource`, a plain `<input type="date">` without it)
-  are the input of the browser, marked as the input it replaces (a scenario fills it with
-  `2026-10-07`), with a button that opens the month of the date in a popover (`calendar` of
-  shadcn/ui on react-day-picker, `calendar-view.tsx`, lazy; the names of the months and the
-  days of `Intl`, the first day of the week of the language). A read-only input has no
-  button.
+  are a text in the numeric format of the language (`controls.date: localized` of the theme,
+  the default: `02.11.2026`, typed in that order with any separator or as `2026-11-02`, an
+  invalid or a partial date ignored until it is whole), or the input of the browser
+  (`controls.date: native`; the prop `mode`), marked as the input it replaces and `data-input="date"` (a
+  scenario fills it with `2026-10-07` either way), with a button that opens the month of the
+  date in a popover (`calendar` of shadcn/ui on react-day-picker, `calendar-view.tsx`, lazy;
+  the names of the months and the days of `Intl`, the first day of the week of the language).
+  A read-only input has no button.
 - **`resource-board`** (`primitive: board`, a statusy model): a column `column:<status>` per
   status (`columns`, those of the workflow by default; the number of its items in
   `data-count`), a list of one page per column filtered by its status (`action:more` adds a
