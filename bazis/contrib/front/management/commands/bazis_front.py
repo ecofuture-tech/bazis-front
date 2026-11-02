@@ -745,7 +745,7 @@ class Command(BaseCommand):
             rendered, sources = design_theme.render(specs, frontend), design_theme.font_files(specs, frontend)
         except FontError as err:
             raise CommandError(str(err)) from err
-        design_theme.write(Path(settings.BASE_DIR), frontend, lock, rendered, sources)
+        design_theme.write(Path(settings.BASE_DIR), frontend, lock, specs, rendered, sources)
         fonts = f' Copied the fonts: {", ".join(sorted({it.rsplit("/", 1)[0] for it in sources}))}.' if sources else ''
         self.stdout.write(f'Generated the theme of {frontend}: {", ".join(rendered)}.{fonts}')
 

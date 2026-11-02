@@ -405,7 +405,7 @@ def test_design_writes_the_theme_and_the_lock(root):
         assert (frontend / path).read_text(encoding='utf-8') == text
     lock = read_lock(root)
     assert lock['design'] == {
-        'spec': {path: digest((root / path).read_bytes()) for path in theme.DESIGN_FILES},
+        'spec': theme.design_hashes(root, validate(root).specs),
         'generated': {path: digest(text.encode('utf-8')) for path, text in files.items()},
     }
     out = generate()
@@ -745,6 +745,18 @@ def test_a_font_package_of_the_frontend(root):
     assert warning.msg == (f'The theme of {frontend} is stale: {theme.FONTS_CSS}. '
                            f'Edited after it was generated: {theme.FONTS_CSS}.')
     css_path.write_text(css, encoding='utf-8')
+    assert check_design(None) == []
+    # of product.yaml, only the languages and the currencies choose the fonts
+    product_path = root / 'spec' / 'product.yaml'
+    product_text = product_path.read_text(encoding='utf-8')
+    product_path.write_text(product_text.replace('summary: The tasks', 'summary: All the tasks'), encoding='utf-8')
+    assert check_design(None) == []
+    assert 'up to date' in generate('--check')
+    # the first language is preloaded
+    product_path.write_text(product_text.replace('languages: [en, ru]', 'languages: [ru, en]'), encoding='utf-8')
+    [warning] = check_design(None)
+    assert warning.msg == 'The design changed since it was generated: spec/product.yaml.'
+    product_path.write_text(product_text, encoding='utf-8')
     assert check_design(None) == []
     tokens['font']['body']['$extensions']['bazis']['font'].update(subsets=['latin'])
     tokens_path.write_text(json.dumps(tokens), encoding='utf-8')

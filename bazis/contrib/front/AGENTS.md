@@ -2636,7 +2636,8 @@ without Node and the database) render it again and compare it byte for byte, the
 by their hashes; `front.W005` also reports a frontend with components and no theme (an `init`
 whose design had errors). A font package (`font.package`) is read from `node_modules`: `design`
 needs it installed; without it (a CI without `npm install`) both compare the theme and the
-fonts with the hashes of the lock and report a design changed since, but not a new version of
+fonts with the hashes of the lock and report a design changed since (of `product.yaml`, its
+languages and currencies only: they choose the subsets), but not a new version of
 bazis-front or of the package: `design --check` with the package installed shows it.
 The generated files are never edited. The design must have no errors (`bazis_front check
 --layer design`).

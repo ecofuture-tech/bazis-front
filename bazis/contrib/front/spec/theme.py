@@ -38,9 +38,10 @@ layers (`design.WITHOUT_THEME`). The text
 depends on the specs only (the subsets of the fonts and the file to preload on the languages
 and the currencies of product.yaml): `--check` and `front.W005` render it again and compare
 it byte for byte, and the font files with their sources, without Node and the database; the
-lock records the hashes of the specs and of the files (`design`).
+lock records the hashes of the design (`design_hashes`) and of the files (`design`).
 """
 
+import json
 from importlib.resources.abc import Traversable
 from pathlib import Path
 
@@ -56,11 +57,6 @@ FONTS_CSS = f'{GENERATED_DIR}/fonts.css'
 FONTS_TS = f'{GENERATED_DIR}/fonts.ts'
 THEME_CSS = f'{GENERATED_DIR}/theme.css'
 THEME_TS = f'{GENERATED_DIR}/theme.ts'
-
-#: the files of the design in the product root (product.yaml: the languages and the currencies
-#: of the subsets of the fonts)
-DESIGN_FILES = (THEME_FILE, TOKENS_FILE, PRODUCT_FILE)
-
 
 #: the spacing of each density: the padding of the page, the gap between the sections of a
 #: screen, the padding of the cards, of the cells of the tables, the gap between the fields
@@ -365,6 +361,19 @@ def font_hashes(sources: dict[str, Traversable]) -> dict[str, str]:
     return {path: frontend_lock.digest(source.read_bytes()) for path, source in sources.items()}
 
 
+def design_hashes(root: Path, specs: Specs) -> dict[str, str]:
+    """
+    The hashes of the design, by path in the product root: those of the files of spec/design/,
+    and of product.yaml that of its languages and currencies only, which choose the subsets of
+    the fonts and the file to preload (another change of it leaves the theme current).
+    """
+    hashes = frontend_lock.file_hashes(root, (THEME_FILE, TOKENS_FILE))
+    if specs.product is not None:
+        fonts_input = {'languages': fonts.languages(specs.product), 'currencies': sorted(fonts.currencies(specs.product))}
+        hashes[PRODUCT_FILE] = frontend_lock.digest(json.dumps(fonts_input).encode('utf-8'))
+    return hashes
+
+
 def stale(root: Path, frontend: Path, lock: dict, specs: Specs) -> list[str]:
     """
     Why the theme of the frontend differs from that of the specs, one message for each;
@@ -387,7 +396,7 @@ def stale(root: Path, frontend: Path, lock: dict, specs: Specs) -> list[str]:
     )
     copies = frontend_lock.stale_hashes(frontend, expected)
     changed, edited = frontend_lock.generation_changes(
-        recorded, frontend_lock.file_hashes(root, DESIGN_FILES), frontend, names
+        recorded, design_hashes(root, specs), frontend, names
     )
     if not names and not copies and (rendered is not None or not changed):
         return []
@@ -401,7 +410,9 @@ def stale(root: Path, frontend: Path, lock: dict, specs: Specs) -> list[str]:
     return problems
 
 
-def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str], sources: dict[str, Traversable]) -> None:
+def write(
+    root: Path, frontend: Path, lock: dict, specs: Specs, rendered: dict[str, str], sources: dict[str, Traversable]
+) -> None:
     """
     Writes the theme and copies the font files that are missing or differ from their sources
     (those of the other versions of a family are kept: the product may serve them), and records
@@ -413,7 +424,7 @@ def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str], sour
         target = frontend / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(sources[path].read_bytes())
-    lock['design'] = frontend_lock.generation(frontend_lock.file_hashes(root, DESIGN_FILES), rendered)
+    lock['design'] = frontend_lock.generation(design_hashes(root, specs), rendered)
     if hashes:
         lock['design']['fonts'] = hashes
     frontend_lock.write(frontend, lock)
