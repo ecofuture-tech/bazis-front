@@ -121,6 +121,7 @@ export function HomeScreen() {
           columns: ['title', 'status', 'dt_created'],
           sort: ['-dt_created'],
           limit: 5,
+          filter: Filter.not(Filter.where('status', 'done')),
           display: TASK.display,
           onOpen: (item) => void navigate(routeTo('task-card', item)),
         },

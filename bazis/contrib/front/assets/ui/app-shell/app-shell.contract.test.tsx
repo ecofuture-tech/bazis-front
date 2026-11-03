@@ -28,7 +28,7 @@ import { Route, Routes, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { THEME } from '@/bazis/generated/theme';
-import { AppShell, ListCardLayout, Screen, setColorMode, useNavItems } from '@/bazis/ui/app-shell';
+import { AppShell, Brand, ListCardLayout, Screen, setColorMode, useNavItems } from '@/bazis/ui/app-shell';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 const items = [
@@ -429,6 +429,60 @@ describe('AppShell', () => {
       expect(screen.getAllByAltText('Acme').length).toBeGreaterThan(0);
       fireEvent.click(screen.getByRole('button', { name: 'Open the menu' }));
       expect(screen.getByRole('dialog').querySelector('[data-slot="sheet-title"] img')?.getAttribute('alt')).toBe('Acme');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('marks the brand with its icon, its image or the first letter of the name', () => {
+    const Mark = ({ className }: { className?: string }) => <svg data-testid="mark" className={className} />;
+    const marks = (brand: Parameters<typeof AppShell>[0]['brand']) => {
+      const { container, unmount } = renderWithBazis(
+        <AppShell title="Product" navigation="topbar" brand={brand} items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      const mark = container.querySelector('[data-slot="brand-mark"]');
+      const found = { icon: mark?.querySelector('[data-testid="mark"]') !== null, image: mark?.querySelector('img')?.getAttribute('src'), text: mark?.textContent };
+      unmount();
+      return found;
+    };
+    expect(marks({ icon: Mark })).toEqual({ icon: true, image: undefined, text: '' });
+    expect(marks({ image: '/brand/mark.svg' })).toEqual({ icon: false, image: '/brand/mark.svg', text: '' });
+    expect(marks(null)).toEqual({ icon: false, image: undefined, text: 'P' });
+  });
+
+  it('gives the login screen the mark of the shell, larger', () => {
+    const { container } = renderWithBazis(<Brand title="Acme" mark={null} large />, new Backend());
+    const mark = container.querySelector('[data-slot="brand-mark"]');
+    expect(mark?.classList).toContain('bg-brand');
+    expect(mark?.classList).toContain('size-10');
+    expect(mark?.textContent).toBe('A');
+    expect(screen.getByTitle('Acme').textContent).toBe('Acme');
+    // the two lines of a long name stay tight, in the shell and on the login screen
+    expect(screen.getByTitle('Acme').classList).toContain('leading-tight');
+  });
+
+  it('gives the sidebar and the drawer of a phone the colors of the sidebar', () => {
+    const wide = renderWithBazis(
+      <AppShell title="Product" navigation="sidebar" items={items}>
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      new Backend(),
+    );
+    expect(screen.getByTestId('nav:home').closest('aside')?.getAttribute('data-slot')).toBe('sidebar');
+    wide.unmount();
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    try {
+      renderWithBazis(
+        <AppShell title="Phone" navigation="sidebar" items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Open the menu' }));
+      expect(screen.getByRole('dialog').getAttribute('data-slot')).toBe('sidebar');
     } finally {
       vi.unstubAllGlobals();
     }

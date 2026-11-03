@@ -798,12 +798,12 @@ CASES = [
         'S008',
         {CONTRACT: remove_labels},
         # the filter of the drafts (a report) is by the status too, and so are the tiles of the
-        # home, its chart by status and the columns of the board; its last tasks are sorted, as
-        # the public list
+        # home, its chart by status, its last tasks and the columns of the board; its last tasks
+        # are sorted, as the public list
         [('S008', f'{DRAFTS}#/list/filter/status'), ('S008', f'{DRAFTS}#/list/sort/0'),
          ('S008', f'{HOME}#/dashboard/tiles/0/filter/status'), ('S008', f'{HOME}#/dashboard/tiles/1/filter/status'),
          ('S008', f'{HOME}#/dashboard/tiles/2/filter/status'), ('S008', f'{HOME}#/dashboard/charts/0/by'),
-         ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{PUBLIC}#/list/sort/0'), ('S008', f'{BOARD}#/board/by'),
+         ('S008', f'{HOME}#/dashboard/recent/0/filter/status'), ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{PUBLIC}#/list/sort/0'), ('S008', f'{BOARD}#/board/by'),
          ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0')],
     ),
     ('S009', {LIST: lambda d: d['states'].remove('empty')}, [('S009', f'{LIST}#/states')]),
@@ -1024,6 +1024,26 @@ CASES = [
         {PRODUCT: lambda d: [task(d)['fields'][0].update(display='phone'),
                              d['entities'][1]['fields'][0].update(display={'currency': 'RUB'})]},
         [],
+    ),
+    (
+        'S020',
+        # the cents and what a sum is for are of a currency, not of a unit (whose first key is
+        # not the kind)
+        {PRODUCT: lambda d: [field(task(d), 'hours').update(display={'fraction': 'always', 'unit': 'h', 'per': {'en': 'day', 'ru': 'день'}}),
+                             d['entities'][1]['fields'][0].update(display={'fraction': 'auto', 'currency': 'RUB', 'per': {'en': 'day', 'ru': 'сутки'}})]},
+        [('S020', f'{PRODUCT}#/entities/0/fields/9/display/fraction'), ('S020', f'{PRODUCT}#/entities/0/fields/9/display/per')],
+    ),
+    (
+        'S027',
+        # what a sum is for is a text of the interface, in each language
+        {PRODUCT: lambda d: d['entities'][1]['fields'][0].update(display={'currency': 'RUB', 'per': 'day'})},
+        [('S027', f'{PRODUCT}#/entities/1/fields/0/display/per')],
+    ),
+    (
+        'P002',
+        # the cents of a sum are `auto` or `always`
+        {PRODUCT: lambda d: d['entities'][1]['fields'][0].update(display={'currency': 'RUB', 'fraction': 'never'})},
+        [('P002', f'{PRODUCT}#/entities/1/fields/0/display')],
     ),
     (
         'S021',
@@ -1899,6 +1919,33 @@ CASES = [
         [('S014', f'{LIST}#/list/filter/dt_created__lt'), ('S014', f'{LIST}#/list/filter/due__gte')],
     ),
     (
+        'S014',
+        # a set of values and a negation: each value of the type of the field; a lookup takes one
+        # value; the filter of the last items of a dashboard too
+        {LIST: lambda d: d['list'].update(filter={
+            'status': ['draft', 'done'], 'priority': {'not': ['low', 'today']}, 'title': {'not': 'Review'},
+            'due__gte': ['today', 'today+1'], 'dt_created__lt': {'not': 'today'}, 'assignee': [True]}),
+         HOME: lambda d: d['dashboard']['recent'][0].update(filter={'title': {'not': [1]}, 'status': {'not': 'done'}})},
+        [('S014', f'{HOME}#/dashboard/recent/0/filter/title'),
+         ('S014', f'{LIST}#/list/filter/priority'), ('S014', f'{LIST}#/list/filter/due__gte'),
+         ('S014', f'{LIST}#/list/filter/dt_created__lt'), ('S014', f'{LIST}#/list/filter/assignee')],
+    ),
+    (
+        'S007',
+        # the filter of the last items names fields of their entity
+        {HOME: lambda d: d['dashboard']['recent'][0].update(filter={'rank': ['a', 'b']})},
+        [('S007', f'{HOME}#/dashboard/recent/0/filter/rank')],
+    ),
+    (
+        'S002',
+        # no empty set of values, no negation of a negation, no other key than `not`
+        {LIST: lambda d: d['list'].update(filter={'status': []}),
+         HOME: lambda d: [d['dashboard']['tiles'][0].update(filter={'status': {'not': {'not': 'done'}}}),
+                          d['dashboard']['tiles'][1].update(filter={'status': {'none': 'done'}})]},
+        [('S002', f'{HOME}#/dashboard/tiles/0/filter/status'), ('S002', f'{HOME}#/dashboard/tiles/1/filter/status'),
+         ('S002', f'{LIST}#/list/filter/status')],
+    ),
+    (
         'S008',
         # the field of a key with a lookup is filtered by
         {CONTRACT: lambda d: [d['project']['resources']['tasks.task']['fields']['due'].pop('filter', None)],
@@ -1960,6 +2007,59 @@ CASES = [
          LIST: lambda d: d['actions'][0]['fields'].append('urgent')},
         [('S063', f'{CARD}#/card/related/0/add/fields')],
     ),
+    (
+        'S064',
+        # the cards of a list: a media that is not an image, a rubric that is not a column, a field
+        # in two roles, and a list that is a table everywhere; the photos as the cover are right
+        {LIST: lambda d: d['list'].update(
+            card={'media': 'priority', 'eyebrow': 'report', 'title': 'title', 'figure': 'title'}, layout_phone='table')},
+        [('S064', f'{LIST}#/list/card/media'), ('S064', f'{LIST}#/list/card/eyebrow'), ('S064', f'{LIST}#/list/card/figure'),
+         ('S064', f'{LIST}#/list/card')],
+    ),
+    (
+        'S064',
+        # an unknown field of a card is not a column (S007 for an unknown column); a grid of cards
+        # with its cover by default and the cards of a phone are right
+        {LIST: lambda d: [d['list']['columns'].insert(0, 'photos'), d['list'].update(
+            card={'title': 'name', 'meta': ['priority']}, layout='cards', layout_phone='table')]},
+        [('S064', f'{LIST}#/list/card/title')],
+    ),
+    (
+        'S064',
+        # a list without its layout on a wide screen shows the cards of the composition of the theme
+        {THEME: lambda d: d['composition'].update(list='cards'),
+         LIST: lambda d: d['list'].update(card={'title': 'title'}, layout_phone='table')},
+        [],
+    ),
+    (
+        'S064',
+        # nor on a phone, where the theme makes it a table too
+        {THEME: lambda d: d['composition'].update(list_phone='table'),
+         LIST: lambda d: d['list'].update(card={'title': 'title'})},
+        [('S064', f'{LIST}#/list/card')],
+    ),
+    (
+        'S065',
+        # a range of three fields, one of them not a date, and a text as the figure (both also in
+        # the section: S066)
+        {CARD: lambda d: d['card'].update(summary={'range': ['dt_created', 'priority', 'due'], 'figure': 'title'})},
+        [('S065', f'{CARD}#/card/summary/range'), ('S065', f'{CARD}#/card/summary/range/1'),
+         ('S065', f'{CARD}#/card/summary/figure'), ('S066', f'{CARD}#/card/sections/0/fields/0'),
+         ('S066', f'{CARD}#/card/sections/0/fields/6')],
+    ),
+    (
+        'S065',
+        # a range of one field; an unknown field of the summary is S007
+        {CARD: lambda d: d['card'].update(summary={'range': ['due'], 'meta': ['due_date']})},
+        [('S007', f'{CARD}#/card/summary/meta/0'), ('S065', f'{CARD}#/card/summary/range')],
+    ),
+    (
+        'S066',
+        # the title and the hours both in the summary and in the section; the range of two date-times
+        # and a DecimalField as the figure are right
+        {CARD: lambda d: d['card'].update(summary={'range': ['dt_created', 'due'], 'figure': 'hours', 'meta': ['title']})},
+        [('S066', f'{CARD}#/card/sections/0/fields/0'), ('S066', f'{CARD}#/card/sections/0/fields/8')],
+    ),
     ('D001', {TOKENS: lambda d: '{'}, [('D001', TOKENS)]),
     ('D002', {THEME: lambda d: d.update(preset='admin')}, [('D002', f'{THEME}#/preset')]),
     (
@@ -1994,23 +2094,24 @@ CASES = [
     (
         'D007',
         # a token of the dark mode of no token, and one of another type
-        {TOKENS: lambda d: [d['dark']['color'].update(brand={'$type': 'color', '$value': 'red'}),
+        {TOKENS: lambda d: [d['dark']['color'].update(highlight={'$type': 'color', '$value': 'red'}),
                             d['dark'].update(radius={'$type': 'number', '$value': 1})]},
-        [('D007', f'{TOKENS}#/dark/color/brand'), ('D007', f'{TOKENS}#/dark/radius')],
+        [('D007', f'{TOKENS}#/dark/color/highlight'), ('D007', f'{TOKENS}#/dark/radius')],
     ),
     ('D008', {THEME: lambda d: d['statuses'].update(archived='neutral')}, [('D008', f'{THEME}#/statuses/archived')]),
     (
         'D009',
-        # a muted text too light: on the backgrounds, and the neutral badges mixed from it
+        # a muted text too light: on the backgrounds, in the sidebar (its muted text by default),
+        # and the neutral badges mixed from it
         {TOKENS: lambda d: d['color']['muted-foreground'].update({'$value': 'oklch(0.8 0 0)'})},
-        [('D009', f'{TOKENS}#/color/muted-foreground')] * 4,
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 5,
     ),
     (
         'D009',
         # over a palette, at the token of tokens.json that loses the contrast
         {THEME: lambda d: d.update(palette='forest', fonts='inter', shape='soft'),
          TOKENS: lambda d: {'color': {'muted-foreground': {'$type': 'color', '$value': 'oklch(0.8 0 0)'}}}},
-        [('D009', f'{TOKENS}#/color/muted-foreground')] * 4,
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 5,
     ),
     (
         'D010',
@@ -2040,6 +2141,55 @@ CASES = [
         # the surface, whose shadows it leaves, shows (the brand over a palette: the D009 above)
         {THEME: lambda d: d.update(palette='forest', fonts='inter', shape='soft', surface='flat')},
         [('D012', f'{THEME}#/palette'), ('D012', f'{THEME}#/fonts'), ('D012', f'{THEME}#/shape')],
+    ),
+    # the mark of the brand: an icon that lucide-react does not have, an image that frontend/public/ does not have
+    ('D013', {THEME: lambda d: d.update(brand={'icon': 'mountain-tick'})}, [('D013', f'{THEME}#/brand/icon')]),
+    ('D017', {THEME: lambda d: d.update(brand={'image': 'brand/mark.svg'})}, [('D017', f'{THEME}#/brand/image')]),
+    (
+        'D014',
+        # the heading font of the default import of a family with optical sizes, and of a
+        # package without its axis; with the axis, nothing
+        {TOKENS: lambda d: d['font'].update(
+            heading={'$type': 'fontFamily', '$value': ['Source Serif 4 Variable', 'serif'],
+                     '$extensions': {'bazis': {'import': '@fontsource-variable/source-serif-4'}}})},
+        [('D014', f'{TOKENS}#/font/heading/$extensions/bazis')],
+    ),
+    (
+        'D014',
+        {TOKENS: lambda d: d['font'].update(
+            heading={'$type': 'fontFamily', '$value': ['Literata', 'serif'],
+                     '$extensions': {'bazis': {'font': {'package': '@fontsource-variable/literata'}}}},
+            mono={'$type': 'fontFamily', '$value': ['Literata', 'serif'],
+                  '$extensions': {'bazis': {'font': {'package': '@fontsource-variable/literata', 'axes': ['opsz', 'wght']}}}})},
+        [('D014', f'{TOKENS}#/font/heading/$extensions/bazis')],
+    ),
+    (
+        'D014',
+        # a starter is served with all its axes: its optical sizes too
+        {TOKENS: lambda d: d['font'].update(
+            heading={'$type': 'fontFamily', '$value': ['Literata', 'Literata Fallback', 'serif'],
+                     '$extensions': {'bazis': {'font': {'starter': 'literata'}}}})},
+        [],
+    ),
+    (
+        'D015',
+        # the subsets of a product in English and Russian: no Cyrillic for the text, nothing
+        # left out for the headings
+        {TOKENS: lambda d: d['font'].update(
+            body={'$type': 'fontFamily', '$value': ['Golos Text', 'sans-serif'],
+                  '$extensions': {'bazis': {'font': {'starter': 'golos-text', 'subsets': ['latin', 'latin-ext']}}}},
+            heading={'$type': 'fontFamily', '$value': ['Literata', 'serif'],
+                     '$extensions': {'bazis': {'font': {'starter': 'literata', 'subsets': ['cyrillic', 'latin']}}}})},
+        [('D015', f'{TOKENS}#/font/body/$extensions/bazis/font/subsets')],
+    ),
+    (
+        'D016',
+        # a fallback face without the metrics, and one of another family than the first
+        {TOKENS: lambda d: d['font'].update(
+            body={'$type': 'fontFamily', '$value': ['Brand Sans', 'Brand Sans Fallback', 'sans-serif']},
+            heading={'$type': 'fontFamily', '$value': ['Literata', 'Golos Text Fallback', 'Literata Fallback', 'serif'],
+                     '$extensions': {'bazis': {'font': {'starter': 'literata'}}}})},
+        [('D016', f'{TOKENS}#/font/body/$value'), ('D016', f'{TOKENS}#/font/heading/$value')],
     ),
 ]
 
@@ -2353,6 +2503,16 @@ def test_without_a_contract_only_the_specs_are_checked(root):
         call_command('bazis_front', 'check', stdout=out)
     assert 'not checked against the backend' in out.getvalue()
     assert f'{LIST}#/list/filters/5: S007 error: ' in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_the_summary_of_a_card_shows_its_fields(contract):
+    """The fields of the summary of a card need no section: the card shows their values to the scenarios (P022)."""
+    root = contract.parent.parent
+    edit(root, PRODUCT, lambda d: steps(d, 5)[4]['expect'].update(values={'dt_created': 'today'}))
+    assert issues(root) == [('P022', f'{PRODUCT}#/scenarios/5/steps/4/expect/values/dt_created')]
+    edit(root, CARD, lambda d: d['card'].update(summary={'range': ['dt_created', 'due']}))
+    assert issues(root) == []
 
 
 @pytest.mark.django_db

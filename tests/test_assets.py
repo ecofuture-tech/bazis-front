@@ -199,6 +199,68 @@ def test_the_components_require_the_components_they_import():
         assert imported == required, asset.name
 
 
+#: the opening tag of a heading of the components (`<h1>`–`<h6>`, or the `Title` and the
+#: `Heading` that stand for one)
+HEADING = re.compile(r'<(?:h[1-6]|Title|Heading)\b[^>]*>')
+#: a weight of its own on a heading, in place of that of the tokens (a small label in
+#: `font-medium` or `font-semibold`, not a heading, keeps its weight: it is not set in the
+#: heading font)
+OWN_WEIGHT = re.compile(r'\bfont-(?:semibold|bold)\b')
+#: a tracking of its own, in place of that of the tokens (the wide tracking of a label in
+#: capitals, `tracking-[0.08em]`, is not that of a heading)
+OWN_TRACKING = re.compile(r'\btracking-tight\b')
+#: the heading font without the weight and the tracking of the tokens: `font-heading` instead
+OWN_FAMILY = re.compile(r'\bfont-display\b')
+
+
+def own_typography(text: str) -> list[int]:
+    """The lines of a component whose heading or figure has a typography of its own."""
+    own = [
+        *OWN_TRACKING.finditer(text),
+        *OWN_FAMILY.finditer(text),
+        *(it for it in HEADING.finditer(text) if OWN_WEIGHT.search(it.group())),
+    ]
+    return sorted(text.count('\n', 0, it.start()) + 1 for it in own)
+
+
+@pytest.mark.parametrize(
+    ('line', 'own'),
+    [
+        ('<h2 className="text-lg font-semibold">', True),
+        ('<Title className="font-bold">', True),
+        ('<span className="font-display text-3xl">', True),
+        ('<p className="text-xl font-semibold tracking-tight">', True),
+        ('<h1 className="font-heading text-3xl md:text-4xl">', False),
+        ('<Title className="text-sm font-subheading">', False),
+        # a label, not a heading: its own weight and its wide tracking
+        ('<p className="text-[0.6875rem] font-semibold tracking-[0.08em] uppercase">', False),
+        ('<dt className="text-xs font-medium text-muted-foreground">', False),
+        ('<header className="font-semibold">', False),
+    ],
+)
+def test_the_typography_of_a_heading_is_found(line, own):
+    assert bool(own_typography(line)) is own
+
+
+def test_the_headings_of_the_components_follow_the_tokens():
+    """
+    The headings and the figures of the components and of the screens of the template take
+    their family, weight and tracking from the tokens (`font.heading`, `font.weight-heading`,
+    `font.weight-subheading`, `font.tracking-heading`) through the utilities `font-heading` and
+    `font-subheading` of the theme: no heading has a weight of its own, no component a tracking
+    or the heading family of its own. The shadcn/ui components keep their classes.
+    """
+    found = []
+    for asset in registry.load().values():
+        if asset.kind not in (registry.UI, registry.TEMPLATE) or asset.source == 'ui/shadcn':
+            continue
+        for name in asset.files:
+            if not name.endswith('.tsx') or name.endswith('.test.tsx'):
+                continue
+            found += [f'{asset.source}/{name}:{line}' for line in own_typography(asset.read(name).decode('utf-8'))]
+    assert found == []
+
+
 #: a bare import of the components: `from 'leaflet'`, `import 'leaflet/dist/leaflet.css'`
 IMPORT = re.compile(r"""(?:from|import) '((?:@[^/'.][^/']*/)?[^/'.@][^/']*)[^']*'""")
 

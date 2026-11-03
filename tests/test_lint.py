@@ -58,6 +58,9 @@ def found(issues) -> list[tuple]:
     # a key that the mapping does not take, and a value of another type
     (LIST, 'primitive: list', 'primitive: list\ncolor: red', 'S002'),
     (PRODUCT, 'languages: [en, ru]', 'languages: en', 'P002'),
+    # an empty set of values of a filter, the cents of a sum that are neither auto nor always
+    (LIST, '  filters: [status', '  filter: {status: []}\n  filters: [status', 'S002'),
+    (PRODUCT, '{id: hours, type: string, display: {unit: h}}', '{id: hours, type: string, display: {currency: RUB, fraction: some}}', 'P002'),
 ])
 def test_the_lint_of_a_file_is_the_check_of_its_shape(root, name, old, new, code):
     """

@@ -96,7 +96,9 @@ test = [
     "bazis-async-request>=2.5.0",
 ]
 dev = [
-    "ruff"
+    "ruff",
+    # scripts/gen_font_starter.py: the starter fonts and the metrics of their fallback faces
+    "fonttools[woff]",
 ]
 
 [tool.ruff]

@@ -17,7 +17,7 @@
 // that opens its item, and the checkboxes that select a row, `select:<id>`, and the rows of
 // the page, `select:all`.
 
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 
 import type { Tone } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
@@ -41,13 +41,35 @@ export interface BodyProps {
   selection: ReadonlySet<string> | undefined;
   /** Selects rows, or clears them. */
   onSelect: (ids: readonly string[], selected: boolean) => void;
+  /** The composition of a card of the grid; without it, the first column is the title. */
+  card: CardLayout | undefined;
+  /** The icon of the entity: the cover of a card without its image. */
+  icon: ComponentType<{ className?: string }> | undefined;
 }
 
-/** The content of a cell: that of `cells`, the badge of a status, else the formatted value. */
-export function cell(props: BodyProps, row: ResourceObject, name: string): ReactNode {
+/**
+ * The composition of a card of a grid (`list.card` of the spec), each role a column (a role whose
+ * column is not shown is left out), each value without its label but those of `meta`; the other
+ * columns are pairs of a label and a value.
+ */
+export interface CardLayout {
+  /** The cover, the whole width of the card: a column of an image (`display: 'image'`); the first one by default. */
+  media?: string;
+  /** A rubric above the title. */
+  eyebrow?: string;
+  /** The title; the first column without a role by default. */
+  title?: string;
+  /** The main value, in the heading font. */
+  figure?: string;
+  /** Values in a muted line, each after its label (`Deposit 10,000 ₽`). */
+  meta?: readonly string[];
+}
+
+/** The content of a cell: that of `cells`, the badge of a status, else the formatted value (`media`: as the cover of a card). */
+export function cell(props: BodyProps, row: ResourceObject, name: string, media = false): ReactNode {
   const custom = props.cells[name];
   if (custom) return custom(row);
-  return <ItemValue item={row} name={name} fields={props.fields} display={props.display[name]} />;
+  return <ItemValue item={row} name={name} fields={props.fields} display={props.display[name]} media={media} />;
 }
 
 export const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';

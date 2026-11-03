@@ -435,9 +435,17 @@ export function fromLocalDateTime(text: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-/** Whether a field is a number: aligned to the right, with figures of the same width. */
+/** Whether a field is a number: aligned to the right. */
 export function isNumeric(field: FormField | undefined): boolean {
   return field?.kind === 'attribute' && (field.type === 'integer' || field.type === 'number');
+}
+
+/**
+ * Whether the figures of a field have the same width (`tabular-nums`): a number, a decimal, a date.
+ * So in a cell, a value of a card and an input; a heading and a figure keep those of `font-heading`.
+ */
+export function alignsDigits(field: FormField | undefined): boolean {
+  return isNumeric(field) || (field?.kind === 'attribute' && ['decimal', 'date', 'date-time'].includes(field.format ?? ''));
 }
 
 /** Whether a field is a long text (a string without a format and a maximal length). */
@@ -464,11 +472,18 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
  * How the value of a field is shown (`display` of the field of an entity of the specs):
  * `plain`, a number without the separators of its thousands (a code of five digits or more:
  * a number below 10,000 has none anyway, a year as it is written); `phone`, a
- * phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity
- * followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a
- * file as its thumbnail only (`FileValue`).
+ * phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without
+ * its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per`
+ * (`3600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of
+ * its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
  */
-export type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string } | { unit: string } | { bar: number };
+export type FieldDisplay =
+  | 'plain'
+  | 'phone'
+  | 'image'
+  | { currency: string; fraction?: 'auto' | 'always'; per?: string }
+  | { unit: string }
+  | { bar: number };
 
 /**
  * A phone number written without separators (`+79161234567`, 7 to 15 digits) in groups
@@ -505,14 +520,18 @@ export function formatValue(
   if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
   // a sum or a quantity: a number, or a DecimalField (its exact digits)
   if (typeof display === 'object' && !('bar' in display) && (typeof value === 'number' || typeof value === 'string')) {
-    if ('currency' in display) {
-      try {
-        return formatDecimal(value, language, { style: 'currency', currency: display.currency });
-      } catch {
-        // a code that `Intl` refuses (not of ISO 4217): after the number, as a unit
-      }
+    if (!('currency' in display)) return `${formatDecimal(value, language)} ${display.unit}`;
+    // a whole sum without its zero cents (`3600 ₽`, `15 000 ₽`), unless they are always shown
+    const whole = display.fraction !== 'always' && /^-?\d+(\.0*)?$/.test(String(value).trim());
+    const digits = whole ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {};
+    let sum: string;
+    try {
+      sum = formatDecimal(value, language, { style: 'currency', currency: display.currency, ...digits });
+    } catch {
+      // a code that `Intl` refuses (not of ISO 4217): after the number, as a unit
+      sum = `${formatDecimal(value, language, whole ? digits : undefined)} ${display.currency}`;
     }
-    return `${formatDecimal(value, language)} ${'currency' in display ? display.currency : display.unit}`;
+    return display.per === undefined ? sum : `${sum} / ${t(display.per)}`;
   }
   if (typeof value === 'number') {
     return formatNumber(value, language, display === 'plain' ? { useGrouping: false } : undefined);

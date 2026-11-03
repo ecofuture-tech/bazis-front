@@ -17,6 +17,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { login, loginInWindow, PASSWORD_LOGIN, WINDOW_LOGINS } from '@/app/session';
 import { useLanguage } from '@/bazis/i18n';
 import { useApi } from '@/bazis/react';
+import { Brand } from '@/bazis/ui/app-shell';
 import { LoginForm } from '@/bazis/ui/login-form';
 import { PRODUCT_NAME } from '@/screens/generated/product';
 
@@ -37,15 +38,8 @@ export function LoginScreen() {
       data-bz="screen:login"
       className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-[radial-gradient(ellipse_at_top,var(--color-primary-soft),transparent_65%)] p-4"
     >
-      <div className="flex items-center gap-3">
-        <span
-          aria-hidden="true"
-          className="flex size-10 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground shadow-sm"
-        >
-          {name.charAt(0).toUpperCase()}
-        </span>
-        <span className="font-display text-xl font-semibold tracking-tight">{name}</span>
-      </div>
+      {/* the mark of the brand of the theme, as in the shell */}
+      <Brand title={name} large />
       <LoginForm
         onLogin={PASSWORD_LOGIN ? (credentials) => login(api, credentials) : undefined}
         methods={WINDOW_LOGINS.map((action) => ({

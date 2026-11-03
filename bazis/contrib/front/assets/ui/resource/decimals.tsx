@@ -71,6 +71,7 @@ export function DecimalInput({
       {...control}
       type="text"
       inputMode="decimal"
+      className="tabular-nums"
       value={text}
       readOnly={field.readOnly}
       disabled={disabled}

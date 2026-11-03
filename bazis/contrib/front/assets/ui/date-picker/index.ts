@@ -12,4 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { DatePicker, DatePickerProvider } from './date-picker.js';
+export { DatePicker, DatePickerProvider, type DatePickerProps } from './date-picker.js';

@@ -13,13 +13,13 @@
       "enum": ["workspace", "portal"]
     },
     "palette": {
-      "description": "The colors of both modes, a starter of the package: indigo, forest (green on warm paper), ember (warm orange), slate (quiet blue-grey), ocean (teal), plum.",
-      "enum": ["indigo", "forest", "ember", "slate", "ocean", "plum"]
+      "description": "The colors of both modes, a starter of the package: indigo, forest (green on warm paper), ember (warm orange), slate (quiet blue-grey), ocean (teal), plum, pine (dark spruce on linen with a clay brand, a dark sidebar).",
+      "enum": ["indigo", "forest", "ember", "slate", "ocean", "plum", "pine"]
     },
     "fonts": {
-      "description": "The fonts of the text and of the headings, a pair of the package shipped with the frontend (system: the fonts of the system), or a family of Google Fonts loaded from its stylesheet: {google: \"Inter:wght@400..700\"}.",
+      "description": "The fonts of the text and of the headings, a pair of the package shipped with the frontend (system: the fonts of the system; literata-golos: Golos Text with headings in Literata, served by the frontend itself), or a family of Google Fonts loaded from its stylesheet: {google: \"Inter:wght@400..700\"}.",
       "oneOf": [
-        {"enum": ["system", "inter", "manrope", "ibm-plex", "geist", "source-serif-display"]},
+        {"enum": ["system", "inter", "manrope", "ibm-plex", "geist", "source-serif-display", "literata-golos"]},
         {
           "type": "object",
           "additionalProperties": false,
@@ -49,11 +49,29 @@
         "forms": {"description": "Forms in a dialog (workspace) or in place of the content of the screen (portal).", "enum": ["dialog", "page"]}
       }
     },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "date": {"description": "The input of a date: localized (the default), a text as the language of the product writes a date (`02.11.2026`) with a calendar; native, `<input type=\"date\">` of the browser, its own picker on a phone, in the language of the browser. Either takes `YYYY-MM-DD` from the end-to-end tests.", "enum": ["localized", "native"]}
+      }
+    },
     "statuses": {
       "description": "The tone of the badge of each status of bazis-statusy, by the id of the status; a status that is not here is neutral.",
       "type": "object",
       "propertyNames": {"minLength": 1},
       "additionalProperties": {"enum": ["neutral", "primary", "info", "success", "warning", "danger"]}
+    },
+    "brand": {
+      "description": "The mark of the brand next to the name of the product in the shell, on `color.brand`: a lucide icon (lucide.dev, in kebab-case), or an image of frontend/public/ by its path there (`brand/mark.svg`). Without it, the first letter of the name.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "icon": {"type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"},
+        "image": {"type": "string", "pattern": "^(?!.*\\.\\.)[A-Za-z0-9_-][A-Za-z0-9._/-]*\\.(svg|png|webp|avif|jpg|jpeg)$"}
+      }
     },
     "icons": {
       "description": "The icon of each entity, by the id of the entity: the name of a lucide icon (lucide.dev), in kebab-case.",

@@ -30,6 +30,8 @@ export interface FieldValueProps {
   display?: FieldDisplay | undefined;
   /** The value is that of a card: the thumbnail of an image (`display: 'image'`) is large. */
   large?: boolean | undefined;
+  /** The image (`display: 'image'`) is the cover of a card of a grid: its whole width, the first of several files. */
+  media?: boolean | undefined;
 }
 
 /** A number with a bar of its share of `max` (`display: {bar}`), a `meter`. */
@@ -55,20 +57,22 @@ function Bar({ value, max, text, label }: { value: number; max: number; text: st
 
 /**
  * The value of a field for reading: an attribute formatted by its type, its format and
- * `display` (a phone as a link to call it, a share as a bar), the labels of the related items
+ * `display` (a phone as a link to call it, a share as a bar, `per` muted after a sum), the labels of the related items
  * of a relationship (the status of an item of bazis-statusy by its name), the uploaded files
- * (`FileValue`; their thumbnails only with `display: 'image'`, large in a card). A text of the item, of any length (a string without a choice or a format, the
+ * (`FileValue`; their thumbnails only with `display: 'image'`, large in a card, the cover of a
+ * card of a grid as `media`). A text of the item, of any length (a string without a choice or a format, the
  * label of a related item), is in an element `data-text`, which the screenshots make long to
  * check the layout (V015), unlike a date, a number or the label of a choice.
  */
-export function FieldValue({ field, value, type, display, large = false }: FieldValueProps) {
+export function FieldValue({ field, value, type, display, large = false, media = false }: FieldValueProps) {
   const { resources } = useFiles();
   const language = useLanguage();
   if (isFile(field, resources) && value !== null && value !== undefined) {
-    const thumbnail = display === 'image' ? (large ? 'large' : 'small') : undefined;
+    const thumbnail = display === 'image' ? (media ? 'cover' : large ? 'large' : 'small') : undefined;
     if (!Array.isArray(value)) return <FileValue relation={field.relation} id={text(value)} thumbnail={thumbnail} />;
     const ids = (value as unknown[]).map(text);
     if (!ids.length) return <>—</>;
+    if (thumbnail === 'cover') return <FileValue relation={field.relation} id={ids[0] ?? ''} thumbnail={thumbnail} />;
     return (
       <span className={thumbnail ? 'inline-flex flex-wrap gap-2' : 'inline-flex flex-wrap gap-x-3 gap-y-1'}>
         {ids.map((id) => (
@@ -91,6 +95,18 @@ export function FieldValue({ field, value, type, display, large = false }: Field
             <RelationLabel relation={field.relation} id={id} />
           </span>
         ))}
+      </>
+    );
+  }
+  if (typeof display === 'object' && 'currency' in display && display.per !== undefined && (typeof value === 'number' || (typeof value === 'string' && value !== ''))) {
+    // what the sum is for (`/ сутки`), smaller and muted after it, in the font of the text
+    const { per, ...sum } = display;
+    return (
+      <>
+        {formatValue(field, value, language, sum)}
+        <span data-slot="per" className="font-sans text-[0.8125rem] font-medium tracking-normal text-muted-foreground">
+          {` / ${language.t(per)}`}
+        </span>
       </>
     );
   }
@@ -123,6 +139,8 @@ export interface ItemValueProps {
   /** The fields of the item's route set (`useListFields`, `useItemFields`). */
   fields: Fields;
   display?: FieldDisplay | undefined;
+  /** The image is the cover of a card of a grid (`FieldValue` `media`). */
+  media?: boolean | undefined;
 }
 
 /**
@@ -148,11 +166,11 @@ export function titleFromText(element: HTMLElement | null): (() => void) | undef
  * The value of a field of an item as a cell shows it: the status of an item of a statusy model
  * as a badge of its tone (`status:<id>`), any other field as `FieldValue`.
  */
-export function ItemValue({ item, name, fields, display }: ItemValueProps) {
+export function ItemValue({ item, name, fields, display, media }: ItemValueProps) {
   const field = fields.fields.get(name);
   const value = fieldValue(item, name);
   if (field?.kind === 'relation' && name === 'status' && typeof value === 'string' && statusyModel(item.type)) {
     return <StatusLabel type={item.type} status={value} />;
   }
-  return <FieldValue field={field} value={value} type={item.type} display={display} />;
+  return <FieldValue field={field} value={value} type={item.type} display={display} media={media} />;
 }

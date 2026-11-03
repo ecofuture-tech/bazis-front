@@ -20,6 +20,7 @@
 import { createContext, use, useMemo, type ComponentProps, type ComponentType, type ReactNode } from 'react';
 
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 /** The props of the input of a date: those of an `<input>`, its value a date or the empty string. */
 export type DateInputProps = Omit<ComponentProps<'input'>, 'type' | 'value' | 'onChange'> & {
@@ -57,6 +58,7 @@ export function DateInput(props: DateInputProps) {
     <Input
       {...rest}
       type="date"
+      className={cn('tabular-nums', rest.className)}
       onChange={(event) => {
         onChange(event.target.value);
       }}

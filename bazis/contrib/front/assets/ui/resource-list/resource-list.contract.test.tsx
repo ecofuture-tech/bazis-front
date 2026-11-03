@@ -463,6 +463,82 @@ describe('ResourceList', () => {
     });
   }
 
+  it('composes its cards by `card`: the cover, the rubric, the title, the figure, the muted values, then the others', async () => {
+    const shop = runtimeSchema(
+      {
+        title: { attribute: { type: 'string', title: 'Title' } },
+        photo: { attribute: { type: 'string', title: 'Photo' } },
+        kind: { attribute: { type: 'string', title: 'Kind' } },
+        count: { attribute: { type: 'integer', title: 'Count' } },
+        done: { attribute: { type: 'boolean', title: 'Done' } },
+        note: { attribute: { type: 'string', title: 'Note' } },
+      },
+      { list: true },
+    );
+    const items = [
+      resource('a', { title: 'Tent', photo: 'tent.png', kind: 'Camping', count: 3, done: true, note: 'Dry' }),
+      resource('b', { title: 'Stove', photo: null, kind: 'Kitchen', count: 1, done: false, note: 'New' }),
+    ];
+    const Icon = ({ className }: { className?: string }) => <svg data-bz="icon:item" className={className} />;
+    const server = new Backend().on('GET', `${ITEMS}schema_list/`, shop).on('GET', ITEMS, listDocument(items));
+    const { unmount } = renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['photo', 'kind', 'title', 'count', 'done', 'note']}
+        display={{ photo: 'image' }}
+        icon={Icon}
+        layout="cards"
+        card={{ eyebrow: 'kind', figure: 'count', meta: ['done'] }}
+      />,
+      server,
+    );
+    await screen.findByTestId('state:loaded');
+    const card = screen.getByTestId('row:a');
+    const part = (slot: string) => card.querySelector(`[data-slot="${slot}"]`);
+    // the cover by default (the first column of an image), the whole width at the top of the card
+    expect(card.firstElementChild).toBe(part('card-media'));
+    expect(part('card-media')?.getAttribute('data-bz')).toBe('cell:photo');
+    expect(within(card).getByTestId('cell:photo').textContent).toBe('tent.png');
+    // each role once, in the order that it is shown, without its label but for the readers of the
+    // screen, the muted values after theirs
+    const order = [part('card-eyebrow'), within(card).getByTestId('cell:title'), part('card-figure'), part('card-meta')];
+    for (const [index, element] of order.slice(1).entries()) {
+      expect(order[index]?.compareDocumentPosition(element as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    }
+    expect(within(card).getByTestId('cell:title').tagName).toBe('H3');
+    expect(part('card-eyebrow')?.textContent).toBe('Kind: Camping');
+    expect(part('card-eyebrow')?.querySelector('.sr-only')?.textContent).toBe('Kind: ');
+    expect(within(part('card-figure') as HTMLElement).getByTestId('cell:count').textContent).toBe('3');
+    expect(within(part('card-meta') as HTMLElement).getByTestId('cell:done').textContent).toBe('Yes');
+    expect(part('card-meta')?.textContent).toBe('Done Yes');
+    expect(part('card-meta')?.querySelector('.sr-only')).toBeNull();
+    // the other columns: pairs of a label and a value
+    expect([...card.querySelectorAll('dt')].map((it) => it.textContent)).toEqual(['Note']);
+    // an item without its image: the icon of the entity in place of the cover
+    const empty = screen.getByTestId('row:b').querySelector('[data-slot="card-media"]');
+    expect(empty?.textContent).toBe('');
+    expect(empty?.querySelector('[data-bz="icon:item"]')).not.toBeNull();
+    unmount();
+    // the title of `card`, a cover named, a role whose column is not shown left out
+    renderWithBazis(
+      <ResourceList
+        path={ITEMS as never}
+        entity="item"
+        columns={['title', 'photo', 'kind']}
+        layout="cards"
+        card={{ media: 'photo', title: 'kind', figure: 'count' }}
+      />,
+      new Backend().on('GET', `${ITEMS}schema_list/`, shop).on('GET', ITEMS, listDocument(items)),
+    );
+    await screen.findByTestId('state:loaded');
+    const named = screen.getByTestId('row:a');
+    expect(named.querySelector('[data-slot="card-media"]')?.getAttribute('data-bz')).toBe('cell:photo');
+    expect(within(named).getByTestId('cell:kind').tagName).toBe('H3');
+    expect(named.querySelector('[data-slot="card-figure"]')).toBeNull();
+    expect([...named.querySelectorAll('dt')].map((it) => it.textContent)).toEqual(['Title']);
+  });
+
   it('shows a skeleton of the filters until their types and titles are loaded', async () => {
     const server = new Backend()
       .on('GET', `${ITEMS}schema_list/`, schema)
@@ -749,6 +825,23 @@ describe('ResourceList', () => {
     expect(cell.classList.contains('hidden')).toBe(true);
     fireEvent.click(done);
     expect(cell.classList.contains('hidden')).toBe(false);
+  });
+
+  it('hides the title of a card with its column, as the other roles', async () => {
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['count', 'title']} layout="cards" card={{ title: 'title', figure: 'count' }} />,
+      backend(listDocument(rows)),
+    );
+    await screen.findByTestId('state:loaded');
+    open(screen.getByTestId('action:view'));
+    const toggle = within(await screen.findByTestId('menu:view')).getByTestId('toggle:title');
+    const title = within(screen.getByTestId('row:a')).getByTestId('cell:title');
+    expect(title.tagName).toBe('H3');
+    fireEvent.click(toggle);
+    // its cell stays, for the scenarios that look a card up by it
+    expect(title.classList.contains('hidden')).toBe(true);
+    fireEvent.click(toggle);
+    expect(title.classList.contains('hidden')).toBe(false);
   });
 
   it('has the density of the theme or of the prop, which the user changes', async () => {

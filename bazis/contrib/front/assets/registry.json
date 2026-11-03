@@ -385,7 +385,8 @@
         "index.ts",
         "related-list.tsx",
         "resource-card.contract.test.tsx",
-        "resource-card.tsx"
+        "resource-card.tsx",
+        "summary.tsx"
       ]
     },
     {

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The dashboard of a product (`primitive: dashboard` of the specs, its home): the tiles of the
-// numbers (`tile:<id>`), the links to the other screens of the navigation (`link:<screen>`,
+// The dashboard of a product (`primitive: dashboard` of the specs, its home): the day of today
+// (`today`), the tiles of the numbers (`tile:<id>`), the links to the other screens of the navigation (`link:<screen>`,
 // once the backend allows them), the charts (`chart:<id>` of
 // `@/bazis/ui/charts`, an optional asset) and the last items of a route set
 // (`recent:<id>`, a row `row:<id>` with a cell `cell:<field>` each). Its title is the header of
@@ -154,6 +154,17 @@ export function RecentList({
   );
 }
 
+/** The day of today in the language of the product: `Monday, 2 November`, its first letter a capital. */
+function Today() {
+  const { language } = useLanguage();
+  const day = new Date().toLocaleDateString(language, { weekday: 'long', day: 'numeric', month: 'long' });
+  return (
+    <p data-bz="today" className="-mt-3 text-sm font-medium text-muted-foreground first-letter:uppercase">
+      {day}
+    </p>
+  );
+}
+
 /** A link to a screen: its icon and its label. */
 function QuickLink({ item }: { item: NavItem }) {
   const Icon = item.icon;
@@ -194,12 +205,14 @@ export interface DashboardProps {
   actions?: ReactNode;
   /** The title, the description and the actions as a hero: a portal (`preset` of the theme) by default. */
   hero?: boolean;
-  /** What the screen shows before its parts (after the hero), such as the extension of a generated screen. */
+  /** The day of today before its parts (after the hero, `today`): `Monday, 2 November`. */
+  today?: boolean;
+  /** What the screen shows before its parts (after the hero and the day), such as the extension of a generated screen. */
   before?: ReactNode;
   tiles?: readonly (StatCardProps & DashboardPart)[];
   /**
    * The links to the screens, the items of the navigation of `AppShell` by default: all but
-   * the dashboard itself, each once the backend allows what it `requires`.
+   * the dashboard itself, each once the backend allows what it `requires`; none with `[]`.
    */
   links?: readonly NavItem[];
   /** The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`. */
@@ -212,13 +225,14 @@ export interface DashboardProps {
   children?: ReactNode;
 }
 
-/** The home of a product: its numbers, its links, its charts and its last items, in this order. */
+/** The home of a product: the day, its numbers, its links, its charts and its last items, in this order. */
 export function Dashboard({
   id = 'home',
   title,
   description,
   actions,
   hero = THEME.preset === 'portal',
+  today = false,
   before,
   tiles = [],
   links,
@@ -242,12 +256,13 @@ export function Dashboard({
             className="grid gap-4 rounded-2xl border bg-primary-soft/40 px-6 py-10 md:px-10 md:py-14"
           >
             {title !== undefined && (
-              <h1 className="font-display text-3xl font-semibold tracking-tight md:text-4xl">{title}</h1>
+              <h1 className="font-heading text-3xl md:text-4xl">{title}</h1>
             )}
             {description !== undefined && <p className="max-w-2xl text-lg text-muted-foreground">{description}</p>}
             {actions !== undefined && <div className="flex flex-wrap gap-2">{actions}</div>}
           </header>
         )}
+        {today && <Today />}
         {before}
         {tiles.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">

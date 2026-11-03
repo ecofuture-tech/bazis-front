@@ -58,7 +58,7 @@ function FormPage({ open, onClose, title, description, children }: Omit<FormSurf
           <ArrowLeft />
         </Button>
         <div className="grid gap-1">
-          <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+          <h2 className="text-2xl font-subheading">{title}</h2>
           {description !== undefined && <p className="text-muted-foreground">{description}</p>}
         </div>
       </div>

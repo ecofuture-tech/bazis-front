@@ -32,6 +32,7 @@ import type { FormField, ListPath } from '@/bazis/react';
 import { useBesideCard, useBesideList, useWide } from '@/bazis/ui/app-shell';
 import { EmptyState } from '@/bazis/ui/empty-state';
 import {
+  alignsDigits,
   fieldValue,
   isNumeric,
   permitted,
@@ -50,10 +51,10 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/compon
 import { cn } from '@/lib/utils';
 
 import { BulkBar, type BulkAction } from './bulk.js';
-import { CardsSkeleton, CardsView } from './cards.js';
+import { cardRoles, CardsSkeleton, CardsView } from './cards.js';
 import { ViewMenu } from './columns.js';
 import { EVERY, FilterBar, listFilters, type ListFilter } from './filters.js';
-import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps } from './rows.js';
+import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
 
 /**
  * An action of the list, a button `action:<id>`; `add` shows it when the user may create, a
@@ -130,7 +131,7 @@ export interface ResourceListProps {
   rowToneLabel?: (row: ResourceObject) => string | undefined;
   /** The message of the empty list. */
   emptyMessage?: ReactNode;
-  /** The icon of the entity (such as an icon of lucide-react), in the empty state. */
+  /** The icon of the entity (such as an icon of lucide-react): in the empty state, and the cover of a card without its image. */
   icon?: ComponentType<{ className?: string }>;
   /** A table or a grid of cards; `composition.list` of the theme by default. */
   layout?: 'table' | 'cards';
@@ -139,6 +140,11 @@ export interface ResourceListProps {
    * sideways); `composition.list_phone` of the theme by default.
    */
   phoneLayout?: 'table' | 'cards';
+  /**
+   * The composition of a card of the grid (`list.card` of the spec): its cover, its rubric, its
+   * title, its figure and its muted values; without it, the first column is the title.
+   */
+  card?: CardLayout | undefined;
   /** The density of the rows of the table, which the user may change; that of the theme by default. */
   density?: Theme['density'];
   /** The ids of the selected rows (`selection` of `onSelectionChange`). */
@@ -304,8 +310,8 @@ function TableView(
                       // length of their texts: while it has room, a long text does not narrow the column
                       // of a short word (an e-mail) until the word breaks
                       !isShort(field) && cn('whitespace-normal wrap-anywhere', index > 0 ? 'min-w-32 max-w-32' : 'max-w-48'),
-                      isNumeric(field) && 'text-right tabular-nums',
-                      field?.kind === 'attribute' && field.format === 'date-time' && 'tabular-nums',
+                      isNumeric(field) && 'text-right',
+                      alignsDigits(field) && 'tabular-nums',
                       hidden(name) && 'hidden',
                     )}
                   >
@@ -322,9 +328,9 @@ function TableView(
   );
 }
 
-/** The skeleton of the rows while the list loads. */
-function ListSkeleton({ layout, columns }: { layout: 'table' | 'cards'; columns: number }) {
-  if (layout === 'cards') return <CardsSkeleton />;
+/** The skeleton of the rows while the list loads (the cards with their covers, `media`). */
+function ListSkeleton({ layout, columns, media }: { layout: 'table' | 'cards'; columns: number; media: boolean }) {
+  if (layout === 'cards') return <CardsSkeleton media={media} />;
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-xs" aria-hidden="true">
       <div className="h-10 border-b bg-muted/60" />
@@ -361,6 +367,7 @@ export function ResourceList({
   icon,
   layout = THEME.composition.list,
   phoneLayout = THEME.composition.list_phone,
+  card,
   density = THEME.density,
   selection: selectionProp = [],
   onSelectionChange,
@@ -472,6 +479,8 @@ export function ResourceList({
     selected,
     rowTone,
     rowToneLabel,
+    card,
+    icon,
     // next to an open card, a table shows only its compact columns
     hidden: (name) =>
       (name !== shown[0] && hiddenColumns.has(name)) || (view === 'table' && besideCard && !compactColumns.includes(name)),
@@ -608,7 +617,9 @@ export function ResourceList({
           state={state}
           error={list.error}
           onRetry={() => void list.refetch()}
-          skeleton={<ListSkeleton layout={view} columns={columns.length} />}
+          skeleton={
+            <ListSkeleton layout={view} columns={columns.length} media={cardRoles(columns, display, card).media !== undefined} />
+          }
         >
           <div className={cn('transition-opacity', list.isPlaceholderData && 'opacity-60')}>
             {view === 'cards' ? (

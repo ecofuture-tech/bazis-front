@@ -26,6 +26,7 @@ import { RESOURCES, TRANSITS } from '@/bazis/generated/contract';
 import { THEME } from '@/bazis/generated/theme';
 import type { FormField } from '@/bazis/react';
 import {
+  alignsDigits,
   choiceOptions,
   DatesProvider,
   FieldInput,
@@ -419,6 +420,34 @@ describe('file fields', () => {
     saved.mockRestore();
   });
 
+  it('shows an image as the cover of a card of a grid: its whole width, not a download, the first of several', async () => {
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:photo'), revokeObjectURL: vi.fn() });
+    const backend = new Backend()
+      .on('GET', `${FILES}1/`, { data: resource('1', { file: '/media/photo.png', name: 'photo.png', size: 11 }, {}, 'test.file') })
+      .file(`${FILES}1/download/`, 'png', 'inline; filename="photo.png"');
+    const photos = { ...file, name: 'photos', relation: 'test.file', many: true };
+    renderWithBazis(
+      <FilesProvider control={null} resources={['test.file']}>
+        <span data-bz="cell:photo">
+          <FileValue relation="test.file" id="1" path={FILES} thumbnail="cover" />
+        </span>
+        {/* several files of a resource without a route here: the id of the first one */}
+        <span data-bz="cell:photos">
+          <FieldValue field={photos} value={['3', '4']} display="image" media />
+        </span>
+      </FilesProvider>,
+      backend,
+    );
+    const cover = await within(screen.getByTestId('cell:photo')).findByRole('img', { name: 'photo.png' });
+    await waitFor(() => {
+      expect(cover.querySelector('img')?.getAttribute('src')).toBe('blob:photo');
+    });
+    expect(cover.className).toContain('aspect-[4/3]');
+    expect(cover.className).toContain('w-full');
+    expect(within(screen.getByTestId('cell:photo')).queryByRole('button')).toBeNull();
+    expect(screen.getByTestId('cell:photos').textContent).toBe('3');
+  });
+
   it('downloads a file with the token, and says when it fails', async () => {
     Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:brief'), revokeObjectURL: vi.fn() });
     const saved = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
@@ -649,17 +678,58 @@ describe('FieldValue', () => {
 
   it('shows a sum in its currency (`display: {currency}`), a quantity with its unit (`{unit}`)', () => {
     const price = attribute('price', 'string');
-    // a DecimalField: its exact digits
+    // a DecimalField: its exact digits; a whole sum without its zero cents, unless always shown
     expect(formatValue(price, '45000.10', undefined, { currency: 'EUR' })).toBe('€45,000.10');
-    expect(formatValue(attribute('total', 'number'), 12, undefined, { currency: 'EUR' })).toBe('€12.00');
+    expect(formatValue(price, '3600.00', undefined, { currency: 'EUR' })).toBe('€3600');
+    expect(formatValue(price, '3600.00', undefined, { currency: 'EUR', fraction: 'always' })).toBe('€3600.00');
+    expect(formatValue(attribute('total', 'number'), 12, undefined, { currency: 'EUR' })).toBe('€12');
+    expect(formatValue(attribute('total', 'number'), 12, undefined, { currency: 'EUR', fraction: 'always' })).toBe('€12.00');
+    expect(formatValue(attribute('total', 'number'), 12.5, undefined, { currency: 'EUR' })).toBe('€12.50');
+    // what the sum is for, a text of the dictionaries after it
+    const russian = { language: 'ru', t: (key: string) => (key === 'entities.tool.fields.price.display.per' ? 'сутки' : key) };
+    expect(formatValue(price, '3600.00', russian, { currency: 'RUB', per: 'entities.tool.fields.price.display.per' })).toMatch(
+      /^3600\s₽ \/ сутки$/,
+    );
+    expect(formatValue(price, '250.50', russian, { currency: 'RUB', per: 'entities.tool.fields.price.display.per' })).toMatch(
+      /^250,50\s₽ \/ сутки$/,
+    );
     expect(formatValue(attribute('copies', 'integer'), 12000, undefined, { unit: 'pcs' })).toBe('12,000 pcs');
     expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1200 pcs');
     expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50 kg');
     expect(formatValue(price, null, undefined, { unit: 'kg' })).toBe('—');
     // a code that is not of ISO 4217: after the number, as a unit, never an error of the render
     expect(formatValue(price, '45000.10', undefined, { currency: 'euro' })).toBe('45,000.10 euro');
+    expect(formatValue(price, '45000.00', undefined, { currency: 'euro' })).toBe('45,000 euro');
     render(<FieldValue field={price} value="12.5" display={{ currency: 'euro' }} />);
     expect(screen.getByText('12.5 euro')).toBeTruthy();
+  });
+
+  it('aligns the digits of a number, a decimal and a date, not those of a text or a time', () => {
+    const aligned = [
+      attribute('count', 'integer'),
+      attribute('share', 'number'),
+      attribute('price', 'string', { format: 'decimal' }),
+      attribute('day', 'string', { format: 'date' }),
+      attribute('due', 'string', { format: 'date-time' }),
+      attribute('title', 'string'),
+      attribute('at', 'string', { format: 'time' }),
+    ].map(alignsDigits);
+    expect(aligned).toEqual([true, true, true, true, true, false, false]);
+    render(<FieldInput field={attribute('price', 'string', { format: 'decimal' })} value="2.5" onChange={vi.fn()} />);
+    expect(screen.getByTestId('field:price').classList).toContain('tabular-nums');
+  });
+
+  it('shows what a sum is for (`per`) after it, apart from the sum, and nothing for no sum', () => {
+    const price = attribute('price', 'string');
+    const display = { currency: 'EUR', per: 'day' } as const;
+    const { container, unmount } = render(<FieldValue field={price} value="3600.00" display={display} />);
+    // the same text as `formatValue`, what the sum is for in an element of its own
+    expect(container.textContent).toBe(formatValue(price, '3600.00', undefined, display));
+    expect(container.querySelector('[data-slot="per"]')?.textContent).toBe(' / day');
+    unmount();
+    render(<FieldValue field={price} value={null} display={display} />);
+    expect(screen.getByText('—')).toBeTruthy();
+    expect(document.querySelector('[data-slot="per"]')).toBeNull();
   });
 
   it('shows a number with a bar of its share of the maximum (`display: {bar}`)', () => {

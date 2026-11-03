@@ -399,10 +399,18 @@ def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> No
     """
     The `display` of a field fits its type: a number is `plain`, a `bar` (of an integer or
     a number), a sum in a `currency` or a quantity in a `unit` (also of a DecimalField, a
-    `string`); a `phone` is a string; an `image` is a file; a relationship has none.
+    `string`); a `phone` is a string; an `image` is a file; a relationship has none; the
+    cents of a sum and what it is for (`fraction`, `per`) are of a currency.
     """
     display = item['display']
-    kind = display if isinstance(display, str) else next(iter(display))
+    kind = display if isinstance(display, str) else next(it for it in display if it in DISPLAY_TYPES)
+    for key in ('fraction', 'per'):
+        if kind == 'unit' and key in display:
+            issues.add(
+                doc, (*path, key), 'S020',
+                f'`{key}` of the field `{item["id"]}` is of a sum in a currency, not of a quantity in a unit.',
+                f'Remove `{key}`, or show the field as a sum: `{{currency: <ISO 4217 code>, {key}: …}}`.',
+            )
     if item.get('type') in DISPLAY_TYPES[kind]:
         return
     declared = f'the type `{item["type"]}`' if 'type' in item else 'a relationship'
@@ -866,11 +874,12 @@ def _check_payload_relation(
 
 
 def check_screens(
-    docs: list[Document], product: Product | None, contract: dict | None, issues: Issues
+    docs: list[Document], product: Product | None, contract: dict | None, composition: dict, issues: Issues
 ) -> dict[str, dict | None]:
     """
     The screens by id (their file name), checked; None for those that do not follow their
-    schema.
+    schema. `composition`: that of the theme (`list`, `list_phone`), the layouts of a list
+    that does not give its own.
     """
     screens = {Path(doc.file).stem: doc.data if doc.valid else None for doc in docs}
     routes = {}
@@ -905,7 +914,7 @@ def check_screens(
             )
         routes.setdefault(data['route'], stem)
         _check_item_route(doc, issues)
-        _check_screen(doc, product, screens, contract, issues)
+        _check_screen(doc, product, screens, contract, composition, issues)
     if product and product.entities:
         _check_home(docs, routes, issues)
     return screens
@@ -1081,7 +1090,7 @@ def _check_home(docs: list[Document], routes: dict[str, str], issues: Issues) ->
 
 
 def _check_screen(
-    doc: Document, product: Product | None, screens: dict, contract: dict | None, issues: Issues
+    doc: Document, product: Product | None, screens: dict, contract: dict | None, composition: dict, issues: Issues
 ) -> None:
     data = doc.data
     primitive = data['primitive']
@@ -1126,10 +1135,14 @@ def _check_screen(
     if 'open' in section:
         _check_opens(doc, (primitive, 'open'), section['open'], 'card', entity, screens, issues)
     _check_point_filters(doc, (primitive,), query, entity, issues)
-    checks = {'list': _check_list, 'card': _check_card, 'board': _check_board, 'calendar': _check_calendar}
+    checks = {
+        'list': lambda *args: _check_list(*args, composition=composition),
+        'card': _check_card, 'board': _check_board, 'calendar': _check_calendar,
+    }
     if primitive in checks:
         checks[primitive](doc, entity, issues)
     resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
+    _check_summary(doc, entity, resource, issues)
     if resource is not None:
         if primitive == 'calendar' and 'add' in section:
             _check_calendar_add(doc, section, entity, resource, issues)
@@ -1262,7 +1275,7 @@ def _shown_fields(data: dict):
     """
     primitive = data['primitive']
     shown = {
-        'list': (('columns',),), 'card': (('sections', '*', 'fields'),),
+        'list': (('columns',),), 'card': CARD_FIELDS,
         'board': (('card', 'title'), ('card', 'fields')), 'calendar': (('label',),),
     }
     for keys in shown.get(primitive, ()):
@@ -1479,7 +1492,7 @@ def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
             )
 
 
-def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
+def _check_list(doc: Document, entity: Entity, issues: Issues, composition: dict) -> None:
     """
     A list without the contract: its highlight has a label; its map is by a point field of
     the entity; its bulk actions run transitions of the workflow without a payload (S025),
@@ -1522,6 +1535,101 @@ def _check_list(doc: Document, entity: Entity, issues: Issues) -> None:
         seen.add(action['id'])
         if 'transit' in action:
             _check_bulk_transit(doc, ('list', 'bulk', i, 'transit'), action['transit'], entity, issues)
+    if 'card' in lst:
+        _check_list_card(doc, lst, entity, issues, composition)
+
+
+#: the roles of the fields of a card of a list (`list.card`), in the order of the card
+CARD_ROLES = ('media', 'eyebrow', 'title', 'figure', 'meta')
+
+
+def _check_list_card(doc: Document, lst: dict, entity: Entity, issues: Issues, composition: dict) -> None:
+    """
+    The cards of a list (S064): each field of a role is a column (an unknown column is S007),
+    in one role only, the media a file field shown as an image, and the list shows cards on
+    a wide screen or on a phone, by its layouts or else those of the composition of the theme.
+    """
+    roles: dict[str, str] = {}
+    for role in CARD_ROLES:
+        for path, name in _references(lst['card'], ('list', 'card'), (role,)):
+            field = entity.fields.get(name)
+            if name not in lst['columns']:
+                issues.add(
+                    doc, path, 'S064', f'The `{role}` of the cards, `{name}`, is not a column of the list.',
+                    'Add the field to `columns`, or give the role one of the columns.',
+                )
+            elif name in roles:
+                issues.add(
+                    doc, path, 'S064', f'`{name}` is both the `{roles[name]}` and the `{role}` of the cards.',
+                    'Give each role a column of its own.',
+                )
+            elif role == 'media' and field is not None and (field.get('type'), field.get('display')) != ('file', 'image'):
+                issues.add(
+                    doc, path, 'S064', f'The media of the cards, `{name}`, is not a file field with `display: image`.',
+                    'Give the media a file field shown as an image (`type: file`, `display: image`), or remove it.',
+                )
+            roles.setdefault(name, role)
+    # the layout on a wide screen and on a phone, and where each comes from
+    wide, phone = (
+        (f'`{key}: {lst[key]}`', lst[key]) if key in lst else (f'`composition.{default}: {composition[default]}` of the theme', composition[default])
+        for key, default in (('layout', 'list'), ('layout_phone', 'list_phone'))
+    )
+    if wide[1] == 'table' and phone[1] == 'table':
+        issues.add(
+            doc, ('list', 'card'), 'S064',
+            f'The list never shows its cards: it is a table on a phone ({phone[0]}) and on a wide screen ({wide[0]}).',
+            'Set `layout: cards` (or `layout_phone: cards`), or remove `card`.',
+        )
+
+
+def _check_summary(doc: Document, entity: Entity, resource: dict | None, issues: Issues) -> None:
+    """
+    The summary of a card (S065): its range is two date or date-time fields, its figure a
+    number, a DecimalField (a `string` of the format `decimal` in the contract, not checked
+    without it) or a date (an unknown field is S007); a field of the summary in a section too
+    is shown twice (S066). Nothing for another screen.
+    """
+    card = doc.data.get('card', {})
+    summary = card.get('summary')
+    if summary is None:
+        return
+    path = ('card', 'summary')
+
+    def declared(field: dict) -> str:
+        return f'of the type `{field["type"]}`' if 'type' in field else 'a relationship'
+
+    span = summary.get('range', [])
+    if 'range' in summary and len(span) != 2:
+        issues.add(
+            doc, (*path, 'range'), 'S065', f'The range of the summary has {len(span)} field(s): it is from a day to a day.',
+            'Name two date or date-time fields: its start, then its end.',
+        )
+    for i, name in enumerate(span):
+        field = entity.fields.get(name)
+        if field is not None and field.get('type') not in DATES:
+            issues.add(
+                doc, (*path, 'range', i), 'S065', f'The range of the summary is of days, and `{name}` is {declared(field)}.',
+                'Name two fields with `type: date` or `type: datetime`.',
+            )
+    name = summary.get('figure')
+    field = entity.fields.get(name) if name else None
+    actual = resource['fields'].get(name) if resource and name else None
+    decimal = field is not None and field.get('type') == 'string' and (actual is None or actual.get('format') == DECIMAL)
+    if field is not None and field.get('type') not in NUMBERS + DATES and not decimal:
+        issues.add(
+            doc, (*path, 'figure'), 'S065', f'The figure of the summary, `{name}`, is {declared(field)}.',
+            'Show as the figure a number (`type: integer` or `number`, a DecimalField `type: string`) or a date; '
+            'other values go to `meta`.',
+        )
+    shown = set(card_fields({'sections': [], 'summary': summary}))
+    for i, section in enumerate(card['sections']):
+        for j, name in enumerate(section['fields']):
+            if name in shown:
+                issues.add(
+                    doc, ('card', 'sections', i, 'fields', j), 'S066',
+                    f'`{name}` is in the summary of the card and in its section `{section["id"]}`: the card shows it twice.',
+                    'Remove it from the section: the edit of the card has the fields of the summary too.',
+                )
 
 
 def _check_custom_actions(
@@ -2222,9 +2330,11 @@ def _check_related(
 
 #: where the section of each primitive names fields of its entity: the keys of a name, of a
 #: list of names or of a filter (`*`: each item of a list)
+#: where a card names the fields that it shows and that its edit has: its summary, then its sections
+CARD_FIELDS = (('summary', 'range'), ('summary', 'figure'), ('summary', 'meta'), ('sections', '*', 'fields'))
 FIELD_REFERENCES = {
     'list': (('columns',), ('filters',), ('sort',), ('filter',), ('highlight', 'field'), ('map', 'field')),
-    'card': (('sections', '*', 'fields'),),
+    'card': CARD_FIELDS,
     'form': (('fields',),),
     'board': (('card', 'title'), ('card', 'fields'), ('card', 'badge'), ('filters',)),
     'calendar': (('field',), ('end',), ('label',), ('tone', 'field'), ('filters',), ('add', 'fields')),
@@ -2253,6 +2363,11 @@ def _references(value, path: tuple, keys: tuple):
     else:
         for name in value:
             yield (*path, name), filter_field(name)[0]
+
+
+def card_fields(card: dict) -> list[str]:
+    """The fields that a card shows and that its edit has, each once: those of its summary, then of its sections."""
+    return list(dict.fromkeys(name for keys in CARD_FIELDS for _, name in _references(card, (), keys)))
 
 
 def _screen_fields(data: dict):
@@ -2465,7 +2580,18 @@ def _check_queries(doc: Document, path: tuple, section: dict, entity: Entity, re
     for key, value in section.get('filter', {}).items():
         name, lookup = filter_field(key)
         actual = resource['fields'].get(name)
-        problem = _filter_value_problem(value, lookup, actual) if actual is not None else None
+        if actual is None:
+            continue
+        if lookup is not None and not is_filter_scalar(value):
+            issues.add(
+                doc, (*path, 'filter', key), 'S014',
+                f'`{key}` compares the field `{name}` with one value, not with {value!r}.',
+                f'Give `{key}` one value; a list `[a, b]` (any of them) and `{{not: …}}` (none of them) are of a '
+                f'key without a lookup, `{name}`.',
+            )
+            continue
+        problems = (_filter_value_problem(it, lookup, actual) for it in filter_scalars(value))
+        problem = next((it for it in problems if it is not None), None)
         if problem is not None:
             issues.add(
                 doc, (*path, 'filter', key), 'S014',
@@ -2494,6 +2620,18 @@ def filter_field(key: str) -> tuple[str, str | None]:
     """The field and the lookup of a key of the filter of a list or a tile: `date_from__gte` is `date_from`, `gte`."""
     name, _, lookup = key.rpartition('__')
     return (name, lookup) if name and lookup in LOOKUPS else (key, None)
+
+
+def is_filter_scalar(value) -> bool:
+    """Whether a value of a filter is one value, not a list of them (any) or `{not: …}` (none)."""
+    return not isinstance(value, list | dict)
+
+
+def filter_scalars(value) -> list:
+    """The values of a value of a filter: one, those of a list, those of `{not: …}`."""
+    if isinstance(value, dict):
+        value = value['not']
+    return value if isinstance(value, list) else [value]
 
 
 def _filter_value_problem(value, lookup: str | None, field: dict) -> tuple[str, str] | None:
@@ -2694,16 +2832,15 @@ def _picker_fields(data: dict, entity: Entity):
     The fields that a screen edits or filters with the picker of a related item, with their
     paths: the filters of a list or a board, the fields of a form (of the form primitive, of
     a form action, of the form of "add" of a calendar; every field of the entity when it
-    lists none) and of the sections of a card with `edit`. Which of them are relationships is
-    for the contract to say.
+    lists none) and of the summary and the sections of a card with `edit`. Which of them are
+    relationships is for the contract to say.
     """
     primitive = data['primitive']
     for i, name in enumerate(data[primitive].get('filters', []) if primitive in QUERIED else []):
         yield (primitive, 'filters', i), name
     if primitive == 'card' and data['card'].get('edit'):
-        for i, section in enumerate(data['card']['sections']):
-            for j, name in enumerate(section['fields']):
-                yield ('card', 'sections', i, 'fields', j), name
+        for keys in CARD_FIELDS:
+            yield from _references(data['card'], ('card',), keys)
     # those of the form of an action are the properties of its body (`_check_custom_actions`)
     forms = [(('form',), data['form'])] if primitive == 'form' and action_form(data) is None else []
     if primitive == 'calendar' and 'add' in data['calendar']:

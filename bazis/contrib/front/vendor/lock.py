@@ -134,6 +134,13 @@ def stale_files(directory: Path, rendered: dict[str, str]) -> list[str]:
     ]
 
 
+def stale_hashes(directory: Path, hashes: dict[str, str]) -> list[str]:
+    """
+    The paths of the files that are missing in the directory or whose hash differs from theirs.
+    """
+    return [path for path, hash in hashes.items() if not (target := directory / path).is_file() or digest(target.read_bytes()) != hash]
+
+
 def write_files(directory: Path, rendered: dict[str, str]) -> None:
     """
     Writes the rendered files in the directory, UTF-8 with `\\n`.

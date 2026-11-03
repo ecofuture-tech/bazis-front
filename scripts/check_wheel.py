@@ -17,8 +17,10 @@ Checks the wheel in the given directory against the registry of the assets
 (`assets/registry.json`): it has every file that the registry copies into a product (the
 contract tests of the components too), and of the assets nothing else than the registry
 and the READMEs of their directories (no tests, fixtures, scripts, Node config,
-node_modules or dist of their checks); and the JSON Schemas
-and the starters of the specs (run from the root of the repository).
+node_modules or dist of their checks) but the starter fonts, which `bazis_front design`
+copies (`assets/fonts/<id>/`: the files of its `metadata.json`, its license and the
+metadata); and the JSON Schemas and the starters of the specs (run from the root of the
+repository).
 """
 
 import json
@@ -42,8 +44,18 @@ assert expected, 'the registry lists no files'
 missing = sorted(expected - names)
 assert not missing, f'the wheel misses files of the registry: {missing}'
 
+# the starter fonts: the files of the subsets, the license and the metadata of each
+fonts = set()
+for metadata in Path(ASSETS, 'fonts').glob('*/metadata.json'):
+    subsets = json.loads(metadata.read_text(encoding='utf-8'))['subsets']
+    directory = metadata.parent.as_posix()
+    fonts |= {f'{directory}/{it["file"]}' for it in subsets.values()} | {f'{directory}/OFL.txt', metadata.as_posix()}
+assert fonts, 'no starter fonts'
+missing = sorted(fonts - names)
+assert not missing, f'the wheel misses files of the starter fonts: {missing}'
+
 # the README of the directory of every asset (`client`, `react`, `ui`, ...)
-allowed = expected | {f'{ASSETS}/registry.json'} | {
+allowed = expected | fonts | {f'{ASSETS}/registry.json'} | {
     f'{ASSETS}/{asset["source"].split("/")[0]}/README.md' for asset in registry['assets']
 }
 unexpected = sorted(it for it in names if it.startswith(f'{ASSETS}/') and it not in allowed)
@@ -56,4 +68,4 @@ specs = {
 assert specs, 'no JSON Schemas or starters of the specs'
 missing = sorted(specs - names)
 assert not missing, f'the wheel misses files of the specs: {missing}'
-print(f'{wheel.name}: {len(expected)} asset files of the registry, {len(specs)} files of the specs')
+print(f'{wheel.name}: {len(expected)} asset files of the registry, {len(fonts)} files of the starter fonts, {len(specs)} files of the specs')

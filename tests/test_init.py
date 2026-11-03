@@ -104,8 +104,9 @@ def test_init_creates_the_frontend(product):
         'generated': {},
         'assets': {name: {'version': __version__} for name in [*vendored, 'template']},
     }
-    assert sorted(design['spec']) == ['spec/design/theme.yaml', 'spec/design/tokens.json']
-    assert sorted(design['generated']) == [theme.FONTS_CSS, theme.THEME_CSS, theme.THEME_TS]
+    assert sorted(design['spec']) == ['spec/design/theme.yaml', 'spec/design/tokens.json', 'spec/product.yaml']
+    assert sorted(design['generated']) == [theme.FONTS_CSS, theme.FONTS_TS, theme.THEME_CSS, theme.THEME_TS]
+    assert 'fonts' not in design
     for path, value in design['generated'].items():
         assert digest((frontend / path).read_bytes()) == value
     # the template as it is, without the stamp, with its pristine copy for the merge of the
@@ -140,7 +141,7 @@ def test_init_creates_the_frontend(product):
     # the photo that the scenarios upload, as it is
     assert (frontend / 'e2e' / 'fixtures' / 'photo.png').read_bytes().startswith(b'\x89PNG\r\n\x1a\n')
     # the theme and the screens are generated: the contract needs the database
-    assert sorted(it.name for it in (frontend / 'src' / 'bazis' / 'generated').iterdir()) == ['fonts.css', 'theme.css', 'theme.ts']
+    assert sorted(it.name for it in (frontend / 'src' / 'bazis' / 'generated').iterdir()) == ['fonts.css', 'fonts.ts', 'theme.css', 'theme.ts']
     assert 'Generated the theme' in out
     added = 'badge, native-select, popover, resource, stat-card, dashboard'
     assert f'Added the components of bazis-front that the generated screens import: {added}.' in out
@@ -187,7 +188,10 @@ def test_init_creates_the_specs(product):
 
 
 def test_init_with_the_preset_portal(product):
-    init('--no-node', '--preset', 'portal')
+    out, _ = init('--no-node', '--preset', 'portal')
+    # its pair of fonts, served by the frontend, loads the optical sizes of its headings
+    assert 'D014' not in out
+    assert sorted(it.name.split('-')[0] for it in (product / 'frontend' / 'public' / 'fonts').iterdir()) == ['golos', 'literata']
 
     spec = product / 'spec'
     starters = spec_create.files(spec_create.__package__) / 'starters' / 'design' / 'portal'

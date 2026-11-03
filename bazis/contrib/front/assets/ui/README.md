@@ -47,7 +47,7 @@ The components look as the design of the product says (`spec/design/`, compiled 
 `manage.py bazis_front design` into `src/bazis/generated/theme.css` and `theme.ts`):
 
 - colors, radii and fonts only through the Tailwind classes of the tokens (`bg-primary`,
-  `text-muted-foreground`, `bg-success-soft text-success-ink`, `rounded-lg`, `font-display`),
+  `text-muted-foreground`, `bg-success-soft text-success-ink`, `rounded-lg`, `font-heading`),
   never literal colors (the shadcn/ui files keep theirs), so that a brand and the dark mode
   apply everywhere; the spacing of the density through its variables (`p-(--space-card)`,
   `py-(--space-cell-y)`);
@@ -88,7 +88,7 @@ components: …" of `bazis/contrib/front/AGENTS.md`, generated from the sources)
 | Component | Exports | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel`; `errorState`, `queryState`, `SkeletonLines`; `toast`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell`; `Screen` (`parent`: the link back to the screen it was opened from); `ListCardLayout`, `useBesideCard`, `useBesideList`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage`; `useWide` | `nav:<screen>` (also the link of `parent`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in` (without a session), `action:language` (its code in `data-value`) | |
+| `app-shell` | `AppShell`; `Brand` (the mark and the name of the product, also of the login screen); `Screen` (`parent`: the link back to the screen it was opened from); `ListCardLayout`, `useBesideCard`, `useBesideList`; `initColorMode`, `ColorModeToggle`, `setColorMode`; `LanguageToggle` (with more than one language); `useScreenPage`; `useWide` | `nav:<screen>` (also the link of `parent`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in` (without a session), `action:language` (its code in `data-value`) | |
 | `login-form` | `LoginForm` | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource-list` | `ResourceList`; `FilterBar`; `BulkAction` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` and its checkbox `select:<id>` (`select:all`), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>`, `field:$search`, `action:<id>`, `action:view` (`menu:view` with `toggle:<column>` and `density:<density>`), `action:prev-page`, `action:next-page`; the bulk actions `bulk:<id>`, `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState` | `state:empty`, the `action:<id>` of its actions | |
@@ -239,11 +239,14 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   list for the screen readers under bars and a line).
 - **`date-picker`**: under `DatePickerProvider`, the date fields of the forms and the ranges
   of the date filters (`DateInput` of `resource`, a plain `<input type="date">` without it)
-  are the input of the browser, marked as the input it replaces (a scenario fills it with
-  `2026-10-07`), with a button that opens the month of the date in a popover (`calendar` of
-  shadcn/ui on react-day-picker, `calendar-view.tsx`, lazy; the names of the months and the
-  days of `Intl`, the first day of the week of the language). A read-only input has no
-  button.
+  are a text in the numeric format of the language (`controls.date: localized` of the theme,
+  the default: `02.11.2026`, typed in that order with any separator or as `2026-11-02`, an
+  invalid or a partial date ignored until it is whole), or the input of the browser
+  (`controls.date: native`; the prop `mode`), marked as the input it replaces and `data-input="date"` (a
+  scenario fills it with `2026-10-07` either way), with a button that opens the month of the
+  date in a popover (`calendar` of shadcn/ui on react-day-picker, `calendar-view.tsx`, lazy;
+  the names of the months and the days of `Intl`, the first day of the week of the language).
+  A read-only input has no button.
 - **`resource-board`** (`primitive: board`, a statusy model): a column `column:<status>` per
   status (`columns`, those of the workflow by default; the number of its items in
   `data-count`), a list of one page per column filtered by its status (`action:more` adds a

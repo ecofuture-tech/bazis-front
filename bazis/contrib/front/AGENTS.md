@@ -127,6 +127,7 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | The frontend | you create the frontend (`init`), need the files of `frontend/` and who changes them, the npm commands, the lock, `status` |
 | The specs | you write `spec/product.yaml`: the roles, entities, fields, workflows, access (with the permissions it requires), scenarios and their steps |
 | The specs of the screens and the design | you write `spec/screens/<id>.yaml` (list, card, form, dashboard, board, calendar, `card.related`, `card.tabs`, `list.filter`, `list.map`, `list.bulk`, the custom actions), which primitive a part of the product takes, the `data-bz` marks, `spec/design/theme.yaml` |
+| The cards of a list and the summary of a card | a list is a grid of cards (`list.layout`, `list.card`: the cover, the rubric, the title, the figure, the muted values), a card heads its item with a summary (`card.summary`: a range of days, a figure) |
 | The issues of check | `bazis_front check` reports a code (`C…`, `P…`, `S…`, `D…`) |
 | The backend of a product | you build the backend the frontend relies on: the declared roles and workflows, the test data, the changes and the notifications, the invariants, the labels |
 | The contract | you export the contract or read `contract.json` and `contract.ts` (`ROUTES`, `CAPABILITIES`, the sections of the capabilities) |
@@ -137,7 +138,8 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | Files, points and maps | the files of bazis-uploadable, the points and the maps, what is near |
 | Custom actions and background work | an action of the backend that is no CRUD (an export, a report), its permission, a task of bazis-bg, a background request |
 | The socket | bazis-ws: the live updates, the notifications and the bell, the protocol of the socket |
-| The design | the presets, the top bar, the tokens, the brand, the dark mode, the tones of the statuses, the classes of the theme |
+| The design | the presets, the top bar, the tokens and their layers, the icons, the dark mode, the tones of the statuses, the classes of the theme |
+| The fonts and the brand | the fonts (shipped, served by the frontend, their subsets and fallbacks), the brand and its mark, the sidebar, the classes of the headings |
 | The end-to-end tests | `bazis_front e2e`, the steps and their helpers, `e2e_data`, `npm run e2e` and its ports, the tests of your own |
 | The visual check | `bazis_front shots`: the screenshots, their report and its codes (`V…`), the checklist of the screenshots, when the screens are done |
 | The client | a request that the hooks do not cover, the filters, the errors of a form, the permission meta, the uploads |
@@ -952,8 +954,8 @@ cells `cell:<field>`, without a `list:<entity>`; of the packages `socket:<status
 # theme.yaml
 spec: bazis-design/1
 preset: workspace          # workspace (a working application) | portal (a public shell)
-palette: forest            # indigo | forest | ember | slate | ocean | plum
-fonts: inter               # system | inter | manrope | ibm-plex | geist | source-serif-display,
+palette: forest            # indigo | forest | ember | slate | ocean | plum | pine
+fonts: inter               # system | inter | manrope | ibm-plex | geist | source-serif-display | literata-golos,
                            # or a family of Google Fonts: {google: "Inter:wght@400..700"}
 shape: soft                # sharp | soft | round
 surface: elevated          # flat | bordered | elevated
@@ -985,7 +987,64 @@ preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$va
 `duration` in `ms`, `shadow`, `cubicBezier`) on every token, and references
 `{group.token}` to a token of the same type. `bazis_front design` compiles them into the
 theme of the frontend (see [The design](#the-design)); `check` reports them with the codes
-D004–D013 (the contrast of WCAG AA, the statuses of the contract, the icons of lucide).
+D004–D017 (the contrast, the statuses of the contract, the icons of lucide, the fonts, the brand).
+
+## The cards of a list and the summary of a card
+
+### Cards
+
+A list is a table or a grid of cards: `layout` on a wide screen, `layout_phone` on a phone
+(`composition.list` and `composition.list_phone` of the theme by default). `card` composes a
+card of the grid, each role a column (S064), here the shop window of a catalog:
+
+```yaml
+list:
+  columns: [photo, category, name, price_per_day, deposit]
+  layout: cards
+  layout_phone: cards
+  card:
+    media: photo           # the cover, the whole width at 4:3: a file with `display: image` (the first one by default)
+    eyebrow: category      # the rubric above the title, in `color.brand`
+    title: name            # the first column without a role by default
+    figure: price_per_day  # the main value, in the heading font
+    meta: [deposit]        # muted values under the figure, each after its label: `Залог 10 000 ₽`
+```
+
+A value of a role but `meta` is shown without its label (the readers of the screen hear it); the
+other columns stay pairs of a label and a value. The cover is not a button, the card opens its item;
+an item without an image shows the icon of the entity in its place. The `per` of the `display`
+of a sum follows it smaller and muted (`3600 ₽ / сутки`) wherever the field is shown, a table
+of the staff too: a display is of the field of the entity, not of a screen. A field has one role, and
+a list with `card` shows cards somewhere, on a wide screen or on a phone (S064: its `layout`
+and `layout_phone`, else those of the composition of the theme). The marks stay `row:<id>` and `cell:<column>` (the cover
+`data-slot="card-media"`), so `open_item` finds a card by its values as it finds a row. Without
+`card` the first column is the title, as before. A grid suits the items that are recognized by
+their picture (a catalog, a shop window); a table those that are compared by their values (the
+bookings, the tasks of the staff).
+
+### The summary of a card
+
+`card.summary` heads a card with what its item is about, under its heading and above its
+transits and sections (`data-slot="card-summary"`):
+
+```yaml
+card:
+  summary:
+    range: [date_from, date_to]   # two date or date-time fields: one range of the language, `2–4 ноября`, `2 дн.`
+    figure: total_amount          # a number, a decimal or a date, large, by its `display`
+    meta: [items_summary]         # values in the line under the range
+  sections:
+    - {id: client, fields: [client_name, client_phone, source]}
+  edit: true
+```
+
+The fields of the summary need no section: one in a section too is shown twice (S066). The edit
+of the card has them, before the fields of the sections. `range` is two date or date-time
+fields and `figure` a number, a decimal or a date (S065). A range shows its year when it is not
+this one, and the number of its days by `card.range_days` of the dictionaries of the components
+(`{count} days`, `{count} дн.`), which `src/i18n/` of the product may change. Each value is
+`field:<name>`, as in a section, so `expect: {values}` of a scenario reads it; both fields of a
+range show the whole range (`2–4 ноября`), so expect the value of a date in a section.
 
 ## The issues of check
 
@@ -1058,13 +1117,13 @@ database, in a fraction of a second. The references and the contract are the job
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
-| `S014` | error | a value of the filter of a list or a tile does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
+| `S014` | error | a value of the filter of a list, a tile or the last items of a dashboard (each of a list `[a, b]` and of `{not: …}`) does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number, or with a list or `{not: …}`: a lookup takes one value), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
 | `S018` | warning | the title of a field of an entity in the contract is its name (`is_overdue`) or the default `verbose_name` of Django (`status author`): the backend gives the field no label (a calculated field without a title), or one that reads as its name; give it one in the backend (see "The labels of the fields"), never in the dictionaries of the frontend |
 | `S019` | warning | the resource of an entity has no attribute that labels its items in the contract (`label`: a `name`, a `title`, the names of a person…), and the entity has no `label`: the frontend shows an item by its id |
-| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, `image` of a `file`, none of a relationship |
+| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, `image` of a `file`, none of a relationship; `fraction` and `per` only with `currency` |
 | `S021` | error | a chart of a dashboard is neither by the `status` of an entity with a workflow nor by a `date` or `datetime` field, or has a `bucket` or `last` without a date |
 | `S022` | error | a board is of an entity without a workflow, has a column that is not a status of its workflow, or a `badge` that is not a boolean field |
 | `S023` | error | a calendar is not by a `date` or `datetime` field (`field`, `end`), or its `tone` is not by a boolean field |
@@ -1106,6 +1165,9 @@ database, in a fraction of a second. The references and the contract are the job
 | `S061` | error | the filter of the picker of a relationship (`filter` of a field of an entity, `filters` of a form, `filter` of a field of a payload) is not of a picker that the form asks for, or its key is not a field (or a path through the relationships, `roles__slug`) of the related resource that the contract can filter by (the related resource of a path has no route set in the contract: register a route set of it, the roles that of the signed-in users of "The users that the pickers offer"), or its value does not fit the field. See "The items that a picker offers" |
 | `S062` | error | a public screen (an anonymous role in its `roles`) shows a file field (a column, a section of a card, the card of a board, the label of a calendar), and the guests read no file in the contract (`anonymous_files` of the section `uploadable`): the guest sees `file:unavailable`. The route set of the resource must serve guests and declare `files_visible = ('<field>',)` (bazis-uploadable 2.9), then export the contract again; never link the `/media` URL of a file |
 | `S063` | warning | a create form that lists its `fields` leaves out a boolean that the create route requires (`create_required` of the contract: a boolean without a default): the form sends `false` for it and the user never chooses it. Add it to `fields`, or give the field a default in the model |
+| `S064` | error | the cards of a list (`list.card`) name a field that is not in `columns`, a `media` that is not a file field with `display: image`, or one field in two roles; or the list never shows cards (a table on both: `layout` and `layout_phone`, by default `composition.list` and `composition.list_phone` of the theme) |
+| `S065` | error | the summary of a card (`card.summary`): `range` is not two date or date-time fields, or `figure` is not a number, a decimal or a date (a field that the entity does not declare is S007) |
+| `S066` | warning | a field of the summary of a card is also in a section of it: the card shows it twice. Leave it in the summary only: the edit of the card asks for it too |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json (a key that a mapping does not take: as P002) |
@@ -1114,11 +1176,15 @@ database, in a fraction of a second. The references and the contract are the job
 | `D006` | error | a token references a token of another type |
 | `D007` | error | a token of the dark mode (the group `dark`) overrides no token of the same name and type |
 | `D008` | warning | a status of `statuses` in theme.yaml is not a status of the contract |
-| `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode |
+| `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode; also `--sidebar-muted-foreground` on `--sidebar`, `--sidebar-primary-foreground` on `--sidebar-primary`, `--brand-foreground` on `--brand` and `--brand` on `--card`: the brand is a text accent (a rubric), so it must read on a card |
 | `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 | `D012` | warning | spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows; the issue names the tokens |
 | `D013` | warning | an icon of the specs (`icons` of theme.yaml, `icon` of the navigation or of a tile of a dashboard) is not an icon of the lucide-react of the template |
+| `D014` | warning | the heading font (`font.heading`) is loaded without the `opsz` axis that its family has (the `axes` of its `font` leave it out, or its `import` loads the weights only): its large headings look heavy. Load it with `axes: [opsz, wght]` |
+| `D015` | warning | the `subsets` listed for a font leave out a language of the product or the sign of a currency of `display.currency`: those letters are drawn in another font. Leave `subsets` out (`auto`), or add the subset |
+| `D016` | warning | the stack of a font names `<Family> Fallback`, which the generator does not make (its `font` has no `fallback` metrics): fix the name, or give the metrics |
+| `D017` | warning | `brand.image` of theme.yaml is not a file in frontend/public/ |
 
 ## The backend of a product
 
@@ -1540,9 +1606,9 @@ the names of the statuses and transits of the contract (in every language), and 
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects, or the aggregate of their field of `value` (`{sum}`, `{avg}`, `{min}`, `{max}`, formatted by `display`), from the aggregates of the core (a list of one item with `meta.aggregates`), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded, a date of `min` or `max` as its ISO text), `state:<loading\|loaded\|error\|forbidden>` | |
-| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default), `RecentList` (the last items: `columns`, `sort`, `limit`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, and add an item too with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
+| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default; `today`: the day of today before the parts; `links={[]}`: no links), `RecentList` (the last items: `columns`, `sort`, `limit`, `filter`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, and add an item too with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `today`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
 | `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), both the count of the items or the `{sum}` or `{avg}` of a field of `value`, from the groups of the aggregates of the core, `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
-| `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are picked in a calendar (`DatePicker`, the input of the browser with a button that opens the month) | the input of the field (`field:<name>`) | npm `react-day-picker` |
+| `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are typed as the language of the product writes them (`02.11.2026`, `YYYY-MM-DD` too) or picked in a calendar (`DatePicker`, a button opens the month; `controls.date: native` of the theme: the input of the browser) | the input of the field (`field:<name>`, `data-input="date"`) | npm `react-day-picker` |
 | `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, the transits of `meta.for_transit` of the lists of the columns (bazis-statusy 2.13), `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (the transits of `for_transit` of its list; an item without one has no `action:move` and cannot be dragged) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
 | `board-dnd` | `BoardDnd` around a `ResourceBoard` with `move`: a card dropped on a column runs the transit to its status; the screen readers are told the drag in the language of the interface, by the name of the item and of the status, never an id | `state:loading` until @dnd-kit is loaded | npm `@dnd-kit/core` |
 | `resource-calendar` | `ResourceCalendar` (`field`, `end`, `label`, `tone`, `views`, `filters`: those of a list, `onOpen`, `add`: `{id, label, time, duration, fields, onAdd(initial)}`, the values the form starts with: `field` on the selected day (the day of a date, of a date-time the moment of `time` in the time zone of the browser), `end` `duration` minutes later, the related item or the choice of a filter of the user by a field of `fields`); an item shows its time to its `end` on the same day (`10:00–11:30`), in a day of a month its start with the range in its title | `calendar:<entity>` (`data-from`, `data-to`), `day:<YYYY-MM-DD>` (`data-count`), `row:<id>` with `cell:<field>`, `action:previous-period`, `action:next-period`, `action:today`, `view:<view>`, `action:<add.id>`, `state:<loading\|empty\|loaded\|error\|forbidden>` | |
@@ -1898,6 +1964,21 @@ UTC), the midnight of the browser for `today`; a date is the date of the browser
 midnight is another date than that of the backend (`TIME_ZONE`) for a user in another time
 zone. `requires.filters` of the link of such a list names the fields
 (`date_from`), not the keys.
+
+**A set of values and a negation in a filter** (`list.filter`, `filter` of a tile and of the
+last items `recent`): a list of values is any of them, `Filter.or` (`(status=issued|status=returned)`
+of the core), `{not: <value or list>}` none of them, `Filter.not` (`~status=cancelled`); each
+value fits the field (S014), and a lookup takes one value (`date_from__gte: [..]` is S014). So
+the tiles of a rental count without a calculated boolean field in the backend:
+
+```yaml
+tiles:
+  - {id: pickups, entity: booking, filter: {date_from: today, status: {not: cancelled}}, label: {en: Pickups today, ru: Выдачи сегодня}}
+  - {id: revenue, entity: booking, filter: {status: [issued, returned, closed], date_from__gte: month_start, date_from__lt: month_end+1}, value: {sum: total_amount}, label: {en: Revenue this month, ru: Выручка за месяц}}
+```
+
+A list `[a, b]` is never `Filter.where(key, [a, b])`: the comma of a value is the list of an
+array field, a range or a point, not a set of values of a field.
 
 ### The navigation follows the backend
 
@@ -2541,7 +2622,7 @@ function Notifications() {
 ## The design
 
 ```bash
-python manage.py bazis_front design           # frontend/src/bazis/generated/fonts.css, theme.css and theme.ts from spec/design/
+python manage.py bazis_front design           # src/bazis/generated/fonts.*, theme.* and public/fonts/ from spec/design/
 python manage.py bazis_front design --check   # write nothing; exit 1 if the theme differs from the design
 ```
 
@@ -2551,14 +2632,20 @@ surface, starters of the package named in `theme.yaml`), the tokens of a brand o
 and a few options, compiled into the frontend. `init` generates the theme; generate it again
 after every change of `spec/design/` (and after `bazis_front update`). The text depends on
 the design only: `--check` and the system check `front.W005` (when the lock has `design`;
-without Node and the database) render it again and compare it byte for byte; `front.W005`
-also reports a frontend with components and no theme (an `init` whose design had errors).
+without Node and the database) render it again and compare it byte for byte, the font files
+by their hashes; `front.W005` also reports a frontend with components and no theme (an `init`
+whose design had errors). A font package (`font.package`) is read from `node_modules`: `design`
+needs it installed; without it (a CI without `npm install`) both compare the theme and the
+fonts with the hashes of the lock and report a design changed since (of `product.yaml`, its
+languages and currencies only: they choose the subsets), but not a new version of
+bazis-front or of the package: `design --check` with the package installed shows it.
 The generated files are never edited. The design must have no errors (`bazis_front check
 --layer design`).
 
 - `src/bazis/generated/fonts.css`, imported first by `src/index.css` of the template: the
   imports of the fonts of its pair only (an `@import` after a rule is dropped, so a
-  stylesheet of Google Fonts goes before Tailwind).
+  stylesheet of Google Fonts goes before Tailwind) and the faces of the fonts that the
+  frontend serves; `fonts.ts`: the files that `vite.config.ts` preloads.
 - `src/bazis/generated/theme.css`, imported by `src/index.css` after Tailwind: every token
   as a CSS variable of `:root` (`color.<name>` is `--<name>`, another token its dotted name
   with dashes, `font.body` `--font-body`), those of the dark mode, the spacing of the density
@@ -2567,11 +2654,12 @@ The generated files are never edited. The design must have no errors (`bazis_fro
   list), the Tailwind theme over them (a color utility for every color token, `bg-<token>`;
   the soft colors of the tones, `bg-success-soft text-success-ink`; `font-sans`,
   `font-display`, `font-mono`; `rounded-sm` … `rounded-2xl` from `radius`; `shadow-xs` …
-  `shadow-lg`; `ease-standard` and every `transition` from `motion.*`) and the base styles of
-  the preset (`h1`–`h3` in `font.heading`).
+  `shadow-lg`; `ease-standard` and every `transition` from `motion.*`), the utilities
+  `font-heading` and `font-subheading` and the base styles of the preset (`h1`–`h3` in
+  `font.heading`, the variables of the sidebar).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
-  `density`, `composition`, `statuses`, `icons`, and `dark`: whether the user switches to a
-  dark mode).
+  `density`, `composition`, `controls`, `statuses`, `icons`, `brand`, and `dark`: whether the
+  user switches to a dark mode).
 
 | Token (its CSS variable `--<name>`) | When no layer defines it |
 |---|---|
@@ -2581,10 +2669,11 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 | `font.heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
 | `color.card`, `color.card-foreground`, `color.popover`, `color.popover-foreground`, `color.secondary`, `color.secondary-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS` of `spec/design.py`) |
 | `color.success`, `color.warning`, `color.info` (the tones of the statuses) | a green, an amber and a blue of both modes |
-| `color.sidebar-primary`, `color.sidebar-accent`, … (the sidebar of shadcn/ui) | from the primary and the sidebar |
+| `color.sidebar-primary`, `color.sidebar-accent`, `color.sidebar-muted-foreground`, … (the sidebar) | from the primary, the sidebar and the muted foreground |
+| `color.brand`, `color.brand-foreground` (the mark of the brand) | the primary |
 | `color.chart-1` … `color.chart-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
 | `font.mono` (`font-mono`) | the monospace fonts of Tailwind |
-| `font.weight-heading`, `font.tracking-heading` (`h1`–`h3`) | 600; `0em` (`-0.02em` for `portal`) |
+| `font.weight-heading`, `font.weight-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
 | `shadow.xs` (the cards, the tables, the fields), `shadow.sm`, `shadow.md` (the popovers), `shadow.lg` (the dialogs) | the shadows of Tailwind |
 | `motion.fast`, `motion.base`, `motion.slow`, `motion.ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
 
@@ -2618,7 +2707,7 @@ by their routes, never through the menu.
 **The layers.** Choose the look in `theme.yaml`, never by writing colors: each option names a
 starter of tokens of the package (described in `design.schema.json`;
 `init` names those of the preset: `indigo`, `inter`, `soft`, `elevated` for `workspace`;
-`ocean`, `source-serif-display`, `round`, `elevated` for `portal`), and `tokens.json` defines
+`ocean`, `literata-golos`, `round`, `elevated` for `portal`), and `tokens.json` defines
 only what the product adds over them. Every palette has both modes and reaches the contrast
 of WCAG AA with every pair of fonts, shape and surface. Choose them for the domain of the
 product, one decision for the whole product:
@@ -2629,30 +2718,8 @@ product, one decision for the whole product:
 | library, education, publishing, culture | `forest`, `plum` | `source-serif-display`, `ibm-plex` | `soft`, `round` |
 | health, travel, logistics, the sea | `ocean` | `manrope`, `inter` | `round` |
 | retail, food, hospitality, events | `ember` | `manrope` | `round` |
+| retail, travel, hospitality, outdoor | `pine` | `literata-golos` | `soft`, `round` |
 | developer tools, analytics | `slate`, `indigo` | `geist` | `sharp` |
-
-### Fonts
-
-**Fonts.** The pairs (`inter`; `manrope`, bold headings; `ibm-plex`, IBM Plex Sans with
-headings in IBM Plex Serif; `geist`; `source-serif-display`, Source Sans 3 with headings in
-Source Serif 4; `system`, nothing to load) are shipped with the frontend: the template
-declares their `@fontsource` packages (OFL), and `fonts.css` imports only those of its pair,
-so the frontend works offline. `fonts: {google: …}` loads a family of Google Fonts instead
-(online only). A font of the product is a token of `tokens.json` with its import:
-`"body": {"$type": "fontFamily", "$value": ["Brand Sans", "ui-sans-serif", "sans-serif"],
-"$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}}` (an npm package
-that the product installs, or the `https://` URL of a stylesheet).
-
-### Brand
-
-**Brand.** The brand of a customer goes over the palette, in `tokens.json`: change
-`color.primary` and `color.primary-foreground` (and `dark.color.primary`): the focus rings,
-the current link, the selected row and the soft tints derive from the primary
-(`color-mix`). The palettes are OKLCH (`oklch(L C H)`): keep the lightness
-and the chroma of the palette and change the hue; `check` reports a text color that loses
-its contrast (D009). A token of `tokens.json` replaces that of the layers: a `tokens.json`
-that defines every color (of an older version) hides the palette, so remove the colors it
-should take from the palette (D012). Set `density` for the spacing.
 
 ### Icons
 
@@ -2700,7 +2767,8 @@ read their defaults from `THEME`; pass a prop (`layout`, `mode`, `forms`,
 **Colors, radii and fonts only through the tokens.** Use the Tailwind classes of the
 theme: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border`,
 `bg-primary text-primary-foreground`, `bg-primary-soft text-primary-ink` (and `success`,
-`warning`, `info`, `danger`, `neutral`), `rounded-lg`, `font-display`. Never a color of the
+`warning`, `info`, `danger`, `neutral`), `rounded-lg`, a heading in `font-heading` or
+`font-subheading` (not `font-display`, the family alone). Never a color of the
 Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)`) or
 `style={{ color }}`: they break the brand and the dark mode. A color the product needs is a token
 (`color.highlight` in `tokens.json` is `bg-highlight`).
@@ -2717,6 +2785,81 @@ after a change that succeeded, `toast()` of `@/bazis/ui/state-panel` (the forms 
 transits already do); the errors stay where they happened.
 
 - Check every screen in both modes and at the width of a phone.
+
+## The fonts and the brand
+
+### Fonts
+
+**Fonts.** The pairs (`inter`; `manrope`, bold headings; `ibm-plex`, IBM Plex Sans with
+headings in IBM Plex Serif; `geist`; `source-serif-display`, Source Sans 3 with headings in
+Source Serif 4; `system`, nothing to load) are shipped with the frontend: the template
+declares their `@fontsource` packages (OFL), and `fonts.css` imports only those of its pair,
+so the frontend works offline. `literata-golos` (Golos Text with headings in Literata, the
+optical sizes of `opsz`) is served by the frontend itself. `fonts: {google: …}` loads a
+family of Google Fonts instead (online only).
+
+**A font served by the frontend** is a `fontFamily` token whose `$extensions.bazis.font`
+names a starter of the package (`{"starter": "literata"}`, `golos-text`) or an installed
+package of @fontsource-variable:
+
+```json
+"heading": {"$type": "fontFamily", "$value": ["Fraunces", "Fraunces Fallback", "serif"],
+  "$extensions": {"bazis": {"font": {"package": "@fontsource-variable/fraunces", "axes": ["opsz", "wght"],
+    "fallback": {"local": ["Georgia"], "size_adjust": "104%", "ascent_override": "95%",
+      "descent_override": "25%", "line_gap_override": "0%"}}}}}
+```
+
+`bazis_front design` copies the files of its subsets with the license into
+`frontend/public/fonts/<id>-<version>/` (commit them; the lock keeps their hashes, and
+`--check` and `front.W005` report them stale) and writes their `@font-face`: each subset with
+its unicode-range, so a page downloads only those it draws. `subsets` is `auto` (those of the
+`languages` of `product.yaml` and of the signs of `display.currency`: `ru` takes the Cyrillic
+and the Latin with their extensions) or a list (D015 when it leaves out a language or a
+currency). `preload` (true for `font.body`) puts the file of the letters of the first
+language in a `<link rel="preload">` of `index.html`. `fallback` (a starter has its own)
+makes the face `<Family> Fallback`, a local font with the metrics of the web font, so the swap
+moves no line: name it second in `$value` (D016 for a name it does not make). A heading font
+with optical sizes is loaded with `axes: [opsz, wght]`: D014 knows `source-serif-4`,
+`literata`, `fraunces` and `newsreader` of @fontsource-variable (a starter has all its axes);
+give another family with `opsz` its `axes` yourself. A font of another package is
+imported as before: `"$extensions": {"bazis": {"import": "@fontsource-variable/brand-sans"}}`
+(an npm package that the product installs, or the `https://` URL of a stylesheet).
+
+### Brand
+
+**Brand.** The brand of a customer goes over the palette, in `tokens.json`: change
+`color.primary` and `color.primary-foreground` (and `dark.color.primary`): the focus rings,
+the current link, the selected row and the soft tints derive from the primary
+(`color-mix`). The palettes are OKLCH (`oklch(L C H)`): keep the lightness
+and the chroma of the palette and change the hue; `check` reports a text color that loses
+its contrast (D009). A token of `tokens.json` replaces that of the layers: a `tokens.json`
+that defines every color (of an older version) hides the palette, so remove the colors it
+should take from the palette (D012). Set `density` for the spacing.
+
+**The mark of the brand** next to the name of the product in the shell and on the login
+screen (`Brand` of `@/bazis/ui/app-shell`) is `brand` of
+`theme.yaml`: `{icon: tent}` (a lucide icon, D013) or `{image: brand/mark.svg}` (a file of
+`frontend/public/`, D017); without it, the first letter of the name. It sits on
+`color.brand` with `color.brand-foreground` (the primary by default; `check` keeps both
+legible and the brand legible on a card): an accent of the brand (`bg-brand`,
+`text-brand`), never a button or a badge, which stay on the primary.
+
+### The sidebar and the headings
+
+**The sidebar** (`[data-slot='sidebar']`: the sidebar of `workspace` and the drawer of a
+phone) gives the variables of the content those of the sidebar: `--foreground`,
+`--muted-foreground`, `--border`, `--accent`, `--primary`, `--ring` are `--sidebar-…` inside
+it, so a component in it keeps the classes of the theme (`text-muted-foreground`) and a
+palette with a dark sidebar (`pine`) stays legible. Define `color.sidebar-muted-foreground`
+and `color.sidebar-primary` with a dark `color.sidebar`: the first is the muted foreground of
+the content by default, which D009 reports on a dark sidebar.
+
+**The headings.** `font-heading` is the family, the weight and the tracking of a heading
+(the title of a screen, a card, a figure of a dashboard) and `font-subheading` those of the
+heading of a section (`font.weight-subheading`): use them for headings of your own rather than
+`font-semibold tracking-tight`. The digits of a number, a decimal or a date have one width in
+the cells, the values of a card and the inputs (`alignsDigits` of `@/bazis/ui/resource`); those
+of a heading and of a figure stay proportional.
 
 ## The end-to-end tests
 
@@ -2760,7 +2903,7 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   | `select: {where}`, `bulk: <id>` | `select({where})`, `bulk(id)` |
   | `move: {where, to, payload}` | `move({where, to, payload, files})`, its payload as `transit`; fails as soon as the move is refused (`error:move`) with its error |
   | `action: <id>` | `action(id)`; a destroy (once the lock has `screens`) and a custom action with `confirm: true` are confirmed by `confirm(id)` (a generated screen shows the dialog; on a custom screen `confirm(id, { optional: true })`: delete with `useDestroyCardAction`, its dialog); one with `fields` opens its dialog, which `fill` and `submit` take as a form; then `expectScreen` of the `then` of a destroy |
-  | `fill`, `upload` | `fill(values)`, `upload(field, file)` in the open form (on a card with `edit: true` whose edit is not open, `action('edit')` first): a to-many picker by the list of the labels that replace its items (`[]`: none); a date-time as `YYYY-MM-DDTHH:mm` in UTC, the time zone of the browser (`FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`); `today`, `today+3`, `today-1 10:30` a day of the run in UTC, as `expectDay`; a file of `e2e/fixtures/` of the frontend (`photo.png` of the template or one of the product) |
+  | `fill`, `upload` | `fill(values)`, `upload(field, file)` in the open form (on a card with `edit: true` whose edit is not open, `action('edit')` first): a to-many picker by the list of the labels that replace its items (`[]`: none); a date as `YYYY-MM-DD`, whatever its input shows (`02.11.2026`); a date-time as `YYYY-MM-DDTHH:mm` in UTC, the time zone of the browser (`FieldInput` sends `2030-03-04T10:00` as `2030-03-04T10:00:00.000Z`); `today`, `today+3`, `today-1 10:30` a day of the run in UTC, as `expectDay`; a file of `e2e/fixtures/` of the frontend (`photo.png` of the template or one of the product) |
   | `submit: {}` | `submit({saved: true})` (`saved` from the generator, never a key of the step: P002) fails with the errors that the form shows when it stays open; the items it creates (the answers 201 in JSON of the POSTs meanwhile, their item in `data.id`) are those that `created` finds. `submit()` when the next step expects a refusal (an `error`, or a `state` `invalid`, `error`, `forbidden`, `not_found`). A submit that saves is followed by `expectScreen` of the `then` of the form (none after the form of a custom action with a `result` on its page: `expect: {state: done}`), a refused one by none |
   | `remember: {name: property}` | `const $name = await app.answer(property)` (`ActionResult` renders each text and number of the answer hidden), `$name` in the values of the next steps; a value that no next step takes is read without a constant (the lint refuses an unused one) |
   | `transit` | `transit(id, payload?, files?)`: the files of the payload uploaded in its dialog (as `upload`, one after the other), its other values filled (as `fill`), or its confirmation when the workflow confirms it |
@@ -2773,7 +2916,8 @@ your own go to `frontend/e2e/custom/` ("The tests of your own" below).
   edit has the field read-only (it opens the edit and cancels it). `expectValues` takes the
   texts as the card shows them in the language of the tests, a run of spaces of either as one
   space (the no-break spaces of the groups of digits of `Intl` too): a decimal with
-  `display: {currency: RUB}` is `1 500,00 ₽` (`1 500` matches it, `1500` does not), one
+  `display: {currency: RUB}` is `1500 ₽` (four digits are not grouped), `15 000 ₽`,
+  `15 000,50 ₽` (`15 000` matches it, `15000` does not; `fraction: always`: `15 000,00 ₽`), one
   without `display` its digits, `1500.00`. On a card in tabs,
   `action`, `fill`, `expectValues` and `expectFieldReadonly` first show the tab of the mark
   they act on (the tab whose `aria-controls` is the hidden panel that has it).
@@ -3349,7 +3493,10 @@ the user (below), else the choice kept in the browser (localStorage), else the l
 of the browser (`navigator.languages`, also by their base code: `ru-RU` is `ru`), else
 `LANGUAGE`. `AppShell` shows `LanguageToggle` next to the color mode when there is more
 than one language (`action:language`, the code in `data-value`); the `lang` of the page
-follows it, and so does its title, the name of the product (`product.name`).
+follows it, and so does its title, the name of the product (`product.name`). The dates are
+typed and shown as it writes them (`DatePicker`: `02.11.2026` in Russian, `11/02/2026` in
+English), whatever the language of the browser; `controls.date: native` of the theme gives
+the input of the browser instead (its own picker on a phone, in the language of the browser).
 
 ### The backend answers in it
 
@@ -4999,11 +5146,23 @@ Its props, `AppShellProps`:
 
 - `title: ReactNode`: The name of the product.
 - `navigation?: Navigation`: `navigation` of the theme by default.
+- `brand?: BrandMark | null`: The mark of the brand next to the name, `brand` of the theme by default; null: the first letter of the name.
 - `items: readonly NavEntry[]`: The links of the navigation and their groups.
 - `session?: ShellSession | null`
 - `signIn?: (() => void) | undefined`: The sign-in of a user without a session (`action:sign-in`), shown in the place of the session while it is null: it opens the login.
 - `tools?: ReactNode`: The tools of the product next to the color mode, such as the notifications (`NotificationCenter`) and the state of the socket (`LiveQuery`): in the top bar, else at the foot of the sidebar (a row that wraps, above the session) or, on a phone, in its header.
 - `children: ReactNode`
+
+#### Brand
+
+`Brand(props: BrandProps): Element`: The mark of the product on the color of its brand (its icon or its image, else the first letter of its name, `data-slot="brand-mark"`) and its name in two lines at most: that of the shell, and of the login screen (`large`).
+
+
+Its props, `BrandProps`:
+
+- `title: ReactNode`: The name of the product.
+- `mark?: BrandMark | null | undefined`: Its mark, `brand` of the theme by default; null: the first letter of the name.
+- `large?: boolean | undefined`: Larger, as on the login screen.
 
 #### Screen
 
@@ -5119,6 +5278,7 @@ Its props, `ListCardLayoutProps`:
 #### The types and the constants of `@/bazis/ui/app-shell`
 
 - `AppShellProps`: the props of `AppShell`, listed with it
+- `BrandProps`: the props of `Brand`, listed with it
 - `type Navigation = 'sidebar' | 'topbar'`
 - `type NavEntry = NavItem | NavGroup`: An entry of the navigation: a link, or a group of links.
 - `ScreenProps`: the props of `Screen`, listed with it
@@ -5238,7 +5398,7 @@ Its props, `TimeChartProps`:
 
 #### Dashboard
 
-`Dashboard(props: DashboardProps): Element`: The home of a product: its numbers, its links, its charts and its last items, in this order.
+`Dashboard(props: DashboardProps): Element`: The home of a product: the day, its numbers, its links, its charts and its last items, in this order.
 
 
 Its props, `DashboardProps`:
@@ -5248,9 +5408,10 @@ Its props, `DashboardProps`:
 - `description?: ReactNode`: What the product is for (`summary` of the product, under the title of a hero).
 - `actions?: ReactNode`: The actions of the screen, such as the forms that create an item (`action:<id>`).
 - `hero?: boolean`: The title, the description and the actions as a hero: a portal (`preset` of the theme) by default.
-- `before?: ReactNode`: What the screen shows before its parts (after the hero), such as the extension of a generated screen.
+- `today?: boolean`: The day of today before its parts (after the hero, `today`): `Monday, 2 November`.
+- `before?: ReactNode`: What the screen shows before its parts (after the hero and the day), such as the extension of a generated screen.
 - `tiles?: readonly (StatCardProps & DashboardPart)[]`
-- `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`.
+- `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`; none with `[]`.
 - `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`.
 - `recent?: readonly (RecentListProps & DashboardPart)[]`
 - `children?: ReactNode`: What the screen shows after its parts, such as the create forms of its actions: in the screen, so that a form composed as a page takes its place.
@@ -5292,19 +5453,21 @@ Its props, `RecentListProps`:
 
 #### DatePicker
 
-`DatePicker(props: DateInputProps): Element`: The input of a date and its calendar: the button of the calendar in the input (the picker of the browser hidden where it can be), none when the input is read-only.
+`DatePicker(props: DatePickerProps): Element`: The input of a date and its calendar: a text in the numeric format of the language of the product (`02.11.2026`, whatever the language of the browser), typed in that order with any separator or as `YYYY-MM-DD`, or `<input type="date">` of the browser (`mode: native`); the button of the calendar in the input, none when the input is read-only.
 
 
-Its props, `DateInputProps`:
+Its props, `DatePickerProps`:
 
-- and the members of `Omit<ComponentProps<'input'>, 'type' | 'value' | 'onChange'>`
-- `value: string`: `2026-10-07`, or the empty string for none.
-- `onChange: (value: string) => void`
-- `'data-bz'?: string | undefined`
+- and the members of `DateInputProps`
+- `mode?: Theme['controls']['date']`: localized: a text in the numeric format of the language; native: `<input type="date">`.
 
 #### DatePickerProvider
 
 `DatePickerProvider(props: { children: ReactNode; }): Element`: The dates of the forms and of the filters below it are picked in a calendar (`DatePicker`).
+
+#### The types and the constants of `@/bazis/ui/date-picker`
+
+- `DatePickerProps`: the props of `DatePicker`, listed with it
 
 ### `@/bazis/ui/empty-state`
 
@@ -5616,7 +5779,7 @@ Its props, `FieldInputProps`:
 
 #### FieldValue
 
-`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`; their thumbnails only with `display: 'image'`, large in a card).
+`FieldValue(props: FieldValueProps): Element`: The value of a field for reading: an attribute formatted by its type, its format and `display` (a phone as a link to call it, a share as a bar, `per` muted after a sum), the labels of the related items of a relationship (the status of an item of bazis-statusy by its name), the uploaded files (`FileValue`; their thumbnails only with `display: 'image'`, large in a card, the cover of a card of a grid as `media`).
 
 
 Its props, `FieldValueProps`:
@@ -5626,6 +5789,7 @@ Its props, `FieldValueProps`:
 - `type?: string`: The JSON:API type of the item: the `status` of an item of a statusy model is named by the contract.
 - `display?: FieldDisplay | undefined`: How the value is shown (`display` of the field of the entity of the specs).
 - `large?: boolean | undefined`: The value is that of a card: the thumbnail of an image (`display: 'image'`) is large.
+- `media?: boolean | undefined`: The image (`display: 'image'`) is the cover of a card of a grid: its whole width, the first of several files.
 
 #### ItemValue
 
@@ -5638,10 +5802,15 @@ Its props, `ItemValueProps`:
 - `name: string`: The name of the field.
 - `fields: Fields`: The fields of the item's route set (`useListFields`, `useItemFields`).
 - `display?: FieldDisplay | undefined`
+- `media?: boolean | undefined`: The image is the cover of a card of a grid (`FieldValue` `media`).
 
 #### titleFromText
 
 `titleFromText(element: HTMLElement | null): (() => void) | undefined`: A ref that gives an element its text as its title, kept as the text changes (the label of a related item read later): the whole text of a value that `truncate` may cut.
+
+#### alignsDigits
+
+`alignsDigits(field: FormField | undefined): boolean`: Whether the figures of a field have the same width (`tabular-nums`): a number, a decimal, a date.
 
 #### choiceOptions
 
@@ -5685,7 +5854,7 @@ Its props, `ItemValueProps`:
 
 #### isNumeric
 
-`isNumeric(field: FormField | undefined): boolean`: Whether a field is a number: aligned to the right, with figures of the same width.
+`isNumeric(field: FormField | undefined): boolean`: Whether a field is a number: aligned to the right.
 
 #### isReverse
 
@@ -5794,7 +5963,7 @@ Its props, `FileViewProps`:
 - `onDownload?: (() => void) | null | undefined`: Downloads the file: its name is a button; without it, a text.
 - `downloading?: boolean | undefined`: The download runs.
 - `failed?: boolean | undefined`: The download failed: said next to the name.
-- `thumbnail?: Thumbnail | undefined`: The file as its thumbnail only (`display: 'image'`), a button that downloads it: 56 px (`small`, a table or a list) or 160 px (`large`, a card); an icon in place of a file that is not an image.
+- `thumbnail?: Thumbnail | undefined`: The file as its thumbnail only (`display: 'image'`), a button that downloads it: 56 px (`small`, a table or a list) or 160 px (`large`, a card), or the cover of a card of a grid (`cover`), which is not a button; an icon in place of a file that is not an image.
 
 #### formatSize
 
@@ -5987,7 +6156,7 @@ Its props, `RelationPickerProps`:
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
 - `ItemValueProps`: the props of `ItemValue`, listed with it
-- `type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
+- `type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per` (`3600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
@@ -6140,10 +6309,11 @@ Its props, `ResourceCardProps`:
 - `path: ItemPath`: The route set (`ROUTES` of the contract); for `edit`, one with the update.
 - `id: string`
 - `sections: readonly CardSection[]`
+- `summary?: CardSummary | undefined`: The summary of the item under its heading (`card.summary` of the spec): its range of days, its figure, its muted values.
 - `title?: (item: ResourceObject) => ReactNode`: The heading; by default the name of the item (`itemName`: its name, title...), else the values of its `label` fields (its id only when none has a value).
 - `label?: readonly string[]`: The fields whose values head an item without a name (`label` of the entity of the specs: a loan by its book and its reader); the first two fields of the sections by default, or when it is empty.
 - `badge?: (item: ResourceObject) => ReactNode`: Next to the heading: the status of the item (`StatusBadge` of status-badge).
-- `edit?: boolean`: An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the sections.
+- `edit?: boolean`: An edit button (`action:edit`) when the backend allows the change: the form of the update of the fields of the summary and of the sections.
 - `filters?: FieldFilters`: The items that the pickers of the relationships of the edit offer, by field (`filter` of the fields of the entity of the specs).
 - `actions?: readonly CardAction[]`
 - `values?: Readonly<Record<string, (item: ResourceObject) => ReactNode>>`: The values of fields, instead of the formatted value.
@@ -6180,6 +6350,14 @@ Its props, `ResourceCardProps`:
 - `title?: ReactNode`
 - `fields: readonly string[]`
 - `when?: { status: readonly string[]; }`: Shown only while the item is in one of these statuses (its relationship `status`, bazis-statusy); always without it.
+
+#### CardSummary
+
+`interface CardSummary`: The summary of a card: fields of the item, which need no section.
+
+- `range?: readonly [ string, string ]`: The first and the last day (date or date-time fields), shown as one range with the number of its days.
+- `figure?: string`: The main value (a number, a sum, a date), shown large in the heading font.
+- `meta?: readonly string[]`: Values in a muted line under the range, each without its label.
 
 #### The types and the constants of `@/bazis/ui/resource-card`
 
@@ -6303,9 +6481,10 @@ Its props, `ResourceListProps`:
 - `rowTone?: (row: ResourceObject) => Tone | undefined`: The tone of the theme that highlights a row (`list.highlight` of the spec), undefined for none: its soft color and a bar of the tone, marked `data-tone`.
 - `rowToneLabel?: (row: ResourceObject) => string | undefined`: What the tone of a highlighted row means, in words (`label` of `list.highlight`): its `aria-description`, so that the highlight is not told by its color alone.
 - `emptyMessage?: ReactNode`: The message of the empty list.
-- `icon?: ComponentType<{ className?: string; }>`: The icon of the entity (such as an icon of lucide-react), in the empty state.
+- `icon?: ComponentType<{ className?: string; }>`: The icon of the entity (such as an icon of lucide-react): in the empty state, and the cover of a card without its image.
 - `layout?: 'table' | 'cards'`: A table or a grid of cards; `composition.list` of the theme by default.
 - `phoneLayout?: 'table' | 'cards'`: The list on a phone, below the breakpoint `md` (cards, where a table would scroll sideways); `composition.list_phone` of the theme by default.
+- `card?: CardLayout | undefined`: The composition of a card of the grid (`list.card` of the spec): its cover, its rubric, its title, its figure and its muted values; without it, the first column is the title.
 - `density?: Theme['density']`: The density of the rows of the table, which the user may change; that of the theme by default.
 - `selection?: readonly string[]`: The ids of the selected rows (`selection` of `onSelectionChange`).
 - `onSelectionChange?: (ids: readonly string[]) => void`: Makes the rows selectable, a checkbox each (`select:<id>`, and `select:all` for the rows of the page): called with the ids selected, also those of other pages.
@@ -6330,6 +6509,16 @@ Its props, `ResourceListProps`:
 - `label: ReactNode`
 - `onClick: (id: string) => void`
 - `permission?: 'change' | 'delete'`
+
+#### CardLayout
+
+`interface CardLayout`: The composition of a card of a grid (`list.card` of the spec), each role a column (a role whose column is not shown is left out), each value without its label but those of `meta`; the other columns are pairs of a label and a value.
+
+- `media?: string`: The cover, the whole width of the card: a column of an image (`display: 'image'`); the first one by default.
+- `eyebrow?: string`: A rubric above the title.
+- `title?: string`: The title; the first column without a role by default.
+- `figure?: string`: The main value, in the heading font.
+- `meta?: readonly string[]`: Values in a muted line, each after its label (`Deposit 10,000 ₽`).
 
 #### The types and the constants of `@/bazis/ui/resource-list`
 
@@ -6780,7 +6969,7 @@ The exports of `frontend/e2e/bazis/`, imported as `../bazis` by the tests of `e2
 - `move(options: { where: Values; to: string; payload?: Values; files?: Files; created?: boolean; }): Promise<void>`: Moves the item of the board of the current screen that `openItem` would open to the column of a status, by its menu (`action:move`, then `move:<status>`), with the values of the payload of its transit in its dialog and its files (as `transit`), or confirmed in its dialog when the specs confirm the transit, and waits until it is in the column `column:<status>`; fails as soon as the move is refused (`error:move`, or another error shown), with the error.
 - `action(id: string): Promise<void>`: Runs an action of the current screen, `action:<id>` (in the tab of a card that has it).
 - `confirm(id: string, options?: { optional?: boolean; }): Promise<void>`: Confirms the action `<id>` of the current screen in its dialog, `action:confirm-<id>` (the deletion of the item of a card), and waits until the dialog is closed; the dialog must be shown, but with `optional` (a hand-written screen may run the action without a confirmation), where nothing is done when none is shown within 2 s.
-- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false; an input of a date or a date-time also by a day of the run (`today`, `today+1 10:30`: `dateOfRun`); `{run}` in a text or a label is the text of the run of the test.
+- `fill(values: FormValues): Promise<void>`: Fills fields of the open form, `field:<name>`: a text, a number, a date; a select (a choice) by the label of its option, the native one of the browser or that of Radix (a combobox whose popup is its listbox), null by its option that clears the value (`data-value=""` in that of Radix); a combobox (the picker of a relationship) by the label of the item, searched in its popup, null by its option that clears the value; the picker of a to-many relationship by the list of the labels of its items, which replace those it had (`[]`: none); a checkbox, or a checkbox or a switch of Radix (`role`), by true or false; an input of a date (`<input type="date">`, or that of `DatePicker` in the format of the language, `data-input="date"`: both take `YYYY-MM-DD`) or a date-time also by a day of the run (`today`, `today+1 10:30`: `dateOfRun`); `{run}` in a text or a label is the text of the run of the test.
 - `upload(field: string, file: string): Promise<void>`: Uploads a file (a path in `e2e/fixtures/`) into a file field of the open form, its input `field:<name>`, and waits until it is uploaded (the field `upload:<name>` is no longer busy, its `aria-busy` absent or `"false"`, and shows the name of the file) or shows an error of this upload.
 - `submit(options?: { saved?: boolean; }): Promise<void>`: Submits the open form and waits until it is closed (saved) or shows an error of this submit (not one of a previous submit), which the next step expects (`expectError`, `expectState`).
 - `transit(id: string, payload?: Values, files?: Files): Promise<void>`: Runs a transit of the item of the current screen, `transit:<id>`, with the values of its payload in its dialog and the files that it uploads into its file fields (a file of `e2e/fixtures/`, a list of them for several, as `upload`), or confirmed in its dialog when the specs confirm it, and waits until it is done (the transit is no longer offered) or shows an error.

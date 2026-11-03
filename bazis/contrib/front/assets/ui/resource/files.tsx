@@ -168,16 +168,23 @@ export interface FileViewProps {
   failed?: boolean | undefined;
   /**
    * The file as its thumbnail only (`display: 'image'`), a button that downloads it: 56 px
-   * (`small`, a table or a list) or 160 px (`large`, a card); an icon in place of a file that
-   * is not an image.
+   * (`small`, a table or a list) or 160 px (`large`, a card), or the cover of a card of a grid
+   * (`cover`), which is not a button; an icon in place of a file that is not an image.
    */
   thumbnail?: Thumbnail | undefined;
 }
 
-/** The size of the thumbnail of a file shown as its thumbnail only: `small` 56 px, `large` 160 px. */
-export type Thumbnail = 'small' | 'large';
+/**
+ * The size of the thumbnail of a file shown as its thumbnail only: `small` 56 px, `large` 160 px,
+ * `cover` the whole width of its box at 4:3 (the photo of a card of a grid).
+ */
+export type Thumbnail = 'small' | 'large' | 'cover';
 
-const THUMBNAILS: Record<Thumbnail, string> = { small: 'size-14', large: 'size-40' };
+const THUMBNAILS: Record<Thumbnail, string> = {
+  small: 'size-14',
+  large: 'size-40',
+  cover: 'flex aspect-[4/3] w-full rounded-none border-0',
+};
 
 /**
  * A file: a thumbnail of an image (`preview`) or an icon, its name (a button that downloads it),
@@ -197,8 +204,9 @@ export function FileView({ file, preview, onDownload, downloading = false, faile
       THUMBNAILS[thumbnail],
       failed && 'border-destructive',
     );
-    // the name of the file is that of its thumbnail (a 56 px target is one of a finger)
-    return onDownload ? (
+    // the name of the file is that of its thumbnail (a 56 px target is one of a finger); a
+    // cover is the picture of the card that it opens, never a download
+    return onDownload && thumbnail !== 'cover' ? (
       <button
         type="button"
         title={file.name}

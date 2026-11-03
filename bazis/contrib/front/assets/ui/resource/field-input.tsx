@@ -144,6 +144,7 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
       <Input
         {...control}
         type="number"
+        className="tabular-nums"
         step={field.type === 'integer' ? 1 : 'any'}
         value={typeof value === 'number' ? value : ''}
         readOnly={readOnly}
@@ -164,6 +165,7 @@ function AttributeControl({ field, value, onChange, disabled, control }: {
         <Input
           {...control}
           type="datetime-local"
+          className="tabular-nums"
           value={toLocalDateTime(value)}
           readOnly={readOnly}
           disabled={disabled}

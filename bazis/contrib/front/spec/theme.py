@@ -17,7 +17,11 @@ The theme of the frontend (`bazis_front design`): spec/design/theme.yaml and tok
 compiled into `frontend/src/bazis/generated/`:
 
 - `fonts.css`, imported first by `src/index.css`: the imports of the fonts of the tokens
-  (an @import after a rule is dropped, the stylesheet of Google Fonts among them);
+  (an @import after a rule is dropped, the stylesheet of Google Fonts among them), then the
+  `@font-face` of the fonts that the frontend serves itself (`fonts.py`: their files copied
+  into `frontend/public/fonts/`, recorded in the lock with their hashes);
+- `fonts.ts`, `FONT_PRELOAD`: the font files that the plugin of `vite.config.ts` preloads in
+  index.html;
 - `theme.css`, imported by `src/index.css` after Tailwind: the
   tokens as CSS variables of `:root` and of the dark mode (the class `dark` of `<html>`, or
   the system's unless it has the class `light`; with `mode: light` or `dark` the one mode
@@ -31,40 +35,28 @@ compiled into `frontend/src/bazis/generated/`:
 
 Without spec/design/ the theme is that of the starter of the preset `workspace` before the
 layers (`design.WITHOUT_THEME`). The text
-depends on the specs only: `--check` and `front.W005` render it again and compare it byte
-for byte, without Node and the database; the lock records the hashes of the specs and of
-the files (`design`).
+depends on the specs only (the subsets of the fonts and the file to preload on the languages
+and the currencies of product.yaml): `--check` and `front.W005` render it again and compare
+it byte for byte, and the font files with their sources, without Node and the database; the
+lock records the hashes of the design (`design_hashes`) and of the files (`design`).
 """
 
+import json
+from importlib.resources.abc import Traversable
 from pathlib import Path
 
 from ..contract.generated import GENERATED_DIR
-from ..contract.typescript import literal
+from ..contract.typescript import Constant, literal
 from ..vendor import lock as frontend_lock
-from . import design
-from .validate import THEME_FILE, TOKENS_FILE, Specs
+from . import design, fonts
+from .screens import icon_name
+from .validate import PRODUCT_FILE, THEME_FILE, TOKENS_FILE, Specs
 
 
 FONTS_CSS = f'{GENERATED_DIR}/fonts.css'
+FONTS_TS = f'{GENERATED_DIR}/fonts.ts'
 THEME_CSS = f'{GENERATED_DIR}/theme.css'
 THEME_TS = f'{GENERATED_DIR}/theme.ts'
-
-#: the files of the design in the product root
-DESIGN_FILES = (THEME_FILE, TOKENS_FILE)
-
-#: the options of each preset, when theme.yaml does not give them
-PRESETS = {
-    'workspace': {
-        'navigation': 'sidebar',
-        'density': 'comfortable',
-        'composition': {'list': 'table', 'list_phone': 'cards', 'list_card': 'split', 'forms': 'dialog'},
-    },
-    'portal': {
-        'navigation': 'topbar',
-        'density': 'comfortable',
-        'composition': {'list': 'cards', 'list_phone': 'cards', 'list_card': 'pages', 'forms': 'page'},
-    },
-}
 
 #: the spacing of each density: the padding of the page, the gap between the sections of a
 #: screen, the padding of the cards, of the cells of the tables, the gap between the fields
@@ -100,6 +92,34 @@ PRESET_BASE = {
         # larger type and more air: every rem grows
         'html {\n    font-size: 106.25%;\n  }',
     ],
+}
+
+#: the utilities of the headings over the tokens of the fonts (the figures in proportional
+#: lining digits: a number is read as a heading, not in a column)
+HEADING = {
+    'font-family': 'var(--font-heading)',
+    'font-weight': 'var(--font-weight-heading)',
+    'letter-spacing': 'var(--font-tracking-heading)',
+    'font-variant-numeric': 'lining-nums proportional-nums',
+}
+SUBHEADING = {
+    'font-family': 'var(--font-heading)',
+    'font-weight': 'var(--font-weight-subheading)',
+    'letter-spacing': 'var(--font-tracking-heading)',
+}
+
+#: the variables of the content that the sidebar replaces with its own inside it (the buttons,
+#: the toggles, the focus rings, the borders and the muted text of the components there)
+SIDEBAR = {
+    '--foreground': 'var(--sidebar-foreground)',
+    '--muted-foreground': 'var(--sidebar-muted-foreground)',
+    '--border': 'var(--sidebar-border)',
+    '--input': 'var(--sidebar-border)',
+    '--accent': 'var(--sidebar-accent)',
+    '--accent-foreground': 'var(--sidebar-accent-foreground)',
+    '--primary': 'var(--sidebar-primary)',
+    '--primary-foreground': 'var(--sidebar-primary-foreground)',
+    '--ring': 'var(--sidebar-ring)',
 }
 
 CSS_HEADER = (
@@ -141,31 +161,23 @@ export interface Theme {
     /** Forms in a dialog, or in place of the content of the screen. */
     readonly forms: 'dialog' | 'page';
   };
+  readonly controls: {
+    /** localized: a text as the language of the product writes a date, with a calendar; native: `<input type="date">`. */
+    readonly date: 'localized' | 'native';
+  };
   /** The tone of the badge of a status by its id; neutral for another. */
   readonly statuses: Readonly<Record<string, Tone>>;
   /** The name of the lucide icon of each entity, by the id of the entity. */
   readonly icons: Readonly<Record<string, string>>;
+  /** The mark of the brand in the shell, on `color.brand`; null: the first letter of the name. */
+  readonly brand: BrandMark | null;
   /** Whether the user switches to a dark mode: tokens of the group `dark` and `mode: both`. */
   readonly dark: boolean;
 }
+
+/** The mark of the brand (`brand` of spec/design/theme.yaml): a lucide icon, or the URL of an image of frontend/public/. */
+export type BrandMark = { readonly icon: ComponentType<{ className?: string }> } | { readonly image: string };
 """
-
-
-def options(theme: dict | None) -> dict:
-    """
-    The options of theme.yaml with the defaults of its preset (`workspace` without one).
-    """
-    theme = theme or {'preset': 'workspace'}
-    preset = theme['preset']
-    defaults = PRESETS[preset]
-    return {
-        'preset': preset,
-        'navigation': theme.get('navigation', defaults['navigation']),
-        'density': theme.get('density', defaults['density']),
-        'composition': {**defaults['composition'], **theme.get('composition', {})},
-        'statuses': dict(theme.get('statuses', {})),
-        'icons': dict(theme.get('icons', {})),
-    }
 
 
 def block(selector: str, values: dict[str, str], indent: str = '') -> str:
@@ -207,14 +219,27 @@ def theme_mapping(defined: dict) -> dict[str, str]:
     return mapping
 
 
-def render_fonts(defined: dict) -> str:
+def render_fonts(defined: dict, faces: list[fonts.Face]) -> str:
     """
     The imports of the fonts: the stylesheets of other origins first, then the npm packages
-    (whose rules Tailwind inlines in their place).
+    (whose rules Tailwind inlines in their place); then the faces of the fonts that the
+    frontend serves.
     """
     sources = sorted(design.imports(defined), key=lambda it: not it.startswith('https://'))
     lines = [f"@import url('{it}');" if it.startswith('https://') else f"@import '{it}';" for it in sources]
-    return '\n'.join([FONTS_HEADER, *(lines or ['/* No fonts to import. */'])]) + '\n'
+    rules = fonts.render_faces(faces)
+    if not lines and not rules:
+        lines = ['/* No fonts to import. */']
+    return '\n'.join([FONTS_HEADER, *lines, *(['', *rules] if lines and rules else rules)]) + '\n'
+
+
+def render_preload(faces: list[fonts.Face]) -> str:
+    return '\n'.join([
+        TS_HEADER,
+        '/** The font files that index.html preloads (`bazisFonts` of vite.config.ts): the text in the language of the product. */',
+        f'export const FONT_PRELOAD: readonly string[] = {literal(fonts.preloads(faces))};',
+        '',
+    ])
 
 
 def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
@@ -255,6 +280,10 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
     parts += [
         block('@theme inline', theme_mapping(defined)),
         '',
+        '/* The headings, the figures and the titles of the components; the headings of their sections. */',
+        block('@utility font-heading', HEADING),
+        block('@utility font-subheading', SUBHEADING),
+        '',
         '@layer base {',
         '  * {\n    @apply border-border outline-ring/50;\n  }',
         f'  html {{\n    color-scheme: {modes[0]};\n  }}',
@@ -266,6 +295,8 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         ]
     parts += [
         '  body {\n    @apply bg-background font-sans text-foreground antialiased;\n  }',
+        '  /* the components inside the sidebar and its drawer read the colors of the sidebar */',
+        block("[data-slot='sidebar']", SIDEBAR, '  '),
         '  h1,\n  h2,\n  h3 {\n    font-family: var(--font-heading);\n    font-weight: var(--font-weight-heading);\n'
         '    letter-spacing: var(--font-tracking-heading);\n  }',
         '  ::selection {\n    background-color: color-mix(in srgb, var(--primary) 22%, transparent);\n  }',
@@ -276,9 +307,19 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
 
 
 def render_ts(settings: dict, dark: bool) -> str:
-    value = {**settings, 'dark': dark}
+    brand = settings['brand']
+    imports = ["import type { ComponentType } from 'react';"]
+    if brand is not None and 'icon' in brand:
+        imports.append(f"import {{ {icon_name(brand['icon'])} }} from 'lucide-react';")
+        brand = {'icon': Constant(icon_name(brand['icon']))}
+    elif brand is not None:
+        # a file of frontend/public/ is served at the root
+        brand = {'image': f"/{brand['image']}"}
+    value = {**settings, 'brand': brand, 'dark': dark}
     return '\n'.join([
         TS_HEADER,
+        *imports,
+        '',
         TS_TYPES,
         '/** The design of spec/design/theme.yaml, with the defaults of its preset. */',
         f'export const THEME: Theme = {literal(value)};',
@@ -286,31 +327,82 @@ def render_ts(settings: dict, dark: bool) -> str:
     ])
 
 
-def render(specs: Specs) -> dict[str, str]:
+def faces(specs: Specs, frontend: Path | None) -> list[fonts.Face]:
     """
-    The generated files by their path in the frontend, from specs whose design has no errors.
+    The fonts that the frontend serves; a `fonts.FontError` when a package of the frontend
+    cannot be read.
     """
-    settings = options(specs.theme)
+    return fonts.faces(design.effective_tokens(specs.theme, specs.tokens), specs.product, frontend)
+
+
+def render(specs: Specs, frontend: Path | None = None) -> dict[str, str]:
+    """
+    The generated files by their path in the frontend, from specs whose design has no errors
+    (the packages of its fonts read from the frontend).
+    """
+    settings = design.options(specs.theme)
     defined = design.effective_tokens(specs.theme, specs.tokens)
+    served = faces(specs, frontend)
     return {
-        FONTS_CSS: render_fonts(defined),
+        FONTS_CSS: render_fonts(defined, served),
+        FONTS_TS: render_preload(served),
         THEME_CSS: render_css(settings, specs.theme, defined),
         THEME_TS: render_ts(settings, len(design.modes(specs.theme, defined)) == 2),
     }
 
 
-def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> list[str]:
+def font_files(specs: Specs, frontend: Path | None = None) -> dict[str, Traversable]:
+    """The font files that the frontend serves, by their path in the frontend, from their sources."""
+    return fonts.font_files(faces(specs, frontend))
+
+
+def font_hashes(sources: dict[str, Traversable]) -> dict[str, str]:
+    """The hashes of the font files that the frontend serves, by their path in the frontend."""
+    return {path: frontend_lock.digest(source.read_bytes()) for path, source in sources.items()}
+
+
+def design_hashes(root: Path, specs: Specs) -> dict[str, str]:
+    """
+    The hashes of the design, by path in the product root: those of the files of spec/design/,
+    and of product.yaml that of its languages and currencies only, which choose the subsets of
+    the fonts and the file to preload (another change of it leaves the theme current).
+    """
+    hashes = frontend_lock.file_hashes(root, (THEME_FILE, TOKENS_FILE))
+    if specs.product is not None:
+        fonts_input = {'languages': fonts.languages(specs.product), 'currencies': sorted(fonts.currencies(specs.product))}
+        hashes[PRODUCT_FILE] = frontend_lock.digest(json.dumps(fonts_input).encode('utf-8'))
+    return hashes
+
+
+def stale(root: Path, frontend: Path, lock: dict, specs: Specs) -> list[str]:
     """
     Why the theme of the frontend differs from that of the specs, one message for each;
-    empty when it is current. The files are compared byte for byte.
+    empty when it is current. The generated files are compared byte for byte, the font files by
+    the hashes of their sources. Without a font package in the frontend (a check without
+    `npm install`) both are compared by the hashes of the lock, and a change of the design since
+    it was generated is stale; an update of the generator or of the package is not seen then.
     """
-    names = frontend_lock.stale_files(frontend, rendered)
-    if not names:
-        return []
-    problems = [f'The theme of {frontend} is stale: {", ".join(names)}.']
-    changed, edited = frontend_lock.generation_changes(
-        lock.get('design', {}), frontend_lock.file_hashes(root, DESIGN_FILES), frontend, names
+    recorded = lock.get('design', {})
+    try:
+        rendered: dict[str, str] | None = render(specs, frontend)
+        expected = font_hashes(font_files(specs, frontend))
+    except fonts.FontNotInstalledError:
+        rendered, expected = None, recorded.get('fonts', {})
+    except fonts.FontError as err:
+        return [str(err)]
+    names = (
+        frontend_lock.stale_hashes(frontend, recorded.get('generated', {})) if rendered is None
+        else frontend_lock.stale_files(frontend, rendered)
     )
+    copies = frontend_lock.stale_hashes(frontend, expected)
+    changed, edited = frontend_lock.generation_changes(
+        recorded, design_hashes(root, specs), frontend, names
+    )
+    if not names and not copies and (rendered is not None or not changed):
+        return []
+    problems = [f'The theme of {frontend} is stale: {", ".join(names)}.'] if names else []
+    if copies:
+        problems.append(f'The fonts of the theme are stale: {", ".join(copies)}.')
     if changed:
         problems.append(f'The design changed since it was generated: {", ".join(changed)}.')
     if edited:
@@ -318,10 +410,21 @@ def stale(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> l
     return problems
 
 
-def write(root: Path, frontend: Path, lock: dict, rendered: dict[str, str]) -> None:
+def write(
+    root: Path, frontend: Path, lock: dict, specs: Specs, rendered: dict[str, str], sources: dict[str, Traversable]
+) -> None:
     """
-    Writes the theme and records the hashes of the design and of the files in the lock.
+    Writes the theme and copies the font files that are missing or differ from their sources
+    (those of the other versions of a family are kept: the product may serve them), and records
+    the hashes of the design, of the files and of the fonts in the lock.
     """
     frontend_lock.write_files(frontend, rendered)
-    lock['design'] = frontend_lock.generation(frontend_lock.file_hashes(root, DESIGN_FILES), rendered)
+    hashes = font_hashes(sources)
+    for path in frontend_lock.stale_hashes(frontend, hashes):
+        target = frontend / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(sources[path].read_bytes())
+    lock['design'] = frontend_lock.generation(design_hashes(root, specs), rendered)
+    if hashes:
+        lock['design']['fonts'] = hashes
     frontend_lock.write(frontend, lock)

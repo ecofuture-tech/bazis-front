@@ -40,7 +40,7 @@ import {
 } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 
-import { THEME } from '@/bazis/generated/theme';
+import { THEME, type BrandMark } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import { useCan, useFilterFields, type Can } from '@/bazis/react';
 import { Toaster } from '@/bazis/ui/state-panel';
@@ -157,6 +157,8 @@ export interface AppShellProps {
   title: ReactNode;
   /** `navigation` of the theme by default. */
   navigation?: Navigation;
+  /** The mark of the brand next to the name, `brand` of the theme by default; null: the first letter of the name. */
+  brand?: BrandMark | null;
   /** The links of the navigation and their groups. */
   items: readonly NavEntry[];
   session?: ShellSession | null;
@@ -203,20 +205,48 @@ export function useNavItems(): readonly NavItem[] {
   return useContext(ItemsContext);
 }
 
-/** The mark of the product: the first letter of its name on the primary color. */
-function Brand({ title }: { title: ReactNode }) {
+export interface BrandProps {
+  /** The name of the product. */
+  title: ReactNode;
+  /** Its mark, `brand` of the theme by default; null: the first letter of the name. */
+  mark?: BrandMark | null | undefined;
+  /** Larger, as on the login screen. */
+  large?: boolean | undefined;
+}
+
+/**
+ * The mark of the product on the color of its brand (its icon or its image, else the first
+ * letter of its name, `data-slot="brand-mark"`) and its name in two lines at most: that of the
+ * shell, and of the login screen (`large`).
+ */
+export function Brand({ title, mark = THEME.brand, large = false }: BrandProps) {
   const letter = typeof title === 'string' ? title.trim().charAt(0).toUpperCase() : null;
+  const Icon = mark !== null && 'icon' in mark ? mark.icon : null;
   return (
-    <span className="flex min-w-0 items-center gap-2.5">
-      {letter && (
+    <span className={cn('flex min-w-0 items-center', large ? 'gap-3' : 'gap-2.5')}>
+      {(mark !== null || letter) && (
         <span
           aria-hidden="true"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-sm"
+          data-slot="brand-mark"
+          className={cn(
+            'flex shrink-0 items-center justify-center overflow-hidden bg-brand font-semibold text-brand-foreground shadow-sm',
+            large ? 'size-10 rounded-xl text-lg' : 'size-8 rounded-lg text-sm',
+          )}
         >
-          {letter}
+          {Icon ? (
+            <Icon className={large ? 'size-5' : 'size-4.5'} />
+          ) : mark !== null && 'image' in mark ? (
+            <img src={mark.image} alt="" className="size-full object-cover" />
+          ) : (
+            letter
+          )}
         </span>
       )}
-      <span title={typeof title === 'string' ? title : undefined} className="truncate font-display text-base font-semibold tracking-tight">
+      <span
+        title={typeof title === 'string' ? title : undefined}
+        // the leading after the size: `cn` drops a leading that a size follows
+        className={cn('line-clamp-2 font-heading', large ? 'text-xl' : 'text-base', 'leading-tight')}
+      >
         {title}
       </span>
     </span>
@@ -606,12 +636,14 @@ function Account({ session, signIn, compact = false }: { session: ShellSession |
 /** The drawer of the navigation on a phone; closed when the route changes. */
 function Drawer({
   title,
+  brand,
   items,
   session,
   signIn,
   side,
 }: {
   title: ReactNode;
+  brand: BrandMark | null;
   items: readonly NavEntry[];
   session: ShellSession | null;
   signIn: (() => void) | undefined;
@@ -628,10 +660,10 @@ function Drawer({
         <Menu />
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side={side} className="w-72 gap-0 bg-sidebar p-0 text-sidebar-foreground">
+        <SheetContent data-slot="sidebar" side={side} className="w-72 gap-0 bg-sidebar p-0 text-sidebar-foreground">
           <SheetHeader className="h-14 justify-center border-b border-sidebar-border px-4">
             <SheetTitle>
-              <Brand title={title} />
+              <Brand title={title} mark={brand} />
             </SheetTitle>
             <SheetDescription className="sr-only">{t('shell.menu_description')}</SheetDescription>
           </SheetHeader>
@@ -650,7 +682,16 @@ function Drawer({
 }
 
 /** The layout of the screens. */
-export function AppShell({ title, navigation = THEME.navigation, items, session = null, signIn, tools, children }: AppShellProps) {
+export function AppShell({
+  title,
+  navigation = THEME.navigation,
+  brand = THEME.brand,
+  items,
+  session = null,
+  signIn,
+  tools,
+  children,
+}: AppShellProps) {
   const wide = useWide();
   const links = useMemo(() => navLinks(items), [items]);
   if (navigation === 'topbar') {
@@ -659,7 +700,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
         <div className="flex min-h-dvh flex-col [--bleed:1rem] [--sticky-top:4rem] md:[--bleed:var(--space-page-x)]">
           <header className="sticky top-0 z-30 h-16 border-b bg-background">
             <div className="flex h-full w-full items-center gap-6 px-4 md:px-(--space-page-x)">
-              <Brand title={title} />
+              <Brand title={title} mark={brand} />
               <TopNavigation items={items} />
               <div className="ml-auto flex items-center gap-1">
                 {tools}
@@ -671,7 +712,7 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
                   </div>
                 )}
                 <div className="md:hidden">
-                  <Drawer title={title} items={items} session={session} signIn={signIn} side="right" />
+                  <Drawer title={title} brand={brand} items={items} session={session} signIn={signIn} side="right" />
                 </div>
               </div>
             </div>
@@ -687,9 +728,12 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
   return (
     <ShellContext value={navigation}>
       <div className="min-h-dvh [--bleed:1rem] [--sticky-top:3.5rem] md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:[--bleed:var(--space-page-x)] md:[--sticky-top:4rem]">
-        <aside className="sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
+        <aside
+          data-slot="sidebar"
+          className="sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+        >
           <div className="flex h-16 shrink-0 items-center px-5">
-            <Brand title={title} />
+            <Brand title={title} mark={brand} />
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">
             <Navigation items={items} />
@@ -707,8 +751,8 @@ export function AppShell({ title, navigation = THEME.navigation, items, session 
         </aside>
         <div className="flex min-w-0 flex-col">
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
-            <Drawer title={title} items={items} session={session} signIn={signIn} side="left" />
-            <Brand title={title} />
+            <Drawer title={title} brand={brand} items={items} session={session} signIn={signIn} side="left" />
+            <Brand title={title} mark={brand} />
             <div className="ml-auto flex items-center gap-1">
               {!wide && tools}
               <LanguageToggle />
@@ -826,7 +870,7 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
                   <h1
                     title={typeof title === 'string' ? title : undefined}
                     className={cn(
-                      'min-w-0 truncate font-semibold tracking-tight',
+                      'min-w-0 truncate font-heading',
                       portal ? 'text-2xl md:text-3xl' : 'text-xl',
                     )}
                   >

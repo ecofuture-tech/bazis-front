@@ -165,6 +165,29 @@ def test_the_title_of_an_entity_is_a_text_of_the_specs(tmp_path):
     assert "    'entities.step.title': 'Step',\n" in messages.split('  ru: {')[0]
 
 
+def test_the_display_of_a_sum_gives_its_cents_and_the_key_of_what_it_is_for(tmp_path):
+    """
+    `fraction` of a sum is given as it is (`auto` by default: the components leave it out),
+    `per` by the key of its text, a message under the key of its place or a key of the
+    dictionaries that it is.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    edit_product(tmp_path, lambda data: [
+        data['entities'][1]['fields'][0].update(display={'currency': 'RUB', 'fraction': 'always', 'per': {'en': 'day', 'ru': 'сутки'}}),
+        data['entities'][1]['fields'][1].update(type='number', display={'currency': 'EUR', 'per': 'prices.per_night'}),
+    ])
+    files = rendered(tmp_path)
+    entities = files[f'{screens.GENERATED_DIR}/entities.ts']
+    messages = files[f'{screens.GENERATED_DIR}/messages.ts']
+    assert (
+        "      username: { currency: 'RUB', fraction: 'always', per: 'entities.user.fields.username.display.per' },\n"
+    ) in entities
+    assert "      dt_first_login: { currency: 'EUR', per: 'prices.per_night' },\n" in entities
+    assert "    'entities.user.fields.username.display.per': 'day',\n" in messages.split('  ru: {')[0]
+    assert "    'entities.user.fields.username.display.per': 'сутки',\n" in messages
+    assert 'prices.per_night' not in messages
+
+
 def test_a_link_of_the_navigation_is_labelled_by_its_label_else_by_the_title_of_its_screen(tmp_path):
     """
     A link with a `label` (shorter than the title of its screen) is labelled by it, a text of
@@ -273,7 +296,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     item; the form of a custom action without a result, then a list, linked once the backend
     lists its action; a plain card, whose code uses no navigation, no translation and no item (the lint of
     the frontend job refuses them unused); the filters of the pickers of a form as a page, of a custom
-    action and of the form of one.
+    action and of the form of one; a grid of cards composed by `card` everywhere, and the summary of a card.
     """
     kitchen_sink(tmp_path)
 
@@ -305,6 +328,11 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "    action: 'count',\n    target: 'route',\n    fields: ['priority'],\n    values: { priority: 'high' },\n" in places
     assert '          countAction.action,\n        ]}\n' in places and '      {countAction.dialog}\n' in places
     assert "rowTone={(row) => (fieldValue(row, 'urgent') === true ? 'warning' : undefined)}" in places
+    # the cards of the list: the keys of the spec as they are, the cover by default
+    assert (
+        '        icon={TASK.Icon}\n        layout="cards"\n        phoneLayout="cards"\n'
+        "        card={{ eyebrow: 'priority', figure: 'due', meta: ['status'] }}\n"
+    ) in places
     assert (
         '        rowToneLabel={(row) =>\n'
         "          fieldValue(row, 'urgent') === true ? t('screens.task-places.list.highlight.label') : undefined\n"
@@ -336,6 +364,7 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     ) in overview
 
     summary = files[f'{screens.GENERATED_DIR}/task-summary.tsx']
+    assert "            summary: { range: ['dt_created', 'due'], figure: 'hours', meta: ['priority'] },\n" in summary
     assert "description: t('screens.task-summary.actions.delete.description')," in summary
     assert '      {deleteAction.confirm}\n' in summary
     # a custom action of the item, among the actions of the card
@@ -399,11 +428,24 @@ def test_the_parts_that_the_sample_does_not_have(tmp_path):
     assert "            tone: { field: 'urgent', tone: 'danger' },\n" in schedule
     assert '      <CreateFormAction\n        {...addForm}\n' in schedule
 
-    # a dashboard of two entities: a tile of two conditions, a tile with its own icon, a tile of
-    # the latest date of a field, a chart by a date, one of an average, the forms of both, one
-    # then the home
+    # a dashboard of two entities: the day of today and no links (props that the extension may
+    # override), a tile of two conditions, a tile of a set of statuses and one of a negation, a
+    # tile with its own icon, a tile of the latest date of a field, a chart by a date, one of an
+    # average, the last items of a filter, the forms of both, one then the home
     overview = files[f'{screens.GENERATED_DIR}/overview.tsx']
+    assert '        {\n          today: true,\n          links: [],\n          tiles: [\n' in overview
     assert "filter: Filter.and(Filter.where('status', 'in_progress'), Filter.where('title', 'Review the plan'))," in overview
+    assert "filter: Filter.or(Filter.where('status', 'draft'), Filter.where('status', 'in_progress'))," in overview
+    assert (
+        '              filter: Filter.and(\n'
+        "                Filter.not(Filter.where('status', 'done')),\n"
+        "                Filter.where('due__lt', relativeDay('month_end+1', 'date-time')),\n"
+        '              ),\n'
+    ) in overview
+    assert (
+        "              columns: ['title', 'status'],\n"
+        "              filter: Filter.not(Filter.or(Filter.where('status', 'done'), Filter.where('status', 'in_progress'))),\n"
+    ) in overview
     assert "label: t('async.processing')," in overview
     assert "import { FootprintsIcon, PlusIcon } from 'lucide-react';\n" in overview
     assert '              icon: FootprintsIcon,\n' in overview
@@ -426,7 +468,7 @@ def test_the_filter_of_a_field_of_the_entity_narrows_its_pickers(tmp_path):
     """
     The `filter` of a field of an entity (the assignee of a task: the active users) is that of
     its picker in every form of the entity that asks for it: a create form of a dashboard and
-    of a calendar, "add here" of a related section, the edit of a card, a form screen without
+    of a calendar, "add here" of a related section, the edit of a card (a field of its summary), a form screen without
     `fields`, a custom action that names it, the payload of a transit with a field of the same
     id and relation; the filter of the form replaces it.
     """
@@ -441,7 +483,11 @@ def test_the_filter_of_a_field_of_the_entity_narrows_its_pickers(tmp_path):
     edit_product(tmp_path, product)
     edit_screen(tmp_path, 'overview', lambda data: data['dashboard']['actions'][0]['fields'].append('assignee'))
     edit_screen(tmp_path, 'task-calendar', lambda data: data['calendar']['add']['fields'].append('assignee'))
-    edit_screen(tmp_path, 'task-card', lambda data: data['card']['related'][0]['add']['fields'].append('owner'))
+    edit_screen(tmp_path, 'task-card', lambda data: (
+        data['card']['related'][0]['add']['fields'].append('owner'),
+        data['card']['sections'][0]['fields'].remove('assignee'),
+        data['card'].update(summary={'meta': ['assignee']}),
+    ))
     edit_screen(tmp_path, 'task-summary', lambda data: data['actions'][-1].update(fields=['priority', 'assignee']))
     files = rendered(tmp_path)
     active = "filters={{ assignee: Filter.where('is_active', true) }}"

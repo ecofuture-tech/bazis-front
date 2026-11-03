@@ -1,7 +1,9 @@
 # yaml-language-server: $schema=../../../../bazis/contrib/front/spec/schemas/screen.schema.json
 # A list without an extension: its map of the items of its filter (the drafts due from today,
 # a day of the browser), its create form (then the list of all the tasks), a custom action of
-# the route set in its toolbar, its bulk action and its status filter.
+# the route set in its toolbar, its bulk action and its status filter; a grid of cards
+# everywhere, each with the photos as its cover (the first image column), the priority above
+# its title, the due day as its figure and its status in its muted line.
 spec: bazis-screen/1
 id: task-places
 title: {en: Places, ru: Места}
@@ -10,7 +12,10 @@ entity: task
 roles: [manager, viewer]
 primitive: list
 list:
-  columns: [title, status, priority]
+  columns: [photos, title, status, priority, due]
+  layout: cards
+  layout_phone: cards
+  card: {eyebrow: priority, figure: due, meta: [status]}
   filters: [status]
   filter: {status: draft, due__gte: today}
   open: task-card

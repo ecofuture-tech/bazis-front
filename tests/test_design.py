@@ -23,6 +23,7 @@ the lock in a frontend, `--check` and `front.W005`.
 
 import json
 import os
+import shutil
 from io import StringIO
 from pathlib import Path
 
@@ -33,7 +34,7 @@ import pytest
 import yaml
 
 from bazis.contrib.front.checks import check_design
-from bazis.contrib.front.spec import design, theme
+from bazis.contrib.front.spec import design, fonts, theme
 from bazis.contrib.front.spec.issues import Document, Issues
 from bazis.contrib.front.spec.lint import DESIGN_SCHEMA, TOKENS_SCHEMA, validator
 from bazis.contrib.front.spec.validate import Specs, validate
@@ -169,6 +170,25 @@ def test_the_defaults_of_a_preset_without_a_design():
     assert root_block(css, ':root')['--space-cell-y'] == theme.DENSITY['compact']['--space-cell-y']
 
 
+def test_the_input_of_a_date():
+    # localized by default, whatever the preset; native when the design says so
+    for preset in design.PRESETS:
+        text = theme.render(Specs(theme={'spec': 'bazis-design/1', 'preset': preset}))[theme.THEME_TS]
+        assert '  controls: {\n    date: "localized",\n  },\n' in text
+    data = {'spec': 'bazis-design/1', 'preset': 'workspace', 'controls': {'date': 'native'}}
+    assert '    date: "native",\n' in theme.render(Specs(theme=data))[theme.THEME_TS]
+    assert "readonly date: 'localized' | 'native';" in theme.TS_TYPES
+
+
+@pytest.mark.django_db
+def test_an_input_of_a_date_that_the_design_does_not_have(root):
+    edit_theme(root, lambda data: data.update(controls={'date': 'wheel'}))
+    out = StringIO()
+    with pytest.raises(CommandError, match='The design has 1 errors'):
+        call_command('bazis_front', 'design', stdout=out)
+    assert 'D002' in out.getvalue()
+
+
 def test_the_density_that_the_user_chooses():
     # the rows of a table marked with a density (`data-density`, the view of a list) have its
     # spacing, whatever the density of the theme
@@ -210,13 +230,19 @@ def test_without_a_dark_mode():
 
 def test_a_design_without_layers_keeps_its_look():
     # the design of the sample names no layer, as that of an older version: the new tokens
-    # are the shadows and the transitions of Tailwind, the headings as before
+    # are the shadows and the transitions of Tailwind, the headings as before: the weight and
+    # the tracking of the headings of the components (`font-semibold tracking-tight` before the
+    # tokens), the brand and the muted text of the sidebar those of the primary and the content
     files = rendered(REPOSITORY / 'sample')
     css = files[theme.THEME_CSS]
     light = root_block(css, ':root')
     for name, value in TAILWIND.items():
         assert light[name] == value
-    assert light['--font-tracking-heading'] == '0em'
+    assert (light['--font-weight-heading'], light['--font-weight-subheading'], light['--font-tracking-heading']) == (
+        '600', '600', '-0.025em',
+    )
+    assert (light['--brand'], light['--brand-foreground']) == ('var(--primary)', 'var(--primary-foreground)')
+    assert light['--sidebar-muted-foreground'] == 'var(--muted-foreground)'
     assert '--shadow-md' not in root_block(css, '.dark')
     assert '@import' not in files[theme.FONTS_CSS]
     mapping = root_block(css, '@theme inline')
@@ -325,25 +351,36 @@ def test_the_starters_of_the_layers():
         assert set(data['color']) == set(data['dark']['color']), name
 
 
+def fonts_of_layer(name: str) -> list[str]:
+    """The families of a pair of fonts that the frontend serves itself (`font` of their tokens)."""
+    tokens = design.tokens_of(design.layer('fonts', name))
+    return [it.token['$value'][0] for it in tokens.values() if fonts.font_of(it.token) is not None]
+
+
 def test_every_combination_of_the_starters():
     # every preset with every palette, pair of fonts, shape and surface: a design without
-    # issues (the contrast of WCAG AA in both modes), compiled with the fonts of its pair
+    # issues (the contrast of WCAG AA in both modes), compiled with the fonts of its pair; but
+    # the headings of `source-serif-display` without the optical sizes of Source Serif 4, kept
+    # as they were (D014 tells how to load them)
     for preset in design.PRESET_TOKENS:
         for palette in starters('palettes'):
-            for fonts in starters('fonts'):
+            for pair in starters('fonts'):
                 for shape in starters('shapes'):
                     for surface in starters('surfaces'):
                         data = {
                             'spec': 'bazis-design/1', 'preset': preset,
-                            'palette': palette, 'fonts': fonts, 'shape': shape, 'surface': surface,
+                            'palette': palette, 'fonts': pair, 'shape': shape, 'surface': surface,
                         }
                         assert validator(DESIGN_SCHEMA).is_valid(data)
                         issues = Issues()
                         design.check(Document('design', 'spec/design/theme.yaml', data, True), None, set(), None, issues)
-                        assert issues.items == [], data
+                        expected = [('D014', '/fonts')] if pair == 'source-serif-display' else []
+                        assert [(it.code, it.path) for it in issues.items] == expected, data
                         css = theme.render(Specs(theme=data))[theme.FONTS_CSS]
-                        for source in design.imports(design.tokens_of(design.layer('fonts', fonts))):
+                        for source in design.imports(design.tokens_of(design.layer('fonts', pair))):
                             assert f"@import '{source}';" in css
+                        for face in fonts_of_layer(pair):
+                            assert f'font-family: "{face}";' in css
 
 
 def test_a_token_of_the_product_is_a_variable_and_a_color():
@@ -368,7 +405,7 @@ def test_design_writes_the_theme_and_the_lock(root):
         assert (frontend / path).read_text(encoding='utf-8') == text
     lock = read_lock(root)
     assert lock['design'] == {
-        'spec': {path: digest((root / path).read_bytes()) for path in theme.DESIGN_FILES},
+        'spec': theme.design_hashes(root, validate(root).specs),
         'generated': {path: digest(text.encode('utf-8')) for path, text in files.items()},
     }
     out = generate()
@@ -419,6 +456,316 @@ def test_the_charts_of_shadcn():
     css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
     assert root_block(css, ':root')['--chart-1'] == 'var(--primary)'
     assert root_block(css, '@theme inline')['--color-chart-5'] == 'var(--chart-5)'
+
+
+def test_the_utilities_of_the_headings():
+    # the headings and the figures of the components take the weight and the tracking of the
+    # tokens, the figures in proportional lining digits; the headings of their sections the
+    # weight of a subheading
+    css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
+    assert root_block(css, '@utility font-heading') == {
+        'font-family': 'var(--font-heading)',
+        'font-weight': 'var(--font-weight-heading)',
+        'letter-spacing': 'var(--font-tracking-heading)',
+        'font-variant-numeric': 'lining-nums proportional-nums',
+    }
+    assert root_block(css, '@utility font-subheading') == {
+        'font-family': 'var(--font-heading)',
+        'font-weight': 'var(--font-weight-subheading)',
+        'letter-spacing': 'var(--font-tracking-heading)',
+    }
+    # the utilities are top-level rules of Tailwind, after its theme
+    assert css.index('\n@utility font-heading {') > css.index('\n@theme inline {')
+
+
+def test_the_sidebar_reads_its_own_colors():
+    # inside the sidebar (and its drawer) the components read the variables of the sidebar
+    css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
+    base = css.split('\n@layer base {\n', 1)[1]
+    scope = base.split("  [data-slot='sidebar'] {\n", 1)[1].split('\n  }', 1)[0]
+    assert dict(line.strip().rstrip(';').split(': ', 1) for line in scope.splitlines()) == {
+        '--foreground': 'var(--sidebar-foreground)',
+        '--muted-foreground': 'var(--sidebar-muted-foreground)',
+        '--border': 'var(--sidebar-border)',
+        '--input': 'var(--sidebar-border)',
+        '--accent': 'var(--sidebar-accent)',
+        '--accent-foreground': 'var(--sidebar-accent-foreground)',
+        '--primary': 'var(--sidebar-primary)',
+        '--primary-foreground': 'var(--sidebar-primary-foreground)',
+        '--ring': 'var(--sidebar-ring)',
+    }
+
+
+def test_the_mark_of_the_brand():
+    data = {'spec': 'bazis-design/1', 'preset': 'workspace', 'palette': 'forest', 'fonts': 'inter'}
+    assert 'brand: null,' in theme.render(Specs(theme=data))[theme.THEME_TS]
+    # a lucide icon, imported by the theme as the screens import theirs
+    text = theme.render(Specs(theme={**data, 'brand': {'icon': 'mountain-snow'}}))[theme.THEME_TS]
+    assert "\nimport { MountainSnowIcon } from 'lucide-react';\n" in text
+    assert 'brand: {\n    icon: MountainSnowIcon,\n  },' in text
+    # an image of frontend/public/, served at the root
+    text = theme.render(Specs(theme={**data, 'brand': {'image': 'brand/mark.svg'}}))[theme.THEME_TS]
+    assert 'lucide-react' not in text
+    assert 'brand: {\n    image: "/brand/mark.svg",\n  },' in text
+    # one of them, a file of the frontend and not a path out of it
+    for brand in ({}, {'icon': 'tent', 'image': 'mark.svg'}, {'image': '../mark.svg'}, {'image': '/mark.svg'},
+                  {'image': 'mark.txt'}, {'icon': 'Tent'}):
+        assert not validator(DESIGN_SCHEMA).is_valid({**data, 'brand': brand}), brand
+
+
+def test_the_colors_of_the_brand_keep_their_contrast():
+    # the mark on the brand, and the brand as a text on a card (the eyebrow of a card)
+    theme_doc = Document('design', 'spec/design/theme.yaml', {'spec': 'bazis-design/1', 'preset': 'workspace',
+                                                                'palette': 'forest', 'fonts': 'inter', 'shape': 'soft'}, True)
+    tokens = {'color': {
+        'brand': {'$type': 'color', '$value': 'oklch(0.8 0.1 45)'},
+        'sidebar-muted-foreground': {'$type': 'color', '$value': 'oklch(0.9 0.01 95)'},
+    }}
+    tokens_doc = Document('design', 'spec/design/tokens.json', tokens, True)
+    issues = Issues()
+    design.check(theme_doc, tokens_doc, set(), None, issues)
+    found = sorted({(it.code, it.path, it.message.split(' has ')[0]) for it in issues.items})
+    assert found == [
+        ('D009', '/color/brand', 'The text color --brand on --card'),
+        ('D009', '/color/sidebar-muted-foreground', 'The text color --sidebar-muted-foreground on --sidebar'),
+        # the mark in the primary foreground of the palette (the default of brand-foreground)
+        ('D009', '/palette', 'The text color --brand-foreground on --brand'),
+    ]
+
+
+@pytest.mark.django_db
+def test_the_image_of_the_brand_is_a_file_of_the_frontend(root):
+    edit_theme(root, lambda data: data.update(brand={'image': 'brand/mark.svg'}))
+    [issue] = [it for it in validate(root).issues if it.layer == 'design']
+    assert (issue.code, issue.severity, issue.path) == ('D017', 'warning', '/brand/image')
+    mark = root / 'frontend' / 'public' / 'brand' / 'mark.svg'
+    mark.parent.mkdir(parents=True)
+    mark.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>', encoding='utf-8')
+    assert [it for it in validate(root).issues if it.layer == 'design'] == []
+
+
+#: the fonts of the pair `literata-golos` for a Russian product of rubles
+FONTS_FIXTURE = REPOSITORY / 'tests' / 'fixtures' / 'fonts' / 'fonts.css'
+PINE = {'spec': 'bazis-design/1', 'preset': 'workspace', 'palette': 'pine', 'fonts': 'literata-golos', 'shape': 'soft'}
+RUBLES = {'languages': ['ru'], 'entities': [{'id': 'item', 'fields': [{'id': 'price', 'type': 'string', 'display': {'currency': 'RUB'}}]}]}
+
+
+def test_the_fonts_that_the_frontend_serves():
+    files = theme.render(Specs(theme=PINE, product=RUBLES))
+    css = files[theme.FONTS_CSS]
+    if os.environ.get('BAZIS_FRONT_WRITE_FIXTURES') == '1':
+        FONTS_FIXTURE.parent.mkdir(exist_ok=True)
+        FONTS_FIXTURE.write_text(css, encoding='utf-8', newline='\n')
+    assert FONTS_FIXTURE.read_text(encoding='utf-8') == css
+    # a face of each subset of the language and of the ruble sign, named as the stack, then the
+    # fallback faces of the metrics of each family
+    assert css.count('@font-face {') == 10
+    assert css.count("src: url('/fonts/literata-5.3.0/literata-") == 4
+    assert css.count("src: url('/fonts/golos-text-5.3.0/golos-text-") == 4
+    assert 'font-family: "Literata Fallback";\n  src: local("Georgia");\n  size-adjust: 104.95%;' in css
+    assert '@import' not in css
+    # the stack names the faces, the fallback face after the family
+    light = root_block(files[theme.THEME_CSS], ':root')
+    assert light['--font-heading'].startswith('Literata, "Literata Fallback", ui-serif')
+    assert light['--font-body'].startswith('"Golos Text", "Golos Text Fallback", ui-sans-serif')
+    # the text of the language is preloaded: one file
+    assert 'FONT_PRELOAD: readonly string[] = [\n  "/fonts/golos-text-5.3.0/golos-text-cyrillic-wght-normal.woff2",\n];' in files[theme.FONTS_TS]
+    sources = theme.font_files(Specs(theme=PINE, product=RUBLES))
+    assert len(sources) == 10
+    assert sorted(it.rsplit('/', 1)[1] for it in sources if it.endswith('.txt')) == ['OFL.txt', 'OFL.txt']
+    # without fonts of its own, the theme has no faces and preloads nothing
+    files = theme.render(Specs(theme={**PINE, 'fonts': 'inter'}, product=RUBLES))
+    assert '@font-face' not in files[theme.FONTS_CSS]
+    assert 'FONT_PRELOAD: readonly string[] = [];' in files[theme.FONTS_TS]
+    assert theme.font_files(Specs(theme={**PINE, 'fonts': 'inter'})) == {}
+
+
+@pytest.mark.parametrize(('product', 'subsets', 'preload'), [
+    # no product.yaml: Latin only
+    (None, ('latin',), 'latin'),
+    ({'languages': ['en']}, ('latin',), 'latin'),
+    # the Polish letters with the Latin of most of the text
+    ({'languages': ['pl']}, ('latin-ext', 'latin'), 'latin'),
+    # Russian with the letters of its neighbours, the text in Cyrillic
+    ({'languages': ['ru', 'en']}, ('cyrillic-ext', 'cyrillic', 'latin-ext', 'latin'), 'cyrillic'),
+    ({'languages': ['en', 'ru']}, ('cyrillic-ext', 'cyrillic', 'latin-ext', 'latin'), 'latin'),
+    # the signs of the currencies: the hryvnia, the ruble, the złoty; the euro is Latin
+    ({'languages': ['en'], 'entities': [{'fields': [{'display': {'currency': 'UAH'}}]}]}, ('cyrillic-ext', 'latin'), 'latin'),
+    (RUBLES | {'languages': ['en']}, ('latin-ext', 'latin'), 'latin'),
+    ({'languages': ['en-gb'], 'entities': [{'fields': [{'display': {'currency': 'EUR'}}]}]}, ('latin',), 'latin'),
+])
+def test_the_subsets_of_the_product(product, subsets, preload):
+    [body, _] = fonts.faces(design.effective_tokens(PINE, None), product, None)
+    assert (body.name, body.subsets, body.preload) == ('Golos Text', subsets, preload)
+
+
+def test_the_subsets_and_the_preload_of_a_token():
+    tokens = design.layer('fonts', 'literata-golos')
+    tokens['font']['body']['$extensions']['bazis']['font'].update(subsets=['latin', 'cyrillic'], preload=False)
+    tokens['font']['heading']['$extensions']['bazis']['font'].update(preload=True)
+    body, heading = fonts.faces(design.effective_tokens(None, tokens), RUBLES, None)
+    assert (body.subsets, body.preload) == (('cyrillic', 'latin'), None)
+    assert (heading.subsets, heading.preload) == (('cyrillic-ext', 'cyrillic', 'latin-ext', 'latin'), 'cyrillic')
+
+
+def test_the_schema_of_a_font():
+    def valid(font, value=None):
+        token = {'$type': 'fontFamily', '$value': value or ['Brand', 'sans-serif'], '$extensions': {'bazis': {'font': font}}}
+        return validator(TOKENS_SCHEMA).is_valid({'font': {'body': token}})
+
+    assert valid({'starter': 'literata', 'subsets': ['latin', 'cyrillic'], 'preload': True})
+    assert valid({'package': '@fontsource-variable/brand-sans', 'axes': ['opsz', 'wght'], 'subsets': 'auto', 'fallback': {
+        'local': 'Arial', 'size_adjust': '104.5%', 'ascent_override': '93.78%', 'descent_override': '21.05%',
+        'line_gap_override': '0%'}})
+    for font in (
+        {'starter': 'inter'},  # not a starter font
+        {'starter': 'literata', 'axes': ['wght']},  # the axes of a starter are those of its files
+        {'starter': 'literata', 'subsets': ['greek']},  # nor are its subsets
+        {'package': '@fontsource/brand-sans'},  # a variable font only
+        {'package': '@fontsource-variable/brand-sans', 'axes': ['opsz']},  # with the weight
+        {'package': '@fontsource-variable/brand-sans', 'axes': ['opsz', 'wdth', 'wght']},
+        {'package': '@fontsource-variable/brand-sans', 'fallback': {'local': 'Arial'}},
+        {'starter': 'literata', 'package': '@fontsource-variable/literata'},
+    ):
+        assert not valid(font), font
+    # the stack is a list, whose first family names the faces; never with an import
+    assert not valid({'starter': 'literata'}, '{font.body}')
+    token = {'$type': 'fontFamily', '$value': ['Literata'], '$extensions': {'bazis': {
+        'font': {'starter': 'literata'}, 'import': '@fontsource-variable/literata'}}}
+    assert not validator(TOKENS_SCHEMA).is_valid({'font': {'body': token}})
+    assert not validator(TOKENS_SCHEMA).is_valid({'radius': {'$type': 'dimension', '$value': '1rem', '$extensions': {
+        'bazis': {'font': {'starter': 'literata'}}}}})
+
+
+@pytest.mark.django_db
+def test_design_copies_the_fonts_and_check_finds_them_stale(root):
+    frontend = root / 'frontend'
+    edit_theme(root, lambda data: data.update(palette='pine', fonts='literata-golos', shape='soft'))
+    (root / 'spec' / 'design' / 'tokens.json').unlink()
+    old = frontend / 'public' / 'fonts' / 'literata-5.2.0' / 'literata-latin-opsz-normal.woff2'
+    old.parent.mkdir(parents=True)
+    old.write_bytes(b'the font of an older version')
+    out = generate()
+    assert 'Copied the fonts: public/fonts/golos-text-5.3.0, public/fonts/literata-5.3.0.' in out
+    lock = read_lock(root)
+    sources = theme.font_files(validate(root, ('design',)).specs, frontend)
+    # the sample is in English and Russian: four subsets of each family, with its license
+    assert len(sources) == 10
+    assert lock['design']['fonts'] == {path: digest(it.read_bytes()) for path, it in sources.items()}
+    for path, source in sources.items():
+        assert (frontend / path).read_bytes() == source.read_bytes()
+    assert (frontend / 'public' / 'fonts' / 'literata-5.3.0' / 'OFL.txt').read_text(encoding='utf-8').startswith(
+        'Copyright 2017 The Literata Project Authors')
+    assert 'up to date' in generate('--check')
+    assert check_design(None) == []
+    # the files of another version are the product's
+    assert old.read_bytes() == b'the font of an older version'
+
+    # a missing or a changed file: stale, without Node and the database
+    changed = frontend / 'public' / 'fonts' / 'golos-text-5.3.0' / 'golos-text-latin-wght-normal.woff2'
+    changed.write_bytes(b'edited')
+    (frontend / 'public' / 'fonts' / 'literata-5.3.0' / 'OFL.txt').unlink()
+    message = ('The fonts of the theme are stale: public/fonts/golos-text-5.3.0/golos-text-latin-wght-normal.woff2, '
+               'public/fonts/literata-5.3.0/OFL.txt.')
+    with pytest.raises(CommandError) as error:
+        generate('--check')
+    assert message in str(error.value)
+    assert f'The theme of {frontend} is stale' not in str(error.value)
+    [warning] = check_design(None)
+    assert warning.id == 'front.W005' and message in warning.msg
+    generate()
+    assert 'up to date' in generate('--check')
+
+
+def write_package(frontend: Path, axes: dict[str, dict]) -> None:
+    """A package of @fontsource-variable installed in the frontend, with the files of its weight."""
+    package = frontend / 'node_modules' / '@fontsource-variable' / 'brand-sans'
+    (package / 'files').mkdir(parents=True)
+    (package / 'package.json').write_text(json.dumps({'name': '@fontsource-variable/brand-sans', 'version': '5.1.0'}), encoding='utf-8')
+    (package / 'metadata.json').write_text(json.dumps({
+        'id': 'brand-sans', 'family': 'Brand Sans', 'subsets': ['cyrillic', 'latin'], 'variable': axes,
+    }), encoding='utf-8')
+    (package / 'unicode.json').write_text(json.dumps({'cyrillic': 'U+0400-045F', 'latin': 'U+0000-00FF,U+2000-206F'}), encoding='utf-8')
+    (package / 'LICENSE').write_text('SIL Open Font License', encoding='utf-8')
+    for subset in ('cyrillic', 'latin'):
+        (package / 'files' / f'brand-sans-{subset}-wght-normal.woff2').write_bytes(subset.encode())
+
+
+@pytest.mark.django_db
+def test_a_font_package_of_the_frontend(root):
+    frontend = root / 'frontend'
+    tokens_path = root / 'spec' / 'design' / 'tokens.json'
+    tokens = json.loads(tokens_path.read_text(encoding='utf-8'))
+    tokens['font']['body'] = {
+        '$type': 'fontFamily', '$value': ['Brand Sans', 'Brand Sans Fallback', 'sans-serif'],
+        '$extensions': {'bazis': {'font': {'package': '@fontsource-variable/brand-sans', 'subsets': ['latin', 'cyrillic'],
+                                           'fallback': {'local': ['Arial'], 'size_adjust': '101%', 'ascent_override': '90%',
+                                                        'descent_override': '22%', 'line_gap_override': '0%'}}}},
+    }
+    generated = json.dumps(tokens)
+    tokens_path.write_text(generated, encoding='utf-8')
+    assert [it for it in validate(root).issues if it.layer == 'design'] == []
+    # not installed: the command tells to install it
+    with pytest.raises(CommandError, match='npm install @fontsource-variable/brand-sans'):
+        generate()
+    write_package(frontend, {'wght': {'min': '300', 'max': '800'}})
+    generate()
+    css = (frontend / theme.FONTS_CSS).read_text(encoding='utf-8')
+    assert ('  font-family: "Brand Sans";\n  font-style: normal;\n  font-display: swap;\n  font-weight: 300 800;\n'
+            "  src: url('/fonts/brand-sans-5.1.0/brand-sans-latin-wght-normal.woff2') format('woff2');\n"
+            '  unicode-range: U+0000-00FF, U+2000-206F;\n') in css
+    assert 'font-family: "Brand Sans Fallback";\n  src: local("Arial");\n  size-adjust: 101%;' in css
+    assert sorted(it.name for it in (frontend / 'public' / 'fonts' / 'brand-sans-5.1.0').iterdir()) == [
+        'LICENSE', 'brand-sans-cyrillic-wght-normal.woff2', 'brand-sans-latin-wght-normal.woff2',
+    ]
+    assert check_design(None) == []
+    # an axis or a subset that the package does not have
+    tokens['font']['body']['$extensions']['bazis']['font'].update(axes=['opsz', 'wght'])
+    tokens_path.write_text(json.dumps(tokens), encoding='utf-8')
+    with pytest.raises(CommandError, match='has no axis opsz'):
+        generate()
+    tokens['font']['body']['$extensions']['bazis']['font'].update(axes=['wght'], subsets=['latin', 'cyrillic', 'greek'])
+    tokens_path.write_text(json.dumps(tokens), encoding='utf-8')
+    with pytest.raises(CommandError, match='has no subset greek'):
+        generate()
+    # not installed (a check without `npm install`): the theme and the fonts by the hashes of the lock
+    tokens_path.write_text(generated, encoding='utf-8')
+    shutil.rmtree(frontend / 'node_modules')
+    assert check_design(None) == []
+    assert 'up to date' in generate('--check')
+    served = frontend / 'public' / 'fonts' / 'brand-sans-5.1.0' / 'brand-sans-latin-wght-normal.woff2'
+    served.write_bytes(b'edited')
+    [warning] = check_design(None)
+    assert warning.id == 'front.W005'
+    assert warning.msg == 'The fonts of the theme are stale: public/fonts/brand-sans-5.1.0/brand-sans-latin-wght-normal.woff2.'
+    served.write_bytes(b'latin')
+    css_path = frontend / theme.FONTS_CSS
+    css_path.write_text(css + '\n', encoding='utf-8')
+    [warning] = check_design(None)
+    assert warning.msg == (f'The theme of {frontend} is stale: {theme.FONTS_CSS}. '
+                           f'Edited after it was generated: {theme.FONTS_CSS}.')
+    css_path.write_text(css, encoding='utf-8')
+    assert check_design(None) == []
+    # of product.yaml, only the languages and the currencies choose the fonts
+    product_path = root / 'spec' / 'product.yaml'
+    product_text = product_path.read_text(encoding='utf-8')
+    product_path.write_text(product_text.replace('summary: The tasks', 'summary: All the tasks'), encoding='utf-8')
+    assert check_design(None) == []
+    assert 'up to date' in generate('--check')
+    # the first language is preloaded
+    product_path.write_text(product_text.replace('languages: [en, ru]', 'languages: [ru, en]'), encoding='utf-8')
+    [warning] = check_design(None)
+    assert warning.msg == 'The design changed since it was generated: spec/product.yaml.'
+    product_path.write_text(product_text, encoding='utf-8')
+    assert check_design(None) == []
+    tokens['font']['body']['$extensions']['bazis']['font'].update(subsets=['latin'])
+    tokens_path.write_text(json.dumps(tokens), encoding='utf-8')
+    [warning] = check_design(None)
+    assert warning.msg == 'The design changed since it was generated: spec/design/tokens.json.'
+    with pytest.raises(CommandError, match='The design changed since it was generated'):
+        generate('--check')
+    with pytest.raises(CommandError, match='npm install @fontsource-variable/brand-sans'):
+        generate()
 
 
 @pytest.mark.django_db
