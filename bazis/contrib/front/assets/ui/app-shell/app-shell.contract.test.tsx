@@ -460,6 +460,8 @@ describe('AppShell', () => {
     expect(mark?.classList).toContain('size-10');
     expect(mark?.textContent).toBe('A');
     expect(screen.getByTitle('Acme').textContent).toBe('Acme');
+    // the two lines of a long name stay tight, in the shell and on the login screen
+    expect(screen.getByTitle('Acme').classList).toContain('leading-tight');
   });
 
   it('gives the sidebar and the drawer of a phone the colors of the sidebar', () => {

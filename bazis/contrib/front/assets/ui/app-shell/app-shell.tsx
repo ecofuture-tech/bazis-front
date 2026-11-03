@@ -244,7 +244,8 @@ export function Brand({ title, mark = THEME.brand, large = false }: BrandProps) 
       )}
       <span
         title={typeof title === 'string' ? title : undefined}
-        className={cn('line-clamp-2 font-heading leading-tight', large ? 'text-xl' : 'text-base')}
+        // the leading after the size: `cn` drops a leading that a size follows
+        className={cn('line-clamp-2 font-heading', large ? 'text-xl' : 'text-base', 'leading-tight')}
       >
         {title}
       </span>
