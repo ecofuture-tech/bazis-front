@@ -6,8 +6,6 @@
     "border-control": {"$type": "color", "$value": "transparent"},
     "control": {"$type": "color", "$value": "var(--card)"},
     "control-hover": {"$type": "color", "$value": "var(--surface-light)"},
-    "field-line": {"$type": "color", "$value": "color-mix(in srgb, var(--foreground) 32%, transparent)"},
-    "field-line-hover": {"$type": "color", "$value": "color-mix(in srgb, var(--foreground) 58%, transparent)"},
     "field-line-focus": {"$type": "color", "$value": "var(--primary)"}
   },
   "shadow": {

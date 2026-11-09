@@ -262,10 +262,10 @@ def test_a_design_without_layers_keeps_its_look():
     mapping = root_block(css, '@theme inline')
     assert mapping['--shadow-md'] == 'var(--shadow-md)'
     assert mapping['--default-transition-duration'] == 'var(--motion-base)'
-    # the surfaces, the controls and the fields as the components drew them before their tokens:
-    # the borders, the background of an outline button and its hover, the border and the focus
-    # ring of a field, the shadow of a card and of a popover, no shadow of the primary button, the
-    # focus ring of shadcn/ui; flat backgrounds
+    # the surfaces and the controls as the components drew them before their tokens: the borders,
+    # the background of an outline button and its hover, the focus ring of a field, the shadow of
+    # a card and of a popover, no shadow of the primary button, the focus ring of shadcn/ui; flat
+    # backgrounds; the line of a field of the foreground, about 3:1 at rest
     ring = '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)'
     assert {name: light[name] for name in (
         '--border-surface', '--border-control', '--control', '--control-hover', '--surface-light', '--shade',
@@ -276,7 +276,8 @@ def test_a_design_without_layers_keeps_its_look():
     )} == {
         '--border-surface': 'var(--border)', '--border-control': 'var(--border)', '--control': 'var(--background)',
         '--control-hover': 'var(--accent)', '--surface-light': 'var(--card)', '--shade': 'var(--foreground)',
-        '--field-line': 'var(--input)', '--field-line-hover': 'var(--input)', '--field-line-focus': 'var(--ring)',
+        '--field-line': 'color-mix(in srgb, var(--foreground) 48%, transparent)',
+        '--field-line-hover': 'color-mix(in srgb, var(--foreground) 72%, transparent)', '--field-line-focus': 'var(--ring)',
         '--shadow-field-focus': ring,
         '--shadow-lift-05': 'var(--shadow-xs)', '--shadow-lift-05-hover': 'var(--shadow-sm)',
         '--shadow-lift-05-active': 'var(--shadow-xs)',
@@ -371,7 +372,7 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     )
     # the fields are a bottom line of the foreground, of the primary when focused
     assert (light['--field-line'], light['--field-line-hover'], light['--field-line-focus'], light['--shadow-field-focus']) == (
-        'color-mix(in srgb, var(--foreground) 32%, transparent)', 'color-mix(in srgb, var(--foreground) 58%, transparent)',
+        'color-mix(in srgb, var(--foreground) 48%, transparent)', 'color-mix(in srgb, var(--foreground) 72%, transparent)',
         'var(--primary)', '0 1px 0 0 var(--primary)',
     )
     assert 'var(--shade)' in light['--shadow-lift-1'] and 'var(--primary)' in light['--shadow-lift-primary']
@@ -393,7 +394,7 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     # black literals, in its dark mode
     sidebar = block_of(base, "[data-slot='sidebar']")
     assert (sidebar['--field-line'], sidebar['--control'], sidebar['--surface-control']) == (
-        'color-mix(in srgb, var(--foreground) 32%, transparent)', 'var(--card)', 'none',
+        'color-mix(in srgb, var(--foreground) 48%, transparent)', 'var(--card)', 'none',
     )
     lifts = ('lift-primary', 'lift-primary-hover', 'lift-primary-active')
     assert block_of(base, ".dark [data-slot='sidebar']") == {
