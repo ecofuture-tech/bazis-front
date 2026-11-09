@@ -72,6 +72,8 @@ export function cell(props: BodyProps, row: ResourceObject, name: string, media 
   return <ItemValue item={row} name={name} fields={props.fields} display={props.display[name]} media={media} />;
 }
 
+// the focus of a row: the ring of 0.12 inside it, not `ring-focus`, which is outside the element
+// and which the area of the table, scrolling, cuts off (a shadow of the token cannot be inset)
 export const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset';
 
 /** The props of a row that opens its item, by a click or Enter. */

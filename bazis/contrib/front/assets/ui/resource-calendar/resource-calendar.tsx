@@ -116,7 +116,7 @@ const LIMIT = 500;
 /** The items of a day of a month shown in its cell; the others in the list of the day. */
 const SHOWN = 3;
 const META = ['pagination', 'for_create'];
-const FOCUS = 'outline-none focus-visible:shadow-(--shadow-ring-focus)';
+const FOCUS = 'outline-none focus-visible:ring-focus';
 
 /** The local midnight of a day `YYYY-MM-DD`. */
 function parseDay(day: string): Date {

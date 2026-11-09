@@ -3501,6 +3501,10 @@ def test_the_colors_of_css():
     assert color.parse('hsl(0 0% 0%)') is None
     assert color.parse('var(--x)', {'--x': 'var(--y)', '--y': '#000'}) == (0.0, 0.0, 0.0)
     assert color.parse('var(--x)', {'--x': 'var(--x)'}) is None
+    # a mix with transparent: its part over an opaque color, as the browser composes it
+    assert color.parse('color-mix(in srgb, #000 30%, transparent)') is None
+    assert color.over('var(--x)', (1.0, 1.0, 1.0), {'--x': 'color-mix(in srgb, #000 30%, transparent)'}) == pytest.approx((0.7, 0.7, 0.7))
+    assert color.over('#000', (1.0, 1.0, 1.0)) == (0.0, 0.0, 0.0)
     assert color.parse('color-mix(in srgb, #fff 50%, #000)') == (0.5, 0.5, 0.5)
     # mixed in OKLab: the lightness halfway, a grey of 0.125 in linear light; a color through it
     assert color.parse('color-mix(in oklab, #fff 50%, #000)') == pytest.approx((0.3886,) * 3, abs=1e-3)

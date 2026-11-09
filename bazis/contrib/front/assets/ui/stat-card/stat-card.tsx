@@ -147,7 +147,7 @@ export function StatCard({
         <button
           type="button"
           aria-labelledby={labelId}
-          className="absolute inset-0 rounded-xl outline-none focus-visible:shadow-(--shadow-ring-focus)"
+          className="absolute inset-0 rounded-xl outline-none focus-visible:ring-focus"
           onClick={onOpen}
         />
       )}

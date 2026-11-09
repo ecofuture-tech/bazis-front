@@ -108,7 +108,7 @@ function ToastItem({ item }: { item: Toast }) {
       </div>
       <button
         type="button"
-        className="rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-focus focus-visible:outline-none"
         aria-label={t('toast.dismiss')}
         onClick={() => {
           dismissToast(item.id);

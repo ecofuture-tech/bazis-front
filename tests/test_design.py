@@ -295,13 +295,23 @@ def test_a_design_without_layers_keeps_its_look():
     assert 'lift-field' not in css
 
 
+#: the controls of a design without the layers in the dark mode: those of shadcn/ui
+#: (`dark:bg-input/30 dark:border-input dark:hover:bg-input/50`)
+DARK_CONTROLS = {
+    '--border-control': 'var(--input)',
+    '--control': 'color-mix(in srgb, var(--input) 30%, transparent)',
+    '--control-hover': 'color-mix(in srgb, var(--input) 50%, transparent)',
+}
+
+
 def test_the_root_of_a_theme_of_0_12_only_gains_variables():
     # the variables of the sample as 0.12 generated them keep their values, in both modes; the
-    # new ones are the tokens of 0.13 on their defaults and the flat backgrounds of the surfaces
+    # new ones are the tokens of 0.13 on their defaults and the flat backgrounds of the surfaces,
+    # and in the dark mode the controls of shadcn/ui translucent on the input
     before = json.loads((REPOSITORY / 'tests' / 'fixtures' / 'theme' / 'sample-0.12.json').read_text(encoding='utf-8'))
     css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
     light, dark = root_block(css, ':root'), root_block(css, '.dark')
-    assert dark == before['.dark']
+    assert dark == {**before['.dark'], **DARK_CONTROLS}
     assert {name: light[name] for name in before[':root']} == before[':root']
     assert set(light) - set(before[':root']) == {
         '--sidebar-to', '--sidebar-glow', '--nav-active', '--nav-active-bar', '--glow-a', '--glow-b', '--shade',
@@ -447,11 +457,14 @@ def test_a_token_of_the_dark_mode_follows_the_sidebar_in_the_dark_mode():
     tokens = {'dark': {'color': {'control': {'$type': 'color', '$value': 'var(--muted)'}}}}
     base = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS].split('\n@layer base {\n', 1)[1]
     assert block_of(base, "[data-slot='sidebar']")['--control'] == 'var(--background)'
-    assert block_of(base, ".dark [data-slot='sidebar']") == {'--control': 'var(--muted)'}
+    assert block_of(base, ".dark [data-slot='sidebar']") == {**DARK_CONTROLS, '--control': 'var(--muted)'}
     media = base.split("  @media (prefers-color-scheme: dark) {\n    :root:not(.light) [data-slot='sidebar'] {\n", 1)[1]
-    assert media.split('\n    }', 1)[0] == '      --control: var(--muted);'
-    # without it, no block of the dark mode for the sidebar
-    assert ".dark [data-slot='sidebar']" not in theme.render(Specs(theme=data))[theme.THEME_CSS]
+    assert '      --control: var(--muted);' in media.split('\n    }', 1)[0].splitlines()
+    # without it, the controls of the dark mode of the defaults
+    base = theme.render(Specs(theme=data))[theme.THEME_CSS].split('\n@layer base {\n', 1)[1]
+    assert block_of(base, ".dark [data-slot='sidebar']") == DARK_CONTROLS
+    # a layer that defines them in the light mode only (lifted) defines them in both
+    assert not set(DARK_CONTROLS) & set(root_block(theme.render(Specs(theme=FROST))[theme.THEME_CSS], '.dark'))
 
 
 def test_the_light_of_the_surfaces_of_one_mode_draws_the_gradients_of_both():
@@ -711,17 +724,23 @@ def test_the_utilities_of_the_headings():
     # the small capitals of the titles of the blocks, in the font of the text
     assert root_block(css, '@utility font-eyebrow') == theme.EYEBROW
     assert 'font-family' not in theme.EYEBROW
-    # a lifted block and a lifted control on the tokens of the surface, with their radii
+    # a lifted block and a lifted control on the tokens of the surface, with their radii, their
+    # shadow that of Tailwind (`--tw-shadow`) under its rings; the focus ring over it
+    shadows = (
+        'var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000), '
+        'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000)'
+    )
     assert root_block(css, '@utility surface') == {
         'background-color': 'var(--card)', 'background-image': 'var(--surface-card)',
-        'border': '1px solid var(--border-surface)', 'box-shadow': 'var(--shadow-lift-1)',
+        'border': '1px solid var(--border-surface)', '--tw-shadow': 'var(--shadow-lift-1)', 'box-shadow': shadows,
         'border-radius': 'calc(var(--radius) + 4px)',
     }
     assert root_block(css, '@utility control') == {
         'background-color': 'var(--control)', 'background-image': 'var(--surface-control)',
-        'border': '1px solid var(--border-control)', 'box-shadow': 'var(--shadow-lift-05)',
+        'border': '1px solid var(--border-control)', '--tw-shadow': 'var(--shadow-lift-05)', 'box-shadow': shadows,
         'border-radius': 'calc(var(--radius) - 2px)',
     }
+    assert root_block(css, '@utility ring-focus') == {'--tw-ring-shadow': 'var(--shadow-ring-focus)', 'box-shadow': shadows}
     # the utilities are top-level rules of Tailwind, after its theme
     assert css.index('\n@utility font-heading {') > css.index('\n@theme inline {')
 
@@ -756,7 +775,7 @@ def test_the_sidebar_reads_its_own_colors():
     assert (light['--control'], light['--border-control'], light['--field-line-focus']) == (
         'var(--background)', 'var(--border)', 'var(--ring)',
     )
-    assert ".dark [data-slot='sidebar']" not in base
+    assert block_of(base, ".dark [data-slot='sidebar']") == DARK_CONTROLS
 
 
 def test_the_mark_of_the_brand():

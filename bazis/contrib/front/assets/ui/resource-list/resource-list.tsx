@@ -188,7 +188,7 @@ const SEARCH_DELAY = 300;
  * the columns that scroll under them, and draw the focus ring of their row, which they cover;
  * the leftmost one draws the mark of a tone or of the selection of its row (`--row-mark`).
  */
-const ROW = 'group/row border-line-6 bg-card hover:bg-[color-mix(in_oklab,var(--color-muted)_80%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-muted)_80%,var(--color-card))]';
+const ROW = 'border-line-6 bg-card hover:bg-[color-mix(in_oklab,var(--color-muted)_80%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-muted)_80%,var(--color-card))]';
 /** A cell of the header: on the card, set apart by a firmer line (a shadow: the cell is sticky). */
 const HEAD = 'sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--color-line-16)]';
 const STICKY = 'sticky z-[1] bg-inherit [tr:focus-visible>&]:shadow-[inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
@@ -222,7 +222,7 @@ function SortButton({ label, direction, onClick }: { label: ReactNode; direction
     <button
       type="button"
       className={cn(
-        'group/sort -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground focus-visible:shadow-(--shadow-ring-focus) focus-visible:outline-none',
+        'group/sort -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground focus-visible:ring-focus focus-visible:outline-none',
         direction && 'text-primary-ink hover:text-primary-ink',
       )}
       onClick={onClick}
@@ -251,7 +251,6 @@ function TableView(
 ) {
   const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden, selection } = props;
   const { t } = useLanguage();
-  const opens = onOpen !== undefined && !actionsColumn;
   return (
     <table data-slot="table" className="w-full caption-bottom text-sm">
       <TableHeader>
@@ -281,7 +280,6 @@ function TableView(
               <span className="sr-only">{t('list.actions')}</span>
             </TableHead>
           )}
-          {opens && <TableHead aria-hidden="true" className={cn(HEAD, 'w-10')} />}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -334,12 +332,6 @@ function TableView(
                 );
               })}
               {actionsColumn && <TableCell className="px-(--space-cell-x) py-1 text-right">{props.rowActions(row)}</TableCell>}
-              {opens && (
-                // the row opens its item: an arrow at its end under the pointer or the focus
-                <TableCell aria-hidden="true" className="w-10 px-2 text-muted-foreground">
-                  <ChevronRight className="size-4 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100" />
-                </TableCell>
-              )}
             </TableRow>
           );
         })}

@@ -532,7 +532,7 @@ const AFTER_GROUP = {
 
 /** A link of the navigation, also the button of the menu of the top bar. */
 const LINK = {
-  base: 'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+  base: 'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-focus',
   vertical: 'rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
   horizontal: 'rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground',
 };
@@ -823,7 +823,7 @@ function Breadcrumb({ parent, titled }: { parent: ScreenParent; titled: boolean 
       <Link
         to={parent.to}
         data-bz={`nav:${parent.screen}`}
-        className="-ml-2 inline-flex size-9 items-center justify-center gap-1 rounded-md outline-none pointer-coarse:min-h-11 pointer-coarse:min-w-11 hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 xl:ml-0 xl:size-auto xl:px-1.5 xl:py-1"
+        className="-ml-2 inline-flex size-9 items-center justify-center gap-1 rounded-md outline-none pointer-coarse:min-h-11 pointer-coarse:min-w-11 hover:bg-accent hover:text-foreground focus-visible:ring-focus xl:ml-0 xl:size-auto xl:px-1.5 xl:py-1"
       >
         <ArrowLeft className="size-4 xl:hidden" aria-hidden="true" />
         <span className="max-xl:sr-only">{parent.label}</span>
@@ -887,9 +887,9 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
               className={cn(
                 'text-muted-foreground',
                 portal ? 'text-lg' : 'text-sm',
-                // right under the title, not a section of its own; under the sticky header, never
-                // behind it
-                title !== undefined && (sticky ? '-mt-3 md:mt-0' : '-mt-4'),
+                // right under the title, not a section of its own (under the sticky header, at its
+                // air)
+                title !== undefined && (sticky ? 'md:-mt-(--space-section) -mt-3' : '-mt-4'),
               )}
             >
               {description}

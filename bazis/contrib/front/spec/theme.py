@@ -118,6 +118,11 @@ EYEBROW = {
     'text-transform': 'uppercase',
 }
 
+#: the shadow of an element as Tailwind composes it: the rings (`ring-*`, `ring-focus`) over its
+#: shadow (`--tw-shadow`, of `shadow-*`, `surface` and `control`), each nothing until it is set
+SHADOWS = ', '.join(
+    f'var(--tw-{it}, 0 0 #0000)' for it in ('inset-shadow', 'inset-ring-shadow', 'ring-offset-shadow', 'ring-shadow', 'shadow')
+)
 #: the utilities of a lifted block (a card, a panel, a menu) and of a lifted control (a button,
 #: a chip, a segment) on the tokens of the surface: the components take them instead of listing
 #: the classes, an exception is a class of the element (a dialog `shadow-(--shadow-lift-2)`)
@@ -125,16 +130,20 @@ SURFACE = {
     'background-color': 'var(--card)',
     'background-image': 'var(--surface-card)',
     'border': '1px solid var(--border-surface)',
-    'box-shadow': 'var(--shadow-lift-1)',
+    '--tw-shadow': 'var(--shadow-lift-1)',
+    'box-shadow': SHADOWS,
     'border-radius': 'calc(var(--radius) + 4px)',
 }
 CONTROL = {
     'background-color': 'var(--control)',
     'background-image': 'var(--surface-control)',
     'border': '1px solid var(--border-control)',
-    'box-shadow': 'var(--shadow-lift-05)',
+    '--tw-shadow': 'var(--shadow-lift-05)',
+    'box-shadow': SHADOWS,
     'border-radius': 'calc(var(--radius) - 2px)',
 }
+#: the focus ring (`focus-visible:ring-focus`): `shadow.ring-focus` over the shadow of the element
+RING_FOCUS = {'--tw-ring-shadow': 'var(--shadow-ring-focus)', 'box-shadow': SHADOWS}
 
 #: the glow of the paper, two radial lights at the top corners of the page under its content,
 #: only when a layer defines `color.glow-a` or `color.glow-b` (a design without them draws
@@ -329,6 +338,8 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         '/* The lifted blocks and the lifted controls on the tokens of the surface. */',
         block('@utility surface', SURFACE),
         block('@utility control', CONTROL),
+        '/* The focus ring over the shadow of the element. */',
+        block('@utility ring-focus', RING_FOCUS),
         '',
         '@layer base {',
         '  * {\n    @apply border-border outline-ring/50;\n  }',

@@ -164,7 +164,7 @@ function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }:
           <button
             type="button"
             data-open=""
-            className="min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:shadow-(--shadow-ring-focus)"
+            className="min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-focus"
             onClick={() => {
               onOpen(item.id);
             }}

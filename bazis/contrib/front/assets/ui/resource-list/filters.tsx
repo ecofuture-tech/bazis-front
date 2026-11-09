@@ -19,7 +19,7 @@
 // those of the user: the core answers a filter by a field it does not list for him (hidden
 // by his field permissions, bazis-permit) with 400, so such a filter has no control.
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import { Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
@@ -157,7 +157,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
     return (
       // on a phone a row of the full width (a fieldset is as wide as its content otherwise),
       // its two dates under the label when they do not fit beside it, sharing the row; one line
-      // under the label and both dates, a short rule between them
+      // under the label and both dates, a dash between them
       <fieldset
         data-slot="field-group"
         className={cn(fieldGroupClassName, 'flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap')}
@@ -166,18 +166,24 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
         <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
           {label}
         </span>
-        <div className="flex min-w-0 grow items-center gap-1.5 divide-x divide-line-10 sm:grow-0">
+        <div className="flex min-w-0 grow items-center gap-1.5 sm:grow-0">
           {(['gte', 'lte'] as const).map((bound) => (
-            <DateInput
-              key={bound}
-              className="h-9 w-36 min-w-0 flex-1 sm:flex-none"
-              aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
-              data-bz={`field:${field}__${bound}`}
-              value={values[`${field}__${bound}`] ?? ''}
-              onChange={(value) => {
-                onChange(`${field}__${bound}`, value);
-              }}
-            />
+            <Fragment key={bound}>
+              {bound === 'lte' && (
+                <span aria-hidden="true" className="text-muted-foreground">
+                  —
+                </span>
+              )}
+              <DateInput
+                className="h-9 w-36 min-w-0 flex-1 sm:flex-none"
+                aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
+                data-bz={`field:${field}__${bound}`}
+                value={values[`${field}__${bound}`] ?? ''}
+                onChange={(value) => {
+                  onChange(`${field}__${bound}`, value);
+                }}
+              />
+            </Fragment>
           ))}
         </div>
       </fieldset>

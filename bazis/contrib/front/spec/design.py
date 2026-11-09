@@ -144,12 +144,12 @@ DEFAULTS = {
     'color.surface-light': ('color', 'var(--card)', None),
     # the borders of the surfaces (cards, tables, menus, dialogs) and of the controls (outline
     # buttons, chips), the background of the controls at rest and under the pointer: those of the
-    # components before the tokens (an outline button had the border of a card, the input its own
-    # line)
+    # components before the tokens: an outline button of shadcn/ui, translucent on the input in
+    # the dark mode (`dark:bg-input/30 dark:border-input dark:hover:bg-input/50`)
     'color.border-surface': ('color', 'var(--border)', None),
-    'color.border-control': ('color', 'var(--border)', None),
-    'color.control': ('color', 'var(--background)', None),
-    'color.control-hover': ('color', 'var(--accent)', None),
+    'color.border-control': ('color', 'var(--border)', 'var(--input)'),
+    'color.control': ('color', 'var(--background)', 'color-mix(in srgb, var(--input) 30%, transparent)'),
+    'color.control-hover': ('color', 'var(--accent)', 'color-mix(in srgb, var(--input) 50%, transparent)'),
     # the bottom line of a field at rest, under the pointer and focused (`shadow.field-focus` the
     # shadow of the focus): the border and the ring of the fields before the tokens
     'color.field-line': ('color', 'var(--input)', None),
@@ -724,10 +724,11 @@ def source(name: str, values: dict[str, str]) -> str:
 
 def pair_contrast(values: dict[str, str], text: str, background: str, alpha: float = 1) -> float | None:
     """
-    The contrast of the text color on its background (the text at `alpha` over it), None when
-    `color` cannot compute one of them.
+    The contrast of the text color on its background (the text at `alpha` over it; a translucent
+    background over the page), None when `color` cannot compute one of them.
     """
-    first, second = color.parse(values[text], values), color.parse(values[background], values)
+    page = color.parse(values['--background'], values) if '--background' in values else None
+    first, second = color.parse(values[text], values), color.over(values[background], page, values)
     if first is None or second is None:
         return None
     return color.contrast(tuple(alpha * a + (1 - alpha) * b for a, b in zip(first, second, strict=True)), second)

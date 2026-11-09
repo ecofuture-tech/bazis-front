@@ -21,4 +21,5 @@
 @source "../../shadcn/button.tsx";
 @source "../../shadcn/card.tsx";
 @source "../../shadcn/input.tsx";
+@source "../../resource-card/summary.tsx";
 @source "./surfaces.tsx";

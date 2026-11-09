@@ -34,7 +34,7 @@ const raised =
   "control hover:bg-none hover:bg-control-hover hover:shadow-(--shadow-lift-05-hover) active:shadow-(--shadow-lift-05-active) aria-pressed:bg-none aria-pressed:bg-primary-soft aria-pressed:font-semibold aria-pressed:text-primary-ink"
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md pointer-coarse:min-h-11 pointer-coarse:min-w-11 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:shadow-(--shadow-ring-focus) disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md pointer-coarse:min-h-11 pointer-coarse:min-w-11 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-focus disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

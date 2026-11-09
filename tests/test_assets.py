@@ -199,6 +199,20 @@ def test_the_components_require_the_components_they_import():
         assert imported == required, asset.name
 
 
+def test_the_components_focus_with_the_ring_of_the_theme():
+    """
+    Every component shows its focus with `ring-focus` of the theme (`shadow.ring-focus` over its
+    own shadow), never a ring of its own nor a shadow in place of its own: but a row of a table,
+    whose ring is inside it (`rows.tsx`).
+    """
+    texts = {
+        path.relative_to(ASSETS / 'ui').as_posix(): path.read_text(encoding='utf-8')
+        for path in (ASSETS / 'ui').rglob('*.tsx') if 'node_modules' not in path.parts
+    }
+    assert {name for name, text in texts.items() if 'ring-ring/50' in text} == {'resource-list/rows.tsx'}
+    assert not [name for name, text in texts.items() if 'shadow-(--shadow-ring-focus)' in text]
+
+
 #: the opening tag of a heading of the components (`<h1>`–`<h6>`, or the `Title` and the
 #: `Heading` that stand for one)
 HEADING = re.compile(r'<(?:h[1-6]|Title|Heading)\b[^>]*>')

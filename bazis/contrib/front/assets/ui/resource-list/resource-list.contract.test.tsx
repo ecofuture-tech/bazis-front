@@ -110,6 +110,9 @@ describe('ResourceList', () => {
     expect(await within(loaded).findByText('Title')).toBeTruthy();
     expect(within(screen.getByTestId('row:a')).getByTestId('cell:title').textContent).toBe('First');
     expect(within(screen.getByTestId('row:a')).getByTestId('cell:done').textContent).toBe('Yes');
+    // a row that opens has no column of its own without the actions of the rows
+    expect(loaded.querySelectorAll('th')).toHaveLength(2);
+    expect(screen.getByTestId('row:a').querySelectorAll('td')).toHaveLength(2);
     fireEvent.click(screen.getByTestId('row:b'));
     expect(onOpen).toHaveBeenCalledWith('b');
     fireEvent.keyDown(screen.getByTestId('row:a'), { key: 'Enter' });

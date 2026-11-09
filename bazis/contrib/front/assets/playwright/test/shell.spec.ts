@@ -18,8 +18,8 @@
 // lay out: the links that the row has no room for go to its menu `nav:more`, and the page
 // never scrolls sideways, whatever the number of the links; the name of a file on a touch
 // screen is as large as a finger (V009 of the screenshots). And the surfaces with the theme of
-// a product (`surfaces-<surface>.html`): what the layer `surface` computes for a card, an outline
-// button and an input.
+// a product (`surfaces-<surface>.html`): what the layer `surface` computes for a card, the
+// summary of a card, an outline button and an input.
 
 import { fileURLToPath } from 'node:url';
 
@@ -256,6 +256,7 @@ async function look(page: Page, selector: string) {
       colors: sides.map((side) => style.getPropertyValue(`border-${side}-color`)),
       widths: sides.map((side) => style.getPropertyValue(`border-${side}-width`)),
       background: style.backgroundColor,
+      clip: style.backgroundClip,
       image: style.backgroundImage,
       shadow: style.boxShadow.replaceAll(/rgba\(0, 0, 0, 0\) 0px 0px 0px 0px(, )?/g, ''),
       radius: style.borderRadius,
@@ -272,16 +273,34 @@ test('lifted: a card and an outline button are lifted by a shadow without a cont
     expect(lifted.colors).toEqual(Array(4).fill(TRANSPARENT));
     expect(lifted.shadow).not.toBe('none');
   }
+  // the summary: one surface, no other color under its transparent border, a line between its parts
+  const summary = await look(page, '[data-slot="card-summary"]');
+  expect(summary).toMatchObject({ colors: Array(4).fill(TRANSPARENT), background: (await look(page, '[data-slot="card"]')).background, clip: 'border-box' });
+  expect(summary.shadow).not.toBe('none');
+  const part = await look(page, '[data-slot="card-summary"] > :first-child');
+  expect(part).toMatchObject({ background: TRANSPARENT, widths: ['0px', '1px', '0px', '0px'] });
+  expect(part.colors[1]).not.toBe(TRANSPARENT);
   const field = await look(page, '[data-slot="input"]');
   expect(field.widths).toEqual(['0px', '0px', '1px', '0px']);
   expect(field.colors[2]).not.toBe(TRANSPARENT);
   expect(field.shadow).toBe('none');
+  // the focus ring over the lift of the button, not in place of it (read without its transition)
+  await page.addStyleTag({ content: '* { transition: none !important; }' });
+  const button = page.locator('button[data-variant="outline"]');
+  const resting = await look(page, 'button[data-variant="outline"]');
+  await page.keyboard.press('Tab');
+  await button.focus();
+  await expect(button).toBeFocused();
+  const focused = await look(page, 'button[data-variant="outline"]');
+  expect(focused.shadow).not.toBe(resting.shadow);
+  expect(focused.shadow.endsWith(resting.shadow)).toBe(true);
 });
 
 test('elevated: a card and an outline button look as in 0.12, an input keeps the line of 0.12 at its bottom only', async ({ page }) => {
   await page.goto(`${origin}/surfaces-elevated.html`);
   // the classes of a block and of an outline button of 0.12
   expect(await look(page, '[data-slot="card"]')).toEqual(await look(page, '[data-testid="was-card"]'));
+  expect(await look(page, '[data-slot="card-summary"]')).toEqual(await look(page, '[data-testid="was-card"]'));
   expect(await look(page, 'button[data-variant="outline"]')).toEqual(await look(page, '[data-testid="was-button"]'));
   const field = await look(page, '[data-slot="input"]');
   const was = await look(page, '[data-testid="was-input"]');

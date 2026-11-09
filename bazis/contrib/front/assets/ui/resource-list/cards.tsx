@@ -22,7 +22,7 @@ import { alignsDigits, fieldValue, titleFromText, type ResourceObject } from '@/
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
+import { cell, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
 
 /** The colors of a highlighted card, by its tone (without the light of the surface over them). */
 const CARD_TONES: Readonly<Record<Tone, string>> = {
@@ -118,7 +118,7 @@ export function CardsView(props: BodyProps) {
                   'surface group flex w-full flex-col gap-4 rounded-2xl p-(--space-card) text-card-foreground transition-[box-shadow,border-color]',
                   tone && CARD_TONES[tone],
                   'data-[state=selected]:border-primary',
-                  onOpen && cn('cursor-pointer hover:shadow-(--shadow-lift-2)', FOCUS, 'focus-visible:ring-offset-0'),
+                  onOpen && 'cursor-pointer outline-none hover:shadow-(--shadow-lift-2) focus-visible:ring-focus',
                 )}
                 {...opener(row.id, onOpen)}
               >

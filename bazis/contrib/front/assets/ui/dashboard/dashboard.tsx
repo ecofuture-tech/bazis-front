@@ -40,7 +40,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 const CARD = 'surface text-card-foreground';
-const FOCUS = 'outline-none focus-visible:shadow-(--shadow-ring-focus)';
+const FOCUS = 'outline-none focus-visible:ring-focus';
 
 /** What the backend must let the user do with the items of a part for it to be shown (`requires` of the specs). */
 type Requirement = 'view' | 'add';

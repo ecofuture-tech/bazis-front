@@ -214,7 +214,7 @@ export function FileView({ file, preview, onDownload, downloading = false, faile
         aria-label={file.name}
         disabled={downloading}
         aria-busy={downloading || undefined}
-        className={cn(box, 'hover:ring-2 hover:ring-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70')}
+        className={cn(box, 'hover:ring-2 hover:ring-ring focus-visible:ring-focus disabled:opacity-70')}
         onClick={(event) => {
           event.stopPropagation();
           onDownload();

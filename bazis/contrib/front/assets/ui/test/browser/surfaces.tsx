@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A page of a card, an outline button and an input for the tests of the surfaces in a browser
+// A page of a card, the summary of a card, an outline button and an input for the tests of the
+// surfaces in a browser
 // (`assets/playwright/test/shell.spec.ts`, served by Vite with the aliases of
 // `vitest.config.ts` and the Tailwind of a product): what the theme of the page
 // (`surfaces-lifted.html`, `surfaces-elevated.html`) computes for them, beside the classes of a
@@ -20,15 +21,30 @@
 
 import { createRoot } from 'react-dom/client';
 
+import { LanguageProvider } from '@/bazis/i18n';
+import type { Fields } from '@/bazis/ui/resource';
+import { Summary } from '@/bazis/ui/resource-card/summary';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
+/** The fields of the summary: every one shown, its title its name. */
+const FIELDS: Fields = { fields: new Map(), title: (name) => name, ready: true, loaded: true, has: () => true };
+
 const root = document.getElementById('root');
 if (root) {
   createRoot(root).render(
-    <main className="grid max-w-sm gap-6 bg-background p-8">
+    <main className="grid max-w-xl gap-6 bg-background p-8">
       <Card className="p-6">Card</Card>
+      <LanguageProvider>
+        <Summary
+          summary={{ figure: 'total', meta: ['note'] }}
+          item={{ id: '1', type: 'test.item' }}
+          fields={FIELDS}
+          values={{ total: () => '3600', note: () => 'Two tents' }}
+          display={{}}
+        />
+      </LanguageProvider>
       <div data-testid="was-card" className="rounded-xl border bg-card p-6 shadow-xs">
         Card
       </div>

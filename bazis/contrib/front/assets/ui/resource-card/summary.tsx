@@ -87,12 +87,13 @@ export function Summary({ summary, item, fields, values, display }: SummaryProps
     <div
       data-slot="card-summary"
       className={cn(
-        'grid gap-px overflow-hidden rounded-xl border border-border-surface bg-border shadow-(--shadow-lift-1)',
-        left && figure !== undefined && 'sm:grid-cols-[1.4fr_1fr]',
+        // one surface, a line between its two parts: under the first on a phone, beside it wider
+        'surface grid divide-line-10',
+        left && figure !== undefined && 'max-sm:divide-y sm:grid-cols-[1.4fr_1fr] sm:divide-x',
       )}
     >
       {left && (
-        <div className="grid content-start gap-1 bg-card p-(--space-card)">
+        <div className="grid content-start gap-1 p-(--space-card)">
           {range && (
             <>
               <span className={LABEL}>{t('card.range')}</span>
@@ -119,7 +120,7 @@ export function Summary({ summary, item, fields, values, display }: SummaryProps
         </div>
       )}
       {figure !== undefined && (
-        <div className="grid content-start gap-1 bg-card p-(--space-card)">
+        <div className="grid content-start gap-1 p-(--space-card)">
           <span className={LABEL}>{fields.title(figure)}</span>
           <span data-bz={`field:${figure}`} className="font-heading text-3xl">
             {value(figure)}

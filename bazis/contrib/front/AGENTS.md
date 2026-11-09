@@ -2656,7 +2656,8 @@ The generated files are never edited. The design must have no errors (`bazis_fro
   `ease-standard` and every `transition` from `motion.*`), `--surface-card`,
   `--surface-control` (`none` until a layer defines `color.surface-light`: in `color` or both
   modes, one mode draws them in both), the utilities `font-heading`, `font-subheading`,
-  `font-eyebrow`, `surface` and `control` (a lifted block and control: never their classes)
+  `font-eyebrow`, `surface`, `control` and `ring-focus` (a lifted block and control, the focus
+  ring: never their classes)
   and the base styles of the preset (`h1`–`h3` in `font.heading`, the variables of the
   sidebar).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
@@ -2676,7 +2677,7 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 | `color.chart-1` … `-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
 | `font.mono` (`font-mono`) | the monospace fonts of Tailwind |
 | `font.weight-heading`, `-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
-| `shadow.xs` (the cards, the tables, the fields), `-sm`, `-md` (the popovers), `-lg` (the dialogs) | the shadows of Tailwind |
+| `shadow.xs` (the blocks and the controls by default), `-sm`, `-md` (the popovers, the dialogs), `-lg` | the shadows of Tailwind |
 | `motion.fast`, `-base`, `-slow`, `-ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
 | `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`) |
 | `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
@@ -2737,7 +2738,7 @@ name that the lucide-react of the template lacks), read from `THEME.icons[entity
 navigation, the empty states, the dashboard). Choose by the meaning of the entity: people
 `users` (one person `user`), a document `file-text`, money `wallet`, a deadline or a booking
 `calendar-clock`, a task `square-check`, a loan or a request `clipboard-list`, an order
-`shopping-cart`, a product `package`, a report `chart-column`.
+`shopping-cart`, a report `chart-column`.
 
 ### Dark mode
 
@@ -2777,8 +2778,8 @@ theme: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `
 Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)`) or
 `style={{ color }}`: they break the brand and the dark mode. A color the product needs is a token
 (`color.highlight` in `tokens.json` is `bg-highlight`). A field of your own:
-`fieldClassName` of `@/components/ui/input`; a label with its controls: `data-slot="field-group"`
-and `fieldGroupClassName`.
+`fieldClassName` of `@/components/ui/input`; a group: `data-slot="field-group"` and
+`fieldGroupClassName`.
 
 #### The spacing of the density
 

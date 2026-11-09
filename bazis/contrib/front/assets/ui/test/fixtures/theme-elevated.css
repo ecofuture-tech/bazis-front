@@ -132,6 +132,9 @@
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
   --shadow-md: 0 2px 8px -2px rgb(0 0 0 / 0.45);
   --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.6);
+  --border-control: var(--input);
+  --control: color-mix(in srgb, var(--input) 30%, transparent);
+  --control-hover: color-mix(in srgb, var(--input) 50%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -157,6 +160,9 @@
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-md: 0 2px 8px -2px rgb(0 0 0 / 0.45);
     --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.6);
+    --border-control: var(--input);
+    --control: color-mix(in srgb, var(--input) 30%, transparent);
+    --control-hover: color-mix(in srgb, var(--input) 50%, transparent);
   }
 }
 
@@ -294,15 +300,22 @@
   background-color: var(--card);
   background-image: var(--surface-card);
   border: 1px solid var(--border-surface);
-  box-shadow: var(--shadow-lift-1);
+  --tw-shadow: var(--shadow-lift-1);
+  box-shadow: var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000), var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
   border-radius: calc(var(--radius) + 4px);
 }
 @utility control {
   background-color: var(--control);
   background-image: var(--surface-control);
   border: 1px solid var(--border-control);
-  box-shadow: var(--shadow-lift-05);
+  --tw-shadow: var(--shadow-lift-05);
+  box-shadow: var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000), var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
   border-radius: calc(var(--radius) - 2px);
+}
+/* The focus ring over the shadow of the element. */
+@utility ring-focus {
+  --tw-ring-shadow: var(--shadow-ring-focus);
+  box-shadow: var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000), var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
 }
 
 @layer base {
@@ -352,6 +365,18 @@
     --shadow-lift-primary-active: 0 0 #0000;
     --surface-card: none;
     --surface-control: none;
+  }
+  .dark [data-slot='sidebar'] {
+    --border-control: var(--input);
+    --control: color-mix(in srgb, var(--input) 30%, transparent);
+    --control-hover: color-mix(in srgb, var(--input) 50%, transparent);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not(.light) [data-slot='sidebar'] {
+      --border-control: var(--input);
+      --control: color-mix(in srgb, var(--input) 30%, transparent);
+      --control-hover: color-mix(in srgb, var(--input) 50%, transparent);
+    }
   }
   h1,
   h2,

@@ -16,7 +16,8 @@
 The colors of the tokens as the browser computes them, for the contrast of the text tokens
 (WCAG 2): `oklch()`, `#rgb`/`#rrggbb` and `rgb()` values, `var(--name)` of other variables
 and `color-mix(in srgb|oklab, A p%, B)`, the mix of the variables that the theme derives
-(`design.DERIVED`). Any other value is not computed: its contrast is not checked.
+(`design.DERIVED`); a mix with `transparent` over an opaque color (`over`). Any other value is
+not computed: its contrast is not checked.
 """
 
 import math
@@ -123,6 +124,25 @@ def parse(value: str, variables: dict[str, str] | None = None, seen: frozenset =
             digits = ''.join(it * 2 for it in digits)
         return tuple(int(digits[i:i + 2], 16) / 255 for i in (0, 2, 4))
     return None
+
+
+def over(value: str, base: Color | None, variables: dict[str, str] | None = None) -> Color | None:
+    """
+    The color of a CSS value drawn over an opaque color: a mix with `transparent` (a background
+    of the dark mode of shadcn/ui, `bg-input/30`) is its color at its part over the base, as the
+    browser composes it; another value its color.
+    """
+    value = value.strip()
+    while (match := VAR.match(value)) and variables is not None and match.group(1) in variables:
+        value = variables[match.group(1)].strip()
+    match = MIX.match(value)
+    if match is None or match.group(4).strip() != 'transparent':
+        return parse(value, variables)
+    first = parse(match.group(2), variables)
+    if first is None or base is None:
+        return None
+    weight = float(match.group(3)) / 100
+    return tuple(weight * a + (1 - weight) * b for a, b in zip(first, base, strict=True))
 
 
 def luminance(color: Color) -> float:

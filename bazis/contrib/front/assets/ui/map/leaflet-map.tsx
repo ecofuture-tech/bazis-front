@@ -40,7 +40,7 @@ function markerIcon(kind: 'item' | 'selected' | 'me'): L.DivIcon {
     html: '',
     iconSize: [size, size],
     className: cn(
-      'rounded-full border-2 border-background shadow-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
+      'rounded-full border-2 border-background shadow-sm outline-none focus-visible:ring-focus',
       kind === 'me' ? 'bg-info' : 'bg-primary pointer-coarse:after:absolute pointer-coarse:after:-inset-4 pointer-coarse:after:rounded-full',
     ),
   });
