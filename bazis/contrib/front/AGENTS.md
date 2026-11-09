@@ -389,16 +389,16 @@ scenarios:
 #### Navigation
 
 **Navigation** (optional): the links in their order and their groups, as the schema says
-who sees a link, its label and its icon (a name of lucide, D013) and what it is without
-`navigation`; the generated navigation is made from it (`src/screens/generated/navigation.ts`).
+who sees a link, its label and icon (a name of lucide, D013), the number of the items of its
+list beside it (`count`, S070), what it is without `navigation`.
 A link opens a screen without an item in its route, not a form of the items, once (S030). A
 role whose list of the entity is refused (403) gets no link of the form of a custom action,
-even if it may call the action.
+even one it may call.
 
 ```yaml
 navigation:
   - {screen: home}
-  - {screen: loan-list}
+  - {screen: loan-list, count: {filter: {status: overdue}}}
   - {screen: loan-board, requires: {can: add}}
   - group: catalog
     title: {en: Catalog, ru: Каталог}
@@ -1118,7 +1118,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S011` | error | transitions or history on a card whose entity has no workflow |
 | `S012` | warning | a screen edits or filters a relationship with a picker (a filter of a list, a field of a form or of a card with `edit`), and the related resource has no search fields in the contract: its picker lists the items without a search |
 | `S013` | error | a list has `search`, and the resource of its entity has no search fields in the contract: the search is 400 `ERR_FILTER` |
-| `S014` | error | a value of the filter of a list, a tile or the last items of a dashboard (each of a list `[a, b]` and of `{not: …}`) does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup `__gt`, `__gte`, `__lt`, `__lte` of a field that is not a date, a date-time or a number, or with a list or `{not: …}`: a lookup takes one value), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
+| `S014` | error | a value of the filter of a list, a tile, the last items of a dashboard or the count of a link (each of a list `[a, b]` and of `{not: …}`) does not fit the type of its field in the contract (a day of the browser of a field that is not a date or a date-time, a day without a time of a date-time compared otherwise than by `__gte` or `__lt`, a lookup of a field that is not a date, a date-time or a number, or with a list or `{not: …}`), or the highlight of a list is not by a boolean field or has no label. See "Days of the browser and lookups in a filter" |
 | `S015` | error | the relation of a related section of a card is not a to-one relationship of the related entity to the entity of the card |
 | `S016` | error | the map of a list is not by a point field of its entity, or a point field is a filter of a list |
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
@@ -1144,7 +1144,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S037` | warning | a dictionary of the product (src/i18n/<language>.ts) has a key of the texts of the specs (`screens.<id>...`) that no text of the specs has: of a screen, a section, a tab or an action that is not there, or a text that the spec does not give |
 | `S038` | error | a screen of an item has no `:id` in its route: a card or an update form that is not custom (the id of the item is in the route; a custom one finds its item itself) |
 | `S039` | error | a sort names a field twice (`planned_date` and `-planned_date`): a sort is the order of the items by default, by its first field, then by the next one for the items equal by it; keep the field once (the user sorts a list by the headers of its columns) |
-| `S040` | error | a list, a board or a calendar has filters, or a list is a report (a `filter`, whose link in the navigation reads them), and the route set of its resource does not route the fields that the user may filter by (`route_filter_fields/`): its `actions` leave out `get_route_filter_fields`, and the filters show an error. Add it to `actions` (the frontend needs the routes of the list, of the item, of their schemas and of the fields of the filters), never remove the filters for it. A report that the navigation does not link (`nav: false`, a route with `:`, or not in the `navigation` of the product) is not checked |
+| `S040` | error | a list, a board or a calendar has filters, or a list is a report (a `filter`, whose link in the navigation reads them), and the route set of its resource does not route the fields that the user may filter by (`route_filter_fields/`): its `actions` leave out `get_route_filter_fields`, and the filters show an error. Add it to `actions` (those that the frontend reads: "The contract"), never remove the filters for it. A report that the navigation does not link (`nav: false`, a route with `:`, or not in the `navigation` of the product) is not checked |
 | `S041` | warning | the add of a calendar whose `field` is a date-time, which the create route takes (else S034), lists `fields` without it: the item is created at the start of the selected day (00:00) and the user cannot pick the time. Add the field to `fields` of `add` (or omit `fields`: all the writable fields) |
 | `S042` | error | the add of a calendar has a `time` or a `duration` that it cannot use: `field` (and `end`, for a duration) is not a date-time, the calendar has no `end`, or the form of the add does not send the end (left out of its `fields`, or not taken by the create route). Remove the key, or give the calendar its date-time `end` and the form the field |
 | `S043` | warning | the add of a calendar by date-times shows `end` in its form without `duration`: the form starts with the end empty, which the user fills for every item. Give the add the usual length of an item in minutes (`duration: 30`), which the user may change |
@@ -1172,6 +1172,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S067` | error | the focus of a dashboard: `layout: focus` without `hero` or `hero` without it, `hero.chart` is not a chart of the dashboard, is by the `status` (its value is that of the current period, the last) or is not a `bar` or a `line`, or `hero.side` has the `total` of an `avg` |
 | `S068` | error | a chart `kind: distribution` (the shares of a whole) is by a date rather than the `status`, or of an `avg` |
 | `S069` | error | `header.search` without `list.search` |
+| `S070` | error | `count` of a link of the navigation to a screen that is not a list |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json (a key that a mapping does not take: as P002) |
@@ -1180,7 +1181,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `D006` | error | a token references a token of another type |
 | `D007` | error | a token of the dark mode (the group `dark`) overrides no token of the same name and type |
 | `D008` | warning | a status of `statuses` in theme.yaml is not a status of the contract |
-| `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode; also `--sidebar-muted-foreground` on `--sidebar`, `--sidebar-primary-foreground` on `--sidebar-primary`, `--brand-foreground` on `--brand` and `--brand` on `--card`: the brand is a text accent (a rubric), so it must read on a card; inside the sidebar (on its variables) `--sidebar-foreground` on `--control` and `--control-hover`, and `--field-line-focus` on `--sidebar` at 3:1 |
+| `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode; also `--sidebar-muted-foreground` on `--sidebar` and `--nav-active`, `--sidebar-primary-foreground` on `--sidebar-primary`, `--brand-foreground` on `--brand` and `--brand` on `--card`: the brand is a text accent (a rubric), so it must read on a card; inside the sidebar (on its variables) `--sidebar-foreground` on `--control` and `--control-hover`, and `--field-line-focus` on `--sidebar` at 3:1 |
 | `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 | `D012` | warning | spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows; the issue names the tokens |
@@ -1604,7 +1605,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | Component | What | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel` (the state of a screen or of a part of it, `inline`, with a `skeleton` while it loads), `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`, the links that its row has no room for in its menu, see [The top bar](#the-top-bar); `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login or before it, with `signIn` then, see [The public screens](#the-public-screens); `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard` (the list next to its card shows its first columns), `useBesideList` (a list in the card next to its list, a related list, shows the cards of a phone), `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below; `caption`: beside the title (the day of a dashboard, the number of a list); its header has the places of a list, `screen-tools` and `screen-caption` (`tools` and `caption` of `useScreenPage`) | `nav:<screen>` (the navigation and the link of `parent`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in`, `action:language` (the current code in `data-value`) | |
+| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`, the links that its row has no room for in its menu, see [The top bar](#the-top-bar); `items`: the links, each with its `screen`, `to`, `icon`, `requires` and `count`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login or before it, with `signIn` then, see [The public screens](#the-public-screens); `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard` (the list next to its card shows its first columns), `useBesideList` (a list in the card next to its list, a related list, shows the cards of a phone), `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below; `caption`: beside the title (the day of a dashboard, the number of a list); its header has the places of a list, `screen-tools` and `screen-caption` (`tools` and `caption` of `useScreenPage`) | `nav:<screen>` (the navigation and the link of `parent`), `count:<screen>` (the number beside a link in `data-value`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `ItemValue` (a field of an item as a cell: the status of a statusy model as its badge), `workflowStatuses(type)` (the statuses of a workflow, the initial one first, then in the order of its transits), `DateInput` with `DatesProvider` (the control of the dates, the calendar of `date-picker`), `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`, `inlineDisplay` (`avatar` and `chips` as a text in a line); `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
 | `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state; `toolbar="header"`: the search, the view and the actions in `screen-tools` of its `Screen`, the filters staying; `count`: the number of the items in `screen-caption`, `data-slot="screen-count"` with `data-value`). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
@@ -1769,7 +1770,7 @@ screen needs stays in the chunk of that screen (never add it to the list); never
 
 Their links are `navigation` of `spec/product.yaml`, generated as `navigation(t)` of
 `src/screens/generated/navigation.ts` (the items of `AppShell`; a group under its heading,
-shown with its first allowed link; a line sets a link after a group apart). A link shown only
+shown with its first allowed link). A link shown only
 to the users the backend allows names what it `requires`: `{path}` to view, `{path, can:
 'add'}`, `{path, filters: [<field>]}` to filter by; `AppShell` shows it once the backend
 answers (from the queries of the screens). `useCan(path, 'view' | 'add')` of
@@ -2868,6 +2869,18 @@ and `color.sidebar-primary` with a dark `color.sidebar`: the first is the muted 
 the content by default, which D009 reports on a dark sidebar. The controls and the fields in
 it are computed on its variables; the shadows keep the `shade` of the content, and the avatars
 (`bg-avatar-<n>`) are colors of the content: never in the sidebar.
+
+**The links of the sidebar.** The current link is the fill `color.nav-active` with the bar
+`color.nav-active-bar` at its start and `shadow.nav-active` (by default the accent of the
+sidebar without a bar or a shadow; `palette: frost`: white at 6.5 % over the sidebar and a
+honey bar), its icon in the color of its text; the headings of the groups are small capitals
+in `--sidebar-muted-foreground`. A link with `count` shows the number of its items at its end
+(`count:<screen>` with it in `data-value`; nothing at 0 or before it is loaded), in
+`--sidebar-primary` on the current link. With his name (`user` of the session of `AppShell`,
+`detail` under it; the template passes none) the user is a plate at the foot: the circle of
+his initials in `--sidebar-primary`, the logout an icon. The last button of the tools collapses
+the sidebar to a rail of icons 68 px wide (`data-state="collapsed"` of the `aside`, kept in the
+storage of the browser): the labels are the titles of the links, a number is a dot.
 
 **The headings.** `font-heading` is the family, the weight and the tracking of a heading
 (the title of a screen, a card, a figure of a dashboard) and `font-subheading` those of the
@@ -5142,7 +5155,7 @@ Its props, `LanguageProviderProps`:
 - `type Params = Readonly<Record<string, string | number>>`: The parameters of a text: `{name}` in the text is replaced by `params.name`.
 - `type Translate = (key: string, params?: Params) => string`: A translation of a key with its parameters in the current language: `t('list.page', {from, to})`.
 
-## API: the components: app-shell, async-result, board-dnd, charts, dashboard, date-picker, empty-state, file-field, live-query, login-form
+## API: the components: app-shell, async-result, board-dnd, charts, dashboard, date-picker, empty-state, file-field, live-query
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -5225,6 +5238,7 @@ Its props, `ScreenProps`:
 - `icon?: ComponentType<{ className?: string; }>`: Its icon, such as an icon of lucide-react.
 - `requires?: NavRequirement`: What the backend must allow the user: the link is shown once it does (always without).
 - `public?: boolean`: The link of a public screen (an anonymous role of the specs), also shown without a session.
+- `count?: { path: string; filter: Filter; }`: The number beside the link (`count` of the link in the specs): the items of the route set (`ROUTES` of the contract) that the filter selects, once the link is shown; none at 0.
 
 #### NavRequirement
 
@@ -5256,7 +5270,8 @@ Its props, `ScreenProps`:
 
 `interface ShellSession`: The session of the user; null without a login (no bazis-users), or before the user logs in.
 
-- `user?: ReactNode`: Who is logged in.
+- `user?: ReactNode`: Who is logged in: in the sidebar, a plate with the circle of his initials.
+- `detail?: ReactNode`: Under his name in the sidebar, smaller: his role, his organization.
 - `onLogout: () => void`
 
 #### ColorModeToggle
@@ -5574,6 +5589,10 @@ Its props, `LiveQueryProps`:
 
 - `LiveQueryProps`: the props of `LiveQuery`, listed with it
 
+## API: the components: login-form, map, notification-center
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
 ### `@/bazis/ui/login-form`
 
 #### LoginForm
@@ -5607,10 +5626,6 @@ Its props, `LoginFormProps`:
 #### The types and the constants of `@/bazis/ui/login-form`
 
 - `LoginFormProps`: the props of `LoginForm`, listed with it
-
-## API: the components: map, notification-center
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/map`
 

@@ -798,13 +798,14 @@ CASES = [
         'S008',
         {CONTRACT: remove_labels},
         # the filter of the drafts (a report) is by the status too, and so are the tiles of the
-        # home, its chart by status, its last tasks and the columns of the board; its last tasks
-        # are sorted, as the public list
+        # home, its chart by status, its last tasks, the columns of the board and the number beside
+        # the link of the tasks; its last tasks are sorted, as the public list
         [('S008', f'{DRAFTS}#/list/filter/status'), ('S008', f'{DRAFTS}#/list/sort/0'),
          ('S008', f'{HOME}#/dashboard/tiles/0/filter/status'), ('S008', f'{HOME}#/dashboard/tiles/1/filter/status'),
          ('S008', f'{HOME}#/dashboard/tiles/2/filter/status'), ('S008', f'{HOME}#/dashboard/charts/0/by'),
          ('S008', f'{HOME}#/dashboard/recent/0/filter/status'), ('S008', f'{HOME}#/dashboard/recent/0/sort/0'), ('S008', f'{PUBLIC}#/list/sort/0'), ('S008', f'{BOARD}#/board/by'),
-         ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0')],
+         ('S008', f'{LIST}#/list/filters/0'), ('S008', f'{LIST}#/list/sort/0'),
+         ('S008', f'{PRODUCT}#/navigation/1/items/0/count/filter/status')],
     ),
     ('S009', {LIST: lambda d: d['states'].remove('empty')}, [('S009', f'{LIST}#/states')]),
     (
@@ -1152,6 +1153,17 @@ CASES = [
         # the number of the items alone in the header, of a list without a search: no issue
         {LIST: lambda d: [d['list'].pop('search'), d.update(header={'count': True})]},
         [],
+    ),
+    (
+        'S070',
+        # the number beside the link of the board, which is no list; that of the drafts by a field
+        # that the tasks have not, and by a status out of the choices of the field
+        {PRODUCT: lambda d: [d['navigation'][2]['items'][0].update(count={'filter': {'status': 'done'}}),
+                             d['navigation'][1]['items'][1].update(count={'filter': {'rank': 1}}),
+                             d['navigation'][1]['items'][0].update(count={'filter': {'status__gte': 'draft'}})]},
+        [('S014', f'{PRODUCT}#/navigation/1/items/0/count/filter/status__gte'),
+         ('S007', f'{PRODUCT}#/navigation/1/items/1/count/filter/rank'),
+         ('S070', f'{PRODUCT}#/navigation/2/items/0/count')],
     ),
     (
         'S002',
@@ -2179,17 +2191,17 @@ CASES = [
     ('D008', {THEME: lambda d: d['statuses'].update(archived='neutral')}, [('D008', f'{THEME}#/statuses/archived')]),
     (
         'D009',
-        # a muted text too light: on the backgrounds, in the sidebar (its muted text by default),
-        # and the neutral badges mixed from it
+        # a muted text too light: on the backgrounds, in the sidebar (its muted text by default) and
+        # on the plate of its user, and the neutral badges mixed from it
         {TOKENS: lambda d: d['color']['muted-foreground'].update({'$value': 'oklch(0.8 0 0)'})},
-        [('D009', f'{TOKENS}#/color/muted-foreground')] * 5,
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 6,
     ),
     (
         'D009',
         # over a palette, at the token of tokens.json that loses the contrast
         {THEME: lambda d: d.update(palette='forest', fonts='inter', shape='soft'),
          TOKENS: lambda d: {'color': {'muted-foreground': {'$type': 'color', '$value': 'oklch(0.8 0 0)'}}}},
-        [('D009', f'{TOKENS}#/color/muted-foreground')] * 5,
+        [('D009', f'{TOKENS}#/color/muted-foreground')] * 6,
     ),
     (
         'D010',
@@ -3513,6 +3525,18 @@ def test_the_schemas_are_valid_and_shipped():
 def test_the_packages_are_the_capabilities():
     schema = json.loads(schema_files()['product.schema.json'].read_text(encoding='utf-8'))
     assert schema['properties']['packages']['items']['enum'] == sorted(capabilities.CAPABILITIES)
+
+
+def test_the_filter_of_the_count_of_a_link_is_that_of_a_list():
+    # each schema is a file of its own: the number beside a link of the navigation takes the
+    # filter of a list screen, whatever their descriptions
+    defs = {
+        name: json.loads(schema_files()[name].read_text(encoding='utf-8'))['$defs']
+        for name in ('product.schema.json', 'screen.schema.json')
+    }
+    for name in ('filter', 'filter_value', 'filter_values'):
+        product, screen = ({k: v for k, v in it[name].items() if k != 'description'} for it in defs.values())
+        assert product == screen, name
 
 
 PACKAGE = Path(__file__).resolve().parent.parent / 'bazis' / 'contrib' / 'front'

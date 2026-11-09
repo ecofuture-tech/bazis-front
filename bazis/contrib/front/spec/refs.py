@@ -935,8 +935,8 @@ def check_navigation(
     allows on the items of the entity of its screen (one with an entity, not the form of a
     custom action, which requires its action; `can: add` of a resource with a create route in
     the contract), and each group is declared once (S030); their icons are
-    those of lucide-react (D013). A screen that does not follow its schema is accepted
-    unchecked.
+    those of lucide-react (D013); a link counts the items of a list (S070). A screen that does
+    not follow its schema is accepted unchecked.
     """
     if not doc.valid:
         return
@@ -959,6 +959,35 @@ def check_navigation(
             linked.add(link['screen'])
             if 'requires' in link:
                 _check_requires(doc, (*path, 'requires'), link, screens.get(link['screen']), product, contract, issues)
+            if 'count' in link:
+                _check_count(doc, (*path, 'count'), link, screens.get(link['screen']), product, contract, issues)
+
+
+def _check_count(
+    doc: Document, path: tuple, link: dict, screen: dict | None, product: Product | None, contract: dict | None,
+    issues: Issues,
+) -> None:
+    """
+    The number beside a link counts the items of a list screen (S070) by a filter of the fields of
+    its entity (S007) that its resource takes (S008, S014), as the filter of a list.
+    """
+    if screen is None:
+        return
+    if screen['primitive'] != 'list':
+        issues.add(
+            doc, path, 'S070',
+            f'The link of `{link["screen"]}` counts the items of its screen, a {screen["primitive"]}, not a list.',
+            'Count the items of a list screen of the entity, or remove `count`.',
+        )
+        return
+    entity = product.entities.get(screen['entity']) if product else None
+    if entity is None:
+        return
+    where = link['count']['filter']
+    _check_fields(doc, entity, [((*path, 'filter', key), filter_field(key)[0]) for key in where], issues)
+    resource = contract['project']['resources'].get(entity.data['resource']) if contract else None
+    if resource is not None:
+        _check_queries(doc, path, link['count'], entity, resource, issues)
 
 
 def check_anonymous_roles(doc: Document, screens: dict[str, dict | None], product: Product | None, issues: Issues) -> None:

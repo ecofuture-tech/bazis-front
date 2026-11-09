@@ -14,16 +14,18 @@
 
 // The layout of the application: the navigation (a sidebar, a drawer on a phone, or a top
 // bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>` (those that
-// require a permission shown once the backend allows it; those that the top bar has no room
-// for in its menu `nav:more`), the session (the user and the
-// logout, `action:logout`; without one, the sign-in `action:sign-in`), the language
+// require a permission shown once the backend allows it, the number of the items of a list
+// beside a link `count:<screen>`; those that the top bar has no room for in its menu
+// `nav:more`; the sidebar collapsed to a rail of icons, kept in the storage of the browser),
+// the session (the user and the logout, `action:logout`; without one, the sign-in
+// `action:sign-in`), the language
 // (`action:language`, with more than one language), the color mode, the tools of the product
 // (the notifications), the toasts, and the screens, each wrapped in `Screen` (`screen:<id>`)
 // with its title, its actions and the link back to the screen it was opened from
 // (`nav:<screen>`).
 
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ArrowLeft, ChevronRight, Ellipsis, LogIn, LogOut, Menu } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Ellipsis, LogIn, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound } from 'lucide-react';
 import {
   createContext,
   useCallback,
@@ -40,9 +42,10 @@ import {
 } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 
+import { aggregateValues, type Filter } from '@/bazis/client';
 import { THEME, type BrandMark } from '@/bazis/generated/theme';
-import { useLanguage } from '@/bazis/i18n';
-import { useCan, useFilterFields, type Can } from '@/bazis/react';
+import { formatNumber, useLanguage } from '@/bazis/i18n';
+import { useCan, useFilterFields, useList, type Can, type QueryOptions } from '@/bazis/react';
 import { Toaster } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,6 +75,11 @@ export interface NavItem {
   requires?: NavRequirement;
   /** The link of a public screen (an anonymous role of the specs), also shown without a session. */
   public?: boolean;
+  /**
+   * The number beside the link (`count` of the link in the specs): the items of the route set
+   * (`ROUTES` of the contract) that the filter selects, once the link is shown; none at 0.
+   */
+  count?: { path: string; filter: Filter };
 }
 
 /** Links of the navigation under a heading, shown while the backend allows the user one of them. */
@@ -145,8 +153,10 @@ export interface NavRequirement {
 
 /** The session of the user; null without a login (no bazis-users), or before the user logs in. */
 export interface ShellSession {
-  /** Who is logged in. */
+  /** Who is logged in: in the sidebar, a plate with the circle of his initials. */
   user?: ReactNode;
+  /** Under his name in the sidebar, smaller: his role, his organization. */
+  detail?: ReactNode;
   onLogout: () => void;
 }
 
@@ -175,6 +185,27 @@ export interface AppShellProps {
    */
   tools?: ReactNode;
   children: ReactNode;
+}
+
+/** The key of the storage of the browser that keeps the sidebar collapsed to a rail. */
+const RAIL = 'bazis-sidebar';
+
+/** Whether the user collapsed the sidebar to a rail (false when the storage is not available). */
+function storedRail(): boolean {
+  try {
+    return window.localStorage.getItem(RAIL) === 'collapsed';
+  } catch {
+    return false;
+  }
+}
+
+function storeRail(collapsed: boolean): void {
+  try {
+    if (collapsed) window.localStorage.setItem(RAIL, 'collapsed');
+    else window.localStorage.removeItem(RAIL);
+  } catch {
+    // a storage that is not available: the rail lasts until the page is reloaded
+  }
 }
 
 /** The width from which the sidebar is shown: the breakpoint `md` of Tailwind. */
@@ -243,6 +274,7 @@ export function Brand({ title, mark = THEME.brand, large = false }: BrandProps) 
         </span>
       )}
       <span
+        data-slot="brand-name"
         title={typeof title === 'string' ? title : undefined}
         // the leading after the size: `cn` drops a leading that a size follows
         className={cn('line-clamp-2 font-heading', large ? 'text-xl' : 'text-base', 'leading-tight')}
@@ -258,6 +290,7 @@ const useAnyCan = useCan as unknown as (path: string, action: Can) => boolean | 
 const useAnyFilterFields = useFilterFields as unknown as (
   path: string,
 ) => UseQueryResult<{ fields: readonly { name: string }[] }>;
+const useAnyList = useList as unknown as (path: string, query: QueryOptions) => UseQueryResult<Parameters<typeof aggregateValues>[0]>;
 
 /**
  * Its children once the backend allows the user what a link requires (`requires` of a
@@ -490,6 +523,7 @@ function MoreLink({ item }: { item: NavItem }) {
           <span title={typeof item.label === 'string' ? item.label : undefined} className="truncate">
             {item.label}
           </span>
+          {item.count && <NavCount screen={item.screen} count={item.count} vertical={false} />}
         </NavLink>
       </DropdownMenuItem>
     </Allowed>
@@ -503,13 +537,21 @@ function NavGroupEntry({ group, vertical, onNavigate, copy = false }: EntryProps
     <AnyAllowed requirements={group.items.map((it) => it.requires)}>
       <li
         data-nav-group=""
-        className={cn('flex gap-1', vertical ? 'flex-col pt-3' : 'items-center')}
+        className={cn(
+          'flex gap-1',
+          // a group of a rail: a line over its links instead of its heading
+          vertical
+            ? 'flex-col pt-3 group-data-[state=collapsed]/sidebar:mx-2 group-data-[state=collapsed]/sidebar:mt-2 group-data-[state=collapsed]/sidebar:border-t group-data-[state=collapsed]/sidebar:border-sidebar-border group-data-[state=collapsed]/sidebar:pt-2'
+            : 'items-center',
+        )}
       >
         <span
           id={heading}
           className={cn(
-            'truncate text-xs font-medium',
-            vertical ? 'px-3 pb-1 text-sidebar-foreground/80' : 'pl-2 text-muted-foreground',
+            'truncate',
+            vertical
+              ? 'px-3 pb-1.5 font-eyebrow text-sidebar-muted-foreground group-data-[state=collapsed]/sidebar:sr-only'
+              : 'pl-2 text-xs font-medium text-muted-foreground',
           )}
         >
           {group.label}
@@ -524,22 +566,24 @@ function NavGroupEntry({ group, vertical, onNavigate, copy = false }: EntryProps
   );
 }
 
-/** A link of the navigation outside the groups right after a group: set apart from its links by a line. */
+/** A link of the navigation outside the groups right after a group: set apart from its links (in the top bar by a line). */
 const AFTER_GROUP = {
-  vertical: '[[data-nav-group]+&]:mt-2 [[data-nav-group]+&]:border-t [[data-nav-group]+&]:border-sidebar-border [[data-nav-group]+&]:pt-2',
+  vertical: '[[data-nav-group]+&]:mt-3',
   horizontal: '[[data-nav-group]+&]:ml-1 [[data-nav-group]+&]:border-l [[data-nav-group]+&]:border-border [[data-nav-group]+&]:pl-2',
 };
 
 /** A link of the navigation, also the button of the menu of the top bar. */
 const LINK = {
   base: 'group flex items-center gap-3 text-sm font-medium transition-colors outline-none focus-visible:ring-focus',
-  vertical: 'rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
+  vertical:
+    'relative rounded-md px-3 py-2 text-sidebar-foreground/80 pointer-coarse:min-h-11 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground group-data-[state=collapsed]/sidebar:justify-center',
   horizontal: 'rounded-full px-3.5 py-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground',
 };
 
-/** The current link. */
+/** The current link: in the sidebar a lifted fill with a bar at its start (`color.nav-active`, `-bar`, `shadow.nav-active`). */
 const CURRENT = {
-  vertical: 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent',
+  vertical:
+    'bg-nav-active text-sidebar-accent-foreground shadow-(--shadow-nav-active) hover:bg-nav-active before:absolute before:inset-y-[11px] before:left-0 before:w-0.5 before:rounded-r-full before:bg-nav-active-bar',
   horizontal: 'bg-accent text-accent-foreground',
 };
 
@@ -553,6 +597,8 @@ function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps &
           to={item.to}
           end={item.end}
           data-bz={copy ? undefined : `nav:${item.screen}`}
+          // the label of a link of a rail, only the icon of which is seen
+          title={typeof item.label === 'string' ? item.label : undefined}
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
@@ -562,15 +608,48 @@ function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps &
             )
           }
         >
-          {Icon && (
-            <Icon className="size-4 shrink-0 opacity-70 group-aria-[current=page]:text-primary group-aria-[current=page]:opacity-100" />
-          )}
-          <span title={typeof item.label === 'string' ? item.label : undefined} className="truncate">
-            {item.label}
-          </span>
+          {Icon && <Icon className="size-4 shrink-0 opacity-70 [stroke-width:1.75] group-aria-[current=page]:opacity-100" />}
+          <span className="truncate group-data-[state=collapsed]/sidebar:sr-only">{item.label}</span>
+          {item.count && <NavCount screen={copy ? undefined : item.screen} count={item.count} vertical={vertical} />}
         </NavLink>
       </li>
     </Allowed>
+  );
+}
+
+/**
+ * The number of the items that a link counts (`count` of `NavItem`), `count:<screen>` with the
+ * number in `data-value`, at the end of the link; nothing until it is loaded, at 0, on an error.
+ * In the sidebar on the current link in its primary; a dot in a rail. The query is that of a
+ * tile counting the same items (`StatCard`), whose answer it shares.
+ */
+function NavCount({
+  screen,
+  count,
+  vertical,
+}: {
+  /** None in the copy of the row of the top bar, which is not marked for the tests. */
+  screen: string | undefined;
+  count: NonNullable<NavItem['count']>;
+  vertical: boolean;
+}) {
+  const { language } = useLanguage();
+  const list = useAnyList(count.path, { filter: count.filter, page: { limit: 1 }, meta: ['aggregates'], aggregate: ['count'] });
+  const value = Number((list.data && aggregateValues(list.data)?.count) ?? 0);
+  if (!value) return null;
+  return (
+    <span
+      data-bz={screen === undefined ? undefined : `count:${screen}`}
+      data-value={value}
+      className={cn(
+        'ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums',
+        vertical
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground group-aria-[current=page]:bg-sidebar-primary group-aria-[current=page]:text-sidebar-primary-foreground group-data-[state=collapsed]/sidebar:absolute group-data-[state=collapsed]/sidebar:top-1.5 group-data-[state=collapsed]/sidebar:right-1.5 group-data-[state=collapsed]/sidebar:size-2 group-data-[state=collapsed]/sidebar:min-w-0 group-data-[state=collapsed]/sidebar:bg-sidebar-primary group-data-[state=collapsed]/sidebar:p-0 group-data-[state=collapsed]/sidebar:text-[0px]'
+          : 'bg-muted text-muted-foreground',
+      )}
+    >
+      {formatNumber(value, language)}
+    </span>
   );
 }
 
@@ -585,9 +664,52 @@ function initials(user: ReactNode): string | null {
     .join('');
 }
 
+/**
+ * The session: in the sidebar and its drawer the plate of the user (the circle of his initials,
+ * his name and its `detail`, the logout as an icon), in the top bar his name and the logout;
+ * without his name the logout alone. In a rail the plate is the circle over the logout.
+ */
 function Session({ session, compact = false }: { session: ShellSession; compact?: boolean }) {
   const { t } = useLanguage();
   const letters = initials(session.user);
+  if (!compact && session.user !== undefined) {
+    return (
+      <div
+        data-slot="sidebar-user"
+        className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl bg-nav-active py-2 pr-2 pl-2.5 shadow-(--shadow-nav-active) group-data-[state=collapsed]/sidebar:grid-cols-[2rem] group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-1"
+      >
+        <span
+          aria-hidden="true"
+          className="flex size-8 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground"
+        >
+          {letters ?? <UserRound className="size-4" />}
+        </span>
+        <span className="grid min-w-0 group-data-[state=collapsed]/sidebar:sr-only">
+          <span
+            title={typeof session.user === 'string' ? session.user : undefined}
+            className="truncate text-[13px] font-semibold text-sidebar-accent-foreground"
+          >
+            {session.user}
+          </span>
+          {session.detail !== undefined && (
+            <span className="truncate text-xs text-sidebar-muted-foreground">{session.detail}</span>
+          )}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          data-bz="action:logout"
+          title={t('shell.logout')}
+          className="text-sidebar-foreground/80"
+          onClick={session.onLogout}
+        >
+          <LogOut />
+          <span className="sr-only">{t('shell.logout')}</span>
+        </Button>
+      </div>
+    );
+  }
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
       {session.user !== undefined && (
@@ -614,7 +736,7 @@ function Session({ session, compact = false }: { session: ShellSession; compact?
         onClick={session.onLogout}
       >
         <LogOut />
-        {t('shell.logout')}
+        <span className="group-data-[state=collapsed]/sidebar:sr-only">{t('shell.logout')}</span>
       </Button>
     </div>
   );
@@ -628,7 +750,7 @@ function Account({ session, signIn, compact = false }: { session: ShellSession |
   return (
     <Button type="button" size="sm" data-bz="action:sign-in" className={cn(!compact && 'w-full')} onClick={signIn}>
       <LogIn />
-      {t('shell.sign_in')}
+      <span className="group-data-[state=collapsed]/sidebar:sr-only">{t('shell.sign_in')}</span>
     </Button>
   );
 }
@@ -694,6 +816,8 @@ export function AppShell({
 }: AppShellProps) {
   const wide = useWide();
   const links = useMemo(() => navLinks(items), [items]);
+  const [collapsed, setCollapsed] = useState(storedRail);
+  const { t } = useLanguage();
   if (navigation === 'topbar') {
     return (
       <ShellContext value={navigation}>
@@ -727,12 +851,20 @@ export function AppShell({
   }
   return (
     <ShellContext value={navigation}>
-      <div className="min-h-dvh [--bleed:1rem] [--sticky-top:3.5rem] md:grid md:grid-cols-[15rem_minmax(0,1fr)] md:[--bleed:var(--space-page-x)] md:[--sticky-top:4rem]">
+      <div
+        className={cn(
+          'min-h-dvh [--bleed:1rem] [--sticky-top:3.5rem] md:grid md:[--bleed:var(--space-page-x)] md:[--sticky-top:4rem]',
+          collapsed ? 'md:grid-cols-[4.25rem_minmax(0,1fr)]' : 'md:grid-cols-[15rem_minmax(0,1fr)]',
+        )}
+      >
+        {/* a rail (`data-state="collapsed"`): the icons of the links with their labels in their
+            titles, the mark of the brand, the tools in a column and the circle of the user */}
         <aside
           data-slot="sidebar"
-          className="sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+          data-state={collapsed ? 'collapsed' : 'expanded'}
+          className="group/sidebar sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
         >
-          <div className="flex h-16 shrink-0 items-center px-5">
+          <div className="flex h-16 shrink-0 items-center px-5 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0 group-data-[state=collapsed]/sidebar:[&_[data-slot=brand-name]]:sr-only">
             <Brand title={title} mark={brand} />
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">
@@ -740,11 +872,28 @@ export function AppShell({
           </div>
           {/* the foot: the toggles and the tools of the product on a row that wraps, the
               session on a row of its own under them, so that neither pushes the other out */}
-          <div className="grid gap-2 border-t border-sidebar-border p-3">
-            <div data-slot="sidebar-tools" className="flex flex-wrap items-center gap-1">
+          <div className="grid gap-2 border-t border-sidebar-border p-3 group-data-[state=collapsed]/sidebar:justify-items-center group-data-[state=collapsed]/sidebar:px-1.5">
+            <div
+              data-slot="sidebar-tools"
+              className="flex flex-wrap items-center gap-1 group-data-[state=collapsed]/sidebar:flex-col"
+            >
               <ColorModeToggle className="text-muted-foreground" />
               <LanguageToggle className="text-muted-foreground" />
               {wide && tools}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t(collapsed ? 'shell.expand' : 'shell.collapse')}
+                title={t(collapsed ? 'shell.expand' : 'shell.collapse')}
+                className="ml-auto text-muted-foreground group-data-[state=collapsed]/sidebar:ml-0"
+                onClick={() => {
+                  storeRail(!collapsed);
+                  setCollapsed(!collapsed);
+                }}
+              >
+                {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+              </Button>
             </div>
             <Account session={session} signIn={signIn} />
           </div>

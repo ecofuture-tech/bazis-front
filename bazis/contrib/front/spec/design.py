@@ -289,6 +289,8 @@ CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     ('--sidebar-accent-foreground', '--sidebar-accent'),
     ('--sidebar-accent-foreground', '--nav-active'),
     ('--sidebar-muted-foreground', '--sidebar'),
+    # the detail of the user on his plate, which has the fill of the current link
+    ('--sidebar-muted-foreground', '--nav-active'),
     ('--sidebar-primary-foreground', '--sidebar-primary'),
     ('--brand-foreground', '--brand'),
     ('--brand', '--card'),

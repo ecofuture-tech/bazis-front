@@ -12,6 +12,7 @@ import {
   SquareKanbanIcon,
 } from 'lucide-react';
 
+import { Filter } from '@/bazis/client';
 import type { Translate } from '@/bazis/i18n';
 import type { NavEntry } from '@/bazis/ui/app-shell';
 import { customActionKey } from '@/bazis/ui/resource';
@@ -36,6 +37,7 @@ export function navigation(t: Translate): readonly NavEntry[] {
           to: '/tasks',
           icon: ListChecksIcon,
           requires: { path: ENTITIES.task.path },
+          count: { path: ENTITIES.task.path, filter: Filter.where('status', 'draft') },
         },
         {
           screen: 'draft-tasks',

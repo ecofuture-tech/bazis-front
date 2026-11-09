@@ -15,7 +15,8 @@
 // The contract of the layout: `nav:<screen>` of the navigation (the current one
 // `aria-current="page"`; a link that `requires` a permission only once the backend allows
 // it; a group under its heading while one of its links is shown, also in the menu of a
-// phone), `screen:<id>`, the logout `action:logout` with a session only, the sign-in
+// phone; the number of the items of a link `count:<screen>` once it is shown; the sidebar
+// collapsed to a rail and kept so), `screen:<id>`, the logout `action:logout` with a session only, the sign-in
 // `action:sign-in` without one, the color mode, the
 // language (`action:language`, with more than one language), the tools of the product mounted
 // once, the link of a screen back to its parent (`nav:<screen>`); and the list with its card
@@ -27,6 +28,7 @@ import { useEffect, useState } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { Filter } from '@/bazis/client';
 import { THEME } from '@/bazis/generated/theme';
 import { AppShell, Brand, ListCardLayout, Screen, setColorMode, useNavItems, useScreenPage } from '@/bazis/ui/app-shell';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
@@ -519,6 +521,101 @@ describe('AppShell', () => {
     expect(logout).not.toBeNull();
     expect(row.contains(logout)).toBe(false);
     expect(row.parentElement?.contains(logout)).toBe(true);
+  });
+
+  it('counts the items of a link beside it once the link is shown, nothing at 0', async () => {
+    const counted = [
+      { screen: 'home', label: 'Home', to: '/', end: true },
+      {
+        screen: 'item-list',
+        label: 'Items',
+        to: '/items',
+        requires: { path: ITEMS },
+        count: { path: ITEMS, filter: Filter.where('done', false) },
+      },
+    ];
+    const shell = (
+      <AppShell title="Product" navigation="sidebar" items={counted}>
+        <Screen id="home">home</Screen>
+      </AppShell>
+    );
+    const counts = (server: Backend) =>
+      server.requests('GET').map((it) => decodeURIComponent(it)).filter((it) => it.includes('aggregate=count'));
+    // never counted for a user whom the backend does not let view the items
+    const refused = new Backend().on('GET', `${ITEMS}schema_list/`, errors(403), 403);
+    const first = renderWithBazis(shell, refused);
+    await waitFor(() => {
+      expect(refused.requests('GET')).toContain(`GET ${ITEMS}schema_list/`);
+    });
+    expect(screen.queryByTestId('nav:item-list')).toBeNull();
+    expect(counts(refused)).toEqual([]);
+    first.unmount();
+
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, { title: 'list' })
+      .on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 12345 } } }));
+    const second = renderWithBazis(shell, server, { route: '/items' });
+    const count = await screen.findByTestId('count:item-list');
+    expect(count.getAttribute('data-value')).toBe('12345');
+    expect(count.textContent).toBe('12,345');
+    expect(screen.getByTestId('nav:item-list').contains(count)).toBe(true);
+    // one item of the list of the filter, and the count of its aggregates
+    expect(counts(server)).toHaveLength(1);
+    expect(counts(server)[0]).toContain('filter=done=false');
+    expect(counts(server)[0]).toContain('page[limit]=1');
+    second.unmount();
+
+    const none = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, { title: 'list' })
+      .on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 0 } } }));
+    renderWithBazis(shell, none);
+    expect(await screen.findByTestId('nav:item-list')).toBeTruthy();
+    await waitFor(() => {
+      expect(counts(none)).toHaveLength(1);
+    });
+    expect(screen.queryByTestId('count:item-list')).toBeNull();
+  });
+
+  it('collapses the sidebar to a rail of icons, kept so in the storage of the browser', () => {
+    window.localStorage.removeItem('bazis-sidebar');
+    const shell = (
+      <AppShell title="Product" navigation="sidebar" items={items} session={{ user: 'Mary Manager', onLogout: vi.fn() }}>
+        <Screen id="home">home</Screen>
+      </AppShell>
+    );
+    const first = renderWithBazis(shell, new Backend());
+    const aside = () => screen.getByTestId('nav:home').closest('aside');
+    expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse the sidebar' }));
+    expect(aside()?.getAttribute('data-state')).toBe('collapsed');
+    // a link keeps its mark and its label, also in its title (only its icon is seen)
+    expect(screen.getByRole('link', { name: 'Tasks' })).toBe(screen.getByTestId('nav:task-list'));
+    expect(screen.getByTestId('nav:task-list').getAttribute('title')).toBe('Tasks');
+    expect(screen.getByTestId('action:logout').textContent).toBe('Log out');
+    first.unmount();
+
+    renderWithBazis(shell, new Backend());
+    expect(aside()?.getAttribute('data-state')).toBe('collapsed');
+    fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
+    expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    expect(window.localStorage.getItem('bazis-sidebar')).toBeNull();
+  });
+
+  it('shows the user on a plate at the foot of the sidebar, his initials, his name and its detail', () => {
+    const onLogout = vi.fn();
+    renderWithBazis(
+      <AppShell title="Product" navigation="sidebar" items={items} session={{ user: 'Mary Manager', detail: 'Rentals', onLogout }}>
+        <Screen id="home">home</Screen>
+      </AppShell>,
+      new Backend(),
+    );
+    const logout = screen.getByTestId('action:logout');
+    const plate = logout.closest('[data-slot="sidebar-user"]');
+    expect(plate?.textContent).toBe('MMMary ManagerRentalsLog out');
+    // the logout is an icon named for a screen reader
+    expect(logout.getAttribute('title')).toBe('Log out');
+    fireEvent.click(logout);
+    expect(onLogout).toHaveBeenCalledOnce();
   });
 
   it('lays the header of a screen out in the screen, so that it sticks in it', () => {

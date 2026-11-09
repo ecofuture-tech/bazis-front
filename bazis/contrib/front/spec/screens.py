@@ -1466,7 +1466,7 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
     requires: to view the items of the entity of its screen (and filter them by the fields of
     a report, add one with `requires.can: add`), the form of a custom action its action (its
     key in the contract, `customActionKey`); at once a screen without an entity and the public
-    form of an action.
+    form of an action. With `count`, the list and the filter of the number beside it.
     """
     data = product.screens[link['screen']]
     if 'label' in link:
@@ -1500,6 +1500,13 @@ def nav_item(code: Code, product: Product, link: dict, at: tuple) -> Obj:
             names = dict.fromkeys(filter_field(it)[0] for it in data['list']['filter'])
             requires.append(('filters', Arr([Str(it) for it in names])))
         props.append(('requires', Obj(requires)))
+        if 'count' in link:
+            # the items of its filter among those of the list (of a report, its filter too)
+            fields = {it['id']: it for it in product.entities[entity]['fields']}
+            where = [it for it in (data['list'].get('filter'), link['count']['filter']) if it]
+            parts = [filter_value(code, it, fields) for it in where]
+            counted = parts[0] if len(parts) == 1 else Call('Filter.and', parts)
+            props.append(('count', Obj([('path', Raw(path)), ('filter', counted)])))
     if product.public(data):
         props.append(('public', Raw('true')))
     return Obj(props)

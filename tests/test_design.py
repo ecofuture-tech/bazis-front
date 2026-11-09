@@ -809,6 +809,8 @@ def test_the_colors_of_the_brand_keep_their_contrast():
     found = sorted({(it.code, it.path, it.message.split(' has ')[0]) for it in issues.items})
     assert found == [
         ('D009', '/color/brand', 'The text color --brand on --card'),
+        # on the sidebar, and on the plate of the user, which has the fill of the current link
+        ('D009', '/color/sidebar-muted-foreground', 'The text color --sidebar-muted-foreground on --nav-active'),
         ('D009', '/color/sidebar-muted-foreground', 'The text color --sidebar-muted-foreground on --sidebar'),
         # the mark in the primary foreground of the palette (the default of brand-foreground)
         ('D009', '/palette', 'The text color --brand-foreground on --brand'),

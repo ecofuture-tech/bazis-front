@@ -180,6 +180,8 @@ export const ru: Messages = {
   'picker.search_label': 'Поиск: {name}',
   'point.placeholder': 'Широта, долгота',
   'screen.breadcrumb': 'Навигационная цепочка',
+  'shell.collapse': 'Свернуть боковую панель',
+  'shell.expand': 'Развернуть боковую панель',
   'shell.logout': 'Выйти',
   'shell.menu': 'Открыть меню',
   'shell.menu_description': 'Навигация приложения',

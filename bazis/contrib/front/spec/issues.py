@@ -147,6 +147,7 @@ CODES: dict[str, tuple[str, str]] = {
     'S067': (ERROR, 'the focus of a dashboard does not fit its charts: `layout: focus` without `hero` or `hero` without it, `hero.chart` is not a chart of the dashboard, not by a date (its value is that of the current period, the last one) or not bars or a line, or `hero.side` has the `total` of an average'),
     'S068': (ERROR, 'a chart of a dashboard is a `distribution` (the shares of a whole) of something else than the statuses, or of an average'),
     'S069': (ERROR, 'the header of a list has its search (`header.search`), and the list has none (`list.search`)'),
+    'S070': (ERROR, 'a link of the navigation counts the items of its screen (`count`), which is not a list'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

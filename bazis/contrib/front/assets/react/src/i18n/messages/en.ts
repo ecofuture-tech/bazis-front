@@ -180,6 +180,8 @@ export const en: Messages = {
   'picker.search_label': 'Search {name}',
   'point.placeholder': 'Latitude, longitude',
   'screen.breadcrumb': 'Breadcrumb',
+  'shell.collapse': 'Collapse the sidebar',
+  'shell.expand': 'Expand the sidebar',
   'shell.logout': 'Log out',
   'shell.menu': 'Open the menu',
   'shell.menu_description': 'The navigation of the application',
