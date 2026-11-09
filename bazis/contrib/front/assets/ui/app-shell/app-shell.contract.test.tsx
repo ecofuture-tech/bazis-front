@@ -241,9 +241,12 @@ describe('AppShell', () => {
     expect(screen.queryByTestId('nav:more')).toBeNull();
   });
 
-  it('shares a group of the top bar between its row and its menu, link by link', () => {
-    // a layout for jsdom: a place of 520 px, the links of the copy of the row 100 px each, then
-    // the button of the menu of 80 px: the room for the links is 440 px, four links
+  /**
+   * A layout of the top bar for jsdom: a place of 520 px, the links of the copy of the row 100 px
+   * each, then the button of the menu of 80 px: the room for the links is 440 px, four links.
+   * Returns what undoes it.
+   */
+  function measureTheRow(): () => void {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -264,6 +267,14 @@ describe('AppShell', () => {
       if (index >= 0) return rect(index * 100, (index + 1) * 100);
       return this === copy.lastElementChild ? rect(links.length * 100, links.length * 100 + 80) : rect(0, 0);
     });
+    return () => {
+      measured.mockRestore();
+      vi.unstubAllGlobals();
+    };
+  }
+
+  it('shares a group of the top bar between its row and its menu, link by link', () => {
+    const restore = measureTheRow();
     try {
       const sharing = [
         ...items,
@@ -298,8 +309,43 @@ describe('AppShell', () => {
       expect(ids(menu)).toEqual(['nav:price', 'nav:about']);
       expect(within(within(menu).getByRole('group', { name: 'Work' })).getAllByTestId(/^nav:/)).toHaveLength(1);
     } finally {
-      measured.mockRestore();
-      vi.unstubAllGlobals();
+      restore();
+    }
+  });
+
+  it('counts the items of a link of the top bar in its row and in its menu', async () => {
+    const counted = { path: ITEMS, filter: Filter.where('done', false) };
+    const restore = measureTheRow();
+    try {
+      renderWithBazis(
+        <AppShell
+          title="Product"
+          navigation="topbar"
+          items={[
+            ...items,
+            { screen: 'item-list', label: 'Items', to: '/items', count: counted },
+            { screen: 'board', label: 'Board', to: '/board' },
+            { screen: 'price', label: 'Price', to: '/price' },
+            { screen: 'open-list', label: 'Open', to: '/open', count: counted },
+          ]}
+        >
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend().on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 7 } } })),
+      );
+      // in the row, marked once: the copy of the row that measures it is not marked
+      const row = screen.getByRole('navigation', { name: 'Main' });
+      const count = await within(row).findByTestId('count:item-list');
+      expect(screen.getAllByTestId('count:item-list')).toEqual([count]);
+      expect(within(row).getByTestId('nav:item-list').contains(count)).toBe(true);
+      expect(count.textContent).toBe('7');
+      fireEvent.keyDown(screen.getByTestId('nav:more'), { key: 'Enter' });
+      const menu = screen.getByRole('menu');
+      const more = await within(menu).findByTestId('count:open-list');
+      expect(within(menu).getByTestId('nav:open-list').contains(more)).toBe(true);
+      expect(more.getAttribute('data-value')).toBe('7');
+    } finally {
+      restore();
     }
   });
 
@@ -599,6 +645,39 @@ describe('AppShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
     expect(aside()?.getAttribute('data-state')).toBe('expanded');
     expect(window.localStorage.getItem('bazis-sidebar')).toBeNull();
+  });
+
+  it('keeps in a rail the number of a link as a dot and the names of the logout and the sign-in', async () => {
+    window.localStorage.setItem('bazis-sidebar', 'collapsed');
+    try {
+      const counted = [...items, { screen: 'item-list', label: 'Items', to: '/items', count: { path: ITEMS, filter: Filter.where('done', false) } }];
+      const server = new Backend().on('GET', ITEMS, listDocument([], { meta: { aggregates: { count: 3 } } }));
+      const first = renderWithBazis(
+        <AppShell title="Product" navigation="sidebar" items={counted} session={{ onLogout: vi.fn() }}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        server,
+      );
+      expect(screen.getByTestId('nav:home').closest('aside')?.getAttribute('data-state')).toBe('collapsed');
+      // the dot of the link, its number kept for a screen reader
+      const count = await screen.findByTestId('count:item-list');
+      expect(screen.getByTestId('nav:item-list').contains(count)).toBe(true);
+      expect(count.className).toContain('group-data-[state=collapsed]/sidebar:size-2');
+      expect(count.textContent).toBe('3');
+      // without the plate the logout is an icon: its name in its title too
+      expect(screen.getByTestId('action:logout').getAttribute('title')).toBe('Log out');
+      first.unmount();
+
+      renderWithBazis(
+        <AppShell title="Product" navigation="sidebar" items={items} signIn={vi.fn()}>
+          <Screen id="home">home</Screen>
+        </AppShell>,
+        new Backend(),
+      );
+      expect(screen.getByTestId('action:sign-in').getAttribute('title')).toBe('Log in');
+    } finally {
+      window.localStorage.removeItem('bazis-sidebar');
+    }
   });
 
   it('shows the user on a plate at the foot of the sidebar, his initials, his name and its detail', () => {

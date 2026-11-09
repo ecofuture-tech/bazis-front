@@ -608,7 +608,15 @@ function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps &
             )
           }
         >
-          {Icon && <Icon className="size-4 shrink-0 opacity-70 [stroke-width:1.75] group-aria-[current=page]:opacity-100" />}
+          {Icon && (
+            <Icon
+              className={cn(
+                'size-4 shrink-0 opacity-70 group-aria-[current=page]:opacity-100',
+                // in the sidebar a thinner stroke, the current one in the color of its text
+                vertical ? '[stroke-width:1.75]' : 'group-aria-[current=page]:text-primary',
+              )}
+            />
+          )}
           <span className="truncate group-data-[state=collapsed]/sidebar:sr-only">{item.label}</span>
           {item.count && <NavCount screen={copy ? undefined : item.screen} count={item.count} vertical={vertical} />}
         </NavLink>
@@ -732,6 +740,8 @@ function Session({ session, compact = false }: { session: ShellSession; compact?
         variant="ghost"
         size="sm"
         data-bz="action:logout"
+        // its name in a rail, where only its icon is seen
+        title={t('shell.logout')}
         className={cn('text-muted-foreground', !compact && 'ml-auto')}
         onClick={session.onLogout}
       >
@@ -748,7 +758,14 @@ function Account({ session, signIn, compact = false }: { session: ShellSession |
   if (session) return <Session session={session} compact={compact} />;
   if (!signIn) return null;
   return (
-    <Button type="button" size="sm" data-bz="action:sign-in" className={cn(!compact && 'w-full')} onClick={signIn}>
+    <Button
+      type="button"
+      size="sm"
+      data-bz="action:sign-in"
+      title={t('shell.sign_in')}
+      className={cn(!compact && 'w-full')}
+      onClick={signIn}
+    >
       <LogIn />
       <span className="group-data-[state=collapsed]/sidebar:sr-only">{t('shell.sign_in')}</span>
     </Button>
