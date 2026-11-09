@@ -28,7 +28,8 @@ compiled into `frontend/src/bazis/generated/`:
   in `:root`), the spacing of the density (and that of the rows of a table whose density
   the user chooses, `data-density`), the Tailwind theme over them (`bg-primary`,
   `bg-success-soft text-success-ink`, `font-display`, `rounded-lg`, `shadow-md`) and the
-  base styles of the preset;
+  base styles of the preset (with the glow of the paper and the gradient of the sidebar
+  once a layer defines their tokens);
 - `theme.ts`, `THEME`: the options of the preset (navigation, density, composition, the
   tones of the statuses, the icons of the entities, whether the user switches to a dark
   mode) that the components read.
@@ -107,6 +108,37 @@ SUBHEADING = {
     'font-weight': 'var(--font-weight-subheading)',
     'letter-spacing': 'var(--font-tracking-heading)',
 }
+#: the utility of the small capitals over a block: the title of a card or a chart, the label of
+#: a group (11 px, in the font of the text)
+EYEBROW = {
+    'font-size': '0.6875rem',
+    'line-height': '1rem',
+    'font-weight': '600',
+    'letter-spacing': '0.07em',
+    'text-transform': 'uppercase',
+}
+
+#: the glow of the paper, two radial lights at the top corners of the page under its content,
+#: only when a layer defines `color.glow-a` or `color.glow-b` (a design without them draws
+#: nothing over the page)
+GLOW = {
+    'content': "''",
+    'position': 'fixed',
+    'inset': '0',
+    'z-index': '-1',
+    'pointer-events': 'none',
+    'background': 'radial-gradient(900px 620px at 0% 0%, var(--glow-a), transparent 70%), '
+                  'radial-gradient(820px 520px at 100% 0%, var(--glow-b), transparent 70%)',
+}
+GLOW_TOKENS = ('color.glow-a', 'color.glow-b')
+
+#: the gradient of the sidebar and the glow of its top, when a layer defines `color.sidebar-to`
+#: or `color.sidebar-glow`; under the background color of the sidebar (`bg-sidebar`)
+SIDEBAR_SURFACE = {
+    'background-image': 'radial-gradient(460px 320px at 0% 0%, var(--sidebar-glow), transparent 70%), '
+                        'linear-gradient(180deg, var(--sidebar), var(--sidebar-to))',
+}
+SIDEBAR_SURFACE_TOKENS = ('color.sidebar-to', 'color.sidebar-glow')
 
 #: the variables of the content that the sidebar replaces with its own inside it (the buttons,
 #: the toggles, the focus rings, the borders and the muted text of the components there)
@@ -189,8 +221,8 @@ def block(selector: str, values: dict[str, str], indent: str = '') -> str:
 
 def theme_mapping(defined: dict) -> dict[str, str]:
     """
-    The Tailwind theme over the variables: a color utility for every color token and tone,
-    the fonts, the radii, the shadows and the transitions.
+    The Tailwind theme over the variables: a color utility for every color token and derived
+    color, the fonts, the radii, the shadows and the transitions.
     """
     colors = sorted(
         {design.variable(name) for name, entry in defined.items() if entry.token['$type'] == 'color'}
@@ -205,10 +237,10 @@ def theme_mapping(defined: dict) -> dict[str, str]:
         '--radius-lg': 'var(--radius)',
         '--radius-xl': 'calc(var(--radius) + 4px)',
         '--radius-2xl': 'calc(var(--radius) + 8px)',
-        '--shadow-xs': 'var(--shadow-xs)',
-        '--shadow-sm': 'var(--shadow-sm)',
-        '--shadow-md': 'var(--shadow-md)',
-        '--shadow-lg': 'var(--shadow-lg)',
+        **{
+            design.variable(name): f'var({design.variable(name)})'
+            for name, (kind, _, _) in design.DEFAULTS.items() if kind == 'shadow'
+        },
         '--ease-standard': 'var(--motion-ease)',
         '--default-transition-duration': 'var(--motion-base)',
         '--default-transition-timing-function': 'var(--motion-ease)',
@@ -259,7 +291,7 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         # the variant `dark:` of Tailwind: always on in a theme of the dark mode only
         f'@custom-variant dark ({"&:is(:root *)" if only == design.DARK else "&:is(.dark *)"});',
         '',
-        block(':root', {**first, **DENSITY[settings['density']]}),
+        block(':root', {**first, **design.SURFACES, **DENSITY[settings['density']]}),
         '',
         '/* The density of the rows of a table that the user chooses: `data-density`. */',
         *(
@@ -283,6 +315,8 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         '/* The headings, the figures and the titles of the components; the headings of their sections. */',
         block('@utility font-heading', HEADING),
         block('@utility font-subheading', SUBHEADING),
+        '/* The small capitals over a block: the title of a card or a chart, the label of a group. */',
+        block('@utility font-eyebrow', EYEBROW),
         '',
         '@layer base {',
         '  * {\n    @apply border-border outline-ring/50;\n  }',
@@ -293,10 +327,19 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
             '  html.dark {\n    color-scheme: dark;\n  }',
             '  @media (prefers-color-scheme: dark) {\n    html:not(.light) {\n      color-scheme: dark;\n    }\n  }',
         ]
+    named = {design.light_name(it) for it in defined}
     parts += [
         '  body {\n    @apply bg-background font-sans text-foreground antialiased;\n  }',
+        *(
+            ['  /* the glow of the paper */', block('body::before', GLOW, '  ')]
+            if named.intersection(GLOW_TOKENS) else []
+        ),
         '  /* the components inside the sidebar and its drawer read the colors of the sidebar */',
         block("[data-slot='sidebar']", SIDEBAR, '  '),
+        *(
+            ['  /* the gradient and the glow of the sidebar */', block("[data-slot='sidebar']", SIDEBAR_SURFACE, '  ')]
+            if named.intersection(SIDEBAR_SURFACE_TOKENS) else []
+        ),
         '  h1,\n  h2,\n  h3 {\n    font-family: var(--font-heading);\n    font-weight: var(--font-weight-heading);\n'
         '    letter-spacing: var(--font-tracking-heading);\n  }',
         '  ::selection {\n    background-color: color-mix(in srgb, var(--primary) 22%, transparent);\n  }',

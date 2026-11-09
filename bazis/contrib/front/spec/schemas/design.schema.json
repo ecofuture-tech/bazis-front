@@ -13,13 +13,13 @@
       "enum": ["workspace", "portal"]
     },
     "palette": {
-      "description": "The colors of both modes, a starter of the package: indigo, forest (green on warm paper), ember (warm orange), slate (quiet blue-grey), ocean (teal), plum, pine (dark spruce on linen with a clay brand, a dark sidebar).",
-      "enum": ["indigo", "forest", "ember", "slate", "ocean", "plum", "pine"]
+      "description": "The colors of both modes, a starter of the package: indigo, forest (green on warm paper), ember (warm orange), slate (quiet blue-grey), ocean (teal), plum, pine (dark spruce on linen with a clay brand, a dark sidebar), frost (cool paper with a cedar primary and a honey brand, a dark cedar sidebar, the glow of the paper).",
+      "enum": ["indigo", "forest", "ember", "slate", "ocean", "plum", "pine", "frost"]
     },
     "fonts": {
-      "description": "The fonts of the text and of the headings, a pair of the package shipped with the frontend (system: the fonts of the system; literata-golos: Golos Text with headings in Literata, served by the frontend itself), or a family of Google Fonts loaded from its stylesheet: {google: \"Inter:wght@400..700\"}.",
+      "description": "The fonts of the text and of the headings, a pair of the package shipped with the frontend (system: the fonts of the system; golos: Golos Text alone, a grotesque; literata-golos: Golos Text with headings in Literata; both served by the frontend itself), or a family of Google Fonts loaded from its stylesheet: {google: \"Inter:wght@400..700\"}.",
       "oneOf": [
-        {"enum": ["system", "inter", "manrope", "ibm-plex", "geist", "source-serif-display", "literata-golos"]},
+        {"enum": ["system", "inter", "manrope", "ibm-plex", "geist", "source-serif-display", "literata-golos", "golos"]},
         {
           "type": "object",
           "additionalProperties": false,
@@ -30,8 +30,8 @@
     },
     "shape": {"description": "The radius of the corners: sharp 0.25rem, soft 0.5rem, round 0.875rem.", "enum": ["sharp", "soft", "round"]},
     "surface": {
-      "description": "The shadows of the cards, the popovers and the dialogs: flat (almost none), bordered (the borders with the light shadows of Tailwind), elevated (soft layered shadows).",
-      "enum": ["flat", "bordered", "elevated"]
+      "description": "The shadows of the cards, the popovers and the dialogs: flat (almost none), bordered (the borders with the light shadows of Tailwind), elevated (soft layered shadows), lifted (no borders: the surfaces and the controls lifted by shadows in the tone of the paper).",
+      "enum": ["flat", "bordered", "elevated", "lifted"]
     },
     "mode": {
       "description": "both: the light and the dark mode, switched by the user (the default; the light mode only without tokens of the group `dark`); light or dark: that mode only.",

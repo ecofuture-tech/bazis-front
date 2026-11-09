@@ -211,12 +211,13 @@ def test_the_surface_gives_the_shadow_of_the_cards():
         css = theme.render(Specs(theme=data))[theme.THEME_CSS]
         assert root_block(css, '@theme inline')['--shadow-xs'] == 'var(--shadow-xs)'
         shadows[surface] = (root_block(css, ':root')['--shadow-xs'], root_block(css, '.dark').get('--shadow-xs'))
-    elevated = design.layer('surfaces', 'elevated')['shadow']['xs']['$value']
+    elevated, lifted = design.layer('surfaces', 'elevated'), design.layer('surfaces', 'lifted')
     assert shadows == {
         # the shadow of Tailwind, in both modes
         'bordered': (TAILWIND['--shadow-xs'], None),
         'flat': ('0 0 #0000', None),
-        'elevated': (elevated, design.layer('surfaces', 'elevated')['dark']['shadow']['xs']['$value']),
+        'elevated': (elevated['shadow']['xs']['$value'], elevated['dark']['shadow']['xs']['$value']),
+        'lifted': (lifted['shadow']['xs']['$value'], lifted['dark']['shadow']['xs']['$value']),
     }
 
 
@@ -248,6 +249,25 @@ def test_a_design_without_layers_keeps_its_look():
     mapping = root_block(css, '@theme inline')
     assert mapping['--shadow-md'] == 'var(--shadow-md)'
     assert mapping['--default-transition-duration'] == 'var(--motion-base)'
+    # the surfaces and the controls as the components drew them before their tokens: the
+    # borders, the background of an outline button and its hover, the shadow of a card and of a
+    # popover, no shadow of the primary button, the focus ring of shadcn/ui; plain backgrounds
+    assert {name: light[name] for name in (
+        '--border-surface', '--border-control', '--control', '--control-hover', '--surface-light', '--shade',
+        '--shadow-lift-05', '--shadow-lift-05-hover', '--shadow-lift-05-active', '--shadow-lift-field',
+        '--shadow-lift-1', '--shadow-lift-2', '--shadow-lift-primary', '--shadow-ring-focus',
+    )} == {
+        '--border-surface': 'var(--border)', '--border-control': 'var(--input)', '--control': 'var(--background)',
+        '--control-hover': 'var(--accent)', '--surface-light': 'var(--card)', '--shade': 'var(--foreground)',
+        '--shadow-lift-05': 'var(--shadow-xs)', '--shadow-lift-05-hover': 'var(--shadow-sm)',
+        '--shadow-lift-05-active': 'var(--shadow-xs)', '--shadow-lift-field': 'var(--shadow-xs)',
+        '--shadow-lift-1': 'var(--shadow-xs)', '--shadow-lift-2': 'var(--shadow-md)', '--shadow-lift-primary': '0 0 #0000',
+        '--shadow-ring-focus': '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)',
+    }
+    assert light['--surface-card'] == 'linear-gradient(170deg, var(--surface-light) 0%, var(--card) 55%)'
+    # no glow of the paper and no gradient of the sidebar
+    assert (light['--sidebar-to'], light['--glow-a']) == ('var(--sidebar)', 'transparent')
+    assert 'body::before' not in css and 'background-image' not in css
 
 
 def test_the_layers_of_the_tokens():
@@ -274,6 +294,87 @@ def test_the_layers_of_the_tokens():
         "*/\n\n@import '@fontsource-variable/ibm-plex-sans';\n@import '@fontsource/ibm-plex-serif/600.css';\n"
     )
     assert 'h3 {\n    font-family: var(--font-heading);\n    font-weight: var(--font-weight-heading);' in css
+
+
+#: the design of the starter of a new product of the preset workspace
+FROST = {'spec': 'bazis-design/1', 'preset': 'workspace', 'palette': 'frost', 'fonts': 'golos', 'shape': 'soft', 'surface': 'lifted'}
+
+
+def test_the_surfaces_lifted_on_the_frost_paper():
+    files = theme.render(Specs(theme=FROST))
+    css = files[theme.THEME_CSS]
+    light, dark = root_block(css, ':root'), root_block(css, '.dark')
+    frost, lifted = design.layer('palettes', 'frost'), design.layer('surfaces', 'lifted')
+    # no contour: the borders transparent, the shadows of the heights in the tone of the paper
+    assert (light['--border-surface'], light['--border-control'], light['--control']) == ('transparent', 'transparent', 'var(--card)')
+    assert light['--shade'] == frost['color']['shade']['$value']
+    assert light['--surface-light'] == 'oklch(1 0 0)'
+    for name in ('lift-05', 'lift-field', 'lift-1', 'lift-2', 'lift-primary', 'ring-focus'):
+        assert light[f'--shadow-{name}'] == lifted['shadow'][name]['$value']
+    assert 'var(--shade)' in light['--shadow-lift-1'] and 'var(--primary)' in light['--shadow-lift-primary']
+    # black shadows in the dark mode, the same focus ring
+    assert dark['--shadow-lift-1'] == lifted['dark']['shadow']['lift-1']['$value']
+    assert 'rgb(0 0 0 /' in dark['--shadow-lift-1'] and '--shadow-ring-focus' not in dark
+    # the utilities of the heights and of the colors of the surfaces
+    mapping = root_block(css, '@theme inline')
+    assert mapping['--shadow-lift-1'] == 'var(--shadow-lift-1)'
+    assert mapping['--shadow-ring-focus'] == 'var(--shadow-ring-focus)'
+    assert mapping['--color-border-surface'] == 'var(--border-surface)'
+    assert mapping['--color-avatar-0'] == design.DERIVED['--avatar-0']
+    assert mapping['--color-line-6'] == 'color-mix(in srgb, var(--foreground) 6%, transparent)'
+    # the glow of the paper and the gradient of the sidebar, drawn since the palette defines them
+    base = css.split('\n@layer base {\n', 1)[1]
+    assert block_of(base, 'body::before') == theme.GLOW
+    assert block_of(base, "[data-slot='sidebar']", 2) == theme.SIDEBAR_SURFACE
+    assert base.index('body::before') < base.index("[data-slot='sidebar']")
+    assert (dark['--glow-a'], dark['--sidebar-to']) == (
+        frost['dark']['color']['glow-a']['$value'], frost['dark']['color']['sidebar-to']['$value'],
+    )
+
+
+def block_of(css: str, selector: str, occurrence: int = 1) -> dict[str, str]:
+    """
+    The declarations of an indented block of the CSS (the nth of the selector), by property.
+    """
+    body = css.split(f'  {selector} {{\n')[occurrence].split('\n  }', 1)[0]
+    return dict(line.strip().rstrip(';').split(': ', 1) for line in body.splitlines())
+
+
+def test_a_glow_defined_by_the_product_is_drawn():
+    # a token of tokens.json draws the glow over a palette that has none, in the dark mode only
+    # too; another surface keeps its look
+    data = {**FROST, 'palette': 'indigo', 'surface': 'elevated'}
+    assert 'body::before' not in theme.render(Specs(theme=data))[theme.THEME_CSS]
+    tokens = {'dark': {'color': {'glow-a': {'$type': 'color', '$value': 'color-mix(in srgb, var(--primary) 12%, transparent)'}}}}
+    css = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS]
+    assert '  body::before {' in css and "background-image" not in css
+
+
+def test_the_paper_of_frost_is_far_from_its_accent():
+    # the paper reads as white: a low chroma, and a hue away from that of the primary
+    colors = design.layer('palettes', 'frost')['color']
+
+    def lch(name: str) -> list[float]:
+        return [float(it) for it in colors[name]['$value'].removeprefix('oklch(').removesuffix(')').split()]
+
+    _, chroma, hue = lch('background')
+    distance = abs(hue - lch('primary')[2]) % 360
+    assert chroma <= 0.008 and min(distance, 360 - distance) >= 60
+
+
+def test_the_contrast_of_the_controls_of_the_product():
+    # a background of the controls that the text cannot be read on (in the light mode), once
+    # for each text color, at the text color as every pair (of the palette); with the default
+    # (the background) the pairs of the page are not reported twice
+    theme_doc = Document('design', 'spec/design/theme.yaml', FROST, True)
+    tokens = {'color': {'control': {'$type': 'color', '$value': 'oklch(0.3 0.02 270)'}}}
+    issues = Issues()
+    design.check(theme_doc, Document('design', 'spec/design/tokens.json', tokens, True), set(), None, issues)
+    assert sorted((it.code, it.path, it.message.split(' has ')[0]) for it in issues.items) == [
+        ('D009', '/palette', 'The text color --foreground on --control'),
+        ('D009', '/palette', 'The text color --muted-foreground on --control'),
+    ]
+    assert all('in the light mode' in it.message for it in issues.items)
 
 
 def test_a_family_of_google_fonts():
@@ -474,6 +575,9 @@ def test_the_utilities_of_the_headings():
         'font-weight': 'var(--font-weight-subheading)',
         'letter-spacing': 'var(--font-tracking-heading)',
     }
+    # the small capitals of the titles of the blocks, in the font of the text
+    assert root_block(css, '@utility font-eyebrow') == theme.EYEBROW
+    assert 'font-family' not in theme.EYEBROW
     # the utilities are top-level rules of Tailwind, after its theme
     assert css.index('\n@utility font-heading {') > css.index('\n@theme inline {')
 
@@ -578,6 +682,25 @@ def test_the_fonts_that_the_frontend_serves():
     assert '@font-face' not in files[theme.FONTS_CSS]
     assert 'FONT_PRELOAD: readonly string[] = [];' in files[theme.FONTS_TS]
     assert theme.font_files(Specs(theme={**PINE, 'fonts': 'inter'})) == {}
+
+
+def test_one_grotesque_for_the_text_and_the_headings():
+    # `golos`: the faces of Golos Text only, one variable file of the weights 400–900 for each
+    # subset (the 500, 600 and 650 of the components and the headings), no Literata
+    files = theme.render(Specs(theme=FROST, product=RUBLES))
+    css = files[theme.FONTS_CSS]
+    assert css.count('@font-face {') == 5
+    assert css.count("src: url('/fonts/golos-text-5.3.0/golos-text-") == 4
+    assert css.count('font-weight: 400 900;') == 4
+    assert 'Literata' not in css and 'Literata' not in files[theme.THEME_CSS]
+    light = root_block(files[theme.THEME_CSS], ':root')
+    assert light['--font-heading'] == 'var(--font-body)'
+    assert (light['--font-weight-heading'], light['--font-weight-subheading'], light['--font-tracking-heading']) == (
+        '650', '600', '-0.02em',
+    )
+    assert 'FONT_PRELOAD: readonly string[] = [\n  "/fonts/golos-text-5.3.0/golos-text-cyrillic-wght-normal.woff2",\n];' in files[theme.FONTS_TS]
+    sources = theme.font_files(Specs(theme=FROST, product=RUBLES))
+    assert {it.split('/')[2] for it in sources} == {'golos-text-5.3.0'} and len(sources) == 5
 
 
 @pytest.mark.parametrize(('product', 'subsets', 'preload'), [

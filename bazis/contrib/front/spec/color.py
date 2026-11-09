@@ -15,7 +15,7 @@
 """
 The colors of the tokens as the browser computes them, for the contrast of the text tokens
 (WCAG 2): `oklch()`, `#rgb`/`#rrggbb` and `rgb()` values, `var(--name)` of other variables
-and `color-mix(in srgb, A p%, B)`, the mix of the variables that the theme derives
+and `color-mix(in srgb|oklab, A p%, B)`, the mix of the variables that the theme derives
 (`design.DERIVED`). Any other value is not computed: its contrast is not checked.
 """
 
@@ -31,7 +31,7 @@ OKLCH = re.compile(rf'^oklch\(\s*({NUMBER})(%?)\s+({NUMBER})\s+({NUMBER})(?:deg)
 RGB = re.compile(rf'^rgba?\(\s*({NUMBER})\s*,?\s*({NUMBER})\s*,?\s*({NUMBER})\s*(?:[,/]\s*({NUMBER})(%?))?\s*\)$')
 HEX = re.compile(r'^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$')
 VAR = re.compile(r'^var\(\s*(--[\w-]+)\s*\)$')
-MIX = re.compile(r'^color-mix\(\s*in srgb\s*,\s*(.+?)\s+(' + NUMBER + r')%\s*,\s*(.+)\)$')
+MIX = re.compile(r'^color-mix\(\s*in (srgb|oklab)\s*,\s*(.+?)\s+(' + NUMBER + r')%\s*,\s*(.+)\)$')
 
 #: an opaque color: red, green and blue in sRGB, from 0 to 1
 Color = tuple[float, float, float]
@@ -41,7 +41,13 @@ def oklch(lightness: float, chroma: float, hue: float) -> Color:
     """
     An OKLCH color in sRGB (clipped to its gamut, as a browser shows it).
     """
-    a, b = chroma * math.cos(math.radians(hue)), chroma * math.sin(math.radians(hue))
+    return from_oklab(lightness, chroma * math.cos(math.radians(hue)), chroma * math.sin(math.radians(hue)))
+
+
+def from_oklab(lightness: float, a: float, b: float) -> Color:
+    """
+    An OKLab color in sRGB (clipped to its gamut).
+    """
     l_ = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3
     m_ = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3
     s_ = (lightness - 0.0894841775 * a - 1.2914855480 * b) ** 3
@@ -51,6 +57,21 @@ def oklch(lightness: float, chroma: float, hue: float) -> Color:
         -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_,
     )
     return tuple(encode(min(1.0, max(0.0, it))) for it in linear)
+
+
+def to_oklab(color: Color) -> tuple[float, float, float]:
+    """
+    An sRGB color in OKLab.
+    """
+    red, green, blue = (decode(it) for it in color)
+    l_ = (0.4122214708 * red + 0.5363325363 * green + 0.0514459929 * blue) ** (1 / 3)
+    m_ = (0.2119034982 * red + 0.6806995451 * green + 0.1073969566 * blue) ** (1 / 3)
+    s_ = (0.0883024619 * red + 0.2817188376 * green + 0.6299787005 * blue) ** (1 / 3)
+    return (
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    )
 
 
 def encode(linear: float) -> float:
@@ -77,12 +98,16 @@ def parse(value: str, variables: dict[str, str] | None = None, seen: frozenset =
             return None
         return parse(variables[name], variables, seen | {name})
     if match := MIX.match(value):
-        first = parse(match.group(1), variables, seen)
-        second = parse(match.group(3), variables, seen)
+        space = match.group(1)
+        first = parse(match.group(2), variables, seen)
+        second = parse(match.group(4), variables, seen)
         if first is None or second is None:
             return None
-        weight = float(match.group(2)) / 100
-        return tuple(weight * a + (1 - weight) * b for a, b in zip(first, second, strict=True))
+        weight = float(match.group(3)) / 100
+        if space == 'oklab':
+            first, second = to_oklab(first), to_oklab(second)
+        mixed = tuple(weight * a + (1 - weight) * b for a, b in zip(first, second, strict=True))
+        return from_oklab(*mixed) if space == 'oklab' else mixed
     if match := OKLCH.match(value):
         lightness = float(match.group(1)) / (100 if match.group(2) else 1)
         if not opaque(match.group(5), match.group(6)):

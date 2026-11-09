@@ -954,11 +954,11 @@ cells `cell:<field>`, without a `list:<entity>`; of the packages `socket:<status
 # theme.yaml
 spec: bazis-design/1
 preset: workspace          # workspace (a working application) | portal (a public shell)
-palette: forest            # indigo | forest | ember | slate | ocean | plum | pine
-fonts: inter               # system | inter | manrope | ibm-plex | geist | source-serif-display | literata-golos,
+palette: forest            # indigo | forest | ember | slate | ocean | plum | pine | frost
+fonts: inter               # system | inter | manrope | ibm-plex | geist | source-serif-display | literata-golos | golos,
                            # or a family of Google Fonts: {google: "Inter:wght@400..700"}
 shape: soft                # sharp | soft | round
-surface: elevated          # flat | bordered | elevated
+surface: elevated          # flat | bordered | elevated | lifted
 mode: both                 # both (switched by the user) | light | dark
 navigation: sidebar        # sidebar | topbar
 density: comfortable       # comfortable | compact
@@ -2635,10 +2635,9 @@ the design only: `--check` and the system check `front.W005` (when the lock has 
 without Node and the database) render it again and compare it byte for byte, the font files
 by their hashes; `front.W005` also reports a frontend with components and no theme (an `init`
 whose design had errors). A font package (`font.package`) is read from `node_modules`: `design`
-needs it installed; without it (a CI without `npm install`) both compare the theme and the
-fonts with the hashes of the lock and report a design changed since (of `product.yaml`, its
-languages and currencies only: they choose the subsets), but not a new version of
-bazis-front or of the package: `design --check` with the package installed shows it.
+needs it installed; without it (a CI without `npm install`) both compare with the hashes of
+the lock: a change of the design shows (of `product.yaml`, the languages and currencies that
+choose the subsets), a new version of bazis-front or of the package does not.
 The generated files are never edited. The design must have no errors (`bazis_front check
 --layer design`).
 
@@ -2649,14 +2648,15 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 - `src/bazis/generated/theme.css`, imported by `src/index.css` after Tailwind: every token
   as a CSS variable of `:root` (`color.<name>` is `--<name>`, another token its dotted name
   with dashes, `font.body` `--font-body`), those of the dark mode, the spacing of the density
-  (`--space-page-x`, `--space-section`, `--space-card`, `--space-cell-x`, `--space-cell-y`,
-  `--space-field`; the cells also under `[data-density]`, chosen by the user in the view of a
-  list), the Tailwind theme over them (a color utility for every color token, `bg-<token>`;
-  the soft colors of the tones, `bg-success-soft text-success-ink`; `font-sans`,
-  `font-display`, `font-mono`; `rounded-sm` … `rounded-2xl` from `radius`; `shadow-xs` …
-  `shadow-lg`; `ease-standard` and every `transition` from `motion.*`), the utilities
-  `font-heading` and `font-subheading` and the base styles of the preset (`h1`–`h3` in
-  `font.heading`, the variables of the sidebar).
+  (`--space-page-x`, `-section`, `-card`, `-cell-x`, `-cell-y`, `-field`; the cells also
+  under `[data-density]`, chosen in the view of a list), the Tailwind theme over them (a color
+  utility for every color token, `bg-<token>`; the soft colors of the tones,
+  `bg-success-soft text-success-ink`; `bg-avatar-<n> text-avatar-<n>-fg` (0–4);
+  `border-line-6`, `-10`; `font-sans`, `font-display`, `font-mono`; `rounded-sm` …
+  `rounded-2xl` from `radius`; `shadow-xs` … `shadow-lg`, `shadow-lift-*`, `shadow-ring-focus`;
+  `ease-standard` and every `transition` from `motion.*`), `--surface-card`,
+  `--surface-control`, the utilities `font-heading`, `font-subheading`, `font-eyebrow` and the
+  base styles of the preset (`h1`–`h3` in `font.heading`, the variables of the sidebar).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
   `density`, `composition`, `controls`, `statuses`, `icons`, `brand`, and `dark`: whether the
   user switches to a dark mode).
@@ -2676,6 +2676,8 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 | `font.weight-heading`, `font.weight-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
 | `shadow.xs` (the cards, the tables, the fields), `shadow.sm`, `shadow.md` (the popovers), `shadow.lg` (the dialogs) | the shadows of Tailwind |
 | `motion.fast`, `motion.base`, `motion.slow`, `motion.ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
+| `color.border-surface`, `color.border-control`, `color.control`, `color.control-hover`, `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus` (`surface: lifted`) | the look before them: plain, the border, `shadow.xs` |
+| `color.sidebar-to`, `color.sidebar-glow`, `color.glow-a`, `color.glow-b` (`frost`) | no gradient of the sidebar, no glow of the page |
 
 A design that names no layer (of an older version) keeps its look: `update` and `design` add
 the new tokens with these defaults until `theme.yaml` names one.
@@ -2719,6 +2721,7 @@ product, one decision for the whole product:
 | health, travel, logistics, the sea | `ocean` | `manrope`, `inter` | `round` |
 | retail, food, hospitality, events | `ember` | `manrope` | `round` |
 | retail, travel, hospitality, outdoor | `pine` | `literata-golos` | `soft`, `round` |
+| rentals, bookings, team workspaces (`surface: lifted`) | `frost` | `golos` | `soft` |
 | developer tools, analytics | `slate`, `indigo` | `geist` | `sharp` |
 
 ### Icons
@@ -2794,9 +2797,10 @@ transits already do); the errors stay where they happened.
 headings in IBM Plex Serif; `geist`; `source-serif-display`, Source Sans 3 with headings in
 Source Serif 4; `system`, nothing to load) are shipped with the frontend: the template
 declares their `@fontsource` packages (OFL), and `fonts.css` imports only those of its pair,
-so the frontend works offline. `literata-golos` (Golos Text with headings in Literata, the
-optical sizes of `opsz`) is served by the frontend itself. `fonts: {google: …}` loads a
-family of Google Fonts instead (online only).
+so the frontend works offline. `golos` (Golos Text alone, the headings at 650: one variable
+file of every weight for each subset) and `literata-golos` (Golos Text with headings in
+Literata, the optical sizes of `opsz`) are served by the frontend itself, each loading only
+its own families. `fonts: {google: …}` loads a family of Google Fonts instead (online only).
 
 **A font served by the frontend** is a `fontFamily` token whose `$extensions.bazis.font`
 names a starter of the package (`{"starter": "literata"}`, `golos-text`) or an installed

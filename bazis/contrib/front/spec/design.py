@@ -126,6 +126,25 @@ DEFAULTS = {
     # (`[data-slot='sidebar']` of the theme): that of the content until a palette darkens the
     # sidebar
     'color.sidebar-muted-foreground': ('color', 'var(--muted-foreground)', None),
+    # the bottom of the gradient of the sidebar and the glow of its top: a plain sidebar until a
+    # layer defines one of them (`[data-slot='sidebar']` of the theme)
+    'color.sidebar-to': ('color', 'var(--sidebar)', None),
+    'color.sidebar-glow': ('color', 'transparent', None),
+    # the glow of the paper (`body::before` of the theme, once a layer defines one of them)
+    'color.glow-a': ('color', 'transparent', None),
+    'color.glow-b': ('color', 'transparent', None),
+    # the color of the shadows of the lifted surfaces
+    'color.shade': ('color', 'var(--foreground)', None),
+    # the top of the gradient of a surface (`--surface-card`, `--surface-control`): the card, a
+    # plain surface
+    'color.surface-light': ('color', 'var(--card)', None),
+    # the borders of the surfaces (cards, tables, menus, dialogs) and of the controls (fields,
+    # outline buttons, chips), the background of the controls at rest and under the pointer: those
+    # of the components before the tokens
+    'color.border-surface': ('color', 'var(--border)', None),
+    'color.border-control': ('color', 'var(--input)', None),
+    'color.control': ('color', 'var(--background)', None),
+    'color.control-hover': ('color', 'var(--accent)', None),
     # the accent of the brand: its mark, the eyebrow of a card; never a button or a badge
     'color.brand': ('color', 'var(--primary)', None),
     'color.brand-foreground': ('color', 'var(--primary-foreground)', None),
@@ -153,6 +172,19 @@ DEFAULTS = {
     'shadow.sm': ('shadow', '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)', None),
     'shadow.md': ('shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', None),
     'shadow.lg': ('shadow', '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', None),
+    # the heights of the lifted elements: the controls at rest, under the pointer and pressed,
+    # the fields, the surfaces (cards), the menus and the dialogs, the primary button, and the
+    # focus ring; those of the components before the tokens
+    'shadow.lift-05': ('shadow', 'var(--shadow-xs)', None),
+    'shadow.lift-05-hover': ('shadow', 'var(--shadow-sm)', None),
+    'shadow.lift-05-active': ('shadow', 'var(--shadow-xs)', None),
+    'shadow.lift-field': ('shadow', 'var(--shadow-xs)', None),
+    'shadow.lift-1': ('shadow', 'var(--shadow-xs)', None),
+    'shadow.lift-2': ('shadow', 'var(--shadow-md)', None),
+    'shadow.lift-primary': ('shadow', '0 0 #0000', None),
+    'shadow.lift-primary-hover': ('shadow', '0 0 #0000', None),
+    'shadow.lift-primary-active': ('shadow', '0 0 #0000', None),
+    'shadow.ring-focus': ('shadow', '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)', None),
     'motion.fast': ('duration', '100ms', None),
     'motion.base': ('duration', '150ms', None),
     'motion.slow': ('duration', '300ms', None),
@@ -185,11 +217,41 @@ TONES = {
     'danger': '--destructive',
 }
 
-#: the colors that the theme derives for each tone: a soft background and the text on it
-#: (`bg-<tone>-soft text-<tone>-ink`), mixed so that the text keeps its contrast in both modes
-DERIVED = {
-    **{f'--{tone}-soft': f'color-mix(in srgb, var({source}) 13%, var(--card))' for tone, source in TONES.items()},
-    **{f'--{tone}-ink': f'color-mix(in srgb, var({source}) 72%, var(--foreground))' for tone, source in TONES.items()},
+#: the tints of the avatars of the initials (`bg-avatar-<n> text-avatar-<n>-fg`), the variable
+#: of each and the parts of it in its background (over the card) and in its text (over the
+#: foreground); the last one's text is the foreground at 72 % over its background
+AVATARS = (('--primary', 16, 80), ('--brand', 20, 55), ('--info', 16, 70), ('--success', 16, 65), ('--muted-foreground', 18, None))
+
+
+def avatar(source: str, background: int, text: int | None) -> tuple[str, str]:
+    tint = f'color-mix(in oklab, var({source}) {background}%, var(--card))'
+    if text is None:
+        return tint, f'color-mix(in srgb, var(--foreground) 72%, {tint})'
+    return tint, f'color-mix(in oklab, var({source}) {text}%, var(--foreground))'
+
+
+#: the colors that the theme derives, each with the variable it derives from (where D009 reports
+#: it): for each tone a soft background and the text on it (`bg-<tone>-soft text-<tone>-ink`),
+#: mixed so that the text keeps its contrast in both modes; the avatars; the lines between the
+#: rows of a surface (`border-line-6`, the bottom of the header of a table `line-10`). They are
+#: colors of the Tailwind theme, computed where they are used (inside the sidebar from its colors)
+DERIVED_FROM = {
+    **{f'--{tone}-soft': (f'color-mix(in srgb, var({source}) 13%, var(--card))', source) for tone, source in TONES.items()},
+    **{f'--{tone}-ink': (f'color-mix(in srgb, var({source}) 72%, var(--foreground))', source) for tone, source in TONES.items()},
+    **{
+        name: (value, source)
+        for number, (source, background, text) in enumerate(AVATARS)
+        for name, value in zip((f'--avatar-{number}', f'--avatar-{number}-fg'), avatar(source, background, text), strict=True)
+    },
+    **{f'--line-{part}': (f'color-mix(in srgb, var(--foreground) {part}%, transparent)', '--foreground') for part in (6, 10)},
+}
+DERIVED = {name: value for name, (value, _) in DERIVED_FROM.items()}
+
+#: the backgrounds of the surfaces (`bg-card bg-(image:--surface-card)`) and of the controls,
+#: variables of `:root`: a gradient from `color.surface-light` to the card, plain by default
+SURFACES = {
+    '--surface-card': 'linear-gradient(170deg, var(--surface-light) 0%, var(--card) 55%)',
+    '--surface-control': 'linear-gradient(180deg, var(--surface-light) 0%, var(--card) 100%)',
 }
 
 #: the text colors and the background each is read on: their contrast is at least AA; a text
@@ -212,7 +274,10 @@ CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     ('--brand-foreground', '--brand'),
     ('--brand', '--card'),
     ('--destructive', '--card'),
+    ('--foreground', '--control'),
+    ('--muted-foreground', '--control'),
     *((f'--{tone}-ink', f'--{tone}-soft') for tone in TONES),
+    *((f'--avatar-{number}-fg', f'--avatar-{number}') for number in range(len(AVATARS))),
 ]
 
 #: the group of the tokens of the dark mode
@@ -614,14 +679,21 @@ def check_contrast(
     The text colors have a contrast of at least 4.5:1 (WCAG AA) on their backgrounds, in
     every mode of the theme; the colors that `color` cannot compute are not checked.
     """
-    # the colors of a tone are reported at the token of the tone
-    owners = {key: TONES[key[2:].rsplit('-', 1)[0]] for key in DERIVED}
+    # a derived color is reported at the token it derives from
+    owners = {name: source for name, (_, source) in DERIVED_FROM.items()}
     by_variable = {variable(name): it for name, it in defined.items() if not name.startswith(f'{DARK}.')}
     dark = {variable(name): it for name, it in defined.items() if name.startswith(f'{DARK}.')}
     for mode in modes(theme.data if theme is not None else None, defined):
         values = variables(defined, dark=mode == DARK)
+        # a pair whose colors are those of a pair before it (`--control` is the background by
+        # default) is reported once
+        seen = set()
         for text, background, *opacity in CONTRAST:
             alpha = opacity[0] if opacity else 1
+            colors = (source(text, values), source(background, values), alpha)
+            if colors in seen:
+                continue
+            seen.add(colors)
             ratio = pair_contrast(values, text, background, alpha)
             if ratio is None or ratio >= color.AA:
                 continue
