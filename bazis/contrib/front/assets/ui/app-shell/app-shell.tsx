@@ -872,7 +872,7 @@ export function Screen({ id, title, parent, description, caption, actions, child
       <PageContext value={page}>
         {/* `contents`: the header is laid out in the section, which it sticks in */}
         <div className={pages > 0 ? 'hidden' : 'contents'}>
-          {(title !== undefined || parent !== undefined || actions !== undefined) && (
+          {(title !== undefined || parent !== undefined || caption !== undefined || actions !== undefined) && (
             <header
               data-slot="screen-header"
               className={cn(

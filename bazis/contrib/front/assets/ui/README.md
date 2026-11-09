@@ -150,7 +150,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   the filters from `route_filter_fields/` (a relation: the picker of the related resource; a
   date: a range; a string: `<field>__$search`; a boolean: a chip for each value, pressed
   again for every item, `aria-pressed`, in the group `field:<field>`; on a phone, below the breakpoint `sm`, each
-  filter is a row of the full width, its control taking the rest of it; `options` for choices such as the statuses,
+  filter is a row of the full width, its control at its end (the choice of a select by its arrow, a
+  picker as narrow as its text, an input taking the rest of it); `options` for choices such as the statuses,
   those of the list schema by their labels for a field with choices;
   no control for a field that the backend does not list for the user; the inline
   `state:error` when they cannot be read), the sort labels from

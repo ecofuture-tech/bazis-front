@@ -20,7 +20,7 @@
 import type { ReactNode } from 'react';
 
 import { useLanguage } from '@/bazis/i18n';
-import { FieldValue, fieldValue, type FieldDisplay, type Fields, type ResourceObject } from '@/bazis/ui/resource';
+import { FieldValue, fieldValue, inlineDisplay, type FieldDisplay, type Fields, type ResourceObject } from '@/bazis/ui/resource';
 import { cn } from '@/lib/utils';
 
 /** The summary of a card: fields of the item, which need no section. */
@@ -78,8 +78,11 @@ export function Summary({ summary, item, fields, values, display }: SummaryProps
   const figure = summary.figure !== undefined && fields.has(summary.figure) ? summary.figure : undefined;
   const meta = (summary.meta ?? []).filter((name) => fields.has(name));
   if (range === undefined && figure === undefined && !meta.length) return null;
+  // a line of a text and a figure: an avatar and chips as their text
   const value = (name: string) =>
-    values[name]?.(item) ?? <FieldValue field={fields.fields.get(name)} value={fieldValue(item, name)} type={item.type} display={display[name]} />;
+    values[name]?.(item) ?? (
+      <FieldValue field={fields.fields.get(name)} value={fieldValue(item, name)} type={item.type} display={inlineDisplay(display[name])} />
+    );
   const [from, to] = range ? [day(fieldValue(item, range[0])), day(fieldValue(item, range[1]))] : [null, null];
   const days = from && to ? dayRange(from, to, language) : null;
   const left = range !== undefined || meta.length > 0;

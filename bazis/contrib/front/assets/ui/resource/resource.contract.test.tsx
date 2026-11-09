@@ -731,6 +731,15 @@ describe('FieldValue', () => {
     expect(circle?.className).toMatch(/\bbg-avatar-[0-4]\b/);
     // no name: no circle
     expect(screen.getByTestId('field:none').querySelector('[data-initials]')).toBeNull();
+    // a choice by its label
+    const kind = attribute('kind', 'string', { enum: ['vip'], labels: { vip: 'Gold client' } });
+    render(
+      <span data-bz="field:kind">
+        <FieldValue field={kind} value="vip" display="avatar" />
+      </span>,
+    );
+    expect(screen.getByTestId('field:kind').querySelector('[data-initials]')?.getAttribute('data-initials')).toBe('GC');
+    expect(screen.getByTestId('field:kind').textContent).toBe('Gold client');
   });
 
   it('shows the parts of a text (`display: chips`) as chips, `+<n>` of the others, its text the value', () => {

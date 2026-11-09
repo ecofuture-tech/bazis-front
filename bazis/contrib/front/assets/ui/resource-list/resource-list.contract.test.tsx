@@ -387,6 +387,21 @@ describe('ResourceList', () => {
     });
   });
 
+  it('keeps its search and its actions over the list with the number of its items alone in the header', async () => {
+    renderWithBazis(
+      <Screen id="item-list" title="Items">
+        <ResourceList path={ITEMS as never} entity="item" columns={['title']} search count />
+      </Screen>,
+      backend(listDocument(rows)),
+    );
+    const list = screen.getByTestId('list:item');
+    await within(list).findByTestId('state:loaded');
+    expect(within(list).getByTestId('field:$search')).toBeTruthy();
+    const header = screen.getByTestId('screen:item-list').querySelector('header');
+    expect(header?.querySelector('[data-slot="screen-tools"]')?.childElementCount).toBe(0);
+    expect(header?.querySelector('[data-slot="screen-count"]')?.getAttribute('data-value')).toBe('2');
+  });
+
   it('keeps its search and the number of its items over the list, outside a screen', async () => {
     renderWithBazis(
       <ResourceList path={ITEMS as never} entity="item" columns={['title']} search toolbar="header" count />,

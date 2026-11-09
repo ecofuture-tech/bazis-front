@@ -1148,6 +1148,12 @@ CASES = [
         [('S069', f'{LIST}#/header/search')],
     ),
     (
+        'S069',
+        # the number of the items alone in the header, of a list without a search: no issue
+        {LIST: lambda d: [d['list'].pop('search'), d.update(header={'count': True})]},
+        [],
+    ),
+    (
         'S002',
         # the header of a list is of a list only
         {BOARD: lambda d: d.update(header={'count': True})},

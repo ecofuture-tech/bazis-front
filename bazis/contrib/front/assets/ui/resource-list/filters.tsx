@@ -252,7 +252,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
       <RelationPicker
         id={id}
         data-bz={`field:${field}`}
-        // the item at the end of the row of a phone, as the choice of a select
+        // on a phone as narrow as its text, at the end of the row (a select takes the row, its choice by its arrow)
         className="ml-auto w-auto min-w-0 sm:ml-0 sm:w-48 sm:flex-none"
         label={label}
         relation={relationType}
@@ -278,8 +278,8 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
       />
     );
   }
-  // on a phone a row of the full width, its control taking the rest of it; one line under the
-  // label and the control
+  // on a phone a row of the full width, its control at its end (an input taking the rest of it);
+  // one line under the label and the control
   return (
     <div data-slot="field-group" className={cn(fieldGroupClassName, 'flex w-full min-w-0 items-center gap-2 sm:w-auto')}>
       <Label htmlFor={id} className="font-normal whitespace-nowrap text-muted-foreground">

@@ -381,7 +381,7 @@ describe('ResourceCard', () => {
         id={ITEM_ID}
         sections={[{ id: 'main', title: 'Main', fields: ['title'] }]}
         summary={{ range: ['date_from', 'date_to'], figure: 'total', meta: ['note'] }}
-        display={{ total: { currency: 'RUB' } }}
+        display={{ total: { currency: 'RUB' }, note: 'chips' }}
         edit
       />
     );
@@ -397,6 +397,8 @@ describe('ResourceCard', () => {
     expect(within(summary).getByTestId('field:date_to').textContent).toBe('2–4 марта');
     expect(summary.textContent).toContain('Даты');
     expect(summary.textContent).toContain('2 дн. · Note: Two tents');
+    // a line of a text: chips (and an avatar) as their text
+    expect(summary.querySelector('[data-slot="chips"]')).toBeNull();
     // the figure by its display, with its label
     expect(within(summary).getByTestId('field:total').textContent.replace(/\s/g, '')).toBe('3600₽');
     expect(summary.textContent).toContain('Total');

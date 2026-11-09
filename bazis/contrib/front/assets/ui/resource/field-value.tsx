@@ -224,12 +224,13 @@ export function FieldValue({ field, value, type, display, large = false, media =
       </>
     );
   }
-  if (display === 'avatar' && typeof value === 'string' && value.trim()) return <Avatar name={value} />;
+  const shown = formatValue(field, value, language, display);
+  // of the text shown: a choice by its label
+  if (display === 'avatar' && typeof value === 'string' && value.trim()) return <Avatar name={shown} />;
   if (display === 'chips' && typeof value === 'string' && value.trim()) {
-    const parts = value.split(/\s*,\s*/).filter(Boolean);
+    const parts = shown.split(/\s*,\s*/).filter(Boolean);
     return <Chips limit={chips} parts={parts.map((part, index) => ({ key: String(index), content: <ChipText part={part} /> }))} />;
   }
-  const shown = formatValue(field, value, language, display);
   if (display === 'phone' && typeof value === 'string' && /\d/.test(value)) {
     return (
       <a

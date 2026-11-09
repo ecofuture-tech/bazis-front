@@ -22,7 +22,7 @@
 // dashboard of links only), what it is given before its parts, and its children in its screen
 // (where a form page takes the place of its parts). Keep it passing when the component is changed.
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
@@ -275,6 +275,10 @@ describe('Dashboard', () => {
       expect(hero.closest('[data-slot="hero"]')).not.toBeNull();
       expect(screen.getByRole('heading', { level: 1 }).compareDocumentPosition(hero)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       expect(screen.getAllByTestId('today')).toHaveLength(1);
+      cleanup();
+      // without a title: the header of the screen for the day alone
+      renderWithBazis(<Dashboard hero={false} today />, new Backend());
+      expect(screen.getByTestId('today').closest('header [data-slot="screen-caption"]')).not.toBeNull();
     } finally {
       vi.useRealTimers();
     }
