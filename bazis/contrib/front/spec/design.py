@@ -142,13 +142,18 @@ DEFAULTS = {
     # the top of the gradient of a surface (`--surface-card`, `--surface-control`): the card, a
     # plain surface
     'color.surface-light': ('color', 'var(--card)', None),
-    # the borders of the surfaces (cards, tables, menus, dialogs) and of the controls (fields,
-    # outline buttons, chips), the background of the controls at rest and under the pointer: those
-    # of the components before the tokens
+    # the borders of the surfaces (cards, tables, menus, dialogs) and of the controls (outline
+    # buttons, chips), the background of the controls at rest and under the pointer: those of the
+    # components before the tokens
     'color.border-surface': ('color', 'var(--border)', None),
     'color.border-control': ('color', 'var(--input)', None),
     'color.control': ('color', 'var(--background)', None),
     'color.control-hover': ('color', 'var(--accent)', None),
+    # the bottom line of a field at rest, under the pointer and focused (`shadow.field-focus` the
+    # shadow of the focus): the border and the ring of the fields before the tokens
+    'color.field-line': ('color', 'var(--input)', None),
+    'color.field-line-hover': ('color', 'var(--input)', None),
+    'color.field-line-focus': ('color', 'var(--ring)', None),
     # the accent of the brand: its mark, the eyebrow of a card; never a button or a badge
     'color.brand': ('color', 'var(--primary)', None),
     'color.brand-foreground': ('color', 'var(--primary-foreground)', None),
@@ -177,18 +182,18 @@ DEFAULTS = {
     'shadow.md': ('shadow', '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)', None),
     'shadow.lg': ('shadow', '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', None),
     # the heights of the lifted elements: the controls at rest, under the pointer and pressed,
-    # the fields, the surfaces (cards), the menus and the dialogs, the primary button, and the
-    # focus ring; those of the components before the tokens
+    # the surfaces (cards), the menus and the dialogs, the primary button, the focus ring and the
+    # focus of a field; those of the components before the tokens
     'shadow.lift-05': ('shadow', 'var(--shadow-xs)', None),
     'shadow.lift-05-hover': ('shadow', 'var(--shadow-sm)', None),
     'shadow.lift-05-active': ('shadow', 'var(--shadow-xs)', None),
-    'shadow.lift-field': ('shadow', 'var(--shadow-xs)', None),
     'shadow.lift-1': ('shadow', 'var(--shadow-xs)', None),
     'shadow.lift-2': ('shadow', 'var(--shadow-md)', None),
     'shadow.lift-primary': ('shadow', '0 0 #0000', None),
     'shadow.lift-primary-hover': ('shadow', '0 0 #0000', None),
     'shadow.lift-primary-active': ('shadow', '0 0 #0000', None),
     'shadow.ring-focus': ('shadow', '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)', None),
+    'shadow.field-focus': ('shadow', '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)', None),
     'shadow.nav-active': ('shadow', '0 0 #0000', None),
     'motion.fast': ('duration', '100ms', None),
     'motion.base': ('duration', '150ms', None),
@@ -238,8 +243,9 @@ def avatar(source: str, background: int, text: int | None) -> tuple[str, str]:
 #: the colors that the theme derives, each with the variable it derives from (where D009 reports
 #: it): for each tone a soft background and the text on it (`bg-<tone>-soft text-<tone>-ink`),
 #: mixed so that the text keeps its contrast in both modes; the avatars; the lines between the
-#: rows of a surface (`border-line-6`, the bottom of the header of a table `line-10`). They are
-#: colors of the Tailwind theme, computed where they are used (inside the sidebar from its colors)
+#: rows of a surface (`border-line-6`, `line-10`; the bottom of the header of a table `line-16`).
+#: They are colors of the Tailwind theme, computed where they are used (inside the sidebar from
+#: its colors)
 DERIVED_FROM = {
     **{f'--{tone}-soft': (f'color-mix(in srgb, var({source}) 13%, var(--card))', source) for tone, source in TONES.items()},
     **{f'--{tone}-ink': (f'color-mix(in srgb, var({source}) 72%, var(--foreground))', source) for tone, source in TONES.items()},
@@ -248,16 +254,20 @@ DERIVED_FROM = {
         for number, (source, background, text) in enumerate(AVATARS)
         for name, value in zip((f'--avatar-{number}', f'--avatar-{number}-fg'), avatar(source, background, text), strict=True)
     },
-    **{f'--line-{part}': (f'color-mix(in srgb, var(--foreground) {part}%, transparent)', '--foreground') for part in (6, 10)},
+    **{f'--line-{part}': (f'color-mix(in srgb, var(--foreground) {part}%, transparent)', '--foreground') for part in (6, 10, 16)},
 }
 DERIVED = {name: value for name, (value, _) in DERIVED_FROM.items()}
 
-#: the backgrounds of the surfaces (`bg-card bg-(image:--surface-card)`) and of the controls,
-#: variables of `:root`: a gradient from `color.surface-light` to the card, plain by default
+#: the background images of the surfaces (`bg-card bg-(image:--surface-card)`) and of the
+#: controls (over `bg-control`), variables of `:root`: gradients from `color.surface-light` to
+#: the card and to the control once a layer defines one of `SURFACE_TOKENS`; without such a layer
+#: the surfaces are flat (the look of 0.12)
 SURFACES = {
     '--surface-card': 'linear-gradient(170deg, var(--surface-light) 0%, var(--card) 55%)',
-    '--surface-control': 'linear-gradient(180deg, var(--surface-light) 0%, var(--card) 100%)',
+    '--surface-control': 'linear-gradient(180deg, var(--surface-light) 0%, var(--control) 100%)',
 }
+SURFACES_FLAT = {'--surface-card': 'none', '--surface-control': 'none'}
+SURFACE_TOKENS = ('color.surface-light',)
 
 #: the text colors and the background each is read on: their contrast is at least AA; a text
 #: color that a component makes translucent (`text-sidebar-foreground/80`) has its opacity, the

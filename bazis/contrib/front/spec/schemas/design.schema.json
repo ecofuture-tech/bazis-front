@@ -30,7 +30,7 @@
     },
     "shape": {"description": "The radius of the corners: sharp 0.25rem, soft 0.5rem, round 0.875rem.", "enum": ["sharp", "soft", "round"]},
     "surface": {
-      "description": "The shadows of the cards, the popovers and the dialogs: flat (almost none), bordered (the borders with the light shadows of Tailwind), elevated (soft layered shadows), lifted (no borders: the surfaces and the controls lifted by shadows in the tone of the paper).",
+      "description": "The shadows of the cards, the popovers and the dialogs: flat (almost none), bordered (the borders with the light shadows of Tailwind), elevated (soft layered shadows), lifted (no borders: the surfaces and the controls lifted by shadows in the tone of the paper, the fields a bottom line).",
       "enum": ["flat", "bordered", "elevated", "lifted"]
     },
     "mode": {

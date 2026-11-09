@@ -118,6 +118,24 @@ EYEBROW = {
     'text-transform': 'uppercase',
 }
 
+#: the utilities of a lifted block (a card, a panel, a menu) and of a lifted control (a button,
+#: a chip, a segment) on the tokens of the surface: the components take them instead of listing
+#: the classes, an exception is a class of the element (a dialog `shadow-(--shadow-lift-2)`)
+SURFACE = {
+    'background-color': 'var(--card)',
+    'background-image': 'var(--surface-card)',
+    'border': '1px solid var(--border-surface)',
+    'box-shadow': 'var(--shadow-lift-1)',
+    'border-radius': 'calc(var(--radius) + 4px)',
+}
+CONTROL = {
+    'background-color': 'var(--control)',
+    'background-image': 'var(--surface-control)',
+    'border': '1px solid var(--border-control)',
+    'box-shadow': 'var(--shadow-lift-05)',
+    'border-radius': 'calc(var(--radius) - 2px)',
+}
+
 #: the glow of the paper, two radial lights at the top corners of the page under its content,
 #: only when a layer defines `color.glow-a` or `color.glow-b` (a design without them draws
 #: nothing over the page)
@@ -141,7 +159,10 @@ SIDEBAR_SURFACE = {
 SIDEBAR_SURFACE_TOKENS = ('color.sidebar-to', 'color.sidebar-glow')
 
 #: the variables of the content that the sidebar replaces with its own inside it (the buttons,
-#: the toggles, the focus rings, the borders and the muted text of the components there)
+#: the toggles, the focus rings, the borders and the muted text of the components there), and
+#: (`SIDEBAR_DEFAULTS`) the tokens of the surfaces and the fields that keep their defaults: a
+#: `var()` of `:root` is computed there and inherited computed. A layer that defines one keeps
+#: its value inside the sidebar too
 SIDEBAR = {
     '--foreground': 'var(--sidebar-foreground)',
     '--muted-foreground': 'var(--sidebar-muted-foreground)',
@@ -152,6 +173,17 @@ SIDEBAR = {
     '--primary': 'var(--sidebar-primary)',
     '--primary-foreground': 'var(--sidebar-primary-foreground)',
     '--ring': 'var(--sidebar-ring)',
+}
+SIDEBAR_DEFAULTS = {
+    'color.border-surface': 'var(--sidebar-border)',
+    'color.border-control': 'var(--sidebar-border)',
+    'color.field-line': 'var(--sidebar-border)',
+    'color.field-line-hover': 'var(--sidebar-border)',
+    'color.control': 'var(--sidebar)',
+    'color.control-hover': 'var(--sidebar-accent)',
+    'color.field-line-focus': 'var(--sidebar-ring)',
+    'shadow.ring-focus': '0 0 0 3px color-mix(in srgb, var(--sidebar-ring) 50%, transparent)',
+    'shadow.field-focus': '0 0 0 3px color-mix(in srgb, var(--sidebar-ring) 50%, transparent)',
 }
 
 CSS_HEADER = (
@@ -283,6 +315,8 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         k: v for k, v in design.variables(defined, dark=True).items()
         if k not in design.DERIVED and first.get(k) != v
     } if len(modes) == 2 else None
+    named = {design.light_name(it) for it in defined}
+    surfaces = design.SURFACES if named.intersection(design.SURFACE_TOKENS) else design.SURFACES_FLAT
     parts = [
         CSS_HEADER,
         f'/* The preset `{settings["preset"]}`, density {settings["density"]}'
@@ -291,7 +325,7 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         # the variant `dark:` of Tailwind: always on in a theme of the dark mode only
         f'@custom-variant dark ({"&:is(:root *)" if only == design.DARK else "&:is(.dark *)"});',
         '',
-        block(':root', {**first, **design.SURFACES, **DENSITY[settings['density']]}),
+        block(':root', {**first, **surfaces, **DENSITY[settings['density']]}),
         '',
         '/* The density of the rows of a table that the user chooses: `data-density`. */',
         *(
@@ -317,6 +351,9 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
         block('@utility font-subheading', SUBHEADING),
         '/* The small capitals over a block: the title of a card or a chart, the label of a group. */',
         block('@utility font-eyebrow', EYEBROW),
+        '/* The lifted blocks and the lifted controls on the tokens of the surface. */',
+        block('@utility surface', SURFACE),
+        block('@utility control', CONTROL),
         '',
         '@layer base {',
         '  * {\n    @apply border-border outline-ring/50;\n  }',
@@ -327,7 +364,6 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
             '  html.dark {\n    color-scheme: dark;\n  }',
             '  @media (prefers-color-scheme: dark) {\n    html:not(.light) {\n      color-scheme: dark;\n    }\n  }',
         ]
-    named = {design.light_name(it) for it in defined}
     parts += [
         '  body {\n    @apply bg-background font-sans text-foreground antialiased;\n  }',
         *(
@@ -335,7 +371,11 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
             if named.intersection(GLOW_TOKENS) else []
         ),
         '  /* the components inside the sidebar and its drawer read the colors of the sidebar */',
-        block("[data-slot='sidebar']", SIDEBAR, '  '),
+        block(
+            "[data-slot='sidebar']",
+            {**SIDEBAR, **{design.variable(n): v for n, v in SIDEBAR_DEFAULTS.items() if n not in named}},
+            '  ',
+        ),
         *(
             ['  /* the gradient and the glow of the sidebar */', block("[data-slot='sidebar']", SIDEBAR_SURFACE, '  ')]
             if named.intersection(SIDEBAR_SURFACE_TOKENS) else []

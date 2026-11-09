@@ -2652,31 +2652,33 @@ The generated files are never edited. The design must have no errors (`bazis_fro
   under `[data-density]`, chosen in the view of a list), the Tailwind theme over them (a color
   utility for every color token, `bg-<token>`; the soft colors of the tones,
   `bg-success-soft text-success-ink`; `bg-avatar-<n> text-avatar-<n>-fg` (0–4);
-  `border-line-6`, `-10`; `font-sans`, `font-display`, `font-mono`; `rounded-sm` …
-  `rounded-2xl` from `radius`; `shadow-xs` … `shadow-lg`, `shadow-lift-*`, `shadow-ring-focus`;
+  `border-line-6`, `-10`, `-16`; `font-sans`, `font-display`, `font-mono`; `rounded-sm` …
+  `rounded-2xl` from `radius`; `shadow-<name>` of every `shadow.<name>` below;
   `ease-standard` and every `transition` from `motion.*`), `--surface-card`,
-  `--surface-control`, the utilities `font-heading`, `font-subheading`, `font-eyebrow` and the
-  base styles of the preset (`h1`–`h3` in `font.heading`, the variables of the sidebar).
+  `--surface-control` (`none` until a layer defines `color.surface-light`), the utilities
+  `font-heading`, `font-subheading`, `font-eyebrow`, `surface` and `control` (a lifted block and
+  control: never their classes) and the base styles of the preset (`h1`–`h3` in `font.heading`,
+  the variables of the sidebar).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
   `density`, `composition`, `controls`, `statuses`, `icons`, `brand`, and `dark`: whether the
   user switches to a dark mode).
 
 | Token (its CSS variable `--<name>`) | When no layer defines it |
 |---|---|
-| `color.background`, `color.foreground`, `color.primary`, `color.primary-foreground`, `color.muted`, `color.muted-foreground`, `color.border`, `color.destructive`; `radius`; `font.body` (`font-sans`) | required by both presets |
+| `color.background`, `color.foreground`, `color.primary`, `-foreground`, `color.muted`, `-foreground`, `color.border`, `color.destructive`; `radius`; `font.body` (`font-sans`) | required by both presets |
 | `color.sidebar`, `color.sidebar-foreground` | required by `workspace`; else the background and the foreground |
 | `color.accent` (the hover and the current link of the top bar) | required by `portal`; else `muted` |
 | `font.heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
-| `color.card`, `color.card-foreground`, `color.popover`, `color.popover-foreground`, `color.secondary`, `color.secondary-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS` of `spec/design.py`) |
+| `color.card`, `-foreground`, `color.popover`, `-foreground`, `color.secondary`, `-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS` of `spec/design.py`) |
 | `color.success`, `color.warning`, `color.info` (the tones of the statuses) | a green, an amber and a blue of both modes |
-| `color.sidebar-primary`, `color.sidebar-accent`, `color.sidebar-muted-foreground`, … (the sidebar) | from the primary, the sidebar and the muted foreground |
+| `color.sidebar-primary`, `-accent`, `-muted-foreground`, … (the sidebar) | from the primary, the sidebar and the muted foreground |
 | `color.brand`, `color.brand-foreground` (the mark of the brand) | the primary |
 | `color.chart-1` … `color.chart-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
 | `font.mono` (`font-mono`) | the monospace fonts of Tailwind |
-| `font.weight-heading`, `font.weight-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
+| `font.weight-heading`, `-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
 | `shadow.xs` (the cards, the tables, the fields), `shadow.sm`, `shadow.md` (the popovers), `shadow.lg` (the dialogs) | the shadows of Tailwind |
-| `motion.fast`, `motion.base`, `motion.slow`, `motion.ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
-| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`) |
+| `motion.fast`, `-base`, `-slow`, `-ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
+| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`) |
 | `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
 
 A design that names no layer (of an older version) keeps its look: `update` and `design` add
@@ -2742,20 +2744,19 @@ has them): each overrides the token of the same name (`dark.color.background`; D
 there is none of that name and type). The theme applies them to the class `dark` of `<html>`
 and, until the application starts, to a dark system (unless `<html>` has the class `light`);
 `initColorMode()` of `app-shell` (called by `src/main.tsx`) sets the class from the choice of
-the user (system, light or dark, kept in the storage of the browser, the button of
-`AppShell`). Without the group `dark` there is no dark mode. `mode: light` keeps the light
-mode only; `mode: dark` puts the dark values in `:root` and turns the variant `dark:` on for
-every element (D010 without them): neither has the button; `THEME.dark` is false.
+the user (system, light or dark, kept by the browser; the button of `AppShell`). Without the
+group `dark` there is no dark mode. `mode: light` keeps the light mode only; `mode: dark`
+puts the dark values in `:root` and turns the variant `dark:` on for every element (D010
+without them): neither has the button; `THEME.dark` is false.
 
 ### Statuses
 
-**Statuses.** `statuses` of `theme.yaml` gives each status of bazis-statusy a tone by its id:
-bazis-statusy has one table of statuses for every model, so an id is the same status
-everywhere (`draft` of the tasks is `draft` of the orders). The `StatusBadge` takes the soft
-colors of the tone, a transit to a status of the tone `danger` is a destructive button; a
-status without a tone is `neutral`. Give the tones by meaning: the initial status `neutral`,
-in progress `info`, done or accepted `success`, waiting or near a deadline `warning`,
-refused, cancelled or overdue `danger`.
+**Statuses.** `statuses` of `theme.yaml` gives each status of bazis-statusy a tone by its id,
+the same for every model (`draft` of the tasks is `draft` of the orders). The `StatusBadge`
+takes the soft colors of the tone, a transit to a status of the tone `danger` is a
+destructive button; a status without a tone is `neutral`. Give the tones by meaning: the
+initial status `neutral`, in progress `info`, done or accepted `success`, waiting or near a
+deadline `warning`, refused, cancelled or overdue `danger`.
 
 ### The theme in the screens
 

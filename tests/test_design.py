@@ -249,29 +249,55 @@ def test_a_design_without_layers_keeps_its_look():
     mapping = root_block(css, '@theme inline')
     assert mapping['--shadow-md'] == 'var(--shadow-md)'
     assert mapping['--default-transition-duration'] == 'var(--motion-base)'
-    # the surfaces and the controls as the components drew them before their tokens: the
-    # borders, the background of an outline button and its hover, the shadow of a card and of a
-    # popover, no shadow of the primary button, the focus ring of shadcn/ui; plain backgrounds
+    # the surfaces, the controls and the fields as the components drew them before their tokens:
+    # the borders, the background of an outline button and its hover, the border and the focus
+    # ring of a field, the shadow of a card and of a popover, no shadow of the primary button, the
+    # focus ring of shadcn/ui; flat backgrounds
+    ring = '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)'
     assert {name: light[name] for name in (
         '--border-surface', '--border-control', '--control', '--control-hover', '--surface-light', '--shade',
-        '--shadow-lift-05', '--shadow-lift-05-hover', '--shadow-lift-05-active', '--shadow-lift-field',
+        '--field-line', '--field-line-hover', '--field-line-focus', '--shadow-field-focus',
+        '--shadow-lift-05', '--shadow-lift-05-hover', '--shadow-lift-05-active',
         '--shadow-lift-1', '--shadow-lift-2', '--shadow-lift-primary', '--shadow-ring-focus',
+        '--surface-card', '--surface-control',
     )} == {
         '--border-surface': 'var(--border)', '--border-control': 'var(--input)', '--control': 'var(--background)',
         '--control-hover': 'var(--accent)', '--surface-light': 'var(--card)', '--shade': 'var(--foreground)',
+        '--field-line': 'var(--input)', '--field-line-hover': 'var(--input)', '--field-line-focus': 'var(--ring)',
+        '--shadow-field-focus': ring,
         '--shadow-lift-05': 'var(--shadow-xs)', '--shadow-lift-05-hover': 'var(--shadow-sm)',
-        '--shadow-lift-05-active': 'var(--shadow-xs)', '--shadow-lift-field': 'var(--shadow-xs)',
+        '--shadow-lift-05-active': 'var(--shadow-xs)',
         '--shadow-lift-1': 'var(--shadow-xs)', '--shadow-lift-2': 'var(--shadow-md)', '--shadow-lift-primary': '0 0 #0000',
-        '--shadow-ring-focus': '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)',
+        '--shadow-ring-focus': ring,
+        '--surface-card': 'none', '--surface-control': 'none',
     }
-    assert light['--surface-card'] == 'linear-gradient(170deg, var(--surface-light) 0%, var(--card) 55%)'
     # no glow of the paper and no gradient of the sidebar; the current link of the sidebar on its
     # accent, without a bar or a shadow
     assert (light['--sidebar-to'], light['--glow-a']) == ('var(--sidebar)', 'transparent')
     assert (light['--nav-active'], light['--nav-active-bar'], light['--shadow-nav-active']) == (
         'var(--sidebar-accent)', 'transparent', '0 0 #0000',
     )
-    assert 'body::before' not in css and 'background-image' not in css
+    assert 'body::before' not in css and 'background-image' not in css.split('\n@layer base {\n', 1)[1]
+    # a field is a line, never lifted
+    assert 'lift-field' not in css
+
+
+def test_the_root_of_a_theme_of_0_12_only_gains_variables():
+    # the variables of the sample as 0.12 generated them keep their values, in both modes; the
+    # new ones are the tokens of 0.13 on their defaults and the flat backgrounds of the surfaces
+    before = json.loads((REPOSITORY / 'tests' / 'fixtures' / 'theme' / 'sample-0.12.json').read_text(encoding='utf-8'))
+    css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
+    light, dark = root_block(css, ':root'), root_block(css, '.dark')
+    assert dark == before['.dark']
+    assert {name: light[name] for name in before[':root']} == before[':root']
+    assert set(light) - set(before[':root']) == {
+        '--sidebar-to', '--sidebar-glow', '--nav-active', '--nav-active-bar', '--glow-a', '--glow-b', '--shade',
+        '--surface-light', '--border-surface', '--border-control', '--control', '--control-hover', '--field-line',
+        '--field-line-hover', '--field-line-focus', '--shadow-lift-05', '--shadow-lift-05-hover',
+        '--shadow-lift-05-active', '--shadow-lift-1', '--shadow-lift-2', '--shadow-lift-primary',
+        '--shadow-lift-primary-hover', '--shadow-lift-primary-active', '--shadow-ring-focus', '--shadow-field-focus',
+        '--shadow-nav-active', '--surface-card', '--surface-control',
+    }
 
 
 def test_the_layers_of_the_tokens():
@@ -300,7 +326,7 @@ def test_the_layers_of_the_tokens():
     assert 'h3 {\n    font-family: var(--font-heading);\n    font-weight: var(--font-weight-heading);' in css
 
 
-#: the design of the starter of a new product of the preset workspace
+#: the design of the redesign: the frost paper, one grotesque, the lifted surfaces
 FROST = {'spec': 'bazis-design/1', 'preset': 'workspace', 'palette': 'frost', 'fonts': 'golos', 'shape': 'soft', 'surface': 'lifted'}
 
 
@@ -313,8 +339,18 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     assert (light['--border-surface'], light['--border-control'], light['--control']) == ('transparent', 'transparent', 'var(--card)')
     assert light['--shade'] == frost['color']['shade']['$value']
     assert light['--surface-light'] == 'oklch(1 0 0)'
-    for name in ('lift-05', 'lift-field', 'lift-1', 'lift-2', 'lift-primary', 'ring-focus'):
+    for name in ('lift-05', 'lift-1', 'lift-2', 'lift-primary', 'ring-focus', 'field-focus'):
         assert light[f'--shadow-{name}'] == lifted['shadow'][name]['$value']
+    # the gradients of the surfaces, since the palette defines their top: that of a control ends
+    # in the control
+    assert (light['--surface-card'], light['--surface-control']) == (
+        design.SURFACES['--surface-card'], 'linear-gradient(180deg, var(--surface-light) 0%, var(--control) 100%)',
+    )
+    # the fields are a bottom line of the foreground, of the primary when focused
+    assert (light['--field-line'], light['--field-line-hover'], light['--field-line-focus'], light['--shadow-field-focus']) == (
+        'color-mix(in srgb, var(--foreground) 32%, transparent)', 'color-mix(in srgb, var(--foreground) 58%, transparent)',
+        'var(--primary)', '0 1px 0 0 var(--primary)',
+    )
     assert 'var(--shade)' in light['--shadow-lift-1'] and 'var(--primary)' in light['--shadow-lift-primary']
     # black shadows in the dark mode, the same focus ring
     assert dark['--shadow-lift-1'] == lifted['dark']['shadow']['lift-1']['$value']
@@ -326,8 +362,11 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     assert mapping['--color-border-surface'] == 'var(--border-surface)'
     assert mapping['--color-avatar-0'] == design.DERIVED['--avatar-0']
     assert mapping['--color-line-6'] == 'color-mix(in srgb, var(--foreground) 6%, transparent)'
+    assert mapping['--color-line-16'] == 'color-mix(in srgb, var(--foreground) 16%, transparent)'
     # the glow of the paper and the gradient of the sidebar, drawn since the palette defines them
     base = css.split('\n@layer base {\n', 1)[1]
+    # the sidebar keeps the tokens of the layer: lifted defines every one of its defaults
+    assert block_of(base, "[data-slot='sidebar']") == theme.SIDEBAR
     assert block_of(base, 'body::before') == theme.GLOW
     assert block_of(base, "[data-slot='sidebar']", 2) == theme.SIDEBAR_SURFACE
     assert base.index('body::before') < base.index("[data-slot='sidebar']")
@@ -341,6 +380,26 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     )
     assert light['--shadow-nav-active'] == lifted['shadow']['nav-active']['$value'] and '--shadow-nav-active' not in dark
     assert mapping['--shadow-nav-active'] == 'var(--shadow-nav-active)'
+    # D009 computes the text of the current link on its mix with white, in both modes
+    defined = design.effective_tokens(FROST, None)
+    for dark in (False, True):
+        ratio = design.pair_contrast(design.variables(defined, dark=dark), '--sidebar-accent-foreground', '--nav-active')
+        assert ratio is not None and ratio >= 4.5
+    assert 'lift-field' not in json.dumps(lifted)
+
+
+def test_the_sidebar_redeclares_only_the_tokens_on_their_defaults():
+    # without the lifted surface the frost paper has the gradients, and the sidebar every
+    # default; a token of the product keeps its value inside the sidebar, the others follow it
+    data = {**FROST, 'surface': 'elevated'}
+    base = theme.render(Specs(theme=data))[theme.THEME_CSS].split('\n@layer base {\n', 1)[1]
+    assert block_of(base, "[data-slot='sidebar']") == {
+        **theme.SIDEBAR, **{design.variable(name): value for name, value in theme.SIDEBAR_DEFAULTS.items()},
+    }
+    tokens = {'dark': {'color': {'control': {'$type': 'color', '$value': 'oklch(0.3 0.02 270)'}}}}
+    css = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS]
+    sidebar = block_of(css.split('\n@layer base {\n', 1)[1], "[data-slot='sidebar']")
+    assert '--control' not in sidebar and sidebar['--control-hover'] == 'var(--sidebar-accent)'
 
 
 def block_of(css: str, selector: str, occurrence: int = 1) -> dict[str, str]:
@@ -358,7 +417,7 @@ def test_a_glow_defined_by_the_product_is_drawn():
     assert 'body::before' not in theme.render(Specs(theme=data))[theme.THEME_CSS]
     tokens = {'dark': {'color': {'glow-a': {'$type': 'color', '$value': 'color-mix(in srgb, var(--primary) 12%, transparent)'}}}}
     css = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS]
-    assert '  body::before {' in css and "background-image" not in css
+    assert '  body::before {' in css and theme.SIDEBAR_SURFACE['background-image'] not in css
 
 
 def test_the_paper_of_frost_is_far_from_its_accent():
@@ -589,6 +648,17 @@ def test_the_utilities_of_the_headings():
     # the small capitals of the titles of the blocks, in the font of the text
     assert root_block(css, '@utility font-eyebrow') == theme.EYEBROW
     assert 'font-family' not in theme.EYEBROW
+    # a lifted block and a lifted control on the tokens of the surface, with their radii
+    assert root_block(css, '@utility surface') == {
+        'background-color': 'var(--card)', 'background-image': 'var(--surface-card)',
+        'border': '1px solid var(--border-surface)', 'box-shadow': 'var(--shadow-lift-1)',
+        'border-radius': 'calc(var(--radius) + 4px)',
+    }
+    assert root_block(css, '@utility control') == {
+        'background-color': 'var(--control)', 'background-image': 'var(--surface-control)',
+        'border': '1px solid var(--border-control)', 'box-shadow': 'var(--shadow-lift-05)',
+        'border-radius': 'calc(var(--radius) - 2px)',
+    }
     # the utilities are top-level rules of Tailwind, after its theme
     assert css.index('\n@utility font-heading {') > css.index('\n@theme inline {')
 
@@ -608,6 +678,17 @@ def test_the_sidebar_reads_its_own_colors():
         '--primary': 'var(--sidebar-primary)',
         '--primary-foreground': 'var(--sidebar-primary-foreground)',
         '--ring': 'var(--sidebar-ring)',
+        # the tokens of the surfaces and the fields on their defaults, computed in :root from the
+        # colors of the content
+        '--border-surface': 'var(--sidebar-border)',
+        '--border-control': 'var(--sidebar-border)',
+        '--field-line': 'var(--sidebar-border)',
+        '--field-line-hover': 'var(--sidebar-border)',
+        '--control': 'var(--sidebar)',
+        '--control-hover': 'var(--sidebar-accent)',
+        '--field-line-focus': 'var(--sidebar-ring)',
+        '--shadow-ring-focus': '0 0 0 3px color-mix(in srgb, var(--sidebar-ring) 50%, transparent)',
+        '--shadow-field-focus': '0 0 0 3px color-mix(in srgb, var(--sidebar-ring) 50%, transparent)',
     }
 
 
