@@ -201,7 +201,7 @@ const SEARCH_DELAY = 300;
  * the columns that scroll under them, and draw the focus ring of their row, which they cover;
  * the leftmost one draws the mark of a tone or of the selection of its row (`--row-mark`).
  */
-const ROW = 'border-line-6 bg-card hover:bg-[color-mix(in_oklab,var(--color-muted)_80%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-muted)_80%,var(--color-card))]';
+const ROW = 'border-line-6 bg-card hover:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))]';
 /** A cell of the header: on the card, set apart by a firmer line (a shadow: the cell is sticky). */
 const HEAD = 'sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--color-line-16)]';
 const STICKY = 'sticky z-[1] bg-inherit [tr:focus-visible>&]:shadow-[inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
