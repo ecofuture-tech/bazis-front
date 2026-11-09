@@ -38,9 +38,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // a flat fill lifted by a shadow of its own color
+        // a flat fill lifted by a shadow of its own color; unavailable, flat on the muted tone with
+        // its text readable, never the primary faded to half
         default:
-          "bg-primary text-primary-foreground shadow-(--shadow-lift-primary) hover:bg-[color-mix(in_oklab,var(--primary)_94%,white)] hover:shadow-(--shadow-lift-primary-hover) active:bg-[color-mix(in_oklab,var(--primary)_93%,black)] active:shadow-(--shadow-lift-primary-active)",
+          "bg-primary text-primary-foreground shadow-(--shadow-lift-primary) hover:bg-[color-mix(in_oklab,var(--primary)_94%,white)] hover:shadow-(--shadow-lift-primary-hover) active:bg-[color-mix(in_oklab,var(--primary)_93%,black)] active:shadow-(--shadow-lift-primary-active) disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
         // a control with the text in red, never a red block beside the main action
         destructive: cn(
           raised,
