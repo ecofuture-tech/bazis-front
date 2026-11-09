@@ -1,6 +1,6 @@
 {
   "$schema": "../../../schemas/tokens.schema.json",
-  "$description": "Cool paper with a cedar green primary and a honey brand, a deep cedar sidebar in both modes with a honey mark, its gradient and glow, the glow of the paper and the shadows in the tone of a dark paper (for `surface: lifted`). The hue of the paper is far from that of the primary (275 against 165, at least 60 apart) and its chroma low (at most 0.008), so that the paper reads as white and not as a tint of the accent. The colors of the light and the dark mode.",
+  "$description": "Cool paper with a cedar green primary and a honey brand, a deep cedar sidebar in both modes with a honey mark, its gradient and glow, the current link a flat light fill with a honey bar, the glow of the paper and the shadows in the tone of a dark paper (for `surface: lifted`). The hue of the paper is far from that of the primary (275 against 165, at least 60 apart) and its chroma low (at most 0.008), so that the paper reads as white and not as a tint of the accent. The colors of the light and the dark mode.",
   "color": {
     "background": {"$type": "color", "$value": "oklch(0.978 0.007 275)"},
     "foreground": {"$type": "color", "$value": "oklch(0.24 0.028 265)"},
@@ -23,6 +23,8 @@
     "sidebar": {"$type": "color", "$value": "oklch(0.29 0.052 168)"},
     "sidebar-to": {"$type": "color", "$value": "oklch(0.25 0.05 176)"},
     "sidebar-glow": {"$type": "color", "$value": "rgb(255 255 255 / 0.075)"},
+    "nav-active": {"$type": "color", "$value": "color-mix(in srgb, #fff 6.5%, var(--sidebar))"},
+    "nav-active-bar": {"$type": "color", "$value": "var(--sidebar-primary)"},
     "sidebar-foreground": {"$type": "color", "$value": "oklch(0.95 0.014 90)"},
     "sidebar-muted-foreground": {"$type": "color", "$value": "oklch(0.78 0.03 150)"},
     "sidebar-primary": {"$type": "color", "$value": "oklch(0.82 0.12 80)"},
@@ -58,6 +60,8 @@
       "sidebar": {"$type": "color", "$value": "oklch(0.205 0.035 168)"},
       "sidebar-to": {"$type": "color", "$value": "oklch(0.18 0.03 176)"},
       "sidebar-glow": {"$type": "color", "$value": "rgb(255 255 255 / 0.05)"},
+      "nav-active": {"$type": "color", "$value": "color-mix(in srgb, #fff 6.5%, var(--sidebar))"},
+      "nav-active-bar": {"$type": "color", "$value": "var(--sidebar-primary)"},
       "sidebar-foreground": {"$type": "color", "$value": "oklch(0.94 0.009 168)"},
       "sidebar-muted-foreground": {"$type": "color", "$value": "oklch(0.76 0.014 168)"},
       "sidebar-primary": {"$type": "color", "$value": "oklch(0.82 0.12 80)"},

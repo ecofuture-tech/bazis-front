@@ -2676,8 +2676,8 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 | `font.weight-heading`, `font.weight-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
 | `shadow.xs` (the cards, the tables, the fields), `shadow.sm`, `shadow.md` (the popovers), `shadow.lg` (the dialogs) | the shadows of Tailwind |
 | `motion.fast`, `motion.base`, `motion.slow`, `motion.ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
-| `color.border-surface`, `color.border-control`, `color.control`, `color.control-hover`, `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus` (`surface: lifted`) | the look before them: plain, the border, `shadow.xs` |
-| `color.sidebar-to`, `color.sidebar-glow`, `color.glow-a`, `color.glow-b` (`frost`) | no gradient of the sidebar, no glow of the page |
+| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`) |
+| `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
 
 A design that names no layer (of an older version) keeps its look: `update` and `design` add
 the new tokens with these defaults until `theme.yaml` names one.

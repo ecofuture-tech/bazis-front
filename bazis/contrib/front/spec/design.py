@@ -130,6 +130,10 @@ DEFAULTS = {
     # layer defines one of them (`[data-slot='sidebar']` of the theme)
     'color.sidebar-to': ('color', 'var(--sidebar)', None),
     'color.sidebar-glow': ('color', 'transparent', None),
+    # the current link of the sidebar: its background and the bar at its start (none before the
+    # tokens); its shadow is `shadow.nav-active`
+    'color.nav-active': ('color', 'var(--sidebar-accent)', None),
+    'color.nav-active-bar': ('color', 'transparent', None),
     # the glow of the paper (`body::before` of the theme, once a layer defines one of them)
     'color.glow-a': ('color', 'transparent', None),
     'color.glow-b': ('color', 'transparent', None),
@@ -185,6 +189,7 @@ DEFAULTS = {
     'shadow.lift-primary-hover': ('shadow', '0 0 #0000', None),
     'shadow.lift-primary-active': ('shadow', '0 0 #0000', None),
     'shadow.ring-focus': ('shadow', '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)', None),
+    'shadow.nav-active': ('shadow', '0 0 #0000', None),
     'motion.fast': ('duration', '100ms', None),
     'motion.base': ('duration', '150ms', None),
     'motion.slow': ('duration', '300ms', None),
@@ -269,6 +274,7 @@ CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     ('--sidebar-foreground', '--sidebar'),
     ('--sidebar-foreground', '--sidebar', 0.8),
     ('--sidebar-accent-foreground', '--sidebar-accent'),
+    ('--sidebar-accent-foreground', '--nav-active'),
     ('--sidebar-muted-foreground', '--sidebar'),
     ('--sidebar-primary-foreground', '--sidebar-primary'),
     ('--brand-foreground', '--brand'),

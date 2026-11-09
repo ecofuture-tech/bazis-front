@@ -1,6 +1,6 @@
 {
   "$schema": "../../../schemas/tokens.schema.json",
-  "$description": "Lifted without a contour: the surfaces and the controls have no border and rest on the page by blurred shadows in the tone of a dark paper (`color.shade`: that of `frost`, the foreground with another palette), in heights (the controls, the cards, the menus and the dialogs), the primary button with a shadow of its own color and one focus ring; black shadows in the dark mode, where the paper is darker than any shade.",
+  "$description": "Lifted without a contour: the surfaces and the controls have no border and rest on the page by blurred shadows in the tone of a dark paper (`color.shade`: that of `frost`, the foreground with another palette), in heights (the controls, the cards, the menus and the dialogs), the primary button with a shadow of its own color, the current link of the sidebar lifted, and one focus ring; black shadows in the dark mode, where the paper is darker than any shade.",
   "color": {
     "border-surface": {"$type": "color", "$value": "transparent"},
     "border-control": {"$type": "color", "$value": "transparent"},
@@ -21,7 +21,8 @@
     "lift-primary": {"$type": "shadow", "$value": "0 1px 2px color-mix(in srgb, var(--primary) 30%, transparent), 0 3px 8px -2px color-mix(in srgb, var(--primary) 28%, transparent)"},
     "lift-primary-hover": {"$type": "shadow", "$value": "0 2px 4px color-mix(in srgb, var(--primary) 28%, transparent), 0 8px 18px -4px color-mix(in srgb, var(--primary) 34%, transparent)"},
     "lift-primary-active": {"$type": "shadow", "$value": "0 1px 1px color-mix(in srgb, var(--primary) 30%, transparent)"},
-    "ring-focus": {"$type": "shadow", "$value": "0 0 0 1px var(--ring), 0 0 0 4px color-mix(in srgb, var(--ring) 18%, transparent)"}
+    "ring-focus": {"$type": "shadow", "$value": "0 0 0 1px var(--ring), 0 0 0 4px color-mix(in srgb, var(--ring) 18%, transparent)"},
+    "nav-active": {"$type": "shadow", "$value": "0 1px 2px rgb(0 0 0 / 0.16), 0 3px 8px -3px rgb(0 0 0 / 0.26)"}
   },
   "dark": {
     "shadow": {

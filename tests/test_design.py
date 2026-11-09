@@ -265,8 +265,12 @@ def test_a_design_without_layers_keeps_its_look():
         '--shadow-ring-focus': '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)',
     }
     assert light['--surface-card'] == 'linear-gradient(170deg, var(--surface-light) 0%, var(--card) 55%)'
-    # no glow of the paper and no gradient of the sidebar
+    # no glow of the paper and no gradient of the sidebar; the current link of the sidebar on its
+    # accent, without a bar or a shadow
     assert (light['--sidebar-to'], light['--glow-a']) == ('var(--sidebar)', 'transparent')
+    assert (light['--nav-active'], light['--nav-active-bar'], light['--shadow-nav-active']) == (
+        'var(--sidebar-accent)', 'transparent', '0 0 #0000',
+    )
     assert 'body::before' not in css and 'background-image' not in css
 
 
@@ -330,6 +334,13 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     assert (dark['--glow-a'], dark['--sidebar-to']) == (
         frost['dark']['color']['glow-a']['$value'], frost['dark']['color']['sidebar-to']['$value'],
     )
+    # the current link of the sidebar: a flat light fill with a bar of the honey of the sidebar,
+    # lifted by a black shadow on the dark sidebar of both modes
+    assert (light['--nav-active'], light['--nav-active-bar']) == (
+        'color-mix(in srgb, #fff 6.5%, var(--sidebar))', 'var(--sidebar-primary)',
+    )
+    assert light['--shadow-nav-active'] == lifted['shadow']['nav-active']['$value'] and '--shadow-nav-active' not in dark
+    assert mapping['--shadow-nav-active'] == 'var(--shadow-nav-active)'
 
 
 def block_of(css: str, selector: str, occurrence: int = 1) -> dict[str, str]:
