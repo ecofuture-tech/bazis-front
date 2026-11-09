@@ -230,6 +230,8 @@ export function useWide(): boolean {
 
 const ShellContext = createContext<Navigation | null>(null);
 const ItemsContext = createContext<readonly NavItem[]>([]);
+/** Whether the links are those of a rail, only their icons seen: their labels in their titles. */
+const RailContext = createContext(false);
 
 /** The links of the navigation of the layout (`items` of `AppShell`, those of its groups in their place), none outside it. */
 export function useNavItems(): readonly NavItem[] {
@@ -590,6 +592,8 @@ const CURRENT = {
 /** A link of the navigation, `nav:<screen>`, shown once the backend allows what it requires. */
 function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps & { item: NavItem }) {
   const Icon = item.icon;
+  const rail = useContext(RailContext);
+  const label = typeof item.label === 'string' ? item.label : undefined;
   return (
     <Allowed requirement={item.requires}>
       <li data-nav-entry={copy ? item.screen : undefined} className={vertical ? AFTER_GROUP.vertical : AFTER_GROUP.horizontal}>
@@ -598,7 +602,7 @@ function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps &
           end={item.end}
           data-bz={copy ? undefined : `nav:${item.screen}`}
           // the label of a link of a rail, only the icon of which is seen
-          title={typeof item.label === 'string' ? item.label : undefined}
+          title={rail ? label : undefined}
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
@@ -617,7 +621,9 @@ function NavLinkEntry({ item, vertical, onNavigate, copy = false }: EntryProps &
               )}
             />
           )}
-          <span className="truncate group-data-[state=collapsed]/sidebar:sr-only">{item.label}</span>
+          <span title={label} className="truncate group-data-[state=collapsed]/sidebar:sr-only">
+            {item.label}
+          </span>
           {item.count && <NavCount screen={copy ? undefined : item.screen} count={item.count} vertical={vertical} />}
         </NavLink>
       </li>
@@ -885,7 +891,9 @@ export function AppShell({
             <Brand title={title} mark={brand} />
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">
-            <Navigation items={items} />
+            <RailContext value={collapsed}>
+              <Navigation items={items} />
+            </RailContext>
           </div>
           {/* the foot: the toggles and the tools of the product on a row that wraps, the
               session on a row of its own under them, so that neither pushes the other out */}

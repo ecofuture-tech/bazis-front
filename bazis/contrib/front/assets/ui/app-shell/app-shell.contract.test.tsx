@@ -632,6 +632,9 @@ describe('AppShell', () => {
     const first = renderWithBazis(shell, new Backend());
     const aside = () => screen.getByTestId('nav:home').closest('aside');
     expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    // an expanded link is named by its text, its title only that of its label, which may be cut
+    expect(screen.getByTestId('nav:task-list').hasAttribute('title')).toBe(false);
+    expect(screen.getByText('Tasks').getAttribute('title')).toBe('Tasks');
     fireEvent.click(screen.getByRole('button', { name: 'Collapse the sidebar' }));
     expect(aside()?.getAttribute('data-state')).toBe('collapsed');
     // a link keeps its mark and its label, also in its title (only its icon is seen)
