@@ -309,10 +309,10 @@ test('elevated: a card and an outline button look as in 0.12, an input keeps the
 });
 
 /**
- * The rows of the dashboard in focus (`focus.html`) whose part `hide` the user may not view:
- * for each row shown, the widths of the parts shown and the room of the row they leave.
+ * Opens the dashboard in focus (`focus.html`) at `width` with `query`: the backend forbids the
+ * route set `hidden`, answers the others.
  */
-async function focusRows(page: Page, width: number, hide: string) {
+async function openFocus(page: Page, width: number, query: string) {
   await page.setViewportSize({ width, height: 900 });
   await page.route('**/api/test/**', async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -320,7 +320,15 @@ async function focusRows(page: Page, width: number, hide: string) {
     else if (pathname.endsWith('/schema_list/')) await route.fulfill({ json: { title: 'list' } });
     else await route.fulfill({ json: { data: [], meta: { aggregates: { count: 2 } } } });
   });
-  await page.goto(`${origin}/focus.html?hide=${hide}`);
+  await page.goto(`${origin}/focus.html?${query}`);
+}
+
+/**
+ * The rows of the dashboard in focus whose part `hide` the user may not view: for each row
+ * shown, the widths of the parts shown and the room of the row they leave.
+ */
+async function focusRows(page: Page, width: number, hide: string) {
+  await openFocus(page, width, `hide=${hide}`);
   await expect(page.locator('[data-bz="state:loading"]')).toHaveCount(0);
   await expect(page.locator('[data-bz^="tile:"], [data-testid="focus"]').first()).toBeVisible();
   return page.locator('[data-bz="screen:home"] .xl\\:flex-row').evaluateAll((rows) =>
@@ -355,5 +363,16 @@ for (const width of [1280, 390]) {
       const rows = await focusRows(page, width, hide);
       expect(rows.map((it) => [it.parts, it.room]), hide).toEqual(hide === 'focus' || hide === 'tiles' ? [[1, 0], [2, 0]] : [[2, 0], [1, 0]]);
     }
+  });
+}
+
+for (const width of [768, 390]) {
+  test(`a long label of a quick link of a dashboard is cut at ${String(width)} px, the page never widened`, async ({ page }) => {
+    await openFocus(page, width, `link=${encodeURIComponent('A quick link whose label is longer than any column of the dashboard has room for '.repeat(2))}`);
+    const link = page.locator('[data-bz="link:long"]');
+    await expect(link).toBeVisible();
+    expect(await scrollsSideways(page)).toBe(false);
+    const box = await link.boundingBox();
+    expect(box && box.x + box.width).toBeLessThanOrEqual(width);
   });
 }

@@ -17,7 +17,7 @@
 // `vitest.config.ts` and the Tailwind of a product), what jsdom does not lay out: the chart in
 // focus, the rail of the tiles, the charts and the last items, each of the route set of the test
 // or, the part named by the query `hide`, of a route set that the backend does not let the user
-// view (the test answers both).
+// view (the test answers both); the query `link`, the label of a quick link (`link:long`).
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
@@ -29,7 +29,9 @@ import { LanguageProvider } from '@/bazis/i18n';
 import { BazisProvider } from '@/bazis/react';
 import { Dashboard, Viewable } from '@/bazis/ui/dashboard';
 
-const hide = new URLSearchParams(window.location.search).get('hide');
+const query = new URLSearchParams(window.location.search);
+const hide = query.get('hide');
+const link = query.get('link');
 /** The route set of a part: one that the user may not view for the part `hide`. */
 const path = (part: string) => (part === hide ? '/api/test/hidden/' : '/api/test/item/') as never;
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -44,7 +46,7 @@ if (root) {
           <MemoryRouter>
             <Dashboard
               hero={false}
-              links={[]}
+              links={link === null ? [] : [{ screen: 'long', label: link, to: '/long' }]}
               focus={
                 <Viewable path={path('focus')}>
                   <div data-testid="focus" className="h-80" />
