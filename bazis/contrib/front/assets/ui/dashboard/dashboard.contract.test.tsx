@@ -114,7 +114,7 @@ describe('Dashboard', () => {
     const server = new Backend()
       .on('GET', `${ITEMS}schema_list/`, schema)
       .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { meta: { aggregates: { count: 4 } } }));
-    const { unmount } = renderWithBazis(
+    renderWithBazis(
       <Dashboard
         hero={false}
         links={[]}
@@ -132,27 +132,65 @@ describe('Dashboard', () => {
       expect(screen.getByTestId('tile:mine').getAttribute('data-value')).toBe('4');
     });
     const recent = await screen.findByTestId('recent:items');
-    const parts = [screen.getByTestId('chart:weeks'), screen.getByTestId('tile:all'), screen.getByTestId('chart:by-status'), recent];
-    // the parts in one grid, in this order: the chart in focus, the rail, the charts, the last items
-    expect(parts.map((it) => it.parentElement?.parentElement)).toEqual(Array(4).fill(parts[0]?.parentElement?.parentElement));
-    expect(parts.map((it) => [...(it.parentElement?.classList ?? [])].find((name) => name.startsWith('xl:col-span-')))).toEqual([
-      'xl:col-span-8',
-      'xl:col-span-4',
-      'xl:col-span-4',
-      'xl:col-span-8',
+    const parent = (it: HTMLElement) => it.parentElement as HTMLElement;
+    const focus = parent(screen.getByTestId('chart:weeks'));
+    const rail = parent(screen.getByTestId('tile:all'));
+    const charts = parent(screen.getByTestId('chart:by-status'));
+    const lists = parent(recent);
+    // two rows: the chart in focus and the rail, the charts and the last items, sharing the
+    // width by their parts (2 : 1, 1 : 2), not by a span of columns
+    expect(rail.previousElementSibling).toBe(focus);
+    expect(lists.previousElementSibling).toBe(charts);
+    expect([focus, rail, charts, lists].map((it) => [...it.classList].find((name) => name.startsWith('xl:flex-')))).toEqual([
+      'xl:flex-[2]',
+      'xl:flex-1',
+      'xl:flex-1',
+      'xl:flex-[2]',
     ]);
     // the tiles are the rows of one surface
-    expect(screen.getByTestId('tile:all').parentElement?.classList).toContain('surface');
+    expect(rail.classList).toContain('surface');
     expect(screen.getByTestId('tile:all').classList).not.toContain('surface');
-    unmount();
+  });
 
-    // without tiles and the last items, the chart in focus and the charts take the width
-    renderWithBazis(
-      <Dashboard hero={false} links={[]} focus={<div data-bz="chart:weeks" />} charts={<div data-bz="chart:by-status" />} />,
-      new Backend(),
-    );
-    expect(screen.getByTestId('chart:weeks').parentElement?.classList).toContain('xl:col-span-12');
-    expect(screen.getByTestId('chart:by-status').parentElement?.classList).toContain('xl:col-span-12');
+  it('leaves the place of a part in focus that the user may not view to the others of its row', async () => {
+    const hidden = '/api/test/hidden/';
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { meta: { aggregates: { count: 4 } } }))
+      .on('GET', `${hidden}schema_list/`, errors(403), 403);
+    const parts = (hide: string) => ({
+      focus: (
+        <Viewable path={(hide === 'focus' ? hidden : ITEMS) as never}>
+          <div data-bz="chart:weeks" />
+        </Viewable>
+      ),
+      tiles: [{ id: 'all', path: (hide === 'tiles' ? hidden : ITEMS) as never, label: 'All' }],
+      charts: (
+        <Viewable path={(hide === 'charts' ? hidden : ITEMS) as never}>
+          <div data-bz="chart:by-status" />
+        </Viewable>
+      ),
+      recent: [{ id: 'items', path: (hide === 'recent' ? hidden : ITEMS) as never, label: 'Items', columns: ['title'] }],
+    });
+    for (const [hide, shown] of [
+      ['focus', 'tile:all'],
+      ['tiles', 'chart:weeks'],
+      ['charts', 'recent:items'],
+      ['recent', 'chart:by-status'],
+    ] as const) {
+      const { unmount } = renderWithBazis(<Dashboard hero={false} links={[]} {...parts(hide)} />, server);
+      const part = await screen.findByTestId(shown);
+      await waitFor(() => {
+        expect(screen.queryAllByTestId('state:loading')).toEqual([]);
+      });
+      // the part that the user may not view leaves its place empty, which hides it; its row hides
+      // with no part shown
+      const row = part.closest('.xl\\:flex-row') as HTMLElement;
+      expect([...row.children].filter((it) => it.childElementCount === 0)).toHaveLength(1);
+      expect([...row.children].every((it) => it.classList.contains('empty:hidden'))).toBe(true);
+      expect(row.classList).toContain('not-has-[>:not(:empty)]:hidden');
+      unmount();
+    }
   });
 
   it('links the other screens of the navigation, each once the backend allows it', async () => {

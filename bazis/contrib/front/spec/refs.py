@@ -52,6 +52,8 @@ CARD_EDIT = 'edit'
 
 #: the types of the fields of the days of a calendar and of the charts by date
 DATES = ('date', 'datetime')
+#: the kinds of the chart in focus of a dashboard: its periods under the value of the current one
+FOCUS_KINDS = ('bar', 'line')
 #: the types of the fields that the aggregates of the core sum and average; also a
 #: DecimalField, a `string` of the format `decimal` in the contract
 NUMBERS = ('integer', 'number')
@@ -1404,8 +1406,8 @@ def _check_dashboard(doc: Document, product: Product, screens: dict, contract: d
 def _check_focus(doc: Document, issues: Issues) -> None:
     """
     The chart in focus of `layout: focus` (S067): a chart of the dashboard by a date, whose value
-    is that of the current period (the last one); the sum of its periods is not that of an
-    average. A grid has no chart in focus.
+    is that of the current period (the last one), as bars or a line; the sum of its periods is
+    not that of an average. A grid has no chart in focus.
     """
     dashboard = doc.data['dashboard']
     hero = dashboard.get('hero')
@@ -1421,13 +1423,20 @@ def _check_focus(doc: Document, issues: Issues) -> None:
         return
     if hero is None:
         return
-    chart = next((it for it in dashboard.get('charts', []) if it['id'] == hero['chart']), None)
+    index, chart = next(((i, it) for i, it in enumerate(dashboard.get('charts', [])) if it['id'] == hero['chart']), (None, None))
     if chart is None:
         issues.add(doc, ('dashboard', 'hero', 'chart'), 'S067', f'`{hero["chart"]}` is not a chart of the dashboard.', hint)
     elif chart['by'] == STATUS_FIELD:
         issues.add(
             doc, ('dashboard', 'hero', 'chart'), 'S067',
             f'The chart `{chart["id"]}` is by the status: it has no current period.', hint,
+        )
+    elif chart['kind'] not in FOCUS_KINDS:
+        issues.add(
+            doc, ('dashboard', 'charts', index, 'kind'), 'S067',
+            f'The chart in focus is a `{chart["kind"]}`: its periods are drawn under the value of the current one '
+            'as bars or a line.',
+            'Draw the chart in focus as `bar` or `line`.',
         )
     elif 'avg' in chart.get('value', {}) and 'total' in hero.get('side', []):
         issues.add(

@@ -131,25 +131,27 @@ export function Chart({
         {kind === 'distribution' ? (
           <Distribution points={points} />
         ) : (
-          <div className={cn('grid gap-4', kind === 'donut' && 'sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center')}>
+          <div className="grid gap-4">
             {hero && <Hero values={values} {...hero} />}
-            {/* the drawing is for the eyes: the values are the text below it */}
-            <div aria-hidden="true" className={cn('min-w-0', hero ? 'h-72' : 'h-56')}>
-              <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="size-full" />}>
-                <ChartView kind={kind} points={points} periods={periods} />
-              </Suspense>
+            <div className={cn('grid gap-4', kind === 'donut' && 'sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center')}>
+              {/* the drawing is for the eyes: the values are the text below it */}
+              <div aria-hidden="true" className={cn('min-w-0', hero ? 'h-72' : 'h-56')}>
+                <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="size-full" />}>
+                  <ChartView kind={kind} points={points} periods={periods} />
+                </Suspense>
+              </div>
+              <ul className={cn('grid content-start gap-2 text-sm', kind !== 'donut' && 'sr-only')}>
+                {points.map((it) => (
+                  <li key={it.key} data-bz={`value:${it.key}`} data-value={it.value} className="flex items-center gap-2">
+                    <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: it.color }} />
+                    <span title={it.label} className="min-w-0 flex-1 truncate">
+                      {it.label}
+                    </span>
+                    <span className="font-medium tabular-nums">{formatNumber(it.value, language)}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className={cn('grid content-start gap-2 text-sm', kind !== 'donut' && 'sr-only')}>
-              {points.map((it) => (
-                <li key={it.key} data-bz={`value:${it.key}`} data-value={it.value} className="flex items-center gap-2">
-                  <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: it.color }} />
-                  <span title={it.label} className="min-w-0 flex-1 truncate">
-                    {it.label}
-                  </span>
-                  <span className="font-medium tabular-nums">{formatNumber(it.value, language)}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         )}
       </StatePanel>

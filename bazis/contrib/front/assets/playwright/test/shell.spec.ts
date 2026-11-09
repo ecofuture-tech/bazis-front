@@ -42,7 +42,7 @@ test.beforeAll(async () => {
     // a cache of its own: the page of the pickers bundles other dependencies
     cacheDir: fileURLToPath(new URL('../test-results/.vite-shell', import.meta.url)),
     // the dependencies are bundled before the page loads: no reload in a test
-    optimizeDeps: { entries: ['shell.tsx', 'surfaces.tsx'] },
+    optimizeDeps: { entries: ['shell.tsx', 'surfaces.tsx', 'focus.tsx'] },
     server: { host: '127.0.0.1', port: 0, strictPort: false, hmr: false },
     logLevel: 'error',
   });
@@ -307,3 +307,53 @@ test('elevated: a card and an outline button look as in 0.12, an input keeps the
   expect(field.widths).toEqual(['0px', '0px', '1px', '0px']);
   expect(field.colors[2]).toBe(was.colors[2]);
 });
+
+/**
+ * The rows of the dashboard in focus (`focus.html`) whose part `hide` the user may not view:
+ * for each row shown, the widths of the parts shown and the room of the row they leave.
+ */
+async function focusRows(page: Page, width: number, hide: string) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.route('**/api/test/**', async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname.startsWith('/api/test/hidden/')) await route.fulfill({ status: 403, json: { errors: [{ status: 403, code: 'ERR_FORBIDDEN' }] } });
+    else if (pathname.endsWith('/schema_list/')) await route.fulfill({ json: { title: 'list' } });
+    else await route.fulfill({ json: { data: [], meta: { aggregates: { count: 2 } } } });
+  });
+  await page.goto(`${origin}/focus.html?hide=${hide}`);
+  await expect(page.locator('[data-bz="state:loading"]')).toHaveCount(0);
+  await expect(page.locator('[data-bz^="tile:"], [data-testid="focus"]').first()).toBeVisible();
+  return page.locator('[data-bz="screen:home"] .xl\\:flex-row').evaluateAll((rows) =>
+    rows
+      .filter((row) => getComputedStyle(row).display !== 'none')
+      .map((row) => {
+        const shown = [...row.children].filter((it) => getComputedStyle(it).display !== 'none');
+        const gap = parseFloat(getComputedStyle(row).columnGap);
+        const widths = shown.map((it) => it.getBoundingClientRect().width);
+        const across = getComputedStyle(row).flexDirection === 'row';
+        // the room that the parts leave in the row: none when they fill it
+        const room = across ? row.getBoundingClientRect().width - widths.reduce((sum, it) => sum + it, 0) - gap * (shown.length - 1) : Math.max(...widths.map((it) => row.getBoundingClientRect().width - it));
+        return { parts: shown.length, widths: widths.map(Math.round), room: Math.round(room) };
+      }),
+  );
+}
+
+for (const width of [1280, 390]) {
+  test(`a dashboard in focus at ${String(width)} px: a part that the user may not view leaves its place to the others of its row`, async ({ page }) => {
+    const all = await focusRows(page, width, 'none');
+    expect(all.map((it) => [it.parts, it.room])).toEqual([
+      [2, 0],
+      [2, 0],
+    ]);
+    if (width === 1280) {
+      // the chart in focus two thirds of its row, the rail one; the charts one third, the last items two
+      const [first, second] = all.map((it) => it.widths);
+      expect(Math.abs((first?.[0] ?? 0) - 2 * (first?.[1] ?? 0))).toBeLessThan(2);
+      expect(Math.abs(2 * (second?.[0] ?? 0) - (second?.[1] ?? 0))).toBeLessThan(2);
+    }
+    for (const hide of ['focus', 'tiles', 'charts', 'recent']) {
+      const rows = await focusRows(page, width, hide);
+      expect(rows.map((it) => [it.parts, it.room]), hide).toEqual(hide === 'focus' || hide === 'tiles' ? [[1, 0], [2, 0]] : [[2, 0], [1, 0]]);
+    }
+  });
+}

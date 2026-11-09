@@ -1169,7 +1169,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S064` | error | the cards of a list (`list.card`) name a field that is not in `columns`, a `media` that is not a file field with `display: image`, or one field in two roles; or the list never shows cards (a table on both: `layout` and `layout_phone`, by default `composition.list` and `composition.list_phone` of the theme) |
 | `S065` | error | the summary of a card (`card.summary`): `range` is not two date or date-time fields, or `figure` is not a number, a decimal or a date (a field that the entity does not declare is S007) |
 | `S066` | warning | a field of the summary of a card is also in a section of it: the card shows it twice. Leave it in the summary only: the edit of the card asks for it too |
-| `S067` | error | the focus of a dashboard: `layout: focus` without `hero` or `hero` without it, `hero.chart` is not a chart of the dashboard or is by the `status` (its value is that of the current period, the last), or `hero.side` has the `total` of an `avg` |
+| `S067` | error | the focus of a dashboard: `layout: focus` without `hero` or `hero` without it, `hero.chart` is not a chart of the dashboard, is by the `status` (its value is that of the current period, the last) or is not a `bar` or a `line`, or `hero.side` has the `total` of an `avg` |
 | `S068` | error | a chart `kind: distribution` (the shares of a whole) is by a date rather than the `status`, or of an `avg` |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |

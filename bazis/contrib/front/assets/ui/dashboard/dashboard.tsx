@@ -42,6 +42,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 const CARD = 'surface text-card-foreground';
+/** A row of the focus: its parts one under the other, beside each other on a wide screen; hidden with none shown. */
+const ROW = 'flex flex-col gap-4 not-has-[>:not(:empty)]:hidden xl:flex-row xl:gap-5';
+/**
+ * The rail of the tiles, a row each with a line between the rows: one column beside the chart in
+ * focus on a wide screen, two otherwise (the last of an odd number of tiles taking its row).
+ */
+const RAIL = cn(
+  'surface grid min-w-0 grid-cols-2 py-2 empty:hidden xl:flex-1',
+  '*:border-line-6 *:not-first:border-t *:nth-2:border-t-0 *:last:odd:col-span-2',
+  'xl:[[data-slot=dashboard-focus]:not(:empty)+&]:auto-rows-fr xl:[[data-slot=dashboard-focus]:not(:empty)+&]:grid-cols-1',
+  'xl:[[data-slot=dashboard-focus]:not(:empty)+&]:*:nth-2:border-t xl:[[data-slot=dashboard-focus]:not(:empty)+&]:*:last:odd:col-span-1',
+);
 const FOCUS = 'outline-none focus-visible:ring-focus';
 
 /** What the backend must let the user do with the items of a part for it to be shown (`requires` of the specs). */
@@ -292,26 +304,25 @@ export function Dashboard({
             <div className="grid grid-cols-2 gap-3 max-sm:*:last:odd:col-span-2 sm:gap-4 xl:grid-cols-4">{cards('card')}</div>
           )
         ) : (
-          // a part that the user may not view leaves no hole: the others take its place
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-12 xl:gap-5">
-            <div className={cn('grid empty:hidden', tiles.length > 0 ? 'xl:col-span-8' : 'xl:col-span-12')}>{focus}</div>
-            {tiles.length > 0 && (
-              // the rail: a row for each tile with a line between the rows, two columns on a
-              // narrow screen (the last of an odd number of tiles taking its row)
-              <div className="surface grid grid-cols-2 py-2 empty:hidden *:border-line-6 *:not-first:border-t max-xl:*:nth-2:border-t-0 max-xl:*:last:odd:col-span-2 xl:col-span-4 xl:auto-rows-fr xl:grid-cols-1">
-                {cards('rail')}
+          // two rows whose parts share the width (the chart in focus two thirds, the rail one; the
+          // charts one third, the last items two): a part that the user may not view is empty and
+          // hidden, and the others of its row take its place; a row with nothing shown is hidden
+          <div className="grid gap-4 xl:gap-5">
+            <div className={ROW}>
+              <div data-slot="dashboard-focus" className="grid min-w-0 empty:hidden xl:flex-[2]">
+                {focus}
               </div>
-            )}
-            {charts !== undefined && (
-              <div className={cn('grid content-start gap-4 empty:hidden', recent.length > 0 ? 'xl:col-span-4' : 'xl:col-span-12 xl:grid-cols-3')}>
-                {charts}
-              </div>
-            )}
-            {recent.length > 0 && (
-              <div className={cn('grid content-start gap-4 empty:hidden', charts !== undefined ? 'xl:col-span-8' : 'xl:col-span-12')}>
-                {lists}
-              </div>
-            )}
+              {tiles.length > 0 && <div className={RAIL}>{cards('rail')}</div>}
+            </div>
+            <div className={ROW}>
+              {charts !== undefined && (
+                // as many columns of charts as their width takes: one beside the last items
+                <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] content-start gap-4 empty:hidden xl:flex-1">
+                  {charts}
+                </div>
+              )}
+              {recent.length > 0 && <div className="grid min-w-0 content-start gap-4 empty:hidden xl:flex-[2]">{lists}</div>}
+            </div>
           </div>
         )}
         {shown.length > 0 && (

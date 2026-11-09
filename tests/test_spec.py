@@ -1107,6 +1107,12 @@ CASES = [
     ),
     (
         'S067',
+        # a ring in focus: the periods are bars or a line under the value of the current one
+        {HOME: lambda d: d['dashboard']['charts'][1].update(kind='donut')},
+        [('S067', f'{HOME}#/dashboard/charts/1/kind')],
+    ),
+    (
+        'S067',
         # a chart in focus of a dashboard laid out as a grid
         {HOME: lambda d: d['dashboard'].update(layout='grid')},
         [('S067', f'{HOME}#/dashboard/hero')],
