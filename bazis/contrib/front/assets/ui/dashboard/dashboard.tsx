@@ -18,7 +18,9 @@
 // `@/bazis/ui/charts`, an optional asset) and the last items of a route set
 // (`recent:<id>`, a row `row:<id>` with a cell `cell:<field>` each). Its title is the header of
 // a working screen, the hero of a portal (`preset` of the theme): never a path of the API or
-// the name of a resource. A tile, a chart or the last items of a route set that the backend
+// the name of a resource. Laid out in focus (`focus`, `layout: focus` of the specs), a chart is
+// large beside the tiles as a rail, the other charts and the last items in a row under them.
+// A tile, a chart or the last items of a route set that the backend
 // does not let the user view are not shown to him (`Viewable`): the money of a clinic on the
 // home of its receptionist, not on that of its doctor; with `requires: {can: 'add'}` a part is
 // shown to those who may add an item, as the link of the navigation is: the tile "New" of a
@@ -105,7 +107,7 @@ export function RecentList({
   const [first, ...rest] = columns;
   return (
     <section data-bz={`recent:${id}`} className={cn(CARD, 'grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-(--space-card)', className)}>
-      <h2 className="text-sm font-medium text-muted-foreground">{label}</h2>
+      <h2 className="font-eyebrow text-muted-foreground">{label}</h2>
       <StatePanel
         inline
         state={queryState(list, rows.length === 0)}
@@ -129,9 +131,10 @@ export function RecentList({
                 ))}
               </>
             );
-            const layout = 'flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 text-left pointer-coarse:min-h-11';
+            const layout = 'flex min-h-14 w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 text-left';
             return (
-              <li key={row.id} data-bz={`row:${row.id}`}>
+              // a line between the rows
+              <li key={row.id} data-bz={`row:${row.id}`} className="border-b border-line-6 last:border-b-0">
                 {onOpen ? (
                   <button
                     type="button"
@@ -217,6 +220,12 @@ export interface DashboardProps {
   links?: readonly NavItem[];
   /** The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`. */
   charts?: ReactNode;
+  /**
+   * The chart in focus (`layout: focus` of the specs, a `TimeChart` with `hero` in `Viewable`):
+   * large beside the tiles, a rail of rows (`layout="rail"` of `StatCard`), with the other
+   * charts in a column beside the last items under them; one column on a narrow screen.
+   */
+  focus?: ReactNode;
   recent?: readonly (RecentListProps & DashboardPart)[];
   /**
    * What the screen shows after its parts, such as the create forms of its actions: in the
@@ -237,6 +246,7 @@ export function Dashboard({
   tiles = [],
   links,
   charts,
+  focus,
   recent = [],
   children,
 }: DashboardProps) {
@@ -245,6 +255,17 @@ export function Dashboard({
   const navigation = useNavItems();
   const shown = (links ?? navigation).filter((it) => it.screen !== id);
   const header = hero ? {} : { title, description, actions };
+  const cards = (layout: 'card' | 'rail') =>
+    tiles.map(({ requires, ...it }) => (
+      <Viewable key={it.id} path={it.path} can={requires?.can}>
+        <StatCard {...it} layout={layout} />
+      </Viewable>
+    ));
+  const lists = recent.map(({ requires, ...it }) => (
+    <Viewable key={it.id} path={it.path} can={requires?.can}>
+      <RecentList {...it} />
+    </Viewable>
+  ));
   return (
     <Screen id={id} {...header}>
       {/* the dashboard is shown at once, its parts with the states of their lists: a screen of
@@ -264,15 +285,33 @@ export function Dashboard({
         )}
         {today && <Today />}
         {before}
-        {tiles.length > 0 && (
-          // on a phone two columns, the last tile of an odd number of them (those the user views)
-          // taking the row: never a hole beside it
-          <div className="grid grid-cols-2 gap-3 max-sm:*:last:odd:col-span-2 sm:gap-4 xl:grid-cols-4">
-            {tiles.map(({ requires, ...it }) => (
-              <Viewable key={it.id} path={it.path} can={requires?.can}>
-                <StatCard {...it} />
-              </Viewable>
-            ))}
+        {focus === undefined ? (
+          tiles.length > 0 && (
+            // on a phone two columns, the last tile of an odd number of them (those the user views)
+            // taking the row: never a hole beside it
+            <div className="grid grid-cols-2 gap-3 max-sm:*:last:odd:col-span-2 sm:gap-4 xl:grid-cols-4">{cards('card')}</div>
+          )
+        ) : (
+          // a part that the user may not view leaves no hole: the others take its place
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-12 xl:gap-5">
+            <div className={cn('grid empty:hidden', tiles.length > 0 ? 'xl:col-span-8' : 'xl:col-span-12')}>{focus}</div>
+            {tiles.length > 0 && (
+              // the rail: a row for each tile with a line between the rows, two columns on a
+              // narrow screen (the last of an odd number of tiles taking its row)
+              <div className="surface grid grid-cols-2 py-2 empty:hidden *:border-line-6 *:not-first:border-t max-xl:*:nth-2:border-t-0 max-xl:*:last:odd:col-span-2 xl:col-span-4 xl:auto-rows-fr xl:grid-cols-1">
+                {cards('rail')}
+              </div>
+            )}
+            {charts !== undefined && (
+              <div className={cn('grid content-start gap-4 empty:hidden', recent.length > 0 ? 'xl:col-span-4' : 'xl:col-span-12 xl:grid-cols-3')}>
+                {charts}
+              </div>
+            )}
+            {recent.length > 0 && (
+              <div className={cn('grid content-start gap-4 empty:hidden', charts !== undefined ? 'xl:col-span-8' : 'xl:col-span-12')}>
+                {lists}
+              </div>
+            )}
           </div>
         )}
         {shown.length > 0 && (
@@ -291,15 +330,9 @@ export function Dashboard({
             </ul>
           </nav>
         )}
-        {charts !== undefined && <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">{charts}</div>}
-        {recent.length > 0 && (
-          <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4', recent.length > 1 && 'xl:grid-cols-2')}>
-            {recent.map(({ requires, ...it }) => (
-              <Viewable key={it.id} path={it.path} can={requires?.can}>
-                <RecentList {...it} />
-              </Viewable>
-            ))}
-          </div>
+        {focus === undefined && charts !== undefined && <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">{charts}</div>}
+        {focus === undefined && recent.length > 0 && (
+          <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4', recent.length > 1 && 'xl:grid-cols-2')}>{lists}</div>
         )}
       </div>
       {children}

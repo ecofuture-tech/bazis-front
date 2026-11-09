@@ -1048,12 +1048,14 @@ CASES = [
     (
         'S021',
         # a chart by a text, a week of the statuses, and the statuses of an entity without a workflow
+        # (the chart of the weeks is in focus: by the status it has no current period, S067)
         {HOME: lambda d: [d['dashboard']['charts'][0].update(by='title'),
                           d['dashboard']['charts'][1].update(by='status'),
                           d['dashboard']['charts'].append({'id': 'users', 'entity': 'user', 'by': 'status',
                                                            'kind': 'donut', 'label': {'en': 'Users', 'ru': 'Пользователи'}})]},
         [('S021', f'{HOME}#/dashboard/charts/0/by'), ('S021', f'{HOME}#/dashboard/charts/1/bucket'),
-         ('S021', f'{HOME}#/dashboard/charts/1/last'), ('S021', f'{HOME}#/dashboard/charts/3/by')],
+         ('S021', f'{HOME}#/dashboard/charts/1/last'), ('S021', f'{HOME}#/dashboard/charts/3/by'),
+         ('S067', f'{HOME}#/dashboard/hero/chart')],
     ),
     (
         'S049',
@@ -1080,6 +1082,41 @@ CASES = [
          HOME: lambda d: d['dashboard']['tiles'][0].update(value={'sum': 'rank'})},
         [('S007', f'{HOME}#/dashboard/tiles/0/value/sum'), ('S050', f'{HOME}#/dashboard/tiles/4/value/sum'),
          ('S050', f'{HOME}#/dashboard/charts/2/value/sum')],
+    ),
+    (
+        'S067',
+        # the focus without its chart; a chart in focus that is not of the dashboard
+        {HOME: lambda d: [d['dashboard'].pop('hero')]},
+        [('S067', f'{HOME}#/dashboard/layout')],
+    ),
+    (
+        'S067',
+        {HOME: lambda d: d['dashboard']['hero'].update(chart='by-week')},
+        [('S067', f'{HOME}#/dashboard/hero/chart')],
+    ),
+    (
+        'S067',
+        # the chart in focus is by the status; the sum of the periods of an average
+        {HOME: lambda d: d['dashboard']['hero'].update(chart='by-status')},
+        [('S067', f'{HOME}#/dashboard/hero/chart')],
+    ),
+    (
+        'S067',
+        {HOME: lambda d: d['dashboard']['charts'][1].update(value={'avg': 'hours'})},
+        [('S067', f'{HOME}#/dashboard/hero/side/2')],
+    ),
+    (
+        'S067',
+        # a chart in focus of a dashboard laid out as a grid
+        {HOME: lambda d: d['dashboard'].update(layout='grid')},
+        [('S067', f'{HOME}#/dashboard/hero')],
+    ),
+    (
+        'S068',
+        # a distribution of the weeks, a distribution of an average of the statuses
+        {HOME: lambda d: [d['dashboard']['charts'][2].update(kind='distribution'),
+                          d['dashboard']['charts'][0].update(value={'avg': 'hours'})]},
+        [('S068', f'{HOME}#/dashboard/charts/0/value/avg'), ('S068', f'{HOME}#/dashboard/charts/2/kind')],
     ),
     (
         'S022',

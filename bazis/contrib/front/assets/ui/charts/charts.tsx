@@ -19,9 +19,11 @@
 // 2.17; an aggregate that it refuses, 400 `ERR_AGGREGATE`, is the error of the chart with the
 // text of the backend), drawn by recharts (`chart-view.tsx`, loaded with the first chart shown) in
 // the colors of the series of the theme, a status in that of its tone (`statuses` of the theme,
-// the color of its badge). Marked `chart:<id>` with the states of its lists
-// (`state:<state>`) and each value `value:<key>` with the number in `data-value`: the
-// legend of a ring, a list for the screen readers under bars or a line.
+// the color of its badge); a distribution is drawn without recharts, a stacked bar of the
+// shares over their list. Marked `chart:<id>` with the states of its lists (`state:<state>`)
+// and each value `value:<key>` with the number in `data-value`: the legend of a ring or of a
+// distribution, a list for the screen readers under bars or a line. The chart in focus of a
+// dashboard (`hero` of `TimeChart`) shows the value of the current period large over it.
 
 import { lazy, Suspense, useMemo, type ReactNode } from 'react';
 
@@ -41,8 +43,11 @@ import { errorState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-/** A ring of the shares (`donut`), bars, or a line. */
-export type ChartKind = 'donut' | 'bar' | 'line';
+/** A ring of the shares (`donut`), bars, a line, or the shares as one stacked bar over their list (`distribution`). */
+export type ChartKind = 'donut' | 'bar' | 'line' | 'distribution';
+
+/** A figure beside the value of the current period: the period before, the largest value, the sum of the periods. */
+export type ChartSide = 'prev' | 'peak' | 'total';
 
 /** The period of a value of `TimeChart`. */
 export type ChartBucket = 'day' | 'week' | 'month';
@@ -76,6 +81,11 @@ export interface ChartProps {
   series?: boolean;
   /** The values are periods, the current one the last: the bars before it lighter. */
   periods?: boolean;
+  /**
+   * The values are periods of `bucket`: the value of the current one (the last) large over the
+   * drawing with its change on the one before, the figures `side` beside it.
+   */
+  hero?: { bucket: ChartBucket; side: readonly ChartSide[] } | undefined;
   /** The state of what it shows: `empty` when every value is 0. */
   state?: ViewState;
   error?: unknown;
@@ -88,8 +98,9 @@ export function Chart({
   label,
   kind = 'bar',
   values,
-  series = kind === 'donut',
+  series = kind === 'donut' || kind === 'distribution',
   periods = false,
+  hero,
   state = 'loaded',
   error,
   className,
@@ -117,27 +128,127 @@ export function Chart({
         className="min-w-0"
         skeleton={<Skeleton className="h-56 w-full" />}
       >
-        <div className={cn('grid gap-4', kind === 'donut' && 'sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center')}>
-          {/* the drawing is for the eyes: the values are the text below it */}
-          <div aria-hidden="true" className="h-56 min-w-0">
-            <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="size-full" />}>
-              <ChartView kind={kind} points={points} periods={periods} />
-            </Suspense>
+        {kind === 'distribution' ? (
+          <Distribution points={points} />
+        ) : (
+          <div className={cn('grid gap-4', kind === 'donut' && 'sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center')}>
+            {hero && <Hero values={values} {...hero} />}
+            {/* the drawing is for the eyes: the values are the text below it */}
+            <div aria-hidden="true" className={cn('min-w-0', hero ? 'h-72' : 'h-56')}>
+              <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="size-full" />}>
+                <ChartView kind={kind} points={points} periods={periods} />
+              </Suspense>
+            </div>
+            <ul className={cn('grid content-start gap-2 text-sm', kind !== 'donut' && 'sr-only')}>
+              {points.map((it) => (
+                <li key={it.key} data-bz={`value:${it.key}`} data-value={it.value} className="flex items-center gap-2">
+                  <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: it.color }} />
+                  <span title={it.label} className="min-w-0 flex-1 truncate">
+                    {it.label}
+                  </span>
+                  <span className="font-medium tabular-nums">{formatNumber(it.value, language)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className={cn('grid content-start gap-2 text-sm', kind !== 'donut' && 'sr-only')}>
-            {points.map((it) => (
-              <li key={it.key} data-bz={`value:${it.key}`} data-value={it.value} className="flex items-center gap-2">
-                <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: it.color }} />
-                <span title={it.label} className="min-w-0 flex-1 truncate">
-                  {it.label}
-                </span>
-                <span className="font-medium tabular-nums">{formatNumber(it.value, language)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        )}
       </StatePanel>
     </section>
+  );
+}
+
+/**
+ * The value of the current period (the last) large, its change on the one before, and the
+ * figures `side` of the periods beside it: the numbers of the values themselves, no query.
+ */
+function Hero({ values, bucket, side }: { values: readonly ChartValue[]; bucket: ChartBucket; side: readonly ChartSide[] }) {
+  const { language, t } = useLanguage();
+  const numbers = values.map((it) => it.value);
+  const current = numbers.at(-1) ?? 0;
+  const before = numbers.at(-2);
+  const figures: Readonly<Record<ChartSide, number | undefined>> = {
+    prev: before,
+    peak: Math.max(0, ...numbers),
+    total: numbers.reduce((sum, it) => sum + it, 0),
+  };
+  return (
+    <div data-slot="chart-hero" className="flex flex-wrap items-end justify-between gap-x-7 gap-y-3">
+      <p className="flex items-center gap-4">
+        <span data-value={current} className="font-heading text-[3.25rem] leading-none tabular-nums">
+          {formatNumber(current, language)}
+        </span>
+        <span className="grid gap-0.5 text-[0.8125rem] text-muted-foreground">
+          <span className="text-sm font-medium text-foreground">{t(`chart.hero.current.${bucket}`)}</span>
+          {before !== undefined && (
+            <span>
+              {current === before
+                ? t('chart.hero.same')
+                : t(`chart.hero.delta.${bucket}`, { delta: formatNumber(current - before, language, { signDisplay: 'always' }) })}
+            </span>
+          )}
+        </span>
+      </p>
+      {side.length > 0 && (
+        <dl className="flex gap-7">
+          {side.map((it) => {
+            const figure = figures[it];
+            return (
+              figure !== undefined && (
+                <div key={it} className="grid gap-0.5 text-right">
+                  <dt className="text-xs text-muted-foreground">{t(it === 'prev' ? `chart.side.prev.${bucket}` : `chart.side.${it}`)}</dt>
+                  <dd data-value={figure} className="font-heading text-[1.375rem] leading-6 text-foreground/75 tabular-nums">
+                    {formatNumber(figure, language)}
+                  </dd>
+                </div>
+              )
+            );
+          })}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+/** The shares of the values: their sum large, one stacked bar of them, and their list with their shares. */
+function Distribution({ points }: { points: readonly (ChartValue & { color: string })[] }) {
+  const { language, t } = useLanguage();
+  const total = points.reduce((sum, it) => sum + it.value, 0);
+  return (
+    <div className="grid gap-3">
+      <p data-slot="chart-total" className="flex items-center gap-3">
+        <span data-value={total} className="font-heading text-4xl leading-none tabular-nums">
+          {formatNumber(total, language)}
+        </span>
+        <span className="text-sm font-medium">{t('chart.total')}</span>
+      </p>
+      {/* the bar is for the eyes: the shares are the text below it */}
+      <div aria-hidden="true" className="flex h-2 gap-0.5 overflow-hidden rounded-full">
+        {points
+          .filter((it) => it.value > 0)
+          .map((it) => (
+            <span key={it.key} className="min-w-[3px] basis-0" style={{ flexGrow: it.value, background: it.color }} />
+          ))}
+      </div>
+      <ul className="grid">
+        {points.map((it) => (
+          <li
+            key={it.key}
+            data-bz={`value:${it.key}`}
+            data-value={it.value}
+            className="grid min-h-9 grid-cols-[0.5rem_minmax(0,1fr)_auto_2.75rem] items-center gap-2.5 border-b border-line-6 text-sm last:border-b-0"
+          >
+            <span aria-hidden="true" className="size-2 rounded-full" style={{ background: it.color }} />
+            <span title={it.label} className="truncate text-foreground/75">
+              {it.label}
+            </span>
+            <span className="font-semibold tabular-nums">{formatNumber(it.value, language)}</span>
+            <span className="text-right text-xs text-muted-foreground tabular-nums">
+              {formatNumber(it.value / total, language, { style: 'percent', maximumFractionDigits: 0 })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -263,6 +374,11 @@ export interface TimeChartProps {
   filter?: Filter | undefined;
   /** What it shows of a field of the items instead of their number: `{sum: 'amount'}`. */
   value?: ChartMeasure | undefined;
+  /**
+   * The chart in focus of a dashboard (`hero` of the specs): the value of the current period
+   * large over it with its change on the one before, these figures beside it.
+   */
+  hero?: readonly ChartSide[] | undefined;
   /** The current moment (the tests); the moment of the first render by default. */
   now?: Date | undefined;
   className?: string;
@@ -286,6 +402,7 @@ export function TimeChart({
   last = 12,
   filter,
   value,
+  hero,
   now,
   className,
 }: TimeChartProps) {
@@ -315,6 +432,7 @@ export function TimeChart({
       error={error}
       className={className}
       periods
+      hero={hero && { bucket, side: hero }}
       values={periods.map((it, index) => ({
         key: keys[index] ?? '',
         label: format.format(it),

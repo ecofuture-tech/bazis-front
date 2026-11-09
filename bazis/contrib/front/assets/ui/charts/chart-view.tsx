@@ -74,7 +74,7 @@ export default function ChartView({
   points,
   periods = false,
 }: {
-  kind: ChartKind;
+  kind: Exclude<ChartKind, 'distribution'>;
   points: readonly ChartPoint[];
   periods?: boolean;
 }) {

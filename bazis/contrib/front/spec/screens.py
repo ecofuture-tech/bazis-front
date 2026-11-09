@@ -939,7 +939,8 @@ def render_dashboard(product: Product, data: dict) -> str:
     """
     A dashboard: the create forms of its actions in its header, the day of today, its tiles, its
     charts and its last items, each of its own entity, without the links of the navigation with
-    `links: false` (`Dashboard` is the screen: its forms are its children).
+    `links: false`; with `layout: focus` the chart of `hero` in focus, apart from the others
+    (`Dashboard` is the screen: its forms are its children).
     """
     screen = Screen(product, data)
     spec = data['dashboard']
@@ -953,8 +954,14 @@ def render_dashboard(product: Product, data: dict) -> str:
         parts.append(Attr('links', Arr([])))
     if spec.get('tiles'):
         parts.append(Attr('tiles', Arr([tile(screen, i, it) for i, it in enumerate(spec['tiles'])])))
-    if spec.get('charts'):
-        charts = [chart(screen, i, it) for i, it in enumerate(spec['charts'])]
+    hero = spec.get('hero') if spec.get('layout') == 'focus' else None
+    charts = []
+    for i, it in enumerate(spec.get('charts', [])):
+        if hero is not None and it['id'] == hero['chart']:
+            parts.append(Attr('focus', chart(screen, i, it, hero)))
+        else:
+            charts.append(chart(screen, i, it))
+    if charts:
         parts.append(Attr('charts', charts[0] if len(charts) == 1 else Jsx('', [], charts)))
     if spec.get('recent'):
         parts.append(Attr('recent', Arr([recent_list(screen, i, it) for i, it in enumerate(spec['recent'])])))
@@ -1005,11 +1012,11 @@ def adds(spec: dict) -> bool:
     return spec.get('requires', {}).get('can') == 'add'
 
 
-def chart(screen: Screen, index: int, spec: dict) -> Jsx:
+def chart(screen: Screen, index: int, spec: dict, hero: dict | None = None) -> Jsx:
     """
-    A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`),
-    shown to the users who may view them, and add one with `requires` (`Viewable`, as the tiles
-    and the last items).
+    A chart of the items of an entity by its status (`StatusChart`) or by a date (`TimeChart`,
+    the chart in focus with the figures of `hero`), shown to the users who may view them, and
+    add one with `requires` (`Viewable`, as the tiles and the last items).
     """
     const = screen.entity(spec['entity'])
     attrs = [Attr('id', spec['id']), Attr('path', Raw(f'{const.code}.path'))]
@@ -1023,6 +1030,8 @@ def chart(screen: Screen, index: int, spec: dict) -> Jsx:
         attrs.append(Attr('last', Raw(str(spec['last']))))
     if 'value' in spec:
         attrs.append(Attr('value', aggregate_value(spec['value'])))
+    if hero is not None:
+        attrs.append(Attr('hero', Arr([Str(it) for it in hero.get('side', [])])))
     name = 'StatusChart' if by_status else 'TimeChart'
     screen.code.use('@/bazis/ui/charts', name)
     screen.code.use('@/bazis/ui/dashboard', 'Viewable')

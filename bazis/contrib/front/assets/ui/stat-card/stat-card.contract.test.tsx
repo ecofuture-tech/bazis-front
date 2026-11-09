@@ -187,6 +187,31 @@ describe('StatCard', () => {
     });
   });
 
+  it('is a row of a rail with `layout="rail"`: no surface of its own, a number 0 muted, that of the tone primary in it', async () => {
+    const server = new Backend()
+      .on('GET', ITEMS, totals({ count: 0 }))
+    const { unmount } = renderWithBazis(<StatCard id="none" path={ITEMS as never} label="None" layout="rail" icon={Icon} />, server);
+    const tile = await screen.findByTestId('tile:none');
+    await waitFor(() => {
+      expect(tile.getAttribute('data-value')).toBe('0');
+    });
+    expect(tile.classList).not.toContain('surface');
+    expect(within(tile).getByTestId('state:loaded').firstElementChild?.classList).toContain('text-muted-foreground');
+    // the icon at the end of the row, beside the label and the number
+    expect(within(tile).getByTestId('icon:item').parentElement?.classList).toContain('row-span-2');
+    unmount();
+
+    renderWithBazis(
+      <StatCard id="waiting" path={ITEMS as never} label="Waiting" layout="rail" tone="primary" />,
+      new Backend().on('GET', ITEMS, totals({ count: 3 })),
+    );
+    const waiting = await screen.findByTestId('tile:waiting');
+    await waitFor(() => {
+      expect(waiting.getAttribute('data-value')).toBe('3');
+    });
+    expect(within(waiting).getByTestId('state:loaded').firstElementChild?.classList).toContain('text-primary-ink');
+  });
+
   it('is not a button without onOpen', () => {
     renderWithBazis(<StatCard id="all" path={ITEMS as never} label="All" />, new Backend().hold('GET', ITEMS));
     expect(screen.queryByRole('button')).toBeNull();

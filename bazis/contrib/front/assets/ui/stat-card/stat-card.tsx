@@ -15,7 +15,8 @@
 // A figure of a dashboard: the number of the items of a route set that a filter selects, or the
 // sum, the average, the minimum or the maximum of a field of them (`value`), an aggregate of
 // the list of the core (`meta: ['aggregates']`, bazis 2.17), with its label, its icon and the
-// tone of the theme it is marked in. Marked `tile:<id>` with the number (the date of a minimum
+// tone of the theme it is marked in: a card, or a row of the rail beside the chart in focus of a
+// dashboard (`layout="rail"`). Marked `tile:<id>` with the number (the date of a minimum
 // or a maximum of a date) in `data-value` once it is loaded; the states of its list
 // `state:<state>` (an aggregate that the core refuses, 400 `ERR_AGGREGATE`: `state:error`).
 
@@ -85,6 +86,12 @@ export interface StatCardProps {
   icon?: ComponentType<{ className?: string }>;
   /** Opens what it counts (`open` of the tile): a click anywhere on it. */
   onOpen?: () => void;
+  /**
+   * A card (the default), or a row of a rail (the tiles beside the chart in focus of a
+   * dashboard, in one surface): its label over its number, its icon at its end; a number 0
+   * muted, that of the tone `primary` in it.
+   */
+  layout?: 'card' | 'rail';
   className?: string;
 }
 
@@ -99,6 +106,7 @@ export function StatCard({
   tone = 'neutral',
   icon: Icon,
   onOpen,
+  layout = 'card',
   className,
 }: StatCardProps) {
   const language = useLanguage();
@@ -112,28 +120,47 @@ export function StatCard({
     aggregate: [term],
   });
   const result = list.data ? aggregateValues(list.data)?.[term] : undefined;
+  const shown = dataValue(result);
+  const rail = layout === 'rail';
   return (
     <div
       data-bz={`tile:${id}`}
-      data-value={dataValue(result)}
+      data-value={shown}
       className={cn(
-        'surface relative grid min-w-0 gap-3 p-(--space-card) text-card-foreground',
-        onOpen && 'transition-shadow hover:shadow-(--shadow-lift-2)',
+        'relative grid min-w-0 text-card-foreground',
+        rail
+          ? 'grid-cols-[minmax(0,1fr)_auto] content-center gap-x-3 gap-y-1 px-(--space-card) py-3'
+          : 'surface gap-3 p-(--space-card)',
+        onOpen && (rail ? 'transition-colors hover:bg-muted/50' : 'transition-shadow hover:shadow-(--shadow-lift-2)'),
         className,
       )}
     >
-      <div className="flex min-w-0 items-start justify-between gap-3">
+      {/* a row of a rail: the label and the number in its first column, the icon in its second */}
+      <div className={rail ? 'contents' : 'flex min-w-0 items-start justify-between gap-3'}>
         <span id={labelId} className="min-w-0 text-sm font-medium wrap-break-word hyphens-auto text-muted-foreground">
           {label}
         </span>
         {Icon && (
-          <span aria-hidden="true" className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', SOFT_TONES[tone])}>
+          <span
+            aria-hidden="true"
+            className={cn(
+              'flex shrink-0 items-center justify-center',
+              rail ? 'col-start-2 row-span-2 row-start-1 size-[2.125rem] self-center rounded-[0.625rem]' : 'size-8 rounded-lg',
+              SOFT_TONES[tone],
+            )}
+          >
             <Icon className="size-4" />
           </span>
         )}
       </div>
       <StatePanel inline state={queryState(list)} error={list.error} skeleton={<Skeleton className="h-8 w-16" />}>
-        <span className="font-heading text-3xl">
+        <span
+          className={cn(
+            'font-heading text-3xl',
+            rail && 'tabular-nums',
+            rail && (shown === 0 ? 'text-muted-foreground' : tone === 'primary' && 'text-primary-ink'),
+          )}
+        >
           {formatTile(
             result,
             func === 'avg' && field !== undefined ? contractFormat(path, field) : null,
@@ -147,7 +174,7 @@ export function StatCard({
         <button
           type="button"
           aria-labelledby={labelId}
-          className="absolute inset-0 rounded-xl outline-none focus-visible:ring-focus"
+          className={cn('absolute inset-0 outline-none focus-visible:ring-focus', rail ? 'rounded-md' : 'rounded-xl')}
           onClick={onOpen}
         />
       )}

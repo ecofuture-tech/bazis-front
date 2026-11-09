@@ -269,6 +269,22 @@
       "additionalProperties": false,
       "properties": {
         "today": {"description": "The day of today above the tiles, in the language of the product (`Monday, 2 November`, `today`).", "type": "boolean"},
+        "layout": {"description": "`grid` (the default): the tiles, the links, the charts and the last items one under the other. `focus`: the chart of `hero` large beside the tiles as a rail, the other charts and the last items in a row under them (S067).", "enum": ["grid", "focus"]},
+        "hero": {
+          "description": "The chart in focus of `layout: focus` (only), a chart of the dashboard by a date: the value of the current period (its last) large with its change on the one before, and the figures `side` beside it (S067).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["chart"],
+          "properties": {
+            "chart": {"$ref": "#/$defs/id"},
+            "side": {
+              "description": "The figures beside the value: `prev` the period before, `peak` the largest value of the periods, `total` their sum.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {"enum": ["prev", "peak", "total"]}
+            }
+          }
+        },
         "links": {"description": "`false`: no links to the other screens of the navigation (they repeat the navigation of a sidebar); shown by default.", "type": "boolean"},
         "tiles": {
           "description": "The count of the items of an entity with the `filter` of a list, or the aggregate `value` of a field of them (`tile:<id>`, the number in `data-value`); a click opens the list `open`.",
@@ -313,7 +329,7 @@
               "id": {"$ref": "#/$defs/id"},
               "entity": {"$ref": "#/$defs/id"},
               "by": {"$ref": "#/$defs/field"},
-              "kind": {"enum": ["donut", "bar", "line"]},
+              "kind": {"description": "A ring of the shares, bars, a line, or `distribution`: the shares of the statuses as one stacked bar over the list of the values with their shares and their sum (S068).", "enum": ["donut", "bar", "line", "distribution"]},
               "bucket": {"enum": ["day", "week", "month"]},
               "last": {"type": "integer", "minimum": 1},
               "value": {

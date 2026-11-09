@@ -1361,8 +1361,8 @@ def _check_dashboard(doc: Document, product: Product, screens: dict, contract: d
     """
     The parts of a dashboard, each of its own entity: the fields they reference (S007), the
     screens they open (S006), the field of a chart (S021), the field of the `value` of a tile
-    or a chart (S049); against the contract, their queries (S008, S014, S050) and the pickers
-    of the create forms (S012, S017).
+    or a chart (S049), the chart in focus (S067); against the contract, their queries (S008,
+    S014, S050) and the pickers of the create forms (S012, S017).
     """
     resources = contract['project']['resources'] if contract else {}
     parts = [
@@ -1398,12 +1398,50 @@ def _check_dashboard(doc: Document, product: Product, screens: dict, contract: d
         _check_queries(doc, path, part, entity, resource, issues)
         if key == 'actions':
             _check_pickers(doc, resource, form_fields(path, part, entity), contract, issues)
+    _check_focus(doc, issues)
+
+
+def _check_focus(doc: Document, issues: Issues) -> None:
+    """
+    The chart in focus of `layout: focus` (S067): a chart of the dashboard by a date, whose value
+    is that of the current period (the last one); the sum of its periods is not that of an
+    average. A grid has no chart in focus.
+    """
+    dashboard = doc.data['dashboard']
+    hero = dashboard.get('hero')
+    hint = 'Name a chart of the dashboard by a date in `hero.chart`, or lay the dashboard out as a grid.'
+    if (dashboard.get('layout') == 'focus') != (hero is not None):
+        if hero is None:
+            issues.add(doc, ('dashboard', 'layout'), 'S067', 'The dashboard is laid out in focus without a chart in focus.', hint)
+        else:
+            issues.add(
+                doc, ('dashboard', 'hero'), 'S067', 'The dashboard is laid out as a grid: it has no chart in focus.',
+                'Lay the dashboard out in focus (`layout: focus`), or remove `hero`.',
+            )
+        return
+    if hero is None:
+        return
+    chart = next((it for it in dashboard.get('charts', []) if it['id'] == hero['chart']), None)
+    if chart is None:
+        issues.add(doc, ('dashboard', 'hero', 'chart'), 'S067', f'`{hero["chart"]}` is not a chart of the dashboard.', hint)
+    elif chart['by'] == STATUS_FIELD:
+        issues.add(
+            doc, ('dashboard', 'hero', 'chart'), 'S067',
+            f'The chart `{chart["id"]}` is by the status: it has no current period.', hint,
+        )
+    elif 'avg' in chart.get('value', {}) and 'total' in hero.get('side', []):
+        issues.add(
+            doc, ('dashboard', 'hero', 'side', hero['side'].index('total')), 'S067',
+            f'The chart `{chart["id"]}` shows an average: the sum of its periods means nothing.',
+            'Remove `total` from `side`, or chart a sum.',
+        )
 
 
 def _check_chart(doc: Document, path: tuple, chart: dict, entity: Entity, issues: Issues) -> None:
     """
     A chart is by the status of an entity with a workflow or by a date or a date-time field
-    (S021, S007 for another field); a bucket and a period are those of the dates.
+    (S021, S007 for another field); a bucket and a period are those of the dates; a
+    distribution is of the statuses, of a count or a sum (S068).
     """
     by = chart['by']
     dated = entity.fields.get(by, {}).get('type') in DATES
@@ -1423,6 +1461,16 @@ def _check_chart(doc: Document, path: tuple, chart: dict, entity: Entity, issues
                 doc, (*path, key), 'S021', f'`{key}` is that of a chart by a date, not by `{by}`.',
                 f'Remove `{key}`, or chart by a date.',
             )
+    if chart['kind'] != 'distribution':
+        return
+    hint = 'Draw the statuses as a distribution, the periods of a date as bars or a line.'
+    if dated:
+        issues.add(doc, (*path, 'kind'), 'S068', f'A distribution shows the shares of the statuses, not the periods of `{by}`.', hint)
+    if 'avg' in chart.get('value', {}):
+        issues.add(
+            doc, (*path, 'value', 'avg'), 'S068', 'A distribution shows the shares of a whole: averages add up to none.',
+            'Count the items or sum a field, or draw the averages as bars.',
+        )
 
 
 def _check_value(doc: Document, path: tuple, value: dict, entity: Entity, resource: dict | None, issues: Issues) -> None:

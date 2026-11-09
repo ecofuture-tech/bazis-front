@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=../../../bazis/contrib/front/spec/schemas/screen.schema.json
-# The home: the tasks by status and by week, their hours by month, the last open ones, and a task
-# created from here; the drafts and the hours are shown to those who may add a task.
+# The home: the tasks created by week in focus beside the tiles, by status and their hours by month,
+# the last open ones, and a task created from here; the drafts and the hours are shown to those who
+# may add a task.
 spec: bazis-screen/1
 id: home
 title: {en: Home, ru: Главная}
@@ -9,6 +10,10 @@ route: /
 roles: [manager, viewer]
 primitive: dashboard
 dashboard:
+  # the chart in focus: the tasks of this week large, the week before, the peak and the sum of
+  # the weeks beside them
+  layout: focus
+  hero: {chart: created-by-week, side: [prev, peak, total]}
   tiles:
     - {id: drafts, entity: task, filter: {status: draft}, label: {en: Drafts, ru: Черновики}, open: draft-tasks, requires: {can: add}}
     - {id: in-progress, entity: task, filter: {status: in_progress}, tone: info, label: {en: In progress, ru: В работе}}
@@ -18,7 +23,7 @@ dashboard:
     # the sum of the hours of the task to review (`value`: an aggregate of the list of the core)
     - {id: review-hours, entity: task, filter: {title: Review the plan}, value: {sum: hours}, tone: warning, label: {en: Hours to review, ru: Часы на проверку}}
   charts:
-    - {id: by-status, entity: task, by: status, kind: donut, label: {en: By status, ru: По статусам}}
+    - {id: by-status, entity: task, by: status, kind: distribution, label: {en: By status, ru: По статусам}}
     - {id: created-by-week, entity: task, by: dt_created, bucket: week, last: 12, kind: bar, label: {en: Created by week, ru: Созданы по неделям}}
     - {id: hours-by-month, entity: task, by: dt_created, bucket: month, last: 6, kind: line, value: {sum: hours}, requires: {can: add}, label: {en: Hours by month, ru: Часы по месяцам}}
   recent:

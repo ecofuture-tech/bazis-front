@@ -838,13 +838,15 @@ route: /
 roles: [librarian, reader]
 primitive: dashboard
 dashboard:
-  tiles:                         # tile:<id>, the number in data-value; a click opens the list `open`
+  layout: focus                  # the chart `hero` large beside the tiles as a rail
+  hero: {chart: issued-by-week, side: [prev, peak, total]}
+  tiles:                         # tile:<id>, the number in data-value
     - {id: on-hand, entity: loan, filter: {status: issued}, tone: info, label: tiles.on_hand}
     - {id: overdue, entity: loan, filter: {is_overdue: true}, tone: danger, label: tiles.overdue, open: overdue-loans}
     - {id: books, entity: book, label: tiles.books, open: book-list}
     - {id: fines, entity: loan, filter: {is_overdue: true}, value: {sum: fine}, label: tiles.fines}
   charts:                        # chart:<id>: by the status of a workflow, or by a date per bucket
-    - {id: by-status, entity: loan, by: status, kind: donut, label: charts.by_status}
+    - {id: by-status, entity: loan, by: status, kind: distribution, label: charts.by_status}
     - {id: issued-by-week, entity: loan, by: dt_issued, bucket: week, last: 12, kind: bar, label: charts.issued}
     - {id: fines-by-month, entity: loan, by: dt_issued, bucket: month, last: 6, kind: line, value: {sum: fine}, label: charts.fines}
   recent:                        # recent:<id>, its rows row:<id> with their cells cell:<column>
@@ -854,23 +856,22 @@ dashboard:
 states: [loading, error]
 ```
 
-The `label` of a part is a key of the dictionaries of the frontend or a text. A tile counts
-the items of its entity with its `filter` (as `list.filter`: S008, S014), or shows the
-aggregate of its `value` (S049), formatted by the `display` of the field; `open` is a list of
-the entity, that of a row of the last items a card of it (S006). **A tile, a chart and the
+The `label` of a part is a key of the dictionaries or a text. A tile counts the items of its
+`filter` (as `list.filter`: S008, S014) or shows the aggregate `value` (S049) in the
+`display` of the field; `open` is a list of the entity, that of a row of the last items a card
+of it (S006). **A tile, a chart and the
 last items are shown to the users whom the backend lets view their entity** (`Viewable` of
 the dashboard): one dashboard serves every role of the screen, without an `extend`.
 `requires: {can: add}` of a part asks that the user may add an item too, as that of a link
-(S030). A chart is by `status` (a value for each status) or by a field `date` or
-`datetime`, a value for each `bucket` (a week by default), the `last` ones up to the current
-one (12 by default; S021); the
-value is the count of the items, or the `{sum: …}` or `{avg: …}` of a number field (S049).
+(S030). A chart is by `status` or by a `date`/`datetime` field per `bucket`, its `last`
+periods to the current one (S021), of the count or a `{sum: …}`/`{avg: …}` (S049);
+`distribution` is the shares of the statuses (S068). **`layout: focus`** (S067) suits a home
+whose one series by a date matters most.
 
 **The data of a dashboard, a board and a calendar comes from the lists of the API**: a
 tile and a chart are the aggregates of the core (bazis 2.17) over the list of their entity
-with its filter (`aggregateValues`, `aggregateGroups` of the client), a chart grouped by
-`status` or by its date over the range of its periods, read in the time zone of the backend
-(`TIME_ZONE`: the axis is in it); the core aggregates only the fields that the filter of the
+with its filter, a chart grouped by `status` or by its date over its periods, read in the
+time zone of the backend (`TIME_ZONE`: the axis is in it); the core aggregates only the fields that the filter of the
 list reaches for the user (S050), and over too many groups answers 400 `ERR_AGGREGATE`,
 which the part shows as its error. The last items are a list sorted by `sort`, a board a
 list for each column, a calendar the items of the period shown (a month in one list of up to
@@ -1168,6 +1169,8 @@ database, in a fraction of a second. The references and the contract are the job
 | `S064` | error | the cards of a list (`list.card`) name a field that is not in `columns`, a `media` that is not a file field with `display: image`, or one field in two roles; or the list never shows cards (a table on both: `layout` and `layout_phone`, by default `composition.list` and `composition.list_phone` of the theme) |
 | `S065` | error | the summary of a card (`card.summary`): `range` is not two date or date-time fields, or `figure` is not a number, a decimal or a date (a field that the entity does not declare is S007) |
 | `S066` | warning | a field of the summary of a card is also in a section of it: the card shows it twice. Leave it in the summary only: the edit of the card asks for it too |
+| `S067` | error | the focus of a dashboard: `layout: focus` without `hero` or `hero` without it, `hero.chart` is not a chart of the dashboard or is by the `status` (its value is that of the current period, the last), or `hero.side` has the `total` of an `avg` |
+| `S068` | error | a chart `kind: distribution` (the shares of a whole) is by a date rather than the `status`, or of an `avg` |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json (a key that a mapping does not take: as P002) |
@@ -5350,6 +5353,7 @@ Its props, `ChartProps`:
 - `values: readonly ChartValue[]`
 - `series?: boolean`: A color of the series per value (the statuses); one color for all by default.
 - `periods?: boolean`: The values are periods, the current one the last: the bars before it lighter.
+- `hero?: { bucket: ChartBucket; side: readonly ChartSide[]; } | undefined`: The values are periods of `bucket`: the value of the current one (the last) large over the drawing with its change on the one before, the figures `side` beside it.
 - `state?: ViewState`: The state of what it shows: `empty` when every value is 0.
 - `error?: unknown`
 - `className?: string`
@@ -5386,6 +5390,7 @@ Its props, `TimeChartProps`:
 - `last?: number`: The number of the periods, the current one the last: 12 by default.
 - `filter?: Filter | undefined`
 - `value?: ChartMeasure | undefined`: What it shows of a field of the items instead of their number: `{sum: 'amount'}`.
+- `hero?: readonly ChartSide[] | undefined`: The chart in focus of a dashboard (`hero` of the specs): the value of the current period large over it with its change on the one before, these figures beside it.
 - `now?: Date | undefined`: The current moment (the tests); the moment of the first render by default.
 - `className?: string`
 
@@ -5401,8 +5406,9 @@ Its props, `TimeChartProps`:
 #### The types and the constants of `@/bazis/ui/charts`
 
 - `type ChartBucket = 'day' | 'week' | 'month'`: The period of a value of `TimeChart`.
-- `type ChartKind = 'donut' | 'bar' | 'line'`: A ring of the shares (`donut`), bars, or a line.
+- `type ChartKind = 'donut' | 'bar' | 'line' | 'distribution'`: A ring of the shares (`donut`), bars, a line, or the shares as one stacked bar over their list (`distribution`).
 - `ChartProps`: the props of `Chart`, listed with it
+- `type ChartSide = 'prev' | 'peak' | 'total'`: A figure beside the value of the current period: the period before, the largest value, the sum of the periods.
 - `StatusChartProps`: the props of `StatusChart`, listed with it
 - `TimeChartProps`: the props of `TimeChart`, listed with it
 
@@ -5425,6 +5431,7 @@ Its props, `DashboardProps`:
 - `tiles?: readonly (StatCardProps & DashboardPart)[]`
 - `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`; none with `[]`.
 - `charts?: ReactNode`: The charts: `StatusChart` and `TimeChart` of `@/bazis/ui/charts`, each in `Viewable`.
+- `focus?: ReactNode`: The chart in focus (`layout: focus` of the specs, a `TimeChart` with `hero` in `Viewable`): large beside the tiles, a rail of rows (`layout="rail"` of `StatCard`), with the other charts in a column beside the last items under them; one column on a narrow screen.
 - `recent?: readonly (RecentListProps & DashboardPart)[]`
 - `children?: ReactNode`: What the screen shows after its parts, such as the create forms of its actions: in the screen, so that a form composed as a page takes its place.
 
@@ -6752,6 +6759,7 @@ Its props, `StatCardProps`:
 - `tone?: Tone`: The tone of the theme of its icon; neutral by default.
 - `icon?: ComponentType<{ className?: string; }>`: Its icon, such as the icon of the entity (lucide-react).
 - `onOpen?: () => void`: Opens what it counts (`open` of the tile): a click anywhere on it.
+- `layout?: 'card' | 'rail'`: A card (the default), or a row of a rail (the tiles beside the chart in focus of a dashboard, in one surface): its label over its number, its icon at its end; a number 0 muted, that of the tone `primary` in it.
 - `className?: string`
 
 #### The types and the constants of `@/bazis/ui/stat-card`

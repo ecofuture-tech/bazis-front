@@ -110,6 +110,51 @@ describe('Dashboard', () => {
     expect(screen.getByTestId('tile:paid').classList).not.toContain('max-sm:col-span-2');
   });
 
+  it('lays out in focus: the chart large beside the tiles as a rail, the other charts beside the last items under them', async () => {
+    const server = new Backend()
+      .on('GET', `${ITEMS}schema_list/`, schema)
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'Alpha', count: 1 })], { meta: { aggregates: { count: 4 } } }));
+    const { unmount } = renderWithBazis(
+      <Dashboard
+        hero={false}
+        links={[]}
+        focus={<div data-bz="chart:weeks" />}
+        tiles={[
+          { id: 'all', path: ITEMS as never, label: 'All' },
+          { id: 'mine', path: ITEMS as never, label: 'Mine' },
+        ]}
+        charts={<div data-bz="chart:by-status" />}
+        recent={[{ id: 'items', path: ITEMS as never, label: 'Items', columns: ['title'] }]}
+      />,
+      server,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('tile:mine').getAttribute('data-value')).toBe('4');
+    });
+    const recent = await screen.findByTestId('recent:items');
+    const parts = [screen.getByTestId('chart:weeks'), screen.getByTestId('tile:all'), screen.getByTestId('chart:by-status'), recent];
+    // the parts in one grid, in this order: the chart in focus, the rail, the charts, the last items
+    expect(parts.map((it) => it.parentElement?.parentElement)).toEqual(Array(4).fill(parts[0]?.parentElement?.parentElement));
+    expect(parts.map((it) => [...(it.parentElement?.classList ?? [])].find((name) => name.startsWith('xl:col-span-')))).toEqual([
+      'xl:col-span-8',
+      'xl:col-span-4',
+      'xl:col-span-4',
+      'xl:col-span-8',
+    ]);
+    // the tiles are the rows of one surface
+    expect(screen.getByTestId('tile:all').parentElement?.classList).toContain('surface');
+    expect(screen.getByTestId('tile:all').classList).not.toContain('surface');
+    unmount();
+
+    // without tiles and the last items, the chart in focus and the charts take the width
+    renderWithBazis(
+      <Dashboard hero={false} links={[]} focus={<div data-bz="chart:weeks" />} charts={<div data-bz="chart:by-status" />} />,
+      new Backend(),
+    );
+    expect(screen.getByTestId('chart:weeks').parentElement?.classList).toContain('xl:col-span-12');
+    expect(screen.getByTestId('chart:by-status').parentElement?.classList).toContain('xl:col-span-12');
+  });
+
   it('links the other screens of the navigation, each once the backend allows it', async () => {
     const links = [
       { screen: 'home', label: 'Home', to: '/', end: true },

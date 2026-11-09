@@ -144,6 +144,8 @@ CODES: dict[str, tuple[str, str]] = {
     'S064': (ERROR, 'the cards of a list (`list.card`) do not fit it: a field of the card is not in `columns`, its `media` is not a file field with `display: image`, a field has two roles, or the list never shows cards (a table on a wide screen and on a phone, by its layouts or those of the composition of the theme)'),
     'S065': (ERROR, 'the summary of a card (`card.summary`) does not fit its fields: `range` is not two date or date-time fields, or `figure` is not a number, a decimal or a date'),
     'S066': (WARNING, 'a field is both in the summary of a card (`card.summary`) and in a section of it: the card shows it twice'),
+    'S067': (ERROR, 'the focus of a dashboard does not fit its charts: `layout: focus` without `hero` or `hero` without it, `hero.chart` is not a chart of the dashboard or not by a date (its value is that of the current period, the last one), or `hero.side` has the `total` of an average'),
+    'S068': (ERROR, 'a chart of a dashboard is a `distribution` (the shares of a whole) of something else than the statuses, or of an average'),
     'D001': (ERROR, 'a design file is not valid YAML or JSON'),
     'D002': (ERROR, 'spec/design/theme.yaml does not follow design.schema.json'),
     'D003': (ERROR, 'spec/design/tokens.json does not follow tokens.schema.json'),

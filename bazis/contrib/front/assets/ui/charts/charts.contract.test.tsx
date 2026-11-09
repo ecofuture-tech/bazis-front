@@ -148,6 +148,57 @@ describe('Chart', () => {
     ]);
   });
 
+  it('draws a distribution without recharts: the sum, a stacked bar of the shares, and the values with their shares', () => {
+    render(
+      <Chart
+        id="spread"
+        label="Spread"
+        kind="distribution"
+        values={[
+          { key: 'a', label: 'A', value: 3, tone: 'warning' },
+          { key: 'b', label: 'B', value: 0 },
+          { key: 'c', label: 'C', value: 1 },
+        ]}
+      />,
+    );
+    const chart = screen.getByTestId('chart:spread');
+    expect(chart.querySelector('[data-slot="chart-total"] [data-value]')?.getAttribute('data-value')).toBe('4');
+    expect(within(chart).getByTestId('value:a').getAttribute('data-value')).toBe('3');
+    expect(within(chart).getByTestId('value:a').textContent).toBe('A375%');
+    expect(within(chart).getByTestId('value:b').textContent).toBe('B00%');
+    // a segment of the bar for each value above 0, in its color (a tone, or the series)
+    const segments = [...chart.querySelectorAll<HTMLElement>('[aria-hidden="true"].rounded-full > span')];
+    expect(segments.map((it) => [it.style.flexGrow, it.style.background])).toEqual([
+      ['3', 'var(--color-warning)'],
+      ['1', 'var(--chart-3)'],
+    ]);
+    expect(screen.queryByTestId(/^drawn:/)).toBeNull();
+  });
+
+  it('shows the value of the current period large over the bars with its change and the figures beside it', async () => {
+    const values = [
+      { key: 'w1', label: 'W1', value: 1 },
+      { key: 'w2', label: 'W2', value: 4 },
+      { key: 'w3', label: 'W3', value: 2 },
+    ];
+    const { unmount } = render(<Chart id="weeks" label="Weeks" periods hero={{ bucket: 'week', side: ['prev', 'peak', 'total'] }} values={values} />);
+    const hero = screen.getByTestId('chart:weeks').querySelector('[data-slot="chart-hero"]') as HTMLElement;
+    expect(hero.querySelector('p [data-value]')?.getAttribute('data-value')).toBe('2');
+    expect(hero.querySelector('p')?.textContent).toBe('2This week-2 on the week before');
+    expect([...hero.querySelectorAll('dd')].map((it) => [it.previousElementSibling?.textContent, it.getAttribute('data-value')])).toEqual([
+      ['The week before', '4'],
+      ['Peak of the period', '4'],
+      ['Over the period', '7'],
+    ]);
+    expect((await screen.findByTestId('drawn:bar-chart')).getAttribute('data-opacities')).toBe('[0.55,0.55,1]');
+    unmount();
+    // the same value as the period before; a figure of your choice
+    render(<Chart id="months" label="Months" periods hero={{ bucket: 'month', side: ['total'] }} values={[{ key: 'm1', label: 'M1', value: 3 }, { key: 'm2', label: 'M2', value: 3 }]} />);
+    const same = screen.getByTestId('chart:months').querySelector('[data-slot="chart-hero"]') as HTMLElement;
+    expect(same.querySelector('p')?.textContent).toBe('3This monthNo change');
+    expect(same.querySelectorAll('dd')).toHaveLength(1);
+  });
+
   it('is empty when every value is 0, and shows the state of what it shows', () => {
     const { unmount } = render(<Chart id="none" label="None" values={[{ key: 'a', label: 'A', value: 0 }]} />);
     expect(within(screen.getByTestId('chart:none')).getByTestId('state:empty')).toBeTruthy();
@@ -288,6 +339,28 @@ describe('TimeChart', () => {
     // the bounds are dates whatever the field: the chart reads no schema
     expect(server.requests('GET').filter((it) => it.includes('schema_'))).toEqual([]);
     expect(await drawn('line-chart')).toHaveLength(3);
+  });
+
+  it('is the chart in focus with `hero`: the value of the current period over the bars, no other query', async () => {
+    const server = new Backend().on(
+      'GET',
+      ITEMS,
+      grouped([
+        { group: '2026-09-01', values: { count: 5 } },
+        { group: '2026-10-01', values: { count: 2 } },
+      ]),
+    );
+    renderWithBazis(
+      <TimeChart id="due" path={ITEMS as never} field="due" bucket="month" last={3} label="Due" now={now} hero={['prev', 'peak']} />,
+      server,
+    );
+    const chart = await screen.findByTestId('chart:due');
+    await waitFor(() => {
+      expect(chart.querySelector('[data-slot="chart-hero"] p [data-value]')?.getAttribute('data-value')).toBe('2');
+    });
+    expect(chart.querySelector('[data-slot="chart-hero"] p')?.textContent).toBe('2This month-3 on the month before');
+    expect([...chart.querySelectorAll('[data-slot="chart-hero"] dd')].map((it) => it.getAttribute('data-value'))).toEqual(['5', '5']);
+    expect(lists(server)).toHaveLength(1);
   });
 
   it('adds up the days of a week from its first day, bounded by dates of a date-time, and averages a field', async () => {

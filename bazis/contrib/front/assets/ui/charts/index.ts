@@ -13,4 +13,4 @@
 // limitations under the License.
 
 export { Chart, StatusChart, TimeChart } from './charts.js';
-export type { ChartBucket, ChartKind, ChartProps, ChartValue, StatusChartProps, TimeChartProps } from './charts.js';
+export type { ChartBucket, ChartKind, ChartProps, ChartSide, ChartValue, StatusChartProps, TimeChartProps } from './charts.js';
