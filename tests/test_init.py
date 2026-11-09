@@ -21,6 +21,7 @@ from django.core.management import CommandError, call_command
 from django.test import override_settings
 
 import pytest
+import yaml
 
 from bazis.contrib.front import __version__, capabilities
 from bazis.contrib.front.spec import create as spec_create
@@ -106,7 +107,10 @@ def test_init_creates_the_frontend(product):
     }
     assert sorted(design['spec']) == ['spec/design/theme.yaml', 'spec/design/tokens.json', 'spec/product.yaml']
     assert sorted(design['generated']) == [theme.FONTS_CSS, theme.FONTS_TS, theme.THEME_CSS, theme.THEME_TS]
-    assert 'fonts' not in design
+    # the fonts of the starter that the frontend serves, Golos Text only, with their hashes
+    assert {path.split('/')[2] for path in design['fonts']} == {'golos-text-5.3.0'}
+    for path, value in design['fonts'].items():
+        assert digest((frontend / path).read_bytes()) == value
     for path, value in design['generated'].items():
         assert digest((frontend / path).read_bytes()) == value
     # the template as it is, without the stamp, with its pristine copy for the merge of the
@@ -179,6 +183,12 @@ def test_init_creates_the_specs(product):
     assert product_yaml.startswith('# yaml-language-server: $schema=./schema/product.schema.json\n')
     theme = (spec / 'design' / 'theme.yaml').read_text(encoding='utf-8')
     assert theme.startswith('# yaml-language-server: $schema=../schema/design.schema.json\n')
+    # the design of a new workspace: the cool paper, the lifted surfaces, one grotesque, whose
+    # files alone the frontend serves
+    assert {key: value for key, value in yaml.safe_load(theme).items() if key in ('palette', 'fonts', 'surface')} == {
+        'palette': 'frost', 'fonts': 'golos', 'surface': 'lifted',
+    }
+    assert [it.name for it in (product / 'frontend' / 'public' / 'fonts').iterdir()] == ['golos-text-5.3.0']
     tokens = json.loads((spec / 'design' / 'tokens.json').read_text(encoding='utf-8'))
     assert tokens['$schema'] == '../schema/tokens.schema.json'
     # of the screens only the home, a dashboard at `/`: the agent writes the others

@@ -2719,7 +2719,7 @@ by their routes, never through the menu.
 
 **The layers.** Choose the look in `theme.yaml`, never by writing colors: each option names a
 starter of tokens of the package (described in `design.schema.json`;
-`init` names those of the preset: `indigo`, `inter`, `soft`, `elevated` for `workspace`;
+`init` names those of the preset: `frost`, `golos`, `soft`, `lifted` for `workspace`;
 `ocean`, `literata-golos`, `round`, `elevated` for `portal`), and `tokens.json` defines
 only what the product adds over them. Every palette has both modes and reaches the contrast
 of WCAG AA with every pair of fonts, shape and surface. Choose them for the domain, one
