@@ -773,6 +773,15 @@ describe('FieldValue', () => {
     expect([card.querySelectorAll('[data-text]').length, card.querySelector('[data-more]'), card.textContent]).toEqual([3, null, value]);
     // one chip of a row of the last items of a dashboard
     expect(screen.getByTestId('field:one').querySelector('[data-more]')?.getAttribute('data-more')).toBe('+2');
+    // a choice: one chip of its label, its commas its own
+    const pay = attribute('pay', 'string', { enum: ['mixed'], labels: { mixed: 'Cash, card' } });
+    render(
+      <span data-bz="field:pay">
+        <FieldValue field={pay} value="mixed" display="chips" />
+      </span>,
+    );
+    const paid = screen.getByTestId('field:pay');
+    expect([[...paid.querySelectorAll('[data-text]')].map((chip) => chip.textContent), paid.querySelector('[data-more]')]).toEqual([['Cash, card'], null]);
   });
 
   it('shows the related items of a relationship with many (`display: chips`) as chips', () => {

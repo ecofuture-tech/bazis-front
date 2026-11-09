@@ -15,7 +15,7 @@
 import { Fragment, type ReactNode } from 'react';
 
 import { useLanguage } from '@/bazis/i18n';
-import type { FormField } from '@/bazis/react';
+import { choiceLabel, type FormField } from '@/bazis/react';
 import { cn } from '@/lib/utils';
 
 import { fieldValue, formatValue, statusName, statusyModel, type FieldDisplay, type Fields, type ResourceObject } from './fields.js';
@@ -225,10 +225,10 @@ export function FieldValue({ field, value, type, display, large = false, media =
     );
   }
   const shown = formatValue(field, value, language, display);
-  // of the text shown: a choice by its label
+  // of the text shown: a choice by its label, one chip whatever its commas
   if (display === 'avatar' && typeof value === 'string' && value.trim()) return <Avatar name={shown} />;
   if (display === 'chips' && typeof value === 'string' && value.trim()) {
-    const parts = shown.split(/\s*,\s*/).filter(Boolean);
+    const parts = choiceLabel(field, value) === null ? shown.split(/\s*,\s*/).filter(Boolean) : [shown];
     return <Chips limit={chips} parts={parts.map((part, index) => ({ key: String(index), content: <ChipText part={part} /> }))} />;
   }
   if (display === 'phone' && typeof value === 'string' && /\d/.test(value)) {
