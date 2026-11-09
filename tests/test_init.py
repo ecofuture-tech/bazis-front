@@ -199,9 +199,14 @@ def test_init_creates_the_specs(product):
 
 def test_init_with_the_preset_portal(product):
     out, _ = init('--no-node', '--preset', 'portal')
-    # its pair of fonts, served by the frontend, loads the optical sizes of its headings
     assert 'D014' not in out
-    assert sorted(it.name.split('-')[0] for it in (product / 'frontend' / 'public' / 'fonts').iterdir()) == ['golos', 'literata']
+    # the design of a new portal: that of a new workspace with the round shape of the preset,
+    # Golos Text alone served by the frontend
+    theme_yaml = yaml.safe_load((product / 'spec' / 'design' / 'theme.yaml').read_text(encoding='utf-8'))
+    assert {key: theme_yaml[key] for key in ('palette', 'fonts', 'shape', 'surface')} == {
+        'palette': 'frost', 'fonts': 'golos', 'shape': 'round', 'surface': 'lifted',
+    }
+    assert [it.name for it in (product / 'frontend' / 'public' / 'fonts').iterdir()] == ['golos-text-5.3.0']
 
     spec = product / 'spec'
     starters = spec_create.files(spec_create.__package__) / 'starters' / 'design' / 'portal'

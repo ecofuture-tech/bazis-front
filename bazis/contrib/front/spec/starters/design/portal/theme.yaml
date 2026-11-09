@@ -3,10 +3,10 @@
 # left out is that of the preset), compiled with tokens.json by `manage.py bazis_front design`.
 spec: bazis-design/1
 preset: portal             # a public shell: top bar, larger type, cards, forms on pages
-palette: ocean             # indigo | forest | ember | slate | ocean | plum | pine | frost
-fonts: literata-golos     # system | inter | manrope | ibm-plex | geist | source-serif-display | literata-golos | golos
+palette: frost             # indigo | forest | ember | slate | ocean | plum | pine | frost
+fonts: golos               # system | inter | manrope | ibm-plex | geist | source-serif-display | literata-golos | golos
 shape: round               # sharp | soft | round
-surface: elevated          # flat | bordered | elevated | lifted
+surface: lifted            # flat | bordered | elevated | lifted
 mode: both                 # both (switched by the user) | light | dark
 navigation: topbar         # sidebar | topbar
 density: comfortable       # comfortable | compact
