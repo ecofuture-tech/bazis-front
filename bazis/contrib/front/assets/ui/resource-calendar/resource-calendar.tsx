@@ -378,8 +378,9 @@ export function ResourceCalendar({
           'grid min-w-0 content-start gap-1 bg-card',
           // a week at the width of a phone is a list of its days: a day without items is low
           dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : 'p-1.5 sm:min-h-40',
-          // a day of another month on the neutral soft tone, never on the tint of the paper
-          outside && 'bg-neutral-soft text-muted-foreground',
+          // a day of another month on the card as the others, the month one field: its number
+          // muted, its items paler
+          outside && 'text-muted-foreground',
         )}
       >
         <div className="flex items-center gap-1.5">
@@ -422,7 +423,7 @@ export function ResourceCalendar({
           </button>
         </div>
         {dot ? null : (
-          <div className="grid min-w-0 gap-1 text-xs">
+          <div className={cn('grid min-w-0 gap-1 text-xs', outside && 'opacity-60')}>
             {shown.map((item) => (
               <Item key={item.id} item={item} label={labels} meta={meta} display={display} tone={toneOf(item)} onOpen={onOpen} {...timesOn(item, key, view === 'month')} />
             ))}
@@ -547,7 +548,7 @@ export function ResourceCalendar({
             )}
             <div className="surface overflow-hidden">
               {view === 'month' && (
-                <div aria-hidden="true" className="grid grid-cols-7 border-b bg-muted/60 text-xs text-muted-foreground">
+                <div aria-hidden="true" className="grid grid-cols-7 border-b text-xs text-muted-foreground">
                   {days.slice(0, 7).map((day) => (
                     <span key={isoDate(day)} className="truncate px-2 py-1.5 first-letter:uppercase">
                       {weekday.format(day)}
