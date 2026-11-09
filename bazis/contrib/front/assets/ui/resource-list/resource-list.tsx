@@ -37,10 +37,12 @@ import { EmptyState } from '@/bazis/ui/empty-state';
 import {
   alignsDigits,
   fieldValue,
+  isFile,
   isNumeric,
   permitted,
   resourceAt,
   useAnyList,
+  useFiles,
   useListFields,
   type FieldDisplay,
   type ResourceObject,
@@ -230,6 +232,31 @@ function isShort(field: FormField | undefined): boolean {
   return isNumeric(field) || (field?.kind === 'attribute' && ['date', 'date-time', 'time'].includes(field.format ?? ''));
 }
 
+/**
+ * Whether the content of a scrolled element goes on beyond its right edge: the element by the
+ * ref callback, updated as it scrolls and as it or its content is resized (`ResizeObserver`;
+ * without one, as in jsdom, never).
+ */
+function useMoreRight(): [(element: HTMLDivElement | null) => void, boolean] {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    if (element === null || typeof ResizeObserver !== 'function') return;
+    const update = () => {
+      setMore(element.scrollLeft + element.clientWidth < element.scrollWidth - 1);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    element.addEventListener('scroll', update, { passive: true });
+    return () => {
+      observer.disconnect();
+      element.removeEventListener('scroll', update);
+    };
+  }, [element]);
+  return [setElement, more];
+}
+
 function SortButton({ label, direction, onClick }: { label: ReactNode; direction: 'ascending' | 'descending' | undefined; onClick: () => void }) {
   const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ChevronsUpDown;
   return (
@@ -265,6 +292,9 @@ function TableView(
 ) {
   const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden, selection } = props;
   const { t } = useLanguage();
+  const { resources } = useFiles();
+  /** Whether the values of a column are as wide as they are, never wrapped: short values, files (their thumbnails). */
+  const compact = (field: FormField | undefined) => isShort(field) || isFile(field, resources);
   return (
     <table data-slot="table" className="w-full caption-bottom text-sm">
       <TableHeader>
@@ -323,21 +353,23 @@ function TableView(
               {columns.map((name, index) => {
                 const field = fields.fields.get(name);
                 const shown = props.display[name];
+                const fits = compact(field);
                 return (
                   <TableCell
                     key={name}
                     data-bz={`cell:${name}`}
                     className={cn(
                       'px-(--space-cell-x) py-(--space-cell-y)',
-                      // the first column, the name of a row, is at least 12rem but for a short value (a number)
+                      // the first column, the name of a row, is at least 12rem but for a short value (a
+                      // number) or a file
                       index === 0
-                        ? cn(!isShort(field) && 'min-w-48', 'font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
+                        ? cn(!fits && 'min-w-48', 'font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
                         : 'text-foreground/80',
                       // a text wraps in the width that the table gives its column, a long word too; the
                       // table shares its width between the columns of texts by their bounds, not by the
                       // length of their texts: while it has room, a long text does not narrow the column
                       // of a short word (an e-mail) until the word breaks
-                      !isShort(field) &&
+                      !fits &&
                         cn(
                           'whitespace-normal wrap-anywhere',
                           index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-32') : 'max-w-48',
@@ -438,6 +470,7 @@ export function ResourceList({
     setOffset(0);
   }
   const [searchText, setSearchText] = useState('');
+  const [setScroller, moreRight] = useMoreRight();
   const [search, setSearch] = useState('');
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -695,28 +728,40 @@ export function ResourceList({
             {view === 'cards' ? (
               <CardsView {...body} />
             ) : (
-              <div
-                data-slot="table-scroll"
-                data-density={rowDensity}
-                className="surface max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto"
-              >
-                <TableView
-                  {...body}
-                  actionsColumn={rowActions.length > 0}
-                  sorted={direction}
-                  header={(name) =>
-                    order.has(name) ? (
-                      <SortButton
-                        label={fields.title(name)}
-                        direction={direction(name)}
-                        onClick={() => {
-                          toggle(name);
-                        }}
-                      />
-                    ) : (
-                      <span className="inline-block first-letter:uppercase">{fields.title(name)}</span>
-                    )
-                  }
+              <div className="relative">
+                <div
+                  ref={setScroller}
+                  data-slot="table-scroll"
+                  data-density={rowDensity}
+                  className="surface max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto"
+                >
+                  <TableView
+                    {...body}
+                    actionsColumn={rowActions.length > 0}
+                    sorted={direction}
+                    header={(name) =>
+                      order.has(name) ? (
+                        <SortButton
+                          label={fields.title(name)}
+                          direction={direction(name)}
+                          onClick={() => {
+                            toggle(name);
+                          }}
+                        />
+                      ) : (
+                        <span className="inline-block first-letter:uppercase">{fields.title(name)}</span>
+                      )
+                    }
+                  />
+                </div>
+                {/* the table goes on to the right of its card, scrolled sideways: a shade at its edge */}
+                <div
+                  aria-hidden="true"
+                  data-slot="table-more"
+                  className={cn(
+                    'pointer-events-none absolute inset-y-px right-px w-8 rounded-r-xl bg-linear-to-l from-foreground/12 to-transparent transition-opacity',
+                    moreRight ? 'opacity-100' : 'opacity-0',
+                  )}
                 />
               </div>
             )}
