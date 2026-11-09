@@ -397,29 +397,46 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     assert 'lift-field' not in json.dumps(lifted)
 
 
+def computed(scope: dict[str, str]) -> dict[str, str]:
+    """
+    The variables of an element as its children inherit them: each color computed on the
+    element (`rgb()`), another value as it is.
+    """
+    colors = {name: color.parse(value, scope) for name, value in scope.items()}
+    return {
+        name: value if colors[name] is None else 'rgb({} {} {})'.format(*(255 * it for it in colors[name]))
+        for name, value in scope.items()
+    }
+
+
 def sidebar_scopes(css: str) -> dict[str, dict[str, str]]:
     """
     The variables that a component inside the sidebar reads in each mode: those of the sidebar
-    over those of :root (and of the dark mode).
+    over those of :root (and of the dark mode), computed on :root and inherited.
     """
     base = css.split('\n@layer base {\n', 1)[1]
     root, sidebar = root_block(css, ':root'), block_of(base, "[data-slot='sidebar']")
     night = block_of(base, ".dark [data-slot='sidebar']") if ".dark [data-slot='sidebar']" in base else {}
-    return {'light': {**root, **sidebar}, 'dark': {**root, **root_block(css, '.dark'), **sidebar, **night}}
+    return {
+        'light': {**computed(root), **sidebar},
+        'dark': {**computed({**root, **root_block(css, '.dark')}), **sidebar, **night},
+    }
 
 
 def sidebar_contrast(scope: dict[str, str], text: str, background: str) -> float:
     return color.contrast(color.parse(scope[text], scope), color.parse(scope[background], scope))
 
 
-def test_the_controls_and_the_fields_read_on_the_sidebar():
-    # frost and lifted inside the dark sidebar: the focused line of a field is seen on the
-    # sidebar, the text of the sidebar is read on a control at rest and under the pointer
-    css = theme.render(Specs(theme=FROST))[theme.THEME_CSS]
+@pytest.mark.parametrize('palette', ['frost', 'pine'])
+def test_the_controls_the_fields_and_the_cards_read_on_the_sidebar(palette):
+    # lifted inside a dark sidebar: the focused line of a field is seen on the sidebar, the text
+    # of the sidebar is read on a control at rest and under the pointer, that of a card on it
+    css = theme.render(Specs(theme={**FROST, 'palette': palette}))[theme.THEME_CSS]
     for mode, scope in sidebar_scopes(css).items():
         assert sidebar_contrast(scope, '--field-line-focus', '--sidebar') >= 3.0, mode
         assert sidebar_contrast(scope, '--sidebar-foreground', '--control') >= color.AA, mode
         assert sidebar_contrast(scope, '--sidebar-foreground', '--control-hover') >= color.AA, mode
+        assert sidebar_contrast(scope, '--card-foreground', '--card') >= color.AA, mode
 
 
 def test_a_token_of_the_dark_mode_follows_the_sidebar_in_the_dark_mode():
@@ -731,6 +748,7 @@ def test_the_sidebar_reads_its_own_colors():
         '--ring': 'var(--sidebar-ring)',
         '--background': 'var(--sidebar)',
         '--card': 'var(--sidebar)',
+        '--card-foreground': 'var(--sidebar-foreground)',
         '--surface-light': 'var(--sidebar-accent)',
     }
     # the defaults follow the sidebar: a control on it, the border and the ring of the sidebar

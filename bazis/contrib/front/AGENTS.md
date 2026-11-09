@@ -2629,7 +2629,7 @@ python manage.py bazis_front design --check   # write nothing; exit 1 if the the
 The design is one preset, the layers of its tokens (a palette, a pair of fonts, a shape and
 a surface, starters of the package named in `theme.yaml`), the tokens of a brand over them
 and a few options, compiled into the frontend. `init` generates the theme; generate it again
-after every change of `spec/design/` (and after `bazis_front update`). The text depends on
+after every change of `spec/design/` (and after `update`). The text depends on
 the design only: `--check` and the system check `front.W005` (when the lock has `design`;
 without Node and the database) render it again and compare it byte for byte, the font files
 by their hashes; `front.W005` also reports a frontend with components and no theme (an `init`
@@ -2683,9 +2683,9 @@ The generated files are never edited. The design must have no errors (`bazis_fro
 
 A design that names no layer (of an older version) keeps its look: `update` and `design` add
 the new tokens with these defaults until `theme.yaml` names one. Inside the sidebar the role
-colors (`--foreground`, `--card`, …) are its own and the tokens of the surfaces and the fields
-are computed on them (flat): a color that follows the sidebar is an expression of a role
-variable; a literal is the same everywhere.
+colors (`--foreground`, `--card` and its text, …) are its own and the tokens of the surfaces
+and the fields are computed on them (flat): a color that follows it is an expression of a
+role variable; a literal is the same everywhere.
 
 ### Presets
 

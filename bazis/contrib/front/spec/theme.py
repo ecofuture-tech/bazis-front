@@ -174,6 +174,7 @@ SIDEBAR = {
     # on the accent
     '--background': 'var(--sidebar)',
     '--card': 'var(--sidebar)',
+    '--card-foreground': 'var(--sidebar-foreground)',
     '--surface-light': 'var(--sidebar-accent)',
 }
 #: the tokens of the surfaces, the fields and the primary lift are expressions of the role colors:
