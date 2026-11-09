@@ -2626,9 +2626,8 @@ python manage.py bazis_front design           # src/bazis/generated/fonts.*, the
 python manage.py bazis_front design --check   # write nothing; exit 1 if the theme differs from the design
 ```
 
-The design layer makes the products look designed rather than like a bare admin panel: one
-preset, the layers of its tokens (a palette, a pair of fonts, a shape and a
-surface, starters of the package named in `theme.yaml`), the tokens of a brand over them
+The design is one preset, the layers of its tokens (a palette, a pair of fonts, a shape and
+a surface, starters of the package named in `theme.yaml`), the tokens of a brand over them
 and a few options, compiled into the frontend. `init` generates the theme; generate it again
 after every change of `spec/design/` (and after `bazis_front update`). The text depends on
 the design only: `--check` and the system check `front.W005` (when the lock has `design`;
@@ -2637,61 +2636,65 @@ by their hashes; `front.W005` also reports a frontend with components and no the
 whose design had errors). A font package (`font.package`) is read from `node_modules`: `design`
 needs it installed; without it (a CI without `npm install`) both compare with the hashes of
 the lock: a change of the design shows (of `product.yaml`, the languages and currencies that
-choose the subsets), a new version of bazis-front or of the package does not.
+choose the subsets), a new version of bazis-front or of the package does not: `design --check`
+with the package installed shows it.
 The generated files are never edited. The design must have no errors (`bazis_front check
 --layer design`).
 
 - `src/bazis/generated/fonts.css`, imported first by `src/index.css` of the template: the
-  imports of the fonts of its pair only (an `@import` after a rule is dropped, so a
-  stylesheet of Google Fonts goes before Tailwind) and the faces of the fonts that the
-  frontend serves; `fonts.ts`: the files that `vite.config.ts` preloads.
+  imports of the fonts of its pair only (before Tailwind: a later `@import` is dropped) and
+  the faces of the fonts that the frontend serves; `fonts.ts`: the files that
+  `vite.config.ts` preloads.
 - `src/bazis/generated/theme.css`, imported by `src/index.css` after Tailwind: every token
-  as a CSS variable of `:root` (`color.<name>` is `--<name>`, another token its dotted name
-  with dashes, `font.body` `--font-body`), those of the dark mode, the spacing of the density
-  (`--space-page-x`, `-section`, `-card`, `-cell-x`, `-cell-y`, `-field`; the cells also
-  under `[data-density]`, chosen in the view of a list), the Tailwind theme over them (a color
-  utility for every color token, `bg-<token>`; the soft colors of the tones,
+  as a CSS variable of `:root` (`color.<name>` is `--<name>`, `font.body` `--font-body`),
+  those of the dark mode, the spacing of the density (`--space-page-x`, `-section`, `-card`,
+  `-cell-x`, `-cell-y`, `-field`; the cells also under `[data-density]`, chosen in the view of
+  a list), the Tailwind theme over them (`bg-<token>` for every color token; of the tones
   `bg-success-soft text-success-ink`; `bg-avatar-<n> text-avatar-<n>-fg` (0–4);
   `border-line-6`, `-10`, `-16`; `font-sans`, `font-display`, `font-mono`; `rounded-sm` …
   `rounded-2xl` from `radius`; `shadow-<name>` of every `shadow.<name>` below;
   `ease-standard` and every `transition` from `motion.*`), `--surface-card`,
-  `--surface-control` (`none` until a layer defines `color.surface-light`), the utilities
-  `font-heading`, `font-subheading`, `font-eyebrow`, `surface` and `control` (a lifted block and
-  control: never their classes) and the base styles of the preset (`h1`–`h3` in `font.heading`,
-  the variables of the sidebar).
+  `--surface-control` (`none` until a layer defines `color.surface-light`: in `color` or both
+  modes, one mode draws them in both), the utilities `font-heading`, `font-subheading`,
+  `font-eyebrow`, `surface` and `control` (a lifted block and control: never their classes)
+  and the base styles of the preset (`h1`–`h3` in `font.heading`, the variables of the
+  sidebar).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
   `density`, `composition`, `controls`, `statuses`, `icons`, `brand`, and `dark`: whether the
   user switches to a dark mode).
 
-| Token (its CSS variable `--<name>`) | When no layer defines it |
+| Token | When no layer defines it |
 |---|---|
 | `color.background`, `color.foreground`, `color.primary`, `-foreground`, `color.muted`, `-foreground`, `color.border`, `color.destructive`; `radius`; `font.body` (`font-sans`) | required by both presets |
-| `color.sidebar`, `color.sidebar-foreground` | required by `workspace`; else the background and the foreground |
+| `color.sidebar`, `-foreground` | required by `workspace`; else the background and the foreground |
 | `color.accent` (the hover and the current link of the top bar) | required by `portal`; else `muted` |
 | `font.heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
-| `color.card`, `-foreground`, `color.popover`, `-foreground`, `color.secondary`, `-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS` of `spec/design.py`) |
+| `color.card`, `-foreground`, `color.popover`, `-foreground`, `color.secondary`, `-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS`) |
 | `color.success`, `color.warning`, `color.info` (the tones of the statuses) | a green, an amber and a blue of both modes |
 | `color.sidebar-primary`, `-accent`, `-muted-foreground`, … (the sidebar) | from the primary, the sidebar and the muted foreground |
-| `color.brand`, `color.brand-foreground` (the mark of the brand) | the primary |
-| `color.chart-1` … `color.chart-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
+| `color.brand`, `-foreground` (the mark of the brand) | the primary |
+| `color.chart-1` … `-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
 | `font.mono` (`font-mono`) | the monospace fonts of Tailwind |
 | `font.weight-heading`, `-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
-| `shadow.xs` (the cards, the tables, the fields), `shadow.sm`, `shadow.md` (the popovers), `shadow.lg` (the dialogs) | the shadows of Tailwind |
+| `shadow.xs` (the cards, the tables, the fields), `-sm`, `-md` (the popovers), `-lg` (the dialogs) | the shadows of Tailwind |
 | `motion.fast`, `-base`, `-slow`, `-ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
 | `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`) |
 | `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
 
 A design that names no layer (of an older version) keeps its look: `update` and `design` add
-the new tokens with these defaults until `theme.yaml` names one.
+the new tokens with these defaults until `theme.yaml` names one. Inside the sidebar the role
+colors (`--foreground`, `--card`, …) are its own and the tokens of the surfaces and the fields
+are computed on them (flat): a color that follows the sidebar is an expression of a role
+variable; a literal is the same everywhere.
 
 ### Presets
 
 **Presets.** `workspace` is an internal tool for daily work: a sidebar with the icons of the
 screens (a drawer on a phone), a sticky header with the title and the actions of the screen,
-tables with a sticky header, aligned numbers and the open row selected, filters in a toolbar,
-the card next to the list on a wide screen (`list_card: split`; the list stays mounted with
-its search, filters and page and shows its first two columns, `compactColumns` of
-`ResourceList`; a list in the card shows the cards of a phone), forms in dialogs. A table
+tables with aligned numbers and the open row selected, filters in a toolbar, the card next
+to the list on a wide screen (`list_card: split`; the list stays mounted with its search,
+filters and page and shows its first two columns, `compactColumns` of `ResourceList`; a list
+in the card shows the cards of a phone), forms in dialogs. A table
 scrolls in its own area as high as the screen, its header at the top, and sideways when wide
 instead of losing columns. On a phone a list shows cards (`composition.list_phone`).
 `portal` is a public shell: a top bar, larger type and more air, lists as grids of cards, the
@@ -2713,8 +2716,8 @@ starter of tokens of the package (described in `design.schema.json`;
 `init` names those of the preset: `indigo`, `inter`, `soft`, `elevated` for `workspace`;
 `ocean`, `literata-golos`, `round`, `elevated` for `portal`), and `tokens.json` defines
 only what the product adds over them. Every palette has both modes and reaches the contrast
-of WCAG AA with every pair of fonts, shape and surface. Choose them for the domain of the
-product, one decision for the whole product:
+of WCAG AA with every pair of fonts, shape and surface. Choose them for the domain, one
+decision for the whole product:
 
 | Domain | Palette | Fonts | Shape |
 |---|---|---|---|
@@ -2739,10 +2742,10 @@ navigation, the empty states, the dashboard). Choose by the meaning of the entit
 
 ### Dark mode
 
-**Dark mode.** The tokens of the group `dark` are the values of the dark mode (every palette
-has them): each overrides the token of the same name (`dark.color.background`; D007 when
-there is none of that name and type). The theme applies them to the class `dark` of `<html>`
-and, until the application starts, to a dark system (unless `<html>` has the class `light`);
+**Dark mode.** The tokens of the group `dark` are the values of the dark mode: each
+overrides the token of the same name (`dark.color.background`; D007 when there is none of
+that name and type). The theme applies them to the class `dark` of `<html>` and, until the
+application starts, to a dark system (unless `<html>` has the class `light`);
 `initColorMode()` of `app-shell` (called by `src/main.tsx`) sets the class from the choice of
 the user (system, light or dark, kept by the browser; the button of `AppShell`). Without the
 group `dark` there is no dark mode. `mode: light` keeps the light mode only; `mode: dark`

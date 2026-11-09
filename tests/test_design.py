@@ -34,7 +34,7 @@ import pytest
 import yaml
 
 from bazis.contrib.front.checks import check_design
-from bazis.contrib.front.spec import design, fonts, theme
+from bazis.contrib.front.spec import color, design, fonts, theme
 from bazis.contrib.front.spec.issues import Document, Issues
 from bazis.contrib.front.spec.lint import DESIGN_SCHEMA, TOKENS_SCHEMA, validator
 from bazis.contrib.front.spec.validate import Specs, validate
@@ -365,8 +365,17 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     assert mapping['--color-line-16'] == 'color-mix(in srgb, var(--foreground) 16%, transparent)'
     # the glow of the paper and the gradient of the sidebar, drawn since the palette defines them
     base = css.split('\n@layer base {\n', 1)[1]
-    # the sidebar keeps the tokens of the layer: lifted defines every one of its defaults
-    assert block_of(base, "[data-slot='sidebar']") == theme.SIDEBAR
+    # inside the sidebar the tokens of the layer are computed again on its colors: the line of
+    # its foreground, the controls on the sidebar, flat; the dark lifts of the primary button,
+    # black literals, in its dark mode
+    sidebar = block_of(base, "[data-slot='sidebar']")
+    assert (sidebar['--field-line'], sidebar['--control'], sidebar['--surface-control']) == (
+        'color-mix(in srgb, var(--foreground) 32%, transparent)', 'var(--card)', 'none',
+    )
+    lifts = ('lift-primary', 'lift-primary-hover', 'lift-primary-active')
+    assert block_of(base, ".dark [data-slot='sidebar']") == {
+        f'--shadow-{name}': lifted['dark']['shadow'][name]['$value'] for name in lifts
+    }
     assert block_of(base, 'body::before') == theme.GLOW
     assert block_of(base, "[data-slot='sidebar']", 2) == theme.SIDEBAR_SURFACE
     assert base.index('body::before') < base.index("[data-slot='sidebar']")
@@ -388,18 +397,54 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     assert 'lift-field' not in json.dumps(lifted)
 
 
-def test_the_sidebar_redeclares_only_the_tokens_on_their_defaults():
-    # without the lifted surface the frost paper has the gradients, and the sidebar every
-    # default; a token of the product keeps its value inside the sidebar, the others follow it
+def sidebar_scopes(css: str) -> dict[str, dict[str, str]]:
+    """
+    The variables that a component inside the sidebar reads in each mode: those of the sidebar
+    over those of :root (and of the dark mode).
+    """
+    base = css.split('\n@layer base {\n', 1)[1]
+    root, sidebar = root_block(css, ':root'), block_of(base, "[data-slot='sidebar']")
+    night = block_of(base, ".dark [data-slot='sidebar']") if ".dark [data-slot='sidebar']" in base else {}
+    return {'light': {**root, **sidebar}, 'dark': {**root, **root_block(css, '.dark'), **sidebar, **night}}
+
+
+def sidebar_contrast(scope: dict[str, str], text: str, background: str) -> float:
+    return color.contrast(color.parse(scope[text], scope), color.parse(scope[background], scope))
+
+
+def test_the_controls_and_the_fields_read_on_the_sidebar():
+    # frost and lifted inside the dark sidebar: the focused line of a field is seen on the
+    # sidebar, the text of the sidebar is read on a control at rest and under the pointer
+    css = theme.render(Specs(theme=FROST))[theme.THEME_CSS]
+    for mode, scope in sidebar_scopes(css).items():
+        assert sidebar_contrast(scope, '--field-line-focus', '--sidebar') >= 3.0, mode
+        assert sidebar_contrast(scope, '--sidebar-foreground', '--control') >= color.AA, mode
+        assert sidebar_contrast(scope, '--sidebar-foreground', '--control-hover') >= color.AA, mode
+
+
+def test_a_token_of_the_dark_mode_follows_the_sidebar_in_the_dark_mode():
+    # a product that gives the controls another color in the dark mode: the sidebar computes it
+    # again in the dark mode only, by the class and by the system
     data = {**FROST, 'surface': 'elevated'}
-    base = theme.render(Specs(theme=data))[theme.THEME_CSS].split('\n@layer base {\n', 1)[1]
-    assert block_of(base, "[data-slot='sidebar']") == {
-        **theme.SIDEBAR, **{design.variable(name): value for name, value in theme.SIDEBAR_DEFAULTS.items()},
-    }
-    tokens = {'dark': {'color': {'control': {'$type': 'color', '$value': 'oklch(0.3 0.02 270)'}}}}
+    tokens = {'dark': {'color': {'control': {'$type': 'color', '$value': 'var(--muted)'}}}}
+    base = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS].split('\n@layer base {\n', 1)[1]
+    assert block_of(base, "[data-slot='sidebar']")['--control'] == 'var(--background)'
+    assert block_of(base, ".dark [data-slot='sidebar']") == {'--control': 'var(--muted)'}
+    media = base.split("  @media (prefers-color-scheme: dark) {\n    :root:not(.light) [data-slot='sidebar'] {\n", 1)[1]
+    assert media.split('\n    }', 1)[0] == '      --control: var(--muted);'
+    # without it, no block of the dark mode for the sidebar
+    assert ".dark [data-slot='sidebar']" not in theme.render(Specs(theme=data))[theme.THEME_CSS]
+
+
+def test_the_light_of_the_surfaces_of_one_mode_draws_the_gradients_of_both():
+    # a limit: `surface-light` of the dark mode only draws the gradients in both modes, the
+    # light one from the card (define it in `color` or in both modes)
+    data = {**FROST, 'palette': 'indigo', 'surface': 'elevated'}
+    tokens = {'dark': {'color': {'surface-light': {'$type': 'color', '$value': 'oklch(0.3 0.02 270)'}}}}
     css = theme.render(Specs(theme=data, tokens=tokens))[theme.THEME_CSS]
-    sidebar = block_of(css.split('\n@layer base {\n', 1)[1], "[data-slot='sidebar']")
-    assert '--control' not in sidebar and sidebar['--control-hover'] == 'var(--sidebar-accent)'
+    light = root_block(css, ':root')
+    assert {name: light[name] for name in design.SURFACES} == design.SURFACES
+    assert light['--surface-light'] == 'var(--card)'
 
 
 def block_of(css: str, selector: str, occurrence: int = 1) -> dict[str, str]:
@@ -664,11 +709,17 @@ def test_the_utilities_of_the_headings():
 
 
 def test_the_sidebar_reads_its_own_colors():
-    # inside the sidebar (and its drawer) the components read the variables of the sidebar
+    # inside the sidebar (and its drawer) the components read the variables of the sidebar; the
+    # tokens of the surfaces, the fields and the primary lift are declared again with the values
+    # of :root, computed there on the colors of the sidebar, and the surfaces are flat
     css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
     base = css.split('\n@layer base {\n', 1)[1]
-    scope = base.split("  [data-slot='sidebar'] {\n", 1)[1].split('\n  }', 1)[0]
-    assert dict(line.strip().rstrip(';').split(': ', 1) for line in scope.splitlines()) == {
+    light = root_block(css, ':root')
+    follows = [design.variable(it) for it in theme.SIDEBAR_FOLLOWS]
+    assert block_of(base, "[data-slot='sidebar']") == {
+        **theme.SIDEBAR, **{it: light[it] for it in follows}, **design.SURFACES_FLAT,
+    }
+    assert theme.SIDEBAR == {
         '--foreground': 'var(--sidebar-foreground)',
         '--muted-foreground': 'var(--sidebar-muted-foreground)',
         '--border': 'var(--sidebar-border)',
@@ -678,18 +729,15 @@ def test_the_sidebar_reads_its_own_colors():
         '--primary': 'var(--sidebar-primary)',
         '--primary-foreground': 'var(--sidebar-primary-foreground)',
         '--ring': 'var(--sidebar-ring)',
-        # the tokens of the surfaces and the fields on their defaults, computed in :root from the
-        # colors of the content
-        '--border-surface': 'var(--sidebar-border)',
-        '--border-control': 'var(--sidebar-border)',
-        '--field-line': 'var(--sidebar-border)',
-        '--field-line-hover': 'var(--sidebar-border)',
-        '--control': 'var(--sidebar)',
-        '--control-hover': 'var(--sidebar-accent)',
-        '--field-line-focus': 'var(--sidebar-ring)',
-        '--shadow-ring-focus': '0 0 0 3px color-mix(in srgb, var(--sidebar-ring) 50%, transparent)',
-        '--shadow-field-focus': '0 0 0 3px color-mix(in srgb, var(--sidebar-ring) 50%, transparent)',
+        '--background': 'var(--sidebar)',
+        '--card': 'var(--sidebar)',
+        '--surface-light': 'var(--sidebar-accent)',
     }
+    # the defaults follow the sidebar: a control on it, the border and the ring of the sidebar
+    assert (light['--control'], light['--border-control'], light['--field-line-focus']) == (
+        'var(--background)', 'var(--input)', 'var(--ring)',
+    )
+    assert ".dark [data-slot='sidebar']" not in base
 
 
 def test_the_mark_of_the_brand():

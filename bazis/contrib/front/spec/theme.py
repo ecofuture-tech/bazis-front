@@ -159,10 +159,7 @@ SIDEBAR_SURFACE = {
 SIDEBAR_SURFACE_TOKENS = ('color.sidebar-to', 'color.sidebar-glow')
 
 #: the variables of the content that the sidebar replaces with its own inside it (the buttons,
-#: the toggles, the focus rings, the borders and the muted text of the components there), and
-#: (`SIDEBAR_DEFAULTS`) the tokens of the surfaces and the fields that keep their defaults: a
-#: `var()` of `:root` is computed there and inherited computed. A layer that defines one keeps
-#: its value inside the sidebar too
+#: the toggles, the focus rings, the borders and the muted text of the components there)
 SIDEBAR = {
     '--foreground': 'var(--sidebar-foreground)',
     '--muted-foreground': 'var(--sidebar-muted-foreground)',
@@ -173,18 +170,22 @@ SIDEBAR = {
     '--primary': 'var(--sidebar-primary)',
     '--primary-foreground': 'var(--sidebar-primary-foreground)',
     '--ring': 'var(--sidebar-ring)',
+    # the surfaces of the sidebar: a control or a card inside it rests on the sidebar, its light
+    # on the accent
+    '--background': 'var(--sidebar)',
+    '--card': 'var(--sidebar)',
+    '--surface-light': 'var(--sidebar-accent)',
 }
-SIDEBAR_DEFAULTS = {
-    'color.border-surface': 'var(--sidebar-border)',
-    'color.border-control': 'var(--sidebar-border)',
-    'color.field-line': 'var(--sidebar-border)',
-    'color.field-line-hover': 'var(--sidebar-border)',
-    'color.control': 'var(--sidebar)',
-    'color.control-hover': 'var(--sidebar-accent)',
-    'color.field-line-focus': 'var(--sidebar-ring)',
-    'shadow.ring-focus': '0 0 0 3px color-mix(in srgb, var(--sidebar-ring) 50%, transparent)',
-    'shadow.field-focus': '0 0 0 3px color-mix(in srgb, var(--sidebar-ring) 50%, transparent)',
-}
+#: the tokens of the surfaces, the fields and the primary lift are expressions of the role colors:
+#: declared again inside the sidebar, they are computed on the colors of the sidebar (`SIDEBAR`),
+#: the value of a layer and the default alike (a `var()` of `:root` is computed there and
+#: inherited computed); a literal of a layer stays the same everywhere
+SIDEBAR_FOLLOWS = (
+    'color.border-surface', 'color.border-control', 'color.control', 'color.control-hover',
+    'color.field-line', 'color.field-line-hover', 'color.field-line-focus',
+    'shadow.ring-focus', 'shadow.field-focus',
+    'shadow.lift-primary', 'shadow.lift-primary-hover', 'shadow.lift-primary-active',
+)
 
 CSS_HEADER = (
     '/*\n'
@@ -317,6 +318,9 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
     } if len(modes) == 2 else None
     named = {design.light_name(it) for it in defined}
     surfaces = design.SURFACES if named.intersection(design.SURFACE_TOKENS) else design.SURFACES_FLAT
+    follows = [design.variable(it) for it in SIDEBAR_FOLLOWS]
+    # the tokens that follow the sidebar with another value in the dark mode
+    sidebar_night = {it: night[it] for it in follows if it in night} if night is not None else {}
     parts = [
         CSS_HEADER,
         f'/* The preset `{settings["preset"]}`, density {settings["density"]}'
@@ -371,10 +375,15 @@ def render_css(settings: dict, theme: dict | None, defined: dict) -> str:
             if named.intersection(GLOW_TOKENS) else []
         ),
         '  /* the components inside the sidebar and its drawer read the colors of the sidebar */',
-        block(
-            "[data-slot='sidebar']",
-            {**SIDEBAR, **{design.variable(n): v for n, v in SIDEBAR_DEFAULTS.items() if n not in named}},
-            '  ',
+        block("[data-slot='sidebar']", {**SIDEBAR, **{it: first[it] for it in follows}, **design.SURFACES_FLAT}, '  '),
+        *(
+            [
+                block(".dark [data-slot='sidebar']", sidebar_night, '  '),
+                '  @media (prefers-color-scheme: dark) {',
+                block(":root:not(.light) [data-slot='sidebar']", sidebar_night, '    '),
+                '  }',
+            ]
+            if sidebar_night else []
         ),
         *(
             ['  /* the gradient and the glow of the sidebar */', block("[data-slot='sidebar']", SIDEBAR_SURFACE, '  ')]
