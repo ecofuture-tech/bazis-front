@@ -334,7 +334,8 @@ export function Dashboard({
             <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {shown.map((item) => (
                 <Allowed key={item.screen} requirement={item.requires}>
-                  <li className="grid">
+                  {/* one track no wider than the column: a long label is cut, never the page widened */}
+                  <li className="grid grid-cols-[minmax(0,1fr)]">
                     <QuickLink item={item} />
                   </li>
                 </Allowed>
