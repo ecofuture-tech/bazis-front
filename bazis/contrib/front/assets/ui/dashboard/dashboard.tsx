@@ -327,11 +327,12 @@ export function Dashboard({
           </div>
         )}
         {shown.length > 0 && (
-          <nav aria-labelledby={linksId} className="grid gap-3">
+          <nav aria-labelledby={linksId} className="@container grid gap-3">
             <h2 id={linksId} className="text-sm font-medium text-muted-foreground">
               {t('dashboard.links')}
             </h2>
-            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {/* as many in a row as the width of the screen beside the sidebar keeps their labels whole */}
+            <ul className="grid gap-3 @xl:grid-cols-2 @4xl:grid-cols-3">
               {shown.map((item) => (
                 <Allowed key={item.screen} requirement={item.requires}>
                   {/* one track no wider than the column: a long label is cut, never the page widened */}
@@ -343,7 +344,10 @@ export function Dashboard({
             </ul>
           </nav>
         )}
-        {focus === undefined && charts !== undefined && <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">{charts}</div>}
+        {/* as many columns of charts as their width takes: a single chart the whole width, never beside a hole */}
+        {focus === undefined && charts !== undefined && (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] gap-4">{charts}</div>
+        )}
         {focus === undefined && recent.length > 0 && (
           <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-4', recent.length > 1 && 'xl:grid-cols-2')}>{lists}</div>
         )}
