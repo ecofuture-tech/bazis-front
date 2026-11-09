@@ -1094,9 +1094,9 @@ export function Screen({ id, title, parent, description, caption, actions, child
               className={cn(
                 'text-muted-foreground',
                 portal ? 'text-lg' : 'text-sm',
-                // right under the title, not a section of its own (under the sticky header, at its
-                // air)
-                title !== undefined && (sticky ? 'md:-mt-(--space-section) -mt-3' : '-mt-4'),
+                // right under the title, not a section of its own; under the line of a sticky
+                // header at the air of the content, never against the line
+                title !== undefined && (sticky ? '-mt-3 md:mt-0' : '-mt-4'),
               )}
             >
               {description}
