@@ -229,7 +229,9 @@ TONES = {
 
 #: the tints of the avatars of the initials (`bg-avatar-<n> text-avatar-<n>-fg`), the variable
 #: of each and the parts of it in its background (over the card) and in its text (over the
-#: foreground); the last one's text is the foreground at 72 % over its background
+#: foreground); the last one's text is the foreground at 72 % over its background. Colors of the
+#: content, checked on it: never inside the sidebar, where the tones of the content stay and
+#: its foreground and card are those of the sidebar (the user there has `bg-sidebar-primary`)
 AVATARS = (('--primary', 16, 80), ('--brand', 20, 55), ('--info', 16, 70), ('--success', 16, 65), ('--muted-foreground', 18, None))
 
 
@@ -294,6 +296,45 @@ CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     ('--muted-foreground', '--control'),
     *((f'--{tone}-ink', f'--{tone}-soft') for tone in TONES),
     *((f'--avatar-{number}-fg', f'--avatar-{number}') for number in range(len(AVATARS))),
+]
+
+#: the variables of the content that the sidebar replaces with its own inside it (the buttons,
+#: the toggles, the focus rings, the borders and the muted text of the components there)
+SIDEBAR = {
+    '--foreground': 'var(--sidebar-foreground)',
+    '--muted-foreground': 'var(--sidebar-muted-foreground)',
+    '--border': 'var(--sidebar-border)',
+    '--input': 'var(--sidebar-border)',
+    '--accent': 'var(--sidebar-accent)',
+    '--accent-foreground': 'var(--sidebar-accent-foreground)',
+    '--primary': 'var(--sidebar-primary)',
+    '--primary-foreground': 'var(--sidebar-primary-foreground)',
+    '--ring': 'var(--sidebar-ring)',
+    # the surfaces of the sidebar: a control or a card inside it rests on the sidebar, its light
+    # on the accent
+    '--background': 'var(--sidebar)',
+    '--card': 'var(--sidebar)',
+    '--card-foreground': 'var(--sidebar-foreground)',
+    '--surface-light': 'var(--sidebar-accent)',
+}
+#: the tokens of the surfaces, the fields and the primary lift are expressions of the role colors:
+#: declared again inside the sidebar, they are computed on the colors of the sidebar (`SIDEBAR`),
+#: the value of a layer and the default alike (a `var()` of `:root` is computed there and
+#: inherited computed); a literal of a layer stays the same everywhere. `color.shade` is not one
+#: of them: the shadows inside the sidebar keep the dark tone of the content
+SIDEBAR_FOLLOWS = (
+    'color.border-surface', 'color.border-control', 'color.control', 'color.control-hover',
+    'color.field-line', 'color.field-line-hover', 'color.field-line-focus',
+    'shadow.ring-focus', 'shadow.field-focus',
+    'shadow.lift-primary', 'shadow.lift-primary-hover', 'shadow.lift-primary-active',
+)
+#: the colors read inside the sidebar, computed there (`sidebar_scope`), with their minimum
+#: contrast: its text on a control at rest and under the pointer, the focused line of a field (a
+#: line, not a text: 3:1)
+SIDEBAR_CONTRAST = [
+    ('--sidebar-foreground', '--control', color.AA),
+    ('--sidebar-foreground', '--control-hover', color.AA),
+    ('--field-line-focus', '--sidebar', 3.0),
 ]
 
 #: the group of the tokens of the dark mode
@@ -688,17 +729,41 @@ def pair_contrast(values: dict[str, str], text: str, background: str, alpha: flo
     return color.contrast(tuple(alpha * a + (1 - alpha) * b for a, b in zip(first, second, strict=True)), second)
 
 
+def sidebar_scope(values: dict[str, str]) -> dict[str, str]:
+    """
+    The variables that a component inside the sidebar reads (`[data-slot='sidebar']` of the
+    theme): those of :root computed there and inherited as colors, under those that the sidebar
+    declares again (`SIDEBAR`, `SIDEBAR_FOLLOWS` with their values of :root).
+    """
+    inherited = {}
+    for name, value in values.items():
+        parsed = color.parse(value, values)
+        inherited[name] = value if parsed is None else 'rgb({} {} {})'.format(*(255 * it for it in parsed))
+    return {**inherited, **SIDEBAR, **{variable(it): values[variable(it)] for it in SIDEBAR_FOLLOWS}}
+
+
 def check_contrast(
     theme: Document | None, tokens: Document | None, defined: dict[str, Entry], issues: Issues
 ) -> None:
     """
     The text colors have a contrast of at least 4.5:1 (WCAG AA) on their backgrounds, in
-    every mode of the theme; the colors that `color` cannot compute are not checked.
+    every mode of the theme, and the colors read inside the sidebar theirs there
+    (`SIDEBAR_CONTRAST`); the colors that `color` cannot compute are not checked.
     """
     # a derived color is reported at the token it derives from
     owners = {name: source for name, (_, source) in DERIVED_FROM.items()}
     by_variable = {variable(name): it for name, it in defined.items() if not name.startswith(f'{DARK}.')}
     dark = {variable(name): it for name, it in defined.items() if name.startswith(f'{DARK}.')}
+
+    def report(values: dict[str, str], mode: str, text: str, background: str, ratio: float, problem: str) -> None:
+        candidates = [source(owners.get(text, text), values), source(owners.get(background, background), values)]
+        places = [dark, by_variable] if mode == DARK else [by_variable]
+        entry = next((it[name] for name in candidates for it in places if name in it), None)
+        issues.add(
+            *(place(theme, tokens, entry) if entry is not None else (tokens or theme, ())), 'D009', problem,
+            'Make the text darker or lighter than its background (the lightness of oklch()).',
+        )
+
     for mode in modes(theme.data if theme is not None else None, defined):
         values = variables(defined, dark=mode == DARK)
         # a pair whose colors are those of a pair before it (`--control` is the background by
@@ -711,17 +776,19 @@ def check_contrast(
                 continue
             seen.add(colors)
             ratio = pair_contrast(values, text, background, alpha)
-            if ratio is None or ratio >= color.AA:
-                continue
-            candidates = [source(owners.get(text, text), values), source(owners.get(background, background), values)]
-            places = [dark, by_variable] if mode == DARK else [by_variable]
-            entry = next((it[name] for name in candidates for it in places if name in it), None)
-            issues.add(
-                *(place(theme, tokens, entry) if entry is not None else (tokens or theme, ())), 'D009',
-                f'The text color {text}{f" at {alpha:.0%}" if alpha < 1 else ""} on {background} has a contrast of {ratio:.2f}:1 in the '
-                f'{mode} mode, below {color.AA}:1 (WCAG AA).',
-                'Make the text darker or lighter than its background (the lightness of oklch()).',
-            )
+            if ratio is not None and ratio < color.AA:
+                report(values, mode, text, background, ratio, (
+                    f'The text color {text}{f" at {alpha:.0%}" if alpha < 1 else ""} on {background} has a contrast of {ratio:.2f}:1 in the '
+                    f'{mode} mode, below {color.AA}:1 (WCAG AA).'
+                ))
+        inside = sidebar_scope(values)
+        for text, background, minimum in SIDEBAR_CONTRAST:
+            ratio = pair_contrast(inside, text, background)
+            if ratio is not None and ratio < minimum:
+                report(values, mode, text, background, ratio, (
+                    f'The color {text} on {background} inside the sidebar has a contrast of {ratio:.2f}:1 in the {mode} mode, '
+                    f'below {minimum}:1 (WCAG AA).'
+                ))
 
 
 def check(

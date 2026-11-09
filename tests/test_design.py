@@ -34,7 +34,7 @@ import pytest
 import yaml
 
 from bazis.contrib.front.checks import check_design
-from bazis.contrib.front.spec import color, design, fonts, theme
+from bazis.contrib.front.spec import design, fonts, theme
 from bazis.contrib.front.spec.issues import Document, Issues
 from bazis.contrib.front.spec.lint import DESIGN_SCHEMA, TOKENS_SCHEMA, validator
 from bazis.contrib.front.spec.validate import Specs, validate
@@ -397,46 +397,34 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     assert 'lift-field' not in json.dumps(lifted)
 
 
-def computed(scope: dict[str, str]) -> dict[str, str]:
-    """
-    The variables of an element as its children inherit them: each color computed on the
-    element (`rgb()`), another value as it is.
-    """
-    colors = {name: color.parse(value, scope) for name, value in scope.items()}
-    return {
-        name: value if colors[name] is None else 'rgb({} {} {})'.format(*(255 * it for it in colors[name]))
-        for name, value in scope.items()
-    }
-
-
-def sidebar_scopes(css: str) -> dict[str, dict[str, str]]:
-    """
-    The variables that a component inside the sidebar reads in each mode: those of the sidebar
-    over those of :root (and of the dark mode), computed on :root and inherited.
-    """
-    base = css.split('\n@layer base {\n', 1)[1]
-    root, sidebar = root_block(css, ':root'), block_of(base, "[data-slot='sidebar']")
-    night = block_of(base, ".dark [data-slot='sidebar']") if ".dark [data-slot='sidebar']" in base else {}
-    return {
-        'light': {**computed(root), **sidebar},
-        'dark': {**computed({**root, **root_block(css, '.dark')}), **sidebar, **night},
-    }
-
-
-def sidebar_contrast(scope: dict[str, str], text: str, background: str) -> float:
-    return color.contrast(color.parse(scope[text], scope), color.parse(scope[background], scope))
-
-
 @pytest.mark.parametrize('palette', ['frost', 'pine'])
-def test_the_controls_the_fields_and_the_cards_read_on_the_sidebar(palette):
-    # lifted inside a dark sidebar: the focused line of a field is seen on the sidebar, the text
-    # of the sidebar is read on a control at rest and under the pointer, that of a card on it
-    css = theme.render(Specs(theme={**FROST, 'palette': palette}))[theme.THEME_CSS]
-    for mode, scope in sidebar_scopes(css).items():
-        assert sidebar_contrast(scope, '--field-line-focus', '--sidebar') >= 3.0, mode
-        assert sidebar_contrast(scope, '--sidebar-foreground', '--control') >= color.AA, mode
-        assert sidebar_contrast(scope, '--sidebar-foreground', '--control-hover') >= color.AA, mode
-        assert sidebar_contrast(scope, '--card-foreground', '--card') >= color.AA, mode
+def test_the_controls_and_the_fields_read_on_the_sidebar(palette):
+    # lifted inside a dark sidebar, computed there: the text of the sidebar is read on a control at
+    # rest and under the pointer, the focused line of a field is seen on the sidebar
+    defined = design.effective_tokens({**FROST, 'palette': palette}, None)
+    for dark in (False, True):
+        inside = design.sidebar_scope(design.variables(defined, dark=dark))
+        assert inside['--control'] == 'var(--card)' and inside['--card'] == 'var(--sidebar)'
+        for text, background, minimum in design.SIDEBAR_CONTRAST:
+            assert design.pair_contrast(inside, text, background) >= minimum, (text, background, dark)
+    # literals of the product that the sidebar cannot read: D009 inside the sidebar in both modes,
+    # at the token of the text first (the palette for its foreground)
+    tokens = {'color': {
+        'control-hover': {'$type': 'color', '$value': '#ffffff'},
+        'field-line-focus': {'$type': 'color', '$value': 'oklch(0.3 0.05 168)'},
+    }}
+    issues = Issues()
+    design.check(
+        Document('design', 'spec/design/theme.yaml', FROST, True), Document('design', 'spec/design/tokens.json', tokens, True),
+        set(), None, issues,
+    )
+    assert sorted((it.code, it.path, it.message.split(' has ')[0]) for it in issues.items) == [
+        ('D009', '/color/field-line-focus', 'The color --field-line-focus on --sidebar inside the sidebar'),
+        ('D009', '/color/field-line-focus', 'The color --field-line-focus on --sidebar inside the sidebar'),
+        ('D009', '/palette', 'The color --sidebar-foreground on --control-hover inside the sidebar'),
+        ('D009', '/palette', 'The color --sidebar-foreground on --control-hover inside the sidebar'),
+    ]
+    assert sorted(it.message.split(' mode')[0].rsplit(' ', 1)[1] for it in issues.items) == ['dark', 'dark', 'light', 'light']
 
 
 def test_a_token_of_the_dark_mode_follows_the_sidebar_in_the_dark_mode():
@@ -732,11 +720,11 @@ def test_the_sidebar_reads_its_own_colors():
     css = rendered(REPOSITORY / 'sample')[theme.THEME_CSS]
     base = css.split('\n@layer base {\n', 1)[1]
     light = root_block(css, ':root')
-    follows = [design.variable(it) for it in theme.SIDEBAR_FOLLOWS]
+    follows = [design.variable(it) for it in design.SIDEBAR_FOLLOWS]
     assert block_of(base, "[data-slot='sidebar']") == {
-        **theme.SIDEBAR, **{it: light[it] for it in follows}, **design.SURFACES_FLAT,
+        **design.SIDEBAR, **{it: light[it] for it in follows}, **design.SURFACES_FLAT,
     }
-    assert theme.SIDEBAR == {
+    assert design.SIDEBAR == {
         '--foreground': 'var(--sidebar-foreground)',
         '--muted-foreground': 'var(--sidebar-muted-foreground)',
         '--border': 'var(--sidebar-border)',
