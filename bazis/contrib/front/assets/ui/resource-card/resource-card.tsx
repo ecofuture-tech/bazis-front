@@ -30,6 +30,7 @@ import {
   alignsDigits,
   FieldValue,
   fieldValue,
+  inlineDisplay,
   isLongText,
   ITEM_META,
   itemLabel,
@@ -227,7 +228,7 @@ function EditableSections({ path, id, ...props }: Omit<SectionsProps, 'editable'
 
 /**
  * The heading of an item without a name: the values of its fields of `names` that the user
- * sees and that have a value; its id when none has.
+ * sees and that have a value, as text (`inlineDisplay`); its id when none has.
  */
 function ItemHeading({
   item,
@@ -248,7 +249,7 @@ function ItemHeading({
   return shown.map((name, index) => (
     <Fragment key={name}>
       {index > 0 && ' · '}
-      <FieldValue field={fields.fields.get(name)} value={fieldValue(item, name)} type={item.type} display={display[name]} />
+      <FieldValue field={fields.fields.get(name)} value={fieldValue(item, name)} type={item.type} display={inlineDisplay(display[name])} />
     </Fragment>
   ));
 }

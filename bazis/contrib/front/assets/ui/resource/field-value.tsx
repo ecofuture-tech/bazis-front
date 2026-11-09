@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Fragment, type ReactNode } from 'react';
+
 import { useLanguage } from '@/bazis/i18n';
 import type { FormField } from '@/bazis/react';
+import { cn } from '@/lib/utils';
 
 import { fieldValue, formatValue, statusName, statusyModel, type FieldDisplay, type Fields, type ResourceObject } from './fields.js';
 import { FileValue, isFile, useFiles } from './files.js';
@@ -32,6 +35,113 @@ export interface FieldValueProps {
   large?: boolean | undefined;
   /** The image (`display: 'image'`) is the cover of a card of a grid: its whole width, the first of several files. */
   media?: boolean | undefined;
+  /** Chips before `+<n>`: 2, all if `large`. */
+  chips?: number | undefined;
+}
+
+/** The tints of the avatars (`--avatar-<n>` of the theme), the same for the same name. */
+const AVATARS = [
+  'bg-avatar-0 text-avatar-0-fg',
+  'bg-avatar-1 text-avatar-1-fg',
+  'bg-avatar-2 text-avatar-2-fg',
+  'bg-avatar-3 text-avatar-3-fg',
+  'bg-avatar-4 text-avatar-4-fg',
+];
+
+/** The initials of a name: the first letters of its first two words, its parentheses left out. */
+function initials(name: string): string {
+  const words = name.replace(/\(.*?\)/g, ' ').trim().split(/\s+/);
+  return words
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join('')
+    .toUpperCase();
+}
+
+/**
+ * A name after the circle of its initials, in a tint chosen by the name. The initials are drawn
+ * by CSS: the text of the value is the name alone, for its title and the scenarios.
+ */
+function Avatar({ name }: { name: string }) {
+  // FNV-1a: its low digits mix every letter (a multiplier of 31 leaves the remainder by 5 the sum of the letters)
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < name.length; index += 1) hash = Math.imul(hash ^ name.charCodeAt(index), 16777619) >>> 0;
+  const hue = hash % AVATARS.length;
+  return (
+    <span className="inline-flex max-w-full min-w-0 items-center gap-2.5 align-middle">
+      <span
+        aria-hidden="true"
+        data-initials={initials(name) || '?'}
+        className={cn(
+          'inline-flex size-7.5 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold tracking-[0.02em] before:content-[attr(data-initials)]',
+          AVATARS[hue],
+        )}
+      />
+      <span data-text="" className="min-w-0">
+        {name}
+      </span>
+    </span>
+  );
+}
+
+/** A part of a text as a chip: its quantity after `×` in bold (`Tent ×2`). */
+function ChipText({ part }: { part: string }) {
+  const match = /^(.*?)\s*(×\s*\d+)$/.exec(part);
+  if (!match) return <>{part}</>;
+  return (
+    <>
+      {match[1]} <b className="font-semibold text-foreground">{match[2]}</b>
+    </>
+  );
+}
+
+/**
+ * The parts of a value as chips, the first `limit` of them (each cut to the width of the value
+ * with its text in its title), and `+<n>` of the others (their text its title). The commas
+ * between them are for the readers of the screen: the text of the value is that of the list
+ * (`Tent ×2, Stove ×1`, the labels of the related items), for its title and the scenarios.
+ */
+function Chips({ parts, limit }: { parts: readonly { key: string; content: ReactNode }[]; limit: number }) {
+  const shown = parts.slice(0, limit);
+  const rest = parts.slice(limit);
+  return (
+    // inline: the chips wrap as words (in a value of a card cut to one line too), aligned as the text
+    // around them; relative: the separators for the readers of the screen stay in it, never out of
+    // the scroll of a table
+    <span data-slot="chips" className="relative -my-0.5 inline-block max-w-full align-middle whitespace-normal">
+      {shown.map((part, index) => (
+        <Fragment key={part.key}>
+          {index > 0 && <span className="sr-only">, </span>}
+          <span
+            ref={titleFromText}
+            data-text=""
+            className="my-0.5 inline-block h-6 max-w-full truncate rounded-md bg-neutral-soft px-2 align-middle text-[0.8125rem] leading-6 font-normal text-neutral-ink not-last:me-1.5"
+          >
+            {part.content}
+          </span>
+        </Fragment>
+      ))}
+      {rest.length > 0 && (
+        <>
+          <span className="sr-only">, </span>
+          <span
+            ref={titleFromText}
+            data-more={`+${String(rest.length)}`}
+            className="inline-block px-0.5 align-middle text-[0.8125rem] font-medium text-muted-foreground tabular-nums before:content-[attr(data-more)]"
+          >
+            <span className="sr-only">
+              {rest.map((part, index) => (
+                <Fragment key={part.key}>
+                  {index > 0 && ', '}
+                  {part.content}
+                </Fragment>
+              ))}
+            </span>
+          </span>
+        </>
+      )}
+    </span>
+  );
 }
 
 /** A number with a bar of its share of `max` (`display: {bar}`), a `meter`. */
@@ -57,14 +167,15 @@ function Bar({ value, max, text, label }: { value: number; max: number; text: st
 
 /**
  * The value of a field for reading: an attribute formatted by its type, its format and
- * `display` (a phone as a link to call it, a share as a bar, `per` muted after a sum), the labels of the related items
- * of a relationship (the status of an item of bazis-statusy by its name), the uploaded files
+ * `display` (a phone as a link to call it, a share as a bar, `per` muted after a sum),
+ * the labels of the related items of a relationship (the status of an item of
+ * bazis-statusy by its name), the uploaded files
  * (`FileValue`; their thumbnails only with `display: 'image'`, large in a card, the cover of a
  * card of a grid as `media`). A text of the item, of any length (a string without a choice or a format, the
  * label of a related item), is in an element `data-text`, which the screenshots make long to
  * check the layout (V015), unlike a date, a number or the label of a choice.
  */
-export function FieldValue({ field, value, type, display, large = false, media = false }: FieldValueProps) {
+export function FieldValue({ field, value, type, display, large = false, media = false, chips = large ? Infinity : 2 }: FieldValueProps) {
   const { resources } = useFiles();
   const language = useLanguage();
   if (isFile(field, resources) && value !== null && value !== undefined) {
@@ -87,6 +198,9 @@ export function FieldValue({ field, value, type, display, large = false, media =
   if (field?.kind === 'relation' && value !== null && value !== undefined) {
     const ids = Array.isArray(value) ? (value as unknown[]).map(text) : [text(value)];
     if (!ids.length) return <>—</>;
+    if (display === 'chips') {
+      return <Chips limit={chips} parts={ids.map((id) => ({ key: id, content: <RelationLabel relation={field.relation} id={id} /> }))} />;
+    }
     return (
       <>
         {ids.map((id, index) => (
@@ -109,6 +223,11 @@ export function FieldValue({ field, value, type, display, large = false, media =
         </span>
       </>
     );
+  }
+  if (display === 'avatar' && typeof value === 'string' && value.trim()) return <Avatar name={value} />;
+  if (display === 'chips' && typeof value === 'string' && value.trim()) {
+    const parts = value.split(/\s*,\s*/).filter(Boolean);
+    return <Chips limit={chips} parts={parts.map((part, index) => ({ key: String(index), content: <ChipText part={part} /> }))} />;
   }
   const shown = formatValue(field, value, language, display);
   if (display === 'phone' && typeof value === 'string' && /\d/.test(value)) {
@@ -141,6 +260,7 @@ export interface ItemValueProps {
   display?: FieldDisplay | undefined;
   /** The image is the cover of a card of a grid (`FieldValue` `media`). */
   media?: boolean | undefined;
+  chips?: number | undefined;
 }
 
 /**
@@ -166,11 +286,11 @@ export function titleFromText(element: HTMLElement | null): (() => void) | undef
  * The value of a field of an item as a cell shows it: the status of an item of a statusy model
  * as a badge of its tone (`status:<id>`), any other field as `FieldValue`.
  */
-export function ItemValue({ item, name, fields, display, media }: ItemValueProps) {
+export function ItemValue({ item, name, fields, display, media, chips }: ItemValueProps) {
   const field = fields.fields.get(name);
   const value = fieldValue(item, name);
   if (field?.kind === 'relation' && name === 'status' && typeof value === 'string' && statusyModel(item.type)) {
     return <StatusLabel type={item.type} status={value} />;
   }
-  return <FieldValue field={field} value={value} type={item.type} display={display} media={media} />;
+  return <FieldValue field={field} value={value} type={item.type} display={display} media={media} chips={chips} />;
 }

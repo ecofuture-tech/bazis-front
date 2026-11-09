@@ -470,20 +470,27 @@ export function choiceOptions(field: FormField | undefined): { value: string; la
 
 /**
  * How the value of a field is shown (`display` of the field of an entity of the specs):
- * `plain`, a number without the separators of its thousands (a code of five digits or more:
- * a number below 10,000 has none anyway, a year as it is written); `phone`, a
- * phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without
- * its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per`
- * (`3600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of
- * its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
+ * `plain`, a number without the separators of its thousands (a code, a year); `phone`, a
+ * phone number to call; `{currency}`, a sum in the currency (ISO 4217), without zero cents
+ * unless `fraction: always`, then ` / ` and the text of `per` (`3600 ₽ / сутки`); `{unit}`, a
+ * quantity, a no-break space and its unit; `{bar}`, a number with a bar of its share of the
+ * maximum; `image`, a file as its thumbnail; `avatar`, a name after its initials; `chips`, the
+ * parts of a text (by commas) or the related items.
  */
 export type FieldDisplay =
   | 'plain'
   | 'phone'
   | 'image'
+  | 'avatar'
+  | 'chips'
   | { currency: string; fraction?: 'auto' | 'always'; per?: string }
   | { unit: string }
   | { bar: number };
+
+/** `avatar` and `chips` as a text (a heading, a calendar). */
+export function inlineDisplay(display: FieldDisplay | undefined): FieldDisplay | undefined {
+  return display === 'avatar' || display === 'chips' ? undefined : display;
+}
 
 /**
  * A phone number written without separators (`+79161234567`, 7 to 15 digits) in groups
@@ -520,7 +527,7 @@ export function formatValue(
   if (typeof value === 'boolean') return t(value ? 'value.yes' : 'value.no');
   // a sum or a quantity: a number, or a DecimalField (its exact digits)
   if (typeof display === 'object' && !('bar' in display) && (typeof value === 'number' || typeof value === 'string')) {
-    if (!('currency' in display)) return `${formatDecimal(value, language)} ${display.unit}`;
+    if (!('currency' in display)) return `${formatDecimal(value, language)}\u00a0${display.unit}`;
     // a whole sum without its zero cents (`3600 ₽`, `15 000 ₽`), unless they are always shown
     const whole = display.fraction !== 'always' && /^-?\d+(\.0*)?$/.test(String(value).trim());
     const digits = whole ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {};
@@ -529,7 +536,7 @@ export function formatValue(
       sum = formatDecimal(value, language, { style: 'currency', currency: display.currency, ...digits });
     } catch {
       // a code that `Intl` refuses (not of ISO 4217): after the number, as a unit
-      sum = `${formatDecimal(value, language, whole ? digits : undefined)} ${display.currency}`;
+      sum = `${formatDecimal(value, language, whole ? digits : undefined)}\u00a0${display.currency}`;
     }
     return display.per === undefined ? sum : `${sum} / ${t(display.per)}`;
   }

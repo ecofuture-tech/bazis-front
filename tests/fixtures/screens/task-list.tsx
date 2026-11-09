@@ -57,7 +57,7 @@ export function TaskListScreen() {
           {
             path: TASK.path,
             entity: 'task',
-            columns: ['title', 'status', 'priority', 'assignee', 'dt_created'],
+            columns: ['title', 'status', 'priority', 'assignee', 'watchers', 'dt_created'],
             filters: [
               { field: 'status', options: statusOptions(TASK.type, language) },
               'assignee',
@@ -66,6 +66,8 @@ export function TaskListScreen() {
             ],
             sort: ['-dt_created'],
             search: true,
+            toolbar: 'header',
+            count: true,
             display: TASK.display,
             icon: TASK.Icon,
             selected: id,

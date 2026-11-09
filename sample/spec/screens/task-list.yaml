@@ -7,9 +7,10 @@ route: /tasks
 entity: task
 roles: [manager, viewer]
 primitive: list
+header: {search: true, count: true}   # the search, the view and the create beside the title, the number of the tasks too
 extend: true  # frontend/src/screens/task-list/extend.tsx: the counts by status, the custom action `count`, the height of the map
 list:
-  columns: [title, status, priority, assignee, dt_created]
+  columns: [title, status, priority, assignee, watchers, dt_created]
   filters: [status, assignee, priority, dt_created]
   sort: [-dt_created]
   search: true

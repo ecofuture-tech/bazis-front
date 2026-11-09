@@ -1034,6 +1034,23 @@ CASES = [
         [('S020', f'{PRODUCT}#/entities/0/fields/9/display/fraction'), ('S020', f'{PRODUCT}#/entities/0/fields/9/display/per')],
     ),
     (
+        'S020',
+        # an avatar of a date, chips of a to-one relationship and of files
+        {PRODUCT: lambda d: [field(task(d), 'dt_created').update(display='avatar'),
+                             field(task(d), 'assignee').update(display='chips'),
+                             field(task(d), 'photos').update(display='chips')]},
+        [('S020', f'{PRODUCT}#/entities/0/fields/2/display'), ('S020', f'{PRODUCT}#/entities/0/fields/3/display'),
+         ('S020', f'{PRODUCT}#/entities/0/fields/10/display')],
+    ),
+    (
+        'S020',
+        # an avatar of a name, chips of a text and of a to-many relationship
+        {PRODUCT: lambda d: [field(task(d), 'title').update(display='avatar'),
+                             d['entities'][1]['fields'][0].update(display='chips'),
+                             field(task(d), 'watchers').update(display='chips')]},
+        [],
+    ),
+    (
         'S027',
         # what a sum is for is a text of the interface, in each language
         {PRODUCT: lambda d: d['entities'][1]['fields'][0].update(display={'currency': 'RUB', 'per': 'day'})},
@@ -1123,6 +1140,18 @@ CASES = [
         {HOME: lambda d: [d['dashboard']['charts'][2].update(kind='distribution'),
                           d['dashboard']['charts'][0].update(value={'avg': 'hours'})]},
         [('S068', f'{HOME}#/dashboard/charts/0/value/avg'), ('S068', f'{HOME}#/dashboard/charts/2/kind')],
+    ),
+    (
+        'S069',
+        # the search in the header of a list without its search
+        {LIST: lambda d: d['list'].pop('search')},
+        [('S069', f'{LIST}#/header/search')],
+    ),
+    (
+        'S002',
+        # the header of a list is of a list only
+        {BOARD: lambda d: d.update(header={'count': True})},
+        [('S002', BOARD)],
     ),
     (
         'S022',
@@ -3426,7 +3455,7 @@ def test_a_product_without_a_login_needs_no_test_users(root):
 
 def test_only_true_and_false_are_booleans(root):
     # `No` is the name of the product, not false; `yes` is not the boolean of `search`
-    for name, old, new in ((PRODUCT, 'name: Tasks', 'name: No'), (LIST, 'search: true', 'search: yes')):
+    for name, old, new in ((PRODUCT, 'name: Tasks', 'name: No'), (LIST, '  search: true', '  search: yes')):
         text = (root / name).read_text(encoding='utf-8')
         (root / name).write_text(text.replace(old, new), encoding='utf-8')
     assert issues(root) == [('S002', f'{LIST}#/list/search')]

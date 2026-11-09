@@ -113,7 +113,7 @@ describe('StatCard', () => {
       <StatCard id="hours" path={ITEMS as never} label="Hours" value={{ avg: 'hours' }} display={{ hours: { unit: 'h' } }} />,
       new Backend().on('GET', ITEMS, totals({ 'avg(hours)': '1.5450000000000000' })),
     );
-    expect((await within(screen.getByTestId('tile:hours')).findByTestId('state:loaded')).textContent).toBe('1.55 h');
+    expect((await within(screen.getByTestId('tile:hours')).findByTestId('state:loaded')).textContent).toBe('1.55\u00a0h');
     // the number of the backend
     expect(screen.getByTestId('tile:hours').getAttribute('data-value')).toBe('1.545');
     hours.unmount();
@@ -137,7 +137,7 @@ describe('StatCard', () => {
       ['hours', '0E-16', '0.00'],
       ['count', -0.0001, '0'],
       ['count', -2.5, '-2.5'],
-      ['count', -0.0004, '0 h', unit],
+      ['count', -0.0004, '0\u00a0h', unit],
       ['count', -0.004, '$0.00', usd],
       ['count', -1.25, '-$1.25', usd],
     ] as const;

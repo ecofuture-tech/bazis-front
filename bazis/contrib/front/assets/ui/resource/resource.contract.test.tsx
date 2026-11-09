@@ -35,6 +35,7 @@ import {
   FileValue,
   formatSize,
   formatValue,
+  inlineDisplay,
   itemLabel,
   itemName,
   parsePoint,
@@ -693,15 +694,98 @@ describe('FieldValue', () => {
     expect(formatValue(price, '250.50', russian, { currency: 'RUB', per: 'entities.tool.fields.price.display.per' })).toMatch(
       /^250,50\s₽ \/ сутки$/,
     );
-    expect(formatValue(attribute('copies', 'integer'), 12000, undefined, { unit: 'pcs' })).toBe('12,000 pcs');
-    expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1200 pcs');
-    expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50 kg');
+    expect(formatValue(attribute('copies', 'integer'), 12000, undefined, { unit: 'pcs' })).toBe('12,000\u00a0pcs');
+    expect(formatValue(attribute('copies', 'integer'), 1200, undefined, { unit: 'pcs' })).toBe('1200\u00a0pcs');
+    expect(formatValue(price, '2.50', undefined, { unit: 'kg' })).toBe('2.50\u00a0kg');
     expect(formatValue(price, null, undefined, { unit: 'kg' })).toBe('—');
-    // a code that is not of ISO 4217: after the number, as a unit, never an error of the render
-    expect(formatValue(price, '45000.10', undefined, { currency: 'euro' })).toBe('45,000.10 euro');
-    expect(formatValue(price, '45000.00', undefined, { currency: 'euro' })).toBe('45,000 euro');
+    // a code that is not of ISO 4217: after the number, as a unit, never an error of the render;
+    // a unit after a no-break space, never alone at the start of a line
+    expect(formatValue(price, '45000.10', undefined, { currency: 'euro' })).toBe('45,000.10\u00a0euro');
+    expect(formatValue(price, '45000.00', undefined, { currency: 'euro' })).toBe('45,000\u00a0euro');
     render(<FieldValue field={price} value="12.5" display={{ currency: 'euro' }} />);
     expect(screen.getByText('12.5 euro')).toBeTruthy();
+  });
+
+  it('shows a name after the circle of its initials (`display: avatar`), its text the name alone', () => {
+    const client = attribute('client', 'string');
+    render(
+      <>
+        <span data-bz="field:one">
+          <FieldValue field={client} value="Anna Lee (VIP)" display="avatar" />
+        </span>
+        <span data-bz="field:two">
+          <FieldValue field={client} value="Anna Lee (VIP)" display="avatar" />
+        </span>
+        <span data-bz="field:none">
+          <FieldValue field={client} value="" display="avatar" />
+        </span>
+      </>,
+    );
+    const one = screen.getByTestId('field:one');
+    // the initials drawn by CSS, hidden from the readers of the screen: the text of the value is the name
+    const circle = one.querySelector('[data-initials]');
+    expect([circle?.getAttribute('data-initials'), circle?.getAttribute('aria-hidden'), one.textContent]).toEqual(['AL', 'true', 'Anna Lee (VIP)']);
+    expect(one.querySelector('[data-text]')?.textContent).toBe('Anna Lee (VIP)');
+    // the same tint for the same name
+    expect(screen.getByTestId('field:two').querySelector('[data-initials]')?.className).toBe(circle?.className);
+    expect(circle?.className).toMatch(/\bbg-avatar-[0-4]\b/);
+    // no name: no circle
+    expect(screen.getByTestId('field:none').querySelector('[data-initials]')).toBeNull();
+  });
+
+  it('shows the parts of a text (`display: chips`) as chips, `+<n>` of the others, its text the value', () => {
+    const items = attribute('items', 'string');
+    const value = 'Tent ×2, Stove ×1, Lamp';
+    render(
+      <>
+        <span data-bz="field:list">
+          <FieldValue field={items} value={value} display="chips" />
+        </span>
+        <span data-bz="field:card">
+          <FieldValue field={items} value={value} display="chips" large />
+        </span>
+        <span data-bz="field:one">
+          <FieldValue field={items} value={value} display="chips" chips={1} />
+        </span>
+      </>,
+    );
+    const list = screen.getByTestId('field:list');
+    expect(list.textContent).toBe(value);
+    // the separators for the readers of the screen (absolute) stay in the chips, never out of the scroll of a table
+    expect(list.querySelector('[data-slot="chips"]')?.classList).toContain('relative');
+    expect([...list.querySelectorAll('[data-text]')].map((chip) => chip.textContent)).toEqual(['Tent ×2', 'Stove ×1']);
+    // the quantity in bold
+    expect(list.querySelector('[data-text] b')?.textContent).toBe('×2');
+    // the others: `+<n>` drawn by CSS, their text for the readers of the screen and in the title
+    const more = list.querySelector('[data-more]');
+    expect([more?.getAttribute('data-more'), more?.textContent]).toEqual(['+1', 'Lamp']);
+    // a card shows them all
+    const card = screen.getByTestId('field:card');
+    expect([card.querySelectorAll('[data-text]').length, card.querySelector('[data-more]'), card.textContent]).toEqual([3, null, value]);
+    // one chip of a row of the last items of a dashboard
+    expect(screen.getByTestId('field:one').querySelector('[data-more]')?.getAttribute('data-more')).toBe('+2');
+  });
+
+  it('shows the related items of a relationship with many (`display: chips`) as chips', () => {
+    const tags: FormField = { ...base, kind: 'relation', name: 'tags', title: 'Tags', relation: 'test.unknown', many: true };
+    renderWithBazis(
+      <span data-bz="field:tags">
+        <FieldValue field={tags} value={['7', '8', '9']} display="chips" />
+      </span>,
+      new Backend(),
+    );
+    const field = screen.getByTestId('field:tags');
+    expect([...field.querySelectorAll('[data-text]')].map((chip) => chip.textContent)).toEqual(['7', '8']);
+    expect([field.querySelector('[data-more]')?.getAttribute('data-more'), field.textContent]).toEqual(['+1', '7, 8, 9']);
+  });
+
+  it('shows an avatar and chips as a text where a value is a line of a text (`inlineDisplay`)', () => {
+    expect([inlineDisplay('avatar'), inlineDisplay('chips'), inlineDisplay('phone'), inlineDisplay(undefined)]).toEqual([
+      undefined,
+      undefined,
+      'phone',
+      undefined,
+    ]);
   });
 
   it('aligns the digits of a number, a decimal and a date, not those of a text or a time', () => {

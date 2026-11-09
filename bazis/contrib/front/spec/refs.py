@@ -77,6 +77,8 @@ DISPLAY_TYPES = {
     'bar': ('integer', 'number'),
     'phone': ('string',),
     'image': ('file',),
+    'avatar': ('string',),
+    'chips': ('string',),
 }
 
 
@@ -401,8 +403,9 @@ def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> No
     """
     The `display` of a field fits its type: a number is `plain`, a `bar` (of an integer or
     a number), a sum in a `currency` or a quantity in a `unit` (also of a DecimalField, a
-    `string`); a `phone` is a string; an `image` is a file; a relationship has none; the
-    cents of a sum and what it is for (`fraction`, `per`) are of a currency.
+    `string`); a `phone` and an `avatar` are strings; an `image` is a file; `chips` are a
+    string or a to-many relationship, the only display of a relationship; the cents of a sum
+    and what it is for (`fraction`, `per`) are of a currency.
     """
     display = item['display']
     kind = display if isinstance(display, str) else next(it for it in display if it in DISPLAY_TYPES)
@@ -413,13 +416,14 @@ def _check_display(doc: Document, path: tuple, item: dict, issues: Issues) -> No
                 f'`{key}` of the field `{item["id"]}` is of a sum in a currency, not of a quantity in a unit.',
                 f'Remove `{key}`, or show the field as a sum: `{{currency: <ISO 4217 code>, {key}: …}}`.',
             )
-    if item.get('type') in DISPLAY_TYPES[kind]:
+    if item.get('type') in DISPLAY_TYPES[kind] or (kind == 'chips' and 'relation' in item and item.get('many')):
         return
-    declared = f'the type `{item["type"]}`' if 'type' in item else 'a relationship'
+    declared = f'the type `{item["type"]}`' if 'type' in item else 'a to-one relationship' if kind == 'chips' else 'a relationship'
+    fits = ' or '.join(f'`{it}`' for it in DISPLAY_TYPES[kind])
     issues.add(
         doc, path, 'S020',
         f'The display `{kind}` of the field `{item["id"]}` does not fit {declared}.',
-        f'Give `{kind}` to a field of the type {" or ".join(f"`{it}`" for it in DISPLAY_TYPES[kind])}, '
+        f'Give `{kind}` to a field of the type {fits}{" or to a relationship with `many`" if kind == "chips" else ""}, '
         'or remove it.',
     )
 
@@ -1551,11 +1555,16 @@ def _check_card(doc: Document, entity: Entity, issues: Issues) -> None:
 
 def _check_list(doc: Document, entity: Entity, issues: Issues, composition: dict) -> None:
     """
-    A list without the contract: its highlight has a label; its map is by a point field of
-    the entity; its bulk actions run transitions of the workflow without a payload (S025),
-    and none is declared twice.
+    A list without the contract: the search of its header is that of the list (S069); its
+    highlight has a label; its map is by a point field of the entity; its bulk actions run
+    transitions of the workflow without a payload (S025), and none is declared twice.
     """
     lst = doc.data['list']
+    if doc.data.get('header', {}).get('search') and not lst.get('search'):
+        issues.add(
+            doc, ('header', 'search'), 'S069', 'The header has the search of the list, and the list has none.',
+            'Give the list its search, `list.search: true`, or remove `header.search`.',
+        )
     highlight = lst.get('highlight')
     if highlight is not None and 'label' not in highlight:
         issues.add(

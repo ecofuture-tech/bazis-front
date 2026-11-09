@@ -129,6 +129,7 @@ export const en: Messages = {
   'language.switch': 'Language: {language}. Switch to {next}',
   'list.actions': 'Actions',
   'list.columns': 'Columns',
+  'list.count': 'In the list:',
   'list.density.comfortable': 'Comfortable',
   'list.density.compact': 'Compact',
   'list.next': 'Next',

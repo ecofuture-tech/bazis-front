@@ -42,6 +42,7 @@ import {
   type FieldDisplay,
   type Fields,
   fieldValue,
+  inlineDisplay,
   itemLabel,
   ItemValue,
   permitted,
@@ -196,9 +197,10 @@ interface ItemProps {
  */
 function Item({ item, label, meta, display, tone, onOpen, time, range, className }: ItemProps) {
   const [first, ...others] = label;
+  // a line of a day has no room for an avatar or chips: their text
   const value = (name: string, look?: string) => (
     <span key={name} ref={titleFromText} data-bz={`cell:${name}`} className={cn('min-w-0 truncate', look)}>
-      <ItemValue item={item} name={name} fields={meta} display={display[name]} />
+      <ItemValue item={item} name={name} fields={meta} display={inlineDisplay(display[name])} />
     </span>
   );
   const content = (
@@ -376,7 +378,8 @@ export function ResourceCalendar({
           'grid min-w-0 content-start gap-1 bg-card',
           // a week at the width of a phone is a list of its days: a day without items is low
           dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : 'p-1.5 sm:min-h-40',
-          outside && 'bg-muted text-muted-foreground',
+          // a day of another month on the neutral soft tone, never on the tint of the paper
+          outside && 'bg-neutral-soft text-muted-foreground',
         )}
       >
         <div className="flex items-center gap-1.5">
@@ -482,7 +485,9 @@ export function ResourceCalendar({
             {t('calendar.today')}
           </Button>
         </div>
-        <h2 aria-live="polite" className="min-w-0 flex-1 text-lg font-subheading first-letter:uppercase max-sm:order-first max-sm:basis-full">
+        {/* the period in the text of the toolbar, under the title of the screen: never a heading as
+            heavy as it */}
+        <h2 aria-live="polite" className="min-w-0 flex-1 text-base font-medium first-letter:uppercase max-sm:order-first max-sm:basis-full">
           {title}
         </h2>
         {views.length > 1 && (

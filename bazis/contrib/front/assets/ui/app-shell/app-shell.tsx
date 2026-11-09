@@ -779,6 +779,16 @@ export interface ScreenPage {
   claim: (open: boolean) => void;
   /** The screen has a title, its `h1`; without one, its card is headed by its item, `h1`. */
   titled: boolean;
+  /**
+   * The place of the tools of a list in the header of the screen (`toolbar="header"` of
+   * `ResourceList`), `data-slot="screen-tools"`: null without a header.
+   */
+  tools: HTMLElement | null;
+  /**
+   * The caption beside the title (`caption`, `data-slot="screen-caption"`), where a list puts the
+   * number of its items (`count` of `ResourceList`): null without a header.
+   */
+  caption: HTMLElement | null;
 }
 
 const PageContext = createContext<ScreenPage | null>(null);
@@ -807,6 +817,8 @@ export interface ScreenProps {
   parent?: ScreenParent;
   /** Under the title: what the screen is for. */
   description?: ReactNode;
+  /** Beside the title, smaller: a fact of the screen, such as the day of today of a dashboard. */
+  caption?: ReactNode;
   /** Next to the title: the actions of the screen. */
   actions?: ReactNode;
   children: ReactNode;
@@ -834,19 +846,24 @@ function Breadcrumb({ parent, titled }: { parent: ScreenParent; titled: boolean 
 }
 
 /**
- * A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title and
- * the actions; in a working application it stays at the top while the screen scrolls,
- * `--sticky-top` high), its description and its content.
+ * A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title with
+ * its caption, the tools of its list and the actions; in a working application it stays at the
+ * top while the screen scrolls, `--sticky-top` high), its description and its content.
  */
-export function Screen({ id, title, parent, description, actions, children }: ScreenProps) {
+export function Screen({ id, title, parent, description, caption, actions, children }: ScreenProps) {
   const navigation = useContext(ShellContext);
   const [target, setTarget] = useState<HTMLElement | null>(null);
+  const [tools, setTools] = useState<HTMLElement | null>(null);
+  const [captionPlace, setCaptionPlace] = useState<HTMLElement | null>(null);
   const [pages, setPages] = useState(0);
   const claim = useCallback((open: boolean) => {
     setPages((count) => count + (open ? 1 : -1));
   }, []);
   const titled = title !== undefined;
-  const page = useMemo(() => ({ target, claim, titled }), [target, claim, titled]);
+  const page = useMemo(
+    () => ({ target, claim, titled, tools, caption: captionPlace }),
+    [target, claim, titled, tools, captionPlace],
+  );
   // the header sticks under the top of the page with the sidebar, never under a top bar
   const sticky = navigation !== 'topbar';
   const portal = THEME.preset === 'portal';
@@ -862,23 +879,39 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
                 'flex flex-wrap items-center justify-between gap-4',
                 // the air under the sticky header: the ring of a focused control is never under it
                 sticky &&
-                  '-mx-(--bleed) bg-background px-(--bleed) md:sticky md:border-b md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:mb-3 md:h-(--sticky-top) md:flex-nowrap',
+                  '-mx-(--bleed) px-(--bleed) md:sticky md:border-b md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:mb-3 md:h-(--sticky-top) md:flex-nowrap md:bg-background',
               )}
             >
               <div className="flex min-w-0 items-center gap-1">
                 {parent !== undefined && <Breadcrumb parent={parent} titled={titled} />}
-                {title !== undefined && (
-                  <h1
-                    title={typeof title === 'string' ? title : undefined}
-                    className={cn(
-                      'min-w-0 truncate font-heading',
-                      portal ? 'text-2xl md:text-3xl' : 'text-xl',
-                    )}
+                <div className="flex min-w-0 items-baseline gap-3">
+                  {title !== undefined && (
+                    <h1
+                      title={typeof title === 'string' ? title : undefined}
+                      className={cn(
+                        'min-w-0 truncate font-heading',
+                        portal ? 'text-2xl md:text-3xl' : 'text-xl',
+                      )}
+                    >
+                      {title}
+                    </h1>
+                  )}
+                  <p
+                    ref={setCaptionPlace}
+                    data-slot="screen-caption"
+                    className="shrink-0 text-sm whitespace-nowrap text-muted-foreground tabular-nums empty:hidden"
                   >
-                    {title}
-                  </h1>
-                )}
+                    {caption}
+                  </p>
+                </div>
               </div>
+              {/* the search, the view and the actions of a list (`toolbar="header"`) at the end, a row of
+                  their own under the title on a phone */}
+              <div
+                ref={setTools}
+                data-slot="screen-tools"
+                className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-4 gap-y-3 empty:hidden max-md:basis-full md:flex-1 md:flex-nowrap"
+              />
               {actions !== undefined && <div className="ml-auto flex shrink-0 flex-wrap gap-2">{actions}</div>}
             </header>
           )}

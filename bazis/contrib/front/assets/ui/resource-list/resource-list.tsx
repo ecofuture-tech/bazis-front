@@ -14,7 +14,9 @@
 
 // A list of a resource over `useList`: the columns of the screen with the titles of the list
 // schema, search, filters, the view (the columns shown, the density of the rows) and the
-// actions in a toolbar, sort, pages and the actions the backend allows; a table or a grid of
+// actions in a toolbar (the search, the view and the actions in the header of its screen with
+// `toolbar="header"`, the number of its items beside its title with `count`), sort, pages and
+// the actions the backend allows; a table or a grid of
 // cards (`composition.list` of the theme), cards on a phone; the rows that the user selects.
 // Marked `list:<entity>` (`aria-busy` until its rows are those of its search and its page,
 // their search in `data-search`), its rows `row:<id>` (with `data-tone` and the label of the
@@ -24,12 +26,13 @@
 
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search, SearchX } from 'lucide-react';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { Filter, nextPage, pagination, prevPage, type CustomActionName } from '@/bazis/client';
 import { THEME, type Theme, type Tone } from '@/bazis/generated/theme';
-import { useLanguage } from '@/bazis/i18n';
+import { formatNumber, useLanguage } from '@/bazis/i18n';
 import type { FormField, ListPath } from '@/bazis/react';
-import { useBesideCard, useBesideList, useWide } from '@/bazis/ui/app-shell';
+import { useBesideCard, useBesideList, useScreenPage, useWide } from '@/bazis/ui/app-shell';
 import { EmptyState } from '@/bazis/ui/empty-state';
 import {
   alignsDigits,
@@ -108,6 +111,14 @@ export interface ResourceListProps {
   sort?: readonly string[];
   /** A search field (`field:$search`). */
   search?: boolean;
+  /**
+   * Where the search, the view and the actions are: in the toolbar over the list (`list`, the
+   * default), or in the header of its `Screen` beside the title (`header`, `header.search` of the
+   * spec), the filters staying over the list.
+   */
+  toolbar?: 'list' | 'header';
+  /** The number of the items (of the search and the filters) beside the title of its `Screen` (`header.count` of the spec). */
+  count?: boolean;
   pageSize?: number;
   /** Called with the id of the row the user opens. */
   onOpen?: (id: string) => void;
@@ -211,6 +222,9 @@ const ROW_TONES: Readonly<Record<Tone, string>> = {
   danger: 'bg-danger-soft [--row-mark:var(--color-danger)]',
 };
 
+/** The bounds of a column of names with their avatars and of chips, wider than those of a text. */
+const DISPLAY_WIDTHS: Readonly<Partial<Record<string, string>>> = { avatar: 'min-w-40 max-w-56', chips: 'min-w-40 max-w-72' };
+
 /** Whether the values of a field are short by their nature and never wrap: a number, a date, a time. */
 function isShort(field: FormField | undefined): boolean {
   return isNumeric(field) || (field?.kind === 'attribute' && ['date', 'date-time', 'time'].includes(field.format ?? ''));
@@ -308,20 +322,26 @@ function TableView(
               )}
               {columns.map((name, index) => {
                 const field = fields.fields.get(name);
+                const shown = props.display[name];
                 return (
                   <TableCell
                     key={name}
                     data-bz={`cell:${name}`}
                     className={cn(
                       'px-(--space-cell-x) py-(--space-cell-y)',
+                      // the first column, the name of a row, is at least 12rem but for a short value (a number)
                       index === 0
-                        ? cn('min-w-48 font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
+                        ? cn(!isShort(field) && 'min-w-48', 'font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
                         : 'text-foreground/80',
                       // a text wraps in the width that the table gives its column, a long word too; the
                       // table shares its width between the columns of texts by their bounds, not by the
                       // length of their texts: while it has room, a long text does not narrow the column
                       // of a short word (an e-mail) until the word breaks
-                      !isShort(field) && cn('whitespace-normal wrap-anywhere', index > 0 ? 'min-w-32 max-w-32' : 'max-w-48'),
+                      !isShort(field) &&
+                        cn(
+                          'whitespace-normal wrap-anywhere',
+                          index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-32') : 'max-w-48',
+                        ),
                       isNumeric(field) && 'text-right',
                       alignsDigits(field) && 'tabular-nums',
                       hidden(name) && 'hidden',
@@ -366,6 +386,8 @@ export function ResourceList({
   filter: screenFilter,
   sort: initialSort = [],
   search: searchable = false,
+  toolbar: place = 'list',
+  count: counted = false,
   pageSize = 20,
   onOpen,
   selected,
@@ -391,7 +413,11 @@ export function ResourceList({
   // next to its list, a card is as narrow as a phone: a list in it takes the layout of a phone
   const besideList = useBesideList();
   const view = wide && !besideList ? layout : phoneLayout;
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const page = useScreenPage();
+  // the places in the header of the screen, none outside one
+  const header = place === 'header' ? (page?.tools ?? null) : null;
+  const caption = counted ? (page?.caption ?? null) : null;
   const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(new Set());
   const [rowDensity, setRowDensity] = useState(density);
   // the selection of the bulk actions, kept here when the screen does not keep it
@@ -521,6 +547,52 @@ export function ResourceList({
         )),
   };
 
+  const searchField = searchable && (
+    // as wide as 18rem, narrower (down to 10rem; to 6rem in the header, beside the actions on a
+    // phone too) rather than pushing the actions to a row of their own
+    <div
+      className={cn(
+        'relative',
+        header === null ? 'w-full sm:w-auto sm:max-w-72 sm:min-w-40 sm:flex-1' : 'min-w-24 flex-1 sm:max-w-72',
+      )}
+    >
+      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+      <Input
+        type="search"
+        aria-label={t('list.search')}
+        placeholder={t('list.search')}
+        data-bz="field:$search"
+        className={cn('pl-9', CLEAR_SEARCH)}
+        value={searchText}
+        onChange={(event) => {
+          setSearchText(event.target.value);
+        }}
+      />
+    </div>
+  );
+  const tools = (
+    <div className={cn('flex gap-2', header === null && 'ml-auto')}>
+      {viewMenu && (
+        <ViewMenu
+          columns={hideable}
+          title={fields.title}
+          hidden={hiddenColumns}
+          onHide={(name, hide) => {
+            const next = new Set(hiddenColumns);
+            if (hide) next.add(name);
+            else next.delete(name);
+            setHiddenColumns(next);
+          }}
+          density={view === 'table' ? rowDensity : undefined}
+          onDensity={setRowDensity}
+        />
+      )}
+      {toolbar.filter((action) => !creates.includes(action)).map(actionButton)}
+    </div>
+  );
+  // the sort of the cards stays over them with the filters
+  const sorts = view === 'cards' && sortable.length > 0;
+
   return (
     // busy until the rows are those of the search typed and of the page asked for; the
     // search they are of in `data-search` (the end-to-end tests wait for both)
@@ -530,25 +602,26 @@ export function ResourceList({
       aria-busy={list.isPlaceholderData || searchText.trim() !== search || undefined}
       className="grid grid-cols-[minmax(0,1fr)] gap-4"
     >
-      {(searchable || filterList.length > 0 || actions.length > 0 || viewMenu) && (
+      {header !== null &&
+        createPortal(
+          <>
+            {searchField}
+            {tools}
+          </>,
+          header,
+        )}
+      {caption !== null &&
+        count !== undefined &&
+        createPortal(
+          <span data-slot="screen-count" data-value={count}>
+            <span className="sr-only">{t('list.count')} </span>
+            {formatNumber(count, language)}
+          </span>,
+          caption,
+        )}
+      {(header === null ? searchable || filterList.length > 0 || actions.length > 0 || viewMenu : filterList.length > 0 || sorts) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          {searchable && (
-            // as wide as 18rem, narrower (down to 10rem) rather than pushing the actions to a row of their own
-            <div className="relative w-full sm:w-auto sm:max-w-72 sm:min-w-40 sm:flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input
-                type="search"
-                aria-label={t('list.search')}
-                placeholder={t('list.search')}
-                data-bz="field:$search"
-                className={cn('pl-9', CLEAR_SEARCH)}
-                value={searchText}
-                onChange={(event) => {
-                  setSearchText(event.target.value);
-                }}
-              />
-            </div>
-          )}
+          {header === null && searchField}
           {filterList.length > 0 && (
             <FilterBar
               path={path}
@@ -561,7 +634,7 @@ export function ResourceList({
               }}
             />
           )}
-          {view === 'cards' && sortable.length > 0 && (
+          {sorts && (
             <Select
               value={sort[0] ?? EVERY}
               onValueChange={(next) => {
@@ -593,24 +666,7 @@ export function ResourceList({
               </SelectContent>
             </Select>
           )}
-          <div className="ml-auto flex gap-2">
-            {viewMenu && (
-              <ViewMenu
-                columns={hideable}
-                title={fields.title}
-                hidden={hiddenColumns}
-                onHide={(name, hide) => {
-                  const next = new Set(hiddenColumns);
-                  if (hide) next.add(name);
-                  else next.delete(name);
-                  setHiddenColumns(next);
-                }}
-                density={view === 'table' ? rowDensity : undefined}
-                onDensity={setRowDensity}
-              />
-            )}
-            {toolbar.filter((action) => !creates.includes(action)).map(actionButton)}
-          </div>
+          {header === null && tools}
         </div>
       )}
       {bulk.length > 0 && selection.length > 0 && (

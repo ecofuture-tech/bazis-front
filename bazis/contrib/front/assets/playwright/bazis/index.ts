@@ -699,7 +699,7 @@ export class App<P extends Product = Product> {
       recent !== undefined ? this.screen().locator(bz('recent', recent)) : (await lists.count()) > 0 ? lists.first() : this.screen();
     const shown = (await this.rowOnPage(list, where, created)) ?? (await this.liveRow(list, where, created));
     if (shown) return shown;
-    const search = list.locator(bz('field', '$search'));
+    const search = this.searchOf(list);
     if ((await search.count()) > 0) {
       const texts = Object.values(where).flatMap((it) => (typeof it === 'string' || typeof it === 'number' ? [String(it).trim()] : []));
       for (const text of new Set(texts.filter(Boolean))) {
@@ -785,7 +785,16 @@ export class App<P extends Product = Product> {
   async search(text: string): Promise<void> {
     await this.settled();
     const list = this.screen().locator('[data-bz^="list:"]').first();
-    await this.searchList(list, list.locator(bz('field', '$search')), text);
+    await this.searchList(list, this.searchOf(list), text);
+  }
+
+  /**
+   * The search of a list: in its toolbar, or in the header of its screen beside the title
+   * (`toolbar="header"`, `data-slot="screen-tools"`), that of its first list.
+   */
+  private searchOf(list: Locator): Locator {
+    const search = bz('field', '$search');
+    return list.locator(search).or(this.screen().locator('[data-slot="screen-tools"]').locator(search));
   }
 
   /** Waits until the list is no longer busy and nothing on the page loads. */

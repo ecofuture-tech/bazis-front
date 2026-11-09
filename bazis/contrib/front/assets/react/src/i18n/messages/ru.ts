@@ -129,6 +129,7 @@ export const ru: Messages = {
   'language.switch': 'Язык: {language}. Переключить на: {next}',
   'list.actions': 'Действия',
   'list.columns': 'Столбцы',
+  'list.count': 'В списке:',
   'list.density.comfortable': 'Просторно',
   'list.density.compact': 'Компактно',
   'list.next': 'Далее',

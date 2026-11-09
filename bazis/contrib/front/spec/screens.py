@@ -536,8 +536,7 @@ def render_list(product: Product, data: dict) -> str:
         attrs.append(Attr('filter', filter_ref))
     if 'sort' in spec:
         attrs.append(Attr('sort', Arr([Str(it) for it in spec['sort']])))
-    if spec.get('search'):
-        attrs.append(Attr('search'))
+    attrs += search_attrs(data)
     attrs += entity_attrs(product, entity_id, const, label=False)
     if 'layout' in spec:
         attrs.append(Attr('layout', spec['layout']))
@@ -563,6 +562,20 @@ def render_list(product: Product, data: dict) -> str:
     if 'map' in spec:
         body.insert(0, list_map(screen, const, spec, filter_ref, opened))
     return screen.write(screen_element(screen, body))
+
+
+def search_attrs(data: dict) -> list[Attr]:
+    """
+    The search of a list and its header: the search, the view and the actions beside the title
+    (`header.search`), the number of the items there too (`header.count`).
+    """
+    header = data.get('header', {})
+    attrs = [Attr('search')] if data['list'].get('search') else []
+    if header.get('search'):
+        attrs.append(Attr('toolbar', 'header'))
+    if header.get('count'):
+        attrs.append(Attr('count'))
+    return attrs
 
 
 def fields_object(spec: dict) -> Obj:

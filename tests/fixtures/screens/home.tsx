@@ -33,6 +33,7 @@ export function HomeScreen() {
           onClick={createForm.onOpen}
         />
       }
+      today
       tiles={[
         {
           id: 'drafts',

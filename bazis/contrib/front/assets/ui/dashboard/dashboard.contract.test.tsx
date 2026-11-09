@@ -249,13 +249,13 @@ describe('Dashboard', () => {
     expect(within(home).queryByRole('navigation')).toBeNull();
   });
 
-  it('shows the day of today in the language of the product, before what it is given and its parts', async () => {
+  it('shows the day of today in the language of the product beside its title, under it in a hero, once', async () => {
     vi.useFakeTimers({ now: new Date(2026, 10, 2, 10, 0), toFake: ['Date'] });
     try {
-      const { unmount } = renderWithBazis(<Dashboard hero={false} title="Home" />, new Backend());
+      const none = renderWithBazis(<Dashboard hero={false} title="Home" />, new Backend());
       expect(screen.queryByTestId('today')).toBeNull();
-      unmount();
-      renderWithBazis(
+      none.unmount();
+      const plain = renderWithBazis(
         <Dashboard hero={false} title="Home" today before={<p data-bz="before">Before</p>} tiles={[{ id: 'all', path: ITEMS as never, label: 'All' }]} />,
         new Backend(),
         { language: testLanguages('ru') },
@@ -263,8 +263,18 @@ describe('Dashboard', () => {
       const today = screen.getByTestId('today');
       expect(today.textContent).toBe(new Date(2026, 10, 2).toLocaleDateString('ru', { weekday: 'long', day: 'numeric', month: 'long' }));
       expect(today.textContent).toContain('2 ноября');
+      // the caption of the header of the screen, after the title, never a line of its own again
+      expect(today.closest('header [data-slot="screen-caption"]')).not.toBeNull();
+      expect(screen.getByRole('heading', { level: 1 }).compareDocumentPosition(today)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       expect(today.compareDocumentPosition(screen.getByTestId('before'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       expect(today.compareDocumentPosition(await screen.findByTestId('tile:all'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(screen.getAllByTestId('today')).toHaveLength(1);
+      plain.unmount();
+      renderWithBazis(<Dashboard hero title="Home" today />, new Backend());
+      const hero = screen.getByTestId('today');
+      expect(hero.closest('[data-slot="hero"]')).not.toBeNull();
+      expect(screen.getByRole('heading', { level: 1 }).compareDocumentPosition(hero)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(screen.getAllByTestId('today')).toHaveLength(1);
     } finally {
       vi.useRealTimers();
     }

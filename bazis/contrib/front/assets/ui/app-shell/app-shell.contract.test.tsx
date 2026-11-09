@@ -28,7 +28,7 @@ import { Route, Routes, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { THEME } from '@/bazis/generated/theme';
-import { AppShell, Brand, ListCardLayout, Screen, setColorMode, useNavItems } from '@/bazis/ui/app-shell';
+import { AppShell, Brand, ListCardLayout, Screen, setColorMode, useNavItems, useScreenPage } from '@/bazis/ui/app-shell';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, testLanguages } from '@/bazis/ui/testing';
 
 const items = [
@@ -541,6 +541,22 @@ describe('AppShell', () => {
     expect(header.className).toContain('--screen-lift');
     expect(header.className).toContain('md:h-(--sticky-top)');
     expect(header.textContent).not.toContain('The overview');
+  });
+
+  it('shows the caption of a screen beside its title, and gives its places in the header to its parts', () => {
+    function Places() {
+      const page = useScreenPage();
+      return <p data-bz="places">{[page?.tools?.dataset.slot, page?.caption?.dataset.slot].join(' ')}</p>;
+    }
+    renderWithBazis(
+      <Screen id="home" title="Home" caption="Monday">
+        <Places />
+      </Screen>,
+      new Backend(),
+    );
+    const caption = screen.getByTestId('screen:home').querySelector('header h1 + [data-slot="screen-caption"]');
+    expect(caption?.textContent).toBe('Monday');
+    expect(screen.getByTestId('places').textContent).toBe('screen-tools screen-caption');
   });
 
   it('links a screen back to the screen it was opened from', () => {

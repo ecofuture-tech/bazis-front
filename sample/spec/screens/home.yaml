@@ -10,6 +10,7 @@ route: /
 roles: [manager, viewer]
 primitive: dashboard
 dashboard:
+  today: true   # the day of today beside the title
   # the chart in focus: the tasks of this week large, the week before, the peak and the sum of
   # the weeks beside them
   layout: focus

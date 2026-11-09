@@ -431,10 +431,10 @@ labels of the fields").
 **Display** of an attribute says how the screens show its value (`display` of the
 schema, S020), the only place where the spec speaks of it. The screen gives it to the
 components as it gives them the columns: `display={{code: 'plain', price: {currency: 'RUB'}}}`
-of `ResourceList` and `ResourceCard` (`display` of `FieldValue` for a value of its own). The
-components group a number by thousands from five digits (`formatNumber` of `@/bazis/i18n`),
-so a year needs no `display`; a phone is a link to call it, shown in groups
-(`+7 916 123-45-67`), a bar a `meter` next to the number, an `image` its thumbnail.
+of `ResourceList`, `ResourceCard` and `FieldValue`. The components group a number by
+thousands from five digits, so a year needs no `display`; a phone is a link to call it
+(`+7 916 123-45-67`), a bar a `meter`, an `image` its thumbnail, `avatar` a name after its
+initials, `chips` the parts of a text or a to-many relationship (`+N` after two).
 
 #### Label
 
@@ -591,6 +591,7 @@ list:
   sort: [-dt_created]            # the order by default, each field once: fields with `order` in the contract
   search: true
   open: task-card                # the card that a row opens
+header: {search: true, count: true}  # beside the title: the search, the view, the actions (S069); the count
 actions:
   - {id: create, primitive: form, mode: create, fields: [title, assignee], then: task-card}
 states: [loading, empty, error, forbidden]
@@ -644,8 +645,7 @@ with the relationship fixed to the item. A scenario runs it as an action of the 
 the card stays. By default a card lists the items of every entity that references its
 entity by a to-one relationship and has a list screen (the loans of a book); the contract
 has no reverse relationship for them unless the route set shows one. In the screen it is
-`RelatedList` ("Related items" in
-[Choices, filters, permissions and relationships](#choices-filters-permissions-and-relationships)):
+`RelatedList` ("Related items"):
 
 ```yaml
 card:
@@ -1124,7 +1124,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S017` | warning | a screen edits or filters a relationship with a picker, and the search fields of the related resource do not cover the fields that give the label of its items (`first_name`, `last_name`, `name`…: see "The label of an item"): a search by the label shown finds nothing |
 | `S018` | warning | the title of a field of an entity in the contract is its name (`is_overdue`) or the default `verbose_name` of Django (`status author`): the backend gives the field no label (a calculated field without a title), or one that reads as its name; give it one in the backend (see "The labels of the fields"), never in the dictionaries of the frontend |
 | `S019` | warning | the resource of an entity has no attribute that labels its items in the contract (`label`: a `name`, a `title`, the names of a person…), and the entity has no `label`: the frontend shows an item by its id |
-| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` of a `string`, `image` of a `file`, none of a relationship; `fraction` and `per` only with `currency` |
+| `S020` | error | the `display` of a field does not fit its type: `plain` and `bar` of an `integer` or a `number`, `currency` and `unit` also of a `string` (a DecimalField), `phone` and `avatar` of a `string`, `image` of a `file`, `chips` of a `string` or a to-many relationship; `fraction` and `per` only with `currency` |
 | `S021` | error | a chart of a dashboard is neither by the `status` of an entity with a workflow nor by a `date` or `datetime` field, or has a `bucket` or `last` without a date |
 | `S022` | error | a board is of an entity without a workflow, has a column that is not a status of its workflow, or a `badge` that is not a boolean field |
 | `S023` | error | a calendar is not by a `date` or `datetime` field (`field`, `end`), or its `tone` is not by a boolean field |
@@ -1136,7 +1136,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S029` | error | a screen has two implementations: `frontend/src/screens/<id>/index.tsx` is there, and the screen is not `custom` (once the frontend generates its screens: the lock has `screens`, `src/app/router.tsx` imports `@/screens/generated`, or `screens` is run); `screens` refuses it, on its first run and with `--force` too |
 | `S030` | error | the navigation of spec/product.yaml links an unknown screen, a screen of an item (`:id` in its route), a form of the items (not the form of a custom action) or a screen with `nav: false`, or a screen twice, or declares a group twice; a link `requires` a screen without an entity, the form of a custom action (it requires its action, `custom_actions` of the list: remove `requires`), or `can: add` of a resource without a create route (also `requires: {can: add}` of a tile, a chart or the last items of a dashboard) |
 | `S031` | error | a screen with `extend` has no extension: `frontend/src/screens/<id>/extend.tsx` is missing or does not export `extension`, or the screen is `custom` |
-| `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one declared with GET reads: `useActionQuery` in the code of the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name, `/{item_id}/export/` and `/export/`); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); one that answers a file (`file` of its custom action) anywhere but in a form, which saves it; or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
+| `S032` | error | a custom action (`primitive: custom`), a custom bulk action or the action of a form (`form.action`, of the route set) is not a custom action of the route set of the entity in the contract (`custom_actions` of its resource) declared with POST (one with GET reads: `useActionQuery` in the screen), of an item on a card, in `list.row_actions` and in a bulk action, of the route set in the toolbar of a list (an action of an item and one of the route set may share a name); in `list.row_actions` and in a bulk action one whose `access_action` is not `view`, `change` or `delete` (a list has no meta of another per row: run it on the card); one that answers a file (`file` of its custom action) anywhere but in a form, which saves it; or its `fields` name a property that its body does not have, or leave out one that it requires (a bulk action sends an empty body) |
 | `S033` | error | the generated code would name two screens alike (`task-list` and `task_list`: `TaskListScreen`), or two actions of a screen (`add-step` and `add_step`: `addStep`), or two custom bulk actions of a list |
 | `S034` | error | the add of a calendar creates the item on the selected day, in a field that the create route of its resource does not take (a date that the backend sets, such as that of the creation: the day is lost), or the resource has no create route |
 | `S035` | warning | the buttons of the create forms of a screen cannot be told apart: two create actions (or the add of a calendar) with the same label, or without one (both say `Create`), or a create action of a dashboard without a label |
@@ -1171,6 +1171,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `S066` | warning | a field of the summary of a card is also in a section of it: the card shows it twice. Leave it in the summary only: the edit of the card asks for it too |
 | `S067` | error | the focus of a dashboard: `layout: focus` without `hero` or `hero` without it, `hero.chart` is not a chart of the dashboard, is by the `status` (its value is that of the current period, the last) or is not a `bar` or a `line`, or `hero.side` has the `total` of an `avg` |
 | `S068` | error | a chart `kind: distribution` (the shares of a whole) is by a date rather than the `status`, or of an `avg` |
+| `S069` | error | `header.search` without `list.search` |
 | `D001` | error | a design file is not valid YAML or JSON |
 | `D002` | error | spec/design/theme.yaml does not follow design.schema.json (a key that a mapping does not take: as P002) |
 | `D003` | error | spec/design/tokens.json does not follow tokens.schema.json (a key that a mapping does not take: as P002) |
@@ -1603,13 +1604,13 @@ the names of the statuses and transits of the contract (in every language), and 
 | Component | What | `data-bz` | Requires |
 |---|---|---|---|
 | `state-panel` | `StatePanel` (the state of a screen or of a part of it, `inline`, with a `skeleton` while it loads), `errorState(error)`, `queryState(query, empty?)`, `SkeletonLines`; `toast({title, description?, tone?})`, `Toaster` | `state:<state>`, `action:retry` | |
-| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`, the links that its row has no room for in its menu, see [The top bar](#the-top-bar); `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login or before it, with `signIn` then, see [The public screens](#the-public-screens); `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard` (the list next to its card shows its first columns), `useBesideList` (a list in the card next to its list, a related list, shows the cards of a phone), `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below | `nav:<screen>` (the navigation and the link of `parent`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in`, `action:language` (the current code in `data-value`) | |
+| `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`, the links that its row has no room for in its menu, see [The top bar](#the-top-bar); `items`: the links, each with its `screen`, `to`, `icon` and `requires`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login or before it, with `signIn` then, see [The public screens](#the-public-screens); `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard` (the list next to its card shows its first columns), `useBesideList` (a list in the card next to its list, a related list, shows the cards of a phone), `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below; `caption`: beside the title (the day of a dashboard, the number of a list); its header has the places of a list, `screen-tools` and `screen-caption` (`tools` and `caption` of `useScreenPage`) | `nav:<screen>` (the navigation and the link of `parent`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
-| `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `ItemValue` (a field of an item as a cell: the status of a statusy model as its badge), `workflowStatuses(type)` (the statuses of a workflow, the initial one first, then in the order of its transits), `DateInput` with `DatesProvider` (the control of the dates, the calendar of `date-picker`), `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`; `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
-| `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
+| `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `ItemValue` (a field of an item as a cell: the status of a statusy model as its badge), `workflowStatuses(type)` (the statuses of a workflow, the initial one first, then in the order of its transits), `DateInput` with `DatesProvider` (the control of the dates, the calendar of `date-picker`), `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`, `inlineDisplay` (`avatar` and `chips` as a text in a line); `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
+| `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state; `toolbar="header"`: the search, the view and the actions in `screen-tools` of its `Screen`, the filters staying; `count`: the number of the items in `screen-caption`, `data-slot="screen-count"` with `data-value`). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects, or the aggregate of their field of `value` (`{sum}`, `{avg}`, `{min}`, `{max}`, formatted by `display`), from the aggregates of the core (a list of one item with `meta.aggregates`), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded, a date of `min` or `max` as its ISO text), `state:<loading\|loaded\|error\|forbidden>` | |
-| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default; `today`: the day of today before the parts; `links={[]}`: no links), `RecentList` (the last items: `columns`, `sort`, `limit`, `filter`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, and add an item too with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `today`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
+| `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default; `today`: the day of today beside the title, `caption` of `Screen` (under it in a hero); `links={[]}`: no links), `RecentList` (the last items: `columns`, `sort`, `limit`, `filter`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, and add an item too with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `today`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
 | `charts` | `StatusChart` (by status: `statuses`, those of the workflow by default), `TimeChart` (by `field`, `bucket`, `last`), both the count of the items or the `{sum}` or `{avg}` of a field of `value`, from the groups of the aggregates of the core, `Chart` (values of your own); `kind`: `donut`, `bar`, `line`, in the colors of the series of the theme, a status in that of its tone (`statuses` of the theme, the color of its badge), a value of `Chart` with `tone` too | `chart:<id>` with `value:<key>` (its number in `data-value`), `state:<loading\|empty\|loaded\|error\|forbidden>` | npm `recharts` |
 | `date-picker` | `DatePickerProvider`: the dates of the forms and of the filters below it are typed as the language of the product writes them (`02.11.2026`, `YYYY-MM-DD` too) or picked in a calendar (`DatePicker`, a button opens the month; `controls.date: native` of the theme: the input of the browser) | the input of the field (`field:<name>`, `data-input="date"`) | npm `react-day-picker` |
 | `resource-board` | `ResourceBoard` (`columns`, `title`, `fields`, `badge`, `filters`, `move`: the moves, none by default, the transits of `meta.for_transit` of the lists of the columns (bazis-statusy 2.13), `transits`: their order and confirmation, `onOpen`); `BoardDragProvider` (the drag and drop of `board-dnd`) | `board:<entity>`, `column:<status>` (`data-count`), `row:<id>` with `cell:<field>`, with `move` `action:move` with `move:<status>` (the transits of `for_transit` of its list; an item without one has no `action:move` and cannot be dragged) and the refusal of a move `error:move`, `action:more`, `state:<loading\|empty\|loaded\|error\|forbidden>`; the dialog of a payload as `transit-bar` | `statusy` |
@@ -5180,7 +5181,7 @@ Its props, `BrandProps`:
 
 #### Screen
 
-`Screen(props: ScreenProps): Element`: A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title and the actions; in a working application it stays at the top while the screen scrolls, `--sticky-top` high), its description and its content.
+`Screen(props: ScreenProps): Element`: A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title with its caption, the tools of its list and the actions; in a working application it stays at the top while the screen scrolls, `--sticky-top` high), its description and its content.
 
 
 Its props, `ScreenProps`:
@@ -5189,6 +5190,7 @@ Its props, `ScreenProps`:
 - `title?: ReactNode`
 - `parent?: ScreenParent`: The screen it was opened from: before the title, a breadcrumb to it on a wide screen (`xl`), a button back to it below.
 - `description?: ReactNode`: Under the title: what the screen is for.
+- `caption?: ReactNode`: Beside the title, smaller: a fact of the screen, such as the day of today of a dashboard.
 - `actions?: ReactNode`: Next to the title: the actions of the screen.
 - `children: ReactNode`
 
@@ -5239,6 +5241,8 @@ Its props, `ScreenProps`:
 - `target: HTMLElement | null`
 - `claim: (open: boolean) => void`: A form page opens (true) or closes (false).
 - `titled: boolean`: The screen has a title, its `h1`; without one, its card is headed by its item, `h1`.
+- `tools: HTMLElement | null`: The place of the tools of a list in the header of the screen (`toolbar="header"` of `ResourceList`), `data-slot="screen-tools"`: null without a header.
+- `caption: HTMLElement | null`: The caption beside the title (`caption`, `data-slot="screen-caption"`), where a list puts the number of its items (`count` of `ResourceList`): null without a header.
 
 #### ScreenParent
 
@@ -5416,7 +5420,7 @@ Its props, `TimeChartProps`:
 
 #### Dashboard
 
-`Dashboard(props: DashboardProps): Element`: The home of a product: the day, its numbers, its links, its charts and its last items, in this order.
+`Dashboard(props: DashboardProps): Element`: The home of a product: its numbers, its links, its charts and its last items, in this order.
 
 
 Its props, `DashboardProps`:
@@ -5426,7 +5430,7 @@ Its props, `DashboardProps`:
 - `description?: ReactNode`: What the product is for (`summary` of the product, under the title of a hero).
 - `actions?: ReactNode`: The actions of the screen, such as the forms that create an item (`action:<id>`).
 - `hero?: boolean`: The title, the description and the actions as a hero: a portal (`preset` of the theme) by default.
-- `today?: boolean`: The day of today before its parts (after the hero, `today`): `Monday, 2 November`.
+- `today?: boolean`: The day of today beside the title (`caption` of `Screen`; under it in a hero, `today`): `Monday, 2 November`.
 - `before?: ReactNode`: What the screen shows before its parts (after the hero and the day), such as the extension of a generated screen.
 - `tiles?: readonly (StatCardProps & DashboardPart)[]`
 - `links?: readonly NavItem[]`: The links to the screens, the items of the navigation of `AppShell` by default: all but the dashboard itself, each once the backend allows what it `requires`; none with `[]`.
@@ -5437,7 +5441,7 @@ Its props, `DashboardProps`:
 
 #### RecentList
 
-`RecentList(props: RecentListProps): Element`: The last items of a route set: a row each, its first field as its title.
+`RecentList(props: RecentListProps): Element`: The last items of a route set: a row each, its first field as its title, one chip of `chips`.
 
 
 Its props, `RecentListProps`:
@@ -5809,6 +5813,7 @@ Its props, `FieldValueProps`:
 - `display?: FieldDisplay | undefined`: How the value is shown (`display` of the field of the entity of the specs).
 - `large?: boolean | undefined`: The value is that of a card: the thumbnail of an image (`display: 'image'`) is large.
 - `media?: boolean | undefined`: The image (`display: 'image'`) is the cover of a card of a grid: its whole width, the first of several files.
+- `chips?: number | undefined`: Chips before `+<n>`: 2, all if `large`.
 
 #### ItemValue
 
@@ -5822,6 +5827,7 @@ Its props, `ItemValueProps`:
 - `fields: Fields`: The fields of the item's route set (`useListFields`, `useItemFields`).
 - `display?: FieldDisplay | undefined`
 - `media?: boolean | undefined`: The image is the cover of a card of a grid (`FieldValue` `media`).
+- `chips?: number | undefined`
 
 #### titleFromText
 
@@ -5866,6 +5872,10 @@ Its props, `ItemValueProps`:
 #### hasSearch
 
 `hasSearch(type: string): boolean`: Whether the route set of a JSON:API type searches (`search`): it has search fields in the contract (`search` of its resource).
+
+#### inlineDisplay
+
+`inlineDisplay(display: FieldDisplay | undefined): FieldDisplay | undefined`: `avatar` and `chips` as a text (a heading, a calendar).
 
 #### isLongText
 
@@ -6175,7 +6185,7 @@ Its props, `RelationPickerProps`:
 - `FieldInputProps`: the props of `FieldInput`, listed with it
 - `FieldValueProps`: the props of `FieldValue`, listed with it
 - `ItemValueProps`: the props of `ItemValue`, listed with it
-- `type FieldDisplay = 'plain' | 'phone' | 'image' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code of five digits or more: a number below 10,000 has none anyway, a year as it is written); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), a whole one without its zero cents unless `fraction` is `always`, followed by ` / ` and the text of the key `per` (`3600 ₽ / сутки`); `{unit}`, a quantity followed by its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail only (`FileValue`).
+- `type FieldDisplay = 'plain' | 'phone' | 'image' | 'avatar' | 'chips' | { currency: string; fraction?: 'auto' | 'always'; per?: string; } | { unit: string; } | { bar: number; }`: How the value of a field is shown (`display` of the field of an entity of the specs): `plain`, a number without the separators of its thousands (a code, a year); `phone`, a phone number to call; `{currency}`, a sum in the currency (ISO 4217), without zero cents unless `fraction: always`, then ` / ` and the text of `per` (`3600 ₽ / сутки`); `{unit}`, a quantity, a no-break space and its unit; `{bar}`, a number with a bar of its share of the maximum; `image`, a file as its thumbnail; `avatar`, a name after its initials; `chips`, the parts of a text (by commas) or the related items.
 - `FILE_RESOURCES: readonly string[]`: The resources of the uploaded files of the contract; none without bazis-uploadable.
 - `FileViewProps`: the props of `FileView`, listed with it
 - `POINT_FIELDS: Readonly<Record<string, readonly string[]>>`: The point fields of the contract (`format: point`) by the path of each route set of their resource.
@@ -6490,6 +6500,8 @@ Its props, `ResourceListProps`:
 - `filter?: Filter | undefined`: The filter of the screen itself (`list.filter` of the spec: a report of some of the items), combined (AND) with the filters and the search of the user.
 - `sort?: readonly string[]`: The initial order: the sort labels of the contract, `-` for descending, or other terms of the core (`nearSort` of map: the distance from a point); a new one replaces the order the user chose.
 - `search?: boolean`: A search field (`field:$search`).
+- `toolbar?: 'list' | 'header'`: Where the search, the view and the actions are: in the toolbar over the list (`list`, the default), or in the header of its `Screen` beside the title (`header`, `header.search` of the spec), the filters staying over the list.
+- `count?: boolean`: The number of the items (of the search and the filters) beside the title of its `Screen` (`header.count` of the spec).
 - `pageSize?: number`
 - `onOpen?: (id: string) => void`: Called with the id of the row the user opens.
 - `selected?: string | undefined`: The id of the open item (the card next to the list): its row is selected.

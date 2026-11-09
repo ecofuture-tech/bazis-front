@@ -31,7 +31,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 import { TRANSITS } from '@/bazis/generated/contract';
-import { ListCardLayout } from '@/bazis/ui/app-shell';
+import { ListCardLayout, Screen } from '@/bazis/ui/app-shell';
 import { statusName } from '@/bazis/ui/resource';
 import { equalValues, filterOf, ResourceList } from '@/bazis/ui/resource-list';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis, resource, runtimeSchema } from '@/bazis/ui/testing';
@@ -348,6 +348,54 @@ describe('ResourceList', () => {
     await waitFor(() => {
       expect(list.getAttribute('aria-busy')).toBeNull();
     });
+  });
+
+  it('puts its search, its view and its actions in the header of its screen (`toolbar="header"`), the number of its items beside the title (`count`)', async () => {
+    const create = vi.fn();
+    renderWithBazis(
+      <Screen id="item-list" title="Items">
+        <ResourceList
+          path={ITEMS as never}
+          entity="item"
+          columns={['title']}
+          search
+          toolbar="header"
+          count
+          filters={['title']}
+          actions={[{ id: 'create', label: 'Create', onClick: create }]}
+        />
+      </Screen>,
+      backend(listDocument(rows, { count: 12345 })),
+    );
+    const list = screen.getByTestId('list:item');
+    await within(list).findByTestId('state:loaded');
+    const tools = screen.getByTestId('screen:item-list').querySelector('header [data-slot="screen-tools"]');
+    if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
+    expect(within(tools).getByTestId('field:$search')).toBeTruthy();
+    expect(within(tools).getByTestId('action:create')).toBeTruthy();
+    expect(list.contains(screen.getByTestId('field:$search'))).toBe(false);
+    // the filters stay over the list
+    expect(await within(list).findByTestId('field:title')).toBeTruthy();
+    // the number, its words for the readers of the screen
+    const number = screen.getByTestId('screen:item-list').querySelector('header [data-slot="screen-caption"] [data-slot="screen-count"]');
+    expect([number?.getAttribute('data-value'), number?.textContent]).toEqual(['12345', 'In the list: 12,345']);
+    // the search in the header is that of the list: it marks the list busy, then with its search
+    fireEvent.change(screen.getByTestId('field:$search'), { target: { value: 'word' } });
+    expect(list.getAttribute('aria-busy')).toBe('true');
+    await waitFor(() => {
+      expect(list.getAttribute('data-search')).toBe('word');
+    });
+  });
+
+  it('keeps its search and the number of its items over the list, outside a screen', async () => {
+    renderWithBazis(
+      <ResourceList path={ITEMS as never} entity="item" columns={['title']} search toolbar="header" count />,
+      backend(listDocument(rows)),
+    );
+    const list = screen.getByTestId('list:item');
+    await within(list).findByTestId('state:loaded');
+    expect(within(list).getByTestId('field:$search')).toBeTruthy();
+    expect(document.querySelector('[data-slot="screen-count"]')).toBeNull();
   });
 
   for (const layout of ['table', 'cards'] as const) {

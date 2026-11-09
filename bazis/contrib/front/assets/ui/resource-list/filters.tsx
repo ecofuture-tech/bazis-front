@@ -225,7 +225,8 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
         }}
       >
         <SelectTrigger data-bz={`field:${field}`} aria-label={label} className="w-full sm:w-auto">
-          <span aria-hidden="true" className="text-muted-foreground">
+          {/* the choice at the end of the row of a phone, by the arrow */}
+          <span aria-hidden="true" className="mr-auto text-muted-foreground">
             {label}
           </span>
           <SelectValue />
@@ -251,7 +252,8 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
       <RelationPicker
         id={id}
         data-bz={`field:${field}`}
-        className="w-48 min-w-0 flex-1 sm:flex-none"
+        // the item at the end of the row of a phone, as the choice of a select
+        className="ml-auto w-auto min-w-0 sm:ml-0 sm:w-48 sm:flex-none"
         label={label}
         relation={relationType}
         value={value || null}
