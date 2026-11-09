@@ -5348,7 +5348,8 @@ Its props, `ChartProps`:
 - `label: ReactNode`
 - `kind?: ChartKind`
 - `values: readonly ChartValue[]`
-- `series?: boolean`: A color of the series per value (the statuses); one color for all by default (the periods).
+- `series?: boolean`: A color of the series per value (the statuses); one color for all by default.
+- `periods?: boolean`: The values are periods, the current one the last: the bars before it lighter.
 - `state?: ViewState`: The state of what it shows: `empty` when every value is 0.
 - `error?: unknown`
 - `className?: string`

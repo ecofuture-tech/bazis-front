@@ -69,7 +69,15 @@ const PAST = 0.55;
  * The chart of the values: bars, a line, or a ring (`donut`); `periods`: the values of periods,
  * the last one the current.
  */
-export default function ChartView({ kind, points, periods }: { kind: ChartKind; points: readonly ChartPoint[]; periods: boolean }) {
+export default function ChartView({
+  kind,
+  points,
+  periods = false,
+}: {
+  kind: ChartKind;
+  points: readonly ChartPoint[];
+  periods?: boolean;
+}) {
   const data = points.map((it, index) => ({
     ...it,
     fill: it.color,

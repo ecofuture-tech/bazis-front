@@ -115,14 +115,14 @@ describe('Chart', () => {
       ['y', 0, 'var(--chart-1)'],
     ]);
     expect(screen.getByTestId('value:x').parentElement?.className).toContain('sr-only');
-    // the periods before the current one (the last) lighter; the scale from 0 to the largest value
-    expect(screen.getByTestId('drawn:bar-chart').getAttribute('data-opacities')).toBe('[0.55,1]');
+    // values of your own: none of them current, none lighter; the scale from 0 to the largest value
+    expect(screen.getByTestId('drawn:bar-chart').getAttribute('data-opacities')).toBe('[1,1]');
     expect(screen.getByTestId('drawn:scale').getAttribute('data-ticks')).toBe('[0,1]');
     unmount();
-    // the bars of statuses alike, none of them current
-    const series = render(<Chart id="statuses" label="Statuses" series values={values} />);
-    expect((await screen.findByTestId('drawn:bar-chart')).getAttribute('data-opacities')).toBe('[1,1]');
-    series.unmount();
+    // the bars of periods: those before the current one (the last) lighter
+    const periods = render(<Chart id="periods" label="Periods" periods values={values} />);
+    expect((await screen.findByTestId('drawn:bar-chart')).getAttribute('data-opacities')).toBe('[0.55,1]');
+    periods.unmount();
     render(<Chart id="line" label="Line" kind="line" values={values} />);
     expect(await drawn('line-chart')).toEqual([
       ['x', 1, 'var(--chart-1)'],
@@ -325,6 +325,8 @@ describe('TimeChart', () => {
       expect(within(chart).getByTestId(`value:${isoDate(start)}`).getAttribute('data-value')).toBe('2.25');
     });
     expect(within(chart).getByTestId(`value:${isoDate(previous)}`).getAttribute('data-value')).toBe('2');
+    // the periods before the current one (the last) lighter
+    expect((await screen.findByTestId('drawn:bar-chart')).getAttribute('data-opacities')).toBe('[0.55,1]');
     expect(lists(server)).toEqual([
       expect.stringContaining(
         `filter=owner=me&dt_created__gte=${isoDate(previous)}&dt_created__lt=${isoDate(next)}&page[limit]=1` +

@@ -72,8 +72,10 @@ export interface ChartProps {
   label: ReactNode;
   kind?: ChartKind;
   values: readonly ChartValue[];
-  /** A color of the series per value (the statuses); one color for all by default (the periods). */
+  /** A color of the series per value (the statuses); one color for all by default. */
   series?: boolean;
+  /** The values are periods, the current one the last: the bars before it lighter. */
+  periods?: boolean;
   /** The state of what it shows: `empty` when every value is 0. */
   state?: ViewState;
   error?: unknown;
@@ -87,6 +89,7 @@ export function Chart({
   kind = 'bar',
   values,
   series = kind === 'donut',
+  periods = false,
   state = 'loaded',
   error,
   className,
@@ -118,7 +121,7 @@ export function Chart({
           {/* the drawing is for the eyes: the values are the text below it */}
           <div aria-hidden="true" className="h-56 min-w-0">
             <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="size-full" />}>
-              <ChartView kind={kind} points={points} periods={!series} />
+              <ChartView kind={kind} points={points} periods={periods} />
             </Suspense>
           </div>
           <ul className={cn('grid content-start gap-2 text-sm', kind !== 'donut' && 'sr-only')}>
@@ -311,6 +314,7 @@ export function TimeChart({
       state={state}
       error={error}
       className={className}
+      periods
       values={periods.map((it, index) => ({
         key: keys[index] ?? '',
         label: format.format(it),
