@@ -26,15 +26,23 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
+// a field is its bottom line (the tokens `field-line`, `-hover`, `-focus`, the shadow
+// `field-focus`): the inputs, the selects and the pickers; a group of fields
+// (`data-slot="field-group"`, a range of dates, a label with its field) has the line, its fields
+// none of their own
+const fieldClassName =
+  "border-b border-(--field-line) bg-transparent transition-[color,border-color,box-shadow] outline-none hover:border-(--field-line-hover) focus-visible:border-(--field-line-focus) focus-visible:shadow-(--shadow-field-focus) aria-invalid:border-destructive disabled:border-dashed in-data-[slot=field-group]:border-0 in-data-[slot=field-group]:focus-visible:shadow-none"
+const fieldGroupClassName =
+  "border-b border-(--field-line) transition-[border-color,box-shadow] hover:border-(--field-line-hover) focus-within:border-(--field-line-focus) focus-within:shadow-(--shadow-field-focus)"
+
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input
       type={type}
       data-slot="input"
       className={cn(
-        "h-9 w-full min-w-0 rounded-md pointer-coarse:min-h-11 border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30",
-        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+        fieldClassName,
+        "h-9 w-full min-w-0 pointer-coarse:min-h-11 px-3 py-1 text-base selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
         className
       )}
       {...props}
@@ -42,4 +50,4 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   )
 }
 
-export { Input }
+export { Input, fieldClassName, fieldGroupClassName }

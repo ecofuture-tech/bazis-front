@@ -28,18 +28,26 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Slot } from "radix-ui"
 
+// a lifted control (`control` of the theme): lighter under the pointer, lower when pressed; a
+// toggle that is on (`aria-pressed`) in the tone of the primary, lifted as the others
+const raised =
+  "control hover:bg-none hover:bg-control-hover hover:shadow-(--shadow-lift-05-hover) active:shadow-(--shadow-lift-05-active) aria-pressed:bg-none aria-pressed:bg-primary-soft aria-pressed:font-semibold aria-pressed:text-primary-ink"
+
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md pointer-coarse:min-h-11 pointer-coarse:min-w-11 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md pointer-coarse:min-h-11 pointer-coarse:min-w-11 text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:shadow-(--shadow-ring-focus) disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        // a flat fill lifted by a shadow of its own color
+        default:
+          "bg-primary text-primary-foreground shadow-(--shadow-lift-primary) hover:bg-[color-mix(in_oklab,var(--primary)_94%,white)] hover:shadow-(--shadow-lift-primary-hover) active:bg-[color-mix(in_oklab,var(--primary)_93%,black)] active:shadow-(--shadow-lift-primary-active)",
+        // a control with the text in red, never a red block beside the main action
+        destructive: cn(
+          raised,
+          "text-[color-mix(in_srgb,var(--destructive)_78%,var(--foreground))] hover:bg-[color-mix(in_oklab,var(--destructive)_8%,var(--control))]"
+        ),
+        outline: cn(raised, "hover:text-accent-foreground"),
+        secondary: cn(raised, "text-secondary-foreground"),
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",

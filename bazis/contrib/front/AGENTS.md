@@ -2736,9 +2736,8 @@ decision for the whole product:
 name that the lucide-react of the template lacks), read from `THEME.icons[entity]` (the
 navigation, the empty states, the dashboard). Choose by the meaning of the entity: people
 `users` (one person `user`), a document `file-text`, money `wallet`, a deadline or a booking
-`calendar-clock`, a task `square-check`, a book `book-open`, a loan or a request
-`clipboard-list`, an order `shopping-cart`, a product `package`, a place `map-pin`, a company
-`building-2`, a message `message-square`, a report `chart-column`.
+`calendar-clock`, a task `square-check`, a loan or a request `clipboard-list`, an order
+`shopping-cart`, a product `package`, a report `chart-column`.
 
 ### Dark mode
 
@@ -2755,11 +2754,10 @@ without them): neither has the button; `THEME.dark` is false.
 ### Statuses
 
 **Statuses.** `statuses` of `theme.yaml` gives each status of bazis-statusy a tone by its id,
-the same for every model (`draft` of the tasks is `draft` of the orders). The `StatusBadge`
-takes the soft colors of the tone, a transit to a status of the tone `danger` is a
-destructive button; a status without a tone is `neutral`. Give the tones by meaning: the
-initial status `neutral`, in progress `info`, done or accepted `success`, waiting or near a
-deadline `warning`, refused, cancelled or overdue `danger`.
+the same for every model. The `StatusBadge` takes the soft colors of the tone, a transit to a
+status of the tone `danger` is a destructive button; a status without a tone is `neutral`.
+Give the tones by meaning: the initial status `neutral`, in progress `info`, done or accepted
+`success`, waiting or near a deadline `warning`, refused, cancelled or overdue `danger`.
 
 ### The theme in the screens
 
@@ -2778,7 +2776,9 @@ theme: `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `
 `font-subheading` (not `font-display`, the family alone). Never a color of the
 Tailwind palette (`bg-blue-600`), a literal (`#3b82f6`, `oklch(...)`) or
 `style={{ color }}`: they break the brand and the dark mode. A color the product needs is a token
-(`color.highlight` in `tokens.json` is `bg-highlight`).
+(`color.highlight` in `tokens.json` is `bg-highlight`). A field of your own:
+`fieldClassName` of `@/components/ui/input`; a label with its controls: `data-slot="field-group"`
+and `fieldGroupClassName`.
 
 #### The spacing of the density
 

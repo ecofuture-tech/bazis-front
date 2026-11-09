@@ -87,7 +87,7 @@ function ToastItem({ item }: { item: Toast }) {
   return (
     <div
       data-slot="toast"
-      className="pointer-events-auto flex w-full max-w-sm animate-in items-start gap-3 rounded-lg border bg-popover p-4 text-sm text-popover-foreground shadow-lg fade-in-0 slide-in-from-bottom-2"
+      className="pointer-events-auto flex w-full max-w-sm animate-in items-start gap-3 rounded-lg border border-border-surface bg-popover p-4 text-sm text-popover-foreground shadow-(--shadow-lift-2) fade-in-0 slide-in-from-bottom-2"
       onMouseEnter={() => {
         setHovered(true);
       }}

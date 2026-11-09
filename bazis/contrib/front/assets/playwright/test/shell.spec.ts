@@ -17,7 +17,9 @@
 // components and the Tailwind plugin, its backend the routes of the test. What jsdom does not
 // lay out: the links that the row has no room for go to its menu `nav:more`, and the page
 // never scrolls sideways, whatever the number of the links; the name of a file on a touch
-// screen is as large as a finger (V009 of the screenshots).
+// screen is as large as a finger (V009 of the screenshots). And the surfaces with the theme of
+// a product (`surfaces-<surface>.html`): what the layer `surface` computes for a card, an outline
+// button and an input.
 
 import { fileURLToPath } from 'node:url';
 
@@ -40,7 +42,7 @@ test.beforeAll(async () => {
     // a cache of its own: the page of the pickers bundles other dependencies
     cacheDir: fileURLToPath(new URL('../test-results/.vite-shell', import.meta.url)),
     // the dependencies are bundled before the page loads: no reload in a test
-    optimizeDeps: { entries: ['shell.tsx'] },
+    optimizeDeps: { entries: ['shell.tsx', 'surfaces.tsx'] },
     server: { host: '127.0.0.1', port: 0, strictPort: false, hmr: false },
     logLevel: 'error',
   });
@@ -240,4 +242,49 @@ test('the name of a file is as large as a finger on a touch screen, not for a mo
   await open(page, { width: 1280, links: 0, file: name });
   const clicked = await page.getByRole('button', { name }).boundingBox();
   expect(clicked?.height).toBeLessThan(44);
+});
+
+/**
+ * The computed borders, background and shadow of an element of the page of the surfaces; the
+ * shadow without the empty rings that the shadows of Tailwind carry.
+ */
+async function look(page: Page, selector: string) {
+  return page.locator(selector).evaluate((it) => {
+    const style = getComputedStyle(it);
+    const sides = ['top', 'right', 'bottom', 'left'] as const;
+    return {
+      colors: sides.map((side) => style.getPropertyValue(`border-${side}-color`)),
+      widths: sides.map((side) => style.getPropertyValue(`border-${side}-width`)),
+      background: style.backgroundColor,
+      image: style.backgroundImage,
+      shadow: style.boxShadow.replaceAll(/rgba\(0, 0, 0, 0\) 0px 0px 0px 0px(, )?/g, ''),
+      radius: style.borderRadius,
+    };
+  });
+}
+
+const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+
+test('lifted: a card and an outline button are lifted by a shadow without a contour, an input is its bottom line', async ({ page }) => {
+  await page.goto(`${origin}/surfaces-lifted.html`);
+  for (const selector of ['[data-slot="card"]', 'button[data-variant="outline"]']) {
+    const lifted = await look(page, selector);
+    expect(lifted.colors).toEqual(Array(4).fill(TRANSPARENT));
+    expect(lifted.shadow).not.toBe('none');
+  }
+  const field = await look(page, '[data-slot="input"]');
+  expect(field.widths).toEqual(['0px', '0px', '1px', '0px']);
+  expect(field.colors[2]).not.toBe(TRANSPARENT);
+  expect(field.shadow).toBe('none');
+});
+
+test('elevated: a card and an outline button look as in 0.12, an input keeps the line of 0.12 at its bottom only', async ({ page }) => {
+  await page.goto(`${origin}/surfaces-elevated.html`);
+  // the classes of a block and of an outline button of 0.12
+  expect(await look(page, '[data-slot="card"]')).toEqual(await look(page, '[data-testid="was-card"]'));
+  expect(await look(page, 'button[data-variant="outline"]')).toEqual(await look(page, '[data-testid="was-button"]'));
+  const field = await look(page, '[data-slot="input"]');
+  const was = await look(page, '[data-testid="was-input"]');
+  expect(field.widths).toEqual(['0px', '0px', '1px', '0px']);
+  expect(field.colors[2]).toBe(was.colors[2]);
 });

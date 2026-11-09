@@ -156,7 +156,7 @@ function Task({
     <section
       data-bz={`bg:${view}`}
       aria-label={typeof name === 'string' ? name : undefined}
-      className="grid gap-3 rounded-lg border bg-card p-(--space-card) text-card-foreground"
+      className="surface grid gap-3 rounded-lg p-(--space-card) text-card-foreground"
     >
       <div className="flex items-center justify-between gap-3">
         <p title={typeof name === 'string' ? name : undefined} className="min-w-0 truncate font-medium">

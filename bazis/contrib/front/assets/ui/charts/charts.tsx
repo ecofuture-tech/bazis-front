@@ -101,11 +101,11 @@ export function Chart({
     <section
       data-bz={`chart:${id}`}
       className={cn(
-        'grid min-w-0 gap-4 rounded-xl border bg-card p-(--space-card) text-card-foreground shadow-xs',
+        'surface grid min-w-0 gap-4 p-(--space-card) text-card-foreground',
         className,
       )}
     >
-      <h3 ref={titleFromText} className="truncate text-sm font-medium text-muted-foreground">
+      <h3 ref={titleFromText} className="truncate font-eyebrow text-muted-foreground">
         {label}
       </h3>
       <StatePanel
@@ -118,7 +118,7 @@ export function Chart({
           {/* the drawing is for the eyes: the values are the text below it */}
           <div aria-hidden="true" className="h-56 min-w-0">
             <Suspense fallback={<Skeleton data-bz="state:loading" aria-busy="true" className="size-full" />}>
-              <ChartView kind={kind} points={points} />
+              <ChartView kind={kind} points={points} periods={!series} />
             </Suspense>
           </div>
           <ul className={cn('grid content-start gap-2 text-sm', kind !== 'donut' && 'sr-only')}>

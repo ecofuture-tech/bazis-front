@@ -108,7 +108,7 @@ export function AsyncResult({ start, path = RESULT_PATH, title, onDone, children
   if (task.error) return <StatePanel state={errorState(task.error)} error={task.error} inline />;
   const view: ResultView = result?.view ?? (task.status === 'processing' ? 'processing' : 'pending');
   return (
-    <section data-bz={`async:${view}`} aria-busy={result === null} className="grid gap-3 rounded-lg border bg-card p-(--space-card) text-card-foreground">
+    <section data-bz={`async:${view}`} aria-busy={result === null} className="surface grid gap-3 rounded-lg p-(--space-card) text-card-foreground">
       <div className="flex items-center justify-between gap-3">
         <p title={typeof title === 'string' ? title : undefined} className="min-w-0 truncate font-medium">
           {title ?? t('async.title')}

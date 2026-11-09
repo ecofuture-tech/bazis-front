@@ -24,14 +24,14 @@ import { cn } from '@/lib/utils';
 
 import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
 
-/** The colors of a highlighted card, by its tone. */
+/** The colors of a highlighted card, by its tone (without the light of the surface over them). */
 const CARD_TONES: Readonly<Record<Tone, string>> = {
-  neutral: 'border-neutral bg-neutral-soft',
-  primary: 'border-primary bg-primary-soft',
-  info: 'border-info bg-info-soft',
-  success: 'border-success bg-success-soft',
-  warning: 'border-warning bg-warning-soft',
-  danger: 'border-danger bg-danger-soft',
+  neutral: 'border-neutral bg-none bg-neutral-soft',
+  primary: 'border-primary bg-none bg-primary-soft',
+  info: 'border-info bg-none bg-info-soft',
+  success: 'border-success bg-none bg-success-soft',
+  warning: 'border-warning bg-none bg-warning-soft',
+  danger: 'border-danger bg-none bg-danger-soft',
 };
 
 /**
@@ -115,10 +115,10 @@ export function CardsView(props: BodyProps) {
                 data-tone={tone}
                 aria-description={tone && props.rowToneLabel(row)}
                 className={cn(
-                  'group flex w-full flex-col gap-4 rounded-2xl border bg-card p-(--space-card) text-card-foreground shadow-xs transition-[box-shadow,border-color]',
+                  'surface group flex w-full flex-col gap-4 rounded-2xl p-(--space-card) text-card-foreground transition-[box-shadow,border-color]',
                   tone && CARD_TONES[tone],
                   'data-[state=selected]:border-primary',
-                  onOpen && cn('cursor-pointer hover:border-primary/40 hover:shadow-md', FOCUS, 'focus-visible:ring-offset-0'),
+                  onOpen && cn('cursor-pointer hover:shadow-(--shadow-lift-2)', FOCUS, 'focus-visible:ring-offset-0'),
                 )}
                 {...opener(row.id, onOpen)}
               >
@@ -229,7 +229,7 @@ export function CardsSkeleton({ media = false }: { media?: boolean }) {
     <div className="@container" aria-hidden="true">
       <div className={GRID}>
         {[0, 1, 2].map((it) => (
-          <div key={it} className="grid gap-4 overflow-hidden rounded-2xl border bg-card p-(--space-card)">
+          <div key={it} className="surface grid gap-4 overflow-hidden rounded-2xl p-(--space-card)">
             {media && <Skeleton className="-mx-(--space-card) -mt-(--space-card) aspect-[4/3] rounded-none" />}
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-4 w-full" />

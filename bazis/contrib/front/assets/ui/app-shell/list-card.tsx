@@ -84,8 +84,10 @@ export function ListCardLayout({ list, mode = THEME.composition.list_card }: Lis
           className={cn(
             'min-w-0',
             split &&
-              // its header sticks at the top of its own scroll area: not lifted into the padding of the page
-              'xl:sticky xl:top-0 xl:-mt-(--space-section) xl:max-h-dvh xl:overflow-y-auto xl:border-l xl:pl-(--space-section) xl:[--bleed:0px] xl:[--screen-lift:0px]',
+              // its header sticks at the top of its own scroll area: not lifted into the padding of the page;
+              // the area reaches into the padding of the page on its right and has room at its end, where
+              // the shadows of the lifted blocks of the card are drawn (a scroll area clips them)
+              'xl:sticky xl:top-0 xl:-mt-(--space-section) xl:-mr-(--space-page-x) xl:max-h-dvh xl:overflow-y-auto xl:border-l xl:pr-(--space-page-x) xl:pb-(--space-page-y) xl:pl-(--space-section) xl:[--bleed:0px] xl:[--screen-lift:0px]',
           )}
         >
           <BesideList value={split}>{card}</BesideList>

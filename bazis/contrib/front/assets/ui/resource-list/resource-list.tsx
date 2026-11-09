@@ -188,10 +188,18 @@ const SEARCH_DELAY = 300;
  * the columns that scroll under them, and draw the focus ring of their row, which they cover;
  * the leftmost one draws the mark of a tone or of the selection of its row (`--row-mark`).
  */
-const ROW = 'bg-card hover:bg-[color-mix(in_oklab,var(--color-muted)_50%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-muted)_50%,var(--color-card))]';
+const ROW = 'group/row border-line-6 bg-card hover:bg-[color-mix(in_oklab,var(--color-muted)_80%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-muted)_80%,var(--color-card))]';
+/** A cell of the header: on the card, set apart by a firmer line (a shadow: the cell is sticky). */
+const HEAD = 'sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--color-line-16)]';
 const STICKY = 'sticky z-[1] bg-inherit [tr:focus-visible>&]:shadow-[inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
 const LEFTMOST =
   'shadow-[inset_3px_0_0_var(--row-mark,transparent)] [tr:focus-visible>&]:shadow-[inset_3px_0_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
+
+/** The cross that clears the search, in the muted color of the text instead of that of the browser. */
+const CLEAR_SEARCH =
+  '[&::-webkit-search-cancel-button]:size-3.5 [&::-webkit-search-cancel-button]:cursor-pointer [&::-webkit-search-cancel-button]:appearance-none ' +
+  '[&::-webkit-search-cancel-button]:bg-muted-foreground ' +
+  '[&::-webkit-search-cancel-button]:[mask:url(data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2024%2024%27%20fill=%27none%27%20stroke=%27black%27%20stroke-width=%272.4%27%20stroke-linecap=%27round%27%3E%3Cpath%20d=%27M6%206l12%2012M18%206L6%2018%27/%3E%3C/svg%3E)_center/contain_no-repeat]';
 
 /** The colors of a highlighted row of a table, by its tone: the soft colors of the theme. */
 const ROW_TONES: Readonly<Record<Tone, string>> = {
@@ -214,13 +222,17 @@ function SortButton({ label, direction, onClick }: { label: ReactNode; direction
     <button
       type="button"
       className={cn(
-        '-mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
-        direction && 'text-foreground',
+        'group/sort -mx-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground focus-visible:shadow-(--shadow-ring-focus) focus-visible:outline-none',
+        direction && 'text-primary-ink hover:text-primary-ink',
       )}
       onClick={onClick}
     >
       <span className="first-letter:uppercase">{label}</span>
-      <Icon className={cn('size-3.5', !direction && 'opacity-40')} aria-hidden="true" />
+      {/* the arrows of a column not sorted by under the pointer over the header or the focus only */}
+      <Icon
+        className={cn('size-3.5', !direction && 'opacity-0 group-hover/head:opacity-40 group-focus-visible/sort:opacity-40')}
+        aria-hidden="true"
+      />
     </button>
   );
 }
@@ -239,12 +251,13 @@ function TableView(
 ) {
   const { rows, columns, fields, onOpen, selected, header, sorted, actionsColumn, hidden, selection } = props;
   const { t } = useLanguage();
+  const opens = onOpen !== undefined && !actionsColumn;
   return (
     <table data-slot="table" className="w-full caption-bottom text-sm">
       <TableHeader>
-        <TableRow className="hover:bg-transparent">
+        <TableRow className="group/head border-transparent hover:bg-transparent">
           {selection && (
-            <TableHead className="sticky top-0 left-0 z-20 w-10 min-w-10 bg-muted px-0 text-center">
+            <TableHead className={cn(HEAD, 'left-0 z-20 w-10 min-w-10 px-0 text-center')}>
               <PageCheckbox rows={rows} selection={selection} onSelect={props.onSelect} />
             </TableHead>
           )}
@@ -253,7 +266,8 @@ function TableView(
               key={name}
               aria-sort={sorted(name)}
               className={cn(
-                'sticky top-0 z-10 h-10 bg-muted px-(--space-cell-x) text-xs font-medium text-muted-foreground',
+                HEAD,
+                'h-10 px-(--space-cell-x) text-xs font-semibold text-foreground/75',
                 index === 0 && (selection ? 'left-10 z-20' : 'left-0 z-20'),
                 isNumeric(fields.fields.get(name)) && 'text-right',
                 hidden(name) && 'hidden',
@@ -263,10 +277,11 @@ function TableView(
             </TableHead>
           ))}
           {actionsColumn && (
-            <TableHead className="sticky top-0 z-10 bg-muted">
+            <TableHead className={HEAD}>
               <span className="sr-only">{t('list.actions')}</span>
             </TableHead>
           )}
+          {opens && <TableHead aria-hidden="true" className={cn(HEAD, 'w-10')} />}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -281,7 +296,6 @@ function TableView(
               aria-description={tone && props.rowToneLabel(row)}
               aria-selected={selected === undefined ? undefined : row.id === selected}
               className={cn(
-                'border-border/70',
                 ROW,
                 tone && ROW_TONES[tone],
                 'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--primary)]',
@@ -304,7 +318,7 @@ function TableView(
                       'px-(--space-cell-x) py-(--space-cell-y)',
                       index === 0
                         ? cn('min-w-48 font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
-                        : 'text-muted-foreground',
+                        : 'text-foreground/80',
                       // a text wraps in the width that the table gives its column, a long word too; the
                       // table shares its width between the columns of texts by their bounds, not by the
                       // length of their texts: while it has room, a long text does not narrow the column
@@ -320,6 +334,12 @@ function TableView(
                 );
               })}
               {actionsColumn && <TableCell className="px-(--space-cell-x) py-1 text-right">{props.rowActions(row)}</TableCell>}
+              {opens && (
+                // the row opens its item: an arrow at its end under the pointer or the focus
+                <TableCell aria-hidden="true" className="w-10 px-2 text-muted-foreground">
+                  <ChevronRight className="size-4 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100" />
+                </TableCell>
+              )}
             </TableRow>
           );
         })}
@@ -332,7 +352,7 @@ function TableView(
 function ListSkeleton({ layout, columns, media }: { layout: 'table' | 'cards'; columns: number; media: boolean }) {
   if (layout === 'cards') return <CardsSkeleton media={media} />;
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-xs" aria-hidden="true">
+    <div className="surface overflow-hidden" aria-hidden="true">
       <div className="h-10 border-b bg-muted/60" />
       {[0, 1, 2, 3, 4].map((row) => (
         <div key={row} className="flex items-center gap-6 border-b border-border/70 px-(--space-cell-x) py-(--space-cell-y) last:border-0">
@@ -529,7 +549,7 @@ export function ResourceList({
                 aria-label={t('list.search')}
                 placeholder={t('list.search')}
                 data-bz="field:$search"
-                className="bg-card pl-9"
+                className={cn('pl-9', CLEAR_SEARCH)}
                 value={searchText}
                 onChange={(event) => {
                   setSearchText(event.target.value);
@@ -557,7 +577,7 @@ export function ResourceList({
                 setOffset(0);
               }}
             >
-              <SelectTrigger aria-label={t('list.sort')} className="bg-card">
+              <SelectTrigger aria-label={t('list.sort')}>
                 <span aria-hidden="true" className="text-muted-foreground">
                   {t('list.sort')}
                 </span>
@@ -628,7 +648,7 @@ export function ResourceList({
               <div
                 data-slot="table-scroll"
                 data-density={rowDensity}
-                className="max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto rounded-xl border bg-card shadow-xs"
+                className="surface max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto"
               >
                 <TableView
                   {...body}

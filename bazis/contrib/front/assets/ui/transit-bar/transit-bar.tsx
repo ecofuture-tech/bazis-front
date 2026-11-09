@@ -70,7 +70,7 @@ export function TransitBar({ path, id, transits: declared = [], onDone }: Transi
   if (!transits.data.length) return null;
 
   return (
-    <div className="grid gap-3 rounded-xl border bg-card px-(--space-card) py-3 text-card-foreground shadow-xs">
+    <div className="surface grid gap-3 px-(--space-card) py-3 text-card-foreground">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span className="text-sm font-medium text-muted-foreground">{t('transit.next')}</span>
         <div role="group" aria-label={t('transit.group')} className="flex flex-wrap items-start gap-2">

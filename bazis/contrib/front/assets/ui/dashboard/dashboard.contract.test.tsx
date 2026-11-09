@@ -88,7 +88,7 @@ describe('Dashboard', () => {
     expect(screen.getByTestId('chart:by-status')).toBeTruthy();
   });
 
-  it('gives a tile of an aggregate of a field the row of a phone, a count half of it', async () => {
+  it('gives the last of an odd number of tiles the row of a phone, whatever its value', async () => {
     renderWithBazis(
       <Dashboard
         hero={false}
@@ -102,10 +102,12 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(screen.getByTestId('tile:paid').getAttribute('data-value')).toBe('20600');
     });
-    // a sum is not cut in a column of a phone; the class of the tile is kept
-    expect(screen.getByTestId('tile:paid').classList).toContain('max-sm:col-span-2');
+    // the grid spans its last child when it is odd (the tiles that the user views): no tile by
+    // its value; the class of the tile is kept
+    const grid = screen.getByTestId('tile:paid').parentElement;
+    expect(grid?.classList).toContain('max-sm:*:last:odd:col-span-2');
     expect(screen.getByTestId('tile:paid').classList).toContain('xl:col-span-2');
-    expect(screen.getByTestId('tile:all').classList).not.toContain('max-sm:col-span-2');
+    expect(screen.getByTestId('tile:paid').classList).not.toContain('max-sm:col-span-2');
   });
 
   it('links the other screens of the navigation, each once the backend allows it', async () => {

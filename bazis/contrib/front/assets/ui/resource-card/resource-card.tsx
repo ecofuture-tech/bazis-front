@@ -135,7 +135,7 @@ function CardSkeleton() {
         <Skeleton className="h-7 w-1/2" />
         <Skeleton className="h-5 w-16 rounded-full" />
       </div>
-      <div className="grid gap-5 rounded-xl border bg-card p-(--space-card) sm:grid-cols-2">
+      <div className="surface grid gap-5 p-(--space-card) sm:grid-cols-2">
         {[0, 1, 2, 3].map((it) => (
           <div key={it} className="grid gap-2">
             <Skeleton className="h-3 w-20" />
@@ -180,7 +180,7 @@ function Sections({ sections, item, fields, values, display, editable }: Section
       <section
         key={section.id}
         aria-label={typeof section.title === 'string' ? section.title : undefined}
-        className="rounded-xl border bg-card text-card-foreground shadow-xs"
+        className="surface text-card-foreground"
       >
         {section.title !== undefined && (
           <Title className="border-b px-(--space-card) py-3 text-sm font-subheading">{section.title}</Title>

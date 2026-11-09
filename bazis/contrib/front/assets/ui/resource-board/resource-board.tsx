@@ -156,7 +156,7 @@ function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }:
   return (
     <article
       data-bz={`row:${item.id}`}
-      className="relative grid grid-cols-[minmax(0,1fr)] gap-2 rounded-lg border bg-card p-3 text-card-foreground shadow-xs transition-shadow has-[button[data-open]:hover]:shadow-md"
+      className="surface relative grid grid-cols-[minmax(0,1fr)] gap-2 rounded-lg p-3 text-card-foreground transition-shadow has-[button[data-open]:hover]:shadow-(--shadow-lift-2)"
     >
       <div className="flex items-start gap-2">
         {onOpen ? (
@@ -164,7 +164,7 @@ function BoardCard({ item, title, fields, meta, badge, display, onOpen, moves }:
           <button
             type="button"
             data-open=""
-            className="min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
+            className="min-w-0 flex-1 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:shadow-(--shadow-ring-focus)"
             onClick={() => {
               onOpen(item.id);
             }}

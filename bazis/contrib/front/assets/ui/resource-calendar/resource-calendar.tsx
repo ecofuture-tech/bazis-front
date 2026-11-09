@@ -116,7 +116,7 @@ const LIMIT = 500;
 /** The items of a day of a month shown in its cell; the others in the list of the day. */
 const SHOWN = 3;
 const META = ['pagination', 'for_create'];
-const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const FOCUS = 'outline-none focus-visible:shadow-(--shadow-ring-focus)';
 
 /** The local midnight of a day `YYYY-MM-DD`. */
 function parseDay(day: string): Date {
@@ -221,7 +221,7 @@ function Item({ item, label, meta, display, tone, onOpen, time, range, className
     </>
   );
   const look = cn(
-    'grid w-full min-w-0 content-start gap-0.5 rounded-md px-1.5 py-1 text-left pointer-coarse:min-h-11',
+    'grid w-full min-w-0 content-start gap-0.5 rounded-md px-1.5 py-1 text-left shadow-(--shadow-lift-05) pointer-coarse:min-h-11',
     tone ? SOFT_TONES[tone] : 'bg-primary-soft text-primary-ink',
     className,
   );
@@ -486,12 +486,12 @@ export function ResourceCalendar({
           {title}
         </h2>
         {views.length > 1 && (
-          <div role="group" aria-label={t('calendar.view')} className="flex rounded-md border p-0.5">
+          <div role="group" aria-label={t('calendar.view')} className="flex gap-1.5">
             {views.map((it) => (
               <Button
                 key={it}
                 type="button"
-                variant={it === view ? 'secondary' : 'ghost'}
+                variant="outline"
                 size="sm"
                 data-bz={`view:${it}`}
                 aria-pressed={it === view}
@@ -540,7 +540,7 @@ export function ResourceCalendar({
                 {t('calendar.truncated', { count: formatNumber(rows.length, language) })}
               </p>
             )}
-            <div className="overflow-hidden rounded-xl border">
+            <div className="surface overflow-hidden">
               {view === 'month' && (
                 <div aria-hidden="true" className="grid grid-cols-7 border-b bg-muted/60 text-xs text-muted-foreground">
                   {days.slice(0, 7).map((day) => (
@@ -555,7 +555,7 @@ export function ResourceCalendar({
               </div>
             </div>
           </div>
-          <section id={listId} aria-label={fullDay.format(parseDay(selected))} className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 rounded-xl border bg-card p-(--space-card)">
+          <section id={listId} aria-label={fullDay.format(parseDay(selected))} className="surface grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-(--space-card)">
             <h3 className="font-medium first-letter:uppercase">{fullDay.format(parseDay(selected))}</h3>
             {selectedItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('calendar.no_items')}</p>

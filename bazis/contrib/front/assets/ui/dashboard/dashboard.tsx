@@ -39,8 +39,8 @@ import { queryState, SkeletonLines, StatePanel } from '@/bazis/ui/state-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-const CARD = 'rounded-xl border bg-card text-card-foreground shadow-xs';
-const FOCUS = 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+const CARD = 'surface text-card-foreground';
+const FOCUS = 'outline-none focus-visible:shadow-(--shadow-ring-focus)';
 
 /** What the backend must let the user do with the items of a part for it to be shown (`requires` of the specs). */
 type Requirement = 'view' | 'add';
@@ -175,7 +175,7 @@ function QuickLink({ item }: { item: NavItem }) {
       className={cn(
         CARD,
         FOCUS,
-        'group flex items-center gap-3 p-4 transition-[box-shadow,border-color] hover:border-primary/40 hover:shadow-md',
+        'group flex items-center gap-3 p-4 transition-shadow hover:shadow-(--shadow-lift-2)',
       )}
     >
       {Icon && (
@@ -253,7 +253,7 @@ export function Dashboard({
         {hero && (title !== undefined || description !== undefined || actions !== undefined) && (
           <header
             data-slot="hero"
-            className="grid gap-4 rounded-2xl border bg-primary-soft/40 px-6 py-10 md:px-10 md:py-14"
+            className="surface grid gap-4 rounded-2xl bg-none bg-primary-soft/40 px-6 py-10 md:px-10 md:py-14"
           >
             {title !== undefined && (
               <h1 className="font-heading text-3xl md:text-4xl">{title}</h1>
@@ -265,11 +265,12 @@ export function Dashboard({
         {today && <Today />}
         {before}
         {tiles.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+          // on a phone two columns, the last tile of an odd number of them (those the user views)
+          // taking the row: never a hole beside it
+          <div className="grid grid-cols-2 gap-3 max-sm:*:last:odd:col-span-2 sm:gap-4 xl:grid-cols-4">
             {tiles.map(({ requires, ...it }) => (
               <Viewable key={it.id} path={it.path} can={requires?.can}>
-                {/* a sum or an average takes the row of a phone: two columns of it cut a sum */}
-                <StatCard {...it} className={cn(it.value && 'max-sm:col-span-2', it.className)} />
+                <StatCard {...it} />
               </Viewable>
             ))}
           </div>

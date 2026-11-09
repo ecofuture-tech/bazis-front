@@ -936,6 +936,11 @@
       "kind": "ui",
       "source": "ui/shadcn",
       "target": "src/components/ui",
+      "requires": {
+        "assets": [
+          "input"
+        ]
+      },
       "files": [
         "native-select.tsx"
       ]
@@ -963,6 +968,11 @@
       "kind": "ui",
       "source": "ui/shadcn",
       "target": "src/components/ui",
+      "requires": {
+        "assets": [
+          "input"
+        ]
+      },
       "files": [
         "select.tsx"
       ]

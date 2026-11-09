@@ -52,10 +52,10 @@ export function StatusLabel({ type, status, className }: StatusLabelProps) {
   const tone = statusTone(status);
   return (
     <Badge
-      variant="outline"
+      variant="soft"
       data-bz={`status:${status}`}
       data-tone={tone}
-      className={cn('gap-1.5 border-transparent', SOFT_TONES[tone], className)}
+      className={cn('gap-1.5', SOFT_TONES[tone], className)}
     >
       <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
       {statusName(type, status, language)}

@@ -62,7 +62,7 @@ function FormPage({ open, onClose, title, description, children }: Omit<FormSurf
           {description !== undefined && <p className="text-muted-foreground">{description}</p>}
         </div>
       </div>
-      <div className="rounded-xl border bg-card p-(--space-card) text-card-foreground shadow-xs">{children}</div>
+      <div className="surface p-(--space-card) text-card-foreground">{children}</div>
     </div>
   );
   return page?.target ? createPortal(content, page.target) : content;

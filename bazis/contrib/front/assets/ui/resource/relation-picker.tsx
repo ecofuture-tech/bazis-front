@@ -34,7 +34,7 @@ import {
 
 import { nextPage, type Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { Input } from '@/components/ui/input';
+import { fieldClassName, Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
@@ -84,11 +84,11 @@ export interface RelationPickerProps
   'data-bz'?: string;
 }
 
-const TRIGGER =
-  'flex h-9 w-full min-w-0 items-center pointer-coarse:min-h-11 justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 ' +
-  'text-left text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring ' +
-  'focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 ' +
-  'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30';
+const TRIGGER = cn(
+  fieldClassName,
+  'flex h-9 w-full min-w-0 items-center pointer-coarse:min-h-11 justify-between gap-2 px-3 py-2 text-left text-sm',
+  'aria-expanded:border-(--field-line-focus) disabled:cursor-not-allowed disabled:opacity-50',
+);
 
 type Entry = { kind: 'clear' } | { kind: 'item'; item: ResourceObject } | { kind: 'more' };
 

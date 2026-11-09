@@ -117,8 +117,8 @@ export function StatCard({
       data-bz={`tile:${id}`}
       data-value={dataValue(result)}
       className={cn(
-        'relative grid min-w-0 gap-3 rounded-xl border bg-card p-(--space-card) text-card-foreground shadow-xs',
-        onOpen && 'transition-[box-shadow,border-color] hover:border-primary/40 hover:shadow-md',
+        'surface relative grid min-w-0 gap-3 p-(--space-card) text-card-foreground',
+        onOpen && 'transition-shadow hover:shadow-(--shadow-lift-2)',
         className,
       )}
     >
@@ -147,7 +147,7 @@ export function StatCard({
         <button
           type="button"
           aria-labelledby={labelId}
-          className="absolute inset-0 rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="absolute inset-0 rounded-xl outline-none focus-visible:shadow-(--shadow-ring-focus)"
           onClick={onOpen}
         />
       )}

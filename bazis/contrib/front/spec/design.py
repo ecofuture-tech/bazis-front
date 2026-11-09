@@ -144,9 +144,10 @@ DEFAULTS = {
     'color.surface-light': ('color', 'var(--card)', None),
     # the borders of the surfaces (cards, tables, menus, dialogs) and of the controls (outline
     # buttons, chips), the background of the controls at rest and under the pointer: those of the
-    # components before the tokens
+    # components before the tokens (an outline button had the border of a card, the input its own
+    # line)
     'color.border-surface': ('color', 'var(--border)', None),
-    'color.border-control': ('color', 'var(--input)', None),
+    'color.border-control': ('color', 'var(--border)', None),
     'color.control': ('color', 'var(--background)', None),
     'color.control-hover': ('color', 'var(--accent)', None),
     # the bottom line of a field at rest, under the pointer and focused (`shadow.field-focus` the
@@ -294,6 +295,9 @@ CONTRAST: list[tuple[str, str] | tuple[str, str, float]] = [
     ('--destructive', '--card'),
     ('--foreground', '--control'),
     ('--muted-foreground', '--control'),
+    # the header and the cells of a table
+    ('--foreground', '--card', 0.75),
+    ('--foreground', '--card', 0.8),
     *((f'--{tone}-ink', f'--{tone}-soft') for tone in TONES),
     *((f'--avatar-{number}-fg', f'--avatar-{number}') for number in range(len(AVATARS))),
 ]

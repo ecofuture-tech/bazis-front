@@ -15,7 +15,9 @@
 // The drawing of a chart with recharts (the npm dependency that `bazis_front add charts` sets
 // in package.json), a chunk of its own loaded with the first chart shown (`charts.tsx`): the
 // bars, the line or the ring of the values, in the colors of the series of the theme
-// (`--chart-1` … `--chart-6`), the axes and the grid in its muted colors.
+// (`--chart-1` … `--chart-6`), the axes and the grid in its muted colors: the zero line and
+// the scale from 0 to the largest value only; the bars of the periods before the current one
+// (the last) lighter.
 
 import {
   Bar,
@@ -60,9 +62,23 @@ const TOOLTIP = {
   cursor: { fill: 'var(--muted)', opacity: 0.6 },
 } as const;
 
-/** The chart of the values: bars, a line, or a ring (`donut`). */
-export default function ChartView({ kind, points }: { kind: ChartKind; points: readonly ChartPoint[] }) {
-  const data = points.map((it) => ({ ...it, fill: it.color }));
+/** The opacity of the bar of a period before the current one. */
+const PAST = 0.55;
+
+/**
+ * The chart of the values: bars, a line, or a ring (`donut`); `periods`: the values of periods,
+ * the last one the current.
+ */
+export default function ChartView({ kind, points, periods }: { kind: ChartKind; points: readonly ChartPoint[]; periods: boolean }) {
+  const data = points.map((it, index) => ({
+    ...it,
+    fill: it.color,
+    fillOpacity: periods && index < points.length - 1 ? PAST : 1,
+  }));
+  const largest = Math.max(0, ...points.map((it) => it.value));
+  // the scale of its ends, the grid of its zero
+  const scale = <YAxis allowDecimals={false} ticks={[0, largest]} domain={[0, largest]} {...AXIS} />;
+  const grid = <CartesianGrid vertical={false} horizontalValues={[0]} stroke="var(--border)" />;
   return (
     <ResponsiveContainer width="100%" height="100%">
       {kind === 'donut' ? (
@@ -81,9 +97,9 @@ export default function ChartView({ kind, points }: { kind: ChartKind; points: r
         </PieChart>
       ) : kind === 'line' ? (
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-          <CartesianGrid vertical={false} stroke="var(--border)" />
+          {grid}
           <XAxis dataKey="label" {...AXIS} />
-          <YAxis allowDecimals={false} {...AXIS} />
+          {scale}
           <Tooltip {...TOOLTIP} />
           <Line
             dataKey="value"
@@ -97,9 +113,9 @@ export default function ChartView({ kind, points }: { kind: ChartKind; points: r
         </LineChart>
       ) : (
         <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-          <CartesianGrid vertical={false} stroke="var(--border)" />
+          {grid}
           <XAxis dataKey="label" {...AXIS} />
-          <YAxis allowDecimals={false} {...AXIS} />
+          {scale}
           <Tooltip {...TOOLTIP} />
           <Bar dataKey="value" name="" radius={[4, 4, 0, 0]} isAnimationActive={false} />
         </BarChart>

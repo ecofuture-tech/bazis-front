@@ -42,6 +42,8 @@ const badgeVariants = cva(
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
+        // the small capitals of a status on the soft background of its tone (given by the caller)
+        soft: "h-5.5 rounded-md border-0 px-2 text-[11px] font-semibold tracking-[.05em] uppercase",
       },
     },
     defaultVariants: {

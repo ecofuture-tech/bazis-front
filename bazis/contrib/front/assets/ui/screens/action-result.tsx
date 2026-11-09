@@ -54,7 +54,7 @@ export function ActionResult({ title, message, then, onAgain, answer }: ActionRe
     <div
       data-bz="state:done"
       role="status"
-      className="flex flex-col items-center gap-4 rounded-xl border bg-card px-6 py-12 text-center"
+      className="surface flex flex-col items-center gap-4 px-6 py-12 text-center"
     >
       <span className="flex size-12 items-center justify-center rounded-full bg-success-soft text-success-ink">
         <CircleCheck className="size-5" aria-hidden="true" />

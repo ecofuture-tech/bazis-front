@@ -860,8 +860,9 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
               data-slot="screen-header"
               className={cn(
                 'flex flex-wrap items-center justify-between gap-4',
+                // the air under the sticky header: the ring of a focused control is never under it
                 sticky &&
-                  '-mx-(--bleed) bg-background px-(--bleed) md:sticky md:border-b md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:h-(--sticky-top) md:flex-nowrap',
+                  '-mx-(--bleed) bg-background px-(--bleed) md:sticky md:border-b md:top-0 md:z-20 md:mt-[calc(var(--screen-lift,var(--space-section))*-1)] md:mb-3 md:h-(--sticky-top) md:flex-nowrap',
               )}
             >
               <div className="flex min-w-0 items-center gap-1">
@@ -886,8 +887,9 @@ export function Screen({ id, title, parent, description, actions, children }: Sc
               className={cn(
                 'text-muted-foreground',
                 portal ? 'text-lg' : 'text-sm',
-                // right under the title, not a section of its own
-                title !== undefined && (sticky ? 'md:-mt-(--space-section) -mt-3' : '-mt-4'),
+                // right under the title, not a section of its own; under the sticky header, never
+                // behind it
+                title !== undefined && (sticky ? '-mt-3 md:mt-0' : '-mt-4'),
               )}
             >
               {description}

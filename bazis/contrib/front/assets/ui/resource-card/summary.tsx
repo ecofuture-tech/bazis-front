@@ -87,7 +87,7 @@ export function Summary({ summary, item, fields, values, display }: SummaryProps
     <div
       data-slot="card-summary"
       className={cn(
-        'grid gap-px overflow-hidden rounded-xl border bg-border shadow-xs',
+        'grid gap-px overflow-hidden rounded-xl border border-border-surface bg-border shadow-(--shadow-lift-1)',
         left && figure !== undefined && 'sm:grid-cols-[1.4fr_1fr]',
       )}
     >

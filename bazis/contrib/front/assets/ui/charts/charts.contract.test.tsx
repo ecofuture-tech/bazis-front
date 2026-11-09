@@ -30,8 +30,9 @@ import { Chart, StatusChart, TimeChart } from '@/bazis/ui/charts';
 import { Backend, errors, ITEMS, listDocument, renderWithBazis } from '@/bazis/ui/testing';
 
 interface Drawn {
-  data?: readonly { key: string; value: number; fill: string }[];
+  data?: readonly { key: string; value: number; fill: string; fillOpacity: number }[];
   children?: ReactNode;
+  ticks?: readonly number[];
 }
 
 // the tones of the statuses of the theme, whatever those of the product that runs the test
@@ -47,6 +48,7 @@ vi.mock('recharts', () => {
       <div
         data-bz={`drawn:${name}`}
         data-points={data ? JSON.stringify(data.map((it) => [it.key, it.value, it.fill])) : undefined}
+        data-opacities={data ? JSON.stringify(data.map((it) => it.fillOpacity)) : undefined}
       >
         {children}
       </div>
@@ -63,7 +65,7 @@ vi.mock('recharts', () => {
     CartesianGrid: nothing,
     Tooltip: nothing,
     XAxis: nothing,
-    YAxis: nothing,
+    YAxis: ({ ticks }: Drawn) => <span data-bz="drawn:scale" data-ticks={JSON.stringify(ticks)} />,
   };
 });
 
@@ -113,7 +115,14 @@ describe('Chart', () => {
       ['y', 0, 'var(--chart-1)'],
     ]);
     expect(screen.getByTestId('value:x').parentElement?.className).toContain('sr-only');
+    // the periods before the current one (the last) lighter; the scale from 0 to the largest value
+    expect(screen.getByTestId('drawn:bar-chart').getAttribute('data-opacities')).toBe('[0.55,1]');
+    expect(screen.getByTestId('drawn:scale').getAttribute('data-ticks')).toBe('[0,1]');
     unmount();
+    // the bars of statuses alike, none of them current
+    const series = render(<Chart id="statuses" label="Statuses" series values={values} />);
+    expect((await screen.findByTestId('drawn:bar-chart')).getAttribute('data-opacities')).toBe('[1,1]');
+    series.unmount();
     render(<Chart id="line" label="Line" kind="line" values={values} />);
     expect(await drawn('line-chart')).toEqual([
       ['x', 1, 'var(--chart-1)'],

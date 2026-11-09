@@ -26,10 +26,11 @@ import { useLanguage } from '@/bazis/i18n';
 import { choiceOptions, DateInput, type Fields, RelationPicker, typeAt, useAnyFilterFields } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { fieldGroupClassName, Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 /** A filter of a list: a field of `route_filter_fields/`, its label and its choices. */
 export interface ListFilter {
@@ -155,13 +156,17 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
   if (type === 'date' || type === 'datetime') {
     return (
       // on a phone a row of the full width (a fieldset is as wide as its content otherwise),
-      // its two dates under the label when they do not fit beside it, sharing the row
-      <fieldset className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+      // its two dates under the label when they do not fit beside it, sharing the row; one line
+      // under the label and both dates, a short rule between them
+      <fieldset
+        data-slot="field-group"
+        className={cn(fieldGroupClassName, 'flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap')}
+      >
         <legend className="sr-only">{label}</legend>
         <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
           {label}
         </span>
-        <div className="flex min-w-0 grow items-center gap-1.5 sm:grow-0">
+        <div className="flex min-w-0 grow items-center gap-1.5 divide-x divide-line-10 sm:grow-0">
           {(['gte', 'lte'] as const).map((bound) => (
             <DateInput
               key={bound}
@@ -193,7 +198,6 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
             variant="outline"
             size="sm"
             aria-pressed={value === it}
-            className="rounded-full aria-pressed:border-primary aria-pressed:bg-primary-soft aria-pressed:text-primary-ink"
             onClick={() => {
               onChange(field, value === it ? '' : it);
             }}
@@ -214,7 +218,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
           onChange(field, next === EVERY ? '' : next);
         }}
       >
-        <SelectTrigger data-bz={`field:${field}`} aria-label={label} className="w-full bg-card sm:w-auto">
+        <SelectTrigger data-bz={`field:${field}`} aria-label={label} className="w-full sm:w-auto">
           <span aria-hidden="true" className="text-muted-foreground">
             {label}
           </span>
@@ -266,9 +270,10 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
       />
     );
   }
-  // on a phone a row of the full width, its control taking the rest of it
+  // on a phone a row of the full width, its control taking the rest of it; one line under the
+  // label and the control
   return (
-    <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+    <div data-slot="field-group" className={cn(fieldGroupClassName, 'flex w-full min-w-0 items-center gap-2 sm:w-auto')}>
       <Label htmlFor={id} className="font-normal whitespace-nowrap text-muted-foreground">
         {label}
       </Label>

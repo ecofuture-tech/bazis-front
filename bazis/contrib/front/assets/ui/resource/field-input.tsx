@@ -20,7 +20,7 @@ import { useCallback, useId, useState } from 'react';
 
 import type { Filter } from '@/bazis/client';
 import { choiceLabel, type AttributeField, type FormField } from '@/bazis/react';
-import { Input } from '@/components/ui/input';
+import { fieldClassName, Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { cn } from '@/lib/utils';
@@ -56,10 +56,10 @@ export interface FieldInputProps {
 /** The filters of the pickers of the relationships of a form by their fields (`filters` of the specs). */
 export type FieldFilters = Readonly<Record<string, Filter>>;
 
-const TEXTAREA =
-  'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none ' +
-  'placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 ' +
-  'disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive md:text-sm';
+const TEXTAREA = cn(
+  fieldClassName,
+  'min-h-20 w-full px-3 py-2 text-base placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+);
 
 /** A JSON value (an object, an array) as text; kept as text while it is not valid JSON. */
 function JsonInput({ value, onChange, readOnly, disabled, control }: {
