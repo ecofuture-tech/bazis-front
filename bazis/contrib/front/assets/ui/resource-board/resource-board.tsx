@@ -50,7 +50,7 @@ import {
 } from '@/bazis/ui/resource';
 import { statusName, statusOf, transitName, transitTarget } from '@/bazis/ui/status-badge';
 import { errorState, StatePanel, toast, type ViewState } from '@/bazis/ui/state-panel';
-import { FilterBar, listFilters, type ListFilter } from '@/bazis/ui/resource-list';
+import { FilterBar, FilterRow, listFilters, type ListFilter } from '@/bazis/ui/resource-list';
 import { inDeclaredOrder, listedTransit, useRunTransit, type DeclaredTransit, type TransitRun } from '@/bazis/ui/transit-bar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -268,7 +268,7 @@ export function ResourceBoard({
   return (
     <div data-bz={`board:${entity}`} className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {filterList.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <FilterRow>
           <FilterBar
             path={path}
             filters={filterList}
@@ -279,7 +279,7 @@ export function ResourceBoard({
               setLimits({});
             }}
           />
-        </div>
+        </FilterRow>
       )}
       {run.open === null && run.mutation.isError && (
         <div data-bz="error:move">

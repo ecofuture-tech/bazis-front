@@ -19,7 +19,7 @@
 // those of the user: the core answers a filter by a field it does not list for him (hidden
 // by his field permissions, bazis-permit) with 400, so such a filter has no control.
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
@@ -155,18 +155,18 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
   const { field } = filter;
   if (type === 'date' || type === 'datetime') {
     return (
-      // on a phone a row of the full width (a fieldset is as wide as its content otherwise),
-      // its two dates under the label when they do not fit beside it, sharing the row; one line
-      // under the label and both dates, a dash between them
+      // in a narrow row (`FilterRow`) the width of its cells (a fieldset is as wide as its content
+      // otherwise), both when there are two: its two dates under the label when they do not fit
+      // beside it, sharing the row; one line under the label and both dates, a dash between them
       <fieldset
         data-slot="field-group"
-        className={cn(fieldGroupClassName, 'flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap')}
+        className={cn(fieldGroupClassName, 'flex w-full min-w-0 flex-wrap items-center gap-2 @md:col-span-2 @3xl:w-auto @3xl:flex-nowrap')}
       >
         <legend className="sr-only">{label}</legend>
         <span aria-hidden="true" className="text-sm whitespace-nowrap text-muted-foreground">
           {label}
         </span>
-        <div className="flex min-w-0 grow items-center gap-1.5 sm:grow-0">
+        <div className="flex min-w-0 grow items-center gap-1.5 @3xl:grow-0">
           {(['gte', 'lte'] as const).map((bound) => (
             <Fragment key={bound}>
               {bound === 'lte' && (
@@ -175,7 +175,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
                 </span>
               )}
               <DateInput
-                className="h-9 w-36 min-w-0 flex-1 sm:flex-none"
+                className="h-9 w-36 min-w-0 flex-1 @3xl:flex-none"
                 aria-label={t(bound === 'gte' ? 'filter.from' : 'filter.to', { label })}
                 data-bz={`field:${field}__${bound}`}
                 value={values[`${field}__${bound}`] ?? ''}
@@ -224,8 +224,8 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
           onChange(field, next === EVERY ? '' : next);
         }}
       >
-        <SelectTrigger data-bz={`field:${field}`} aria-label={label} className="w-full sm:w-auto">
-          {/* the choice at the end of the row of a phone, by the arrow */}
+        <SelectTrigger data-bz={`field:${field}`} aria-label={label} className="w-full @3xl:w-auto">
+          {/* the choice at the end of a narrow row, by the arrow */}
           <span aria-hidden="true" className="mr-auto text-muted-foreground">
             {label}
           </span>
@@ -252,8 +252,8 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
       <RelationPicker
         id={id}
         data-bz={`field:${field}`}
-        // on a phone as narrow as its text, at the end of the row (a select takes the row, its choice by its arrow)
-        className="ml-auto w-auto min-w-0 sm:ml-0 sm:w-48 sm:flex-none"
+        // in a narrow row as narrow as its text, at the end of its cell (a select takes the cell, its choice by its arrow)
+        className="ml-auto w-auto min-w-0 @3xl:ml-0 @3xl:w-48 @3xl:flex-none"
         label={label}
         relation={relationType}
         value={value || null}
@@ -268,7 +268,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
       <Input
         id={id}
         data-bz={`field:${field}`}
-        className="h-9 w-40 min-w-0 flex-1 sm:flex-none"
+        className="h-9 w-40 min-w-0 flex-1 @3xl:flex-none"
         type={type !== undefined && NUMBERS.has(type) ? 'number' : 'text'}
         step={type === 'integer' ? 1 : type !== undefined && NUMBERS.has(type) ? 'any' : undefined}
         value={value}
@@ -278,14 +278,29 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
       />
     );
   }
-  // on a phone a row of the full width, its control at its end (an input taking the rest of it);
-  // one line under the label and the control
+  // in a narrow row the width of its cell, its control at its end (an input taking the rest of
+  // it); one line under the label and the control
   return (
-    <div data-slot="field-group" className={cn(fieldGroupClassName, 'flex w-full min-w-0 items-center gap-2 sm:w-auto')}>
+    <div data-slot="field-group" className={cn(fieldGroupClassName, 'flex w-full min-w-0 items-center gap-2 @3xl:w-auto')}>
       <Label htmlFor={id} className="font-normal whitespace-nowrap text-muted-foreground">
         {label}
       </Label>
       {control}
+    </div>
+  );
+}
+
+/**
+ * The row of the filters of a list, a calendar or a board, with the search and the tools of a
+ * list: one line that wraps where its container is as wide as 48rem; narrower (a list beside
+ * its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both,
+ * the next filters filling the cell it leaves), the label and the control of a filter filling
+ * its cell, their lines aligned at the bottom.
+ */
+export function FilterRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="@container">
+      <div className="grid grid-flow-dense grid-cols-1 items-end gap-x-4 gap-y-3 @md:grid-cols-2 @3xl:flex @3xl:flex-wrap @3xl:items-center">{children}</div>
     </div>
   );
 }

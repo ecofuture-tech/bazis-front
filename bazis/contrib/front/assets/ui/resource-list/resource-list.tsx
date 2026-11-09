@@ -56,7 +56,7 @@ import { cn } from '@/lib/utils';
 import { BulkBar, type BulkAction } from './bulk.js';
 import { cardRoles, CardsSkeleton, CardsView } from './cards.js';
 import { ViewMenu } from './columns.js';
-import { EVERY, FilterBar, listFilters, type ListFilter } from './filters.js';
+import { EVERY, FilterBar, FilterRow, listFilters, type ListFilter } from './filters.js';
 import { cell, FOCUS, opener, PageCheckbox, RowCheckbox, type BodyProps, type CardLayout } from './rows.js';
 
 /**
@@ -553,7 +553,7 @@ export function ResourceList({
     <div
       className={cn(
         'relative',
-        header === null ? 'w-full sm:w-auto sm:max-w-72 sm:min-w-40 sm:flex-1' : 'min-w-24 flex-1 sm:max-w-72',
+        header === null ? 'w-full @3xl:w-auto @3xl:max-w-72 @3xl:min-w-40 @3xl:flex-1' : 'min-w-24 flex-1 sm:max-w-72',
       )}
     >
       <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -571,7 +571,8 @@ export function ResourceList({
     </div>
   );
   const tools = (
-    <div className={cn('flex gap-2', header === null && 'ml-auto')}>
+    // at the end of the row of the filters, of a row of its own where they are a grid
+    <div className={cn('flex gap-2', header === null && 'col-span-full ml-auto')}>
       {viewMenu && (
         <ViewMenu
           columns={hideable}
@@ -620,7 +621,7 @@ export function ResourceList({
           caption,
         )}
       {(header === null ? searchable || filterList.length > 0 || actions.length > 0 || viewMenu : filterList.length > 0 || sorts) && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <FilterRow>
           {header === null && searchField}
           {filterList.length > 0 && (
             <FilterBar
@@ -642,8 +643,9 @@ export function ResourceList({
                 setOffset(0);
               }}
             >
-              <SelectTrigger aria-label={t('list.sort')}>
-                <span aria-hidden="true" className="text-muted-foreground">
+              {/* as a filter of the row: the width of its cell where they are a grid */}
+              <SelectTrigger aria-label={t('list.sort')} className="w-full @3xl:w-auto">
+                <span aria-hidden="true" className="mr-auto text-muted-foreground">
                   {t('list.sort')}
                 </span>
                 <SelectValue />
@@ -667,7 +669,7 @@ export function ResourceList({
             </Select>
           )}
           {header === null && tools}
-        </div>
+        </FilterRow>
       )}
       {bulk.length > 0 && selection.length > 0 && (
         <BulkBar actions={bulk} selection={selection} page={new Set(rows.map((it) => it.id))} meta={meta} onSelect={select} />

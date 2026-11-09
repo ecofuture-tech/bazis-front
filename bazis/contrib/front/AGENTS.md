@@ -6221,7 +6221,7 @@ Its props, `RelationPickerProps`:
 - `RelationListPickerProps`: the props of `RelationListPicker`, listed with it
 - `RelationPickerProps`: the props of `RelationPicker`, listed with it
 
-## API: the components: resource-board, resource-calendar, resource-card, resource-form, resource-list
+## API: the components: resource-board, resource-calendar, resource-card, resource-form
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -6455,6 +6455,10 @@ Its props, `ResourceFormProps`:
 - `FormSurfaceProps`: the props of `FormSurface`, listed with it
 - `ResourceFormProps`: the props of `ResourceForm`, listed with it
 
+## API: the components: resource-list, screens
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
+
 ### `@/bazis/ui/resource-list`
 
 #### BulkAction
@@ -6488,6 +6492,10 @@ Its props, `FilterBarProps`:
 #### filterOf
 
 `filterOf(filters: readonly ListFilter[], values: FilterValues, types: ReadonlyMap<string, FieldType>): Filter | undefined`: The `filter` expression of the values, or undefined without any.
+
+#### FilterRow
+
+`FilterRow(props: { children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search and the tools of a list: one line that wraps where its container is as wide as 48rem; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, their lines aligned at the bottom.
 
 #### listFilters
 
@@ -6571,10 +6579,6 @@ Its props, `ResourceListProps`:
 - `FilterBarProps`: the props of `FilterBar`, listed with it
 - `type FilterValues = Readonly<Record<string, string>>`: The values of the filters by field; a date range is `<field>__gte` and `<field>__lte`.
 - `ResourceListProps`: the props of `ResourceList`, listed with it
-
-## API: the components: screens, stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/screens`
 
@@ -6767,6 +6771,10 @@ Its props, `UpdateFormActionProps`:
 - `ScreenActionProps`: the props of `ScreenAction`, listed with it
 - `UpdateFormActionProps`: the props of `UpdateFormAction`, listed with it
 - `type ExtensionProps<P extends object> = Partial<'tiles' | 'recent' | 'charts' extends keyof P ? Omit<P, DashboardScreenProps> : P>`: The props that an extension gives the component of its screen: any of them, but those of the screen for a dashboard, whose component is the screen.
+
+## API: the components: stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/stat-card`
 

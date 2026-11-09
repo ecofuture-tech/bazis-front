@@ -54,7 +54,7 @@ import {
   useAnyLists,
   useListFields,
 } from '@/bazis/ui/resource';
-import { FilterBar, listFilters, type FilterValues, type ListFilter } from '@/bazis/ui/resource-list';
+import { FilterBar, FilterRow, listFilters, type FilterValues, type ListFilter } from '@/bazis/ui/resource-list';
 import { errorState, StatePanel, type ViewState } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -525,7 +525,7 @@ export function ResourceCalendar({
         )}
       </div>
       {filterList.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <FilterRow>
           <FilterBar
             path={path}
             filters={filterList}
@@ -535,7 +535,7 @@ export function ResourceCalendar({
               setUserFilter({ filter: next, equal });
             }}
           />
-        </div>
+        </FilterRow>
       )}
       {state === 'loaded' || state === 'empty' ? (
         <div data-bz={`state:${state}`} className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
