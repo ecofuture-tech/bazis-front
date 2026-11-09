@@ -79,8 +79,10 @@ export function FormSurface({ mode = THEME.composition.forms, ...props }: FormSu
         if (!next) onClose();
       }}
     >
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg" {...(description === undefined ? { 'aria-describedby': undefined } : {})}>
-        <DialogHeader>
+      {/* the title set apart from the first field a little more than the fields from each other */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-8 overflow-y-auto sm:max-w-lg" {...(description === undefined ? { 'aria-describedby': undefined } : {})}>
+        {/* on a phone too at the start, as its fields */}
+        <DialogHeader className="text-left">
           <DialogTitle>{title}</DialogTitle>
           {description !== undefined && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
