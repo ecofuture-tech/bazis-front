@@ -198,13 +198,16 @@ const SEARCH_DELAY = 300;
  * checkboxes of the selection, a column of 2.5rem whatever the density, its `min-width`: a table
  * wider than its list gives a column no more than its content otherwise): the rows are opaque, the
  * hover mixed with the card, so that its cells take the color of their row (`bg-inherit`) over
- * the columns that scroll under them, and draw the focus ring of their row, which they cover;
- * the leftmost one draws the mark of a tone or of the selection of its row (`--row-mark`).
+ * the columns that scroll under them, never over the line under their row (`bg-clip-padding`), and
+ * draw the focus ring of their row, which they cover; the leftmost one draws the mark of a tone or of
+ * the selection of its row (`--row-mark`).
  */
 const ROW = 'border-line-6 bg-card hover:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))] has-aria-expanded:bg-[color-mix(in_oklab,var(--color-accent)_75%,var(--color-card))]';
 /** A cell of the header: on the card, set apart by a firmer line (a shadow: the cell is sticky). */
 const HEAD = 'sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--color-line-16)]';
-const STICKY = 'sticky z-[1] bg-inherit [tr:focus-visible>&]:shadow-[inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
+const STICKY = 'sticky z-[1] bg-inherit bg-clip-padding';
+const RING =
+  '[tr:focus-visible>&]:shadow-[inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
 const LEFTMOST =
   'shadow-[inset_3px_0_0_var(--row-mark,transparent)] [tr:focus-visible>&]:shadow-[inset_3px_0_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--color-ring)_50%,transparent)]';
 
@@ -355,7 +358,9 @@ function TableView(
               className={cn(
                 ROW,
                 tone && ROW_TONES[tone],
-                'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--primary)]',
+                // the bar of the primary on a neutral light in the dark mode, whose primary may be a
+                // honey that a soft fill turns brown
+                'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--primary)] dark:data-[state=selected]:bg-[color-mix(in_oklab,var(--color-foreground)_9%,var(--color-card))]',
                 onOpen && cn('cursor-pointer', FOCUS),
               )}
               {...opener(row.id, onOpen)}
@@ -378,17 +383,19 @@ function TableView(
                       // the first column, the name of a row, is at least 12rem but for a short value (a
                       // number, a short text) or a file
                       index === 0
-                        ? cn(!fits && 'min-w-48', 'font-medium text-foreground', STICKY, selection ? 'left-10' : cn('left-0', LEFTMOST))
+                        ? cn(!fits && 'min-w-48', 'font-medium text-foreground', STICKY, selection ? cn('left-10', RING) : cn('left-0', LEFTMOST))
                         : 'text-foreground/80',
-                      // a text wraps in the width that the table gives its column, a long word too; the
-                      // table shares its width between the columns of texts by their bounds, not by the
-                      // length of their texts: while it has room, a long text does not narrow the column
-                      // of a short word (an e-mail) until the word breaks
-                      !fits &&
-                        cn(
-                          'whitespace-normal wrap-anywhere',
-                          index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-32') : 'max-w-48',
-                        ),
+                      // a short value as narrow as it is, its room left to the texts; a text wraps in the
+                      // width that the table gives its column, a long word too, at its own line breaks
+                      // (an item a line); the table shares its width between the columns of texts by
+                      // their bounds, not by the length of their texts: while it has room, a long text
+                      // does not narrow the column of a short word (an e-mail) until the word breaks
+                      fits
+                        ? 'w-px'
+                        : cn(
+                            'whitespace-pre-line wrap-anywhere',
+                            index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-32') : 'max-w-48',
+                          ),
                       isNumeric(field) && 'text-right',
                       alignsDigits(field) && 'tabular-nums',
                       hidden(name) && 'hidden',

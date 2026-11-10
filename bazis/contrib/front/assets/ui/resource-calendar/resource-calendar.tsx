@@ -249,7 +249,11 @@ function Item({ item, label, meta, display, tone, onOpen, time, range, className
   );
   const look = cn(
     'grid w-full min-w-0 content-start gap-0.5 rounded-md px-1.5 py-1 text-left shadow-(--shadow-lift-05) pointer-coarse:min-h-11',
-    tone ? SOFT_TONES[tone] : 'bg-primary-soft text-primary-ink',
+    // an item without a tone: the soft primary; in the dark mode a neutral light with a bar of the
+    // primary (a honey that a soft fill turns brown)
+    tone
+      ? SOFT_TONES[tone]
+      : 'bg-primary-soft text-primary-ink dark:bg-[color-mix(in_oklab,var(--color-foreground)_9%,var(--color-card))] dark:text-foreground dark:shadow-[inset_3px_0_0_var(--color-primary),var(--shadow-lift-05)]',
     className,
   );
   return (
