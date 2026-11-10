@@ -316,8 +316,22 @@ function TableView(
         const value = fieldValue(row, name);
         return value === null || ((typeof value === 'string' || typeof value === 'number') && String(value).length <= SHORT_TEXT);
       }));
+  // the columns of texts of several lines on the page (an item a line: the items of a booking)
+  const lined = new Set(
+    columns.filter((name) =>
+      rows.some((row) => {
+        const value = fieldValue(row, name);
+        return typeof value === 'string' && value.includes('\n');
+      }),
+    ),
+  );
   return (
-    <table data-slot="table" className="w-full caption-bottom border-separate border-spacing-0 text-sm">
+    // narrower than 56rem (a table beside the sidebar on a small laptop, beside a card), the
+    // cells closer: the room of the texts
+    <table
+      data-slot="table"
+      className="w-full caption-bottom border-separate border-spacing-0 text-sm @max-4xl:[--space-cell-x:0.75rem]"
+    >
       <TableHeader>
         <TableRow className="group/head border-transparent hover:bg-transparent">
           {selection && (
@@ -389,14 +403,14 @@ function TableView(
                         : 'text-foreground/80',
                       // a short value as narrow as it is, its room left to the texts; a text wraps in the
                       // width that the table gives its column, a long word too, at its own line breaks
-                      // (an item a line); the table shares its width between the columns of texts by
+                      // (an item a line, each whole); the table shares its width between the columns of texts by
                       // their bounds (8rem to 14rem), not by the length of their texts alone: a name or
                       // an item of a list on one line where the table has room, a long text no wider
                       // than 14rem, never narrowing the column of a short word (an e-mail) below 8rem
                       fits
                         ? 'w-px'
                         : cn(
-                            'whitespace-pre-line wrap-anywhere',
+                            lined.has(name) ? 'whitespace-pre' : 'whitespace-pre-line wrap-anywhere',
                             index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-56') : 'max-w-48',
                           ),
                       isNumeric(field) && 'text-right',
@@ -794,7 +808,7 @@ export function ResourceList({
                   ref={setScroller}
                   data-slot="table-scroll"
                   data-density={rowDensity}
-                  className="surface max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto"
+                  className="@container surface max-h-[calc(100dvh-var(--sticky-top)-var(--space-section))] overflow-auto"
                 >
                   <TableView
                     {...body}

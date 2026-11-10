@@ -402,6 +402,23 @@ describe('ResourceList', () => {
     expect(within(screen.getByTestId('row:a')).getByTestId('cell:number').className).not.toContain('min-w-48');
   });
 
+  it('keeps each line of a text of several lines whole, a text of one line wrapping', async () => {
+    const server = new Backend()
+      .on(
+        'GET',
+        `${ITEMS}schema_list/`,
+        runtimeSchema(
+          { title: { attribute: { type: 'string', title: 'Title' } }, items: { attribute: { type: 'string', title: 'Items' } } },
+          { list: true },
+        ),
+      )
+      .on('GET', ITEMS, listDocument([resource('a', { title: 'A long name', items: 'Tent × 1\nStove × 2' }), resource('b', { title: 'Another long name', items: 'Kayak × 1' })]));
+    renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title', 'items']} />, server);
+    const row = await screen.findByTestId('row:b');
+    expect(within(row).getByTestId('cell:items').classList.contains('whitespace-pre')).toBe(true);
+    expect(within(row).getByTestId('cell:title').classList.contains('whitespace-pre-line')).toBe(true);
+  });
+
   it('shows the range of a single page without the buttons of the pages', async () => {
     renderWithBazis(<ResourceList path={ITEMS as never} entity="item" columns={['title']} />, backend(listDocument(rows, { count: 2 })));
     const loaded = await screen.findByTestId('state:loaded');

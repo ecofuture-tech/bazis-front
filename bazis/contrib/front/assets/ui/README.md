@@ -164,7 +164,8 @@ reading `data-bz`, and `FakeSocket`, the WebSocket of the page in a test.
   `composition.list_phone` of the theme), a table there scrolling sideways. A text of a cell
   (a string, the label of a related item) wraps in the width that the table gives its
   column, at least 8rem (12rem the first, 10rem an `avatar` or `chips`), never a date, a time or a number: a long value
-  makes a row higher, not the table wider. The column `status` of an item of a statusy model is the
+  makes a row higher, not the table wider; a text of several lines (an item a line) keeps
+  each line whole, and a table narrower than 56rem has closer cells. The column `status` of an item of a statusy model is the
   badge of its status (`status:<id>`, the tone of the theme). The menu of its view
   (`action:view`) hides the columns but the first (their cells stay, hidden, for the
   scenarios that find a row by them) and sets the density of the rows of the table
