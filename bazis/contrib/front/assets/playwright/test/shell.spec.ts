@@ -21,8 +21,8 @@
 // a product (`surfaces-<surface>.html`): what the layer `surface` computes for a card, the
 // summary of a card, an outline button and an input. And a list with its card beside it
 // (`split.html`): its rows within the list, Escape, the dialog of a changed form, the focus ring of
-// a filled button, the soft tones of the statuses and an unavailable primary button in both modes
-// and less motion.
+// a filled button, the soft tones of the statuses and an unavailable primary button in both modes,
+// the widths of the sidebar from the tokens and less motion.
 
 import { fileURLToPath } from 'node:url';
 
@@ -545,6 +545,17 @@ for (const dark of [false, true]) {
     expect(contrast(fill, await rgbOf(page, 'body', 'background-color'))).toBeGreaterThan(1.1);
   });
 }
+
+test('the sidebar as wide as `size.sidebar`, a rail as `size.sidebar-rail` below the breakpoint lg', async ({ page }) => {
+  const width = () => page.locator('aside[data-slot="sidebar"]').evaluate((it) => it.getBoundingClientRect().width);
+  await openSplit(page, 1280);
+  expect(await width()).toBe(240);
+  await page.addStyleTag({ content: ':root { --size-sidebar: 17rem; }' });
+  expect(await width()).toBe(272);
+  await openSplit(page, 900);
+  await expect(page.locator('aside[data-slot="sidebar"]')).toHaveAttribute('data-state', 'collapsed');
+  expect(await width()).toBe(68);
+});
 
 test('less motion when the system asks for it: the transitions end at once', async ({ page }) => {
   await openSplit(page, 1280, '/items/a');

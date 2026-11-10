@@ -114,9 +114,9 @@ export interface ResourceListProps {
   /** A search field (`field:$search`). */
   search?: boolean;
   /**
-   * Where the search, the view and the actions are: in the toolbar over the list (`list`, the
-   * default), or in the header of its `Screen` beside the title (`header`, `header.search` of the
-   * spec), the filters staying over the list.
+   * Where the search, the view and the actions are: in the toolbar over the list (`list`), or in
+   * the header of its `Screen` beside the title (`header`), the filters staying over the list;
+   * `composition.list_tools` of the theme by default (`header.search` of the spec chooses).
    */
   toolbar?: 'list' | 'header';
   /** The number of the items (of the search and the filters) beside the title of its `Screen` (`header.count` of the spec). */
@@ -440,7 +440,7 @@ export function ResourceList({
   filter: screenFilter,
   sort: initialSort = [],
   search: searchable = false,
-  toolbar: place = 'list',
+  toolbar: place = THEME.composition.list_tools,
   count: counted = false,
   pageSize = 20,
   onOpen,

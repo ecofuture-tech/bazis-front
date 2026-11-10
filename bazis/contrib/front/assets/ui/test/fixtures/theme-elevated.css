@@ -88,6 +88,9 @@
   --motion-base: 150ms;
   --motion-slow: 300ms;
   --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --size-sidebar: 15rem;
+  --size-sidebar-rail: 4.25rem;
+  --size-content: 80rem;
   --surface-card: none;
   --surface-control: none;
   --space-page-x: 2rem;

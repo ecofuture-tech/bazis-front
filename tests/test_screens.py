@@ -234,6 +234,20 @@ def test_a_link_of_the_navigation_counts_the_items_of_its_list(tmp_path):
     ) in ''.join(report.split())
 
 
+def test_the_tools_of_a_list_where_its_header_puts_them_else_where_the_theme_does(tmp_path):
+    """
+    `header.search` puts the search, the view and the actions of a list beside the title, `false`
+    over the list; without it the list takes `composition.list_tools` of the theme.
+    """
+    shutil.copytree(SAMPLE_SPEC, tmp_path / 'spec')
+    edit_screen(tmp_path, 'task-list', lambda data: data['header'].update(search=False))
+    task_list = rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-list.tsx']
+    assert "            search: true,\n            toolbar: 'list',\n            count: true,\n" in task_list
+    edit_screen(tmp_path, 'task-list', lambda data: data.pop('header'))
+    task_list = rendered(tmp_path)[f'{screens.GENERATED_DIR}/task-list.tsx']
+    assert '            search: true,\n' in task_list and 'toolbar:' not in task_list
+
+
 def test_the_transits_in_their_order_and_the_values_of_the_add_of_a_calendar(tmp_path):
     """
     The transits of a workflow in the order of the specs, those confirmed marked, with the

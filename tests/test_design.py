@@ -324,6 +324,7 @@ def test_the_root_of_a_theme_of_0_12_only_gains_variables():
         '--shadow-lift-05-active', '--shadow-lift-1', '--shadow-lift-2', '--shadow-lift-primary',
         '--shadow-lift-primary-hover', '--shadow-lift-primary-active', '--shadow-ring-focus', '--shadow-field-focus',
         '--shadow-nav-active', '--surface-card', '--surface-control', '--tone-primary',
+        '--size-sidebar', '--size-sidebar-rail', '--size-content',
     }
 
 
@@ -840,6 +841,40 @@ def test_the_colors_of_the_brand_keep_their_contrast():
         # the mark in the primary foreground of the palette (the default of brand-foreground)
         ('D009', '/palette', 'The text color --brand-foreground on --brand'),
     ]
+
+
+def test_the_shell_and_the_composition_of_a_product():
+    # the base: the sidebar expanded, the filters on a plate, the tools of a list over it, the widths
+    # of the shell; theme.yaml and tokens.json change them
+    files = theme.render(Specs(theme={'spec': 'bazis-design/1', 'preset': 'workspace'}))
+    text = files[theme.THEME_TS]
+    for line in ('shell: {\n    sidebar: "expanded",\n  },', 'filters: "plate",', 'list_tools: "list",'):
+        assert line in text
+    assert "readonly sidebar: 'expanded' | 'rail';" in text and "readonly list_tools: 'list' | 'header';" in text
+    light = root_block(files[theme.THEME_CSS], ':root')
+    assert (light['--size-sidebar'], light['--size-sidebar-rail'], light['--size-content']) == ('15rem', '4.25rem', '80rem')
+    data = {
+        'spec': 'bazis-design/1', 'preset': 'workspace', 'shell': {'sidebar': 'rail'},
+        'composition': {'filters': 'row', 'list_tools': 'header'},
+    }
+    tokens = {'size': {'sidebar': {'$type': 'dimension', '$value': '17rem'}}}
+    files = theme.render(Specs(theme=data, tokens=tokens))
+    for line in ('sidebar: "rail",', 'filters: "row",', 'list_tools: "header",', 'list: "table",'):
+        assert line in files[theme.THEME_TS]
+    light = root_block(files[theme.THEME_CSS], ':root')
+    assert (light['--size-sidebar'], light['--size-content']) == ('17rem', '80rem')
+
+
+def test_the_state_of_a_sidebar_under_a_top_bar():
+    # the top bar of the preset portal has no sidebar to collapse
+    theme_doc = Document('design', 'spec/design/theme.yaml', {
+        'spec': 'bazis-design/1', 'preset': 'portal', 'palette': 'frost', 'fonts': 'golos', 'shape': 'round',
+        'shell': {'sidebar': 'expanded'},
+    }, True)
+    issues = Issues()
+    design.check(theme_doc, None, set(), None, issues)
+    assert [(it.code, it.severity, it.path) for it in issues.items] == [('D018', 'error', '/shell/sidebar')]
+    assert not validator(DESIGN_SCHEMA).is_valid({**theme_doc.data, 'shell': {'sidebar': 'hidden'}})
 
 
 @pytest.mark.django_db

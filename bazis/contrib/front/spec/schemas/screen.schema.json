@@ -48,7 +48,7 @@
       "type": "boolean"
     },
     "header": {
-      "description": "The header of a list: `search`, its search with its view and its actions beside the title (`list.search` too, S069), the filters staying over the list; `count`, the number of its items beside the title (`toolbar` and `count` of `ResourceList`).",
+      "description": "The header of a list: `search`, its search with its view and its actions beside the title (`list.search` too, S069), the filters staying over the list, or `false` over the list (without `search` where `composition.list_tools` of the theme puts them); `count`, the number of its items beside the title (`toolbar` and `count` of `ResourceList`).",
       "type": "object",
       "additionalProperties": false,
       "minProperties": 1,

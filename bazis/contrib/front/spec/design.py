@@ -66,12 +66,20 @@ PRESETS = {
     'workspace': {
         'navigation': 'sidebar',
         'density': 'comfortable',
-        'composition': {'list': 'table', 'list_phone': 'cards', 'list_card': 'split', 'forms': 'dialog'},
+        'shell': {'sidebar': 'expanded'},
+        'composition': {
+            'list': 'table', 'list_phone': 'cards', 'list_card': 'split', 'forms': 'dialog',
+            'filters': 'plate', 'list_tools': 'list',
+        },
     },
     'portal': {
         'navigation': 'topbar',
         'density': 'comfortable',
-        'composition': {'list': 'cards', 'list_phone': 'cards', 'list_card': 'pages', 'forms': 'page'},
+        'shell': {'sidebar': 'expanded'},
+        'composition': {
+            'list': 'cards', 'list_phone': 'cards', 'list_card': 'pages', 'forms': 'page',
+            'filters': 'plate', 'list_tools': 'list',
+        },
     },
 }
 
@@ -90,6 +98,7 @@ def options(theme: dict | None) -> dict:
         'preset': preset,
         'navigation': theme.get('navigation', defaults['navigation']),
         'density': theme.get('density', defaults['density']),
+        'shell': {**defaults['shell'], **theme.get('shell', {})},
         'composition': {**defaults['composition'], **theme.get('composition', {})},
         'controls': {**CONTROLS, **theme.get('controls', {})},
         'statuses': dict(theme.get('statuses', {})),
@@ -207,6 +216,10 @@ DEFAULTS = {
     'motion.base': ('duration', '150ms', None),
     'motion.slow': ('duration', '300ms', None),
     'motion.ease': ('cubicBezier', 'cubic-bezier(0.4, 0, 0.2, 1)', None),
+    # the widths of the shell: the sidebar expanded and as a rail, the content of a screen
+    'size.sidebar': ('dimension', '15rem', None),
+    'size.sidebar-rail': ('dimension', '4.25rem', None),
+    'size.content': ('dimension', '80rem', None),
 }
 
 #: the layers of the starters that theme.yaml names, from the lowest, and the directory of
@@ -700,6 +713,18 @@ def check_brand(theme: Document, root: Path | None, issues: Issues) -> None:
         )
 
 
+def check_shell(theme: Document, issues: Issues) -> None:
+    """
+    The state of the sidebar (`shell.sidebar`) is given to a shell with a sidebar only (D018).
+    """
+    if 'sidebar' in theme.data.get('shell', {}) and options(theme.data)['navigation'] == 'topbar':
+        issues.add(
+            theme, ('shell', 'sidebar'), 'D018',
+            'There is no sidebar to collapse under `navigation: topbar`.',
+            'Remove `shell.sidebar`, or choose `navigation: sidebar`.',
+        )
+
+
 def check_hidden_layers(theme: Document, tokens: Document | None, issues: Issues) -> None:
     """
     tokens.json replaces no more than half of the tokens of a layer that theme.yaml names (a
@@ -833,6 +858,7 @@ def check(
     check_statuses(theme, contract, issues)
     check_icons(theme, entities, issues)
     check_brand(theme, root, issues)
+    check_shell(theme, issues)
     if not usable:
         return
     check_hidden_layers(theme, tokens, issues)

@@ -31,6 +31,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
 import { TRANSITS } from '@/bazis/generated/contract';
+import { THEME } from '@/bazis/generated/theme';
 import { ListCardLayout, Screen } from '@/bazis/ui/app-shell';
 import { statusName } from '@/bazis/ui/resource';
 import { equalValues, filterOf, ResourceList } from '@/bazis/ui/resource-list';
@@ -491,6 +492,37 @@ describe('ResourceList', () => {
     await within(list).findByTestId('state:loaded');
     expect(within(list).getByTestId('field:$search')).toBeTruthy();
     expect(document.querySelector('[data-slot="screen-count"]')).toBeNull();
+  });
+
+  it('puts its tools and its filters where the theme does (`composition.list_tools`, `filters`), the prop over the theme', async () => {
+    const list = (toolbar?: 'list' | 'header') => (
+      <Screen id="item-list" title="Items">
+        <ResourceList path={ITEMS as never} entity="item" columns={['title']} search filters={['title']} {...(toolbar && { toolbar })} />
+      </Screen>
+    );
+    // the base: the tools over the list, the filters on a plate
+    const base = renderWithBazis(list(), backend(listDocument(rows)));
+    await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
+    expect(within(screen.getByTestId('list:item')).getByTestId('field:$search')).toBeTruthy();
+    expect(document.querySelector('[data-slot="filter-row"]')?.getAttribute('data-plate')).toBe('true');
+    base.unmount();
+    Object.assign(THEME.composition, { list_tools: 'header', filters: 'row' });
+    try {
+      const themed = renderWithBazis(list(), backend(listDocument(rows)));
+      await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
+      const tools = document.querySelector('header [data-slot="screen-tools"]');
+      if (!(tools instanceof HTMLElement)) throw new Error('No tools in the header');
+      expect(within(tools).getByTestId('field:$search')).toBeTruthy();
+      // the filters on the page, never on a surface
+      const row = document.querySelector('[data-slot="filter-row"]');
+      expect([row?.hasAttribute('data-plate'), row?.className.includes('surface')]).toEqual([false, false]);
+      themed.unmount();
+      renderWithBazis(list('list'), backend(listDocument(rows)));
+      await within(screen.getByTestId('list:item')).findByTestId('state:loaded');
+      expect(within(screen.getByTestId('list:item')).getByTestId('field:$search')).toBeTruthy();
+    } finally {
+      Object.assign(THEME.composition, { list_tools: 'list', filters: 'plate' });
+    }
   });
 
   for (const layout of ['table', 'cards'] as const) {

@@ -30,8 +30,8 @@ compiled into `frontend/src/bazis/generated/`:
   `bg-success-soft text-success-ink`, `font-display`, `rounded-lg`, `shadow-md`) and the
   base styles of the preset (with the glow of the paper and the gradient of the sidebar
   once a layer defines their tokens);
-- `theme.ts`, `THEME`: the options of the preset (navigation, density, composition, the
-  tones of the statuses, the icons of the entities, whether the user switches to a dark
+- `theme.ts`, `THEME`: the options of the preset (navigation, density, the state of the
+  sidebar, composition, the tones of the statuses, the icons of the entities, whether the user switches to a dark
   mode) that the components read.
 
 Without spec/design/ the theme is that of the starter of the preset `workspace` before the
@@ -208,6 +208,10 @@ export interface Theme {
   readonly preset: 'workspace' | 'portal';
   readonly navigation: 'sidebar' | 'topbar';
   readonly density: 'comfortable' | 'compact';
+  readonly shell: {
+    /** The sidebar until the user chooses: expanded from the breakpoint lg (a rail below), or a rail at every width. */
+    readonly sidebar: 'expanded' | 'rail';
+  };
   readonly composition: {
     /** A list as a table or a grid of cards. */
     readonly list: 'table' | 'cards';
@@ -217,6 +221,10 @@ export interface Theme {
     readonly list_card: 'split' | 'pages';
     /** Forms in a dialog, or in place of the content of the screen. */
     readonly forms: 'dialog' | 'page';
+    /** The row of the filters on a surface of its own (plate), or on the page (row). */
+    readonly filters: 'plate' | 'row';
+    /** The search, the view and the actions of a list over it (list), or in the header of its screen (header). */
+    readonly list_tools: 'list' | 'header';
   };
   readonly controls: {
     /** localized: a text as the language of the product writes a date, with a calendar; native: `<input type="date">`. */

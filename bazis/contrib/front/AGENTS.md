@@ -138,7 +138,8 @@ Later, after `pip install -U bazis-front`: "Updating the copies".
 | Files, points and maps | the files of bazis-uploadable, the points and the maps, what is near |
 | Custom actions and background work | an action of the backend that is no CRUD (an export, a report), its permission, a task of bazis-bg, a background request |
 | The socket | bazis-ws: the live updates, the notifications and the bell, the protocol of the socket |
-| The design | the presets, the top bar, the tokens and their layers, the icons, the dark mode, the tones of the statuses, the classes of the theme |
+| The design | the presets, the top bar, the layers of the tokens, the icons, the dark mode, the tones of the statuses, the classes of the theme |
+| Customizing the look | the base look changed or moved by `theme.yaml` and `tokens.json` (the sidebar, the filters, the tools of a list, the widths, the current link, the surfaces, the fields), what stays code, the tokens and their defaults |
 | The fonts and the brand | the fonts (shipped, served by the frontend, their subsets and fallbacks), the brand and its mark, the sidebar, the classes of the headings |
 | The end-to-end tests | `bazis_front e2e`, the steps and their helpers, `e2e_data`, `npm run e2e` and its ports, the tests of your own |
 | The visual check | `bazis_front shots`: the screenshots, their report and its codes (`V…`), the checklist of the screenshots, when the screens are done |
@@ -988,7 +989,8 @@ preset. `tokens.json` is a subset of the DTCG format: groups of tokens with `$va
 `duration` in `ms`, `shadow`, `cubicBezier`) on every token, and references
 `{group.token}` to a token of the same type. `bazis_front design` compiles them into the
 theme of the frontend (see [The design](#the-design)); `check` reports them with the codes
-D004–D017 (the contrast, the statuses of the contract, the icons of lucide, the fonts, the brand).
+D004–D018 (the contrast, the statuses of the contract, the icons, the fonts, the brand, the
+shell).
 
 ## The cards of a list and the summary of a card
 
@@ -1181,7 +1183,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `D006` | error | a token references a token of another type |
 | `D007` | error | a token of the dark mode (the group `dark`) overrides no token of the same name and type |
 | `D008` | warning | a status of `statuses` in theme.yaml is not a status of the contract |
-| `D009` | warning | a text color (at the opacity of the components that use it translucent) has a contrast below 4.5:1 (WCAG AA) on its background, in the light or the dark mode; also `--sidebar-muted-foreground` on `--sidebar` and `--nav-active`, `--sidebar-primary-foreground` on `--sidebar-primary`, `--brand-foreground` on `--brand` and `--brand` on `--card`: the brand is a text accent (a rubric), so it must read on a card; inside the sidebar (on its variables) `--sidebar-foreground` on `--control` and `--control-hover`, and `--field-line-focus` on `--sidebar` at 3:1 |
+| `D009` | warning | a text color (at the opacity the components use it at) has a contrast below 4.5:1 (WCAG AA) on its background, in either mode; also `--sidebar-muted-foreground` on `--sidebar` and `--nav-active`, `--sidebar-primary-foreground` on `--sidebar-primary`, `--brand-foreground` on `--brand` and `--brand` on `--card` (the brand is a rubric, a text); inside the sidebar (on its variables) `--sidebar-foreground` on `--control` and `--control-hover`, and `--field-line-focus` on `--sidebar` at 3:1 |
 | `D010` | error | `mode: dark` in theme.yaml, and the design has no tokens of the dark mode (the group `dark`): name a palette, or define them in tokens.json |
 | `D011` | warning | an entity with a screen has no icon in `icons` of theme.yaml |
 | `D012` | warning | spec/design/tokens.json replaces more than half of the tokens of a layer that theme.yaml names (palette, fonts, shape, surface): the layer barely shows; the issue names the tokens |
@@ -1190,6 +1192,7 @@ database, in a fraction of a second. The references and the contract are the job
 | `D015` | warning | the `subsets` listed for a font leave out a language of the product or the sign of a currency of `display.currency`: those letters are drawn in another font. Leave `subsets` out (`auto`), or add the subset |
 | `D016` | warning | the stack of a font names `<Family> Fallback`, which the generator does not make (its `font` has no `fallback` metrics): fix the name, or give the metrics |
 | `D017` | warning | `brand.image` of theme.yaml is not a file in frontend/public/ |
+| `D018` | error | `shell.sidebar` under `navigation: topbar` |
 
 ## The backend of a product
 
@@ -2665,32 +2668,11 @@ The generated files are never edited. The design must have no errors (`bazis_fro
   and the base styles of the preset (`h1`–`h3` in `font.heading`, the variables of the
   sidebar).
 - `src/bazis/generated/theme.ts`: `THEME`, typed by `Theme` (`preset`, `navigation`,
-  `density`, `composition`, `controls`, `statuses`, `icons`, `brand`, and `dark`: whether the
-  user switches to a dark mode).
+  `density`, `shell`, `composition`, `controls`, `statuses`, `icons`, `brand`, and `dark`:
+  whether the user switches to a dark mode).
 
-| Token | When no layer defines it |
-|---|---|
-| `color.background`, `color.foreground`, `color.primary`, `-foreground`, `color.muted`, `-foreground`, `color.border`, `color.destructive`; `radius`; `font.body` (`font-sans`) | required by both presets |
-| `color.sidebar`, `-foreground` | required by `workspace`; else the background and the foreground |
-| `color.accent` (the hover and the current link of the top bar) | required by `portal`; else `muted` |
-| `font.heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
-| `color.card`, `-foreground`, `color.popover`, `-foreground`, `color.secondary`, `-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS`) |
-| `color.success`, `color.warning`, `color.info` (the tones of the statuses) | a green, an amber and a blue of both modes |
-| `color.sidebar-primary`, `-accent`, `-muted-foreground`, … (the sidebar) | from the primary, the sidebar and the muted foreground |
-| `color.brand`, `-foreground` (the mark of the brand) | the primary |
-| `color.chart-1` … `-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
-| `font.mono` (`font-mono`) | the monospace fonts of Tailwind |
-| `font.weight-heading`, `-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
-| `shadow.xs` (the blocks and the controls by default), `-sm`, `-md` (the popovers, the dialogs), `-lg` | the shadows of Tailwind |
-| `motion.fast`, `-base`, `-slow`, `-ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
-| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`); line: muted text 60%, 85% |
-| `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
-
-A design that names no layer (older) keeps its look: `update` and `design` add
-the new tokens with these defaults until `theme.yaml` names one. Inside the sidebar the role
-colors (`--foreground`, `--card` and its text, …) are its own and the tokens of the surfaces
-and the fields are computed on them (flat): a color that follows it is an expression of a
-role variable; a literal is the same everywhere.
+The tokens, their defaults and what a product changes over the base are in
+[Customizing the look](#customizing-the-look).
 
 ### Presets
 
@@ -2798,6 +2780,77 @@ transits already do); the errors stay where they happened.
 
 - Check every screen in both modes and at the width of a phone.
 
+## Customizing the look
+
+The look that `init` writes (`frost`, `golos`, `lifted`; the fields a bottom line, the filters
+on a plate, the sidebar that collapses to a rail, the search of a list in the header of its
+screen) is the base, not a fixed design: a product moves and restyles its parts by the keys of
+`theme.yaml` and the tokens of `tokens.json`, then `bazis_front design`, and keeps the copies
+of the components as they are (a changed copy is merged by `update`: `front.W007`). Start from
+the table; what it lists as code is a screen of your own or its extension (see
+[Composing beyond the specs](#composing-beyond-the-specs)).
+
+| I want | The key or the token | What stays code |
+|---|---|---|
+| the sidebar a rail until the user expands it | `shell.sidebar: rail` (`expanded`, the default: expanded from `lg`, a rail below); the choice of the user wins, kept by the browser (`bazis-sidebar`); D018 under `navigation: topbar` | the sidebar on the right |
+| a wider sidebar, rail or content | `size.sidebar`, `size.sidebar-rail`, `size.content` | the drawer of a phone |
+| a top bar instead of the sidebar | `navigation: topbar` (see [The design](#the-design)) | — |
+| the filters on the page, without their plate | `composition.filters: row` (a list, a board, a calendar) | the order of the filters is `list.filters` |
+| the search, the view and the actions of the lists beside their titles | `composition.list_tools: header` (`init` names it for `workspace`); a screen chooses by `header.search`, `false` over its list | the order of the tools |
+| a list as cards, the card on its own page, the forms on pages | `composition.list`, `list_phone`, `list_card`, `forms` | — |
+| the current link of the sidebar | `color.nav-active` (its fill), `color.nav-active-bar` (the bar at its start), `shadow.nav-active` | — |
+| flat blocks and controls, without the light at their top | no `color.surface-light`; over `palette: frost`, which defines it, `"var(--card)"` in `color` and `dark.color` | — |
+| another line under the fields | `color.field-line`, `-hover`, `-focus`, `shadow.field-focus` | a field in a box |
+| a plain sidebar and page | `color.sidebar-to: "var(--sidebar)"`, `color.sidebar-glow` and `color.glow-a`, `-b` `transparent` (both modes) | — |
+| a number beside a link | `count: {filter}` of the link in `navigation` of `product.yaml` | — |
+| the widths of the columns of a table, the order of the blocks of a card or a dashboard, the state of a list in the URL | — | an extension (`extend: true`) or a custom screen |
+
+A token of a layer is replaced in `tokens.json` by the same name (`color.nav-active`), and in the
+dark mode by `dark.<name>`; D012 warns when it replaces more than half of a layer. A color that
+should follow the sidebar is an expression of a role variable (`var(--sidebar)`,
+`var(--primary)`), as below.
+
+```yaml
+# theme.yaml: the base with the sidebar a rail, the filters on the page, the tools over the lists
+shell:
+  sidebar: rail            # expanded | rail: the sidebar until the user chooses
+composition:
+  filters: row             # plate | row
+  list_tools: list         # list | header
+```
+
+```json
+{"size": {"sidebar": {"$type": "dimension", "$value": "17rem"}},
+ "color": {"nav-active-bar": {"$type": "color", "$value": "var(--sidebar-primary)"}}}
+```
+
+### The tokens and their defaults
+
+| Token | When no layer defines it |
+|---|---|
+| `color.background`, `color.foreground`, `color.primary`, `-foreground`, `color.muted`, `-foreground`, `color.border`, `color.destructive`; `radius`; `font.body` (`font-sans`) | required by both presets |
+| `color.sidebar`, `-foreground` | required by `workspace`; else the background and the foreground |
+| `color.accent` (the hover and the current link of the top bar) | required by `portal`; else `muted` |
+| `font.heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
+| `color.card`, `-foreground`, `color.popover`, `-foreground`, `color.secondary`, `-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS`) |
+| `color.success`, `color.warning`, `color.info` (the tones of the statuses) | a green, an amber and a blue of both modes |
+| `color.sidebar-primary`, `-accent`, `-muted-foreground`, … (the sidebar) | from the primary, the sidebar and the muted foreground |
+| `color.brand`, `-foreground` (the mark of the brand) | the primary |
+| `color.chart-1` … `-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |
+| `font.mono` (`font-mono`) | the monospace fonts of Tailwind |
+| `font.weight-heading`, `-subheading`, `font.tracking-heading` (`h1`–`h3`, `font-heading`, `font-subheading`) | 600; 600; `-0.025em` (`-0.02em` for `portal`) |
+| `shadow.xs` (the blocks and the controls by default), `-sm`, `-md` (the popovers, the dialogs), `-lg` | the shadows of Tailwind |
+| `motion.fast`, `-base`, `-slow`, `-ease` (`duration-(--motion-fast)`, `ease-standard`; `base` and `ease` are those of every `transition`) | 100ms, 150ms, 300ms and the curve of Tailwind |
+| `size.sidebar`, `size.sidebar-rail` (the sidebar expanded and as a rail), `size.content` (the widest content of a screen) | 15rem, 4.25rem, 80rem |
+| `color.border-surface`, `-control`, `color.control`, `-hover`, `color.field-line`, `-hover`, `-focus` (the line of a field), `color.shade`, `color.surface-light`, `shadow.lift-*`, `shadow.ring-focus`, `shadow.field-focus`, `shadow.nav-active` (`surface: lifted`) | the look before them (`DEFAULTS`); line: muted text 60%, 85% |
+| `color.sidebar-to`, `-glow`, `color.glow-a`, `-b` (`frost`); `color.nav-active`, `-bar` (the current link) | not drawn; `sidebar-accent`, none |
+
+A design that names no layer (older) keeps its look: `update` and `design` add
+the new tokens with these defaults until `theme.yaml` names one. Inside the sidebar the role
+colors (`--foreground`, `--card` and its text, …) are its own and the tokens of the surfaces
+and the fields are computed on them (flat): a color that follows it is an expression of a
+role variable; a literal is the same everywhere.
+
 ## The fonts and the brand
 
 ### Fonts
@@ -2878,8 +2931,9 @@ in `--sidebar-muted-foreground`. A link with `count` shows the number of its ite
 `--sidebar-primary` on the current link. With his name (`user` of the session of `AppShell`,
 `detail` under it; the template passes none) the user is a plate at the foot: the circle of
 his initials in `--sidebar-primary`, the logout an icon. The last button of the tools collapses
-the sidebar to a rail of icons 68 px wide (`data-state="collapsed"` of the `aside`, kept in the
-storage of the browser): the labels are the titles of the links, a number is a dot.
+the sidebar to a rail of icons `size.sidebar-rail` wide (`data-state="collapsed"` of the `aside`,
+the choice kept in the storage of the browser; until the user chooses, a rail below `lg` or with
+`shell.sidebar: rail`): the labels are the titles of the links, a number is a dot.
 
 **The headings.** `font-heading` is the family, the weight and the tracking of a heading
 (the title of a screen, a card, a figure of a dashboard) and `font-subheading` those of the
@@ -6506,7 +6560,7 @@ Its props, `FilterBarProps`:
 
 #### FilterRow
 
-`FilterRow(props: { plate?: boolean; tools?: ReactNode; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search of a list, on a plate of its own (`plate`: with a search, a filter or the sort, not the tools alone), its tools (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools, which stay on the right of their last line, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, the tools at the end of the second column (of the line on a phone), wrapping there rather than past the edge.
+`FilterRow(props: { plate?: boolean; tools?: ReactNode; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search of a list, on a plate of its own (`plate`: with a search, a filter or the sort, not the tools alone; never with `composition.filters: row` of the theme, on the page then), its tools (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools, which stay on the right of their last line, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, the tools at the end of the second column (of the line on a phone), wrapping there rather than past the edge.
 
 #### listFilters
 
@@ -6538,7 +6592,7 @@ Its props, `ResourceListProps`:
 - `filter?: Filter | undefined`: The filter of the screen itself (`list.filter` of the spec: a report of some of the items), combined (AND) with the filters and the search of the user.
 - `sort?: readonly string[]`: The initial order: the sort labels of the contract, `-` for descending, or other terms of the core (`nearSort` of map: the distance from a point); a new one replaces the order the user chose.
 - `search?: boolean`: A search field (`field:$search`).
-- `toolbar?: 'list' | 'header'`: Where the search, the view and the actions are: in the toolbar over the list (`list`, the default), or in the header of its `Screen` beside the title (`header`, `header.search` of the spec), the filters staying over the list.
+- `toolbar?: 'list' | 'header'`: Where the search, the view and the actions are: in the toolbar over the list (`list`), or in the header of its `Screen` beside the title (`header`), the filters staying over the list; `composition.list_tools` of the theme by default (`header.search` of the spec chooses).
 - `count?: boolean`: The number of the items (of the search and the filters) beside the title of its `Screen` (`header.count` of the spec).
 - `pageSize?: number`
 - `onOpen?: (id: string) => void`: Called with the id of the row the user opens.

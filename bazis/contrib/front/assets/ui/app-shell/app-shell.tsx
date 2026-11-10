@@ -16,8 +16,9 @@
 // bar, as `navigation` of spec/design/theme.yaml), its links `nav:<screen>` (those that
 // require a permission shown once the backend allows it, the number of the items of a list
 // beside a link `count:<screen>`; those that the top bar has no room for in its menu
-// `nav:more`; the sidebar collapsed to a rail of icons, by default on a narrow screen, the choice
-// of the user kept in the storage of the browser),
+// `nav:more`; the sidebar collapsed to a rail of icons, by default on a narrow screen or with
+// `shell.sidebar: rail` of the theme, the choice of the user kept in the storage of the browser;
+// its widths and that of the content of a screen the tokens `size.*`),
 // the session (the user and the logout, `action:logout`; without one, the sign-in
 // `action:sign-in`), the language
 // (`action:language`, with more than one language), the color mode, the tools of the product
@@ -213,7 +214,7 @@ function storeRail(collapsed: boolean): void {
 
 /** The width from which the sidebar is shown: the breakpoint `md` of Tailwind. */
 const WIDE = '(min-width: 48rem)';
-/** The width from which the sidebar is expanded until the user collapses it, a rail below: the breakpoint `lg`. */
+/** The width from which the sidebar is expanded until the user collapses it, a rail below (`shell.sidebar: expanded`): the breakpoint `lg`. */
 const ROOMY = '(min-width: 64rem)';
 
 function subscriber(media: string) {
@@ -867,7 +868,8 @@ export function AppShell({
   const links = useMemo(() => navLinks(items), [items]);
   const [chosen, setChosen] = useState(storedRail);
   const roomy = useSyncExternalStore(subscribeRoomy, () => typeof window.matchMedia !== 'function' || window.matchMedia(ROOMY).matches);
-  const collapsed = chosen ?? !roomy;
+  // the choice of the user, else the state of the theme: a rail, or expanded where there is room
+  const collapsed = chosen ?? (THEME.shell.sidebar === 'rail' || !roomy);
   const { t } = useLanguage();
   if (navigation === 'topbar') {
     return (
@@ -906,7 +908,7 @@ export function AppShell({
       <div
         className={cn(
           'min-h-dvh [--bleed:1rem] [--sticky-top:3.5rem] md:grid md:[--bleed:var(--space-page-x)] md:[--sticky-top:4rem]',
-          collapsed ? 'md:grid-cols-[4.25rem_minmax(0,1fr)]' : 'md:grid-cols-[15rem_minmax(0,1fr)]',
+          collapsed ? 'md:grid-cols-[var(--size-sidebar-rail)_minmax(0,1fr)]' : 'md:grid-cols-[var(--size-sidebar)_minmax(0,1fr)]',
         )}
       >
         <SkipLink />
@@ -1101,7 +1103,7 @@ export function Screen({ id, title, parent, description, caption, actions, child
     };
   }, [closes, pages, navigate]);
   return (
-    <section data-bz={`screen:${id}`} className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)] gap-(--space-section)">
+    <section data-bz={`screen:${id}`} className="mx-auto grid w-full max-w-(--size-content) grid-cols-[minmax(0,1fr)] gap-(--space-section)">
       <PageContext value={page}>
         {/* `contents`: the header is laid out in the section, which it sticks in */}
         <div className={pages > 0 ? 'hidden' : 'contents'}>

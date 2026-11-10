@@ -46,7 +46,16 @@
         "list": {"description": "A list as a table (workspace) or a grid of cards (portal).", "enum": ["table", "cards"]},
         "list_phone": {"description": "A list on a phone: cards (the default), or as on a wide screen (a table scrolls sideways).", "enum": ["table", "cards"]},
         "list_card": {"description": "split: the list and the card side by side on a wide screen (workspace); pages: the card replaces the list (portal).", "enum": ["split", "pages"]},
-        "forms": {"description": "Forms in a dialog (workspace) or in place of the content of the screen (portal).", "enum": ["dialog", "page"]}
+        "forms": {"description": "Forms in a dialog (workspace) or in place of the content of the screen (portal).", "enum": ["dialog", "page"]},
+        "filters": {"description": "The row of the filters of a list, a board or a calendar: plate (the default), on a surface of its own; row, on the page without it.", "enum": ["plate", "row"]},
+        "list_tools": {"description": "The search, the view and the actions of a list: list (the default), in the toolbar over it; header, in the header of its screen beside the title, the filters staying over the list. `header.search` of a screen chooses for it.", "enum": ["list", "header"]}
+      }
+    },
+    "shell": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sidebar": {"description": "The sidebar until the user chooses (his choice is kept by the browser): expanded (the default), expanded on a wide screen and a rail of icons below the breakpoint lg; rail, a rail of icons at every width. Only with `navigation: sidebar` (D018).", "enum": ["expanded", "rail"]}
       }
     },
     "controls": {

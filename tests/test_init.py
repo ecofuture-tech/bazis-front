@@ -188,6 +188,8 @@ def test_init_creates_the_specs(product):
     assert {key: value for key, value in yaml.safe_load(theme).items() if key in ('palette', 'fonts', 'surface')} == {
         'palette': 'frost', 'fonts': 'golos', 'surface': 'lifted',
     }
+    # its lists with their search, view and actions in the header of their screens
+    assert yaml.safe_load(theme)['composition']['list_tools'] == 'header'
     assert [it.name for it in (product / 'frontend' / 'public' / 'fonts').iterdir()] == ['golos-text-5.3.0']
     tokens = json.loads((spec / 'design' / 'tokens.json').read_text(encoding='utf-8'))
     assert tokens['$schema'] == '../schema/tokens.schema.json'
@@ -206,6 +208,7 @@ def test_init_with_the_preset_portal(product):
     assert {key: theme_yaml[key] for key in ('palette', 'fonts', 'shape', 'surface')} == {
         'palette': 'frost', 'fonts': 'golos', 'shape': 'round', 'surface': 'lifted',
     }
+    assert theme_yaml['composition']['list_tools'] == 'list'
     assert [it.name for it in (product / 'frontend' / 'public' / 'fonts').iterdir()] == ['golos-text-5.3.0']
 
     spec = product / 'spec'

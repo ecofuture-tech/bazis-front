@@ -165,6 +165,7 @@ CODES: dict[str, tuple[str, str]] = {
     'D015': (WARNING, 'the `subsets` listed for a font leave out a language of the product (`languages`) or the sign of a currency of `display.currency`: those letters are drawn in another font'),
     'D016': (WARNING, 'the stack of a font names `<Family> Fallback`, which the generator does not make: its `font` has no metrics of the fallback (`fallback`, or those of a starter)'),
     'D017': (WARNING, '`brand.image` of theme.yaml is not a file in frontend/public/'),
+    'D018': (ERROR, '`shell.sidebar` of theme.yaml under `navigation: topbar`: there is no sidebar to collapse'),
 }
 
 

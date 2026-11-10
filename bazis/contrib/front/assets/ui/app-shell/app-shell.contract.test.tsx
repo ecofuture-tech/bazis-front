@@ -677,6 +677,33 @@ describe('AppShell', () => {
     }
   });
 
+  it('starts as a rail with `shell.sidebar: rail` of the theme until the user expands it, as wide as the tokens of the sizes', () => {
+    window.localStorage.removeItem('bazis-sidebar');
+    Object.assign(THEME.shell, { sidebar: 'rail' });
+    try {
+      const shell = (
+        <AppShell title="Product" navigation="sidebar" items={items}>
+          <Screen id="home">home</Screen>
+        </AppShell>
+      );
+      const first = renderWithBazis(shell, new Backend());
+      const aside = () => screen.getByTestId('nav:home').closest('aside');
+      expect(aside()?.getAttribute('data-state')).toBe('collapsed');
+      expect(aside()?.parentElement?.className).toContain('md:grid-cols-[var(--size-sidebar-rail)_minmax(0,1fr)]');
+      expect(screen.getByTestId('screen:home').className).toContain('max-w-(--size-content)');
+      fireEvent.click(screen.getByRole('button', { name: 'Expand the sidebar' }));
+      expect(aside()?.parentElement?.className).toContain('md:grid-cols-[var(--size-sidebar)_minmax(0,1fr)]');
+      first.unmount();
+      // the choice of the user over the theme
+      renderWithBazis(shell, new Backend());
+      expect(window.localStorage.getItem('bazis-sidebar')).toBe('expanded');
+      expect(aside()?.getAttribute('data-state')).toBe('expanded');
+    } finally {
+      Object.assign(THEME.shell, { sidebar: 'expanded' });
+      window.localStorage.removeItem('bazis-sidebar');
+    }
+  });
+
   it('keeps in a rail the number of a link as a dot and the names of the logout and the sign-in', async () => {
     window.localStorage.setItem('bazis-sidebar', 'collapsed');
     try {

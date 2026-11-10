@@ -18,7 +18,7 @@
 // (`assets/playwright/test/shell.spec.ts`, served by Vite with the aliases of
 // `vitest.config.ts` and the Tailwind of a product), what jsdom does not lay out: the rows of
 // the list beside the card, Escape that closes it, the dialog of a changed form, the soft
-// tones of the statuses, an unavailable primary button. The query: `path` shown first, `mode=dark` the dark mode; the backend
+// tones of the statuses, an unavailable primary button, the widths of the sidebar. The query: `path` shown first, `mode=dark` the dark mode; the backend
 // is the route of the test.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

@@ -1155,6 +1155,13 @@ CASES = [
         [],
     ),
     (
+        'S069',
+        # the tools of a list kept over it in the header (the theme putting them beside the title),
+        # whatever its search: no issue
+        {LIST: lambda d: [d['list'].pop('search'), d['header'].update(search=False)]},
+        [],
+    ),
+    (
         'S070',
         # the number beside the link of the board, which is no list; that of the drafts by a field
         # that the tasks have not, and by a status out of the choices of the field
@@ -2235,6 +2242,9 @@ CASES = [
     # the mark of the brand: an icon that lucide-react does not have, an image that frontend/public/ does not have
     ('D013', {THEME: lambda d: d.update(brand={'icon': 'mountain-tick'})}, [('D013', f'{THEME}#/brand/icon')]),
     ('D017', {THEME: lambda d: d.update(brand={'image': 'brand/mark.svg'})}, [('D017', f'{THEME}#/brand/image')]),
+    # the state of a sidebar under a top bar, which has none; under the sidebar, no issue
+    ('D018', {THEME: lambda d: d.update(navigation='topbar', shell={'sidebar': 'rail'})}, [('D018', f'{THEME}#/shell/sidebar')]),
+    ('D018', {THEME: lambda d: d.update(shell={'sidebar': 'rail'}, composition={'filters': 'row', 'list_tools': 'header'})}, []),
     (
         'D014',
         # the heading font of the default import of a family with optical sizes, and of a

@@ -570,12 +570,13 @@ def render_list(product: Product, data: dict) -> str:
 def search_attrs(data: dict) -> list[Attr]:
     """
     The search of a list and its header: the search, the view and the actions beside the title
-    (`header.search`), the number of the items there too (`header.count`).
+    (`header.search`) or over the list (`header.search: false`), where `composition.list_tools`
+    of the theme puts them without it; the number of the items there too (`header.count`).
     """
     header = data.get('header', {})
     attrs = [Attr('search')] if data['list'].get('search') else []
-    if header.get('search'):
-        attrs.append(Attr('toolbar', 'header'))
+    if 'search' in header:
+        attrs.append(Attr('toolbar', 'header' if header['search'] else 'list'))
     if header.get('count'):
         attrs.append(Attr('count'))
     return attrs

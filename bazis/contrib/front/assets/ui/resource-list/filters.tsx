@@ -23,6 +23,7 @@ import { FunnelX, ListFilter as ListFilterIcon } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
+import { THEME } from '@/bazis/generated/theme';
 import { useLanguage } from '@/bazis/i18n';
 import { choiceOptions, DateInput, type Fields, RelationPicker, typeAt, useAnyFilterFields } from '@/bazis/ui/resource';
 import { errorState, StatePanel } from '@/bazis/ui/state-panel';
@@ -372,7 +373,8 @@ export function ResetFilters({ onReset }: { onReset: () => void }) {
 
 /**
  * The row of the filters of a list, a calendar or a board, with the search of a list, on a plate
- * of its own (`plate`: with a search, a filter or the sort, not the tools alone), its tools
+ * of its own (`plate`: with a search, a filter or the sort, not the tools alone; never with
+ * `composition.filters: row` of the theme, on the page then), its tools
  * (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools,
  * which stay on the right of their last line, the lines of the controls at the bottom under their
  * labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem
@@ -380,7 +382,8 @@ export function ResetFilters({ onReset }: { onReset: () => void }) {
  * control of a filter filling its cell, the tools at the end of the second column (of the line on
  * a phone), wrapping there rather than past the edge.
  */
-export function FilterRow({ plate = true, tools, children }: { plate?: boolean; tools?: ReactNode; children: ReactNode }) {
+export function FilterRow({ plate: content = true, tools, children }: { plate?: boolean; tools?: ReactNode; children: ReactNode }) {
+  const plate = content && THEME.composition.filters === 'plate';
   return (
     <div
       data-slot="filter-row"

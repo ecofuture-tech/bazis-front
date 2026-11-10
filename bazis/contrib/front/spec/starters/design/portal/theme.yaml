@@ -15,6 +15,8 @@ composition:
   list_phone: cards        # cards | table (scrolled sideways)
   list_card: pages         # split (the list and the card side by side) | pages
   forms: page              # dialog | page
+  filters: plate           # plate (on a surface) | row (on the page)
+  list_tools: list         # list (the search, the view, the actions over the list) | header (beside the title)
 # the icon of each entity with a screen (a lucide icon, lucide.dev), by the id of the entity:
 # icons: {book: book-open, reader: users, loan: clipboard-list}
 # the tone of the badge of each status of bazis-statusy (neutral, primary, info, success,
