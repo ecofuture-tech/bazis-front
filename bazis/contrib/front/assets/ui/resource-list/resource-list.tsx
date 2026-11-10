@@ -25,7 +25,7 @@
 // loading one is the skeleton of the rows, the empty one with the creation of an item).
 
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown, Search, SearchX } from 'lucide-react';
-import { useEffect, useId, useState, type ComponentType, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useState, type ComponentType, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import { Filter, nextPage, pagination, prevPage, type CustomActionName } from '@/bazis/client';
@@ -116,7 +116,8 @@ export interface ResourceListProps {
   /**
    * Where the search, the view and the actions are: in the toolbar over the list (`list`), or in
    * the header of its `Screen` beside the title (`header`), the filters staying over the list;
-   * `composition.list_tools` of the theme by default (`header.search` of the spec chooses).
+   * `composition.list_tools` of the theme by default for the list of a screen (`header.search` of
+   * the spec chooses), `list` for a list inside a part of it (`NestedLists`: a related section).
    */
   toolbar?: 'list' | 'header';
   /** The number of the items (of the search and the filters) beside the title of its `Screen` (`header.count` of the spec). */
@@ -431,6 +432,17 @@ function ListSkeleton({ layout, columns, media }: { layout: 'table' | 'cards'; c
   );
 }
 
+const Nested = createContext(false);
+
+/**
+ * The lists inside a part of a screen (a related section of a card, a list of a product beside the
+ * list of its screen): their search, view and actions stay over them, whatever
+ * `composition.list_tools` of the theme; the header of the screen is that of its own list.
+ */
+export function NestedLists({ children }: { children: ReactNode }) {
+  return <Nested value>{children}</Nested>;
+}
+
 /** A list of a resource, with its states, filters, sort, view, selection, pages and actions. */
 export function ResourceList({
   path,
@@ -440,7 +452,7 @@ export function ResourceList({
   filter: screenFilter,
   sort: initialSort = [],
   search: searchable = false,
-  toolbar: place = THEME.composition.list_tools,
+  toolbar: placed,
   count: counted = false,
   pageSize = 20,
   onOpen,
@@ -463,6 +475,8 @@ export function ResourceList({
   compactColumns = columns.slice(0, 2),
 }: ResourceListProps) {
   const besideCard = useBesideCard();
+  const nested = useContext(Nested);
+  const place = placed ?? (nested ? 'list' : THEME.composition.list_tools);
   const wide = useWide();
   // next to its list, a card is as narrow as a phone: a list in it takes the layout of a phone
   const besideList = useBesideList();

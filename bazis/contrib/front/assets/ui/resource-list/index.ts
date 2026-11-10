@@ -15,6 +15,6 @@
 export type { BulkAction } from './bulk.js';
 export { equalValues, FilterBar, filterOf, FilterRow, listFilters, ResetFilters } from './filters.js';
 export type { FilterBarProps, FilterValues, ListFilter } from './filters.js';
-export { ResourceList } from './resource-list.js';
+export { NestedLists, ResourceList } from './resource-list.js';
 export type { ListAction, ResourceListProps, RowAction } from './resource-list.js';
 export type { CardLayout } from './rows.js';

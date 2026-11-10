@@ -1611,7 +1611,7 @@ the names of the statuses and transits of the contract (in every language), and 
 | `app-shell` | `AppShell` (`navigation`: `'sidebar'` or `'topbar'`, the links that its row has no room for in its menu, see [The top bar](#the-top-bar); `items`: the links, each with its `screen`, `to`, `icon`, `requires` and `count`, see [The navigation](#choices-filters-permissions-and-relationships); `session`: null without a login or before it, with `signIn` then, see [The public screens](#the-public-screens); `tools`: next to the color mode, mounted once; at the foot of the sidebar on a row that wraps, above the session), `Screen`, `ListCardLayout`, `useBesideCard` (the list next to its card shows its first columns), `useBesideList` (a list in the card next to its list, a related list, shows the cards of a phone), `initColorMode`, `ColorModeToggle`, `LanguageToggle` (next to the color mode, with more than one language), `useScreenPage`, `useWide` (from the breakpoint `md`); `Screen` with `parent` (`{screen, label, to}`): the link back to the screen it was opened from, a breadcrumb from `xl`, an arrow below; `caption`: beside the title (the day of a dashboard, the number of a list); its header has the places of a list, `screen-tools` and `screen-caption` (`tools` and `caption` of `useScreenPage`) | `nav:<screen>` (the navigation and the link of `parent`), `count:<screen>` (the number beside a link in `data-value`), `nav:more` (the menu of the links that the top bar has no room for), `screen:<id>`, `action:logout`, `action:sign-in`, `action:language` (the current code in `data-value`) | |
 | `login-form` | `LoginForm`: the password form with `onLogin`, a button per method of `methods` (a login in a window, with a cancel while it waits) | `field:username`, `field:password`, `action:submit`, `action:login-<id>`, `state:error` | |
 | `resource` (shared, copied with the components) | `FieldInput` (the only input of a field of a runtime schema; `path`: its route set, for its point fields), `FieldValue`, `formatValue`, `choiceOptions`, `fieldValue`, `itemLabel`, `permitted(meta, 'add' \| 'change' \| 'delete' \| 'action_<name>', id?)`, `ItemValue` (a field of an item as a cell: the status of a statusy model as its badge), `workflowStatuses(type)` (the statuses of a workflow, the initial one first, then in the order of its transits), `DateInput` with `DatesProvider` (the control of the dates, the calendar of `date-picker`), `RelationPicker`, `RelationListPicker` (the items of a to-many relationship), `RelationLabel`, `useListFields`, `useItemFields`, `inlineDisplay` (`avatar` and `chips` as a text in a line); `StatusLabel` (a status by its id, the badge of `StatusBadge` and of the column `status` of a list, in the tone of `statusTone`), `SOFT_TONES` (the soft colors of each tone); the points: `pointOf`, `geoJsonPoint`, `formatPoint`, `parsePoint`, `PointsProvider` | `field:<name>`, `error:<name>` | |
-| `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state; `toolbar="header"`: the search, the view and the actions in `screen-tools` of its `Screen`, the filters staying; `count`: the number of the items in `screen-caption`, `data-slot="screen-count"` with `data-value`). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
+| `resource-list` | `ResourceList` (its `filters`, `filter`, `rowTone` and `rowToneLabel`: see [The filters of a list](#choices-filters-permissions-and-relationships); `layout`: `'table'` or `'cards'`; `phoneLayout`: the list below `md`, `composition.list_phone` of the theme by default; `compactColumns`: next to a card; `density`: the rows of the table, `'comfortable'` or `'compact'`, the density of the theme by default; `selection` and `onSelectionChange`: the rows selected, a checkbox each; `bulk`: the bulk actions on the rows selected, `{id, label, run(id)}` run on each in turn after a confirmation, those the backend refused kept selected with the error; `icon`: of the entity, in the empty state; `toolbar="header"`: the search, the view and the actions in `screen-tools` of its `Screen`, the filters staying (by default with `composition.list_tools: header`, never inside `NestedLists`, a related section); `count`: the number of the items in `screen-caption`, `data-slot="screen-count"` with `data-value`). The user hides columns and changes the density in its view; the status of an item of a statusy model is its badge; an empty list offers its actions with `permission: 'add'` in its empty state, not in the toolbar. `filterOf` | `list:<entity>` (`aria-busy` until its rows are those of its search and page, their search in `data-search`), `row:<id>` (`data-tone` and `aria-description` when highlighted) with its cells `cell:<column>` (those of a column hidden are still there) and its checkbox `select:<id>` (`select:all` for the page), `status:<id>`, `state:<loading\|empty\|loaded\|error\|forbidden>`, `field:<filter>` (`state:error` in the bar when its fields cannot be read), `field:$search`, `action:<id>`, `action:view` (its menu `menu:view` with `toggle:<column>` and `density:<density>`; the table has its density in `data-density`), `action:prev-page`, `action:next-page`; `bulk:<id>` (while rows are selected), `action:clear-selection`, `action:confirm-bulk`, `error:bulk` | |
 | `empty-state` | `EmptyState`: the icon of the entity, a title, a hint and the actions that fill it (`children`) | `state:empty`, the `action:<id>` of its actions | |
 | `stat-card` | `StatCard`: the number of the items of `path` that `filter` selects, or the aggregate of their field of `value` (`{sum}`, `{avg}`, `{min}`, `{max}`, formatted by `display`), from the aggregates of the core (a list of one item with `meta.aggregates`), its `label`, `icon` and `tone`; `onOpen`: a click on the tile | `tile:<id>` (the number in `data-value` once loaded, a date of `min` or `max` as its ISO text), `state:<loading\|loaded\|error\|forbidden>` | |
 | `dashboard` | `Dashboard` (`tiles`: the props of `StatCard` and `requires: {can}`; `links`: the items of the navigation of `AppShell` by default, each once the backend allows it; `charts`; `recent`: the props of `RecentList` and `requires`; `actions`; `hero`: the title as the hero of a portal, the preset by default; `today`: the day of today beside the title, `caption` of `Screen` (under it in a hero); `links={[]}`: no links), `RecentList` (the last items: `columns`, `sort`, `limit`, `filter`, `onOpen`); a tile, the last items and a chart in `Viewable` shown once the backend lets the user view their route set, and add an item too with `can: 'add'` (`requires` of the spec) | `screen:<id>` with `state:loaded`, `today`, `tile:<id>`, `link:<screen>`, `recent:<id>` with `row:<id>` and `cell:<field>`, the states of each list | |
@@ -2796,7 +2796,7 @@ the table; what it lists as code is a screen of your own or its extension (see
 | a wider sidebar, rail or content | `size.sidebar`, `size.sidebar-rail`, `size.content` | the drawer of a phone |
 | a top bar instead of the sidebar | `navigation: topbar` (see [The design](#the-design)) | — |
 | the filters on the page, without their plate | `composition.filters: row` (a list, a board, a calendar) | the order of the filters is `list.filters` |
-| the search, the view and the actions of the lists beside their titles | `composition.list_tools: header` (`init` names it for `workspace`); a screen chooses by `header.search`, `false` over its list | the order of the tools |
+| the search, the view and the actions of the lists beside their titles | `composition.list_tools: header` (`init` names it for `workspace`): the list of a screen only, a related section keeps its own (`NestedLists`); a screen chooses by `header.search`, `false` over its list | the order of the tools |
 | a list as cards, the card on its own page, the forms on pages | `composition.list`, `list_phone`, `list_card`, `forms` | — |
 | the current link of the sidebar | `color.nav-active` (its fill), `color.nav-active-bar` (the bar at its start), `shadow.nav-active` | — |
 | flat blocks and controls, without the light at their top | no `color.surface-light`; over `palette: frost`, which defines it, `"var(--card)"` in `color` and `dark.color` | — |
@@ -6519,7 +6519,7 @@ Its props, `ResourceFormProps`:
 - `FormSurfaceProps`: the props of `FormSurface`, listed with it
 - `ResourceFormProps`: the props of `ResourceForm`, listed with it
 
-## API: the components: resource-list, screens
+## API: the components: resource-list
 
 The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
@@ -6578,6 +6578,10 @@ Its props, `FilterBarProps`:
 - `label?: string`: The label; the title of the field in the list schema by default.
 - `options?: readonly { value: string; label: string; }[]`: The choices (value, label), as the statuses of `statusOptions()` of status-badge; those of a field with choices in the list schema (`choiceOptions`) by default (`listFilters`).
 
+#### NestedLists
+
+`NestedLists(props: { children: ReactNode; }): Element`: The lists inside a part of a screen (a related section of a card, a list of a product beside the list of its screen): their search, view and actions stay over them, whatever `composition.list_tools` of the theme; the header of the screen is that of its own list.
+
 #### ResourceList
 
 `ResourceList(props: ResourceListProps): Element`: A list of a resource, with its states, filters, sort, view, selection, pages and actions.
@@ -6592,7 +6596,7 @@ Its props, `ResourceListProps`:
 - `filter?: Filter | undefined`: The filter of the screen itself (`list.filter` of the spec: a report of some of the items), combined (AND) with the filters and the search of the user.
 - `sort?: readonly string[]`: The initial order: the sort labels of the contract, `-` for descending, or other terms of the core (`nearSort` of map: the distance from a point); a new one replaces the order the user chose.
 - `search?: boolean`: A search field (`field:$search`).
-- `toolbar?: 'list' | 'header'`: Where the search, the view and the actions are: in the toolbar over the list (`list`), or in the header of its `Screen` beside the title (`header`), the filters staying over the list; `composition.list_tools` of the theme by default (`header.search` of the spec chooses).
+- `toolbar?: 'list' | 'header'`: Where the search, the view and the actions are: in the toolbar over the list (`list`), or in the header of its `Screen` beside the title (`header`), the filters staying over the list; `composition.list_tools` of the theme by default for the list of a screen (`header.search` of the spec chooses), `list` for a list inside a part of it (`NestedLists`: a related section).
 - `count?: boolean`: The number of the items (of the search and the filters) beside the title of its `Screen` (`header.count` of the spec).
 - `pageSize?: number`
 - `onOpen?: (id: string) => void`: Called with the id of the row the user opens.
@@ -6648,6 +6652,10 @@ Its props, `ResourceListProps`:
 - `FilterBarProps`: the props of `FilterBar`, listed with it
 - `type FilterValues = Readonly<Record<string, string>>`: The values of the filters by field; a date range is `<field>__gte` and `<field>__lte`.
 - `ResourceListProps`: the props of `ResourceList`, listed with it
+
+## API: the components: screens, stat-card, state-panel, status-badge, status-history, task-progress
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/screens`
 
@@ -6841,10 +6849,6 @@ Its props, `UpdateFormActionProps`:
 - `UpdateFormActionProps`: the props of `UpdateFormAction`, listed with it
 - `type ExtensionProps<P extends object> = Partial<'tiles' | 'recent' | 'charts' extends keyof P ? Omit<P, DashboardScreenProps> : P>`: The props that an extension gives the component of its screen: any of them, but those of the screen for a dashboard, whose component is the screen.
 
-## API: the components: stat-card, state-panel, status-badge, status-history, task-progress, transit-bar
-
-The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
-
 ### `@/bazis/ui/stat-card`
 
 #### StatCard
@@ -6998,6 +7002,10 @@ Its props, `TaskProgressProps`:
 - `BG_TASKS: string | null`: The route set of the tasks of bazis-bg (`resource` of `CAPABILITIES.bg`); null when it is not routed.
 - `TaskProgressProps`: the props of `TaskProgress`, listed with it
 - `type TaskView = 'waiting' | 'running' | 'success' | 'error' | 'interrupted'`
+
+## API: the components: transit-bar
+
+The exports of the components, `frontend/src/bazis/ui/<component>/` (see "The components" for their `data-bz` and what they require).
 
 ### `@/bazis/ui/transit-bar`
 

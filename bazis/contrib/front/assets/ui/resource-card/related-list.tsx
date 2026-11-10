@@ -27,7 +27,7 @@ import { Filter } from '@/bazis/client';
 import { useRefreshItem, type ItemPath, type ListPath } from '@/bazis/react';
 import type { FieldFilters, SavedDocument } from '@/bazis/ui/resource';
 import { FormSurface, ResourceFormBody } from '@/bazis/ui/resource-form';
-import { ResourceList, type ResourceListProps } from '@/bazis/ui/resource-list';
+import { NestedLists, ResourceList, type ResourceListProps } from '@/bazis/ui/resource-list';
 
 import { useHeadsScreen } from './resource-card.js';
 
@@ -95,27 +95,29 @@ export function RelatedList({ path, entity, relation, item, itemPath, title, add
   return (
     <section aria-label={typeof title === 'string' ? title : undefined} className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {title !== undefined && <Title className="text-base font-subheading">{title}</Title>}
-      <ResourceList
-        {...list}
-        path={path}
-        entity={entity}
-        filter={Filter.where(relation, item)}
-        actions={
-          add
-            ? [
-                {
-                  id: add.id,
-                  label: add.label,
-                  icon: add.icon ?? Plus,
-                  permission: 'add',
-                  onClick: () => {
-                    setAdding(true);
+      <NestedLists>
+        <ResourceList
+          {...list}
+          path={path}
+          entity={entity}
+          filter={Filter.where(relation, item)}
+          actions={
+            add
+              ? [
+                  {
+                    id: add.id,
+                    label: add.label,
+                    icon: add.icon ?? Plus,
+                    permission: 'add',
+                    onClick: () => {
+                      setAdding(true);
+                    },
                   },
-                },
-              ]
-            : []
-        }
-      />
+                ]
+              : []
+          }
+        />
+      </NestedLists>
       {add && (
         <FormSurface open={adding} {...(forms === undefined ? {} : { mode: forms })} title={add.title ?? add.label} onClose={close}>
           <ResourceFormBody
