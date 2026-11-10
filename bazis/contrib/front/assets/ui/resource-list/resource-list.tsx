@@ -597,15 +597,15 @@ export function ResourceList({
   };
 
   const searchField = searchable && (
-    // as wide as 18rem, narrower (down to 10rem; to 6rem in the header, beside the actions on a
-    // phone too) rather than pushing the actions to a row of their own
+    // 15rem in a line of filters, whatever the tools beside it (the reset that comes and goes);
+    // in the header as wide as 18rem, down to 6rem beside the actions on a phone too
     <div
       className={cn(
         'relative',
-        header === null ? 'w-full @3xl:w-auto @3xl:max-w-72 @3xl:min-w-40 @3xl:flex-1' : 'min-w-24 flex-1 sm:max-w-72',
+        header === null ? 'w-full @3xl:w-60' : 'min-w-24 flex-1 sm:max-w-72',
       )}
     >
-      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+      <Search className="pointer-events-none absolute top-1/2 left-0 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
       <Input
         type="search"
         aria-label={t('list.search')}
@@ -704,7 +704,7 @@ export function ResourceList({
                   setOffset(0);
                 }}
               >
-                <SelectTrigger id={sortId} className={filterWidth('select')}>
+                <SelectTrigger id={sortId} className={cn(filterWidth('select'), sort.length === 0 && 'text-muted-foreground')}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent position="popper" align="start">

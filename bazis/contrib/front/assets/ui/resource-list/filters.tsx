@@ -149,7 +149,7 @@ const WIDTHS: Record<FilterKind, string> = {
   date: '@3xl:w-36',
   text: '@3xl:w-40',
   relation: '@3xl:w-48',
-  select: '@3xl:w-auto',
+  select: '@3xl:min-w-28',
   chips: '',
 };
 
@@ -275,7 +275,7 @@ function FilterControl({ filter, label, type, values, onChange, folded }: Filter
             onChange(field, next === EVERY ? '' : next);
           }}
         >
-          <SelectTrigger id={id} data-bz={`field:${field}`} className={filterWidth('select')}>
+          <SelectTrigger id={id} data-bz={`field:${field}`} className={cn(filterWidth('select'), !value && 'text-muted-foreground')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper" align="start">
@@ -333,7 +333,7 @@ function FilterControl({ filter, label, type, values, onChange, folded }: Filter
 export function ResetFilters({ onReset }: { onReset: () => void }) {
   const { t } = useLanguage();
   return (
-    <Button type="button" variant="ghost" data-bz="action:reset-filters" aria-label={t('filter.reset')} title={t('filter.reset')} onClick={onReset}>
+    <Button type="button" variant="outline" data-bz="action:reset-filters" aria-label={t('filter.reset')} title={t('filter.reset')} onClick={onReset}>
       <FunnelX aria-hidden="true" />
       {t('filter.clear')}
     </Button>
