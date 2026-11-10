@@ -381,7 +381,7 @@ are replaced without conflicts; the components are owned by the product and merg
 
 ## Status
 
-Pre-release. Available: the client (`assets/client`), the hooks (`assets/react`), the
+Below 1.0. Available: the client (`assets/client`), the hooks (`assets/react`), the
 first components (`assets/ui`, `bazis_front add`), the contract export with the generated
 TypeScript (`bazis_front contract`, `front.W001`), the frontend template with the copies
 of the client, the hooks and its components and the lock (`bazis_front init`), the specs
