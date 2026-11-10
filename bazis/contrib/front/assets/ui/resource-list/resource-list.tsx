@@ -390,13 +390,14 @@ function TableView(
                       // a short value as narrow as it is, its room left to the texts; a text wraps in the
                       // width that the table gives its column, a long word too, at its own line breaks
                       // (an item a line); the table shares its width between the columns of texts by
-                      // their bounds, not by the length of their texts: while it has room, a long text
-                      // does not narrow the column of a short word (an e-mail) until the word breaks
+                      // their bounds (8rem to 14rem), not by the length of their texts alone: a name or
+                      // an item of a list on one line where the table has room, a long text no wider
+                      // than 14rem, never narrowing the column of a short word (an e-mail) below 8rem
                       fits
                         ? 'w-px'
                         : cn(
                             'whitespace-pre-line wrap-anywhere',
-                            index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-32') : 'max-w-48',
+                            index > 0 ? ((typeof shown === 'string' && DISPLAY_WIDTHS[shown]) || 'min-w-32 max-w-56') : 'max-w-48',
                           ),
                       isNumeric(field) && 'text-right',
                       alignsDigits(field) && 'tabular-nums',
