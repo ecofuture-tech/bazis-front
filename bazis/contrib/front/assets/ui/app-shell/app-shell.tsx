@@ -259,7 +259,7 @@ function SkipLink() {
 
 const ShellContext = createContext<Navigation | null>(null);
 const ItemsContext = createContext<readonly NavItem[]>([]);
-/** Whether the links are those of a rail, only their icons seen: their labels in their titles. */
+/** Whether the links are those of a rail, only their icons seen: their labels in tooltips at their side (`RailLabel`). */
 const RailContext = createContext(false);
 
 /** The links of the navigation of the layout (`items` of `AppShell`, those of its groups in their place), none outside it. */
