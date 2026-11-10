@@ -361,20 +361,11 @@ export function statusyModel(type: string): StatusyModel | undefined {
 }
 
 /**
- * The statuses of a statusy model in the order of its workflow (the contract sorts them by
- * id): the initial one, then those its transits reach, in the order of the transits; the
- * statuses no transit reaches last. None for a type that is not a statusy model.
+ * The statuses of a statusy model in the order of the life of an item, as the contract has
+ * them (that of `statusOptions` of status-badge too). None for a type that is not a statusy model.
  */
 export function workflowStatuses(type: string): readonly string[] {
-  const model = statusyModel(type);
-  if (!model) return [];
-  const order = model.initial ? [model.initial] : [];
-  for (let index = 0; index < order.length; index += 1) {
-    for (const transit of model.transits) {
-      if (transit.src === order[index] && transit.dst && !order.includes(transit.dst)) order.push(transit.dst);
-    }
-  }
-  return [...order, ...model.statuses.map((it) => it.id).filter((it) => !order.includes(it))];
+  return statusyModel(type)?.statuses.map((it) => it.id) ?? [];
 }
 
 /**

@@ -18,6 +18,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { TRANSITS } from '@/bazis/generated/contract';
+import { workflowStatuses } from '@/bazis/ui/resource';
 import { StatusBadge, statusName, statusOptions, statusTone } from '@/bazis/ui/status-badge';
 import { resource } from '@/bazis/ui/testing';
 
@@ -36,5 +38,11 @@ describe('StatusBadge', () => {
     expect(container.innerHTML).toBe('');
     expect(statusName('test.item', 'done')).toBe('done');
     expect(statusOptions('test.item')).toEqual([]);
+  });
+
+  it('offers the statuses of a filter in the order of the columns of a board', () => {
+    const types = Object.keys(TRANSITS);
+    expect(types.length).toBeGreaterThan(0);
+    for (const type of types) expect(statusOptions(type).map((it) => it.value)).toEqual(workflowStatuses(type));
   });
 });

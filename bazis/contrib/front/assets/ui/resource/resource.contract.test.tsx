@@ -916,10 +916,10 @@ describe('StatusLabel', () => {
 });
 
 describe('workflowStatuses', () => {
-  it('orders the statuses of a model by its workflow: the initial one, then those its transits reach', () => {
+  it('orders the statuses of a model as the contract, by its workflow: the initial one, then those its transits reach', () => {
     for (const [type, model] of Object.entries(STATUSY)) {
       const order = workflowStatuses(type);
-      expect([...order].sort()).toEqual(model.statuses.map((it) => it.id).sort());
+      expect(order).toEqual(model.statuses.map((it) => it.id));
       expect(order[0]).toBe(model.initial);
       // a status that a transit reaches comes after the source of one of its transits
       for (const status of order.slice(1)) {
