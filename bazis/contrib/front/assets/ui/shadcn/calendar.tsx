@@ -105,7 +105,8 @@ function Calendar({
           defaultClassNames.dropdown
         ),
         caption_label: cn(
-          "font-medium select-none",
+          // the month as the title of a calendar of the items: a capital (`ноябрь` → `Ноябрь`)
+          "font-medium select-none first-letter:uppercase",
           captionLayout === "label"
             ? "text-sm"
             : "flex h-8 items-center gap-1 rounded-md pr-1 pl-2 text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
