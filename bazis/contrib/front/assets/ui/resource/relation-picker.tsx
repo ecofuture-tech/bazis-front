@@ -118,7 +118,8 @@ interface OptionsProps {
  * (`page[offset]`, `PICKER_PAGE` each: a larger `page[limit]` would pass the maximum of the
  * backend, `BAZIS_API_PAGINATION_PAGE_SIZE_MAX`). The active option (`aria-activedescendant`)
  * is, until the user moves, the (first) selected item when the picker opens and the first
- * item after a search, never the option that clears the value.
+ * item after a search, never the option that clears the value. While the options are not those
+ * of the text typed, the arrows wait and Enter chooses once they are.
  */
 function Options({
   path,
@@ -142,6 +143,8 @@ function Options({
   const [offset, setOffset] = useState(0);
   // the option the user moved to; null: the default one
   const [active, setActive] = useState<number | null>(null);
+  // Enter pressed before the options of the text typed came
+  const confirming = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => {
       const next = text.trim();
@@ -180,6 +183,12 @@ function Options({
   useEffect(() => {
     if (current >= 0) document.getElementById(optionId(current))?.scrollIntoView({ block: 'nearest' });
   });
+  useEffect(() => {
+    if (!confirming.current || stale) return;
+    confirming.current = false;
+    const entry = entries[current];
+    if (entry?.kind !== 'more' && entry) choose(entry);
+  });
 
   function choose(entry: Entry) {
     if (entry.kind === 'item') onSelect(entry.item);
@@ -197,12 +206,18 @@ function Options({
       onClose();
     } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && count) {
       event.preventDefault();
+      // not over the options of the text before: the first of those of this one is active once they come
+      if (stale) return;
       const down = event.key === 'ArrowDown';
       setActive(current < 0 ? (down ? 0 : count - 1) : (current + (down ? 1 : count - 1)) % count);
     } else if (event.key === 'Enter') {
       event.preventDefault();
+      if (stale) {
+        confirming.current = true;
+        return;
+      }
       const entry = entries[current];
-      if (entry && !stale) choose(entry);
+      if (entry) choose(entry);
     }
   }
 

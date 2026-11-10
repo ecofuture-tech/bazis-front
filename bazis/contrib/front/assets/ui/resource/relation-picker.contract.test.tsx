@@ -196,18 +196,18 @@ describe('RelationPicker', () => {
       expect(screen.queryByRole('listbox')).toBeNull();
     });
 
-    // typed: Enter waits for the items of the search, then selects the first one
+    // typed: an arrow waits for the items of the search, never moves to the option that clears
+    // the value; Enter selects the first of them once they come
     fireEvent.click(trigger);
-    const again = await screen.findByRole('listbox');
+    await screen.findByRole('listbox');
     const input = screen.getByRole('combobox', { name: 'Search Owner' });
     fireEvent.change(input, { target: { value: 'bob' } });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onChange).toHaveBeenCalledTimes(1);
     await waitFor(() => {
-      expect(within(again).getAllByRole('option').map((it) => it.textContent)).toEqual(['—', 'Bob']);
+      expect(onChange).toHaveBeenLastCalledWith('b2');
     });
-    fireEvent.keyDown(input, { key: 'Enter' });
-    expect(onChange).toHaveBeenLastCalledWith('b2');
   });
 
   it('clears its value and gives the focus back on Escape and Tab', async () => {
