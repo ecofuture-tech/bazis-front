@@ -18,7 +18,7 @@
 // screen (`FormSurface`, as the theme composes the forms). Its states are marked
 // `state:<state>` (the loading one is the skeleton of the card), its values `field:<name>`.
 
-import { Lock, Pencil } from 'lucide-react';
+import { Lock, Pencil, Trash2 } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 
 import type { CustomActionName, PermitMeta } from '@/bazis/client';
@@ -350,6 +350,8 @@ export function ResourceCard({
                 data-bz={`action:${action.id}`}
                 onClick={action.onClick}
               >
+                {/* a delete beside the edit, each a button with its sign */}
+                {action.permission === 'delete' && <Trash2 />}
                 {action.label}
               </Button>
             ))}

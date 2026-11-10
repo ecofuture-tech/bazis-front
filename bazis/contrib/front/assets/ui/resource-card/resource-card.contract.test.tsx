@@ -361,6 +361,23 @@ describe('ResourceCard', () => {
     });
   }
 
+  it('signs its delete as the edit is signed, its other actions by their labels only', async () => {
+    renderWithBazis(
+      <ResourceCard
+        path={ITEMS as never}
+        id={ITEM_ID}
+        sections={sections}
+        actions={[
+          { id: 'delete', label: 'Delete', onClick: vi.fn(), permission: 'delete', variant: 'destructive' },
+          { id: 'print', label: 'Print', onClick: vi.fn() },
+        ]}
+      />,
+      backend({ crud_actions: ['view', 'delete'] }),
+    );
+    expect((await screen.findByTestId('action:delete')).querySelector('svg')).not.toBeNull();
+    expect(screen.getByTestId('action:print').querySelector('svg')).toBeNull();
+  });
+
   it('shows its summary under its heading, and edits its fields before those of the sections', async () => {
     const year = new Date().getFullYear();
     const summarySchema = runtimeSchema({
