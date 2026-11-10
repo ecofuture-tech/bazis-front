@@ -6495,7 +6495,7 @@ Its props, `FilterBarProps`:
 
 #### FilterRow
 
-`FilterRow(props: { plate?: boolean; tools?: ReactNode; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search of a list, on a plate of its own (`plate`: with a search or more than one filter, not the tools alone), its tools (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools, which stay on the right of their last line, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, the tools on a line of their own at its end.
+`FilterRow(props: { plate?: boolean; tools?: ReactNode; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search of a list, on a plate of its own (`plate`: with a search or more than one filter, not the tools alone), its tools (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools, which stay on the right of their last line, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, the tools at the end of the second column (of the line on a phone).
 
 #### listFilters
 
