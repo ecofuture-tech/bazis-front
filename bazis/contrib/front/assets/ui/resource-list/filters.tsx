@@ -19,7 +19,7 @@
 // those of the user: the core answers a filter by a field it does not list for him (hidden
 // by his field permissions, bazis-permit) with 400, so such a filter has no control.
 
-import { FunnelX } from 'lucide-react';
+import { FunnelX, ListFilter as ListFilterIcon } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 
 import { Filter } from '@/bazis/client';
@@ -159,24 +159,27 @@ export function filterWidth(kind: FilterKind): string {
 }
 
 /**
- * A filter of the row of the filters (`FilterRow`): its label, always over its control and where
- * the text of the control starts, in the color of the text once the filter has a value
- * (`data-filled`); the line of the control drawn by its group (`data-slot="field-group"`), as
- * for the range of two dates (`legend` without an `id`, its label read as the name of the group).
+ * A filter of the row of the filters (`FilterRow`): its label, always over its control (on a
+ * plate where the text of the control starts, as the label of a field of a form otherwise), in
+ * the color of the text once the filter has a value (`data-filled`); the line of the control
+ * drawn by its group (`data-slot="field-group"`), as for the range of two dates (`legend` without
+ * an `id`, its label read as the name of the group). Folded (`folded`), it is hidden on a phone.
  */
-export function FilterField({ label, id, kind, filled, children, 'data-bz': mark }: {
+export function FilterField({ label, id, kind, filled, folded = false, children, 'data-bz': mark }: {
   label: string;
   /** The id of the control that the label names; without one the filter is a group of controls named by the label. */
   id?: string;
   kind: FilterKind;
   /** Whether the filter has a value. */
   filled: boolean;
+  /** Whether the filters are folded behind their button where the row is one column (a phone). */
+  folded?: boolean;
   /** The mark of a group of controls (`field:<field>` of the chips of a boolean). */
   'data-bz'?: string;
   children: ReactNode;
 }) {
-  const wrapper = cn('grid w-full min-w-0 gap-1 @3xl:w-auto', kind === 'date' && '@md:col-span-2');
-  const text = 'cursor-pointer pl-3 text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';
+  const wrapper = cn('grid w-full min-w-0 gap-1 @3xl:w-auto', kind === 'date' && '@md:col-span-2', folded && '@max-md:hidden');
+  const text = 'cursor-pointer in-data-plate:pl-3 text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';
   const group = (
     <div data-slot="field-group" className={cn(fieldGroupClassName, 'min-w-0 gap-2', kind === 'chips' && 'pl-1')}>
       {children}
@@ -206,10 +209,11 @@ interface FilterControlProps {
   type: FieldType | undefined;
   values: FilterValues;
   onChange: (name: string, value: string) => void;
+  folded: boolean;
 }
 
 /** The control of a filter, marked `field:<field>` (the range of a date `field:<field>__gte`, `__lte`). */
-function FilterControl({ filter, label, type, values, onChange }: FilterControlProps) {
+function FilterControl({ filter, label, type, values, onChange, folded }: FilterControlProps) {
   const { t } = useLanguage();
   const id = `filter-${filter.field}`;
   const { field } = filter;
@@ -217,7 +221,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
     const bounds = ['gte', 'lte'] as const;
     return (
       // its two dates side by side, a dash between them, under its label
-      <FilterField label={label} kind="date" filled={bounds.some((bound) => values[`${field}__${bound}`])}>
+      <FilterField folded={folded} label={label} kind="date" filled={bounds.some((bound) => values[`${field}__${bound}`])}>
         {bounds.map((bound) => (
           <Fragment key={bound}>
             {bound === 'lte' && (
@@ -243,7 +247,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
   if (type === 'boolean' && !filter.options) {
     // a chip for each value, pressed again to show every item
     return (
-      <FilterField label={label} kind="chips" filled={value !== ''} data-bz={`field:${field}`}>
+      <FilterField folded={folded} label={label} kind="chips" filled={value !== ''} data-bz={`field:${field}`}>
         {(['true', 'false'] as const).map((it) => (
           <Button
             key={it}
@@ -264,7 +268,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
   if (filter.options) {
     const { options } = filter;
     return (
-      <FilterField label={label} id={id} kind="select" filled={value !== ''}>
+      <FilterField folded={folded} label={label} id={id} kind="select" filled={value !== ''}>
         <Select
           value={value || EVERY}
           onValueChange={(next) => {
@@ -292,7 +296,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
   const relationType = relation === null ? undefined : typeAt(relation);
   if (relationType !== undefined) {
     return (
-      <FilterField label={label} id={id} kind="relation" filled={value !== ''}>
+      <FilterField folded={folded} label={label} id={id} kind="relation" filled={value !== ''}>
         <RelationPicker
           id={id}
           data-bz={`field:${field}`}
@@ -309,7 +313,7 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
     );
   }
   return (
-    <FilterField label={label} id={id} kind="text" filled={value !== ''}>
+    <FilterField folded={folded} label={label} id={id} kind="text" filled={value !== ''}>
       <Input
         id={id}
         data-bz={`field:${field}`}
@@ -329,24 +333,29 @@ function FilterControl({ filter, label, type, values, onChange }: FilterControlP
 export function ResetFilters({ onReset }: { onReset: () => void }) {
   const { t } = useLanguage();
   return (
-    <Button type="button" variant="ghost" size="icon" data-bz="action:reset-filters" aria-label={t('filter.reset')} title={t('filter.reset')} onClick={onReset}>
+    <Button type="button" variant="ghost" data-bz="action:reset-filters" aria-label={t('filter.reset')} title={t('filter.reset')} onClick={onReset}>
       <FunnelX aria-hidden="true" />
+      {t('filter.clear')}
     </Button>
   );
 }
 
 /**
- * The row of the filters of a list, a calendar or a board, with the search and the tools of a
- * list, on a plate of its own (`plate`: with a search or a filter, not the tools alone): one line
- * that wraps where its container is as wide as 48rem, the lines of the controls at the bottom
- * under their labels; narrower (a list beside its card, a phone) a grid of cells of one width,
- * two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the
- * label and the control of a filter filling its cell.
+ * The row of the filters of a list, a calendar or a board, with the search of a list, on a plate
+ * of its own (`plate`: with a search or more than one filter, not the tools alone), its tools
+ * (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools,
+ * which stay on the right of their last line, the lines of the controls at the bottom under their
+ * labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem
+ * (a range of dates takes both, the next filters filling the cell it leaves), the label and the
+ * control of a filter filling its cell, the tools on a line of their own at its end.
  */
-export function FilterRow({ plate = true, children }: { plate?: boolean; children: ReactNode }) {
+export function FilterRow({ plate = true, tools, children }: { plate?: boolean; tools?: ReactNode; children: ReactNode }) {
   return (
-    <div className={cn('@container', plate && 'surface px-(--space-card) py-[calc(var(--space-card)/2)]')}>
-      <div className="grid grid-flow-dense grid-cols-1 items-end gap-x-6 gap-y-3 @md:grid-cols-2 @3xl:flex @3xl:flex-wrap">{children}</div>
+    <div data-plate={plate || undefined} className={cn('@container', plate && 'surface px-(--space-card) py-[calc(var(--space-card)/2)]')}>
+      <div className="grid grid-flow-dense grid-cols-1 items-end gap-x-6 gap-y-3 @md:grid-cols-2 @3xl:flex">
+        <div className="contents @3xl:flex @3xl:min-w-0 @3xl:flex-1 @3xl:flex-wrap @3xl:items-end @3xl:gap-x-6 @3xl:gap-y-3">{children}</div>
+        {tools !== undefined && <div className="col-span-full ml-auto flex shrink-0 gap-2">{tools}</div>}
+      </div>
     </div>
   );
 }
@@ -374,7 +383,11 @@ export function FilterBar({ path, filters: wanted, ready = true, title, onFilter
   const { t } = useLanguage();
   const { types, pending, error } = useFilterTypes(path);
   const [values, setValues] = useState<FilterValues>({});
+  // on a phone the filters are folded behind their button, which counts those with a value
+  const [unfolded, setUnfolded] = useState(false);
   const filters = wanted.filter((filter) => types.has(filter.field));
+  const foldable = filters.length > 1;
+  const count = filters.filter(({ field }) => values[field] || values[`${field}__gte`] || values[`${field}__lte`]).length;
   if (error) return <StatePanel inline state={errorState(error)} error={error} message={t('filter.unavailable')} />;
   if (pending || !ready) {
     return (
@@ -387,9 +400,27 @@ export function FilterBar({ path, filters: wanted, ready = true, title, onFilter
   }
   return (
     <>
+      {foldable && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          data-bz="action:filters"
+          aria-expanded={unfolded}
+          className="justify-self-start @md:hidden"
+          onClick={() => {
+            setUnfolded(!unfolded);
+          }}
+        >
+          <ListFilterIcon aria-hidden="true" />
+          {t('filter.toggle')}
+          {count > 0 && <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground tabular-nums">{count}</span>}
+        </Button>
+      )}
       {filters.map((filter) => (
         <FilterControl
           key={filter.field}
+          folded={foldable && !unfolded}
           filter={filter}
           label={filter.label ?? title(filter.field)}
           type={types.get(filter.field)}

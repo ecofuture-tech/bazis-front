@@ -527,7 +527,20 @@ export function ResourceCalendar({
         )}
       </div>
       {filterList.length > 0 && (
-        <FilterRow>
+        // a single filter without a plate
+        <FilterRow
+          plate={filterList.length > 1}
+          tools={
+            userFilter.filter && (
+              <ResetFilters
+                onReset={() => {
+                  setFilterKey((it) => it + 1);
+                  setUserFilter({ filter: undefined, equal: {} });
+                }}
+              />
+            )
+          }
+        >
           <FilterBar
             key={filterKey}
             path={path}
@@ -538,16 +551,6 @@ export function ResourceCalendar({
               setUserFilter({ filter: next, equal });
             }}
           />
-          {userFilter.filter && (
-            <div className="col-span-full ml-auto">
-              <ResetFilters
-                onReset={() => {
-                  setFilterKey((it) => it + 1);
-                  setUserFilter({ filter: undefined, equal: {} });
-                }}
-              />
-            </div>
-          )}
         </FilterRow>
       )}
       {state === 'loaded' || state === 'empty' ? (

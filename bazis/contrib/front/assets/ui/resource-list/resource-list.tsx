@@ -613,9 +613,9 @@ export function ResourceList({
     setSearch('');
     setOffset(0);
   }
+  // at the end of the row of the filters (`tools` of `FilterRow`), or in the header of the screen
   const tools = (
-    // at the end of the row of the filters, of a row of its own where they are a grid
-    <div className={cn('flex gap-2', header === null && 'col-span-full ml-auto')}>
+    <>
       {filtered && <ResetFilters onReset={reset} />}
       {viewMenu && (
         <ViewMenu
@@ -633,7 +633,7 @@ export function ResourceList({
         />
       )}
       {toolbar.filter((action) => !creates.includes(action)).map(actionButton)}
-    </div>
+    </>
   );
   // the sort of the cards stays over them with the filters
   const sorts = view === 'cards' && sortable.length > 0;
@@ -651,7 +651,7 @@ export function ResourceList({
         createPortal(
           <>
             {searchField}
-            {tools}
+            <div className="flex gap-2">{tools}</div>
           </>,
           header,
         )}
@@ -665,8 +665,8 @@ export function ResourceList({
           caption,
         )}
       {(header === null ? searchable || filterList.length > 0 || actions.length > 0 || viewMenu : filterList.length > 0 || sorts) && (
-        // a plate with a search or a filter, the tools alone without one
-        <FilterRow plate={(header === null && searchable) || filterList.length > 0}>
+        // a plate with a search or filters, not the tools alone or a single filter
+        <FilterRow plate={(header === null && searchable) || filterList.length > 1} tools={header === null ? tools : undefined}>
           {header === null && searchField}
           {filterList.length > 0 && (
             <FilterBar
@@ -713,7 +713,6 @@ export function ResourceList({
               </Select>
             </FilterField>
           )}
-          {header === null && tools}
         </FilterRow>
       )}
       {bulk.length > 0 && selection.length > 0 && (

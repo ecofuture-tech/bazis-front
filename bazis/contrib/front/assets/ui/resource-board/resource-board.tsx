@@ -270,7 +270,21 @@ export function ResourceBoard({
   return (
     <div data-bz={`board:${entity}`} className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {filterList.length > 0 && (
-        <FilterRow>
+        // a single filter without a plate
+        <FilterRow
+          plate={filterList.length > 1}
+          tools={
+            userFilter && (
+              <ResetFilters
+                onReset={() => {
+                  setFilterKey((it) => it + 1);
+                  setUserFilter(undefined);
+                  setLimits({});
+                }}
+              />
+            )
+          }
+        >
           <FilterBar
             key={filterKey}
             path={path}
@@ -282,17 +296,6 @@ export function ResourceBoard({
               setLimits({});
             }}
           />
-          {userFilter && (
-            <div className="col-span-full ml-auto">
-              <ResetFilters
-                onReset={() => {
-                  setFilterKey((it) => it + 1);
-                  setUserFilter(undefined);
-                  setLimits({});
-                }}
-              />
-            </div>
-          )}
         </FilterRow>
       )}
       {run.open === null && run.mutation.isError && (
