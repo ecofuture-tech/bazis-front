@@ -611,7 +611,7 @@ export function ResourceList({
         aria-label={t('list.search')}
         placeholder={t('list.search')}
         data-bz="field:$search"
-        className={cn('pl-9', CLEAR_SEARCH)}
+        className={cn('pl-6', CLEAR_SEARCH)}
         value={searchText}
         onChange={(event) => {
           setSearchText(event.target.value);

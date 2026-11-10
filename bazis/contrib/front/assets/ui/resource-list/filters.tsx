@@ -179,7 +179,7 @@ export function FilterField({ label, id, kind, filled, folded = false, children,
   children: ReactNode;
 }) {
   const wrapper = cn('grid w-full min-w-0 gap-1 @3xl:w-auto', kind === 'date' && '@md:col-span-2', folded && '@max-md:hidden');
-  const text = 'cursor-pointer in-data-plate:pl-3 text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';
+  const text = 'cursor-pointer text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';
   const group = (
     <div data-slot="field-group" className={cn(fieldGroupClassName, 'min-w-0 gap-2', kind === 'chips' && 'pl-1')}>
       {children}

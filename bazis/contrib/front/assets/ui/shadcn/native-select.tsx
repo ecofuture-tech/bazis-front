@@ -43,13 +43,13 @@ function NativeSelect({
         data-size={size}
         className={cn(
           fieldClassName,
-          "appearance-none pr-9 selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed data-[size=sm]:h-8 data-[size=sm]:py-1",
+          "appearance-none pr-6 selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed data-[size=sm]:h-8 data-[size=sm]:py-1",
           className
         )}
         {...props}
       />
       <ChevronDownIcon
-        className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-muted-foreground opacity-50 select-none"
+        className="pointer-events-none absolute top-1/2 right-0 size-4 -translate-y-1/2 text-muted-foreground opacity-50 select-none"
         aria-hidden="true"
         data-slot="native-select-icon"
       />

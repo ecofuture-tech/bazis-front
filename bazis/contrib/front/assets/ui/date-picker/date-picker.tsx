@@ -195,7 +195,7 @@ export function DatePicker({
             data-input="date"
             disabled={disabled}
             readOnly={readOnly}
-            className={cn('w-full tabular-nums', !readOnly && 'pr-10', !readOnly && native && '[&::-webkit-calendar-picker-indicator]:hidden')}
+            className={cn('w-full tabular-nums', !readOnly && 'pr-9', !readOnly && native && '[&::-webkit-calendar-picker-indicator]:hidden')}
           />
           {!readOnly && (
             <Button
@@ -206,7 +206,7 @@ export function DatePicker({
               tabIndex={native ? undefined : -1}
               disabled={disabled}
               aria-label={t('date.pick')}
-              className="absolute right-0.5 text-muted-foreground"
+              className="absolute right-0 text-muted-foreground"
               onClick={() => {
                 if (open) setOpen(false);
                 else show(true);
