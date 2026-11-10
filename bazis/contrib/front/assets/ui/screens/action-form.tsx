@@ -148,8 +148,9 @@ export function ActionForm({ path, action, fields, labels, filters, values: star
       noValidate
       onSubmit={submit}
       aria-busy={mutation.isPending || uploading || undefined}
-      // as wide as a form of a page, never its fields across the whole screen
-      className="grid w-full max-w-2xl gap-(--space-field)"
+      // as wide as a form of a page, never its fields across the whole screen, on a surface as the
+      // other blocks
+      className="surface grid w-full max-w-2xl gap-(--space-field) p-(--space-card)"
     >
       {failure && (
         <StatePanel inline state={failure} error={mutation.error} message={fieldErrors ? t('form.check') : undefined} />
