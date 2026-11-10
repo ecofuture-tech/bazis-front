@@ -130,7 +130,7 @@ export function StatCard({
         'relative grid min-w-0 text-card-foreground',
         rail
           ? 'grid-cols-[minmax(0,1fr)_auto] content-center gap-x-3 gap-y-1 px-(--space-card) py-3'
-          : 'surface gap-3 p-(--space-card)',
+          : 'surface content-between gap-3 p-(--space-card)',
         onOpen && (rail ? 'transition-colors hover:bg-muted/50' : 'transition-shadow hover:shadow-(--shadow-lift-2)'),
         className,
       )}

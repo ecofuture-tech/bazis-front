@@ -328,7 +328,7 @@ export function Dashboard({
         )}
         {shown.length > 0 && (
           <nav aria-labelledby={linksId} className="@container grid gap-3">
-            <h2 id={linksId} className="text-sm font-medium text-muted-foreground">
+            <h2 id={linksId} className="font-eyebrow text-muted-foreground">
               {t('dashboard.links')}
             </h2>
             {/* as many in a row as the width of the screen beside the sidebar keeps their labels whole */}
