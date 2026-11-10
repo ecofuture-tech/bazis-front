@@ -21,8 +21,9 @@
 // date-time on the day it starts, to its `end` on the same day: the start alone in a day of a
 // month, the range in its tooltip); a click on a day selects it, and
 // the list of the selected day (today at first) shows all its items, `row:<id>` again. A month
-// at the width of a phone has a dot on the days with items, which only the list of the day
-// shows: no hidden copy of a row is in the page. The filters of the user (`FilterBar` of
+// at the width of a phone, or where the days are too narrow for the labels of their items, has a
+// dot on the days with items, which only the list of the day shows (a week there is the list of
+// its days): no hidden copy of a row is in the page. The filters of the user (`FilterBar` of
 // resource-list, as those of a list) narrow the items. The
 // action that creates an item (`action:<id>`) is given the values its form starts with: the
 // field on the selected day (at the time of the add), its end after the duration of the add,
@@ -31,7 +32,7 @@
 // browser).
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useId, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ComponentType, type ReactNode } from 'react';
 
 import { Filter, pagination } from '@/bazis/client';
 import type { Tone } from '@/bazis/generated/theme';
@@ -116,6 +117,30 @@ export interface ResourceCalendarProps {
 const LIMIT = 500;
 /** The items of a day of a month shown in its cell; the others in the list of the day. */
 const SHOWN = 3;
+
+/** The width of the days of a period under which they are too narrow for the labels of their items: 7 days of 5.7rem. */
+const NARROW = 640;
+
+/**
+ * Whether the days of a period are too narrow for the labels of their items: the element of the
+ * days by the ref callback, measured as it is resized (`ResizeObserver`; without one, as in
+ * jsdom, never).
+ */
+function useNarrow(): [(element: HTMLElement | null) => void, boolean] {
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (element === null || typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(() => {
+      setNarrow(element.clientWidth < NARROW);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, [element]);
+  return [setElement, narrow];
+}
 const META = ['pagination', 'for_create'];
 const FOCUS = 'outline-none focus-visible:ring-focus';
 
@@ -270,6 +295,9 @@ export function ResourceCalendar({
   const [anchor, setAnchor] = useState(today);
   const [selected, setSelected] = useState(today);
   const wide = useWide();
+  const [setDays, narrow] = useNarrow();
+  // the days without the labels of their items: a phone, or a period too narrow for them
+  const compact = !wide || narrow;
   const meta = useListFields(path);
   const filterList = listFilters(filters, meta);
   const [userFilter, setUserFilter] = useState<{ filter: Filter | undefined; equal: FilterValues }>({ filter: undefined, equal: {} });
@@ -369,8 +397,8 @@ export function ResourceCalendar({
     const isSelected = key === selected;
     const outside = view === 'month' && day.getMonth() !== month;
     const shown = view === 'month' ? dayItems.slice(0, SHOWN) : dayItems;
-    // a month at the width of a phone: a dot, the items in the list of the day
-    const dot = view === 'month' && !wide;
+    // a compact month: a dot, the items in the list of the day
+    const dot = view === 'month' && compact;
     return (
       <div
         key={key}
@@ -378,8 +406,8 @@ export function ResourceCalendar({
         data-count={dayItems.length}
         className={cn(
           'grid min-w-0 content-start gap-1 bg-card',
-          // a week at the width of a phone is a list of its days: a day without items is low
-          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : 'p-1.5 sm:min-h-40',
+          // a compact week is a list of its days: a day without items is low
+          dot ? 'min-h-16 p-0.5' : view === 'month' ? 'min-h-28 p-1.5' : cn('p-1.5', !compact && 'min-h-40'),
           // a day of another month on the card as the others, the month one field: its number
           // muted, its items paler
           outside && 'text-muted-foreground',
@@ -398,7 +426,7 @@ export function ResourceCalendar({
             aria-controls={listId}
             className={cn(
               FOCUS,
-              // a month at the width of a phone: the whole day is the button, with the dot of its items
+              // a compact month: the whole day is the button, with the dot of its items
               dot ? 'grid w-full justify-items-center gap-1 rounded-md py-1' : 'flex size-7 items-center justify-center rounded-full pointer-coarse:size-11',
               'text-sm tabular-nums',
             )}
@@ -562,7 +590,7 @@ export function ResourceCalendar({
                 {t('calendar.truncated', { count: formatNumber(rows.length, language) })}
               </p>
             )}
-            <div className="surface overflow-hidden">
+            <div ref={setDays} className="surface overflow-hidden">
               {view === 'month' && (
                 <div aria-hidden="true" className="grid grid-cols-7 border-b text-xs text-muted-foreground">
                   {days.slice(0, 7).map((day) => (
@@ -572,7 +600,7 @@ export function ResourceCalendar({
                   ))}
                 </div>
               )}
-              <div className={cn('grid gap-px bg-border', view === 'month' ? 'grid-cols-7' : 'grid-cols-1 sm:grid-cols-7')}>
+              <div className={cn('grid gap-px bg-border', view === 'month' || !compact ? 'grid-cols-7' : 'grid-cols-1')}>
                 {days.map((day) => cell(day))}
               </div>
             </div>
