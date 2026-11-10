@@ -21,7 +21,9 @@ the fonts, the defaults of a preset and the look of a design without layers, the
 the lock in a frontend, `--check` and `front.W005`.
 """
 
+import itertools
 import json
+import math
 import os
 import shutil
 from io import StringIO
@@ -34,7 +36,7 @@ import pytest
 import yaml
 
 from bazis.contrib.front.checks import check_design
-from bazis.contrib.front.spec import design, fonts, theme
+from bazis.contrib.front.spec import color, design, fonts, theme
 from bazis.contrib.front.spec.issues import Document, Issues
 from bazis.contrib.front.spec.lint import DESIGN_SCHEMA, TOKENS_SCHEMA, validator
 from bazis.contrib.front.spec.validate import Specs, validate
@@ -320,7 +322,7 @@ def test_the_root_of_a_theme_of_0_12_only_gains_variables():
         '--field-line-hover', '--field-line-focus', '--shadow-lift-05', '--shadow-lift-05-hover',
         '--shadow-lift-05-active', '--shadow-lift-1', '--shadow-lift-2', '--shadow-lift-primary',
         '--shadow-lift-primary-hover', '--shadow-lift-primary-active', '--shadow-ring-focus', '--shadow-field-focus',
-        '--shadow-nav-active', '--surface-card', '--surface-control',
+        '--shadow-nav-active', '--surface-card', '--surface-control', '--tone-primary',
     }
 
 
@@ -629,6 +631,24 @@ def test_every_combination_of_the_starters():
                             assert f"@import '{source}';" in css
                         for face in fonts_of_layer(pair):
                             assert f'font-family: "{face}";' in css
+
+
+def test_the_tones_of_the_statuses_differ_in_hue():
+    # in both modes of every starter palette the tones with a color are distinct hues: the dark
+    # primary of frost (honey) is not the warning, the primary of forest not the success
+    for palette in starters('palettes'):
+        defined = design.effective_tokens({'preset': 'workspace', 'palette': palette}, None)
+        for dark in (False, True):
+            values = design.variables(defined, dark=dark)
+            hues = {}
+            for tone, source in design.TONES.items():
+                _, a, b = color.to_oklab(color.parse(values[source], values))
+                if math.hypot(a, b) >= 0.04:
+                    hues[tone] = math.degrees(math.atan2(b, a))
+            assert 'neutral' not in hues and len(hues) == len(design.TONES) - 1, (palette, dark, hues)
+            for first, second in itertools.combinations(hues, 2):
+                apart = abs(hues[first] - hues[second]) % 360
+                assert min(apart, 360 - apart) >= design.TONE_HUES, (palette, dark, first, second)
 
 
 def test_a_token_of_the_product_is_a_variable_and_a_color():

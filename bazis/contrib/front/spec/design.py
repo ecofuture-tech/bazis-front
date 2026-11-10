@@ -114,6 +114,9 @@ DEFAULTS = {
     'color.success': ('color', 'oklch(0.52 0.13 152)', 'oklch(0.74 0.14 152)'),
     'color.warning': ('color', 'oklch(0.58 0.13 65)', 'oklch(0.8 0.13 75)'),
     'color.info': ('color', 'oklch(0.52 0.15 245)', 'oklch(0.74 0.12 240)'),
+    # the tone `primary` of the statuses: the primary until a palette whose primary is near
+    # another tone in a mode (a honey primary of the dark mode, a warning) gives it a hue of its own
+    'color.tone-primary': ('color', 'var(--primary)', None),
     'color.sidebar': ('color', 'var(--background)', None),
     'color.sidebar-foreground': ('color', 'var(--foreground)', None),
     'color.sidebar-primary': ('color', 'var(--primary)', None),
@@ -221,15 +224,19 @@ EXTENSION = 'bazis'
 #: the stylesheet of a font of Google Fonts (`fonts: {google: <family>}`)
 GOOGLE_FONTS = 'https://fonts.googleapis.com/css2?family={family}&display=swap'
 
-#: the tones of the statuses (`statuses` of theme.yaml) and the variable of the color of each
+#: the tones of the statuses (`statuses` of theme.yaml) and the variable of the color of each;
+#: the hues of those with a color are at least `TONE_HUES` degrees apart in every mode of a
+#: starter palette (`tests/test_design.py`), so that two statuses never read as one
 TONES = {
     'neutral': '--muted-foreground',
-    'primary': '--primary',
+    'primary': '--tone-primary',
     'info': '--info',
     'success': '--success',
     'warning': '--warning',
     'danger': '--destructive',
 }
+
+TONE_HUES = 15
 
 #: the tints of the avatars of the initials (`bg-avatar-<n> text-avatar-<n>-fg`), the variable
 #: of each and the parts of it in its background (over the card) and in its text (over the

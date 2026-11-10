@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 /** The dot of each tone of a status. */
 const DOTS: Readonly<Record<Tone, string>> = {
   neutral: 'bg-neutral',
-  primary: 'bg-primary',
+  primary: 'bg-tone-primary',
   info: 'bg-info',
   success: 'bg-success',
   warning: 'bg-warning',

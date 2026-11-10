@@ -13,6 +13,7 @@
   --card: oklch(0.998 0.002 275);
   --primary: oklch(0.42 0.085 165);
   --primary-foreground: oklch(0.985 0.012 165);
+  --tone-primary: var(--primary);
   --muted: oklch(0.958 0.011 275);
   --muted-foreground: oklch(0.47 0.02 250);
   --accent: oklch(0.948 0.015 275);
@@ -116,6 +117,7 @@
   --card: oklch(0.205 0.012 270);
   --primary: oklch(0.82 0.12 80);
   --primary-foreground: oklch(0.2 0.04 80);
+  --tone-primary: oklch(0.74 0.1 165);
   --muted: oklch(0.23 0.012 270);
   --muted-foreground: oklch(0.74 0.02 270);
   --accent: oklch(0.25 0.013 270);
@@ -162,6 +164,7 @@
     --card: oklch(0.205 0.012 270);
     --primary: oklch(0.82 0.12 80);
     --primary-foreground: oklch(0.2 0.04 80);
+    --tone-primary: oklch(0.74 0.1 165);
     --muted: oklch(0.23 0.012 270);
     --muted-foreground: oklch(0.74 0.02 270);
     --accent: oklch(0.25 0.013 270);
@@ -281,17 +284,18 @@
   --color-sidebar-to: var(--sidebar-to);
   --color-success: var(--success);
   --color-surface-light: var(--surface-light);
+  --color-tone-primary: var(--tone-primary);
   --color-warning: var(--warning);
   --color-neutral: var(--muted-foreground);
   --color-danger: var(--destructive);
   --color-neutral-soft: color-mix(in srgb, var(--muted-foreground) 13%, var(--card));
-  --color-primary-soft: color-mix(in srgb, var(--primary) 13%, var(--card));
+  --color-primary-soft: color-mix(in srgb, var(--tone-primary) 13%, var(--card));
   --color-info-soft: color-mix(in srgb, var(--info) 13%, var(--card));
   --color-success-soft: color-mix(in srgb, var(--success) 13%, var(--card));
   --color-warning-soft: color-mix(in srgb, var(--warning) 13%, var(--card));
   --color-danger-soft: color-mix(in srgb, var(--destructive) 13%, var(--card));
   --color-neutral-ink: color-mix(in srgb, var(--muted-foreground) 72%, var(--foreground));
-  --color-primary-ink: color-mix(in srgb, var(--primary) 72%, var(--foreground));
+  --color-primary-ink: color-mix(in srgb, var(--tone-primary) 72%, var(--foreground));
   --color-info-ink: color-mix(in srgb, var(--info) 72%, var(--foreground));
   --color-success-ink: color-mix(in srgb, var(--success) 72%, var(--foreground));
   --color-warning-ink: color-mix(in srgb, var(--warning) 72%, var(--foreground));
