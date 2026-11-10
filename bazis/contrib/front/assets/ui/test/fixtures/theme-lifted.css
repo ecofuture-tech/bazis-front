@@ -74,8 +74,8 @@
   --secondary-foreground: var(--foreground);
   --ring: var(--primary);
   --sidebar-accent-foreground: var(--sidebar-foreground);
-  --field-line: color-mix(in srgb, var(--foreground) 48%, transparent);
-  --field-line-hover: color-mix(in srgb, var(--foreground) 72%, transparent);
+  --field-line: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
+  --field-line-hover: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
   --chart-1: var(--primary);
   --chart-3: var(--success);
   --chart-4: var(--warning);
@@ -400,8 +400,8 @@
     --border-control: transparent;
     --control: var(--card);
     --control-hover: var(--surface-light);
-    --field-line: color-mix(in srgb, var(--foreground) 48%, transparent);
-    --field-line-hover: color-mix(in srgb, var(--foreground) 72%, transparent);
+    --field-line: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
+    --field-line-hover: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
     --field-line-focus: var(--primary);
     --shadow-ring-focus: 0 0 0 1px var(--ring), 0 0 0 4px color-mix(in srgb, var(--ring) 18%, transparent);
     --shadow-field-focus: 0 1px 0 0 var(--primary);

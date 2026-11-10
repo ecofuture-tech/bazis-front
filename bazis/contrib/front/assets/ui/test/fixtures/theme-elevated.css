@@ -58,8 +58,8 @@
   --border-control: var(--border);
   --control: var(--background);
   --control-hover: var(--accent);
-  --field-line: color-mix(in srgb, var(--foreground) 48%, transparent);
-  --field-line-hover: color-mix(in srgb, var(--foreground) 72%, transparent);
+  --field-line: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
+  --field-line-hover: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
   --field-line-focus: var(--ring);
   --brand: var(--primary);
   --brand-foreground: var(--primary-foreground);
@@ -355,8 +355,8 @@
     --border-control: var(--border);
     --control: var(--background);
     --control-hover: var(--accent);
-    --field-line: color-mix(in srgb, var(--foreground) 48%, transparent);
-    --field-line-hover: color-mix(in srgb, var(--foreground) 72%, transparent);
+    --field-line: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
+    --field-line-hover: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
     --field-line-focus: var(--ring);
     --shadow-ring-focus: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
     --shadow-field-focus: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);

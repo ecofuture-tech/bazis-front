@@ -265,7 +265,7 @@ def test_a_design_without_layers_keeps_its_look():
     # the surfaces and the controls as the components drew them before their tokens: the borders,
     # the background of an outline button and its hover, the focus ring of a field, the shadow of
     # a card and of a popover, no shadow of the primary button, the focus ring of shadcn/ui; flat
-    # backgrounds; the line of a field of the foreground, about 3:1 at rest
+    # backgrounds; the line of a field of the muted text, about 2.7:1 at rest
     ring = '0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent)'
     assert {name: light[name] for name in (
         '--border-surface', '--border-control', '--control', '--control-hover', '--surface-light', '--shade',
@@ -276,8 +276,8 @@ def test_a_design_without_layers_keeps_its_look():
     )} == {
         '--border-surface': 'var(--border)', '--border-control': 'var(--border)', '--control': 'var(--background)',
         '--control-hover': 'var(--accent)', '--surface-light': 'var(--card)', '--shade': 'var(--foreground)',
-        '--field-line': 'color-mix(in srgb, var(--foreground) 48%, transparent)',
-        '--field-line-hover': 'color-mix(in srgb, var(--foreground) 72%, transparent)', '--field-line-focus': 'var(--ring)',
+        '--field-line': 'color-mix(in srgb, var(--muted-foreground) 60%, transparent)',
+        '--field-line-hover': 'color-mix(in srgb, var(--muted-foreground) 85%, transparent)', '--field-line-focus': 'var(--ring)',
         '--shadow-field-focus': ring,
         '--shadow-lift-05': 'var(--shadow-xs)', '--shadow-lift-05-hover': 'var(--shadow-sm)',
         '--shadow-lift-05-active': 'var(--shadow-xs)',
@@ -370,9 +370,9 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     assert (light['--surface-card'], light['--surface-control']) == (
         design.SURFACES['--surface-card'], 'linear-gradient(180deg, var(--surface-light) 0%, var(--control) 100%)',
     )
-    # the fields are a bottom line of the foreground, of the primary when focused
+    # the fields are a bottom line of the muted text, of the primary when focused
     assert (light['--field-line'], light['--field-line-hover'], light['--field-line-focus'], light['--shadow-field-focus']) == (
-        'color-mix(in srgb, var(--foreground) 48%, transparent)', 'color-mix(in srgb, var(--foreground) 72%, transparent)',
+        'color-mix(in srgb, var(--muted-foreground) 60%, transparent)', 'color-mix(in srgb, var(--muted-foreground) 85%, transparent)',
         'var(--primary)', '0 1px 0 0 var(--primary)',
     )
     assert 'var(--shade)' in light['--shadow-lift-1'] and 'var(--primary)' in light['--shadow-lift-primary']
@@ -390,11 +390,11 @@ def test_the_surfaces_lifted_on_the_frost_paper():
     # the glow of the paper and the gradient of the sidebar, drawn since the palette defines them
     base = css.split('\n@layer base {\n', 1)[1]
     # inside the sidebar the tokens of the layer are computed again on its colors: the line of
-    # its foreground, the controls on the sidebar, flat; the dark lifts of the primary button,
+    # its muted text, the controls on the sidebar, flat; the dark lifts of the primary button,
     # black literals, in its dark mode
     sidebar = block_of(base, "[data-slot='sidebar']")
     assert (sidebar['--field-line'], sidebar['--control'], sidebar['--surface-control']) == (
-        'color-mix(in srgb, var(--foreground) 48%, transparent)', 'var(--card)', 'none',
+        'color-mix(in srgb, var(--muted-foreground) 60%, transparent)', 'var(--card)', 'none',
     )
     lifts = ('lift-primary', 'lift-primary-hover', 'lift-primary-active')
     assert block_of(base, ".dark [data-slot='sidebar']") == {

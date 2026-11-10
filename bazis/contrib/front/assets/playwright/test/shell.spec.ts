@@ -296,7 +296,7 @@ test('lifted: a card and an outline button are lifted by a shadow without a cont
   expect(focused.shadow.endsWith(resting.shadow)).toBe(true);
 });
 
-test('elevated: a card and an outline button look as in 0.12, an input is a bottom line of the foreground', async ({ page }) => {
+test('elevated: a card and an outline button look as in 0.12, an input is a bottom line of the muted text', async ({ page }) => {
   await page.goto(`${origin}/surfaces-elevated.html`);
   // the classes of a block and of an outline button of 0.12
   expect(await look(page, '[data-slot="card"]')).toEqual(await look(page, '[data-testid="was-card"]'));
@@ -304,10 +304,10 @@ test('elevated: a card and an outline button look as in 0.12, an input is a bott
   expect(await look(page, 'button[data-variant="outline"]')).toEqual(await look(page, '[data-testid="was-button"]'));
   const field = await look(page, '[data-slot="input"]');
   expect(field.widths).toEqual(['0px', '0px', '1px', '0px']);
-  // the foreground at 48%, about 3:1 on the card, not the pale input of 0.12
+  // the muted text at 60%, a grey line about 2.7:1 on the card, not the pale input of 0.12
   const line = await page.evaluate(() => {
     const probe = document.body.appendChild(document.createElement('div'));
-    probe.style.color = 'color-mix(in srgb, var(--foreground) 48%, transparent)';
+    probe.style.color = 'color-mix(in srgb, var(--muted-foreground) 60%, transparent)';
     return getComputedStyle(probe).color;
   });
   expect(field.colors[2]).toBe(line);

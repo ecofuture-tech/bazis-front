@@ -151,10 +151,12 @@ DEFAULTS = {
     'color.control': ('color', 'var(--background)', 'color-mix(in srgb, var(--input) 30%, transparent)'),
     'color.control-hover': ('color', 'var(--accent)', 'color-mix(in srgb, var(--input) 50%, transparent)'),
     # the bottom line of a field at rest, under the pointer and focused (`shadow.field-focus` the
-    # shadow of the focus): the foreground, about 3:1 on the card at rest (the input of shadcn/ui
-    # was too pale for a line), the ring of the fields before the tokens when focused
-    'color.field-line': ('color', 'color-mix(in srgb, var(--foreground) 48%, transparent)', None),
-    'color.field-line-hover': ('color', 'color-mix(in srgb, var(--foreground) 72%, transparent)', None),
+    # shadow of the focus): a cold grey pencil line of the muted text, about 2.7:1 on the card at
+    # rest in the light mode (3.6:1 in the dark one; the input of shadcn/ui was too pale for a line,
+    # the foreground too black), about 4.7:1 under the pointer; the ring of the fields before the
+    # tokens when focused
+    'color.field-line': ('color', 'color-mix(in srgb, var(--muted-foreground) 60%, transparent)', None),
+    'color.field-line-hover': ('color', 'color-mix(in srgb, var(--muted-foreground) 85%, transparent)', None),
     'color.field-line-focus': ('color', 'var(--ring)', None),
     # the accent of the brand: its mark, the eyebrow of a card; never a button or a badge
     'color.brand': ('color', 'var(--primary)', None),
