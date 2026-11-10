@@ -1053,6 +1053,9 @@ function Breadcrumb({ parent, titled }: { parent: ScreenParent; titled: boolean 
   );
 }
 
+/** The elements whose own Escape a card beside its list leaves to them. */
+const FIELDS = 'input, textarea, select, [contenteditable="true"], [role="combobox"]';
+
 /**
  * A screen of the specs: `screen:<id>`, its header (the link back to its parent, the title with
  * its caption, the tools of its list and the actions; in a working application it stays at the
@@ -1095,7 +1098,10 @@ export function Screen({ id, title, parent, description, caption, actions, child
   useEffect(() => {
     if (closes === undefined || pages > 0) return;
     const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) void navigate(closes);
+      // a field keeps its Escape (the search clears, a combobox closes its list); a dialog or a menu
+      // takes it before (`defaultPrevented`)
+      const field = event.target instanceof Element && event.target.closest(FIELDS) !== null;
+      if (event.key === 'Escape' && !event.defaultPrevented && !field) void navigate(closes);
     };
     document.addEventListener('keydown', close);
     return () => {

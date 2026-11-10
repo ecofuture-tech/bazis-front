@@ -1072,7 +1072,8 @@ describe('ListCardLayout', () => {
                 path=":id"
                 element={
                   <Screen id="item-card" parent={{ screen: 'item-list', label: 'Items', to: '/items' }}>
-                    card
+                    <input type="search" aria-label="Search" />
+                    <div role="combobox" aria-expanded aria-controls="options" aria-label="Assignee" tabIndex={0} />
                   </Screen>
                 }
               />
@@ -1095,6 +1096,10 @@ describe('ListCardLayout', () => {
         const taken = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
         taken.preventDefault();
         document.body.dispatchEvent(taken);
+        expect(screen.getByTestId('screen:item-card')).toBeTruthy();
+        // a field keeps its own Escape: the search clears, a combobox closes its list
+        fireEvent.keyDown(screen.getByLabelText('Search'), { key: 'Escape' });
+        fireEvent.keyDown(screen.getByLabelText('Assignee'), { key: 'Escape' });
         expect(screen.getByTestId('screen:item-card')).toBeTruthy();
         fireEvent.keyDown(document.body, { key: 'Escape' });
         expect(screen.queryByTestId('screen:item-card')).toBeNull();
