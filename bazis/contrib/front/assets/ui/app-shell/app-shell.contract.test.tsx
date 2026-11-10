@@ -25,7 +25,7 @@
 
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useEffect, useState } from 'react';
-import { Route, Routes, useNavigate } from 'react-router';
+import { Route, Routes, useLocation, useNavigate } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Filter } from '@/bazis/client';
@@ -992,6 +992,72 @@ describe('ListCardLayout', () => {
       expect(mounted).toBe(1);
     });
   }
+
+  it('replaces the open card in the history by another item of its list: Back leaves the list', () => {
+    function List() {
+      const navigate = useNavigate();
+      return (
+        <Screen id="item-list" title="Items">
+          {['1', '2', '3'].map((id) => (
+            <button key={id} type="button" onClick={() => void navigate(`/items/${id}`)}>
+              {`open ${id}`}
+            </button>
+          ))}
+          <button type="button" onClick={() => void navigate('/other')}>
+            other
+          </button>
+        </Screen>
+      );
+    }
+    function Back() {
+      const navigate = useNavigate();
+      const { pathname } = useLocation();
+      return (
+        <button type="button" data-path={pathname} onClick={() => void navigate(-1)}>
+          back
+        </button>
+      );
+    }
+    renderWithBazis(
+      <>
+        <Routes>
+          <Route path="/items" element={<ListCardLayout mode="split" list={<List />} />}>
+            <Route
+              path=":id"
+              element={
+                <Screen id="item-card" title="Item">
+                  card
+                </Screen>
+              }
+            />
+          </Route>
+          <Route
+            path="/other"
+            element={
+              <Screen id="other" title="Other">
+                another screen
+              </Screen>
+            }
+          />
+        </Routes>
+        <Back />
+      </>,
+      new Backend(),
+      { route: '/items' },
+    );
+    const back = screen.getByText('back');
+    fireEvent.click(screen.getByText('open 1'));
+    fireEvent.click(screen.getByText('open 2'));
+    fireEvent.click(screen.getByText('open 3'));
+    expect(back.dataset.path).toBe('/items/3');
+    fireEvent.click(back);
+    expect(back.dataset.path).toBe('/items');
+    // another screen from the list over an open card adds an entry
+    fireEvent.click(screen.getByText('open 1'));
+    fireEvent.click(screen.getByText('other'));
+    fireEvent.click(back);
+    expect(back.dataset.path).toBe('/items/1');
+  });
 
   it('closes the card beside its list back to it, by Escape too, from the breakpoint xl only', () => {
     for (const xl of [true, false]) {

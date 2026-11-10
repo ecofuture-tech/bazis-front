@@ -293,10 +293,10 @@ class Screen:
         self.code.use('./screens', 'routeTo')
         return route_to(self.product, screen_id, item)
 
-    def go(self, target: Call, replace: Expr | None = None) -> Void:
-        """`void navigate(target)`, with the hook of the navigation; `{ replace }` when given."""
+    def go(self, target: Call) -> Void:
+        """`void navigate(target)`, with the hook of the navigation."""
         self.hook('navigate', 'const navigate = useNavigate();', 'react-router', 'useNavigate')
-        return Void(Call('navigate', [target] if replace is None else [target, Obj([('replace', replace)])]))
+        return Void(Call('navigate', [target]))
 
     def text(self, *path) -> Call | None:
         found = text(self.data, *path)
@@ -545,14 +545,11 @@ def render_list(product: Product, data: dict) -> str:
     if 'card' in spec:
         attrs.append(Attr('card', fields_object(spec['card'])))
     opened = []
-    hosted = [key for key, it in product.screens.items() if it['primitive'] == 'card' and product.host(it) is data]
-    if hosted:
+    if any(it['primitive'] == 'card' and product.host(it) is data for it in product.screens.values()):
         screen.hook('id', 'const { id } = useParams();', 'react-router', 'useParams')
         opened.append(Attr('selected', Raw('id')))
     if 'open' in spec:
-        # an item opened while the card of another is open replaces it in the history: Back leaves the list
-        replace = Raw('id !== undefined') if spec['open'] in hosted else None
-        opened.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item'), replace))))
+        opened.append(Attr('onOpen', Arrow(['item'], screen.go(screen.route(spec['open'], 'item')))))
     attrs += opened
     attrs += list_actions(screen, const)
     if 'bulk' in spec:

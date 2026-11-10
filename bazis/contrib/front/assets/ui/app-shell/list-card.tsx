@@ -17,10 +17,11 @@
 // its child. `split`: on a wide screen the card is shown next to the list (the list takes
 // the whole width while no item is open); `pages`, and a narrow screen: the card in place of
 // the list. The list stays mounted under the same element whatever is open, so that it keeps
-// its search, filters, sort and page.
+// its search, filters, sort and page. An item opened from the list while the card of another is
+// open replaces that card in the history: Back leaves the list instead of walking its items.
 
-import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { useLocation, useOutlet } from 'react-router';
+import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { UNSAFE_NavigationContext, useLocation, useOutlet, useResolvedPath, type Navigator } from 'react-router';
 
 import { THEME } from '@/bazis/generated/theme';
 import { cn } from '@/lib/utils';
@@ -62,6 +63,29 @@ export function useBesideCard(): boolean {
 export function useBesideList(): boolean {
   const split = useSyncExternalStore(subscribeSplit, () => typeof window.matchMedia === 'function' && window.matchMedia(SPLIT).matches);
   return useContext(BesideList) && split;
+}
+
+/**
+ * The navigation of the list: while a card is open, going to an item of the list (a child of its
+ * path) replaces the open card in the history; the other navigations add an entry as usual.
+ */
+function ReplacingCard({ open, children }: { open: boolean; children: ReactNode }) {
+  const navigation = useContext(UNSAFE_NavigationContext);
+  const { pathname: base } = useResolvedPath('.');
+  const value = useMemo(() => {
+    const { basename, navigator } = navigation;
+    if (!open) return navigation;
+    const prefix = `${basename === '/' ? '' : basename}${base === '/' ? '' : base}/`;
+    const push: Navigator['push'] = (to, state, options) => {
+      const path = typeof to === 'string' ? to : (to.pathname ?? '');
+      const item = path.startsWith(prefix) && !path.slice(prefix.length).includes('/');
+      if (item) navigator.replace(to, state, options);
+      else navigator.push(to, state, options);
+    };
+    // the navigator of the router under it (its getters too), with this push
+    return { ...navigation, navigator: Object.assign(Object.create(navigator) as Navigator, { push }) };
+  }, [navigation, base, open]);
+  return <UNSAFE_NavigationContext value={value}>{children}</UNSAFE_NavigationContext>;
 }
 
 /** Focuses the first heading in an element, once it shows (the card reads its item), unless the user moved the focus meanwhile. */
@@ -118,7 +142,7 @@ export function ListCardLayout({ list, mode = THEME.composition.list_card }: Lis
       )}
     >
       <div ref={listArea} className={cn('min-w-0', open && (split ? 'hidden xl:block xl:self-start xl:pr-(--space-page-x)' : 'hidden'))}>
-        <BesideCard value={split && open}>{list}</BesideCard>
+        <BesideCard value={split && open}><ReplacingCard open={open}>{list}</ReplacingCard></BesideCard>
       </div>
       {open && (
         <div

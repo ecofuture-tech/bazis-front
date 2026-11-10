@@ -47,7 +47,7 @@ export function TaskListScreen() {
             entity: 'task',
             field: 'location',
             selected: id,
-            onOpen: (item) => void navigate(routeTo('task-card', item), { replace: id !== undefined }),
+            onOpen: (item) => void navigate(routeTo('task-card', item)),
           },
           extension.map,
         )}
@@ -71,7 +71,7 @@ export function TaskListScreen() {
             display: TASK.display,
             icon: TASK.Icon,
             selected: id,
-            onOpen: (item) => void navigate(routeTo('task-card', item), { replace: id !== undefined }),
+            onOpen: (item) => void navigate(routeTo('task-card', item)),
             actions: [
               {
                 id: 'create',
