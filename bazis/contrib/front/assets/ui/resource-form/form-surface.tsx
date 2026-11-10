@@ -18,7 +18,7 @@
 // so the scenarios find it either way.
 
 import { ArrowLeft } from 'lucide-react';
-import { createContext, use, useEffect, useState, type ReactNode } from 'react';
+import { createContext, use, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 import { THEME } from '@/bazis/generated/theme';
@@ -39,21 +39,19 @@ export interface FormSurfaceProps {
   children: ReactNode;
 }
 
-/** Tells the surface around a form whether the user changed it (`ResourceFormBody`). */
-const DirtyContext = createContext<((dirty: boolean) => void) | null>(null);
+/** Whether the user changed the form in the surface around it (`ResourceFormBody`), read when it closes. */
+const DirtyContext = createContext<RefObject<boolean> | null>(null);
 
-/** Reports to the surface around it whether the user changed the form; nothing outside one. */
+/** Reports to the surface around it whether the user changed the form, once it renders; nothing outside one. */
 export function useReportDirty(dirty: boolean): void {
-  const report = use(DirtyContext);
-  useEffect(() => {
-    report?.(dirty);
-  }, [report, dirty]);
-  useEffect(
-    () => () => {
-      report?.(false);
-    },
-    [report],
-  );
+  const changedRef = use(DirtyContext);
+  useLayoutEffect(() => {
+    if (!changedRef) return;
+    changedRef.current = dirty;
+    return () => {
+      changedRef.current = false;
+    };
+  }, [changedRef, dirty]);
 }
 
 function FormPage({ open, onClose, title, description, children }: Omit<FormSurfaceProps, 'mode'>) {
@@ -89,16 +87,22 @@ function FormPage({ open, onClose, title, description, children }: Omit<FormSurf
 export function FormSurface({ mode = THEME.composition.forms, ...props }: FormSurfaceProps) {
   const { open, onClose, title, description, children } = props;
   const { t } = useLanguage();
-  // a form that the user changed is not closed by a click beside it, and asks first when closed
-  const [dirty, setDirty] = useState(false);
+  // a form that the user changed is not closed by a click beside it, and asks first when closed;
+  // the question goes once the form closes or opens, whatever closed it
+  const dirty = useRef(false);
   const [asking, setAsking] = useState(false);
+  const [shown, setShown] = useState(open);
+  if (shown !== open) {
+    setShown(open);
+    setAsking(false);
+  }
   if (mode === 'page') return <FormPage {...props} />;
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         if (next) return;
-        if (dirty) setAsking(true);
+        if (dirty.current) setAsking(true);
         else onClose();
       }}
     >
@@ -107,7 +111,7 @@ export function FormSurface({ mode = THEME.composition.forms, ...props }: FormSu
         className="max-h-[calc(100dvh-2rem)] gap-8 overflow-y-auto sm:max-w-lg"
         {...(description === undefined ? { 'aria-describedby': undefined } : {})}
         onInteractOutside={(event) => {
-          if (dirty) event.preventDefault();
+          if (dirty.current) event.preventDefault();
         }}
       >
         {/* on a phone too at the start, as its fields */}
@@ -135,7 +139,7 @@ export function FormSurface({ mode = THEME.composition.forms, ...props }: FormSu
                 data-bz="action:discard"
                 onClick={() => {
                   setAsking(false);
-                  setDirty(false);
+                  dirty.current = false;
                   onClose();
                 }}
               >
@@ -144,7 +148,7 @@ export function FormSurface({ mode = THEME.composition.forms, ...props }: FormSu
             </div>
           </div>
         )}
-        <DirtyContext value={setDirty}>{children}</DirtyContext>
+        <DirtyContext value={dirty}>{children}</DirtyContext>
       </DialogContent>
     </Dialog>
   );

@@ -17,7 +17,7 @@
 // with all its items), the read-only fields, `action:submit` and `action:cancel`, no submit
 // while a file uploads. Keep it passing when the component is changed.
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -562,5 +562,35 @@ describe('FormSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     fireEvent.click(screen.getByTestId('action:discard'));
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops its question once the form closes by another way: opened again, it does not ask', async () => {
+    const backend = new Backend().on('GET', `${ITEMS}schema_create/`, schema);
+    let setOpen: (open: boolean) => void = () => undefined;
+    function Host() {
+      const [open, set] = useState(true);
+      setOpen = set;
+      return (
+        <FormSurface mode="dialog" open={open} title="New item" onClose={vi.fn()}>
+          <ResourceForm path={ITEMS as never} fields={['title']} />
+        </FormSurface>
+      );
+    }
+    renderWithBazis(<Host />, backend);
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.getByTestId('state:discard')).toBeTruthy();
+    // the screen closes it (a saved form, another route) and opens it again
+    act(() => {
+      setOpen(false);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    act(() => {
+      setOpen(true);
+    });
+    await screen.findByTestId('field:title');
+    expect(screen.queryByTestId('state:discard')).toBeNull();
   });
 });
