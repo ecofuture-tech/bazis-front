@@ -44,6 +44,8 @@ const VALIDATION: Readonly<Record<string, string>> = {
   date_parsing: 'date',
   date_type: 'date',
   date_from_datetime_parsing: 'date',
+  // the end of a range before its start (`valueErrors`), not a type of Pydantic
+  date_before: 'not_before',
   datetime_parsing: 'datetime',
   datetime_type: 'datetime',
   datetime_from_date_parsing: 'datetime',

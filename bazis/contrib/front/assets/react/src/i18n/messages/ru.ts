@@ -267,6 +267,7 @@ export const ru: Messages = {
   'validation.min_items.other': 'Элементов не меньше: {count}.',
   'validation.min_length.one': 'Символов не меньше: {count}.',
   'validation.min_length.other': 'Символов не меньше: {count}.',
+  'validation.not_before': 'Не раньше начала периода.',
   'validation.number': 'Введите число.',
   'validation.required': 'Заполните это поле.',
   'validation.text': 'Введите текст.',

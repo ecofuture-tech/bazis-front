@@ -235,13 +235,32 @@ describe('ResourceForm', () => {
     });
   });
 
+  it('never sends an empty required field: marks it, focuses it, and sends once it is filled', async () => {
+    const backend = new Backend()
+      .on('GET', `${ITEMS}schema_create/`, schema)
+      .on('POST', ITEMS, { data: resource(ITEM_ID, { title: 'Report' }) }, 201);
+    renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect(screen.getByTestId('error:title').textContent).toBe('Fill in this field.');
+    expect(document.activeElement).toBe(screen.getByTestId('field:title'));
+    expect(backend.requests('POST')).toEqual([]);
+    fireEvent.change(screen.getByTestId('field:title'), { target: { value: 'Report' } });
+    expect(screen.queryByTestId('error:title')).toBeNull();
+    fireEvent.click(screen.getByTestId('action:submit'));
+    await waitFor(() => {
+      expect(backend.requests('POST')).toEqual([`POST ${ITEMS}`]);
+    });
+  });
+
   it('shows the errors of a 422 by field', async () => {
     const backend = new Backend()
       .on('GET', `${ITEMS}schema_create/`, schema)
       .on('POST', ITEMS, errors(422, { title: 'Field required' }), 422);
     renderWithBazis(<ResourceForm path={ITEMS as never} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect(await screen.findByTestId('state:invalid')).toBeTruthy();
     expect(screen.getByTestId('error:title').textContent).toBe('Field required');
     expect(screen.getByTestId('field:title').getAttribute('aria-invalid')).toBe('true');
@@ -260,7 +279,9 @@ describe('ResourceForm', () => {
     );
     renderWithBazis(<ResourceForm path={ITEMS as never} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect(await screen.findByTestId('state:invalid')).toBeTruthy();
     // the text of `validation.required`, not the English of Pydantic
     expect(screen.getByTestId('error:title').textContent).not.toMatch(/^(Field required|validation\.required|)$/);
@@ -286,7 +307,9 @@ describe('ResourceForm', () => {
       );
     renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     const state = await screen.findByTestId('state:invalid');
     expect(screen.getByTestId('error:title').textContent).toBe('Taken');
     expect(screen.getByTestId('field:title').getAttribute('aria-invalid')).toBe('true');
@@ -314,7 +337,9 @@ describe('ResourceForm', () => {
       );
     renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect((await screen.findByTestId('state:invalid')).textContent).toBe('Owner: Not yours Plan of the item: No plan is active Starts on: Too late');
   });
 
@@ -324,7 +349,9 @@ describe('ResourceForm', () => {
       .on('POST', ITEMS, { errors: [{ status: 422, code: 'ERR_ITEM_INVALID', detail: 'Overlaps another item', source: { pointer: '/data' } }] }, 422);
     renderWithBazis(<ResourceForm path={ITEMS as never} fields={['title']} />, backend);
 
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    // filled: an empty required field is never sent
+    fireEvent.change(await screen.findByTestId('field:title'), { target: { value: 'Report' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect((await screen.findByTestId('state:invalid')).textContent).toBe('Overlaps another item');
     expect(screen.queryByTestId('error:title')).toBeNull();
   });

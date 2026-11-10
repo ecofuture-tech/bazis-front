@@ -4648,6 +4648,10 @@ Its props, `BazisProviderProps`:
 
 `startValue(field: AttributeField): unknown`: The value of an attribute before the user enters one: the default of its schema; false for a boolean without choices and without a default, whose checkbox shows false unchecked (the form sends what it shows, never no value); none (undefined) for another attribute.
 
+#### valueErrors
+
+`valueErrors(fields: readonly FormField[], values: Readonly<Record<string, unknown>>, message: (error: ErrorObject) => string): Record<string, string[]>`: The errors that a form finds in the values of its fields before it sends them, by field, as the validation errors of the backend (`ERR_VALIDATE`, their text by `useErrorMessage`): an empty field that the schema requires, not read-only and without null allowed (`missing`), and the end of a range before its start, both dates or both dates and times (`date_before`).
+
 #### useRelatedItem
 
 `useRelatedItem<P extends ListPath>(path: P, id: string): UseQueryResult<ListItem<P> | null>`: A related item, to show its label: an item of the list of the resource (no meta, the fields of the list), read in one request with the other items of the resource that the page asks for at the same time; `null` when the user may not view it.
@@ -6495,7 +6499,7 @@ Its props, `FilterBarProps`:
 
 #### FilterRow
 
-`FilterRow(props: { plate?: boolean; tools?: ReactNode; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search of a list, on a plate of its own (`plate`: with a search or more than one filter, not the tools alone), its tools (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools, which stay on the right of their last line, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, the tools at the end of the second column (of the line on a phone), wrapping there rather than past the edge.
+`FilterRow(props: { plate?: boolean; tools?: ReactNode; children: ReactNode; }): Element`: The row of the filters of a list, a calendar or a board, with the search of a list, on a plate of its own (`plate`: with a search, a filter or the sort, not the tools alone), its tools (`tools`) at its end: where its container is as wide as 48rem the filters wrap beside the tools, which stay on the right of their last line, the lines of the controls at the bottom under their labels; narrower (a list beside its card, a phone) a grid of cells of one width, two from 28rem (a range of dates takes both, the next filters filling the cell it leaves), the label and the control of a filter filling its cell, the tools at the end of the second column (of the line on a phone), wrapping there rather than past the edge.
 
 #### listFilters
 

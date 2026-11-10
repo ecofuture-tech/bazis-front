@@ -14,7 +14,8 @@
 
 // The form of a custom action of a route set as a page (`primitive: form` with `form.action`
 // of the specs): the properties of its body that it asks for, read from the contract (no
-// runtime schema: a guest may read none), sent as its JSON body (`action:submit`); refused,
+// runtime schema: a guest may read none), sent as its JSON body (`action:submit`) unless one
+// is empty and required or ends a range before its start (`valueErrors`, the first focused); refused,
 // the errors of the fields at them and the state of the refusal (`state:invalid` of a 422);
 // done, its `result` from the JSON answer of the action (`state:done`), or a toast and
 // `onDone`. An action that answers a file (`file` of the contract) saves it first: its result
@@ -25,7 +26,7 @@ import { LoaderCircle } from 'lucide-react';
 import { useRef, useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { useLanguage, type Params } from '@/bazis/i18n';
-import type { SavedFile } from '@/bazis/react';
+import { objectFields, useErrorMessage, valueErrors, type SavedFile } from '@/bazis/react';
 import { customActionAt, useAnyAction, useAnyActionFile, useUploads, type FieldFilters } from '@/bazis/ui/resource';
 import { errorState, StatePanel, toast } from '@/bazis/ui/state-panel';
 import { Button } from '@/components/ui/button';
@@ -101,6 +102,9 @@ export function ActionForm({ path, action, fields, labels, filters, values: star
   const { uploading, onBusy } = useUploads();
   // the action runs: a submit sends nothing, also before its state is rendered
   const sending = useRef(false);
+  // the errors that the form finds before it sends (`valueErrors`), until their fields change
+  const [checked, setChecked] = useState<Record<string, string[]>>({});
+  const message = useErrorMessage();
 
   if (result && answer !== null) {
     return (
@@ -125,6 +129,18 @@ export function ActionForm({ path, action, fields, labels, filters, values: star
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (sending.current || uploading) return;
+    const properties = objectFields(body);
+    const found = valueErrors(
+      fields.flatMap((name) => properties.filter((it) => it.name === name)),
+      values,
+      message,
+    );
+    setChecked(found);
+    const first = Object.keys(found)[0];
+    if (first !== undefined) {
+      event.currentTarget.querySelector<HTMLElement>(`[data-bz="field:${first}"]`)?.focus();
+      return;
+    }
     sending.current = true;
     mutation.mutate(values, {
       onSettled: () => {
@@ -162,10 +178,11 @@ export function ActionForm({ path, action, fields, labels, filters, values: star
         labels={labels}
         filters={filters}
         values={values}
-        errors={mutation.errors}
+        errors={{ ...mutation.errors, ...checked }}
         disabled={mutation.isPending}
         onChange={(name, value) => {
           setValues((current) => ({ ...current, [name]: value }));
+          if (name in checked) setChecked(Object.fromEntries(Object.entries(checked).filter(([key]) => key !== name)));
         }}
         onBusy={onBusy}
       />

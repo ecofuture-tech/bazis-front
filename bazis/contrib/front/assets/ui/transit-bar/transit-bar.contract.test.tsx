@@ -347,6 +347,16 @@ describe('TransitBar', () => {
     });
   });
 
+  it('never sends a payload without a required field: marks it and focuses it', async () => {
+    const server = backend();
+    renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
+    fireEvent.click(await screen.findByTestId('transit:finish'));
+    fireEvent.click(await screen.findByTestId('action:submit'));
+    expect(screen.getByTestId('error:report').textContent).toBe('Fill in this field.');
+    expect(document.activeElement).toBe(screen.getByTestId('field:report'));
+    expect(server.requests('POST')).toEqual([]);
+  });
+
   it('shows the errors that are not of a field of the payload with those of the fields', async () => {
     const server = backend().on(
       'POST',
@@ -362,7 +372,8 @@ describe('TransitBar', () => {
     );
     renderWithBazis(<TransitBar path={ITEMS as never} id={ITEM_ID} />, server);
     fireEvent.click(await screen.findByTestId('transit:finish'));
-    fireEvent.click(await screen.findByTestId('action:submit'));
+    fireEvent.change(await screen.findByTestId('field:report'), { target: { value: 'Done' } });
+    fireEvent.click(screen.getByTestId('action:submit'));
     expect((await screen.findByTestId('error:report')).textContent).toBe('Field required');
     const state = screen.getByTestId('state:invalid');
     expect(state.textContent).toContain('The task has no assignee');

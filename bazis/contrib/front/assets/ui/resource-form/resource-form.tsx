@@ -24,7 +24,7 @@ import { useState, type ReactNode, type SubmitEvent } from 'react';
 
 import { ApiError, type ErrorObject } from '@/bazis/client';
 import { useLanguage, type Translate } from '@/bazis/i18n';
-import { useErrorMessage, type CreatePath, type FixedValues, type ResourceForm as Form, type UpdatePath } from '@/bazis/react';
+import { useErrorMessage, valueErrors, type CreatePath, type FixedValues, type ResourceForm as Form, type UpdatePath } from '@/bazis/react';
 import {
   contractFormat,
   FieldInput,
@@ -127,8 +127,9 @@ function FormSkeleton() {
 
 /**
  * A form of a resource bound to its runtime schema. The fields the user may not change are
- * read-only and never sent; the backend validates (a 422 marks the fields and the state
- * `invalid`).
+ * read-only and never sent; an empty required field and the end of a range before its start
+ * are marked before it sends, the first of them focused (`valueErrors`); the backend validates
+ * the rest (a 422 marks the fields and the state `invalid`).
  */
 export function ResourceForm(props: ResourceFormProps) {
   return <ResourceFormBody {...props} />;
@@ -162,6 +163,8 @@ export function ResourceFormBody({
   // initial value is not a change of the user)
   const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
   useReportDirty(form.status === 'ready' && form.dirty.some((name) => touched.has(name)));
+  // the errors that the form finds before it sends (`valueErrors`), until their fields change
+  const [checked, setChecked] = useState<Record<string, string[]>>({});
 
   if (form.status !== 'ready') {
     const state = form.status === 'loading' ? 'loading' : errorState(form.error);
@@ -191,6 +194,13 @@ export function ResourceFormBody({
   function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (uploading) return;
+    const found = valueErrors(shown, form.values, message);
+    setChecked(found);
+    const first = Object.keys(found)[0];
+    if (first !== undefined) {
+      event.currentTarget.querySelector<HTMLElement>(`[data-bz="field:${first}"]`)?.focus();
+      return;
+    }
     void form.submit().then((saved) => {
       if (!saved) return;
       toast({ title: t(id === undefined ? 'form.created' : 'form.saved') });
@@ -215,10 +225,11 @@ export function ResourceFormBody({
           field={field}
           filter={filters?.[field.name]}
           value={form.values[field.name]}
-          errors={form.errors[field.name]}
+          errors={checked[field.name] ?? form.errors[field.name]}
           disabled={form.isSubmitting}
           onChange={(value) => {
             form.setValue(field.name, value);
+            if (field.name in checked) setChecked(Object.fromEntries(Object.entries(checked).filter(([key]) => key !== field.name)));
             if (!touched.has(field.name)) setTouched(new Set([...touched, field.name]));
           }}
           onBusy={onBusy(field.name)}

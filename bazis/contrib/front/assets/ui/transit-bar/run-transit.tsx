@@ -18,8 +18,8 @@
 // takes a typed payload opens a dialog with its fields (`FieldInput`, `field:<name>`,
 // `error:<name>`, `action:submit`; a property named as a to-one relationship of the resource
 // is its picker, `relatedField`, of the items that match its `filters`; the ids of uploaded
-// files their file field, which it waits for),
-// which is its confirmation. A toast tells the status the
+// files their file field, which it waits for; an empty required one is marked and focused,
+// never sent: `valueErrors`), which is its confirmation. A toast tells the status the
 // item moved to. The dialog of a transit of a list (a board: `for_transit`, its id only) reads
 // the transits of its item once as it opens, in the request of its card (`ITEM_META`): the
 // titles of the fields of the payload in the language of the user, and its hint.
@@ -28,7 +28,7 @@ import { useState, type ReactNode } from 'react';
 
 import { ApiError, errorText, type ErrorObject } from '@/bazis/client';
 import { useLanguage } from '@/bazis/i18n';
-import { objectFields, startValue, useErrorMessage } from '@/bazis/react';
+import { objectFields, startValue, useErrorMessage, valueErrors } from '@/bazis/react';
 import { useItemsTransit, useTransits, type Transit, type TransitPath } from '@/bazis/react/statusy';
 import { FieldInput, ITEM_META, relatedField, statusyModel, useUploads, type FieldFilters } from '@/bazis/ui/resource';
 import { statusName, statusTone, transitName, transitTarget } from '@/bazis/ui/status-badge';
@@ -151,6 +151,8 @@ function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFo
   const transit = read.data?.find((it) => it.id === open.transit.id) ?? open.transit;
   // the values that the user entered, over the defaults of the payload
   const [entered, setEntered] = useState<Record<string, unknown>>({});
+  // the errors that the dialog finds before it sends (`valueErrors`), until their fields change
+  const [checked, setChecked] = useState<Record<string, string[]>>({});
   // the fields whose files upload (the ids of uploaded files of the payload): it waits for them
   const { uploading, onBusy } = useUploads();
   const values = { ...defaults(transit), ...entered };
@@ -179,6 +181,13 @@ function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFo
         onSubmit={(event) => {
           event.preventDefault();
           if (uploading) return;
+          const found = valueErrors(fields, values, errorMessage);
+          setChecked(found);
+          const first = Object.keys(found)[0];
+          if (first !== undefined) {
+            event.currentTarget.querySelector<HTMLElement>(`[data-bz="field:${first}"]`)?.focus();
+            return;
+          }
           run(open.id, transit, question === null ? values : undefined);
         }}
       >
@@ -197,11 +206,12 @@ function TransitForm({ path, open, mutation, run, onCancel, filters }: TransitFo
             field={relatedField(path, field, field.title)}
             filter={filters?.[field.name]}
             value={values[field.name]}
-            errors={errors.fields[field.name]}
+            errors={checked[field.name] ?? errors.fields[field.name]}
             disabled={mutation.isPending}
             onBusy={onBusy(field.name)}
             onChange={(value) => {
               setEntered({ ...entered, [field.name]: value });
+              if (field.name in checked) setChecked(Object.fromEntries(Object.entries(checked).filter(([key]) => key !== field.name)));
             }}
           />
         ))}

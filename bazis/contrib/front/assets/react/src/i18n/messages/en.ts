@@ -267,6 +267,7 @@ export const en: Messages = {
   'validation.min_items.other': 'At least {count} items.',
   'validation.min_length.one': 'At least {count} character.',
   'validation.min_length.other': 'At least {count} characters.',
+  'validation.not_before': 'Not before the start of the period.',
   'validation.number': 'Enter a number.',
   'validation.required': 'Fill in this field.',
   'validation.text': 'Enter a text.',
