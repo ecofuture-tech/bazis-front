@@ -34,6 +34,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { Filter } from '@/bazis/client';
 import { FieldValue, PICKER_PAGE, RelationLabel, RelationListPicker, RelationPicker } from '@/bazis/ui/resource';
 import { Backend, ITEMS, listDocument, renderWithBazis, resource } from '@/bazis/ui/testing';
+import { FIELD_LINE, fieldGroupClassName } from '@/components/ui/input';
 
 // the popover is positioned with ResizeObserver and the active option scrolled into view,
 // which jsdom does not have
@@ -92,6 +93,28 @@ async function open(): Promise<HTMLElement> {
   return screen.findByRole('listbox');
 }
 
+describe('the line of a field', () => {
+  it('has the same states drawn by a field and by a group of fields', () => {
+    /** The utilities of each state of a list of classes, by the variant of the field that it is. */
+    function states(classes: string, variants: Record<string, string>): Record<string, string[]> {
+      const found: Record<string, string[]> = {};
+      for (const it of classes.split(' ')) {
+        const variant = Object.keys(variants).find((key) => it.startsWith(variants[key] ?? ''));
+        if (variant !== undefined) (found[variant] ??= []).push(it.slice(variants[variant]?.length ?? 0));
+      }
+      return found;
+    }
+    const field = states(FIELD_LINE, {
+      hover: 'hover:', focus: 'focus-visible:', open: 'data-[state=open]:', invalid: 'aria-invalid:', disabled: 'disabled:',
+    });
+    const group = states(fieldGroupClassName, {
+      hover: 'hover:', focus: 'has-[:focus-visible]:', open: 'has-data-[state=open]:', invalid: 'has-aria-invalid:', disabled: 'has-[:disabled]:',
+    });
+    expect(Object.keys(field).sort()).toEqual(['disabled', 'focus', 'hover', 'invalid', 'open']);
+    expect(group).toEqual(field);
+  });
+});
+
 describe('RelationPicker', () => {
   it('shows the label of its item and selects another one', async () => {
     const backend = new Backend().on('GET', ITEMS, listDocument([ann, bob]));
@@ -102,8 +125,11 @@ describe('RelationPicker', () => {
     expect(await within(trigger).findByText('Ann')).toBeTruthy();
     expect(backend.requests()).toEqual([labels(['a1'])]);
 
+    // closed, then open: the line of the field is lit while it is open (`data-state`)
+    expect(trigger.dataset.state).toBe('closed');
     const listbox = await open();
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(trigger.dataset.state).toBe('open');
     // the popover of the trigger has the search and the options
     const popup = document.getElementById(trigger.getAttribute('aria-controls') ?? '');
     expect(popup?.contains(listbox)).toBe(true);
