@@ -126,6 +126,10 @@ DEFAULTS = {
     # the tone `primary` of the statuses: the primary until a palette whose primary is near
     # another tone in a mode (a honey primary of the dark mode, a warning) gives it a hue of its own
     'color.tone-primary': ('color', 'var(--primary)', None),
+    # what is selected or active (a pressed toggle, today, the sorted column, the selected row, an
+    # item of a calendar), in the soft pair `primary-soft`, `primary-ink`: the primary until a
+    # palette keeps its primary for the actions (the dark honey of frost) and selects in another hue
+    'color.selected': ('color', 'var(--primary)', None),
     'color.sidebar': ('color', 'var(--background)', None),
     'color.sidebar-foreground': ('color', 'var(--foreground)', None),
     'color.sidebar-primary': ('color', 'var(--primary)', None),
@@ -254,8 +258,8 @@ TONE_HUES = 15
 
 #: the soft colors (`bg-<name>-soft text-<name>-ink`) and the variable each derives from: those
 #: of each tone, `primary` as `tone-primary` (its own hue in a palette), and the soft primary of
-#: the interface (the toggles, today, the sorted column), which stays that of `--primary`
-SOFT = {('tone-primary' if tone == 'primary' else tone): source for tone, source in TONES.items()} | {'primary': '--primary'}
+#: the interface (the toggles, today, the sorted column), which is that of `--selected`
+SOFT = {('tone-primary' if tone == 'primary' else tone): source for tone, source in TONES.items()} | {'primary': '--selected'}
 
 #: the tints of the avatars of the initials (`bg-avatar-<n> text-avatar-<n>-fg`), the variable
 #: of each and the parts of it in its background (over the card) and in its text (over the

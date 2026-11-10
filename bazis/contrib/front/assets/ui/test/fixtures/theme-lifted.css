@@ -14,6 +14,7 @@
   --primary: oklch(0.42 0.085 165);
   --primary-foreground: oklch(0.985 0.012 165);
   --tone-primary: var(--primary);
+  --selected: var(--primary);
   --muted: oklch(0.958 0.011 275);
   --muted-foreground: oklch(0.47 0.02 250);
   --accent: oklch(0.948 0.015 275);
@@ -121,6 +122,7 @@
   --primary: oklch(0.82 0.12 80);
   --primary-foreground: oklch(0.2 0.04 80);
   --tone-primary: oklch(0.74 0.1 165);
+  --selected: var(--tone-primary);
   --muted: oklch(0.23 0.012 270);
   --muted-foreground: oklch(0.74 0.02 270);
   --accent: oklch(0.25 0.013 270);
@@ -168,6 +170,7 @@
     --primary: oklch(0.82 0.12 80);
     --primary-foreground: oklch(0.2 0.04 80);
     --tone-primary: oklch(0.74 0.1 165);
+    --selected: var(--tone-primary);
     --muted: oklch(0.23 0.012 270);
     --muted-foreground: oklch(0.74 0.02 270);
     --accent: oklch(0.25 0.013 270);
@@ -273,6 +276,7 @@
   --color-ring: var(--ring);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-selected: var(--selected);
   --color-shade: var(--shade);
   --color-sidebar: var(--sidebar);
   --color-sidebar-accent: var(--sidebar-accent);
@@ -297,14 +301,14 @@
   --color-success-soft: color-mix(in srgb, var(--success) 13%, var(--card));
   --color-warning-soft: color-mix(in srgb, var(--warning) 13%, var(--card));
   --color-danger-soft: color-mix(in srgb, var(--destructive) 13%, var(--card));
-  --color-primary-soft: color-mix(in srgb, var(--primary) 13%, var(--card));
+  --color-primary-soft: color-mix(in srgb, var(--selected) 13%, var(--card));
   --color-neutral-ink: color-mix(in srgb, var(--muted-foreground) 72%, var(--foreground));
   --color-tone-primary-ink: color-mix(in srgb, var(--tone-primary) 72%, var(--foreground));
   --color-info-ink: color-mix(in srgb, var(--info) 72%, var(--foreground));
   --color-success-ink: color-mix(in srgb, var(--success) 72%, var(--foreground));
   --color-warning-ink: color-mix(in srgb, var(--warning) 72%, var(--foreground));
   --color-danger-ink: color-mix(in srgb, var(--destructive) 72%, var(--foreground));
-  --color-primary-ink: color-mix(in srgb, var(--primary) 72%, var(--foreground));
+  --color-primary-ink: color-mix(in srgb, var(--selected) 72%, var(--foreground));
   --color-avatar-0: color-mix(in oklab, var(--primary) 16%, var(--card));
   --color-avatar-0-fg: color-mix(in oklab, var(--primary) 80%, var(--foreground));
   --color-avatar-1: color-mix(in oklab, var(--brand) 20%, var(--card));

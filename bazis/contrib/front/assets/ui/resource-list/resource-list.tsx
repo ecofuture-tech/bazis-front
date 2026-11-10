@@ -360,9 +360,8 @@ function TableView(
               className={cn(
                 ROW,
                 tone && ROW_TONES[tone],
-                // the bar of the primary on a neutral light in the dark mode, whose primary may be a
-                // honey that a soft fill turns brown
-                'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--primary)] dark:data-[state=selected]:bg-[color-mix(in_oklab,var(--color-foreground)_9%,var(--color-card))]',
+                // the soft color of the selected, its bar at the start
+                'data-[state=selected]:bg-primary-soft data-[state=selected]:[--row-mark:var(--selected)]',
                 onOpen && cn('cursor-pointer', FOCUS),
               )}
               {...opener(row, onOpen)}

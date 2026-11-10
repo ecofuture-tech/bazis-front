@@ -323,7 +323,7 @@ def test_the_root_of_a_theme_of_0_12_only_gains_variables():
         '--field-line-hover', '--field-line-focus', '--shadow-lift-05', '--shadow-lift-05-hover',
         '--shadow-lift-05-active', '--shadow-lift-1', '--shadow-lift-2', '--shadow-lift-primary',
         '--shadow-lift-primary-hover', '--shadow-lift-primary-active', '--shadow-ring-focus', '--shadow-field-focus',
-        '--shadow-nav-active', '--surface-card', '--surface-control', '--tone-primary',
+        '--shadow-nav-active', '--surface-card', '--surface-control', '--tone-primary', '--selected',
         '--size-sidebar', '--size-sidebar-rail', '--size-content',
     }
 
@@ -657,18 +657,24 @@ def test_the_tones_of_the_statuses_differ_in_hue():
 
 
 def test_the_soft_primary_of_the_interface_is_not_that_of_the_tone():
-    # a palette that gives the tone `primary` its own hue (forest, slate, the dark frost and pine)
-    # colors only the statuses with it: the toggles, today and the sorted column keep the primary
+    # a palette that gives the tone `primary` its own hue (forest, slate, the dark pine) colors only
+    # the statuses with it: the toggles, today and the sorted column keep the color of the selected,
+    # the primary but where the palette selects in another hue (the dark frost: cedar, not the honey
+    # of its primary button)
     mapping = root_block(theme.render(Specs())[theme.THEME_CSS], '@theme inline')
-    assert mapping['--color-primary-soft'] == 'color-mix(in srgb, var(--primary) 13%, var(--card))'
-    assert mapping['--color-primary-ink'] == 'color-mix(in srgb, var(--primary) 72%, var(--foreground))'
+    assert mapping['--color-primary-soft'] == 'color-mix(in srgb, var(--selected) 13%, var(--card))'
+    assert mapping['--color-primary-ink'] == 'color-mix(in srgb, var(--selected) 72%, var(--foreground))'
     assert mapping['--color-tone-primary-soft'] == 'color-mix(in srgb, var(--tone-primary) 13%, var(--card))'
     assert mapping['--color-tone-primary-ink'] == 'color-mix(in srgb, var(--tone-primary) 72%, var(--foreground))'
-    for palette, dark in (('forest', False), ('forest', True), ('slate', False), ('slate', True), ('frost', True), ('pine', True)):
+
+    def soft(palette: str, dark: bool, name: str):
         values = design.variables(design.effective_tokens({'preset': 'workspace', 'palette': palette}, None), dark=dark)
+        return color.to_oklab(color.parse(values[name], values))
+
+    for palette, dark in (('forest', False), ('forest', True), ('slate', False), ('slate', True), ('pine', True)):
         for part in ('soft', 'ink'):
-            interface, tone = (color.to_oklab(color.parse(values[name], values)) for name in (f'--primary-{part}', f'--tone-primary-{part}'))
-            assert interface != tone, (palette, dark, part)
+            assert soft(palette, dark, f'--primary-{part}') != soft(palette, dark, f'--tone-primary-{part}'), (palette, dark, part)
+    assert soft('frost', True, '--selected') == soft('frost', True, '--tone-primary') != soft('frost', True, '--primary')
 
 
 def test_a_token_of_the_product_is_a_variable_and_a_color():

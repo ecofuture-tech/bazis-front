@@ -2799,6 +2799,7 @@ the table; what it lists as code is a screen of your own or its extension (see
 | the search, the view and the actions of the lists beside their titles | `composition.list_tools: header` (`init` names it for `workspace`): the list of a screen only, a related section keeps its own (`NestedLists`); a screen chooses by `header.search`, `false` over its list | the order of the tools |
 | a list as cards, the card on its own page, the forms on pages | `composition.list`, `list_phone`, `list_card`, `forms` | — |
 | the current link of the sidebar | `color.nav-active` (its fill), `color.nav-active-bar` (the bar at its start), `shadow.nav-active` | — |
+| the selected and the active in another hue than the actions | `color.selected` (`primary-soft`, `-ink`: the pressed toggles, today, the sorted column, the selected row, an item of a calendar); the primary stays the color of the actions (frost: honey buttons, cedar selection in the dark mode) | — |
 | flat blocks and controls, without the light at their top | no `color.surface-light`; over `palette: frost`, which defines it, `"var(--card)"` in `color` and `dark.color` | — |
 | another line under the fields | `color.field-line`, `-hover`, `-focus`, `shadow.field-focus` | a field in a box |
 | a plain sidebar and page | `color.sidebar-to: "var(--sidebar)"`, `color.sidebar-glow` and `color.glow-a`, `-b` `transparent` (both modes) | — |
@@ -2834,6 +2835,7 @@ composition:
 | `font.heading` (`h1`–`h3`, `font-display`) | required by `portal`; else `font.body` |
 | `color.card`, `-foreground`, `color.popover`, `-foreground`, `color.secondary`, `-foreground`, `color.accent-foreground`, `color.input`, `color.ring` | the background, the foreground, the card, `muted`, the border, the primary (`DEFAULTS`) |
 | `color.success`, `color.warning`, `color.info` (the tones of the statuses) | a green, an amber and a blue of both modes |
+| `color.tone-primary` (the tone `primary` of the statuses), `color.selected` (the selected and the active) | the primary |
 | `color.sidebar-primary`, `-accent`, `-muted-foreground`, … (the sidebar) | from the primary, the sidebar and the muted foreground |
 | `color.brand`, `-foreground` (the mark of the brand) | the primary |
 | `color.chart-1` … `-6` (the charts of shadcn/ui) | the primary, info, success, warning, destructive, the muted foreground |

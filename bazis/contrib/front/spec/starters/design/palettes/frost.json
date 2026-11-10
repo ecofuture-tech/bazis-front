@@ -1,6 +1,6 @@
 {
   "$schema": "../../../schemas/tokens.schema.json",
-  "$description": "Cool paper with a cedar green primary and a honey brand, a deep cedar sidebar in both modes with a honey mark, its gradient and glow, the current link a flat light fill with a honey bar, a faint cool glow of the paper at its top (never of the primary: a brown stain of the dark honey) and the shadows in the tone of a dark paper (for `surface: lifted`). The hue of the paper is far from that of the primary (275 against 165, at least 60 apart) and its chroma low (at most 0.008), so that the paper reads as white and not as a tint of the accent. The colors of the light and the dark mode.",
+  "$description": "Cool paper with a cedar green primary and a honey brand, a deep cedar sidebar in both modes with a honey mark, its gradient and glow, the current link a flat light fill with a honey bar, the selected and the active in its cedar in both modes (the honey of the dark mode for the actions), a faint cool glow of the paper at its top (never of the primary: a brown stain of the dark honey) and the shadows in the tone of a dark paper (for `surface: lifted`). The hue of the paper is far from that of the primary (275 against 165, at least 60 apart) and its chroma low (at most 0.008), so that the paper reads as white and not as a tint of the accent. The colors of the light and the dark mode.",
   "color": {
     "background": {"$type": "color", "$value": "oklch(0.978 0.007 275)"},
     "foreground": {"$type": "color", "$value": "oklch(0.24 0.028 265)"},
@@ -8,6 +8,7 @@
     "primary": {"$type": "color", "$value": "oklch(0.42 0.085 165)"},
     "primary-foreground": {"$type": "color", "$value": "oklch(0.985 0.012 165)"},
     "tone-primary": {"$type": "color", "$value": "var(--primary)"},
+    "selected": {"$type": "color", "$value": "var(--primary)"},
     "muted": {"$type": "color", "$value": "oklch(0.958 0.011 275)"},
     "muted-foreground": {"$type": "color", "$value": "oklch(0.47 0.02 250)"},
     "accent": {"$type": "color", "$value": "oklch(0.948 0.015 275)"},
@@ -46,6 +47,7 @@
       "primary": {"$type": "color", "$value": "oklch(0.82 0.12 80)"},
       "primary-foreground": {"$type": "color", "$value": "oklch(0.2 0.04 80)"},
       "tone-primary": {"$type": "color", "$value": "oklch(0.74 0.1 165)"},
+      "selected": {"$type": "color", "$value": "var(--tone-primary)"},
       "muted": {"$type": "color", "$value": "oklch(0.23 0.012 270)"},
       "muted-foreground": {"$type": "color", "$value": "oklch(0.74 0.02 270)"},
       "accent": {"$type": "color", "$value": "oklch(0.25 0.013 270)"},
