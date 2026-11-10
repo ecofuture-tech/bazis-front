@@ -16,7 +16,8 @@
 // (`assets/playwright/test/fields.spec.ts`, served by Vite with the aliases of `vitest.config.ts`
 // and the Tailwind of a product): the row of the filters of a list (a select, the picker of a
 // relation, a range of dates, an input), the line of the sort and the tools of a list in a section
-// of a card, as wide as 20rem, 36rem and 45rem, and the fields of a form in a dialog (an input, a
+// of a card, as wide as 20rem, 36rem and 45rem, three filters in a line as a calendar has them (45rem
+// and 24rem), and the fields of a form in a dialog (an input, a
 // native select, the picker of a relation, a date); the backend is the route of the test.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -108,6 +109,25 @@ function Lines() {
   );
 }
 
+/** The filters of a calendar: three in a line as wide as the calendar gives them, 45rem, and narrower. */
+function CalendarFilters() {
+  return (
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
+      {['45rem', '24rem'].map((width) => (
+        <div key={width} data-testid={`filters:${width}`} className="@container" style={{ width, maxWidth: '100%' }}>
+          <FilterRow plate={false} line>
+            {['state', 'owner', 'title'].map((name) => (
+              <FilterField key={name} label={name} id={`${name}-${width}`} kind="text" filled={false}>
+                <Input id={`${name}-${width}`} className={filterWidth('text')} />
+              </FilterField>
+            ))}
+          </FilterRow>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Form() {
   const [owner, setOwner] = useState<string | null>(null);
   const [due, setDue] = useState('');
@@ -151,6 +171,7 @@ if (root) {
           <main className="grid gap-6 bg-background p-4 md:p-8">
             <Filters />
             <Lines />
+            <CalendarFilters />
             <Form />
           </main>
         </BazisProvider>

@@ -192,7 +192,14 @@ export function FilterField({ label, id, kind, filled, folded = false, children,
   children: ReactNode;
 }) {
   const beside = useBesideCard();
-  const wrapper = cn('grid w-full min-w-0 gap-1 @3xl:w-auto', kind === 'date' && '@md:col-span-2', folded && (beside ? 'hidden' : '@max-md:hidden'));
+  // in a line (`line` of the row) narrower than 48rem (a calendar, a section of a card) the filters
+  // share it, each at least 10rem (a range of dates 18rem), wrapping where it has no room: never a
+  // column of filters as wide as the line
+  const wrapper = cn(
+    'grid w-full min-w-0 gap-1 @3xl:w-auto @max-3xl:in-data-line:grow @max-3xl:in-data-line:basis-40',
+    kind === 'date' && '@md:col-span-2 @max-3xl:in-data-line:basis-72',
+    folded && (beside ? 'hidden' : '@max-md:hidden'),
+  );
   const text = 'cursor-pointer text-sm font-normal whitespace-nowrap text-muted-foreground in-data-filled:text-foreground';
   const group = (
     <div data-slot="field-group" className={cn(fieldGroupClassName, 'min-w-0 gap-2', kind === 'chips' && 'pl-1')}>
@@ -417,6 +424,7 @@ export function FilterRow({
     <div
       data-slot="filter-row"
       data-plate={plate || undefined}
+      data-line={line || undefined}
       className={cn('@container', plate && 'surface px-(--space-card) py-[calc(var(--space-card)/2)]')}
     >
       {line ? (

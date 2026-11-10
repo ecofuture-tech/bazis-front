@@ -249,6 +249,8 @@ describe('ResourceList', () => {
     expect(group).not.toBeNull();
     expect(group?.contains(label)).toBe(false);
     expect(label.closest('[data-filled]')).toBeNull();
+    // the row of a list of its own screen is no line (`line` of a section of a card, of a calendar)
+    expect(control.closest('[data-slot="filter-row"]')?.hasAttribute('data-line')).toBe(false);
     open(control);
     const listbox = await screen.findByRole('listbox');
     expect(control.getAttribute('aria-controls')).toBe(listbox.id);

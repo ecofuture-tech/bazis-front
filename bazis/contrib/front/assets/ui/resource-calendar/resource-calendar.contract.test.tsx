@@ -322,6 +322,8 @@ describe('ResourceCalendar', () => {
     );
     const title = await screen.findByTestId<HTMLInputElement>('field:title');
     expect(screen.getByTestId('field:owner')).toBeTruthy();
+    // the filters a line, which they share at any width (never a column: `fields.spec.ts` of the playwright helpers)
+    expect(title.closest('[data-slot="filter-row"]')?.hasAttribute('data-line')).toBe(true);
     // the place of the reset is kept by the width of the line of the navigation, its container
     const place = document.querySelector('[data-slot="reset-place"]');
     expect(place?.closest('.\\@container')?.contains(screen.getByTestId('action:previous-period'))).toBe(true);

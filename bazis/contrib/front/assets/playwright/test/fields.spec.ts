@@ -130,6 +130,24 @@ test('the tools of a line of a section stay one group: beside its sort, or under
   }
 });
 
+test('the filters of a line narrower than 48rem share it, wrapping where it has no room', async ({ page }) => {
+  await open(page, 1280);
+  const boxes = async (width: string) =>
+    page
+      .getByTestId(`filters:${width}`)
+      .locator('[data-slot="field-group"]')
+      .evaluateAll((all) => all.map((it) => it.getBoundingClientRect()).map(({ x, y, width }) => ({ x: Math.round(x), y: Math.round(y), width: Math.round(width) })));
+  // as a calendar gives them: one row of three, as wide as each other (never a column)
+  const wide = await boxes('45rem');
+  expect(new Set(wide.map((it) => it.y)).size).toBe(1);
+  expect(new Set(wide.map((it) => it.width)).size).toBe(1);
+  expect(wide[0]?.width).toBeGreaterThan(160);
+  // narrower, two a row and the third under them
+  const narrow = await boxes('24rem');
+  expect(narrow[0]?.y).toBe(narrow[1]?.y);
+  expect(narrow[2]?.y).toBeGreaterThan(narrow[0]?.y ?? 0);
+});
+
 test('the line of a filter is lit while its select, picker or calendar is open', async ({ page }) => {
   await open(page, 1280);
   const title = page.locator('[data-bz="field:title"]');
